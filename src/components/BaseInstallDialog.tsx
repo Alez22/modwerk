@@ -167,7 +167,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, onChoos
     <p className="link-hint">The original OS goes back on the same way. If the Octatrack doesn’t start, follow <a className="text-button" href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>.</p>
     </>}
     <footer className="base-install-footer">
-      <p className="link-hint">{found ? 'All set.' : 'It’s under Your Octatrack whenever you want it.'}</p>
+      <p className="link-hint">{found ? 'All set.' : 'You’ll find it again under Octatrack in the sidebar.'}</p>
       <div className="base-install-actions">
         <button type="button" className={'button ' + (found ? 'button-primary' : 'button-quiet')} disabled={!canClose} onClick={finish}>{found ? 'Done' : !launch ? 'Close' : hold ? `Later (${hold})` : 'Later'}</button>
         {view === 'intro' && !found && <button type="button" className="button button-primary" onClick={() => setView('steps')}>Show me how<Icon name="arrow" size={16} /></button>}

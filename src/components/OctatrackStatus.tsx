@@ -8,17 +8,12 @@ const ACTIVE: LinkState['status'][] = ['sending', 'testing', 'trial', 'finishing
 const activity = ({ status, progress = 0 }: LinkState) => status === 'sending' ? `Loading ${Math.round(progress * 100)}%`
   : status === 'testing' ? 'Stress-testing' : status === 'trial' ? 'Waiting for Keep or Undo' : 'Finishing'
 
-/** The Octatrack's connection in the sidebar (`sidebar`, leading to Your Octatrack) or the status bar (`bar`). Nothing without WebUSB. */
-export function OctatrackStatus({ link, variant }: { link: OctatrackLink; variant: 'sidebar' | 'bar' }) {
+/** The Octatrack's connection in the status bar; nothing while idle or without WebUSB. */
+export function OctatrackStatus({ link }: { link: OctatrackLink }) {
   const state = useOctatrackLink(link), { status, identity } = state
-  if (status === 'unsupported') return null
-  const base = !!identity?.canSubmit, busy = ACTIVE.includes(status)
-  const dot = <span className={'status-dot' + (busy ? ' is-live' : base ? ' verified' : '')} />
-  const title = busy ? 'Loading onto Octatrack' : status === 'idle' ? 'Connect your Octatrack' : status === 'connecting' ? 'Looking for your Octatrack…' : status === 'busy' ? 'Octatrack in use' : 'Octatrack connected'
-  const detail = busy ? activity(state) : status === 'idle' ? 'Updates, tests and reports over USB' : status === 'busy' ? 'Another tab or app has it'
-    : base ? 'Modwerk base ' + identity!.base.slice(0, 8) : status === 'connecting' ? 'Over USB' : 'Original OS · install the base'
-  if (variant === 'bar') return status === 'idle' || status === 'connecting' ? null : <span className="octatrack-status-bar">{dot}{title}{busy && ' · ' + activity(state)}</span>
-  return <a className="sidebar-build octatrack-status" href="#your-octatrack">{dot}<span className="sidebar-build-copy"><strong>{title}</strong><small>{detail}</small></span><Icon name="arrow" size={14} /></a>
+  if (status === 'unsupported' || status === 'idle' || status === 'connecting') return null
+  const busy = ACTIVE.includes(status)
+  return <span className="octatrack-status-bar"><span className={'status-dot' + (busy ? ' is-live' : identity?.canSubmit ? ' verified' : '')} />{busy ? 'Loading onto Octatrack · ' + activity(state) : status === 'busy' ? 'Octatrack in use' : 'Octatrack connected'}</span>
 }
 
 /** A pill while an update runs or waits for Keep or Undo, and for its result, on every page but the configuration page. */

@@ -42,6 +42,7 @@ export function ConfigurationHeader({ kicker, meta, emptyTitle, configuration, c
       {configuration && <div className="configuration-menu">
         <button ref={buttonRef} className="button button-quiet" aria-label="Module set actions" title="Module set actions" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpen(value => !value)}><Icon name="more" size={18} /></button>
         {open && <div ref={panelRef} id={panelId} className="configuration-menu-panel" role="group" aria-label="Module set actions" onKeyDown={moveFocus}>
+          <a href="#module-sets">All module sets</a>
           <button onClick={() => choose(() => onDialog('rename'))}>Rename</button>
           <button onClick={() => choose(() => onDialog('duplicate'))}>Duplicate</button>
           <button onClick={() => choose(onImport)}>Import JSON</button>

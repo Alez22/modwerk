@@ -5,16 +5,20 @@
 .usb-update .file-error, .usb-update .success-note { margin: 12px 0 0; }
 .usb-update .build-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .usb-update .build-actions .text-button { align-self: center; margin-top: 4px; }
-/* Your Octatrack: what is on the unit, and changing it. */
-.your-octatrack { max-width: 980px; margin: 0 auto; }
-.your-octatrack .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.pill.your-octatrack-state { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; }
-.your-octatrack-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
-.your-octatrack-empty p { color: var(--text-secondary); font-size: 14px; line-height: 1.7; }
-.your-octatrack-set select { width: 100%; max-width: 420px; }
-.your-octatrack .build-actions { margin-top: 14px; }
-.your-octatrack-edits { position: sticky; bottom: 16px; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 14px 16px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--surface-raised); box-shadow: 0 12px 40px #0008; }
-.your-octatrack-edits > div { flex: 1; min-width: 0; font-size: 13px; }
+/* The machine in the sidebar, with the USB connection as a dot on its picture. */
+.instrument-item { margin: 4px 0 2px; }
+.instrument-item[aria-current="page"] { border-color: var(--accent-line); }
+.sidebar-device > .instrument-picture { position: relative; display: inline-flex; flex: 0 0 auto; } /* not the label's flex: 1 */
+.instrument-item small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.instrument-dot { position: absolute; right: -4px; bottom: -4px; width: 11px; height: 11px; border: 2px solid var(--surface-raised); border-radius: 50%; background: #6b6b78; }
+.instrument-dot.is-connected { background: #7fd39b; }
+.instrument-dot.is-busy { background: var(--accent); animation: link-pulse 1.5s ease-in-out infinite; }
+.instrument-dot.is-stock { background: #e0b26a; }
+.unit-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 18px; color: var(--muted); font-size: 13px; }
+.unit-strip.is-connected { color: var(--text-secondary); }
+.unit-tag { flex: none; margin-right: 6px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.unit-tag.is-on { border-color: #456354; background: #25332c; color: #bcd7c5; }
+.also-on-unit .selected-list .button { flex: none; min-height: 32px; padding: 5px 10px; }
 .inventory-changes { display: grid; gap: 4px; margin: 10px 0 0; font-size: 13px; line-height: 1.6; }
 .inventory-changes > div { display: flex; gap: 8px; }
 .inventory-changes dt { flex: none; min-width: 92px; color: var(--muted); }
@@ -73,5 +77,5 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .base-install-dialog .file-error { margin: 12px 0 0; }
 @media (max-width: 600px) { .base-install-dialog { padding: 22px 18px; } .base-install-footer { margin: 18px -18px -22px; padding: 14px 18px; bottom: -22px; } .base-install-footer .link-hint { display: none; } .base-install-actions, .base-install-footer .button { flex: 1; } .base-install-footer .button { min-width: 0; } .module-preview.link-hero { margin: -22px -18px 18px; } .link-hero .link-hero-art { padding: 0 6px 10px; } .link-promises { grid-template-columns: minmax(0, 1fr); gap: 10px; font-size: 15px; } .link-title { font-size: 26px; } }
 @keyframes link-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .status-dot.is-live { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .status-dot.is-live, .instrument-dot.is-busy { animation: none; } }
 @media (max-width: 1100px) { .link-card { margin-bottom: 22px; } }

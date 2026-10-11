@@ -19,16 +19,17 @@ export function useOctatrackBase(given?: OctatrackLink | null) {
   return useSyncExternalStore(link?.subscribe ?? noSubscription, connected, connected) // server renders (tests, prerender) need a snapshot too
 }
 
-/** What the connected unit has on it, read again whenever its module set changes; undefined while unknown. */
-export function useInventory(link: OctatrackLink, read?: () => Promise<Inventory>) {
-  const { status, identity, active } = useOctatrackLink(link)
-  const [inventory, setInventory] = useState<{ base: string; value: Inventory }>()
-  const base = status === 'ready' && identity?.canSubmit ? identity.base : undefined
+/** What the connected unit has on it, read again whenever its module set changes; undefined while unknown,
+ * loading or disconnected. Re-renders only when the unit or its set changes, so the whole app can use it. */
+export function useInventory(link?: OctatrackLink | null, read?: () => Promise<Inventory>) {
+  const unitKey = () => { const state = link?.getState(); return state?.status === 'ready' && state.identity?.canSubmit ? state.identity.base + '|' + (state.active ?? '') : '' }
+  const key = useSyncExternalStore(link?.subscribe ?? noSubscription, unitKey, unitKey)
+  const [inventory, setInventory] = useState<{ key: string; value: Inventory }>()
   useEffect(() => {
-    if (!base || !read) return
+    if (!key || !read) return
     let live = true
-    read().then(value => { if (live) setInventory({ base, value }) }, error => console.error(error))
+    read().then(value => { if (live) setInventory({ key, value }) }, error => console.error(error))
     return () => { live = false }
-  }, [base, read, active])
-  return inventory && inventory.base === identity?.base ? inventory.value : undefined
+  }, [key, read])
+  return key && inventory?.key === key ? inventory.value : undefined
 }
