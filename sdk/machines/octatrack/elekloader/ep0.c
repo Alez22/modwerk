@@ -77,6 +77,9 @@ static const uint8_t wake_message[4] __attribute__((aligned(4))) = {0xff, 0, 0, 
 
 static struct mu_context controller;
 static uint8_t controller_started;
+/* A host session is open (an install, a trial, its self-test): dsp.c moves no code meanwhile. */
+int modwerk_upload_busy(void);
+int modwerk_upload_busy(void) { return controller_started && controller.phase != MU_NORMAL; }
 
 static void wake(void)
 {

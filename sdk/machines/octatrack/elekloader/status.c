@@ -182,7 +182,7 @@ static void memory_tick(void)
     if (loaded && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
     if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
 }
-volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key press: dsp.c's compaction waits for quiet */
+volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key or knob: dsp.c's compaction waits for quiet */
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
@@ -209,7 +209,12 @@ int modwerk_status_key(int code, int pressed)
     if (!pressed && code == taken) { taken = -1; return 1; }
     return open && open != MEMORY && code != CUE; /* CUE's own release reaches stock, as it would without the dialog */
 }
-int modwerk_status_enc(int encoder, int delta) { (void)encoder, (void)delta; return open != CLOSED; }
+int modwerk_status_enc(int encoder, int delta)
+{
+    (void)encoder, (void)delta;
+    modwerk_status_key_at = modwerk_runtime_ticks; /* turning a knob counts as activity too (dsp.c's compaction) */
+    return open != CLOSED;
+}
 
 /* Drawing: the frame is a quarter turn round, a row of 8 bytes per x, MSB first, pixel (x, y) at bit 63 - y. */
 static void fill(unsigned char *frame, unsigned x0, unsigned y0, unsigned x1, unsigned y1, int on) /* inclusive */

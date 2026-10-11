@@ -52,7 +52,9 @@ def main():
             left = holes()
             if had: result['compacted'] += 1
             result['longest_wait_s'] = max(result['longest_wait_s'], round(time.time() - start, 1))
-            if any(left): failures.append('step %d: holes left %s after 12 s' % (step, left))
+            if any(left):
+                failures.append('step %d: holes left %s after 12 s' % (step, left))
+                print(send('memory').strip(), file=sys.stderr, flush=True)  # the layout the planner could not pack
             gap = int(re.search(r'gap (\d+) counts', send('gap')).group(1)) // 132
             result['max_gap_us'] = max(result['max_gap_us'], gap)
             now = counters()

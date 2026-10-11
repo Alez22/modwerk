@@ -82,6 +82,20 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
   Euclid running on T3 throughout; frame gaps 408-415 us, no errors, stalls or rollbacks. Not listened to: an audio
   check (a sample through a moving module, MAIN recorded) is still to do. A first version silenced every module
   slot and reloaded (373-425 ms, stopped only); it is gone.
+- **Testing the moves (state frozen 11 October 2026).**
+  - Churn while playing, S51: 60 random picks, 8 holes closed, frame gaps 404-421 us, no errors, stalls or
+    rollbacks. S52: 131 steps, 23 holes closed, again no errors or stalls, but holes on core 0 stayed open
+    (422 and 774 words): the planner only worked the lowest hole and gave up on a core too early.
+  - The planner is now a pure function (`modwerk_compact_plan`) with a host simulation in test_dsp.c over 20,000
+    random layouts, every planned copy checked clear of live code: 99.8 % of roomy layouts (free at least twice the
+    largest block) pack, in at most 15 moves; 49 % of tight ones. A copy needs one free run as big as its block, so
+    a large module (E-Verb, 1,588 words) above a hole on a busy core cannot move at all; that hole stays until the
+    layout changes. So far the cycle ledger always refused before such a hole mattered.
+  - Built in S53, **not yet run on the unit**: the new planner, no moves while a USB host session is open or a
+    pattern change is queued, and knob turns counting as activity like keys.
+  - Not run yet: `scripts/octatrack-movecollide.py` (a pick, a Part switch, a USB install just as moves start),
+    the listening test (a sample through a moving module, MAIN recorded, `scripts/octatrack-clicks.py`), and a
+    project reload and RAM boot after heavy churn.
 - **The module pool** (256 KB) held six modules in 26 KB with no hole; removing Euclid from the middle and
   installing it again left none (first fit at the lowest address; nothing moves).
 

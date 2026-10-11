@@ -747,8 +747,10 @@ static void selftest_tick(void)
  * the manager is idle and two seconds after the last key, so no move meets a pick. Dev request 25 times a run:
  * modwerk_dsp_compact_counts, DTCN3 counts until no hole is left (0xffffffff: one could not be closed). */
 volatile uint32_t modwerk_dsp_compact_counts, modwerk_dsp_compact_step, modwerk_dsp_compact_moves;
-extern volatile uint32_t modwerk_status_key_at; /* status.c: modwerk_runtime_ticks at the last key press */
+extern volatile uint32_t modwerk_status_key_at; /* status.c: modwerk_runtime_ticks at the last key or knob */
+int modwerk_upload_busy(void);                 /* ep0.c: a host session is open */
 int dl_move(unsigned core, unsigned p, unsigned offset);
+int modwerk_compact_plan(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k, unsigned cap, unsigned *which, unsigned *to);
 static uint32_t compact_at;
 int modwerk_dsp_compact(void)
 {
@@ -770,38 +772,27 @@ static int holes(void) /* a core's placed code has a gap below its top */
     }
     return 0;
 }
-/* One move, on the first core that can make one. Its lowest hole: the first block above it that fits in it clear of
- * its own old copy; else the block right above it goes to the top of the free space (which widens the hole); else
- * the block right below it goes there, when that frees enough for the block above. A core that can do none of these
- * is left for the other. 1 when a move started. */
-static unsigned up_to(unsigned at, unsigned p) { unsigned a = dl_catalog[p].alignment ? dl_catalog[p].alignment : 1u; return (at + a - 1u) & ~(a - 1u); }
 static int move_one(void)
 {
     for (unsigned c = 0; c < 2u; ++c) {
-        unsigned at[32], n[32], id[32], k = 0, top = 0, cap = modwerk_dsp_arena[c];
+        unsigned at[32], n[32], align[32], id[32], k = 0, which, to;
         for (unsigned p = 0; p < 32u; ++p) {
             int a = dl_placed(c, p);
             if (a < 0) continue;
             unsigned j = k++;
-            for (; j && at[j - 1] > (unsigned)a - 64u; --j) at[j] = at[j - 1], n[j] = n[j - 1], id[j] = id[j - 1];
-            at[j] = (unsigned)a - 64u, n[j] = dl_catalog[p].words, id[j] = p;
-            if (at[j] + n[j] > top) top = at[j] + n[j];
+            for (; j && at[j - 1] > (unsigned)a - 64u; --j) at[j] = at[j - 1], n[j] = n[j - 1], align[j] = align[j - 1], id[j] = id[j - 1];
+            at[j] = (unsigned)a - 64u, n[j] = dl_catalog[p].words, align[j] = dl_catalog[p].alignment, id[j] = p; /* from DL_CODE_START */
         }
-        for (unsigned i = 0, end = 0; i < k; end = at[i] + n[i], ++i) {
-            if (at[i] <= end) continue;
-            for (unsigned j = i; j < k; ++j)
-                if (up_to(end, id[j]) + n[j] <= at[i] && dl_move(c, id[j], up_to(end, id[j]))) return 1;
-            if (up_to(top, id[i]) + n[i] <= cap && dl_move(c, id[i], up_to(top, id[i]))) return 1;
-            if (i && at[i - 1] + n[i - 1] == end && at[i - 1] + n[i] <= at[i] && up_to(top, id[i - 1]) + n[i - 1] <= cap &&
-                dl_move(c, id[i - 1], up_to(top, id[i - 1]))) return 1;
-            break; /* stuck here: the other core */
-        }
+        if (modwerk_compact_plan(at, n, align, k, modwerk_dsp_arena[c], &which, &to) && dl_move(c, id[which], to)) return 1;
     }
     return 0;
 }
 static void compact_tick(void)
 {
     if (modwerk_selftest.state == SELFTEST_RUNNING || !dl_publication_idle() || rebinding || picks_in != picks_out) return;
+    if (modwerk_upload_busy()) return; /* a host session: its trial and self-test meet no move */
+    if (*(volatile uint8_t *)0x800065bfu != *(volatile uint8_t *)0x800065bdu ||
+        *(volatile uint8_t *)0x800065c0u != *(volatile uint8_t *)0x800065beu) return; /* a pattern change is queued */
     if (!modwerk_dsp_compact_step && modwerk_runtime_ticks - modwerk_status_key_at < 120u) return;
     static unsigned spent, key; /* moves since the last key: a layout that cannot be packed stops after 32 */
     if (key != modwerk_status_key_at || modwerk_dsp_compact_step == 1u) key = modwerk_status_key_at, spent = 0;
@@ -811,6 +802,33 @@ static void compact_tick(void)
         modwerk_dsp_compact_counts = holes() ? 0xffffffffu : *(volatile uint32_t *)0xfc07c00cu - compact_at, modwerk_dsp_compact_step = 0;
 }
 #endif
+/* The compaction planner (dsp.c's move_one; host-tested by test_dsp.c): k placed blocks sorted by address (where each
+ * starts, its words, its alignment, 0 as 1) in an arena of cap words. The first move any hole allows, lowest hole
+ * first: the first block above it that fits in it clear of its own old copy; else the block right above it parks in
+ * the first gap above it that holds it (the hole widens, and it comes back down later); else the block right below it
+ * parks there, when the room it leaves and the hole together hold the block above. A copy needs one free run as big as
+ * its block, apart from its own old copy. A hole that allows none of these is passed over. 1 and the move (block
+ * index, new start) when there is one. */
+static unsigned up_to(unsigned at, unsigned align) { unsigned a = align ? align : 1u; return (at + a - 1u) & ~(a - 1u); }
+int modwerk_compact_plan(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k, unsigned cap,
+                         unsigned *which, unsigned *to)
+{
+    for (unsigned i = 0, end = 0; i < k; end = at[i] + n[i], ++i) {
+        if (up_to(end, align[i]) >= at[i]) continue; /* no hole, or only the block's own alignment padding */
+        for (unsigned j = i; j < k; ++j) /* a block above that fits in the hole */
+            if (up_to(end, align[j]) + n[j] <= at[i]) { *which = j, *to = up_to(end, align[j]); return 1; }
+        for (unsigned m = i + 1; m <= k; ++m) { /* else the block above parks in the first gap above it that holds it */
+            unsigned from = up_to(at[m - 1] + n[m - 1], align[i]), until = m < k ? at[m] : cap;
+            if (from + n[i] <= until) { *which = i, *to = from; return 1; }
+        }
+        if (i && up_to(at[i - 1], align[i]) + n[i] <= at[i]) /* else the block below parks above, if that frees enough */
+            for (unsigned m = i + 1; m <= k; ++m) {
+                unsigned from = up_to(at[m - 1] + n[m - 1], align[i - 1]), until = m < k ? at[m] : cap;
+                if (from + n[i - 1] <= until) { *which = i - 1, *to = from; return 1; }
+            }
+    }
+    return 0;
+}
 void modwerk_dsp_unpack(void); /* identity.c: the stock effects' code into RAM, before the manager needs it */
 /* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3
  * (132 MHz), to find how long the frame chain survives a held-off frame interrupt. Off the USB request path. */

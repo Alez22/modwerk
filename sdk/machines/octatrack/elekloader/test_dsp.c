@@ -21,6 +21,52 @@ static int capture(uint32_t file, const void *data, unsigned length)
 
 static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
+/* The compaction planner on random layouts: the moves it plans, applied, until packed. */
+static unsigned seed = 2026;
+static unsigned rnd(void) { seed = seed * 1103515245u + 12345u; return seed >> 16; }
+static unsigned gaps(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k) /* closable holes */
+{
+    unsigned sum = 0;
+    for (unsigned i = 0, end = 0; i < k; end = at[i] + n[i], ++i) {
+        unsigned down = (end + align[i] - 1u) & ~(align[i] - 1u);
+        if (down < at[i]) sum += at[i] - down;
+    }
+    return sum;
+}
+static void planner(void)
+{
+    unsigned roomy = 0, roomy_packed = 0, tight = 0, tight_packed = 0, most = 0;
+    for (unsigned trial = 0; trial < 20000u; ++trial) {
+        unsigned at[32], n[32], align[32], k = 0, cap = 5075u, pos = 0, used = 0, largest = 0, want = 2u + rnd() % 9u;
+        while (k < want) {
+            unsigned size = 100u + rnd() % 1600u, gap = rnd() % 3u ? 0 : rnd() % 900u;
+            if (pos + gap + size > cap) break;
+            at[k] = pos + gap, n[k] = size, align[k] = rnd() % 4u ? 1u : 4u, at[k] &= ~(align[k] - 1u);
+            if (k && at[k] < at[k - 1] + n[k - 1]) at[k] = (at[k - 1] + n[k - 1] + align[k] - 1u) & ~(align[k] - 1u);
+            if (at[k] + size > cap) break;
+            pos = at[k] + size, used += size, largest = size > largest ? size : largest, ++k;
+        }
+        unsigned room = cap - used >= 2u * largest, moves = 0, which, to;
+        for (; moves < 64u && gaps(at, n, align, k); ++moves) {
+            if (!modwerk_compact_plan(at, n, align, k, cap, &which, &to)) break;
+            CHECK(to + n[which] <= cap && !(to & (align[which] - 1u)));
+            for (unsigned q = 0; q < k; ++q) CHECK(to >= at[q] + n[q] || to + n[which] <= at[q]); /* never over live code */
+            at[which] = to;
+            for (unsigned i = 1; i < k; ++i) /* keep them sorted by address */
+                for (unsigned j = i; j && at[j - 1] > at[j]; --j) {
+                    unsigned t = at[j]; at[j] = at[j - 1], at[j - 1] = t;
+                    t = n[j], n[j] = n[j - 1], n[j - 1] = t;
+                    t = align[j], align[j] = align[j - 1], align[j - 1] = t;
+                }
+        }
+        unsigned packed = !gaps(at, n, align, k);
+        most = moves > most ? moves : most;
+        if (room) ++roomy, roomy_packed += packed; else ++tight, tight_packed += packed;
+    }
+    /* A copy needs one free run as big as its block; a few roomy layouts have none for the block that must move. */
+    CHECK(roomy_packed * 100u >= roomy * 99u && most <= 32u);
+    printf("compaction planner: %u/%u roomy layouts packed, %u/%u tight ones, at most %u moves\n", roomy_packed, roomy, tight_packed, tight, most);
+}
 const uint32_t dl_stub_at_boot = 1u << 21 | 1u << 26 | 1u << 27, modwerk_dsp_modules = 1u << 26 | 1u << 27;
 /* identity.c's catalog: SPRING REV (21) a stock package loaded on demand, every other id what stock runs. */
 #define STOCK4 STOCK, STOCK, STOCK, STOCK
@@ -168,6 +214,7 @@ int main(void)
     third.id = 27; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);   /* 27 is held */
     third.module = 0x873d83ccu; third.id = 26; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL); /* the map has it at 27 */
     third.pinned = 0;
+    planner();
     if (failures) { fprintf(stderr, "%u DSP glue checks failed\n", failures); return 1; }
     puts("Octatrack DSP glue: admission (ids, arena, instance block, cycles, effects in use), the catalog, the effects a bank names, the stall watchdog, the project handle map and rebinding passed.");
     return 0;
