@@ -155,6 +155,16 @@ unsigned modwerk_runtime_intact(void)
     modwerk_machine_unlock(lock);
     return n;
 }
+/* The first live module whose stock-code sites no longer hold its patches: its id, 0 none. */
+uint32_t modwerk_runtime_broken(void)
+{
+    uint32_t id = 0;
+    uint32_t lock = modwerk_machine_lock(), mask = modwerk_machine_mask();
+    for (unsigned i = 0; !id && i < RUNTIME_MODULES; ++i) if (live[i] && !holds(live[i], 1)) id = live[i]->id;
+    modwerk_machine_unmask(mask);
+    modwerk_machine_unlock(lock);
+    return id;
+}
 static void put(const struct runtime_module *m, int patched)
 {
     for (uint32_t i = 0; m && i < m->sites; ++i) {

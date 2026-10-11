@@ -76,7 +76,7 @@ def receiver_source(text, null, table_words, probe=None, burn=0, tag='A'):
         # A DO loop, not rep: rep holds off interrupts while it repeats.
         text = text.replace(old, old + '        do      #%d,burnt\n        nop\n        nop\nburnt:\n' % (burn // 2))
     for old, new, count in (('@NULL_INIT@', '$%x' % null[0], 1), ('@NULL_PROC@', '$%x' % null[1], 1),
-                            ('@DLWORDS@', str(table_words), 3)):
+                            ('@DLWORDS@', str(table_words), 4)):
         if text.count(old) != count:
             raise ValueError('The DSP receiver changed (%s); review the port.' % old)
         text = text.replace(old, new)

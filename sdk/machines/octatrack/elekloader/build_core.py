@@ -178,7 +178,9 @@ DSP_EDITS = {
                    '/* Modwerk diagnostics (dsp.c\'s report): phase | cursor << 8 | waiting << 16 | result << 24 */\n'
                    'uint32_t dl_manager_state(void) { return phase|cursor<<8|waiting<<16|(uint32_t)(result&0xff)<<24; }\n'
                    '#ifndef DL_NATIVE_TEST\n/* Modwerk\'s self-test (dsp.c): a slot on core c running id p runs bound code. */\n'
-                   'int dl_bound(unsigned c,unsigned p) { return c<2 && p<32 && slot_bound(c,p); }\n#endif'),
+                   'int dl_bound(unsigned c,unsigned p) { return c<2 && p<32 && slot_bound(c,p); }\n#endif\n'
+                   '/* ... and where p\'s code sits on core c: its table offset, -1 when it is not placed. */\n'
+                   'int dl_placed(unsigned c,unsigned p) { return c<2 && p<32 && allocator.live[c][p].present ? (int)(DL_CODE_START+allocator.live[c][p].offset) : -1; }'),
                   # dsp.c's self-test places effects by the live array alone: what it holds there is what a parked
                   # slot waits for, not the Part's byte (else the slot is let go to NONE and never loads).
                   ('static unsigned intended(unsigned i) {\n',
@@ -288,11 +290,28 @@ DSP_EDITS = {
     # stops the channel at its start with a source address error (the probe-A freeze, 10 October 2026).
     # PEEK (8, dsp_receiver.asm): one bit of a DSP P word per packet, its answer HF3; dsp.c reads the
     # receiver's mismatch record with it. Its refusals are bits, so they count neither as rejects nor errors.
-    'transfer.h': (('DL_BYPASS=6, DL_BASE=7 };', 'DL_BYPASS=6, DL_BASE=7, DL_PEEK=8 };'),),
+    'transfer.h': (('DL_BYPASS=6, DL_BASE=7 };', 'DL_BYPASS=6, DL_BASE=7, DL_PEEK=8, DL_SUM=9 };'),),
     'transfer.c': (('op!=DL_BYPASS && op!=DL_BASE)) return 0;', 'op!=DL_BYPASS && op!=DL_BASE && op!=DL_PEEK)) return 0;'),
                    # A refusal for cycles reads as the DSP being full, not failing (owner, 11 October 2026).
                    ('reason==3 ? "DSP OVERLOAD"', 'reason==3 ? "DSP FULL"'),
-                   ('opcode==DL_BYPASS || opcode==DL_BASE) {', 'opcode==DL_BYPASS || opcode==DL_BASE || opcode==DL_PEEK) {'),
+                   ('opcode==DL_BYPASS || opcode==DL_BASE) {', 'opcode==DL_BYPASS || opcode==DL_BASE || opcode==DL_PEEK || opcode==DL_SUM) {'),
+                   # SUM (9, dsp_receiver.asm; dsp.c's self-test): the expected sum's high byte in word 56, as a WRITE's.
+                   ('            t[4]=j->id; t[5]=j->init; t[7]=j->proc;\n',
+                    '            t[4]=j->id; t[5]=j->init; t[7]=j->proc;\n            if(opcode==DL_SUM) t[56]=(uint16_t)(j->expected>>16);\n'),
+                   ('int dl_job_status(unsigned c) {',
+                    '/* Modwerk: does the code at table offset `offset` sum, over `count` words (1-256), to `expected`? */\n'
+                    'int dl_sum_start(unsigned c,unsigned offset,unsigned count,uint32_t expected) {\n'
+                    '    if(c>1 || jobs[c].state || !count || count>256 || offset<DL_CODE_START || offset+count>dl_pool_words[c]) return 0;\n'
+                    '    jobs[c].opcode=DL_SUM; jobs[c].id=(uint16_t)count; jobs[c].init=(uint16_t)offset;\n'
+                    '    jobs[c].proc=(uint16_t)expected; jobs[c].expected=expected&0xffffffu;\n'
+                    '    publish(); jobs[c].state=1; return 1;\n}\n'
+                    'int dl_job_status(unsigned c) {'),
+                   # The longest time between two frames, DTCN3 counts (132 MHz): the self-test's frame-timing check.
+                   ('unsigned dl_frame(void) {\n    ++dl_frames;',
+                    'volatile uint32_t dl_frame_gap=0;\nstatic uint32_t frame_at=0;\n'
+                    'unsigned dl_frame(void) {\n'
+                    '    { uint32_t now=*(volatile uint32_t *)0xfc07c00cu, d=now-frame_at; frame_at=now; if(d>dl_frame_gap) dl_frame_gap=d; }\n'
+                    '    ++dl_frames;'),
                    ('volatile uint16_t dl_tx[2][DL_WORDS]={{0}}, dl_rx[2][32]={{0}};',
                     'volatile uint16_t dl_tx[2][DL_WORDS] __attribute__((aligned(16)))={{0}}, '
                     'dl_rx[2][32] __attribute__((aligned(16)))={{0}};'),
@@ -329,7 +348,7 @@ DSP_EDITS = {
                     '            unsigned flags=modwerk_dsp_flags(c);\n'
                     '            if((flags^flags_sent[c])&1u) {\n'
                     '                unsigned valid=!(flags&2u);\n'
-                    '                if(jobs[c].state==2 && jobs[c].opcode==DL_PEEK) {}\n'
+                    '                if(jobs[c].state==2 && (jobs[c].opcode==DL_PEEK || jobs[c].opcode==DL_SUM)) {}\n'
                     '                else if(valid) ++dl_accepted[c];\n'
                     '                else'),
                    ('        dl_show_message(text,0x30);\n    }\n}\n',

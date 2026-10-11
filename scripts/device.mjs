@@ -206,15 +206,16 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
     else if (step === 'selftest') { // dsp.c's self-test (SYSTEM > MODWERK TEST): started, then read until it is done
-      const read = async go => { const b = Buffer.from(await devIn(21, go, 56)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
+      const read = async go => { const b = Buffer.from(await devIn(21, go, 92)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
         modules: b.readUInt32BE(12), dsp: b.readUInt32BE(16), intact: b.readUInt32BE(20), ran: b.readUInt32BE(24), peak: [b.readUInt32BE(28), b.readUInt32BE(32)],
-        cpu: b.readUInt32BE(36), done: b.readUInt32BE(40), total: b.readUInt32BE(44), track: [...b.subarray(48, 56)] } }
+        cpu: b.readUInt32BE(36), done: b.readUInt32BE(40), total: b.readUInt32BE(44), track: [...b.subarray(48, 56)], gap: b.readUInt32BE(56),
+        saved: b.readUInt32BE(60), savedCount: b.readUInt32BE(64), live: b.readUInt32BE(68), culprit: b.subarray(76, 92).toString('latin1').replace(/\0.*$/s, '') } }
       let r = await read(1)
       if (r.state !== 1) throw new Error('The self-test did not start: stop the transport, and let the loader finish.')
       for (const start = Date.now(); r.state === 1 && Date.now() - start < 120000; await wait(500)) r = await read(0)
-      const why = ['a module broken', 'refused under load', 'frames stopped', 'a core over 90 %', 'loader errors or a stall', 'tracks not back', 'stopped', 'a module did not run alone', 'the CPU over 90 %'].filter((_, i) => r.failed >> i & 1)
-      console.log(`selftest ${['idle', 'running', 'passed', 'failed'][r.state]}${why.length ? ': ' + why.join(', ') : ''}; modules ${r.intact}/${r.modules} intact, ${r.dsp} with DSP effects; ` +
-        `together ${r.ran}/${r.dsp} ran (last batch ${r.track.map(id => id ? '0x' + id.toString(16) : '-').join(' ')}), peaks CPU ${r.cpu / 10}% T1-4 ${r.peak[0] / 10}% T5-8 ${r.peak[1] / 10}%`)
+      const why = ['a module broken', 'refused under load', 'frames stopped', 'a core over 90 %', 'loader errors or a stall', 'tracks not back', 'stopped', 'a module did not run alone', 'the CPU over 90 %', 'a frame late', 'code damaged'].filter((_, i) => r.failed >> i & 1)
+      console.log(`selftest ${['idle', 'running', 'passed', 'failed'][r.state]}${why.length ? ': ' + why.join(', ') : ''}${r.culprit ? ' (' + r.culprit + ')' : ''}; modules ${r.intact}/${r.modules} intact, ${r.dsp} with DSP effects; ` +
+        `together ${r.ran}/${r.dsp} ran (last batch ${r.track.map(id => id ? '0x' + id.toString(16) : '-').join(' ')}), peaks CPU ${r.cpu / 10}% T1-4 ${r.peak[0] / 10}% T5-8 ${r.peak[1] / 10}%; longest frame ${(r.gap / 132).toFixed(0)} us; card set ${r.saved}, ${r.savedCount}/${r.live}`)
     }
     else if (step === 'stall') { // dsp.c's record in battery RAM: the loader as it stood when the last stall was seen
       const b = await mem(0x100ff900, 456), v = new DataView(b.buffer, b.byteOffset, 456), w = i => v.getUint32(4 * i)
@@ -303,6 +304,12 @@ if (command === 'serve') {
         bench.socket.end(); await wait(300)
         const r = spawnSync(process.execPath, [process.argv[1], 'boot', arg, '--socket', values.socket], { encoding: 'utf8', timeout: 180000 })
         out.push(r.stdout, r.stderr, 'serve exits; the loop restarts it'); setTimeout(() => process.exit(0), 200)
+      } else if (verb === 'recover') { // a transaction left behind (an install whose reply went missing): undo it, as the site does
+        const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
+        const phase = session.status.phase
+        if (phase === 'pending' || phase === 'trial' || phase === 'recovery') await session.rollback()
+        if (phase !== 'normal') await session.leaveUploadMode()
+        console.log(`was ${phase}; now ${state(session.status)}`)
       } else if (verb === 'try' || verb === 'remove') {
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined

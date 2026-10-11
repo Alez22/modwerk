@@ -227,17 +227,18 @@ static void explain(unsigned char *frame)
 }
 /* The self-test's page: a row per check (what it found, and OK, FAIL or ... at the right), the load bars of the
  * together check under it, then the verdict and NO. */
-static void right(unsigned top, const char *t) { label((unsigned)(X1 - 4 - TEXT_WIDTH(FONT, -1, t)), top, t); }
-static void check(unsigned top, const char *name, const char *found, const char *mark)
-{
-    label(X0 + 4u, top, name);
-    if (found) label(X0 + 52u, top, found);
-    right(top, mark);
-}
 static char *fraction(char *s, uint32_t a, uint32_t b) { s = number(s, a); *s++ = '/'; s = number(s, b); *s = 0; return s; }
+/* One check in a two-column grid: its name at the left of the column, OK, FAIL or ... at its right. */
+static void cell(unsigned column, unsigned top, const char *name, const char *mark)
+{
+    unsigned x = column ? X0 + 60u : X0 + 4u, edge = column ? X1 - 4u : X0 + 54u;
+    label(x, top, name);
+    label((unsigned)(edge - (unsigned)TEXT_WIDTH(FONT, -1, mark)), top, mark);
+}
 static void test_page(unsigned char *frame)
 {
-    const volatile struct selftest *t = &modwerk_selftest;
+    volatile struct selftest *t = &modwerk_selftest;
+    modwerk_selftest_refresh();
     dialog(frame, "MODWERK TEST");
     if (!test_started && t->state != SELFTEST_RUNNING) {
         label(X0 + 6u, Y0 + 17u, "STOP PLAYBACK FIRST,");
@@ -245,14 +246,20 @@ static void test_page(unsigned char *frame)
         button(frame, X1 - 30u, Y1 - 12u, "NO");
         return;
     }
-    int running = t->state == SELFTEST_RUNNING, none = !t->dsp;
-    char modules[12], ran[12];
-    fraction(modules, t->intact, t->modules), fraction(ran, t->ran, t->dsp);
-    check(Y0 + 13u, "MODULES", t->modules ? modules : "NONE", t->failed & SELFTEST_BROKEN ? "FAIL" : "OK");
-    check(Y0 + 20u, "TOGETHER", none ? 0 : ran, none ? "-" : running && t->phase == SELFTEST_TOGETHER ? "..." :
-          t->failed & (SELFTEST_PEAK | SELFTEST_CPU | SELFTEST_STOPPED | SELFTEST_NOT_LOADED) ? "FAIL" : "OK");
-    check(Y0 + 27u, "STRESS", 0, none ? "-" : running && t->phase <= SELFTEST_TOGETHER ? "" : running && t->phase == SELFTEST_STRESS ? "..." :
-          t->failed & (SELFTEST_REFUSED | SELFTEST_STOPPED) ? "FAIL" : "OK");
+    int running = t->state == SELFTEST_RUNNING, none = !t->dsp, playing = running && t->phase >= SELFTEST_TOGETHER;
+    /* the card holds the set that runs: saved (7) or restored (1) with every live module, or nothing at all */
+    int saved = ((t->saved == 7u || t->saved == 1u) && t->saved_count == t->live) || (!t->live && t->saved == 2u);
+    cell(0, Y0 + 13u, "MODULES", t->failed & (SELFTEST_BROKEN | SELFTEST_CORRUPT) ? "FAIL" : "OK");
+    cell(1, Y0 + 13u, "SAVED", saved ? "OK" : "-");
+    cell(0, Y0 + 20u, "LOAD", none ? "-" : running && t->phase == SELFTEST_TOGETHER ? "..." :
+         t->failed & (SELFTEST_PEAK | SELFTEST_CPU | SELFTEST_STOPPED | SELFTEST_NOT_LOADED) ? "FAIL" : running ? "" : "OK");
+    cell(1, Y0 + 20u, "STRESS", none ? "-" : running && t->phase <= SELFTEST_TOGETHER ? "" : running && t->phase == SELFTEST_STRESS ? "..." :
+         t->failed & (SELFTEST_REFUSED | SELFTEST_STOPPED) ? "FAIL" : "OK");
+    cell(0, Y0 + 27u, "TIMING", t->failed & SELFTEST_LATE ? "FAIL" : playing ? "..." : running ? "" : "OK");
+    char ran[16], *s = fraction(ran, t->ran, t->dsp);
+    for (const char *w = " RAN"; *w; ) *s++ = *w++;
+    *s = 0;
+    cell(1, Y0 + 27u, none ? "NO DSP" : ran, "");
     static const char *const names[3] = {"CPU", "T1-4", "T5-8"};
     const uint32_t load[3] = {t->cpu, t->peak[0], t->peak[1]};
     for (unsigned i = 0; i < 3u; ++i) {
@@ -268,9 +275,26 @@ static void test_page(unsigned char *frame)
     }
     const char *verdict = t->state == SELFTEST_PASSED ? "ALL PASSED" :
                           t->failed & SELFTEST_ABORTED ? "STOPPED" : t->failed & SELFTEST_BROKEN ? "MODULE BROKEN" :
-                          t->failed & SELFTEST_NOT_LOADED ? "NOT ALL LOADED" : t->failed & SELFTEST_STOPPED ? "DSP STOPPED" :
+                          t->failed & SELFTEST_CORRUPT ? "CODE DAMAGED" : t->failed & SELFTEST_NOT_LOADED ? "NOT ALL LOADED" :
+                          t->failed & SELFTEST_STOPPED ? "DSP STOPPED" : t->failed & SELFTEST_LATE ? "FRAMES LATE" :
                           t->failed & SELFTEST_PEAK ? "DSP OVER 90%" : t->failed & SELFTEST_CPU ? "CPU OVER 90%" :
                           t->failed & SELFTEST_REFUSED ? "REFUSED" : t->failed & SELFTEST_COUNTED ? "LOADER ERRORS" : "FAILED";
+    if (t->culprit_name[0] && t->state == SELFTEST_FAILED && !(t->failed & SELFTEST_ABORTED)) {
+        /* which module, and what: the name in capitals (the font has no others), then a short reason */
+        const char *why = t->failed & SELFTEST_BROKEN ? " BROKEN" : t->failed & SELFTEST_CORRUPT ? " DAMAGED" :
+                          t->failed & SELFTEST_NOT_LOADED ? " TOO BIG" : t->failed & SELFTEST_STOPPED ? " STOPS DSP" :
+                          t->failed & SELFTEST_LATE ? " LATE" : t->failed & SELFTEST_PEAK ? " DSP 90%+" :
+                          t->failed & SELFTEST_CPU ? " CPU 90%+" : " FAILED";
+        static char named[32];
+        unsigned n = 0;
+        for (unsigned i = 0; i < 12u && t->culprit_name[i]; ++i) {
+            char ch = t->culprit_name[i];
+            named[n++] = ch >= 'a' && ch <= 'z' ? (char)(ch - 32) : ch;
+        }
+        for (const char *w = why; *w; ) named[n++] = *w++;
+        named[n] = 0;
+        verdict = named;
+    }
     label(X0 + 4u, Y1 - 8u, verdict);
     button(frame, X1 - 24u, Y1 - 10u, "NO");
 }

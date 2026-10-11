@@ -20,6 +20,7 @@ static int selftest_starts, selftest_aborts, menu_closes;
 void modwerk_test_close_menu(void) { ++menu_closes; }
 int modwerk_selftest_start(void) { ++selftest_starts; return 1; }
 void modwerk_selftest_abort(void) { ++selftest_aborts; }
+void modwerk_selftest_refresh(void) {}
 uint32_t modwerk_runtime_free(uint32_t *largest) { if (largest) *largest = 0; return 0; }
 int main(void)
 {

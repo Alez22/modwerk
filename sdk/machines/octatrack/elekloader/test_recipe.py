@@ -268,7 +268,7 @@ class DspLoaderTests(unittest.TestCase):
         self.assertIn('#>dltable', text); self.assertIn('#>$7c8', text); self.assertIn('#>$7c9', text)
         self.assertNotIn('@', text)
         self.assertNotIn(':>$2360', text)  # nothing for the host to read back
-        self.assertEqual(text.count('#>2384'), 3)
+        self.assertEqual(text.count('#>2384'), 4)  # WRITE, its read-back, SUM, the table
         with self.assertRaisesRegex(ValueError, 'receiver changed'):
             dsp_loader.receiver_source(dsp_loader.RECEIVER.read_text().replace('@NULL_PROC@', '$0'), (0x7c8, 0x7c9), 1)
 

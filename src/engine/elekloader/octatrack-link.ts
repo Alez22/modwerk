@@ -3,7 +3,7 @@
 // send one runtime module, run it as a trial, then keep or undo it. The base
 // itself undoes anything not kept when USB goes quiet or away, so every
 // failure here ends in "unplug to undo" at worst.
-import { runSelftest } from './selftest.ts'
+import { runSelftest, waitUntilSaved } from './selftest.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { UploadDeviceError, UploadSession, UploadUnconfirmedError } from './upload-session.ts'
 import type { UploadResultName } from './upload-wire.ts'
@@ -225,9 +225,11 @@ export class OctatrackLink {
     try {
       await this.whenStopped(() => session.holdTrial())
       if (keep) await session.accept(); else await session.rollback()
+      const unsaved = keep && this.transport && !await waitUntilSaved(this.transport).catch(() => false)
       await session.leaveUploadMode()
       await this.release()
-      this.ready({ tone: 'success', text: keep ? `Kept. ${module} stays on your Octatrack, also after a restart.` : 'Undone. Your Octatrack is back to how it was.' },
+      this.ready(unsaved ? { tone: 'error', text: `Kept, but the Octatrack couldn’t save ${module} to the card. It runs until you switch off; load it again to save it.` }
+        : { tone: 'success', text: keep ? `Kept. ${module} stays on your Octatrack, also after a restart.` : 'Undone. Your Octatrack is back to how it was.' },
         session.status.active)
     } catch (error) {
       // Playing blocks the stop that keep and undo need; the trial carries on until the user stops.

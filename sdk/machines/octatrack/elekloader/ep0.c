@@ -169,6 +169,7 @@ uint32_t modwerk_ep0_dispatch(void)
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 1u && !SETUP[3] &&
         SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && (SETUP[6] | SETUP[7] << 8) == sizeof modwerk_selftest) {
         if (SETUP[2]) (void)modwerk_selftest_start();
+        modwerk_selftest_refresh();
         for (unsigned i = 0; i < sizeof modwerk_selftest; ++i) out[i] = ((const volatile uint8_t *)&modwerk_selftest)[i];
         modwerk_ep0_reply = out;
         return sizeof modwerk_selftest;

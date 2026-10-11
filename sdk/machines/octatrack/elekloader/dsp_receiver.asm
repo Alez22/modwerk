@@ -19,7 +19,8 @@
 ; WRITE's expected sum (low 16 bits; its high 8 in word 56), 8-55 the data
 ; (two words per 24-bit word), 59-63 scratch. Opcodes: 1 PROBE, 3 WRITE, 4 BIND,
 ; 5 UNBIND, 6 BYPASS (an id onto stock's null stub), 7 BASE (X:$255 entry),
-; 8 PEEK (one bit of a P word, answered in HF3).
+; 8 PEEK (one bit of a P word, answered in HF3), 9 SUM (HF3: the sum of 1-256 table words differs from the
+; packet's, word 7 low 16 bits and word 56 high 8: the self-test's check of code where it runs).
 ; The first refused packet of a boot leaves a record (missoffset, then two words):
 ;   $01rrrr: its halfwords sum to rrrr, not 0; the sequence that arrived; their
 ;            position-weighted sum (each halfword times 64 - its index), mod 2^24.
@@ -127,7 +128,26 @@ checksumdone:
         beq     setbase
         cmp     #>8,a
         beq     peekbit
+        cmp     #>9,a
+        beq     summed
         bra     refusewrite
+summed:
+        ; SUM (9): WRITE's read-back over (r0+4) words, 1-256, from table offset (r0+5), nothing written.
+        move    x:(r0+4),a
+        and     #>$ffff,a
+        cmp     #>1,a
+        blt     refusewrite
+        cmp     #>256,a
+        bgt     refusewrite
+        move    a1,x1
+        move    x:(r0+5),a
+        and     #>$ffff,a
+        cmp     #>64,a
+        blt     refusewrite
+        add     x1,a
+        cmp     #>@DLWORDS@,a
+        bgt     refusewrite
+        bra     written
 upload:
         move    x:(r0+4),a
         and     #>$ffff,a
@@ -195,8 +215,13 @@ verified:
         move    a1,x0
         move    x1,a
         cmp     x0,a
-        bne     mismatch
+        bne     wrongsum
         bra     accepted
+wrongsum:
+        move    x:(r0+2),a              ; a SUM refuses without WRITE's record
+        and     #>$ffff,a
+        cmp     #>9,a
+        beq     badsaved
 mismatch:
         move    x:(r0+5),a
         and     #>$ffff,a

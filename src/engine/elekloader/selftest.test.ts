@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { runSelftest, SELFTEST_FAILURES } from './selftest'
+import { runSelftest, SELFTEST_FAILURES, waitUntilSaved } from './selftest'
 import { parseSelftest, SELFTEST_BYTES, type SelftestRecord } from './upload-usb'
 
-const record = (state: number, failed = 0, done = 0, total = 4): SelftestRecord =>
-  ({ state, failed, modules: 2, dsp: 2, intact: 2, ran: 2, peaks: { cpu: 500, tracks1to4: 600, tracks5to8: 550 }, done, total })
+const record = (state: number, failed = 0, done = 0, total = 4, saved = 7, savedCount = 2): SelftestRecord =>
+  ({ state, failed, modules: 2, dsp: 2, intact: 2, ran: 2, peaks: { cpu: 500, tracks1to4: 600, tracks5to8: 550 }, done, total,
+    frameGap: 48000, saved, savedCount, live: 2, culprit: 0, culpritName: '' })
 /** A unit whose self-test answers `states` in turn, the first to the start request. */
 function unit(states: (SelftestRecord | undefined)[]) {
   const calls: boolean[] = []
@@ -31,11 +32,29 @@ describe('the base self-test as the update stress test', () => {
   it('gives up after its time limit', async () => {
     expect(await runSelftest(unit([record(1)]), { pollMs: 1, timeoutMs: 5 })).toBe('it took too long')
   })
-  it('reads the base record, big-endian, 56 bytes', () => {
+  it('reads the base record, big-endian, 92 bytes', () => {
     const view = new DataView(new ArrayBuffer(SELFTEST_BYTES))
-    ;[2, 3, 0, 6, 6, 6, 6, 669, 571, 536, 8, 8].forEach((v, i) => view.setUint32(4 * i, v))
+    ;[2, 3, 0, 6, 6, 6, 6, 669, 571, 536, 8, 8, 0, 0, 52000, 7, 6, 6, 0x873d83cc].forEach((v, i) => view.setUint32(4 * i, v))
+    ;[...'E-Verb'].forEach((ch, i) => view.setUint8(76 + i, ch.charCodeAt(0)))
     expect(parseSelftest(view)).toEqual({ state: 2, failed: 0, modules: 6, dsp: 6, intact: 6, ran: 6,
-      peaks: { tracks1to4: 669, tracks5to8: 571, cpu: 536 }, done: 8, total: 8 })
-    expect(() => parseSelftest(new DataView(new ArrayBuffer(60)))).toThrow()
+      peaks: { tracks1to4: 669, tracks5to8: 571, cpu: 536 }, done: 8, total: 8, frameGap: 52000, saved: 7, savedCount: 6, live: 6,
+      culprit: 0x873d83cc, culpritName: 'E-Verb' })
+    expect(() => parseSelftest(new DataView(new ArrayBuffer(72)))).toThrow()
+  })
+  it('names the module that failed, when the unit names one', async () => {
+    const named = (failed: number) => ({ ...record(3, failed), culprit: 1, culpritName: 'E-Verb' })
+    expect(await runSelftest(unit([record(1), named(128)]), { pollMs: 0 })).toBe('E-Verb doesn’t fit on the DSP, even on its own')
+    expect(await runSelftest(unit([record(1), named(8)]), { pollMs: 0 })).toBe('a combination the Octatrack allows overloads the DSP (with E-Verb)')
+    expect(await runSelftest(unit([record(1), named(1024)]), { pollMs: 0 })).toBe('E-Verb’s code on the DSP doesn’t match its package')
+  })
+  it('names a late frame and damaged code', async () => {
+    expect(await runSelftest(unit([record(1), record(3, 512)]), { pollMs: 0 })).toMatch(/frame came late/)
+    expect(await runSelftest(unit([record(1), record(3, 1024)]), { pollMs: 0 })).toMatch(/code on the DSP/)
+  })
+  it('after Keep, waits for the set saved on the card and read back', async () => {
+    expect(await waitUntilSaved(unit([record(0, 0, 0, 0, 7, 1), record(0, 0, 0, 0, 7, 2)]), { pollMs: 0 })).toBe(true) /* both modules */
+    expect(await waitUntilSaved(unit([record(0, 0, 0, 0, 8, 0)]), { pollMs: 0 })).toBe(false)  /* the save failed */
+    expect(await waitUntilSaved(unit([record(0, 0, 0, 0, 1, 1)]), { pollMs: 1, timeoutMs: 5 })).toBe(false) /* never saved */
+    expect(await waitUntilSaved(unit([undefined]), { pollMs: 0 })).toBe(true) /* an old base */
   })
 })
