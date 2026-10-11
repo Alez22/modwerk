@@ -15,6 +15,7 @@ int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words) { (voi
 uint32_t dl_buffers_in_use(void) { return 0; }
 unsigned modwerk_runtime_active(void) { return 0; }
 volatile struct selftest modwerk_selftest;
+volatile uint32_t modwerk_selftest_key;
 static int selftest_starts, selftest_aborts, menu_closes;
 void modwerk_test_close_menu(void) { ++menu_closes; }
 int modwerk_selftest_start(void) { ++selftest_starts; return 1; }

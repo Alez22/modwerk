@@ -59,6 +59,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | `png:/path.png` | a screenshot, 256 x 128: cheaper to read than the text rendering |
 | `screen` | the screen as block characters (thousands of tokens; avoid) |
 | `crash` | the last crash record (vector, PC, registers); `crashtest` makes one |
+| `selftest` | SYSTEM > MODWERK TEST over USB: start it (transport stopped), wait, print the verdict, the modules that ran and the CPU and core peaks |
 | `stall` | the last DSP stall record: why, the loader's whole report, each core's last packet header, the live FX ids, as they stood when the stall was seen (it survives the power cycle); `stalltest` writes one now |
 | `try FILE`, `remove FILE` | install or remove a module package, accepted at once |
 | `boot DIR` | RAM boot a `build_core.py` output; the session restarts on the new base |

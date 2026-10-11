@@ -460,14 +460,17 @@ static void peek_tick(void)
 #ifndef MODWERK_HOST
 /* The self-test (PROJ > SYSTEM > MODWERK TEST, or dev.c request 21; owner, 11 October 2026): with the transport
  * stopped, by the live FX array only (never a Part), in about 3 s for every eight DSP modules:
+ * 0. playback: PLAY, as the panel presses it; everything below runs with the pattern playing, and each placed
+ *    effect's knobs are swept in its track's live lane (page 1 fast, page 2 slowly, the lanes locks and LFOs
+ *    write; the Part is not touched), so the effects run moving, on whatever the tracks play, samples or none;
  * 1. configuration: every live module's stock-code sites still hold its patches;
  * 2. together: the DSP modules in batches, one a track (T1-T8), each placed as soon as the one before runs bound;
  *    one the ledger refuses (its core full) goes first into the next batch, one refused in an empty batch cannot
  *    run at all. Each batch runs until both cores' meters have a fresh window: no core and not the CPU past 90 %,
  *    frames running. Every module must have run;
  * 3. stress: twice, the last batch cleared and placed again at once (uploads and retirements while it all runs);
- * then each track gets back what it ran. Fails as well on a stall or a loader rejection, error or rollback. NO
- * cancels it (the tracks are restored as well). */
+ * then each track gets back what it ran and its lanes, and STOP. Fails as well on a stall or a loader rejection,
+ * error or rollback. NO cancels it (all of that is restored as well). */
 #include "selftest.h"
 volatile struct selftest modwerk_selftest;
 #define LIVE_SET ((volatile uint8_t *)0x80000ec4u)
@@ -481,6 +484,33 @@ enum { PLACE, WAIT, HOLD, CLEAR };
 static uint8_t st_live[16], st_want[16], st_queue[32], st_later[32];
 static unsigned st_queued, st_deferred, st_track, st_batch, st_step, st_ticks, st_round;
 static uint32_t st_counted, st_frames, st_failures, st_reads;
+#define LANE(t) ((volatile uint8_t *)(0x80000810u + 72u * (t))) /* a track's live lane (Octabam's PARAM_PAGES.md 5a') */
+#define PLAYING (*(volatile uint32_t *)0x800065b8u == 1u)
+volatile uint32_t modwerk_selftest_key;
+void modwerk_post_key(unsigned code, int pressed); /* boot.c: through the panel's byte ringer */
+static uint8_t st_lanes[8][72];
+static void press(unsigned code) { modwerk_selftest_key = code + 1u; modwerk_post_key(code, 1); modwerk_post_key(code, 0); }
+/* The FX lane bytes of track t: page 1 FX1 18-23, FX2 24-29; page 2 FX1 0x32-0x37, FX2 0x38-0x3d. */
+static int fx_lane_byte(unsigned b) { return (b >= 18u && b < 30u) || (b >= 0x32u && b < 0x3eu); }
+static unsigned triangle(unsigned x) { x &= 255u; return x < 128u ? x : 255u - x; }
+/* Each placed effect's knobs moving: page 1 a step every other tick, page 2 one every 16. */
+static void modulate(const uint8_t *want)
+{
+    for (unsigned i = 0; i < 16u; ++i) {
+        if (want[i] == st_live[i]) continue;
+        volatile uint8_t *lane = LANE(i & 7u);
+        unsigned p1 = i < 8u ? 18u : 24u, p2 = i < 8u ? 0x32u : 0x38u;
+        for (unsigned k = 0; k < 6u; ++k) {
+            lane[p1 + k] = (uint8_t)triangle(st_ticks * 3u + 41u * k);
+            lane[p2 + k] = (uint8_t)triangle(st_ticks / 16u + 53u * k);
+        }
+    }
+}
+static void restore_lanes(void)
+{
+    for (unsigned t = 0; t < 8u; ++t) for (unsigned b = 0; b < 72u; ++b) if (fx_lane_byte(b)) LANE(t)[b] = st_lanes[t][b];
+}
+static int st_played;
 static uint32_t counted(void) { return modwerk_dsp_stalls + dl_rejected[0] + dl_rejected[1] + dl_errors + dl_residency_rollbacks; }
 static unsigned core_of_slot(unsigned i) { return (i & 7u) < 4u ? 1u : 0u; }
 static int settled(const uint8_t *want) /* the manager idle, and every slot running `want` with its code bound */
@@ -506,6 +536,14 @@ static void finish(void)
     for (unsigned i = 0; i < 16u; ++i) if (LIVE_SET[i] != st_live[i]) t->failed |= SELFTEST_NOT_BACK;
     t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED;
 }
+/* Playing: the live set and the lanes as the Part has them now, then the checks. */
+static void started(volatile struct selftest *t)
+{
+    for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_want[i] = LIVE_SET[i];
+    for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
+    st_counted = counted(), st_track = st_batch = st_step = st_ticks = st_round = 0;
+    t->phase = st_queued ? SELFTEST_TOGETHER : SELFTEST_RESTORE;
+}
 int modwerk_selftest_start(void)
 {
     volatile struct selftest *t = &modwerk_selftest;
@@ -517,9 +555,10 @@ int modwerk_selftest_start(void)
     t->modules = modwerk_runtime_active(), t->dsp = st_queued, t->intact = modwerk_runtime_intact(), t->total = st_queued + 2u;
     if (t->intact != t->modules) t->failed |= SELFTEST_BROKEN;
     for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_want[i] = LIVE_SET[i];
-    st_counted = counted(), st_track = st_batch = st_step = st_ticks = st_round = 0;
+    for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
+    st_counted = counted(), st_ticks = st_step = 0, st_played = 0;
     modwerk_status_fast = 1;
-    t->phase = st_queued ? SELFTEST_TOGETHER : SELFTEST_RESTORE, t->state = SELFTEST_RUNNING;
+    t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING; /* the tick presses PLAY */
     return 1;
 }
 void modwerk_selftest_abort(void)
@@ -559,6 +598,7 @@ static void together(volatile struct selftest *t)
         if (st_ticks > 6u && modwerk_status[4] > t->peak[0]) t->peak[0] = modwerk_status[4];
         if (st_ticks > 6u && modwerk_status[2] > t->peak[1]) t->peak[1] = modwerk_status[2];
         if (modwerk_status[0] > t->cpu) t->cpu = modwerk_status[0];
+        modulate(st_want);
         if (modwerk_status_reads - st_reads < 3u && st_ticks < 240u) return;
         if (dl_frames == st_frames) t->failed |= SELFTEST_STOPPED;
         if (t->peak[0] > 900u || t->peak[1] > 900u) t->failed |= SELFTEST_PEAK;
@@ -587,7 +627,13 @@ static void selftest_tick(void)
     volatile struct selftest *t = &modwerk_selftest;
     if (t->state != SELFTEST_RUNNING) return;
     ++st_ticks;
-    if (!modwerk_machine_stopped() && t->phase != SELFTEST_RESTORE) modwerk_selftest_abort(); /* the transport started */
+    if (t->phase == SELFTEST_CONFIGURATION) { /* PLAY, and the checks once it plays */
+        if (!st_step) { press(0x28u), st_played = 1, st_step = 1, st_ticks = 0; return; }
+        if (PLAYING && st_ticks > 6u) { started(t); return; }
+        if (st_ticks > 120u) t->failed |= SELFTEST_ABORTED, t->phase = SELFTEST_RESTORE, st_ticks = 0; /* it would not play */
+        return;
+    }
+    if (!PLAYING && t->phase != SELFTEST_RESTORE) modwerk_selftest_abort(); /* the transport stopped */
     if (t->phase == SELFTEST_TOGETHER) { together(t); return; }
     if (t->phase == SELFTEST_STRESS) {
         if (st_round < 2u) { /* the last batch cleared, then placed again at once */
@@ -599,13 +645,17 @@ static void selftest_tick(void)
             return;
         }
         if (st_step != 3) { st_step = 3, st_ticks = 0, st_frames = dl_frames; return; }
+        modulate(st_want);
         if (st_ticks < 60u) return;
         if (dl_frames == st_frames) t->failed |= SELFTEST_STOPPED;
         t->phase = SELFTEST_RESTORE, st_ticks = 0;
         return;
     }
-    set_live(st_live); /* SELFTEST_RESTORE: each track back to what it ran */
-    if (settled(st_live) || st_ticks > 300u) finish();
+    /* SELFTEST_RESTORE: each track back to what it ran and its lanes, then STOP if the test pressed PLAY */
+    restore_lanes(), set_live(st_live);
+    if (!settled(st_live) && st_ticks <= 300u) return;
+    if (st_played && PLAYING) { if (st_step != 9) press(0x27u), st_step = 9, st_ticks = 0; if (st_ticks < 60u) return; }
+    finish();
 }
 #endif
 void modwerk_dsp_unpack(void); /* identity.c: the stock effects' code into RAM, before the manager needs it */

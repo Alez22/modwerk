@@ -28,4 +28,5 @@ typedef char selftest_size[sizeof(struct selftest) == 56u ? 1 : -1]; /* not a wh
 extern volatile struct selftest modwerk_selftest;
 int modwerk_selftest_start(void); /* 1 when it started: stopped, the loader idle */
 void modwerk_selftest_abort(void);
+extern volatile uint32_t modwerk_selftest_key; /* a key the test pressed (code + 1, 0 none): status.c lets it through */
 #endif

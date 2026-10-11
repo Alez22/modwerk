@@ -1858,6 +1858,23 @@ It reports the same records, so a hardware run and a user's self-test compare di
 **Order**: the qualification script first (all its tools exist), then SELFTEST in the base, then
 the site's step (development builds only, behind `USB_LINK`).
 
+**Built (S34, 11 October 2026): PROJ > SYSTEM > MODWERK TEST.** The same also runs as development request 21 and the session's `selftest` step. It needs no samples, and takes about 3 s for every eight DSP modules.
+
+It runs these steps in order:
+1. **Playback.** It presses PLAY; everything below runs with the pattern playing. Each placed effect's knobs are swept in its track's live lane (the bytes locks and LFOs write), so the effects run moving. The Part is never touched.
+2. **Modules.** Every installed module's stock-code sites still hold.
+3. **Together.** The DSP modules in batches of one per track, each placed as soon as the one before runs bound. One the ledger refuses (its core is full) goes first into the next batch; one refused in an empty batch fails. Each batch runs until both cores' meters have a fresh window (only the peak word is read during the test): no core and not the CPU past 90%, frames running.
+4. **Stress.** The last batch is cleared and placed again twice.
+5. **Restore.** The tracks get back their effects and lanes, and it presses STOP. NO stops the test at any point and restores the same way.
+
+The page shows each check, the CPU, T1-4 and T5-8 load bars (with a 90% tick) and a progress bar.
+
+On S34 with six modules it passed in 7 s: all six ran, peaks CPU 54%, T1-4 67%, T5-8 57%. The lanes came back byte for byte.
+
+**A trap it uncovered.** The SYSTEM rows' actions can be reached by a YES in an FX chooser with the menu closed. So they now act only while PROJ's menu is open (its input layer `0x400cbf2c`), and they close the menu on the next tick.
+
+**Not built yet:** the PEEK read-back of DSP code against the package, the persistence check, and the site's step after a sync.
+
 ## Work required before public cutover
 
 | Area | Observed gap / next implementation |

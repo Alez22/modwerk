@@ -130,6 +130,10 @@ void modwerk_test_menu(int unused)
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
+    if (modwerk_selftest_key && (unsigned)code + 1u == modwerk_selftest_key) { /* the test's own PLAY or STOP */
+        if (!pressed) modwerk_selftest_key = 0;
+        return 0;
+    }
     if (code == CUE) cue = pressed;
     if (pressed && open == TEST && code == NO) { modwerk_selftest_abort(); open = CLOSED; taken = code; return 1; }
     if (pressed && ((code == PROJ && cue) || (open && (code == NO || (code == YES && open == HINT))))) {
