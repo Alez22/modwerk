@@ -107,6 +107,12 @@ bases. A DSP core's load is its idle passes times their calibrated cycles (20.0 
 of a 72,520-cycle frame; recalibrate with `build_core.py --dsp-burn 1000` (core 0) or `-1000` (core 1).
 
 
+**Optimising a DSP effect.** `dspbench/` compares two builds of an effect on the dsp56300 emulator core,
+called with stock's convention: bit-identical output under knob automation and every split position, and the
+instructions each executes. No stock image or Octabam tooling; build line in `dspbench.cpp`. Chip cycles come
+from the unit's status meters, since a displacement or two-word operand costs the chip more than the emulator
+counts.
+
 Before changing anything here, read the [hardware traps](../../../../docs/OCTATRACK_HARDWARE_TRAPS.md)
 found on the owner's MKII (EP0 sizes, RAM boot, key injection, eDMA alignment).
 
