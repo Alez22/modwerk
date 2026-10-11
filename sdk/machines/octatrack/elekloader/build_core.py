@@ -22,6 +22,8 @@ FIELDS = {'build': 17, 'os': 17, 'modules': 4096, 'configuration': 65,
           'source': 65, 'fx1': 1024, 'fx2': 1024, 'hidden': 1024}
 # RAM boot (boot.s): the gate replaces the OS entry's `movea.l #0x48000000,%sp`.
 BOOT_GATE = (0x40000412, '2e7c48000000')
+# The startup (boot_anim.s) replaces the logo loop's first instructions, `pea -1; clr.l -(%sp)`.
+BOOT_LOGO = (0x400559c6, '4878ffff42a7')
 OS_FIRST, OS_VEROFF, BOOT_IMAGE_BYTES = 0x4fefffe4, 0xde648, 0x140000  # boot.s, boot.h
 BOOT_RESERVE = (0x40a955e0, 0x41495de0)  # boot.s RESERVE_LO/HI: the gate scans only there
 # REMIX SWITCH's DSP park (dsp_park.asm, assembled by Octabam's dsp_asm), by
@@ -507,8 +509,12 @@ def main():
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')
     usb = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb)
-    for name in ('ep0.c', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c') + (('dev.c',) if args.dev else ()):
+    for name in ('ep0.c', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s') + (('dev.c',) if args.dev else ()):
         shutil.copyfile(HERE / name, source / name)
+    # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.
+    spec = importlib.util.spec_from_file_location('modwerk_base_art', APP / 'sdk/runtime/startup/base_art.py')
+    base_art = importlib.util.module_from_spec(spec); spec.loader.exec_module(base_art)
+    (source / 'boot_art.h').write_text(base_art.header(VERSION.split('-')[0]))
     dsp_sites, dsp_layout, rows = [], None, None
     if args.dsp_loader:
         spec = importlib.util.spec_from_file_location('modwerk_dsp_loader', HERE/'dsp_loader.py')
@@ -562,6 +568,7 @@ def main():
     inputs['sdk/runtime/startup/artwork.json'] = sha(artwork.read_bytes())
     inputs['sdk/runtime/startup/build.py'] = sha((artwork.parent/'build.py').read_bytes())
     inputs['sdk/runtime/startup/base.json'] = sha((artwork.parent/'base.json').read_bytes())
+    inputs['sdk/runtime/startup/base_art.py'] = sha((artwork.parent/'base_art.py').read_bytes())
     source_hash = sha(json.dumps(inputs, sort_keys=True, separators=(',', ':')).encode())
     chooser = json.loads((APP/'src/engine/assets/chooser-metadata.json').read_text())
     configuration = dict(fx1=['NONE', *chooser['stockFx1']], fx2=['NONE', *chooser['stockFx2']],
@@ -617,7 +624,7 @@ modwerk_retained_end:
     recipe.update(version=VERSION, title='Modwerk base prototype', author='irpina; Modwerk contributors',
                   license='GPL-3.0-or-later',
                   description='Private core-only Elekloader base with logger/startup, a USB vendor interface and a runtime module loader (hooks and stock-code sites); NOT a flash candidate.')
-    recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s'] + (
+    recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s'] + (
         ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
@@ -639,6 +646,11 @@ modwerk_retained_end:
     if image[at:at+6].hex() != BOOT_GATE[1]:
         raise ValueError('The OS entry changed; review the RAM boot gate.')
     recipe['sites'].append(dict(addr=hex(BOOT_GATE[0]), stock=BOOT_GATE[1], op='jmp', target='modwerk_boot_gate'))
+    # The startup: boot_anim.s replaces the stock logo loop from its first instruction.
+    at = BOOT_LOGO[0] - device.main_load
+    if image[at:at+6].hex() != BOOT_LOGO[1]:
+        raise ValueError('The stock logo loop changed; review boot_anim.s.')
+    recipe['sites'].append(dict(addr=hex(BOOT_LOGO[0]), stock=BOOT_LOGO[1], op='jmp', target='modwerk_boot_loop'))
     for tag in ('A', 'B'):
         for lo, words in DSP_PARK.items():
             addr = dsp.p_span(image, device, tag, lo, lo + len(words)); at = addr - device.main_load
@@ -650,6 +662,7 @@ modwerk_retained_end:
     # The machine-neutral loader's events (sdk/runtime/loader/loader.h), from core-ot's bus.
     recipe.setdefault('subscribe', []).extend(dict(event='ev_' + e, fn='modwerk_runtime_' + e, order=90)
                                               for e in ('tick', 'draw', 'key', 'enc'))
+    recipe['subscribe'].append(dict(event='ev_draw', fn='modwerk_boot_draw', order=10))  # boot_anim.c, while it runs
     # The host time limit counts on the same tick (ep0.c).
     recipe['subscribe'].append(dict(event='ev_tick', fn='modwerk_ep0_tick', order=91))
     if args.dev:  # the screen as composed, modules' drawing included
@@ -665,8 +678,7 @@ modwerk_retained_end:
         recipe['sites'] += [] if args.dsp_probe == 'S' else dsp_sites
     spec = importlib.util.spec_from_file_location('modwerk_startup', artwork.parent/'build.py')
     startup = importlib.util.module_from_spec(spec); spec.loader.exec_module(startup)
-    # The base's own startup: NEW, its version (the part of VERSION before the dev suffix) and the LED show.
-    for guard, authored in startup.writes(VERSION.split('-')[0]):
+    for guard, authored in startup.writes():
         at = guard['address'] - device.main_load
         if sha(image[at:at+len(authored)]) != guard['sha256']:
             raise ValueError('Startup stock table guard failed.')

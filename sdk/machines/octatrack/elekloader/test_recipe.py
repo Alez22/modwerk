@@ -227,6 +227,24 @@ class RuntimeSlotTests(unittest.TestCase):
     def test_module_set_on_the_host(self):
         self.host_test('test_modset.c')
 
+    def test_startup_on_the_host(self):
+        import importlib.util, pathlib, shutil, subprocess, tempfile
+        cc = shutil.which('cc')
+        if not cc:
+            self.skipTest('no host C compiler')
+        here = pathlib.Path(__file__).resolve().parent
+        spec = importlib.util.spec_from_file_location('base_art', here.parents[2] / 'runtime/startup/base_art.py')
+        art = importlib.util.module_from_spec(spec); spec.loader.exec_module(art)
+        with tempfile.TemporaryDirectory() as temp:
+            (pathlib.Path(temp) / 'boot_art.h').write_text(art.header('0.3.1'))
+            pixels = sorted(art.final_pixels('0.3.1'))
+            (pathlib.Path(temp) / 'boot_expect.h').write_text('#define BOOT_EXPECT %d\nstatic const uint8_t boot_expect[%d][2] = {%s};\n' % (
+                len(pixels), len(pixels), ', '.join('{%d, %d}' % p for p in pixels)))
+            subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-DMODWERK_HOST', '-I', temp, '-I', here,
+                            here / 'test_boot_anim.c', '-o', temp + '/t'], check=True, capture_output=True)
+            result = subprocess.run([temp + '/t'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 
 class DspLoaderTests(unittest.TestCase):

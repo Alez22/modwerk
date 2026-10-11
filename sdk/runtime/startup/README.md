@@ -79,33 +79,27 @@ LCD capture results and remaining checks.
 
 ## Base edition
 
-The Elekloader base boots with its own edition of this animation, so a tester knows at a glance that
-the new base is running: **NEW** left of the mark, the base version right of it (the part of
-`VERSION` in `build_core.py` before the dev suffix, e.g. `0.3.1`), the mark and the wordmark as above.
-Public builds keep the animation described so far, byte for byte (`test_startup_base.py` compares it with
-the recorded hashes). `build.py` produces the edition when `writes()` / `apply()` get a version, and
-`--base-version 0.3.1` does the same from the command line; `build_core.py` passes `VERSION` itself.
+The Elekloader base replaces the stock logo loop with its own startup,
+[`boot_anim.c`](../../machines/octatrack/elekloader/boot_anim.c), after Manfred
+Mohr's hypercubes. A seed pixel opens into a four-dimensional cube, which unfolds
+past the edges of the screen, tumbles back in and comes to rest in the one
+orientation where its sixteen corners fall on a 3 x 3 grid: the Modwerk mark. The
+edges drop away one by one, the corners grow into the tiles, the corner (1,1,1,1)
+slips out as the detached tile, the frame closes, the wordmark wipes in and **NEW**
+and the version are typed beside the mark. It ends on the same frame each time
+(`base_art.final_pixels`), lowered three rows for room at the edges. It takes 3.4 s.
 
-`base.json` is the authored data: the small pixel font, the text (size, place, landing times), the layout
-shift and the LED show. The text uses the same stock particle records as the mark: the records the mark does
-not need carry the letters, and the ninth tile's comet tail takes what is left. The edition lowers the mark
-and the wordmark by three rows for balanced margins and leaves out any caption under the wordmark: the stock
-renderer lands particles on the bottom three rows one pixel off, so text stays above row 61 (the encoder
-refuses anything else).
+The LEDs are the world beyond the screen. The panel is treated as one plane with
+the LCD in it (lamp positions from the stock lamp table at run time, 54.2 hundredths
+of a millimetre per pixel), and each lamp glows where the cube's edges cross it,
+with a short afterglow. When the detached tile slips out, its momentum carries on
+across the panel towards the lower right. It is monochrome: one channel per lamp.
 
-The LED show replaces the two lamp tables of the boot loop (67 lamps on an MKII panel, 44 on an MKI): green
-converges from the edge of the panel to the middle while the particles fly in, red follows the wordmark's
-wipe from left to right, T1-T8 pop as the eight tiles lock in and REC lights as the detached tile lands. The
-stock loop gives every lamp two brightness waves, 15 - |p + s|, where p comes from the lamp's table entry and
-s from the loop time; `base.json` stores when each lamp's red and green peak, in milliseconds of logo time, and
-the encoder turns that into table entries. Nothing is left lit when the loop ends. Three instruction
-immediates change as well (six bytes, each guarded by the SHA-256 of the stock bytes): the loop's time step for
-the LEDs goes from 40 ms to 10 ms per brightness level, so pulses last 0.3 s instead of 1.2 s, and the
-wordmark's row moves down three rows with the mark. This is the first time the startup patch touches
-instructions.
-
-Check a composed base image with `scripts/verify-startup-base.py` (see its header). It needs the reviewed
-emulator and the image; it writes nothing unless you ask for the GIF, PNG or record.
+This folder holds the authored data the base draws from: `artwork.json` (the mark and
+the wordmark, shared with public builds), `base.json` (the layout shift, the font,
+NEW and the version line) and `base_art.py`, which writes them as C data
+(`boot_art.h`) for `build_core.py` and gives the final frame to the tests. Public
+builds are unchanged: `build.py` still writes only the two graphic tables above.
 
 ## Authorship and licence
 

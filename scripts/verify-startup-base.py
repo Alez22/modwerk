@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Explicit private check of the base's startup (sdk/runtime/startup/base.json); never part of npm check.
+"""Explicit private check of the base's startup (boot_anim.c in sdk/machines/octatrack/elekloader); never
+part of npm check.
 
-Boots a composed MAIN image in the headless emulator with the boot logo on, records the panel stream
-(LCD blocks, LED levels) while it plays and checks, for MKI and MKII:
-  * the last logo frame equals the authored pixels exactly (mark, wordmark, NEW, version);
-  * every LED level inside the logo window equals what the firmware's own boot formula gives for the
-    authored lamp table at the recovered loop time (the time step patch took effect);
-  * the unit hands over to the normal screen afterwards.
+Boots a composed base MAIN image in the headless emulator with the boot logo on, records the panel stream
+(LCD blocks, LED levels and rows) while it plays and checks, for MKI and MKII:
+  * the last startup frame equals the authored pixels exactly (mark, wordmark, NEW, version);
+  * the LEDs use one channel (even ids) with levels 0-15, light while the cube is out over the panel
+    and are all dark before the stock code takes over;
+  * the unit hands over to the normal screen, with the same LED rows and levels as the stock image
+    (--stock) once the startup is over.
 Firmware, images and captures stay private; only --gif / --png (authored boot graphics) and --record
 (hashes and results) write anything, and only where you point them.
 
-  verify-startup-base.py --image MAIN.raw --version 0.3.1 --emulator ot_emu [--docker-image IMAGE]
-                         [--gif OUT.gif] [--png OUT.png] [--record OUT.json]
+  verify-startup-base.py --image MAIN.raw --stock STOCK-MAIN.raw --version 0.3.1 --emulator ot_emu
+                         [--docker-image IMAGE] [--gif OUT.gif] [--png OUT.png] [--record OUT.json]
 
 --emulator is the Linux ot_emu; with --docker-image it runs in that image (Docker Desktop must be up).
 """
@@ -20,15 +22,15 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('startup_build', ROOT / 'sdk/runtime/startup/build.py')
-build = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(build)
+spec = importlib.util.spec_from_file_location('base_art', ROOT / 'sdk/runtime/startup/base_art.py')
+base_art = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(base_art)
 FRAME = {**{o: 10 for o in range(0x10, 0x18)}, **{o: 2 for o in [*range(0x20, 0x40), *range(0xa0, 0xb0)]},
          **{o: 1 for o in range(0x40, 0x50)}, 0x60: 2, 0x70: 2, 0x74: 2, 0xb5: 6, 0xb7: 2}  # tools/panel/panel_link.py
 
 
-def capture(args, mkii, step=5.0, total=3300.0):
-    image = Path(args.image).resolve()
+def capture(args, mkii, image=None, step=10.0, total=4400.0):
+    image = Path(image or args.image).resolve()
     emu = Path(args.emulator).resolve()
     tail = ['--image', f'/b/{image.name}' if args.docker_image else str(image), '--boot-logo', '--ms', '50', '--main-level', 'off',
             '--interactive', '--rtc', 'off'] + (['--mkii'] if mkii else [])
@@ -43,7 +45,7 @@ def capture(args, mkii, step=5.0, total=3300.0):
             break
     if not line.startswith('ready'):
         raise RuntimeError('The emulator did not become ready.')
-    plane, frames, led, buf, t = bytearray(1024), [], [], bytearray(), 0.0
+    plane, frames, led, rows, buf, t = bytearray(1024), [], [], {}, bytearray(), 0.0
     while t < total:
         ask(f'run {step}')
         t += step
@@ -56,10 +58,18 @@ def capture(args, mkii, step=5.0, total=3300.0):
                 plane[(m[0] & 7) * 128 + m[1]:(m[0] & 7) * 128 + m[1] + 8] = m[2:10]; dirty = True
             elif 0x30 <= m[0] < 0x40:
                 led.append((t, m[1], m[0] & 15))
+            elif 0x20 <= m[0] < 0x30 or 0xa0 <= m[0] < 0xb0:
+                rows[(m[0] & 15) + (16 if m[0] >= 0xa0 else 0)] = m[1]
         if dirty:
             frames.append((t, bytes(plane)))
     ask('quit'); p.wait(timeout=30)
-    return frames, led
+    return frames, led, rows
+
+
+def pixels(plane):
+    """The lit (x, y) of an LCD plane as the panel stream fills it (page p is rows 8*(7-p)..+7)."""
+    return {(col, 8 * (7 - page) + bit) for page in range(8) for col in range(128) for bit in range(8)
+            if plane[page * 128 + col] >> bit & 1}
 
 
 def lcd(plane):
@@ -72,72 +82,70 @@ def lcd(plane):
     return im
 
 
-def authored_pixels(version):
-    art, edition = json.loads(build.ARTWORK.read_text()), json.loads(build.EDITION.read_text())
-    return build.authored_ink(art, edition['layout']['dy']) | build.text_points(edition, version)[1]
-
-
-def led_check(led, table):
-    """Group the level stream into loop iterations (lamps are walked in ascending order) and, for each
-    inside the logo window, find the loop time step s that explains every level it set."""
-    rs = lambda v: (v + (1023 if v < 0 else 0)) >> 10
-    phases = [((struct.unpack_from('>ii', table, 8 * i)), i) for i in range(len(table) // 8)]
-    waves = {}
-    for (x, y), i in phases:
-        waves[2 * i], waves[2 * i + 1] = rs(y - x - 8200), rs(x + y - 25800)
-    groups, last = [], None
-    for t, i, level in led:
-        if last is None or i // 2 < last:
-            groups.append([])
-        groups[-1].append((t, i, level)); last = i // 2
-    state, fits, wrong = {}, [], 0
-    for g in groups:
-        for _, i, level in g:
-            state[i] = level
-        t = g[0][0]
-        if not 200 < t < 2900:
-            continue
-        best = min(range(-120, 260), key=lambda s: sum(state[i] != max(0, 15 - abs(w + s)) for i, w in waves.items() if i in state))
-        miss = sum(state[i] != max(0, 15 - abs(w + best)) for i, w in waves.items() if i in state)
-        wrong += miss > 0
-        fits.append((t, best))
-    t0 = sorted(t - 5 * (192 + 2 * s) for t, s in fits)[len(fits) // 2]   # capture time of the loop's time zero
-    return len(fits), wrong, t0
+def led_story(led):
+    """The startup's own LED traffic: from the first level it sets to the stock code's reset (every id
+    to 0, then the boot state), split at the long burst that reset sends."""
+    levels, odd, lit, out_of_range = {}, 0, set(), 0
+    end = max(t for t, _, _ in led)
+    reset = min((t for t, i, level in led if i == 132 and level == 0 and t > 1000), default=end)
+    # before it, the stock boot's own brightness init (levels 15 and 6); the startup begins by zeroing every id
+    start = next(n for n, (_, _, level) in enumerate(led) if level == 0)
+    for t, i, level in led[start:]:
+        if t >= reset:
+            break
+        out_of_range += not 0 <= level <= 15
+        if level and i & 1:
+            odd += 1
+        if level:
+            lit.add(i)
+        levels[i] = level
+    return dict(lampsLit=len(lit), oddChannelLevels=odd, outOfRange=out_of_range,
+                darkBeforeReset=all(v == 0 for v in levels.values()))
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--image', required=True); ap.add_argument('--version', required=True); ap.add_argument('--emulator', required=True)
-    ap.add_argument('--docker-image'); ap.add_argument('--gif'); ap.add_argument('--png'); ap.add_argument('--record')
+    ap.add_argument('--image', required=True); ap.add_argument('--stock', required=True); ap.add_argument('--version', required=True)
+    ap.add_argument('--emulator', required=True); ap.add_argument('--docker-image')
+    ap.add_argument('--gif'); ap.add_argument('--png'); ap.add_argument('--record')
     args = ap.parse_args()
-    expected, edition = authored_pixels(args.version), json.loads(build.EDITION.read_text())
-    results = {}
+    expected, results = base_art.final_pixels(args.version), {}
     for model, mkii in (('MKI', False), ('MKII', True)):
-        frames, led = capture(args, mkii)
-        window = [f for f in frames if f[0] <= 2700]
-        final = lcd(window[-1][1]).load()
-        got = {(x, y) for y in range(64) for x in range(128) if final[x, y]}
-        n, wrong, t0 = led_check(led, build.lamp_table(edition['led']['mkii' if mkii else 'mki']))
-        after = lcd(frames[-1][1]).tobytes() != lcd(window[-1][1]).tobytes() and frames[-1][0] > 2800
-        results[model] = dict(finalFramePixels=len(got), missing=len(expected - got), extra=len(got - expected),
-                              ledIterationsChecked=n, ledIterationsUnexplained=wrong, handsOverToUi=after, loopTimeZeroCaptureMs=t0)
+        frames, led, rows = capture(args, mkii)
+        _, stock_led, stock_rows = capture(args, mkii, args.stock)
+        shown_px = [pixels(f[1]) for f in frames]
+        # the startup's last frame is the last one before the stock screen: the last exact match, or,
+        # for an image that never matches, the frame before the last one (to report the difference)
+        final_index = max((i for i, px in enumerate(shown_px) if px == expected), default=len(frames) - 2)
+        final, got = lcd(frames[final_index][1]), shown_px[final_index]
+        story = led_story(led)
+        stock_levels, levels = {}, {}
+        for _, i, level in stock_led: stock_levels[i] = level
+        for _, i, level in led: levels[i] = level
+        handover = final_index < len(frames) - 1
+        results[model] = dict(finalFramePixels=len(got), missing=len(expected - got), extra=len(got - expected), **story,
+                              handsOverToUi=handover, ledStateAfterwardsAsStock=levels == stock_levels and rows == stock_rows)
         print(model, results[model])
-        assert not (expected ^ got) and wrong == 0 and after, model + ' failed'
+        assert not (expected ^ got) and handover and story['oddChannelLevels'] == 0 and story['outOfRange'] == 0, model + ' failed'
+        assert story['lampsLit'] >= 10 and story['darkBeforeReset'] and results[model]['ledStateAfterwardsAsStock'], model + ' failed'
         if mkii and (args.gif or args.png):
-            logo = [lcd(next(p for tt, p in reversed(frames) if tt <= t0 + 40 * k)) for k in range(70)]
+            t0 = frames[0][0]
+            shown = [lcd(next(p for tt, p in reversed(frames) if tt <= t0 + 40 * k)) for k in range(int((frames[final_index][0] - t0) / 40) + 1)]
             scale = lambda im: im.convert('P').resize((768, 384), Image.NEAREST)
             if args.gif:
-                scale(logo[0]).save(args.gif, save_all=True, append_images=[scale(im) for im in logo[1:]], duration=[160] + [40] * 68 + [840], loop=0)
+                scale(shown[0]).save(args.gif, save_all=True, append_images=[scale(im) for im in shown[1:]],
+                                     duration=[40] * (len(shown) - 1) + [1200], loop=0)
             if args.png:
-                scale(lcd(window[-1][1])).save(args.png)
+                scale(final).save(args.png)
     if args.record:
         sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
         Path(args.record).write_text(json.dumps(dict(
             kind='modwerk-base-startup-emulator', version=args.version, imageSha256=sha(args.image), emulatorSha256=sha(args.emulator),
-            captureMethod='--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 5 ms, read the panel UART with tx',
+            captureMethod='--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 10 ms, read the panel UART with tx',
             results=results, hardware='untested',
-            sourceSha256={p: sha(ROOT / p) for p in ('sdk/runtime/startup/build.py', 'sdk/runtime/startup/base.json', 'sdk/runtime/startup/artwork.json',
-                                                      'scripts/verify-startup-base.py')}), indent=1) + '\n')
+            sourceSha256={p: sha(ROOT / p) for p in ('sdk/machines/octatrack/elekloader/boot_anim.c', 'sdk/machines/octatrack/elekloader/boot_anim.s',
+                                                      'sdk/runtime/startup/base_art.py', 'sdk/runtime/startup/base.json',
+                                                      'sdk/runtime/startup/artwork.json', 'scripts/verify-startup-base.py')}), indent=1) + '\n')
     print('startup base: both models passed')
 
 

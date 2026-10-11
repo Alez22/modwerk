@@ -69,43 +69,56 @@ stateful-module qualification or physical reports.
 
 No hardware flashing or module qualification-status change was performed.
 
-## Base edition: NEW and the version (11 October 2026)
+## Base edition: a hypercube, NEW and the version (11 October 2026)
 
-The Elekloader base starts with its own edition of the animation, so beta testers see at once that the
-new base is running. **NEW** arrives left of the mark and the base version (`0.3.1`, from `VERSION` in
-`build_core.py`) right of it, as part of the same particle flight; the mark and the wordmark are the ones above.
-The whole composition sits three rows lower than in public builds and nothing is squeezed under the
-wordmark, so the top edge and the bottom have room. Public builds are unchanged.
+The Elekloader base starts with its own animation, so beta testers see at once that
+the new base is running. After Manfred Mohr: a seed pixel opens into a
+four-dimensional cube that unfolds past the edges of the screen, tumbles back in and
+settles in the one orientation where its sixteen corners fall on a 3 x 3 grid, the
+Modwerk mark. The edges drop away, the corners become the tiles, the corner (1,1,1,1)
+slips out as the detached tile, the frame closes, the wordmark wipes in and **NEW** and
+the version (`0.3.1`, from `VERSION` in `build_core.py`) are typed beside the mark. It
+takes 3.4 s, 0.6 s longer than stock. Public builds are unchanged.
 
 ![MKII LCD capture of the base startup, from the real base image in the emulator](media/startup/base-startup.gif)
 
-The LEDs follow the screen. Green converges from the edge of the panel to the middle while the particles
-fly in; red follows the wordmark's wipe from left to right; T1-T8 pop as the eight tiles lock in, in that
-order; REC lights as the detached tile lands, last. Nothing stays lit when the loop ends. The stock loop gave
-every lamp two soft 1.2 s waves; the edition sets each lamp's red and green peak time itself and shortens the
-pulse to 0.3 s so the cues stay separate. That needs three small instruction changes (six bytes: the LED time
-step, its rounding and the wordmark's row) next to the replaced lamp tables, all guarded by the SHA-256 of the
-stock bytes. It is the first time the startup patch touches instructions. MKI and MKII get the same show on
-their own lamps.
+The LEDs show what lies beyond the screen. The panel is one plane with the LCD in it,
+and a lamp glows wherever the cube's edges cross it, so the cube visibly leaves the
+screen, sweeps over the panel and comes back. When the detached tile slips out, its
+momentum carries on across the panel towards the lower right. One channel per lamp,
+monochrome.
 
-[Verification record](media/startup/base-verification.json). `scripts/verify-startup-base.py` boots the real
-base image (built with `build_core.py`, checked with `check_flash_safety.py`) in the emulator with the boot logo on:
+How it is built: `build_core.py` puts a jump on the first instruction of the stock
+logo loop (0x400559c6) to `boot_anim.s`, which calls the C startup and continues with
+the stock code after the loop (0x40055b7e). That code resets every LED itself.
+`boot_anim.c` keeps the stock loop's own means: the free-running DTIM3 count for
+time, the stock compositor and LED routines, and the frame through the core's
+`ev_draw` hook. The art comes from `artwork.json` and `base.json` through
+`sdk/runtime/startup/base_art.py`. Lamp positions come from the stock lamp table at
+run time. The LCD's place on the MKII panel was measured against the panel drawing;
+on the MKI it is an estimate.
+
+[Verification record](media/startup/base-verification.json).
+`scripts/verify-startup-base.py` boots the real base image (built with
+`build_core.py`, checked with `check_flash_safety.py`) and the stock image in the
+emulator with the boot logo on:
 
 | Check | MKI | MKII |
 | --- | --- | --- |
-| Last logo frame vs. authored pixels (mark, wordmark, NEW, version) | 1,382 of 1,382, 0 missing, 0 extra | 1,382 of 1,382, 0 missing, 0 extra |
-| LED levels vs. the firmware's own formula at the recovered loop time | 212 iterations, 0 unexplained | 214 iterations, 0 unexplained |
-| Hand-over to the normal screen after the animation | yes | yes |
+| Last startup frame vs. authored pixels (mark, wordmark, NEW, version) | 1,382 of 1,382, 0 missing, 0 extra | 1,382 of 1,382, 0 missing, 0 extra |
+| LEDs: one channel, levels 0-15, dark before the stock code takes over | yes; 36 of 44 lamps lit at some point | yes; 55 of 67 lamps lit at some point |
+| Hand-over to the normal screen; LED rows and levels afterwards as stock | yes, identical | yes, identical |
 
-The checker rejects an image without the edition (the public image fails it). `sdk/tests/test_startup_base.py`
-covers the encoder: the public bytes against the recorded hashes, text landing where authored, margins,
-version limits, and each lamp's peak at its authored time and dark at the end.
+The checker rejects the public image. A host test (`test_boot_anim.c`, run by
+`test_recipe.py` in CI) plays the startup on a simulated clock. It checks the exact
+final frame, writes only inside the frame, one LED channel, lamps lit while the cube
+is out and all dark at the end.
 
-Limits: emulator only. A real unit has not run it, so the physical LED colours, the loop's pace on the real
-panel link (the loop is time-based; in the emulator it iterates faster than stock because it sends far fewer LED
-updates) and the look on the real LCD are unconfirmed. The browser encoder (`src/engine/startup-animation.ts`) has not been
-ported; the base is composed natively today. A longer version string takes room from the comet tail and is
-refused beyond the space beside the mark (about `0.10.100`).
+Limits: emulator only; no unit has run it yet. Untested on hardware: the frame rate
+on the real panel link (the startup is time-based, so a slower link drops frames
+rather than stretching it), the LED brightness and colour, and the MKI's LCD
+position. The browser builder does not compose the base, so only `build_core.py`
+has this startup.
 
 ## Firmware name before the animation
 

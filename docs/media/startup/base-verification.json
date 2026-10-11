@@ -1,34 +1,40 @@
 {
  "kind": "modwerk-base-startup-emulator",
  "version": "0.3.1",
- "imageSha256": "545e19a7b6401a50a24a62acb91210ec8a4be648ff7304b794edd1c212b7bff9",
+ "imageSha256": "ba3ebd2f3a44edf479c8f15c0e279993cb3eb11ecb6a9d41df067a395717f88c",
  "emulatorSha256": "2e388ae83925016f06785a4f62728c9e33ed5a1ea9be976c0be719f706e26e4b",
- "captureMethod": "--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 5 ms, read the panel UART with tx",
+ "captureMethod": "--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 10 ms, read the panel UART with tx",
  "results": {
   "MKI": {
    "finalFramePixels": 1382,
    "missing": 0,
    "extra": 0,
-   "ledIterationsChecked": 212,
-   "ledIterationsUnexplained": 0,
+   "lampsLit": 36,
+   "oddChannelLevels": 0,
+   "outOfRange": 0,
+   "darkBeforeReset": true,
    "handsOverToUi": true,
-   "loopTimeZeroCaptureMs": 150.0
+   "ledStateAfterwardsAsStock": true
   },
   "MKII": {
    "finalFramePixels": 1382,
    "missing": 0,
    "extra": 0,
-   "ledIterationsChecked": 214,
-   "ledIterationsUnexplained": 0,
+   "lampsLit": 55,
+   "oddChannelLevels": 0,
+   "outOfRange": 0,
+   "darkBeforeReset": true,
    "handsOverToUi": true,
-   "loopTimeZeroCaptureMs": 150.0
+   "ledStateAfterwardsAsStock": true
   }
  },
  "hardware": "untested",
  "sourceSha256": {
-  "sdk/runtime/startup/build.py": "5d72791ccde5fe0eb877152f17705cc6ab2a2621299441863c91b940a5d327ad",
-  "sdk/runtime/startup/base.json": "77fffcc991e8720de4812da4a6e9abdf660ed5fc770041ea78e30fb428624032",
+  "sdk/machines/octatrack/elekloader/boot_anim.c": "a9d76580d41b7fd9bd8feda05092ee7c4f04d83147c8e22f5cb7c4a5e98b2dbc",
+  "sdk/machines/octatrack/elekloader/boot_anim.s": "c1abdf728b67ee9a1b5509b197edc6592c17baf35200634311765686e4ab839d",
+  "sdk/runtime/startup/base_art.py": "3b063669109102e45b43145ed82bf380e98fd8c17b410b4637ef0359c0a34914",
+  "sdk/runtime/startup/base.json": "af8f6d54fef99c1726519969ff7bb509860eafb1df260e5404e3d18389ac6ab0",
   "sdk/runtime/startup/artwork.json": "191f28c9870db93bccebb2c9f81723213f3f8f7e3a679ba286a16522d4ea7e6f",
-  "scripts/verify-startup-base.py": "a59d2992c63c5a7036e0b30bb6dced6f5d718178a60caf3fe5c027e27ccbb291"
+  "scripts/verify-startup-base.py": "60d74e8cd075482fae57d183293a7479009a22d3eec69723c287aedac7a218b0"
  }
 }
