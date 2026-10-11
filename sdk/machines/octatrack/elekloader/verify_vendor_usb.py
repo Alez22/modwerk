@@ -78,7 +78,7 @@ class Submitter:
 
     def exchange(self, data):
         sequence = self.submit(data)
-        for _ in range(200):
+        for _ in range(2400):  # the base holds frames until its boot restore settles: up to 10 s of unit time, slow here
             reply = self.result()
             if reply[:4] != b'MWUT' or struct.unpack('>H', reply[6:8])[0] != sequence:
                 return None

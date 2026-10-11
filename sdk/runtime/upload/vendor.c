@@ -96,6 +96,7 @@ int mv_tick(struct mv_transport *t, int busy, uint32_t limit)
     t->lapses = (uint8_t)(t->lapses + 1u);
     return 1;
 }
+static int housekeeping(struct mv_transport *t, struct mu_context *c);
 int mv_service(struct mv_transport *t, struct mu_context *c)
 {
     int work = 0;
@@ -109,6 +110,15 @@ int mv_service(struct mv_transport *t, struct mu_context *c)
         t->phase = done ? READY : REFUSED;
         work = 1;
     }
+    return housekeeping(t, c) | work;
+}
+int mv_service_held(struct mv_transport *t, struct mu_context *c)
+{
+    return t->phase == QUEUED ? 0 : housekeeping(t, c);
+}
+static int housekeeping(struct mv_transport *t, struct mu_context *c)
+{
+    int work = 0;
     uint8_t resets = t->resets;
     if (resets != t->handled) {
         (void)mu_disconnect(c); /* Controller-defined; failure keeps recovery pending. */

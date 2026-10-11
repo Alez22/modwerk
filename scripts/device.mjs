@@ -270,7 +270,9 @@ async function trial(session, pkg) {
   await stopping(() => session.holdTrial())
   if (values.accept && !interrupt.signal.aborted) { await session.accept(); console.log('accepted') }
   else { await session.rollback(); console.log('rolled back' + (values.accept ? '' : ' (pass --accept to keep it)')) }
-  return session.leaveUploadMode()
+  const left = Date.now(), status = await session.leaveUploadMode()
+  console.log(`left upload mode in ${Date.now() - left} ms`) // the card-set save runs first, in the same task
+  return status
 }
 
 /** After a RAM boot: wait until the unit has gone away and come back far enough to answer HELLO. */
@@ -307,9 +309,10 @@ if (command === 'serve') {
       } else if (verb === 'recover') { // a transaction left behind (an install whose reply went missing): undo it, as the site does
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const phase = session.status.phase
-        if (phase === 'pending' || phase === 'trial' || phase === 'recovery') await session.rollback()
-        if (phase !== 'normal') await session.leaveUploadMode()
-        console.log(`was ${phase}; now ${state(session.status)}`)
+        console.log(`found ${state(session.status)}`)
+        if (session.adopt()) await session.cancel() // staged by the session that lost its reply
+        else if (phase === 'ready') await session.leaveUploadMode() // a published candidate: the base rolls it back after 10 s of quiet
+        console.log(`now ${state(session.status)}`)
       } else if (verb === 'try' || verb === 'remove') {
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined

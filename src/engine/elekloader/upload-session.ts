@@ -290,6 +290,16 @@ export class UploadSession {
     return leave ? this.leaveInternal() : this.status
   }
   async cancel() { return this.exclusive(() => this.cancelInternal(true)) }
+  /** Takes over a staged transaction another session left when its reply went missing, so cancel() can undo it:
+   * staging keeps the old set active, which is all cancellation checks. True when this session now owns one. A
+   * published candidate cannot be adopted (its previous set is unknown here); the base rolls it back by itself
+   * once USB has been quiet for 10 s. */
+  adopt() {
+    const status = this.status
+    if (this.offer || !['receiving', 'verified'].includes(status.phase) || !status.activeKnown) return !!this.offer
+    this.offer = { transaction: status.currentTransaction, generation: status.generation, previous: status.active!, digest: '', length: status.received }
+    return true
+  }
   private async leaveInternal() {
     if (!['ready', 'normal'].includes(this.status.phase) || !this.status.activeKnown)
       throw new Error('Resolve staging, trial or recovery before leaving upload mode.')

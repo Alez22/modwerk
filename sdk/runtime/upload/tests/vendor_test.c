@@ -196,6 +196,10 @@ static void resets(void)
     CHECK(status_is(r, MV_READY, 3) && get32(r.buffer + MV_RESULT_HEADER + 16) == MU_OK &&
           get32(r.buffer + MV_RESULT_HEADER + 20) == MU_READY);
     CHECK(controller.phase == MU_NORMAL && !mv_service(&t, &controller));
+    /* Frames held: a reset alone is handled, a queued frame and the reset behind it wait. */
+    CHECK(mv_reset(&t) && mv_service_held(&t, &controller) && disconnected == 3);
+    CHECK(submit(9, f, n) && mv_reset(&t) && !mv_service_held(&t, &controller) && executed == 2 && disconnected == 3);
+    CHECK(status_is(result(), MV_PENDING, 9) && mv_service(&t, &controller) && executed == 3 && disconnected == 4);
     /* A controller that cannot answer leaves the frame refused, not ready. */
     controller.initialized = 0;
     CHECK(submit(4, f, n) && mv_service(&t, &controller) && status_is(result(), MV_REFUSED, 4));

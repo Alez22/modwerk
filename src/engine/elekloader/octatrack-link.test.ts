@@ -107,7 +107,7 @@ describe('sending a module', () => {
       let trusted = true // the update's session: a chunk's reply goes missing mid-transfer
       return Object.create(session, {
         connectionTrusted: { get: () => trusted },
-        stage: { value: async () => { trusted = false; throw new UploadUnconfirmedError('chunk was not confirmed', session.status) } },
+        stage: { value: async () => { trusted = false; unit.staged = true; throw new UploadUnconfirmedError('chunk was not confirmed', session.status) } },
       })
     }
     const link = new OctatrackLink(unit.usb, connect, 300)

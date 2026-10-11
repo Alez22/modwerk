@@ -173,6 +173,8 @@ static void restore(void)
     if (installed) SAY(installed == count ? "MODULES LOADED" : "SOME MODULES FAILED");
     else SAY("MODULES NOT LOADED");
 }
+/* ep0.c holds host frames until the restore has run: an install before it would race it, and the restore would undo it. */
+int modwerk_modset_restored(void) { return (int)restored; }
 /* Engine task, on every return to its receive: the restore once after boot, then any pending save. */
 void modwerk_modset_service(void)
 {

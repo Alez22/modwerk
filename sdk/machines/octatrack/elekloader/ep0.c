@@ -62,9 +62,14 @@ static uint8_t reply[512] __attribute__((aligned(512))); /* within one 4 KiB pag
 static struct dtd data_dtd __attribute__((aligned(32)));
 static uint8_t started, receiving;
 static volatile uint8_t wake_posted;
+static volatile uint8_t held; /* a frame put off until settled: the tick wakes the engine to look again */
 static uint32_t expected, frames, refusals, resets;
 /* Hardware-run evidence for DIAG: what the data stage path saw last. */
 static uint32_t primes, completions, submit_state, last_token, last_received, prime_status, qh_next, frame_head, abandons;
+/* The tick's catch-ups and refusals (modwerk_ep0_tick), the descriptor's token at the last abandon (not active: the
+ * data had come) and the queue head's overlay token at the last refusal (what the controller had received). */
+static volatile uint32_t caught, stalled, abandoned_token, stuck_overlay;
+static uint32_t waited; /* ticks the primed data stage has not completed */
 const uint8_t *modwerk_ep0_reply;
 /* The engine ignores messages whose first byte is above 45 and returns to
  * its receive, where the idle hook runs: a wake-up and nothing else. */
@@ -205,7 +210,7 @@ uint32_t modwerk_ep0_dispatch(void)
         qh[0] |= 1u << 29;
         qh[2] = (uint32_t)(uintptr_t)d;
         ENDPTPRIME = ENDPTPRIME | 1u;
-        ++primes;
+        ++primes, waited = 0;
         qh_next = qh[2];
         prime_status = ENDPTPRIME << 16 | (ENDPTSTAT & 0xffffu);
         expected = r.length;
@@ -227,6 +232,7 @@ void modwerk_ep0_poll(void)
     if (ENDPTSETUPSTAT & 1u) { /* The host gave this data stage up. */
         receiving = 0;
         ++abandons;
+        abandoned_token = ((volatile struct dtd *)UNCACHED(&data_dtd))->token;
         mv_abandon(t);
         flush_receive();
         return;
@@ -278,16 +284,55 @@ void modwerk_ep0_tick(void)
     } else if (quiet < HOST_TIMEOUT_TICKS) ++quiet;
     if (started && controller_started && mv_tick(vendor(), controller.phase != MU_NORMAL, HOST_TIMEOUT_TICKS)) wake();
     if (modwerk_boot_tick()) wake(); /* an armed RAM boot is due */
+    if (held) held = 0, wake(); /* the engine runs only when woken; an idle unit sends it nothing else */
+    /* A data stage that completes inside the ISR after its poll, while stock's completion loop runs, can lose its
+     * interrupt to that loop: no status stage, and the host's transfer times out (owner's MKII, 11 October 2026, a
+     * chunk now and then). Look again here with USB held off. A data stage can also stop half way: 64 bytes of a 120-byte frame came on the owner's MKII and the rest never
+     * did, while the host waited on a status stage the base never sends (a browser may wait for ever). Half a
+     * second without completion: refuse the frame and stall EP0, so the host's transfer fails at once and it
+     * submits again (a refused frame never ran). */
+    if (receiving) {
+        uint32_t lock = modwerk_machine_lock();
+        if (receiving && !(((volatile struct dtd *)UNCACHED(&data_dtd))->token & DTD_ACTIVE)) ++caught, modwerk_ep0_poll();
+        else if (receiving && ++waited >= 30u) {
+            stuck_overlay = ((volatile uint32_t *)(uintptr_t)EP0_OUT_QH)[3];
+            receiving = 0, waited = 0, ++stalled;
+            mv_abandon(vendor());
+            flush_receive();
+            ENDPTCTRL0 = ENDPTCTRL0 | 0x00010001u; /* both ways; the next SETUP clears it */
+        }
+        modwerk_machine_unlock(lock);
+    }
 }
 
 /* Engine task, on every return to its receive. Cheap unless woken. */
 void modwerk_engine_idle(void);
 void modwerk_modset_service(void); /* modset.c: the module set restored after boot, saved after a change */
+int modwerk_modset_restored(void);
+extern volatile uint32_t modwerk_runtime_ticks;
+#ifdef MODWERK_DSP_LOADER
+int dl_publication_idle(void);
+#endif
+/* After a boot the saved set is restored and its DSP code loaded first; a host frame meanwhile waits, pending (the
+ * host polls it). An install in that window raced the restore on the owner's MKII (11 October 2026): an update was
+ * refused as busy while the restored code loaded, and the restore reloads the card's set over one changed before
+ * it, so it would put a removed module back. shortcut: past ten seconds hosts go ahead regardless,
+ * so a restore the gate holds back longer (USB disk mode or playback right after boot) can still meet an install;
+ * have the restore skip a set changed before it if that shows up. */
+static int settled(void)
+{
+    if (modwerk_runtime_ticks > 600u) return 1;
+#ifdef MODWERK_DSP_LOADER
+    if (!dl_publication_idle()) return 0;
+#endif
+    return modwerk_modset_restored();
+}
 void modwerk_engine_idle(void)
 {
     modwerk_modset_service();
     if (!wake_posted) return;
     wake_posted = 0;
+    if (!settled()) { held = 1; (void)mv_service_held(UNCACHED(&transport), &controller); return; }
     if (!controller_started) {
         /* A per-boot session nonce, not a secret: timer counts and the USB
          * frame index at the first request, bound to this base identity. */

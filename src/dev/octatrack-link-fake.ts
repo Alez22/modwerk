@@ -27,6 +27,8 @@ export interface FakeUnit {
   /** What the unit has, and what a staged load would make it (taken on Keep). */
   installed: Inventory
   pending?: Inventory
+  /** A transaction a session left staged when its reply went missing: only a session that adopts it can cancel it. */
+  staged?: boolean
 }
 
 export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
@@ -68,9 +70,9 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
 export function fakeSession(unit: FakeUnit, delay = 0) {
   const wait = () => new Promise(resolve => setTimeout(resolve, delay))
   return async (): Promise<LinkSession> => {
-    let status: UploadStatus = { command: 'hello', transaction: 0, result: 'ok', phase: 'normal', activeKnown: true, generation: 0,
+    let status: UploadStatus = { command: 'hello', transaction: 0, result: 'ok', phase: unit.staged ? 'receiving' : 'normal', activeKnown: true, generation: 0,
       lastTransaction: 0, currentTransaction: 0, received: 0, capacity: 262144, base: FAKE_BASE, session: '00'.repeat(32), active: unit.active }
-    let staged = unit.active
+    let staged = unit.active, owned = false
     const step = async (phase: UploadPhaseName, refuse?: UploadResultName) => {
       await wait()
       if (refuse) throw new UploadDeviceError(status = { ...status, result: refuse })
@@ -95,7 +97,11 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
       holdTrial: () => step('pending', unit.playing ? 'unsafe' : undefined),
       accept: async () => { await step('ready'); unit.active = status.active!; unit.installed = unit.pending ?? unit.installed; unit.pending = undefined; return status },
       rollback: async () => { unit.pending = undefined; return status = { ...await step('ready'), active: unit.active } },
-      cancel: () => step('normal'),
+      adopt: () => owned ||= status.phase === 'receiving',
+      cancel: async () => {
+        if (unit.staged && !owned) throw new Error('This client does not own a staged transaction.')
+        unit.staged = false; return step('normal')
+      },
       leaveUploadMode: () => step('normal'),
     }
   }

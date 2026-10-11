@@ -32,7 +32,7 @@ export interface LinkUsb {
   removeEventListener(type: 'connect' | 'disconnect', listener: DeviceListener): void
 }
 export type LinkSession = Pick<UploadSession, 'status' | 'connectionTrusted' | 'stage' | 'activate' | 'startTrial' | 'holdTrial' |
-  'accept' | 'rollback' | 'cancel' | 'leaveUploadMode'>
+  'accept' | 'rollback' | 'cancel' | 'adopt' | 'leaveUploadMode'>
 type Connect = (transport: UsbVendorTransport, base: string) => Promise<LinkSession>
 
 export type LinkStatus = 'unsupported' | 'idle' | 'connecting' | 'stock' | 'busy' | 'ready' | 'sending' | 'testing' | 'trial' | 'finishing'
@@ -263,7 +263,7 @@ export class OctatrackLink {
   /** Cancel, roll back or leave upload mode from whatever phase `session` reports; true once back to normal. */
   private async cleanUp(session: LinkSession) {
     const phase = session.status.phase
-    if (phase === 'receiving' || phase === 'verified') await session.cancel()
+    if (phase === 'receiving' || phase === 'verified') { session.adopt(); await session.cancel() } // a fresh session adopts what the lost one staged
     else if (phase === 'pending' || phase === 'trial' || phase === 'recovery') { await session.rollback(); await session.leaveUploadMode() }
     else if (phase === 'ready') await session.leaveUploadMode()
     return session.status.phase === 'normal'

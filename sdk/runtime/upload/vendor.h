@@ -76,4 +76,8 @@ int mv_reset(struct mv_transport *);
 int mv_tick(struct mv_transport *, int busy, uint32_t limit);
 /* Engine task only. Non-zero when it did work. */
 int mv_service(struct mv_transport *, struct mu_context *);
+/* Engine task, while the owner holds frames (they stay queued; the host reads
+ * them pending): resets and lapses only, and none behind a waiting frame, which
+ * predates them. Non-zero when it did work. */
+int mv_service_held(struct mv_transport *, struct mu_context *);
 #endif
