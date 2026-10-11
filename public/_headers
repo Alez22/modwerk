@@ -4,3 +4,9 @@
   X-Content-Type-Options: nosniff
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Cross-Origin-Opener-Policy: same-origin
+
+/firmware-builder.json
+  Cache-Control: no-store
+
+/module-releases.json
+  Cache-Control: no-store

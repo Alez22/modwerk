@@ -11,6 +11,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/check.mjs --build",
     "preview": "vite preview --host 127.0.0.1",
+    "firmware:download": "node scripts/firmware-download.mjs",
+    "firmware:api": "node scripts/firmware-api.mjs",
     "lint": "eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/",
     "test": "vitest run",
     "check": "node scripts/check.mjs",
