@@ -13,7 +13,9 @@ per payload read the tables with a full 24-bit displacement (payload A: proc P:0
 P:0x4cb, 0x501), so the tables can move by rewriting one operand word per site [code]. Stock runs init only when
 a slot's id changes [code]. X:0x255 (the Y-buffer bases) and a live ring at X:0x25d-0x3dc follow the tables, so
 they cannot grow in place [doc, code]. Candidate room: X:0x08d98-0x08fff (616 words, "unreferenced" in DSP.md §7,
-never probed) [doc]; X above 36K does not work. The base's receiver refuses ids over 31 (`dsp_receiver.asm`
+never probed) [doc], but that is the $8000 partition where core 0's ESAI DMA lives, and dense core work there
+stalls the DMA (OCTATRACK_HARDWARE_TRAPS.md, reported on an MKI); stock's unreferenced X:$7a92-$7fff in the $6000
+block was clean there and is the better home. X above 36K does not work. The base's receiver refuses ids over 31 (`dsp_receiver.asm`
 BIND/UNBIND/BYPASS), `dsp_loader.py` hard-codes INIT/PROC 0x215/0x235 and 32, `transfer.c` refuses id >= 32.
 
 **The ColdFire.** FX1_IDS 0x400d5f58 and FX2_IDS 0x400d5fdc (32 entries and a zero word, 7 `lea` sites each),
@@ -42,7 +44,8 @@ ids) unless the 20 signed reads change too.
 - Opened on stock or an older base, a project's ids of 32 and up are clamped to 31. On stock that is a null
   stub (dry); on an older Modwerk base 31 is a module handle (TapeHead), so the wrong effect would run and be
   saved. Keeping 31 dry in new bases makes the clamp harmless from now on.
-- Unproven: the free X region (probe it on the unit across every stock effect and module), and how the wider
+- Unproven: the free X region (probe it on the unit across every stock effect and module; not the $8000 block),
+  and how the wider
   table is filled at boot (another payload X record, or the receiver copying it at its first frame).
 
 ## B. One reserved id dispatching to a second table
@@ -62,6 +65,6 @@ R's page-2 slots (copied with the Part, reaches the DSP in r6+$c-$e, and stock c
 ## Recommendation
 
 A. It keeps Part semantics free (the hardest part of B), touches a known, finite set of sites, and the DSP side
-is six operand words per payload. First step: probe X:0x08d98-0x08fff on the unit with every stock effect and
-module running to prove it free, then move the DSP tables with 64 ids, then the ColdFire tables, then widen the
-base.
+is six operand words per payload. First step: prove a home for the tables free on the unit with every stock effect and module
+running, preferring X:$7a92-$7fff (the $6000 block) over the ESAI block, then move the DSP tables with 64 ids,
+then the ColdFire tables, then widen the base. The dispatch reads are a few per slot a frame, not dense work.

@@ -210,11 +210,62 @@ self-wait at P:$57 is `0cd341 000000`); dsp_asm emitted `0cd341 001000` for a br
 with `do forever` and `brkcs` instead (core 1's counted wait), and keep labels from being parts of other
 labels (dsp_asm substitutes label text anywhere: `c1wait` inside `c1waited` stopped the build).
 
-**Don't burn DSP time with `rep`, and not on core 1 without measuring it.**
+**Don't use `rep` in DSP code that runs every frame; use a DO loop.**
 A calibration build spending 2,000 more cycles a frame with `rep` on both cores
 hung the unit at its logo (`dsp3-B2`); the emulator ran it. The same amount in
-an interruptible DO loop on core 0 alone was fine. `rep` holds off interrupts
-while it repeats, and core 1's headroom is not measured yet.
+an interruptible DO loop on core 0 alone was fine. A developer's report from an
+MKI (11 October 2026, measured on the unit) gives the mechanism. Stock P code has
+no `rep` at all, on either payload, and a REP is not interruptible (56300 FM
+§2.3.2). The host-port handlers (P:$588/$597 on payload A) arm DMA0/1 from
+M_HORX and must answer at once. Answered late, the ColdFire's transfer slips by
+a word:
+- each sample's read-back is torn, its halves from different moments, with L and
+  R offset by a word;
+- at worst ColdFire RAM is written out of place: a garbage project name, "never
+  saved", "set not mounted", until a power cycle.
+
+A per-sample `rep #21` did this on both cores, and the same loop as DO fixed it.
+In this repository Spectrum (4), Character (5) and Modulation (1) still use
+`rep`; the report also names busdelay, character-txtr, testgen and vocoder (at
+init only). The base and the modules in today's runs (E-Verb, Mini Verb,
+TapeHead, Euclid, Air Chorus, Tape Echo) have none. Not checked against "Junk on
+main R" yet.
+
+**Dense DSP work in a memory block a DMA uses stalls that DMA (reported, not
+reproduced here).** When the core and a DMA channel contend for the same
+internal memory partition, the core wins and the DMA waits (56300 FM §10.3.2).
+The partitions are 8K words ($0000, $2000, $4000, $6000, $8000). On the same
+MKI, dense work at X:$3224 failed, while X:$6400 and X:$7b24 were clean. Core 0's
+DMA lives in:
+- ESAI TX X:$8000-$80ff and RX X:$8100-$833f (DMA2/3, armed at boot P:$3001d,
+  payload A only);
+- the host ping-pong X:$2400-$28ff and X:$4400-$48ff;
+- the records at X:$000-$1cf.
+
+Dense X work in the $8000 block, and later the $2000 block, slipped the
+ColdFire-core 0 handoff into states that held until the next disturbance:
+- the track's output left only, right only, silent or stereo;
+- a muted track leaking into MAIN on about 29 % of frames, mostly every other
+  frame;
+- at worst the sequencer stuck on step 1-2 until a power cycle.
+
+It depended on where in core 0's frame the work landed (T5 and T8 clean until
+disturbed, T6 and T7 dirty from the start). Core 1 never showed it, and Y has no
+DMA on either core. Moving the 216-word working set to X:$7b24, inside stock's
+unreferenced X:$7a92-$7fff (the $6000 block of tables and FX state), made it
+clean on every track and both cores, with two instances, through a 10-minute
+soak.
+
+Possibly affected:
+- Analog BD's DSP voice keeps its tables at X:$2840-$30ff and its voice blocks
+  at $3100-$31ff, in the $2000 block.
+- Any plan to put base tables in X:$8d98-$8fff (`OCTATRACK_MORE_EFFECT_IDS.md`):
+  that is ESAI's block on core 0. Prefer the $6000 block.
+
+To check: run the module on T5-T8 with the track muted and listen to MAIN, or
+record MAIN with SRC3 = MAIN; leaked frames are the muted audio. Sweeping a knob
+through a heavy mode and back flipped the stuck states. The emulator models
+neither contention nor interrupt latency, so neither shows there.
 
 ## Patching stock code
 
