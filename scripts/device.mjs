@@ -223,7 +223,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if (step === 'reload') await run('FUNC+PART w600 UP w150 UP w150 UP w150 DOWN w200 YES w1000')
     else if ((m = /^hold:(\d)$/.exec(step))) await devIn(22, Number(m[1]), 1) // development bases: host frames wait N seconds, as after a boot
     else if (step === 'selftest') { // dsp.c's self-test (SYSTEM > MODWERK TEST): started, then read until it is done
-      const read = async go => { const b = Buffer.from(await devIn(21, go, 92)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
+      const read = async go => { const b = Buffer.from(await devIn(21, go, 96)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
         modules: b.readUInt32BE(12), dsp: b.readUInt32BE(16), intact: b.readUInt32BE(20), ran: b.readUInt32BE(24), peak: [b.readUInt32BE(28), b.readUInt32BE(32)],
         cpu: b.readUInt32BE(36), done: b.readUInt32BE(40), total: b.readUInt32BE(44), track: [...b.subarray(48, 56)], gap: b.readUInt32BE(56),
         saved: b.readUInt32BE(60), savedCount: b.readUInt32BE(64), live: b.readUInt32BE(68), culprit: b.subarray(76, 92).toString('latin1').replace(/\0.*$/s, '') } }

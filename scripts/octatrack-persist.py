@@ -7,7 +7,8 @@
   scripts/octatrack-persist.py compare A B    # what differs between two snapshots; exit status 1 when anything does
 
 A snapshot holds what each track runs (FX1 and FX2), every track's live parameter lane (the knobs the effects
-read), the current Part's working and saved copies, the bank, Part and pattern, the modules installed and the
+read), the current Part's working and saved copies, the current pattern's steps (trigs, parameter locks), the
+bank, Part and pattern, the modules installed and the
 modules the project names that are not, and the loader's error counters. Take one after a saved baseline, then
 after each Part reload, project reload, RAM boot or power cycle, and compare it with the baseline. Use a scratch
 project: the steps between snapshots save and reload projects."""
@@ -29,6 +30,7 @@ def snap():
     return dict(bank=bank, pattern=pattern, part=part, fx=mem(0x80000ec4, 16).hex(),
                 lanes=[mem(LANES + 72 * t, 72).hex() for t in range(8)],
                 working=mem(base + 0x8ed80 + part * 6322, 6322).hex(), saved=mem(base + 0x9504a + part * 6322, 6322).hex(),
+                steps=mem(base + pattern * 0x8ed8, 0x8ed8).hex(),  # the pattern: trigs and parameter locks (Octabam's STEP_LOCKS.md)
                 modules=int(report.get('modules', -1)), missing=send('missing').strip(), counters=counters())
 
 
@@ -42,10 +44,11 @@ def differences(a, b):
         la, lb = bytes.fromhex(a['lanes'][t]), bytes.fromhex(b['lanes'][t])
         changed = [i for i in range(72) if la[i] != lb[i]]
         if changed: out.append('T%d lane bytes %s: %s -> %s' % (t + 1, changed, la[changed[0]], lb[changed[0]]))
-    for key in ('working', 'saved'):
+    for key in ('working', 'saved', 'steps'):
+        if key not in a or key not in b: continue
         pa, pb = bytes.fromhex(a[key]), bytes.fromhex(b[key])
         changed = [i for i in range(len(pa)) if pa[i] != pb[i]]
-        if changed: out.append('%s Part: %d bytes differ, first at %#x' % (key, len(changed), changed[0]))
+        if changed: out.append('%s%s: %d bytes differ, first at %#x' % (key, '' if key == 'steps' else ' Part', len(changed), changed[0]))
     if b['working'] != b['saved'] and a['working'] == a['saved']: out.append('the working Part no longer equals its saved copy')
     if b['missing'] != a['missing']: out.append('not installed but named: %s -> %s' % (a['missing'], b['missing']))
     out += ['%s %d -> %d' % (k, a['counters'][k], v) for k, v in b['counters'].items() if v > a['counters'][k]]
