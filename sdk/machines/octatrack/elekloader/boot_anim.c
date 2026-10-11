@@ -7,13 +7,14 @@
  *
  * Docking: the mark's ninth dot is a module arriving. First the mark flies in: every pixel of the frame
  * and the tiles comes from far beyond the screen and lands, the frame clockwise, the tiles from the middle
- * one round the ring, each landing tile with its track key. The empty corner, the socket, blinks while a
- * light far off on the trig row answers. The module runs along the trig row, turns up into the screen and
- * docks; its wave reveals MODWERK, NEW and the version and rolls on across the whole panel.
+ * one round the ring. The empty corner, the socket, blinks while a light far off on the trig row answers.
+ * The module runs along the trig row, turns up into the screen and docks; its wave reveals MODWERK, NEW and
+ * the version and rolls on across the whole panel. The lamps stay dark while the mark builds, so the
+ * module's light and then its wave are all the panel shows.
  *
  * Screen and lamps are one plane: the LCD sits in the panel (54.2 hundredths of a millimetre per pixel,
- * lamp positions from the stock lamp table), so the incoming pixels light the lamps they pass on their
- * way in, and the module and the wave cross the screen's edge without a break. The lamps are white on an
+ * lamp positions from the stock lamp table), so the module and the wave cross the screen's edge without
+ * a break. The lamps are white on an
  * MKII: the startup sets channel A's colour to white at the panel's LED intensity and puts the firmware's
  * own colours back (its pre-logo call) before it returns. An MKI has fixed colours, so there it is channel
  * A's red. Drawing goes through ev_draw on the frame the compositor builds (bus.s); time is the
@@ -71,9 +72,8 @@ extern const uint32_t host_white[3];
 #define T_WAVE 2260     /* the dock's wave: radius (dt / 40 ms)^2 px */
 #define T_END 3500
 
-#define R_DOT 16        /* px: how far from an incoming pixel a lamp glows */
 #define R_HEAD 34       /* px: how far from the module a lamp glows */
-#define R_RING 30       /* px: the wave's width on the panel */
+#define R_RING 36       /* px: the wave's width on the panel */
 #define FADE_MS 200     /* a lamp's afterglow from full to dark */
 
 static int32_t now, on, lamps;
@@ -246,22 +246,6 @@ static void light(int32_t t, int32_t dt)
         module(t, &mx, &my), mx >>= 4, my >>= 4;
     for (int i = 0; i < lamps; i++) {
         int32_t px = lamp_x[i], py = lamp_y[i], best = 0, level, d;
-        /* the mark on its way in: the pixels still out over the panel */
-        for (int k = 0; k < BOOT_DOTS; k++) {
-            if (dot_r[k] <= 0)
-                continue;
-            int32_t dx = px - (dot_x[k] >> 4), dy = py - (dot_y[k] >> 4);
-            if (dx < -R_DOT || dx > R_DOT || dy < -R_DOT || dy > R_DOT)
-                continue;
-            level = 15 - (dx * dx + dy * dy) * 15 / (R_DOT * R_DOT);
-            if (level > best) best = level;
-        }
-        /* the tracks: T1-T8 light as the tiles land and stay faintly on until the wave */
-        if (i >= 20 && i < 28 && t >= boot_tile_delay[i - 20] + FLIGHT) {
-            int32_t since = t - boot_tile_delay[i - 20] - FLIGHT;
-            level = since < 150 ? 15 - since * 11 / 150 : r > 0 ? 0 : 4;
-            if (level > best) best = level;
-        }
         /* far off, the module answering the socket */
         if (i == 0 && t >= T_WAIT && t < T_FLY0 && (t - T_WAIT) % 120 < 60)
             best = 15;

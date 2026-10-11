@@ -74,9 +74,8 @@ No hardware flashing or module qualification-status change was performed.
 The Elekloader base starts with its own animation, so beta testers see at once that
 the new base is running. The mark's ninth dot is a module arriving, which is what
 this base does. First the mark flies in: every pixel of the frame and the tiles comes
-from far beyond the screen and lands, as in the stock logo's flight, and the lamps catch
-the pixels as they pass over the panel. Each landing tile lights its track key. The
-empty corner, the socket, blinks, and a light far off at trig 1 answers. The module
+from far beyond the screen and lands, as in the stock logo's flight, while the lamps stay
+dark. The empty corner, the socket, blinks, and a light far off at trig 1 answers. The module
 runs along the trig row, turns up through the keys under the screen and docks. Its
 wave reveals MODWERK, **NEW** and the version (`0.3.1`, from `VERSION` in
 `build_core.py`) and rolls on across the panel. It takes 3.5 s, 0.7 s longer than
@@ -85,7 +84,8 @@ stock. Public builds are unchanged.
 ![MKII LCD capture of the base startup, from the real base image in the emulator](media/startup/base-startup.gif)
 
 Screen and lamps are one plane, so the module and the wave cross the screen's edge
-without a break. The lamps are white on an MKII, at the panel's LED intensity, and
+without a break; the lamps show nothing else, so the module's run and the wave stand
+out. The lamps are white on an MKII, at the panel's LED intensity, and
 red on an MKI, which has fixed colours. Afterwards the MKII gets its stock colours
 back: the startup repeats the firmware's own pre-logo colour call (`0x4003f430` with
 the lamp lists only), and the firmware's own post-logo call follows as usual.
@@ -119,9 +119,9 @@ only.
 
 Cost per frame, as executed instructions in the emulator (MKII, counted between
 hits of the frame's draw entry, against the stock loop's head): the startup runs a
-median of 223k instructions per frame (90th percentile 270k, one frame 811k), the
-stock logo loop 95k (90th percentile 299k, max 331k). Either is around a millisecond
-of CPU, so the panel link rather than the processor sets the frame rate. These are
+median of 56k instructions per frame (90th percentile 90k, one frame 663k), the stock
+logo loop 95k (90th percentile 299k, max 331k). Either is well under a millisecond of
+CPU, so the panel link rather than the processor sets the frame rate. These are
 instruction counts, not cycles or hardware timing.
 
 Limits: emulator only; no unit has run it yet. Untested on hardware: the frame rate

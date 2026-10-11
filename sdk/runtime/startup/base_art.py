@@ -99,7 +99,6 @@ def header(version):
            'static const uint8_t boot_disc[%d] = {%s};' % (dh, ', '.join(map(str, disc_rows))),
            'struct boot_dot { uint8_t x, y; uint16_t delay; };',
            'static const struct boot_dot boot_dots[%d] = {%s};' % (len(dots), ', '.join('{%d, %d, %d}' % d for d in dots)),
-           'static const uint16_t boot_tile_delay[8] = {%s};  /* in the order the tiles land */' % ', '.join(map(str, tile_delay)),
            'static const uint16_t boot_word[110] = {%s};' % ', '.join(map(str, columns)),
            'struct boot_glyph { uint8_t item, x, y, w, h; uint16_t first, count; };',
            'static const struct boot_glyph boot_glyph[%d] = {%s};' % (len(cells), ', '.join(glyphs)),
