@@ -61,6 +61,11 @@ int main(void)
     bytes = recipe(); image[52 + 16 + 13] = 14; CHECK(!modwerk_fxpage_build(26, image, bytes, 2));
     bytes = recipe(); CHECK(!modwerk_fxpage_build(26, image, 140, 2));
     CHECK(!modwerk_fxpage_build(21, image, bytes, 2));
+    /* A formatter with more than five labels: the shared wide dial lists it with its maximum while listed. */
+    bytes = recipe(); image[52 + 16 + 3] = 64; CHECK(modwerk_fxpage_build(26, image, bytes, 2));
+    CHECK(modwerk_wide_table[0] == ADDR(image + 128) && modwerk_wide_table[1] == 64 && !modwerk_wide_table[2]);
+    modwerk_fxpage_drop(26); CHECK(!modwerk_wide_table[0]);
+    bytes = recipe(); image[52 + 16 + 3] = 4; CHECK(!modwerk_fxpage_build(26, image, bytes, 2)); /* 5 labels or fewer: no */
     if (failures) { fprintf(stderr, "%u FX page checks failed\n", failures); return 1; }
     puts("Octatrack FX pages: a recipe becomes its descriptor and chooser rows, follows its handle, and is refused when it is wrong.");
     return 0;

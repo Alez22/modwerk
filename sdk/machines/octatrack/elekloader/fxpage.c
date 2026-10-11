@@ -36,6 +36,9 @@ static volatile uint32_t *const tables[4] = {(volatile uint32_t *)0x400d5f58u, (
 static uint8_t pages[32][0x1a0] __attribute__((aligned(4)));
 #endif
 static uint8_t serves[32]; /* the slots each id's page is listed in: 1 FX1, 2 FX2 */
+#define WIDE 4u /* wide formatters a page may have (EUCLID 3) */
+static uint32_t wide[32][WIDE][2];  /* per id: a formatter that draws over the whole dial, and its maximum */
+uint32_t modwerk_wide_table[2u * (32u * WIDE + 1u)]; /* fxpage.s: the listed pages' wide formatters, 0-ended */
 
 static uint32_t be16(const uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
 static uint32_t be32(const uint8_t *p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
@@ -55,6 +58,11 @@ static void rows(void)
         }
         while (n < 32u) list[n++] = 0;
     }
+    unsigned n = 0;
+    for (unsigned k = 0; k < 32u; ++k)
+        for (unsigned w = 0; serves[k] && w < WIDE && wide[k][w][0]; ++w)
+            modwerk_wide_table[n++] = wide[k][w][0], modwerk_wide_table[n++] = wide[k][w][1];
+    modwerk_wide_table[n] = modwerk_wide_table[n + 1] = 0;
 }
 
 /* Builds id's page from `recipe` (the head of the module's `bytes`-long image, which the loader relocated)
@@ -98,11 +106,13 @@ int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned 
     for (unsigned i = 0; i < recipe[44]; ++i) {
         if (scan + 12 > end || scan + 12u + 2u * scan[1] > end) return 0;
         uint32_t code = be32(scan + 4), length = be16(scan + 8);
-        if (scan[0] >= 12u || code < low || code + length > high || code % 2u) return 0;
+        if (scan[0] >= 12u || code < low || code + length > high || code % 2u || (scan[3] && (scan[3] < 5u || scan[3] > 127u))) return 0;
         for (unsigned k = 0; k < scan[1]; ++k) if (be16(scan + 12 + 2u * k) + 4u > length) return 0;
         scan += (12u + 2u * scan[1] + 3u) & ~3u;
     }
     uint32_t delta = ADDR(d) - be32(recipe + 48); /* the fixups held the last page's address */
+    unsigned wides = 0;
+    for (unsigned w = 0; w < WIDE; ++w) wide[id][w][0] = wide[id][w][1] = 0;
     for (unsigned i = 0; i < recipe[44]; ++i) {
         uint32_t slot = e[0], fixups = e[1], code = be32(e + 4);
         for (unsigned f = 0; f < fixups; ++f) {
@@ -111,6 +121,7 @@ int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned 
         }
         put32(d + 0xca + 4u * slot, code);
         if (e[2]) put32(d + 0xfa + 4u * slot, 0); /* its own formatter draws it: no stock widget */
+        if (e[3] && wides < WIDE) wide[id][wides][0] = code, wide[id][wides++][1] = e[3]; /* more than five labels */
         e += (12u + 2u * fixups + 3u) & ~3u;
     }
     put32(recipe + 48, ADDR(d));

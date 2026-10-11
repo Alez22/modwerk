@@ -112,7 +112,7 @@ def page_section(module_id):
     for the base's fxpage.c (big-endian): 'MWPG', the donor descriptor's address and SHA-256, the slots whose
     enable bits it inherits, the counts, a word the base keeps (where the fixups point), the integer patches
     (offset, width, value), the text patches (offset, width, length, text), the formatters (slot, fixups,
-    clear-widget, code pointer, code length, fixup offsets), then each formatter's code. No stock bytes."""
+    clear-widget, wide-dial maximum (0 none), code pointer, code length, fixup offsets), then each formatter's code. No stock bytes."""
     out = subprocess.run(['node', str(Path(__file__).resolve().parents[3] / 'scripts/octatrack-module-page.mjs'), module_id],
                          capture_output=True, text=True)
     if out.returncode:
@@ -128,7 +128,7 @@ def page_section(module_id):
         body += entry + b'\0' * (-len(entry) % 4)
     entries, at = [], len(head) + len(body)
     for f in page['formatters']:
-        entries.append(struct.pack('>BBBBIHH', f['slot'], len(f['fixups']), int(f['clearWidget']), 0, 0, len(f['code']) // 2, 0) +
+        entries.append(struct.pack('>BBBBIHH', f['slot'], len(f['fixups']), int(f['clearWidget']), f.get('wideMaximum') or 0, 0, len(f['code']) // 2, 0) +
                        struct.pack('>%dH' % len(f['fixups']), *f['fixups']))
         entries[-1] += b'\0' * (-len(entries[-1]) % 4)
     image, relocations = bytearray(head + body + b''.join(entries)), []

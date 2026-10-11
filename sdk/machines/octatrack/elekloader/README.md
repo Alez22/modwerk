@@ -90,6 +90,11 @@ python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json
 python3 -B sdk/runtime/loader/build.py --octabam tapeecho --stock /private/OCTATRACK_OS1.40C.bin \
   --upstream /private/pinned-elekloader --dsp src/engine/assets/dsp-packages.json:tapeecho \
   --slots fx2 --cycles 4 --cycles-kind modeled --state 1 --pinned -o /private/tapeecho.mwrm
+# EUCLID: its sequencer on the ColdFire (three detours), its filter on the DSP, pinned to 29; its page uses
+# the base's shared wide dial (fxpage.s) for STEPS, PULSE and ROT.
+python3 -B sdk/runtime/loader/build.py --octabam euclid --stock /private/OCTATRACK_OS1.40C.bin \
+  --upstream /private/pinned-elekloader --dsp src/engine/assets/dsp-packages.json:euclid \
+  --slots both --cycles 143 --cycles-kind executed --state 64 --pinned -o /private/euclid.mwrm
 ```
 
 

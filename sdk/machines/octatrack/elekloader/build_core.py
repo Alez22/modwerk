@@ -54,7 +54,9 @@ DYNLOAD_HOOKS = (
     (0x400866e2, 8, '6b5f250f244620fe2acc97ddca8e7e1fa03b3b7a174ef7dc7bada335f1777378', 'mw_project_begin'),
     (0x40088224, 6, '5cf9e6109ce8cb58a9bf4dc66339e546dd063412195eeb9d8290218748e8fdd2', 'mw_project_line'),
     (0x400888c8, 6, '456d2abcb4566bd836c3fca9361d944909299ab5f3722ff6ec74affc41e77689', 'mw_project_write'),
-    (0x4008540e, 6, 'c607734f7f97b4a13e2047f38d5e2feace1aa3018ec9f19742f612139e7ac0bd', 'mw_project_end'))
+    (0x4008540e, 6, 'c607734f7f97b4a13e2047f38d5e2feace1aa3018ec9f19742f612139e7ac0bd', 'mw_project_end'),
+    # Modwerk's: the shared wide dial for module pages' controls with more than five labels (fxpage.s).
+    (0x40047a3c, 6, '9b2c003ba4d776237ad71bef15451bfea4447f2acca77ef6922dcea6ac52ca78', 'mw_wide_dial'))
 # Catalogue modules allowed to patch what this base owns, and why (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configuration',
              'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port'}
@@ -81,7 +83,9 @@ DSP_ALLOWANCE = 2808  # per core and sample: 3,120 cycles our code may spend (ha
 DSP_RESERVE = 331
 DSP_EDITS = {
     # The FX selectors read their chooser list through these LEA operands, which the chooser composer repoints.
-    'selection.c': (('descriptor=((volatile uint32_t *)(slot ? 0x400d6090u : 0x400d6060u))[s->row];',
+    'selection.c': (('static uint8_t paste[6322]={0};', 'static uint8_t paste[6322]; /* in .bss, which the core clears at boot: '
+                     'the image stays under the 1.25 MiB a RAM boot takes */'),
+                    ('descriptor=((volatile uint32_t *)(slot ? 0x400d6090u : 0x400d6060u))[s->row];',
                      'descriptor=((volatile uint32_t *)*(volatile uint32_t *)(slot ? 0x40052496u : 0x40052706u))[s->row];'),
                     # An FX pick that meets another slot's transaction waits, the latest per slot, and is replayed
                     # through the stock setter once the manager is idle. A waiting pick names its own track and
@@ -538,7 +542,7 @@ def main():
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
-        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c'):
+        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s'):
             shutil.copyfile(HERE / name, source / name)
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
@@ -625,7 +629,7 @@ modwerk_retained_end:
                   license='GPL-3.0-or-later',
                   description='Private core-only Elekloader base with logger/startup, a USB vendor interface and a runtime module loader (hooks and stock-code sites); NOT a flash candidate.')
     recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s'] + (
-        ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
+        ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',

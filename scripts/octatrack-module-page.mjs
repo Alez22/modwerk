@@ -47,7 +47,8 @@ for (const menu of menus.recipes.filter(menu => menu.id === id)) {
   const renames = menu.renames ?? {}
   const emit = names => Object.keys(renames).length ? emitModeFormatter(menu.labels, names + 0x16, renames) : emitLabelFormatter(menu.labels)
   const at0 = emit(0)
-  formatters.push({ slot: menu.slot, code: hex(at0), relocations: [], fixups: differing(at0, emit(D), D), clearWidget: false })
+  formatters.push({ slot: menu.slot, code: hex(at0), relocations: [], fixups: differing(at0, emit(D), D), clearWidget: false,
+    wideMaximum: menu.wideMaximum }) // more than five labels: the base's shared wide dial (fxpage.s)
 }
 // ROM unit formatters (module-menus.ts): Spectrum's SHPE knows its own descriptor; Tape Echo's TIME does not.
 const units = { spectrum: ['spectrum-shape', 7, 'CLONE_SPECTRUM'], tapeecho: ['tape-time', 0, null] }
@@ -58,6 +59,5 @@ if (units[id]) {
   const at0 = link(0, 0)
   formatters.push({ slot, code: hex(at0), relocations: differing(at0, link(D, 0), D), fixups: symbol ? differing(at0, link(0, D), D) : [], clearWidget: true })
 }
-if (menus.recipes.some(menu => menu.id === id && menu.wideMaximum !== null)) throw new Error(id + ' needs the shared wide dial, a base seam.')
 console.log(JSON.stringify({ id, donor: recipe.donorAddress, donorSha256: recipe.donorSha256, integers: recipe.integers,
   strings: recipe.strings, inheritedEnable: recipe.inheritedEnable ?? [], formatters }))

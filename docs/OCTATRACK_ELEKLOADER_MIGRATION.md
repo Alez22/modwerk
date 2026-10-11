@@ -1104,8 +1104,22 @@ card, another unit) and change version, and old projects must keep loading:
       row, the clap pattern recorded over USB: after each clap, repeats about
       every 140 ms at -24, -30 and -38 dB against -53 dB dry, on both cores
       (TIME 64 FREE, feedback 64, its defaults). Frames ran, no errors.
-    - EUCLID installs in the emulator without its page; its page needs the
-      shared wide dial and its mode views. SIDECHAIN next.
+    - EUCLID (7,940 bytes, 10 relocations, 3 sites, 395 DSP words; FX1 and FX2
+      as in the catalogue; 143 executed instructions a sample, its README's
+      2,276 per 16-sample block): its page needs the shared wide dial, so the
+      base now owns Octabam's wide-dial hook (`0x40047a3c`, `fxpage.s`) with a
+      runtime table that a listed page fills from its recipe (a formatter's
+      wide maximum rides in the entry's spare byte); its mode names (TYPE, OUT)
+      come from the page's mode formatters. Emulator `pick` and `beside` passed
+      (base `06672460…`). On the unit: picked on T1 and T5, its page read FREQ
+      RES DEPTH / DEC STEPS PULSE (DEC: OUT is ENV), STEPS stepped 16 -> 18 by
+      two values; the clap pattern came out -8, -8, -18, -18 dB per bar against
+      a flat -15 dB dry: its sequencer gates the filter in time on both cores.
+    - The base image: the startup animation (`ea0192fc`) and this left a
+      DSP-loader development base 3.5 KB over the 1.25 MiB a RAM boot takes.
+      `selection.c`'s 6 KB paste buffer now sits in .bss, which the core clears
+      at boot; 2,804 bytes are left.
+    - SIDECHAIN next.
   - Not yet: rebinding on the unit, the site using MISSING, the other modules'
     pages on the unit (Spectrum and Tape Echo carry formatter units with
     fixups), and EUCLID's shared wide dial.
