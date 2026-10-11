@@ -88,6 +88,9 @@ function withSetup(body: string[], repository: string, login: string) {
   return [...setupGuidance(repository, login), '', AGENT_ONLY, '', ...body, '', SETUP_REMINDER].join('\n')
 }
 
+/** Stops a new module that the library already has, or that is already in flight. */
+const CATALOGUE_CHECK = 'Before you plan anything, look at what Modwerk already has: the module library on modwerk.app or, in an up-to-date checkout (git fetch upstream), sdk/catalog.json (Octatrack), src/catalog/machine-modules.json (Digitakt, Digitone) and sdk/drafts/, plus the open pull requests (`gh pr list`). If a module already does what I describe, or my port is already listed, tell me which one and suggest extending it through the update workflow instead of building a duplicate. Only go on with a new module if mine is clearly different, and say how.'
+
 const IDEA_PLACEHOLDER = '<describe your idea: what it does, its controls, and how it should sound or behave>'
 const PORT_PLACEHOLDER = '<name the module and link its source>'
 
@@ -111,6 +114,8 @@ export function starterPrompt(machine: StarterMachine, starter: Starter, idea = 
     'I am working in my fork of Modwerk, which builds custom firmware modules for Elektron instruments. Help me make a module for the ' + name + '.',
     '',
     starter.task.replace('{idea}', description),
+    '',
+    CATALOGUE_CHECK,
     '',
     'Before you write code, read:',
     ...reading,
