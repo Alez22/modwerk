@@ -204,7 +204,7 @@ class RuntimeSlotTests(unittest.TestCase):
         loader = here.parents[2] / 'runtime/loader'
         with tempfile.TemporaryDirectory() as temp:
             subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-DMODWERK_HOST', '-I', here,
-                            '-DMODWERK_DSP_ALLOWANCE=2808', '-DMODWERK_DSP_RESERVE=331',
+                            '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565', '-DMODWERK_DSP_RESERVE=342',
                             '-I', here.parents[3] / 'sdk/octabam/platform/dsp-dynload-transport',
                             '-I', here.parents[2] / 'runtime/upload', '-I', loader,
                             *[loader / s if s == 'loader.c' else here / s for s in sources], '-o', temp + '/t'],

@@ -4,7 +4,8 @@
 instance per core, at every trigger split (0-15), knobs fixed and moving, the
 null stub subtracted per split. Octabam's harness (benchmark_reverbs, dsp_host),
 the method of sdk/drafts/airwindows-chorus-efficiency/benchmark.py extended to
-all 13 effects. The dearest sets build_core.py's DSP_RESERVE.
+all 13 effects. Emulator instructions: build_core.py's DSP_RESERVE takes chip cycles measured on the unit
+(scripts/octatrack-measure.py), which for stock's code are about the same.
 
     DSP_HOST=/path/to/dsp_host python3 -B sdk/machines/octatrack/elekloader/stock_dsp_worst.py
 

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
- * Host check of the DSP effect glue (cc -DMODWERK_HOST -DMODWERK_DSP_ALLOWANCE=2808 -DMODWERK_DSP_RESERVE=331):
+ * Host check of the DSP effect glue (cc -DMODWERK_HOST -DMODWERK_DSP_ALLOWANCE0=3120 -DMODWERK_DSP_ALLOWANCE1=3565
+ * -DMODWERK_DSP_RESERVE=342):
  * admission against the arena, the instance block, cycles, free ids and
  * effects in use, and the catalog the DSP manager reads. */
 #include "dsp.c"
@@ -23,7 +24,7 @@ static unsigned failures;
 const uint32_t dl_stub_at_boot = 1u << 21 | 1u << 26 | 1u << 27, modwerk_dsp_modules = 1u << 26 | 1u << 27;
 /* identity.c's catalog: SPRING REV (21) a stock package loaded on demand, every other id what stock runs. */
 #define STOCK4 STOCK, STOCK, STOCK, STOCK
-struct dl_package dl_catalog[32] = {STOCK4, STOCK4, STOCK4, STOCK4, STOCK4, STOCK, {1063, 1, 331, 2, 0, 1, 1}, STOCK, STOCK, STOCK4, STOCK4};
+struct dl_package dl_catalog[32] = {STOCK4, STOCK4, STOCK4, STOCK4, STOCK4, STOCK, {1063, 1, MODWERK_DSP_RESERVE, 2, 0, 1, 1}, STOCK, STOCK, STOCK4, STOCK4};
 struct code dl_codes[2][32];
 const uint16_t modwerk_dsp_arena[2] = {2320, 2300};
 static int idle = 1;
@@ -49,14 +50,19 @@ int main(void)
     fx.slots = 2; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK);                          /* FX2's 16K block */
     fx.buffer = 16385; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_MEMORY);
     fx.slots = 1; fx.buffer = 0; fx.kind = 0; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_CYCLES);
-    fx.kind = RUNTIME_HARDWARE; fx.cycles = 2808 - 7 * 331 + 1; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_CYCLES);
-    fx.cycles = 2808 - 7 * 331; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK); /* beside seven stock slots */
+    /* Chip cycles, against the smaller core (core 0 here): an instance fits beside seven dearest stock slots. */
+    fx.kind = RUNTIME_HARDWARE; fx.cycles = MODWERK_DSP_ALLOWANCE0 - 7 * MODWERK_DSP_RESERVE + 1; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_CYCLES);
+    fx.cycles = MODWERK_DSP_ALLOWANCE0 - 7 * MODWERK_DSP_RESERVE; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK);
+    /* An emulator figure is charged at 7/4: the largest that still fits, and one more. */
+    fx.kind = RUNTIME_MODELED; fx.cycles = (4 * (MODWERK_DSP_ALLOWANCE0 - 7 * MODWERK_DSP_RESERVE) - 3) / 7; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK);
+    fx.cycles += 1; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_CYCLES);
     fx.kind = RUNTIME_MODELED; fx.cycles = 244;
     /* Published: the manager's catalog names the code for both cores. */
     modwerk_machine_dsp_switch(&none, &fx);
     CHECK(dl_catalog[26].words == 3 && !dl_catalog[26].resident && dl_catalog[26].qualified && dl_catalog[26].slots == 1 &&
-          dl_catalog[26].cycles == 331 && dl_catalog[26].alignment == 1 && !dl_catalog[26].buffer); /* charged the reserve at least */
-    CHECK(dl_catalog[0].cycles == 331 && dl_catalog[0].resident && dl_catalog[21].cycles == 331 && !dl_catalog[21].resident); /* NONE; a stock package */
+          dl_catalog[26].cycles == (244 * 7 + 3) / 4 && dl_catalog[26].alignment == 1 && !dl_catalog[26].buffer); /* 7/4 of its claim */
+    CHECK(dl_catalog[0].cycles == MODWERK_DSP_RESERVE && dl_catalog[0].resident && dl_catalog[21].cycles == MODWERK_DSP_RESERVE &&
+          !dl_catalog[21].resident); /* NONE; a stock package */
     CHECK(dl_codes[0][26].words == words && dl_codes[1][26].words == words && dl_codes[1][26].count == 3 && dl_codes[1][26].init == 1 &&
           dl_codes[1][26].proc == 2 && dl_codes[0][26].relocations == relocations && dl_codes[0][26].relocation_count == 1);
     /* Another module preferring 26 gets 27; with both held there is none left; a replacement keeps its own. */
@@ -77,7 +83,7 @@ int main(void)
     idle = 1;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_OK);
     modwerk_machine_dsp_switch(&fx, &none);
-    CHECK(dl_catalog[26].resident && !dl_catalog[26].words && dl_catalog[26].qualified && dl_catalog[26].cycles == 331 &&
+    CHECK(dl_catalog[26].resident && !dl_catalog[26].words && dl_catalog[26].qualified && dl_catalog[26].cycles == MODWERK_DSP_RESERVE &&
           !dl_codes[0][26].words && !dl_codes[1][26].count);
     /* What the current bank names: the live effects and every Part, working and saved; module ids only. */
     static uint8_t bank[0x9504a + 4 * 6322];

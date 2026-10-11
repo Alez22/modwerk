@@ -81,10 +81,13 @@ def catalogue_overlaps(sites):
 
 
 SYSTEM_MENU, SYSTEM_ROWS = 0x400cbd1c, 0x400cc4e8  # PROJ > SYSTEM's list descriptor and its six rows (MAINMENU.md)
-DSP_ALLOWANCE = 2808  # per core and sample: 3,120 cycles our code may spend (hardware) less a 10% margin (owner default)
-# The dearest stock effect per slot: DJ EQ, 330.75 executed instructions per sample at its worst split
-# (stock_dsp_worst.py, emulator; not hardware timing). Every slot without a module is charged it (dsp.c).
-DSP_RESERVE = 331
+# Chip cycles per sample each core's eight FX slots may use (core 0, core 1): 90% of the 4,532-cycle frame less stock's
+# own work without effects, measured on the owner's MKII on 11 October 2026 (scripts/octatrack-measure.py: core 0 ~959,
+# it mixes; core 1 ~514; one pattern playing). The 90% ceiling is the owner's choice.
+DSP_ALLOWANCE = (3120, 3565)
+# The dearest stock effect per slot, chip cycles: DJ EQUALIZER, 342 a sample on the same unit (its 331 executed
+# instructions in the emulator, stock_dsp_worst.py, run at about one a cycle). Every slot without a module is charged it.
+DSP_RESERVE = 342
 DSP_EDITS = {
     # The FX selectors read their chooser list through these LEA operands, which the chooser composer repoints.
     'selection.c': (('static uint8_t paste[6322]={0};', 'static uint8_t paste[6322]; /* in .bss, which the core clears at boot: '
@@ -167,7 +170,7 @@ DSP_EDITS = {
                    '}'),
                   ('extern const struct code dl_codes[2][32];', 'extern struct code dl_codes[2][32];'),
                   ('dl_allocator_init(&allocator,dl_catalog,0,0,0,0);',
-                   'dl_allocator_init(&allocator,dl_catalog,0,0,MODWERK_DSP_ALLOWANCE,MODWERK_DSP_ALLOWANCE);'),
+                   'dl_allocator_init(&allocator,dl_catalog,0,0,MODWERK_DSP_ALLOWANCE0,MODWERK_DSP_ALLOWANCE1);'),
                   # A module installed while tracks name its effect: observe afresh and park those slots until bound.
                   ('int dl_publication_idle(void) { return phase==0; }',
                    'int dl_publication_idle(void) { return phase==0; }\n'
@@ -685,7 +688,8 @@ modwerk_retained_end:
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
                         '-Wall', '-Wextra', '-Werror'] + (['-DMODWERK_DEV'] if args.dev else []) + (
-        ['-DMODWERK_DSP_LOADER', '-DMODWERK_DSP_ALLOWANCE=%d' % DSP_ALLOWANCE, '-DMODWERK_DSP_RESERVE=%d' % DSP_RESERVE] +
+        ['-DMODWERK_DSP_LOADER', '-DMODWERK_DSP_ALLOWANCE0=%d' % DSP_ALLOWANCE[0], '-DMODWERK_DSP_ALLOWANCE1=%d' % DSP_ALLOWANCE[1],
+         '-DMODWERK_DSP_RESERVE=%d' % DSP_RESERVE] +
         ['-DMODWERK_DSP_%s%d=%d' % (key, n, dsp_layout[t][field]) for n, t in enumerate('AB')
          for key, field in (('TABLE', 'table'), ('WORDS', 'tableWords'), ('MISS', 'miss'), ('METER', 'meter'))] if args.dsp_loader else [])
     for key in ('idle', 'job', 'transport', 'open', 'read', 'write', 'close'):

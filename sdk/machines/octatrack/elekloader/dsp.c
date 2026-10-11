@@ -16,8 +16,16 @@ struct code { const uint32_t *words; const uint16_t *relocations; uint16_t count
 /* Stock first: every slot without a module is charged the dearest stock effect
  * (MODWERK_DSP_RESERVE), and a module at least that, so eight stock slots always
  * fit a core and a stock pick never adds to what was admitted: a module is
- * refused, never a stock effect. */
+ * refused, never a stock effect. All in chip cycles per sample (build_core.py). A module is admitted before its
+ * tracks are known, so against the smaller core's allowance. */
+#define MODWERK_DSP_ALLOWANCE (MODWERK_DSP_ALLOWANCE0 < MODWERK_DSP_ALLOWANCE1 ? MODWERK_DSP_ALLOWANCE0 : MODWERK_DSP_ALLOWANCE1)
 typedef char stock_always_fits[8u * MODWERK_DSP_RESERVE <= MODWERK_DSP_ALLOWANCE ? 1 : -1];
+/* An instance's chip cycles. A claim from the emulator (executed instructions, modeled cycles) ran 1.42-1.74 times
+ * that on the owner's MKII (11 October 2026); charged at 7/4 of it until the module carries a hardware figure. */
+static uint32_t chip_cycles(const struct runtime_dsp *d)
+{
+    return d->kind == RUNTIME_HARDWARE ? d->cycles : (d->cycles * 7u + 3u) / 4u;
+}
 /* A module id with no module: the null stub runs there, free on both slots. */
 #define STOCK {0, 1, MODWERK_DSP_RESERVE, 3, 1, 1, 0}
 /* identity.c (dsp_loader.py catalog_c): every stock DSP effect's package per core, loaded on demand;
@@ -110,10 +118,10 @@ int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp
     to->id = (uint8_t)id;
     unsigned arena = modwerk_dsp_arena[0] < modwerk_dsp_arena[1] ? modwerk_dsp_arena[0] : modwerk_dsp_arena[1];
     if (to->count > arena || to->state > SLOT_WORDS || to->buffer > (to->slots & 1u ? FX1_BUFFER : FX2_BUFFER)) return RUNTIME_MEMORY;
-    /* shortcut: modeled cycles and executed instructions admit in this development base;
+    /* shortcut: modeled cycles and executed instructions admit in this development base, at 7/4 (chip_cycles);
      * a release base admits hardware-timed figures only (owner, 10 October 2026). */
     /* One instance must fit beside seven stock slots on a core. */
-    if (!to->kind || to->kind > RUNTIME_HARDWARE || to->cycles > MODWERK_DSP_ALLOWANCE - 7u * MODWERK_DSP_RESERVE)
+    if (!to->kind || to->kind > RUNTIME_HARDWARE || chip_cycles(to) > MODWERK_DSP_ALLOWANCE - 7u * MODWERK_DSP_RESERVE)
         return RUNTIME_CYCLES;
     return RUNTIME_OK;
 }
@@ -138,7 +146,7 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
     int had = from->count ? handle_of(from->module) : -1;
     if (had >= 0) release((unsigned)had);
     if (to->count) {
-        uint32_t cycles = to->cycles > MODWERK_DSP_RESERVE ? to->cycles : MODWERK_DSP_RESERVE;
+        uint32_t cycles = chip_cycles(to) > MODWERK_DSP_RESERVE ? chip_cycles(to) : MODWERK_DSP_RESERVE;
         dl_catalog[to->id] = (struct dl_package){(uint16_t)to->count, 1, cycles, to->slots, 0, 1, to->buffer != 0};
         dl_codes[0][to->id] = dl_codes[1][to->id] =
             (struct code){to->words, to->relocations, (uint16_t)to->count, to->init, to->proc, to->relocation_count};
