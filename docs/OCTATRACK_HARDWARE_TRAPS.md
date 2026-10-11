@@ -26,6 +26,42 @@ it primes its data stage, and the client never sends such a frame (it
 shortens that chunk by a byte), so older bases work too. `usbtest9`,
 `508b0e52`.
 
+**An EP0 OUT data stage can go unanswered two ways, and the tick
+covers both.** Measured on the owner's MKII, 11 October 2026, about one
+SUBMIT in 50–100 (502 primes: 29 of the first kind, 2 of the second). (1) The
+stage completes inside the ISR after the poll at the start of the transfer
+path, and stock's completion loop takes the bit: no new interrupt, no status
+stage. (2) The stage stops part way: 64 bytes of a 120-byte frame arrived (the
+queue head's overlay token `0x00388080`), the endpoint is still primed, and
+the host waits on a status stage that never comes. libusb gives up after its
+timeout; a browser may wait for ever. `modwerk_ep0_tick` (60 Hz, USB held off
+with the level-4 lock) finishes a stage that has completed and, after half a
+second without completion, refuses the frame and stalls EP0. The host then
+sees a stall and a REFUSED result for its sequence, and submits again (a
+refused frame never ran). Counters: `caught`, `stalled`, `stuck_overlay` in
+ep0.c (read with `mem:`). The cause of (2) on the wire is not known.
+
+**Host frames wait for the boot restore.** The saved module set is
+reinstalled about 3 s after boot and its DSP code loads afterwards. An
+install in that window was refused as busy (the loader refuses to replace a
+module while DSP code is publishing), and a change accepted before the
+restore would be overwritten by it. The engine hook holds a queued frame
+(the host reads it as pending) until the restore has run and the DSP manager
+is idle, never past 10 s after boot. The engine runs only when something
+posts to its queue, so the tick wakes it while it holds (a hold without that
+left a RAM-booted base answering nothing until a power cycle). Bus resets
+are still handled while it holds, unless a frame waits (`mv_service_held`).
+The dev tool first reaches a RAM-booted base about 11 s in, so it cannot
+exercise the hold.
+
+**A fresh session can take over a half-staged transaction.** When a reply
+goes missing mid-transfer, the base is left `receiving`. `UploadSession.adopt()`
+takes its transaction number from the status so `cancel()` can undo it; the
+site's clean-up and `npm run device -- recover` both do this. A published
+candidate cannot be adopted (its previous set is unknown); the base rolls it
+back after 10 s of USB quiet. The `serve` session's request every 4 s keeps
+the base from ever seeing that quiet.
+
 **Windows binds WinUSB only to a USB 2.10 device that answers BOS and the
 Microsoft OS 2.0 set.** Both requests reach the base through stock's
 unknown-request STALL tail; the device descriptor needs a copy (stock's sits
