@@ -664,7 +664,7 @@
         "report": "TESTING.md",
         "summary": "53 current-source native DSP checks and 126 native/browser selections passed: 52 matching builds, 74 matching refusals, zero mismatches. The mixer clipping defect is reproduced on both cores and fixed; hardware and the original THRU noise remain unverified. Current source, private images and reviewed LCD captures are recorded in TESTING.md.",
         "hardwareStatus": "untested",
-        "evidenceRevision": "c9cae4ae0013b9fbce5a262c0865e4a0b29c3041",
+        "evidenceRevision": "89d189e53192c76d8d3c5e26495578f61316fdf4",
         "gates": [
           "verify.py: exact dry, bounded neutral quantization, raw-wet mixer regression, endpoint spectra, eight-instance isolation, dirty-state guards and 30-second moving render",
           "Native/browser composition parity and changed-original refusal",

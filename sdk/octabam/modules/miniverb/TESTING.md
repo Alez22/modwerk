@@ -210,6 +210,34 @@ memory bounds remain unverified. Native/browser verification passed 126 selectio
 and zero mismatches. A modified original is refused. The current record is
 `sdk/native-comparisons/miniverb.json`. The in-memory preparation label does
 not waive catalogue or publication checks. The owner approval now covers this
-exact source; full checks and source-only reproduction are still required. Keep #428 open unless the
+exact source. Keep #428 open unless the
 owner explicitly authorizes closure despite its unconfirmed symptom; any such
 closure must give the released version, these limits and how to reopen.
+
+
+## Release preparation verification — 11 October 2026
+
+`npm run check -- --base origin/main` passed: all 226 test files and 1,698
+app tests, lint, types, bundle, SDK, licences and catalogue checks.
+`npm run module:doctor -- miniverb` has every integration point green.
+The changed Mini Verb DSP also required regenerating the full Analog BD
+companion proof: 212 profiles passed, comprising 162 matching native OS and
+GNU bootloader builds, 50 matching refusals and six complete firmware round
+trips. This is software compatibility evidence, not hardware qualification.
+
+A clean source-only export of commit
+`89d189e53192c76d8d3c5e26495578f61316fdf4` with
+`bash scripts/build-modules-isolated.sh` and the pinned compiler image below
+passed `scripts/import-module-build.mjs --development --check-only
+--verify-existing`. It reproduces all eleven committed package payloads;
+only source-commit provenance differs from the preparation export. The
+container had no firmware, network or credentials. Compiler image:
+`sha256:445effdc2b5446de89bd70ba0f7632222e98cd29e749c3f059668cb246c060a5`.
+
+The bundled Octatrack worker was run headlessly with the private original
+update. Both saved full downloads were read back and matched the exact I428
+update and MAIN hashes above. Their report names Mini Verb
+0.2.1-experimental and compiled source tree
+`3726d7c2c4c4d39265eada72f1bc8e1179e923855fbf4dbeb6516d88f1b7f9f0`.
+This preparation check is separate from saved live-download verification,
+which must follow the owner merge and successful deployment.
