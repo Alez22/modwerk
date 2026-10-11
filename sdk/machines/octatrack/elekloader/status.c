@@ -77,19 +77,27 @@ void modwerk_status_tick(void)
     modwerk_status[ARENA] = modwerk_dsp_arena[0] | (uint32_t)modwerk_dsp_arena[1] << 16;
 }
 
-/* The modal: while it shows it takes every key and encoder, so nothing changes under it; NO or CUE + PROJ
- * closes it, and the screen it covered is back as it was. */
-static int open, taken; /* shown; a key press the handler took, whose release it takes too */
+/* The dialogs: while one shows it takes every key and encoder, so nothing changes under it; NO closes it and the
+ * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere. SYSTEM > MODWERK (the row
+ * build_core.py adds) first explains that shortcut: YES goes on to the status, NO back to the menu. */
+enum { CLOSED, HINT, SHOWN };
+static int open, taken; /* which shows; a key press the handler took, whose release it takes too */
+#define YES 0x31
+char modwerk_status_label[] = "MODWERK"; /* the SYSTEM menu's row */
+void modwerk_status_menu(int unused) { (void)unused; open = HINT; }
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
     if (code == CUE) cue = pressed;
-    if (pressed && code == PROJ && cue) { open = !open; taken = code; return 1; }
-    if (pressed && code == NO && open) { open = 0; taken = code; return 1; }
+    if (pressed && ((code == PROJ && cue) || (open && (code == NO || (code == YES && open == HINT))))) {
+        open = code == NO || (code == PROJ && open == SHOWN) ? CLOSED : SHOWN;
+        taken = code;
+        return 1;
+    }
     if (!pressed && code == taken) { taken = 0; return 1; }
-    return open && code != CUE; /* CUE's own release reaches stock, as it would without the page */
+    return open && code != CUE; /* CUE's own release reaches stock, as it would without the dialog */
 }
-int modwerk_status_enc(int encoder, int delta) { (void)encoder, (void)delta; return open; }
+int modwerk_status_enc(int encoder, int delta) { (void)encoder, (void)delta; return open != CLOSED; }
 
 /* Drawing: the frame is a quarter turn round, a row of 8 bytes per x, MSB first, pixel (x, y) at bit 63 - y. */
 static void fill(unsigned char *frame, unsigned x0, unsigned y0, unsigned x1, unsigned y1, int on) /* inclusive */
@@ -145,16 +153,36 @@ static uint32_t share(uint32_t part, uint32_t whole) { return whole ? (part > wh
 #define X1 119u
 #define Y0 1u
 #define Y1 62u
-void modwerk_status_draw(unsigned char *frame)
+/* A frame and its title over the screen, stock's dialog style. */
+static void dialog(unsigned char *frame, const char *title)
 {
-    if (!open) return;
     for (unsigned i = 0; i < 7u; ++i) surface[i] = ((const volatile uint32_t *)SURFACE)[i];
     surface[3] = (uint32_t)(uintptr_t)frame;
     fill(frame, X0, Y0, X1, Y1, 0);
     outline(frame, X0, Y0, X1, Y1);
-    static const char title[] = "MODWERK STATUS";
     label((unsigned)(64 - TEXT_WIDTH(FONT, -1, title) / 2), Y0 + 3u, title);
     fill(frame, X0, Y0 + 10u, X1, Y0 + 10u, 1);
+}
+/* A button as stock's dialogs draw them: its key's name in a frame. */
+static void button(unsigned char *frame, unsigned x, unsigned y, const char *name)
+{
+    unsigned w = (unsigned)TEXT_WIDTH(FONT, -1, name) + 8u;
+    outline(frame, x, y, x + w, y + 8u);
+    label(x + 5u, y + 2u, name);
+}
+static void explain(unsigned char *frame)
+{
+    dialog(frame, "MODWERK STATUS");
+    static const char *const lines[4] = {"CPU AND DSP LOAD, AND", "THE MEMORY IN USE.", "OPEN IT ANYWHERE:", "HOLD CUE, PRESS PROJ."};
+    for (unsigned i = 0; i < 4u; ++i) label(X0 + 6u, Y0 + 15u + 8u * i + (i >= 2u ? 2u : 0u), lines[i]);
+    button(frame, X0 + 14u, Y1 - 12u, "YES");
+    button(frame, X1 - 30u, Y1 - 12u, "NO");
+}
+void modwerk_status_draw(unsigned char *frame)
+{
+    if (open == HINT) { explain(frame); return; }
+    if (open != SHOWN) return;
+    dialog(frame, "MODWERK STATUS");
     uint32_t cpu_peak = 0;
     for (unsigned i = 0; i < 8u; ++i) cpu_peak = cpu_recent[i] > cpu_peak ? cpu_recent[i] : cpu_peak;
     static const char *const names[3] = {"CPU", "T1-4", "T5-8"};

@@ -101,8 +101,8 @@ python3 -B sdk/runtime/loader/build.py --octabam euclid --stock /private/OCTATRA
 
 `status.c` measures, all the time, the ColdFire's load (main's idle spin, timed on DTIM3, `status.s`), each
 DSP core's mean and peak load (core 0's own idle count, core 1's counted wait for core 0, `dsp_receiver.asm`),
-each core's code arena, the delay-buffer blocks and the module pool. CUE + PROJ shows it as a full-screen
-page of bars (NO closes it); `npm run device -- stats` prints it from the loader report on development
+each core's code arena, the delay-buffer blocks and the module pool. CUE + PROJ shows it as a dialog of
+bars (NO closes it), and so does PROJ > SYSTEM > MODWERK, after a short dialog that explains the shortcut; `npm run device -- stats` prints it from the loader report on development
 bases. A DSP core's load is its idle passes times their calibrated cycles (20.0 on core 0, 14.5 on core 1)
 of a 72,520-cycle frame; recalibrate with `build_core.py --dsp-burn 1000` (core 0) or `-1000` (core 1).
 

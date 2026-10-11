@@ -1162,6 +1162,12 @@ card, another unit) and change version, and old projects must keep loading:
       seconds), then each core's code arena and the module pool. FUNC + NO was the first pick: stock's disarm-all (owner). CUE held while PROJ
       is pressed otherwise just opens PROJECT. `npm run device -- stats` reads the same figures from the
       report (version 11, 78 words) whether or not the page is open.
+    - PROJ > SYSTEM > MODWERK (owner: a menu entry that also teaches the shortcut) opens a short dialog
+      first: what it shows and "hold CUE, press PROJ" to open it anywhere, YES on to the status, NO back
+      to the menu. SYSTEM's descriptor stays where it is (stock compares its address to block PROJECT and
+      SYSTEM while `0x80000088` is set); its count goes from 6 to 7 and its rows pointer to the base's copy
+      of the six stock rows plus MODWERK (base `3fe99d6b…`, S12, on the unit: the row, the dialog, the
+      status, and NO back to the list with the row still selected). RAM-boot room: 1,576 bytes.
     - ColdFire: main's idle spin (`0x4001fc96`, `status.s`) adds up each pass nothing broke, in counts of
       DTIM3, which runs free over 32 bits at about 132 MHz (47,893 counts a 362.8 µs frame). Stopped, near-
       blank project: 40%.

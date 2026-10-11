@@ -80,6 +80,7 @@ def catalogue_overlaps(sites):
     return found
 
 
+SYSTEM_MENU, SYSTEM_ROWS = 0x400cbd1c, 0x400cc4e8  # PROJ > SYSTEM's list descriptor and its six rows (MAINMENU.md)
 DSP_ALLOWANCE = 2808  # per core and sample: 3,120 cycles our code may spend (hardware) less a 10% margin (owner default)
 # The dearest stock effect per slot: DJ EQ, 330.75 executed instructions per sample at its worst split
 # (stock_dsp_worst.py, emulator; not hardware timing). Every slot without a module is charged it (dsp.c).
@@ -629,6 +630,18 @@ def main():
             ', '.join('{%#xu, %d, %s}' % (int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], 'big'), fx,
                                            ctext(names.get(key, key)[:15])) for fx, key in legacy), len(legacy))
         definitions += loader_dsp.catalog_c(dsp_layout, DSP_RESERVE) + chooser_lists
+        # status.c's row in SYSTEM (PROJ > SYSTEM > MODWERK): stock's six rows, copied, then its own. The descriptor
+        # stays where it is (stock compares its address); its count and rows pointer change (Octabam's MAINMENU.md).
+        rows_at = int.from_bytes(image[SYSTEM_MENU + 0x18 - device.main_load:][:4], 'big')
+        if int.from_bytes(image[SYSTEM_MENU - device.main_load:][:4], 'big') != 6 or rows_at != SYSTEM_ROWS:
+            raise ValueError('PROJ > SYSTEM is not the six stock rows; review the status row.')
+        stock_rows = image[rows_at - device.main_load:][:6 * 24]
+        definitions += ('struct menu_row { const void *label, *window, *action, *value, *child; uint32_t page; };\n'
+                        'extern char modwerk_status_label[];\nvoid modwerk_status_menu(int);\n'
+                        'const struct menu_row modwerk_system_rows[7] = {%s,\n    {modwerk_status_label, 0, (const void *)modwerk_status_menu, 0, 0, 0}};\n' % (
+                            ',\n'.join('    {' + ', '.join('(const void *)%#xu' % int.from_bytes(stock_rows[24 * r + 4 * f:][:4], 'big')
+                                                          for f in range(5)) + ', %#xu}' % int.from_bytes(stock_rows[24 * r + 20:][:4], 'big')
+                                         for r in range(6))))
         definitions += 'const uint16_t modwerk_dsp_arena[2] = {%d, %d};\n' % tuple(
             dsp_layout[t]['tableWords'] - loader_dsp.SAVED for t in ('A', 'B'))
     (source/'identity.c').write_text(definitions)
@@ -704,6 +717,10 @@ modwerk_retained_end:
                 raise ValueError('Stock bytes at %#x are not the ones the DSP loader hooks.' % addr)
             recipe['sites'].append(dict(addr=hex(addr), stock=stock.hex(), op='jmp', target=label))
         recipe['sites'] += [] if args.dsp_probe == 'S' else dsp_sites
+        recipe['sites'] += [dict(addr=hex(SYSTEM_MENU), stock=image[SYSTEM_MENU - device.main_load:][:4].hex(), op='bytes', kind='data',
+                                 new='00000007'),
+                            dict(addr=hex(SYSTEM_MENU + 0x18), stock=image[SYSTEM_MENU + 0x18 - device.main_load:][:4].hex(), op='ptr',
+                                 target='modwerk_system_rows')]
     spec = importlib.util.spec_from_file_location('modwerk_startup', artwork.parent/'build.py')
     startup = importlib.util.module_from_spec(spec); spec.loader.exec_module(startup)
     for guard, authored in startup.writes():
