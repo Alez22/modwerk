@@ -1599,9 +1599,14 @@ looped bass sample, and the Parts were switched while playing.
 - **Loading at a pick**: E-Verb picked on T5, where core 0 held none of its 1,588 words (68
   packets), ran 117 ms after YES. Picks that upload nothing took the same, and that time is mostly
   the 80 ms key hold, so the upload itself is under about 40 ms.
-- **Still loading at the change**: a pattern change into another bank. The union covers the
-  current bank, so the new bank's effects load when the change happens. Starting that when the
-  change is queued is next.
+- **A pattern queued from another bank** (S15, `f9d300a0…`): the union now also holds the Part
+  the queued pattern will play. Stock keeps the queued bank and pattern at `0x800065bf`/`c0`, equal
+  to the current ones when nothing waits; a pattern's Part is the byte at bank + pattern × 0x8ed8 +
+  0x8e57 (upstream Octabam's PARTS.md). With A01 playing, queuing B01 (E-Verb on T5 there) loaded
+  E-Verb onto core 0 at once (68 packets, 1,236 → 2,824 words). At the switch each core took one
+  packet, a small command for the outgoing bank.
+- **TRIG 1 release** (fixed in `eb66b16f`): the status dialog's key handler swallowed every TRIG 1
+  release, so a bank change to pattern 1 never landed. Found while setting up this test.
 
 ### Keeping the module set across power cycles (built, 11 October 2026)
 
