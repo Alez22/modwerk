@@ -78,7 +78,12 @@ uint8_t *modwerk_machine_code(uint32_t address);
 void modwerk_machine_flush_data(uint32_t address, uint32_t length); /* push and invalidate data-cache lines */
 uint32_t modwerk_machine_mask(void);               /* no other code runs until unmask */
 void modwerk_machine_unmask(uint32_t);
-/* With interrupts masked: the memory every other task would resume from or
+/* No other task, and no interrupt that could reach the loader, runs until unlock; the machine's real-time
+ * interrupts still do. Held for the loader's long work (stack scans, the DSP switch); a mask inside it covers
+ * the stock-code bytes alone. On the Octatrack: a frame interrupt held off a ring half stops the DSPs. */
+uint32_t modwerk_machine_lock(void);
+void modwerk_machine_unlock(uint32_t);
+/* With the machine locked: the memory every other task would resume from or
  * return into (live stacks, saved registers). More than `max` means unknown. */
 unsigned modwerk_machine_paused(struct runtime_span *, unsigned max);
 /* DSP effects: may `to` take `from`'s place (either may be absent: count 0)?

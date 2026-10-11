@@ -10,17 +10,20 @@
 static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
 static uint8_t stock[256], original[256], paused[64];
-static int stopped = 1, masked, flushed, unknown;
+static int stopped = 1, masked, locked, flushed, unknown;
 int modwerk_machine_stopped(void) { return stopped; }
 void *modwerk_machine_uncached(void *p) { return p; }
 void modwerk_machine_invalidate_code(void) {}
 int modwerk_machine_patchable(uint32_t a, uint32_t n) { return a >= STOCK + 16u && n <= STOCK + sizeof stock - a; }
 uint8_t *modwerk_machine_code(uint32_t a) { CHECK(masked); return stock + (a - STOCK); }
 void modwerk_machine_flush_data(uint32_t a, uint32_t n) { (void)a; (void)n; flushed++; }
-uint32_t modwerk_machine_mask(void) { CHECK(!masked); masked = 1; return 7; }
+uint32_t modwerk_machine_mask(void) { CHECK(!masked && locked); masked = 1; return 7; }
 void modwerk_machine_unmask(uint32_t sr) { CHECK(masked && sr == 7); masked = 0; }
+uint32_t modwerk_machine_lock(void) { CHECK(!locked && !masked); locked = 1; return 4; }
+void modwerk_machine_unlock(uint32_t sr) { CHECK(locked && !masked && sr == 4); locked = 0; }
 unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max)
 {
+    CHECK(locked);
     if (unknown) return max + 1u;
     span[0] = (struct runtime_span){paused, paused + sizeof paused};
     return 1;
@@ -38,7 +41,7 @@ int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp
 }
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to)
 {
-    CHECK(masked); dsp_from = *from; dsp_to = *to; ++dsp_switches;
+    CHECK(locked && !masked); dsp_from = *from; dsp_to = *to; ++dsp_switches; /* no task runs; frames may */
 }
 
 static const struct mu_backend *b = &modwerk_runtime_backend;
@@ -111,7 +114,7 @@ int main(void)
         if (bad == 13) n = RUNTIME_HEADER_BYTES - 1;
         CHECK(!b->prepare(0, p, n) && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
     }
-    CHECK(!masked && memcmp(stock, original, sizeof stock) == 0);
+    CHECK(!masked && !locked && memcmp(stock, original, sizeof stock) == 0);
 
     /* A: hooks, a relocated word, bss and one site, published while nothing is in flight. */
     begin(8, 4, 2, &four, 1, 1, 0xa1); site(STOCK + 32, 6);
@@ -313,7 +316,7 @@ int main(void)
     stopped = 0;
     CHECK(!b->enter(0) && !b->safe(0));
     stopped = 1;
-    CHECK(b->enter(0) && b->safe(0) && b->leave(0) && !b->safe(0) && !masked);
+    CHECK(b->enter(0) && b->safe(0) && b->leave(0) && !b->safe(0) && !masked && !locked);
     if (failures) { fprintf(stderr, "%u loader checks failed\n", failures); return 1; }
     puts("Loader: refusals, relocation, bss, hooks, stock-code sites (in-flight, stock and changed-code refusals, "
          "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion and DSP sections passed.");

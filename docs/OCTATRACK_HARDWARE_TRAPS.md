@@ -113,6 +113,29 @@ drained the frame words, but frames never resumed: a corrupted DSP needs
 both cores stopped, parked and re-uploaded, as RAM boot does. Prevent the
 collision instead of relying on the watchdog.
 
+**Never hold off the frame interrupt for more than about 200 µs.** The DSP frame interrupt is level 5 and the eDMA
+frame transfer level 6 (Octabam's KERNEL.md).
+
+Measured on the owner's MKII, 11 October 2026 (development request 20):
+- **Up to 200 µs:** masking every interrupt for 100, 150 and 200 µs, 25 times each while playing, left frames running.
+- **300 µs:** frames stopped within the first few masks.
+- **What dies:** core 0 stops for good and does not wait for the host (its HSR's RXDF is clear). That fits its audio
+  DMA dying when the bank word is taken past a ring half (16 samples, 363 µs).
+
+How it hit the loader:
+- **The masked work.** The loader masked everything for a module switch and a reclaim: stack scans, the DSP switch,
+  the chooser page. That lasted up to about 760 µs on an install and 70–200 µs on a removal.
+- **The stalls.** About one install or removal in ten stalled the DSPs (Euclid at cycles 7, 7 and 10; E-Verb at
+  about 12).
+- **The fix.** It now locks at level 4: no task switch, no USB, no storage, but frames run. Only the stock-code bytes
+  are written fully masked; the longest such span measured 3,219 timer counts (24 µs).
+- **The result.** 20 Euclid and 20 E-Verb install/remove cycles while playing, no stall.
+
+Any other code that masks at level 5 or above must stay well under 200 µs.
+
+**A RAM boot does not rescue a stalled DSP; it hangs at the logo.** The soft reset parks both DSP cores first, and a
+hung core does not park. After a DSP stall only a power cycle helps.
+
 **Never select core 1 at state 7, not even to read its host flags.** The
 loader read each core's answer flags by setting the DSP select byte
 (`0xfc0a400c`) to the core and back, from state 7. For core 0 that wrote the

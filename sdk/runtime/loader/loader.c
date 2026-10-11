@@ -81,12 +81,12 @@ static int reachable(const struct runtime_module *m)
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) if (live[i] == m) return 1;
     return m == candidate || m == previous;
 }
-/* Masked: free every extent that no position, the transaction or a paused
+/* Locked: free every extent that no position, the transaction or a paused
  * task's stack or saved registers can reach. Unknown task state frees nothing. */
 static void reclaim(void)
 {
     struct runtime_span span[RUNTIME_PAUSED];
-    uint32_t mask = modwerk_machine_mask();
+    uint32_t lock = modwerk_machine_lock();
     unsigned n = modwerk_machine_paused(span, RUNTIME_PAUSED);
     for (unsigned i = owners; n <= RUNTIME_PAUSED && i--;) {
         uint32_t lo = (uint32_t)(uintptr_t)owned[i], hi = lo + owned[i]->size;
@@ -96,7 +96,7 @@ static void reclaim(void)
                 reached = be32(p) >= lo && be32(p) < hi;
         if (!reached) owned[i] = owned[--owners];
     }
-    modwerk_machine_unmask(mask);
+    modwerk_machine_unlock(lock);
 }
 /* A word holding an offset into the module becomes an address. */
 static int relocate(uint8_t *word, uint32_t end, uint32_t base)
@@ -113,7 +113,7 @@ static int inside(const struct runtime_module *m, uint32_t v)
         if (v > m->site[i].address && v < m->site[i].address + m->site[i].length) return 1;
     return 0;
 }
-/* Masked: could a paused task resume inside a site of a or b? Starting at a
+/* Locked: could a paused task resume inside a site of a or b? Starting at a
  * site's first byte runs its whole new instruction; anywhere after it would
  * run the middle of one. Unknown counts as yes. */
 static int in_flight(const struct runtime_module *a, const struct runtime_module *b)
@@ -156,27 +156,32 @@ static void put(const struct runtime_module *m, int patched)
 }
 static const struct runtime_dsp no_dsp;
 static const struct runtime_dsp *dsp_of(const struct runtime_module *m) { return m ? &m->dsp : &no_dsp; }
-/* One position's hooks, sites and DSP effect change together, with nothing
- * else running. On any mismatch its module's sites are put back and nothing changes. */
+/* One position's hooks, sites and DSP effect change together, with no other task running (locked) and the
+ * stock-code bytes written masked. On any mismatch its module's sites are put back and nothing changes. */
 static int switch_to(unsigned position, struct runtime_module *to)
 {
     const struct runtime_module *from = live[position];
-    uint32_t mask = modwerk_machine_mask();
+    uint32_t lock = modwerk_machine_lock();
     struct runtime_dsp want = *dsp_of(to); /* the machine keeps the effect id it gave at admission */
-    int ok = !in_flight(from, to) && holds(from, 1) && !modwerk_machine_dsp_admit(dsp_of(from), &want) && want.id == dsp_of(to)->id;
+    int ok = !in_flight(from, to) && !modwerk_machine_dsp_admit(dsp_of(from), &want) && want.id == dsp_of(to)->id;
     if (ok) {
-        put(from, 0);
-        ok = holds(to, 0);
+        uint32_t mask = modwerk_machine_mask(); /* the machine's real-time interrupts may run these bytes */
+        ok = holds(from, 1);
         if (ok) {
-            put(to, 1);
-            ok = holds(to, 1);
-            if (!ok) put(to, 0);
+            put(from, 0);
+            ok = holds(to, 0);
+            if (ok) {
+                put(to, 1);
+                ok = holds(to, 1);
+                if (!ok) put(to, 0);
+            }
+            if (!ok) put(from, 1);
+            modwerk_machine_invalidate_code();
         }
-        if (!ok) put(from, 1);
-        modwerk_machine_invalidate_code();
+        modwerk_machine_unmask(mask);
         if (ok) { live[position] = to; modwerk_machine_dsp_switch(dsp_of(from), dsp_of(to)); }
     }
-    modwerk_machine_unmask(mask);
+    modwerk_machine_unlock(lock);
     return ok;
 }
 /* The position of the live module `id`, else the first free one. */

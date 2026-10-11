@@ -1601,37 +1601,46 @@ Limits: a fault inside the handler (a stack pointer that is itself bad) still ha
 come back as the card has them, as after a power cycle. Hosts can read the record only on
 development bases so far; the support report should carry it.
 
-### DSP stalls (11 October 2026, open)
+### DSP stalls (11 October 2026, found and fixed in S29)
 
-Frames stopped twice on the owner's MKII. The DSP watchdog (`dsp.c`) said DSP STOPPED and shut the loader off. The first time the sequencer stayed stuck until a power cycle.
+**What happened.** Frames stopped several times on the owner's MKII. The DSP watchdog (`dsp.c`) said DSP STOPPED and shut the loader off. Only a power cycle brought the unit back: a RAM boot from a stalled DSP hangs at the logo, because a hung core does not park.
 
-**The stall record.** Since S18, `recover()` first writes a stall record to battery RAM at `0x100ff900`:
-- the loader's whole report;
-- each core's last packet header;
-- the live FX ids;
-- since S20, the selected core's host ISR, whose RXDF bit separates "core 0 waits at P:$97 for the ColdFire to take a word" from "core 0 hung inside".
+**The cause.** The runtime loader held off the DSP frame interrupt too long. `switch_to()` and `reclaim()` masked every interrupt while they:
+- scanned paused task stacks;
+- rewrote stock-code sites;
+- switched the DSP effect and built its chooser page.
 
-The `stall` step prints it; `stalltest` writes a test record.
+That took up to about 760 µs on an install and 70–200 µs on a removal. When such a span covered core 0's frame word, core 0 stopped for good.
 
-**What the two stalls had in common:**
-- A PEEK to core 0 was in flight.
-- Core 0's frame interrupt was still enabled, with no edge pending.
-- Our transfer had finished (phase 0).
+**The measurement.** Development request 20 masks for a chosen time from the sys tick:
+- 100, 150 and 200 µs, 25 times each while playing, left frames running;
+- 300 µs stopped them within the first few masks.
 
-The PEEK is no clue. The status meter keeps one in flight nearly all the time, and a storm of 242,538 PEEKs in 82 s (`storm1`, development request 19) did not stall S22.
+The stall record's host ISR showed core 0 not waiting for the host (RXDF clear). The frame interrupt is level 5 and the eDMA frame transfer level 6 (Octabam's KERNEL.md).
 
-**The S19 record** shows four modules still active and 134 KB of the module pool in use. So that stall came during the qualification's cleanup, while it removed six modules (likely around Euclid, whose sites include a detour in stock's frame interrupt, `0x4000d562`). The qualification missed it: it read its counters within the half second before the watchdog wrote the record.
+**How it showed up.** Install and remove one module in a loop while playing: Euclid stalled at cycles 7, 7 and 10, E-Verb at about 12. So did the S19 qualification, during its cleanup.
 
-**Afterwards** the unit came back on S19 itself, minutes later, with no crash record. A crash restart would have booted the flashed base, so what restarted it is unknown.
+**The fix (S29):**
+- The loader takes a new machine lock, `modwerk_machine_lock()`. On the Octatrack it is level 4: no task switch, no USB, no storage interrupt, while the frame chain runs.
+- It masks fully only to read and write the stock-code bytes and invalidate the code caches.
+- The longest fully masked span is now 3,219 DTCN3 counts (24 µs).
+- The loader's host test enforces the split: code bytes only masked, stack scans and the DSP switch only locked.
 
-**Ruled out:** the receiver's HCR read-modify-write racing stock. Stock's core 0 writes HCR once, at boot (`movep #>$4,x:<<M_HCR`).
+**The check.** 20 Euclid and 20 E-Verb install/remove cycles while playing ran without a stall. At the old rate, about one in ten, that would happen by chance about 1.5% of the time.
 
-**Not reproduced:**
-- a second identical qualification on S22;
-- rapid picks on both cores;
-- a full TYPE and BAL sweep of SPRING REV.
+**Tools from the hunt:**
+- the stall record (battery RAM `0x100ff900`: why, the loader's report, both packet headers, the live FX, the host ISR; the `stall` and `stalltest` steps);
+- `modwerk_masked_max`/`_last`/`_spans` in `runtime.c` (full-mask spans, outermost only, in DTCN3 counts);
+- `storm1` (a PEEK re-sent from the frame interrupt: 242,538 packets in 82 s, no stall, so the PEEK always in flight was no clue);
+- `mask:N` (request 20).
 
-**Next:** module removal under load, Euclid's frame-interrupt site first. The qualification has to wait half a second before reading the stall count.
+**Ruled out on the way:**
+- the receiver's HCR read-modify-write (stock writes core 0's HCR once, at boot);
+- Euclid's frame-interrupt site (E-Verb, with no sites, stalled too).
+
+**Still open:**
+- **The S19 restart.** After that stall the unit came back on S19 itself, with no crash record and no power cycle. What restarted it is unknown.
+- **The other masked spans.** `dsp.c`'s `recover()` and `boot.c` still mask fully. Both are rare paths, but any span past about 200 µs at level 5 or above stops the DSPs.
 
 ### Part switching on the unit (11 October 2026)
 

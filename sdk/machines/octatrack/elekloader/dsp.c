@@ -125,7 +125,7 @@ int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp
         return RUNTIME_CYCLES;
     return RUNTIME_OK;
 }
-/* Masked, by the loader's switch: the manager sees the catalog change between two of its steps. */
+/* Locked, by the loader's switch (no task runs): the manager sees the catalog change between two of its steps. */
 static const struct dl_package unheld = STOCK;
 static void release(unsigned k)
 {
@@ -458,10 +458,19 @@ static void peek_tick(void)
 }
 #endif
 void modwerk_dsp_unpack(void); /* identity.c: the stock effects' code into RAM, before the manager needs it */
+/* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3
+ * (132 MHz), to find how long the frame chain survives a held-off frame interrupt. Off the USB request path. */
+volatile uint32_t modwerk_dsp_mask_test;
 void modwerk_dsp_tick(void)
 {
     modwerk_dsp_watch_ticks = modwerk_dsp_watch_ticks + 1; /* the watchdog's heartbeat */
 #ifndef MODWERK_HOST
+    if (modwerk_dsp_mask_test) {
+        uint32_t us = modwerk_dsp_mask_test, sr = modwerk_machine_mask(), t0 = *(volatile uint32_t *)0xfc07c00cu;
+        while (*(volatile uint32_t *)0xfc07c00cu - t0 < us * 132u) {}
+        modwerk_machine_unmask(sr);
+        modwerk_dsp_mask_test = 0;
+    }
     static int unpacked;
     if (!unpacked) unpacked = 1, modwerk_dsp_unpack();
     peek_tick();

@@ -29,6 +29,8 @@ uint8_t *modwerk_machine_code(uint32_t address) { (void)address; return 0; }
 void modwerk_machine_flush_data(uint32_t address, uint32_t length) { (void)address; (void)length; }
 uint32_t modwerk_machine_mask(void) { return 0; }
 void modwerk_machine_unmask(uint32_t sr) { (void)sr; }
+uint32_t modwerk_machine_lock(void) { return 0; }
+void modwerk_machine_unlock(uint32_t sr) { (void)sr; }
 unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max) { (void)span; return max + 1u; }
 #else
 #define U8(a) (*(volatile uint8_t *)(a))
@@ -52,13 +54,37 @@ void modwerk_machine_flush_data(uint32_t address, uint32_t length)
     for (uint32_t line = address & ~15u; line < address + length; line += 16u)
         __asm__ __volatile__("cpushl %%dc,(%0)" :: "a"(line) : "memory");
 }
+/* How long interrupts stay masked here, outermost spans only, in counts of the frame timer DTCN3 (132 MHz; a frame,
+ * 16 samples, is about 48,000). Core 0's DMA2 dies when its frame's bank word waits a ring half for the host. */
+#define DTCN3 (*(volatile uint32_t *)0xfc07c00cu)
+volatile uint32_t modwerk_masked_max, modwerk_masked_last, modwerk_masked_spans;
+static uint32_t masked_at;
 uint32_t modwerk_machine_mask(void)
 {
     uint32_t sr;
     __asm__ __volatile__("move.w %%sr,%0\n\tmove.w #0x2700,%%sr" : "=d"(sr) :: "memory");
+    if ((sr & 0x0700u) != 0x0700u) masked_at = DTCN3;
     return sr;
 }
-void modwerk_machine_unmask(uint32_t sr) { __asm__ __volatile__("move.w %0,%%sr" :: "d"(sr) : "memory"); }
+void modwerk_machine_unmask(uint32_t sr)
+{
+    if ((sr & 0x0700u) != 0x0700u) {
+        uint32_t d = DTCN3 - masked_at;
+        modwerk_masked_last = d, modwerk_masked_spans = modwerk_masked_spans + 1;
+        if (d > modwerk_masked_max) modwerk_masked_max = d;
+    }
+    __asm__ __volatile__("move.w %0,%%sr" :: "d"(sr) : "memory");
+}
+/* Level 4 (KERNEL.md's ICR table): the time slice (1), the storage timer (2), ATA DMA (3) and USB (4) wait; the DSP
+ * frame (5) and the eDMA frame transfer (6) run, so the frames go on whatever the loader does. Never lowers. */
+uint32_t modwerk_machine_lock(void)
+{
+    uint32_t sr;
+    __asm__ __volatile__("move.w %%sr,%0" : "=d"(sr) :: "memory");
+    if ((sr & 0x0700u) < 0x0400u) __asm__ __volatile__("move.w %0,%%sr" :: "d"((sr & ~0x0700u) | 0x0400u) : "memory");
+    return sr;
+}
+void modwerk_machine_unlock(uint32_t sr) { __asm__ __volatile__("move.w %0,%%sr" :: "d"(sr) : "memory"); }
 
 /* TCB, lowest stack address, stack size (KERNEL.md). Main's stack is the boot
  * stack below 0x46c7becc; only the space above its TCB is assumed. */

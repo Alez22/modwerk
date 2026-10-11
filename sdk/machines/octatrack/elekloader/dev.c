@@ -44,7 +44,7 @@ extern volatile uint32_t modwerk_dsp_missing;
 static uint32_t mem_high;
 static int ram(uint32_t at, uint32_t n)
 {
-    static const uint32_t spans[4][2] = {{0x40000400u, 0x40c50000u}, {0x46000000u, 0x47000000u},
+    static const uint32_t spans[4][2] = {{0x40000400u, 0x40d00000u}, {0x46000000u, 0x47000000u},
                                          {0x80000000u, 0x80010000u}, {0x100f0000u, 0x10100000u}};
     for (unsigned i = 0; i < 4u; ++i) if (at >= spans[i][0] && at + n <= spans[i][1] && at + n > at) return 1;
     return 0;
@@ -90,6 +90,13 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
     if (s[1] == 19 && want == 1 && s[2] <= 1u && !s[3]) { /* PEEK STORM on (1) or off (0): build_core.py's transfer.c edit */
         extern volatile uint32_t dl_storm;
         dl_storm = s[2];
+        out[0] = 1;
+        *reply = out;
+        return 1;
+    }
+    if (s[1] == 20 && want == 1) { /* MASK TEST: dsp.c's next tick masks interrupts for s[2] | s[3] << 8 microseconds */
+        extern volatile uint32_t modwerk_dsp_mask_test;
+        modwerk_dsp_mask_test = s[2] | (uint32_t)s[3] << 8;
         out[0] = 1;
         *reply = out;
         return 1;
