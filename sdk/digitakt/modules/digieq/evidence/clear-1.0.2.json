@@ -2532,5 +2532,25 @@
     "Hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot and stress are unverified.",
     "Global override preservation is source-reviewed only; page Copy/Paste and Undo Clear are not qualified.",
     "This is one master EQ, not a per-track instance; the regression checks all eight sound records outside EQ-owned bits."
-  ]
+  ],
+  "releaseCatalogVerification": {
+    "sourcePackageCommit": "1107d484c8d7ad84cfff14917b34acdcb83a53e6",
+    "catalogRevision": "94516877d374af1e7c14a69c6c7602773590e8045fd8f3b8c1fcaa47e155f6fc",
+    "catalogSha256": "59c8782d6d6df1a84ad883239da6762631b23ee01eacfcba2490f1d53856980f",
+    "lockSha256": "cc075e189426744a4e57a953c6ad8faf92eec90fa6ebc9c10d363de798535772",
+    "images": [
+      {
+        "os": "1.53",
+        "firmwareSha256": "d8717d1d10418c6833d8312ba266d96fa7e3ecb03c78c3a927f2e45caeb5b6c5",
+        "packageSha256": "0c1288ede65771b6a791e25f31f2917747e20bae83b76698839010a312425d3a",
+        "result": "byte-identical to tested candidate without overrides"
+      },
+      {
+        "os": "1.54",
+        "firmwareSha256": "255990b52f0c293a57c1c4d27b0deedd0a12ed78cc3cedae40f418f1147c67a6",
+        "packageSha256": "7de10c293647ccaa457dfde3b9b8353a35aef452051815869ae545fd07bd8e71",
+        "result": "byte-identical to tested candidate without overrides"
+      }
+    ]
+  }
 }

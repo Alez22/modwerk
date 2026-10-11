@@ -28,5 +28,7 @@
     }
   ],
   "stockPolicy": "No firmware or stock-derived code/tables are present. Addresses, lengths and SHA-256 guards are metadata; exported instructions and sections are authored module code. Local materialized recipes and firmware are never committed.",
-  "evidence": "sdk/digitakt/modules/digieq/evidence/clear-1.0.2.json"
+  "evidence": "sdk/digitakt/modules/digieq/evidence/clear-1.0.2.json",
+  "sourcePackageCommit": "1107d484c8d7ad84cfff14917b34acdcb83a53e6",
+  "preparedCatalogRevision": "94516877d374af1e7c14a69c6c7602773590e8045fd8f3b8c1fcaa47e155f6fc"
 }
