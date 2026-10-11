@@ -78,7 +78,9 @@
         "vendor/elekloader/catalog/digiutils-1.9a.elemod",
         "vendor/elekloader/catalog/digiutils-1.9a-os1.54.elemod",
         "sdk/imports/packages/digimono/digimono-0.13.2-experimental-os1.53.elemod",
-        "sdk/imports/packages/digimono/digimono-0.13.2-experimental-os1.54.elemod"
+        "sdk/imports/packages/digimono/digimono-0.13.2-experimental-os1.54.elemod",
+        "sdk/imports/packages/digimono/digimono-0.13.3-experimental-os1.53.elemod",
+        "sdk/imports/packages/digimono/digimono-0.13.3-experimental-os1.54.elemod"
       ]
     }
   ]
