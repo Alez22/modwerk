@@ -217,7 +217,7 @@ closure must give the released version, these limits and how to reopen.
 
 ## Release preparation verification — 11 October 2026
 
-`npm run check -- --base origin/main` passed: all 226 test files and 1,698
+`npm run check -- --base origin/main` passed: all 228 test files and 1,706
 app tests, lint, types, bundle, SDK, licences and catalogue checks.
 `npm run module:doctor -- miniverb` has every integration point green.
 The changed Mini Verb DSP also required regenerating the full Analog BD

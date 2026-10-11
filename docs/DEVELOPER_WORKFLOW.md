@@ -15,6 +15,8 @@ The instrument dropdown lists every profile in `sdk/machines/<id>/machine.json`,
 
 Keep firmware, extracted stock bytes/tables, dumps, projects/cards and complete built images private. Submit only original or properly licensed source/media and approved stock-free module packages. Keep the previous approved download available while a new release is pending or failed.
 
+For repeated release checks, the [local firmware download API](FIRMWARE_DOWNLOAD_API.md) saves and hashes builds from the deployed catalogue without a browser. Its receipt identifies this local verification method; browser-flow and hardware checks remain separate requirements where applicable.
+
 ## Update or fix an approved module
 
 Read the report and reproduce it where possible. Change the module, explicitly bump its semantic version, and synchronize the catalog pin, shipped packages, docs and version-matched release notes. Pushing commits neither increments the version nor publishes the frontend.
