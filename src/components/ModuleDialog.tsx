@@ -18,13 +18,20 @@ export function ModuleDialog({ title, index, total, prev, next, status, actions,
   }, [])
   useEffect(() => { panel.current?.scrollTo(0, 0) }, [title])
   const step = (which: 'prev' | 'next') => { const target = which === 'prev' ? prev : next; if (!target) return; setDirection(which); target.go() }
-  const paging = !!(prev || next)
-  return <dialog ref={dialog} className="module-dialog" aria-label={title} data-step={direction} onCancel={event => { event.preventDefault(); onClose() }} onClick={event => { if (event.target === event.currentTarget) onClose() }}
-    onKeyDown={event => {
-      if ((event.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')) return
+  // On the document, not the dialog: a click inside the page can drop focus to <body>, where Escape and the arrows would get lost.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="tablist"], [role="slider"], audio, video')) return
       if (event.key === 'ArrowLeft' && prev) { event.preventDefault(); step('prev') }
       if (event.key === 'ArrowRight' && next) { event.preventDefault(); step('next') }
-    }}>
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  })
+  const paging = !!(prev || next)
+  return <dialog ref={dialog} className="module-dialog" aria-label={title} data-step={direction} onCancel={event => { event.preventDefault(); onClose() }} onClick={event => { if (event.target === event.currentTarget) onClose() }}>
     {paging && <StepButton which="prev" target={prev} onStep={step} />}
     <div ref={panel} className="module-dialog-panel" tabIndex={-1}>
       <div className="module-dialog-bar">
@@ -35,7 +42,7 @@ export function ModuleDialog({ title, index, total, prev, next, status, actions,
           </span>}
           {status}
         </span>
-        <span className="module-dialog-actions">{actions}<button type="button" className="module-dialog-close" aria-label={'Close ' + title} onClick={onClose}><Icon name="close" size={18} /></button></span>
+        <span className="module-page-buttons">{actions}<button type="button" className="button button-quiet module-dialog-close" aria-label={'Close ' + title} title="Close (Esc)" onClick={onClose}><Icon name="close" size={18} /></button></span>
       </div>
       {children}
     </div>
@@ -43,9 +50,10 @@ export function ModuleDialog({ title, index, total, prev, next, status, actions,
   </dialog>
 }
 
+/** The module page's chevrons (`catalog-chevron`), so paging looks the same in both places. */
 function StepButton({ which, target, onStep }: { which: 'prev' | 'next'; target?: Step; onStep: (which: 'prev' | 'next') => void }) {
-  return <button type="button" className={'module-dialog-step is-' + which} disabled={!target} aria-label={(which === 'prev' ? 'Previous module' : 'Next module') + (target ? ': ' + target.title : '')} onClick={() => onStep(which)}>
-    <span className="module-dialog-step-icon"><Icon name="back" size={22} /></span>
-    {target && <span className="module-dialog-step-label" aria-hidden="true">{target.title}</span>}
-  </button>
+  const label = which === 'prev' ? 'Previous' : 'Next'
+  return <button type="button" className={'catalog-chevron module-dialog-step is-' + (which === 'prev' ? 'previous' : 'next')} disabled={!target}
+    aria-label={target ? label + ' module: ' + target.title : 'No ' + label.toLowerCase() + ' module'} aria-keyshortcuts={which === 'prev' ? 'ArrowLeft' : 'ArrowRight'}
+    title={target ? label + ': ' + target.title + (which === 'prev' ? ' (←)' : ' (→)') : undefined} onClick={() => onStep(which)}><Icon name="back" size={24} /></button>
 }

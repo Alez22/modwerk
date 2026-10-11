@@ -281,14 +281,16 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
 .module-browse-context { display: flex; align-items: center; gap: 14px; }
 .catalog-position { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .catalog-navigation { display: none; }
+/* Paging chevrons: fixed beside the module page, and beside the module dialog's panel. */
+.catalog-chevron { display: flex; align-items: center; justify-content: center; width: 44px; height: 52px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); }
+.catalog-chevron.is-next svg { transform: rotate(180deg); }
+.catalog-chevron:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
 @media (min-width: 1101px) {
   .has-catalog-navigation { padding-inline: 40px; }
   .catalog-navigation { display: block; }
-  .catalog-chevron { position: fixed; top: 50%; z-index: 5; display: flex; align-items: center; justify-content: center; width: 44px; height: 52px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); transform: translateY(-50%); }
-  .catalog-chevron.is-previous { left: calc(var(--sidebar-width) + 12px); }
-  .catalog-chevron.is-next { right: 12px; }
-  .catalog-chevron.is-next svg { transform: rotate(180deg); }
-  .catalog-chevron:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+  .catalog-navigation .catalog-chevron { position: fixed; top: 50%; z-index: 5; transform: translateY(-50%); }
+  .catalog-navigation .catalog-chevron.is-previous { left: calc(var(--sidebar-width) + 12px); }
+  .catalog-navigation .catalog-chevron.is-next { right: 12px; }
 }
 
 .module-issue-action { min-height: 44px; font-size: 12px; background: #393222; border-color: #71603b; color: #efd17c; }
@@ -1909,8 +1911,8 @@ h1 { font-size: 28px; }
 @media (max-width: 600px) {
   .detail-hero-with-resources .detail-description { margin: 12px 0 8px; font-size: 14px; }
   .detail-hero-with-resources .detail-intro h1 { font-size: 30px; }
-  .detail-page .share-button-label { display: none; }
-  .detail-page .share-control > .button { width: 44px; padding: 0; }
+  :is(.detail-page, .module-dialog-bar) .share-button-label { display: none; }
+  :is(.detail-page, .module-dialog-bar) .share-control > .button { width: 44px; padding: 0; }
   .detail-page .catalog-position { display: none; }
   .detail-hero-with-resources .resource-gauge-dial strong { font-size: 13px; }
   .detail-hero-with-resources .module-resource-gauges { gap: 6px; }

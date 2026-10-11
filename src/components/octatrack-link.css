@@ -154,53 +154,39 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 /* Once the page scrolls, a shade fades in behind the bar so the pills don't sit on text. */
 .module-dialog-bar::before { content: ''; position: absolute; z-index: -1; inset: 0 -14px -22px; background: linear-gradient(var(--background) 58%, transparent); opacity: 0; animation: module-dialog-shade linear both; animation-timeline: scroll(nearest); animation-range: 0 90px; pointer-events: none; }
 @keyframes module-dialog-shade { to { opacity: 1; } }
-.module-dialog-meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.module-dialog-bar .module-tile-state { position: static; height: 34px; padding: 0 14px 0 12px; gap: 8px; font-size: 12px; white-space: nowrap; }
-.module-dialog-bar .module-tile-state i { width: 7px; height: 7px; }
-.module-dialog-position, .module-dialog-close, .module-dialog-actions .button, .module-dialog-bar .module-tile-state { border: 1px solid var(--line); background: #19191ceb; backdrop-filter: blur(10px); }
-.module-dialog-position { display: inline-flex; align-items: center; gap: 11px; height: 34px; padding: 0 13px; border-radius: 999px; color: var(--muted); font: 11px var(--mono); letter-spacing: .08em; }
+@supports not (animation-timeline: scroll()) { .module-dialog-bar::before { animation: none; opacity: 1; } }
+.module-dialog-meta { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.module-dialog-bar .module-tile-state { position: static; padding: 4px 10px 4px 9px; font-size: 11px; white-space: nowrap; }
+.module-dialog-position { display: inline-flex; align-items: center; gap: 11px; color: var(--muted); font: 11px var(--mono); letter-spacing: .08em; }
 .module-dialog-position em { margin: 0 3px; color: var(--line-hover); font-style: normal; }
 /* Where you are in the set, lit like the Octatrack's trig keys, in groups of four. */
 .module-dialog-trigs { display: flex; gap: 3px; }
 .module-dialog-trigs i { width: 10px; height: 4px; border-radius: 1px; background: var(--line); transition: background .2s, box-shadow .2s; }
 .module-dialog-trigs i:nth-child(4n + 1):not(:first-child) { margin-left: 4px; }
 .module-dialog-trigs i.is-on { background: var(--accent); box-shadow: 0 0 8px #a5adffaa; }
-.module-dialog-actions { display: flex; align-items: center; gap: 8px; }
-.module-dialog-actions .button { height: 34px; min-height: 34px; padding: 0 14px; border-radius: 999px; font-size: 12px; }
-.module-dialog-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, transform .25s cubic-bezier(.2, .8, .2, 1); }
-.module-dialog-close:hover { border-color: var(--line-hover); color: var(--text); transform: rotate(90deg); }
-.module-dialog-step { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
-.module-dialog-step.is-prev { grid-column: 1; justify-self: end; margin-right: 18px; }
-.module-dialog-step.is-next { grid-column: 3; justify-self: start; margin-left: 18px; }
-.module-dialog-step-icon { display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid #ffffff1f; border-radius: 50%; background: #2c2c31b3; backdrop-filter: blur(12px); box-shadow: 0 10px 30px #0008; transition: transform .2s cubic-bezier(.2, .8, .2, 1), border-color .2s, color .2s; }
-.module-dialog-step.is-next svg { transform: scaleX(-1); }
-.module-dialog-step:hover:not(:disabled) .module-dialog-step-icon, .module-dialog-step:focus-visible .module-dialog-step-icon { border-color: var(--accent-line); color: var(--accent); }
-.module-dialog-step.is-prev:hover:not(:disabled) .module-dialog-step-icon { transform: translateX(-3px); }
-.module-dialog-step.is-next:hover:not(:disabled) .module-dialog-step-icon { transform: translateX(3px); }
-.module-dialog-step:focus-visible { outline: none; }
-.module-dialog-step:focus-visible .module-dialog-step-icon { outline: 2px solid var(--accent); outline-offset: 3px; }
-.module-dialog-step:disabled { opacity: .25; cursor: default; }
-/* The neighbour's name, shown on hover like the preview cards' labels. */
-.module-dialog-step-label { max-width: 96px; overflow: hidden; color: var(--faint); font: 10px var(--mono); letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .2s; }
-.module-dialog-step:hover .module-dialog-step-label, .module-dialog-step:focus-visible .module-dialog-step-label { opacity: 1; transform: none; }
+.module-dialog-close { width: 44px; padding: 0; }
+.module-dialog-close svg { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.module-dialog-close:hover svg { transform: rotate(90deg); }
+/* The module page's chevrons, beside the panel: fixed size, so they never move while paging. */
+.module-dialog-step.is-previous { grid-column: 1; justify-self: end; margin-right: 16px; }
+.module-dialog-step.is-next { grid-column: 3; justify-self: start; margin-left: 16px; }
+.module-dialog-step { cursor: pointer; }
+.module-dialog-step:disabled { opacity: .35; cursor: default; }
 /* Paging slides the next page in from the side you went. */
 .module-dialog[data-step] .detail-page { animation: module-dialog-page .28s cubic-bezier(.2, .8, .2, 1); }
 .module-dialog[data-step="prev"] .detail-page { --module-dialog-from: -20px; }
 @keyframes module-dialog-fade { from { opacity: 0; } }
 @keyframes module-dialog-rise { from { opacity: 0; transform: translateY(14px) scale(.985); } }
 @keyframes module-dialog-page { from { opacity: 0; transform: translateX(var(--module-dialog-from, 20px)); } }
-@media (prefers-reduced-motion: reduce) { .module-dialog[open], .module-dialog::backdrop, .module-dialog-panel, .module-dialog .detail-page { animation: none; } .module-dialog-step-icon, .module-dialog-close { transition: none; } }
-/* Phones: the panel fills the screen, the chevrons sit under it with their names. */
+@media (prefers-reduced-motion: reduce) { .module-dialog[open], .module-dialog::backdrop, .module-dialog-panel, .module-dialog .detail-page { animation: none; } .module-dialog-close svg { transition: none; } }
+/* Phones: the panel fills the screen, the chevrons sit under it. */
 @media (max-width: 768px) {
   .module-dialog { padding: 12px; }
   .module-dialog[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .module-dialog-panel { grid-column: 1; align-self: stretch; padding: 0 16px 24px; border-radius: 16px; }
   .module-dialog-bar { margin: 0 -6px; }
-  .module-dialog-step { grid-row: 2; flex-direction: row; padding: 12px 0 0; }
-  .module-dialog-step.is-prev, .module-dialog-step.is-next { grid-column: 1; justify-self: start; margin: 0; }
-  .module-dialog-step.is-next { flex-direction: row-reverse; justify-self: end; }
-  .module-dialog-step-icon { width: 44px; height: 44px; }
-  .module-dialog-step-label { max-width: 34vw; opacity: 1; transform: none; }
-  .module-dialog-trigs, .module-dialog-actions .share-button-label { display: none; }
-  .module-dialog-actions .button { width: 34px; padding: 0; justify-content: center; }
+  .module-dialog-step.is-previous, .module-dialog-step.is-next { grid-row: 2; grid-column: 1; margin: 12px 0 0; }
+  .module-dialog-step.is-previous { justify-self: start; }
+  .module-dialog-step.is-next { justify-self: end; }
+  .module-dialog-trigs { display: none; }
 }
