@@ -1126,7 +1126,7 @@ card, another unit) and change version, and old projects must keep loading:
       package), Y $7f0-$9ff on both cores and, for cross-core keys, the last
       $202 words of each core's half of the shared window (the tail of local
       track 3's FX2 buffer), and a page that replaces COMPRESSOR's in its row.
-  - **DSP memory inventory** (emulator, base `cb2b01a6…` R10, 11 October 2026):
+  - **DSP memory inventory** (emulator, base `7c044b2f…`, 11 October 2026):
     two runs with `--dsp-dirty` and different seeds, stock effects on every
     track and slot (`stock-fx`), E-Verb picked on T1 and T5, all of X and Y
     dumped at the end; a word the two runs left different was never written.
