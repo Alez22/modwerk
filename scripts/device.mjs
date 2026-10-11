@@ -203,6 +203,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     }
     else if (step === 'report') console.log(named(await statusWords())) // the loader's full report (dsp.c modwerk_dsp_report)
     else if (step === 'stalltest') await devIn(18, 0, 1) // development bases: write the stall record now, nothing recovered
+    else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if (step === 'stall') { // dsp.c's record in battery RAM: the loader as it stood when the last stall was seen
       const b = await mem(0x100ff900, 456), v = new DataView(b.buffer, b.byteOffset, 456), w = i => v.getUint32(4 * i)
       if (w(0) !== 0x4d575354) console.log('stall: none recorded')

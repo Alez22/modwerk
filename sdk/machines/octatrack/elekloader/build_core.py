@@ -299,6 +299,13 @@ DSP_EDITS = {
                    ('                j->expected=(j->expected+value)&0xffffffu;\n            }\n',
                     '                j->expected=(j->expected+value)&0xffffffu;\n            }\n'
                     '            t[7]=(uint16_t)j->expected; t[56]=(uint16_t)(j->expected>>16);\n'),
+                   # Development (dev.c request 19): a finished PEEK goes again at once, from the frame interrupt, so
+                   # a fault that takes one packet in thousands shows in seconds (the DSP stalls of 11 October 2026).
+                   ('                pending[c]=0;\n                UNCACHED(dl_tx[c])[0]=0;\n            } else if',
+                    '                pending[c]=0;\n                UNCACHED(dl_tx[c])[0]=0;\n'
+                    '                if(dl_storm && jobs[c].state==3 && jobs[c].opcode==DL_PEEK) { jobs[c].state=1; ++dl_storm_sent; }\n'
+                    '            } else if'),
+                   ('volatile uint32_t dl_request_probe=0,', 'volatile uint32_t dl_storm=0, dl_storm_sent=0;\nvolatile uint32_t dl_request_probe=0,'),
                    ('    pending[c]=sequence[c]; age[c]=0;',
                     '    pending[c]=sequence[c]; age[c]=0; flags_sent[c]=modwerk_dsp_flags(c);'),
                    ('        volatile uint16_t *r=UNCACHED(dl_rx[c]);\n', ''),
@@ -546,6 +553,15 @@ def main():
         '#define io (*(uint8_t (*)[512])((uintptr_t)&octamod_log_retained + 6144u + 0x08000000u))\n'
         'typedef char modwerk_io_capacity[(sizeof io == 512)?1:-1];')
     (source/'stock_140c.c').write_text(adapter)
+    # The recorder's zeroed buffers to .bss, which core-ot.s clears at boot: 43 KB of zeros out of the image, which a
+    # RAM boot must keep under 1.25 MiB (BOOT_IMAGE_BYTES), as selection.c's paste buffer (DSP_EDITS).
+    recorder = (source/'octamod_log_firmware.c').read_text()
+    zeroed = (('previous = {0}, snapshot = {0};', 'previous, snapshot;'), ('__attribute__((aligned(512))) = {0};', '__attribute__((aligned(512)));'))
+    if any(recorder.count(old) != 1 for old, _ in zeroed):
+        raise ValueError('The recorder\'s buffers changed; review the .bss edit.')
+    for old, new in zeroed:
+        recorder = recorder.replace(old, new)
+    (source/'octamod_log_firmware.c').write_text(recorder)
     upload = APP / 'sdk/runtime/upload'
     for name in ('upload.c', 'upload.h', 'sha256.c', 'wire.c', 'wire.h', 'vendor.c', 'vendor.h'):
         shutil.copyfile(upload / name, source / name)

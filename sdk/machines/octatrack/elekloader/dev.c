@@ -87,6 +87,13 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 1;
     }
+    if (s[1] == 19 && want == 1 && s[2] <= 1u && !s[3]) { /* PEEK STORM on (1) or off (0): build_core.py's transfer.c edit */
+        extern volatile uint32_t dl_storm;
+        dl_storm = s[2];
+        out[0] = 1;
+        *reply = out;
+        return 1;
+    }
     if (s[1] == 15 && want == 1) {
         mem_high = s[2] | (uint32_t)s[3] << 8;
         out[0] = 1;
