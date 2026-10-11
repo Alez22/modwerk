@@ -1317,3 +1317,9 @@ clean and 36,864 refused combinations; immutable source-fact memoization matches
 uncached checks on 529 varied selections. After the main update, the production
 exporter additionally verifies all 51,712 missing allowed E-Verb/Air Chorus beta
 combinations as clean. Existing declaration records are preserved.
+
+## Digi Mono repeated-SRC release preparation — 11 October 2026
+
+PR [#424](https://github.com/repeat98/modwerk/pull/424) replaces only Digi Mono's two 0.13b catalog pins with source-built 0.13.2-experimental objects from Modwerk source/package commit `48a9b5ade88052d4fb0130d87a79be64935d4d9d`. The upstream author and MIT notice are preserved. The transactional catalog updater verifies both package hashes; kit 0.5.0, cores and other module pins are unchanged. Evidence and exact private-image identities are recorded in [Digi Mono testing](../sdk/digitakt/modules/digimono/TESTING.md).
+
+The release is prepared for review. Physical hardware, audio, timing, complete runtime memory bounds, persistence, reboot and stress remain unverified; publication and report closure require version/source-specific owner authorization or actual results. A passing PR does not establish a saved live download.

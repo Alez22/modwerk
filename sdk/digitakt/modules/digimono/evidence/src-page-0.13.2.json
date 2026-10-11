@@ -62,7 +62,8 @@
     "Builder stock hash guards, overlap checks, instruction boundaries, link and firmware container verification pass.",
     "Actual emulator panel inputs: adjusted track-8 MONO PULSE, repeated and fast double SRC; full control dials and track/level sidebar remain on both OS releases.",
     "OS 1.54 fresh documentation session: all seven machines retain their SRC controls after fast double SRC; chooser and LFO also open.",
-    "Stock ONESHOT track can still select detail index 1; switching to MONO PULSE normalizes to index 0 through the native tick hook. This is software page-state evidence; physical display transition remains unverified."
+    "Stock ONESHOT track can still select detail index 1; switching to MONO PULSE normalizes to index 0 through the native tick hook. This is software page-state evidence; physical display transition remains unverified.",
+    "The new pinned catalog (without recipe/package overrides) generates firmware with the same exact private image hashes on both OS releases."
   ],
   "memory": {
     "runBytes": 23037,
@@ -78,5 +79,7 @@
     "Emulator instruction execution and LCD captures do not establish hardware timing."
   ],
   "hardware": null,
-  "ownerException": null
+  "ownerException": null,
+  "sourcePackageCommit": "48a9b5ade88052d4fb0130d87a79be64935d4d9d",
+  "preparedCatalogRevision": "2b0470fa7a18fae4ab64efffd002b3500e1ac07460b5eacbe12f7eb0c01b320f"
 }
