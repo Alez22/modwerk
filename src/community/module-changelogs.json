@@ -522,7 +522,7 @@
         "changes": [
           "Fix page Clear: hold FUNC and LFO, then press PLAY (CLEAR) to restore every EQ band’s default gain, frequency, Q and type. Preserve selected knob modes, global override and other master pages.",
           "Align the left EQ box with the pattern header and center its label. Filter DSP and stored EQ layout are unchanged.",
-          "Native panel regressions and current UI captures pass; hardware, audio, timing, complete runtime memory bounds, persistence, physical reboot and stress remain unverified."
+          "Owner-approved experimental release for this exact source and both D185 images. Native panel regressions and current UI captures pass; hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot and stress remain unverified. Global override preservation is source-reviewed only; page Copy/Paste and Undo Clear are unqualified."
         ],
         "sourceCommit": "1107d484c8d7ad84cfff14917b34acdcb83a53e6"
       },

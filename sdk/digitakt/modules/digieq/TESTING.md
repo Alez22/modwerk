@@ -30,7 +30,7 @@ Use your stock recovery file and a disposable project. Build the selection above
 3. Test with GLOBAL FX/MIX > MASTER EQ both off and on. Switch patterns with distinct EQ settings; clear the active EQ and confirm the intended per-pattern/global behavior.
 4. Save/reload the project, power-cycle the physical unit and repeat with the exact saved image. Exercise the busiest supported project and report dropouts, hangs, changed sounds or lost settings. This is a single master EQ, so per-track EQ instances and FX-slot/DSP-core placement do not apply.
 
-Hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot and stress remain unverified. No hardware pass or approval is recorded. Release and closure await actual results or an owner exception for this exact version/source and these two images.
+Hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot and stress remain unverified. Owner repeat98 explicitly approved “Approve this exact experimental release and issue closure with the limits disclosed” for this exact 1.0.2 source and both D185 images on 11 October 2026. The complete source/image-bound exception is in the evidence JSON. Closure remains gated on an actual saved live-download verification. Global override is source-reviewed only; Copy/Paste and Undo Clear are unqualified. No hardware pass is recorded, and this does not extend any prior module waiver.
 
 ## Historical import in Modwerk
 

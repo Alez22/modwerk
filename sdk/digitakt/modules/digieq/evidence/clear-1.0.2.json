@@ -2552,5 +2552,39 @@
         "result": "byte-identical to tested candidate without overrides"
       }
     ]
+  },
+  "ownerReleaseApproval": {
+    "approvedBy": "repeat98",
+    "approvedOn": "2026-10-11",
+    "statement": "Approve this exact experimental release and issue closure with the limits disclosed",
+    "moduleVersion": "1.0.2-experimental",
+    "runtimeSourceSha256": "eeeb9242b68a5c0770403caee5feba821fe7960727215a701fe93426e60319af",
+    "images": [
+      {
+        "os": "1.53",
+        "outputVersion": "D185",
+        "firmwareSha256": "d8717d1d10418c6833d8312ba266d96fa7e3ecb03c78c3a927f2e45caeb5b6c5"
+      },
+      {
+        "os": "1.54",
+        "outputVersion": "D185",
+        "firmwareSha256": "255990b52f0c293a57c1c4d27b0deedd0a12ed78cc3cedae40f418f1147c67a6"
+      }
+    ],
+    "scope": "Publish this exact experimental release, verify actual saved live downloads, close #185 with disclosed limits, synchronize its mirrored report and follow existing eligible-release notifications. No author attestation or hardware pass.",
+    "waived": [
+      "current-build-hardware",
+      "audio",
+      "dsp-timing",
+      "complete-runtime-memory-bounds",
+      "persistence",
+      "physical-reboot",
+      "stress"
+    ],
+    "additionalDisclosedLimits": [
+      "Global override preservation is source-reviewed only.",
+      "Page Copy/Paste and Undo Clear are unqualified."
+    ],
+    "extendsPriorWaiver": false
   }
 }
