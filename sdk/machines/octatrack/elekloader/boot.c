@@ -74,6 +74,7 @@ static uint32_t be32(const uint8_t *p) { return (uint32_t)p[0] << 24 | (uint32_t
 
 void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes); /* modset.c: kept across power cycles */
 void modwerk_modset_accepted(void);
+volatile uint32_t modwerk_boot_accepted; /* modules accepted over USB: status.c shows the memory then */
 static int prepare(void *u, const uint8_t *d, uint32_t n)
 {
     candidate = 0;
@@ -115,7 +116,7 @@ static int retire(void *u)
 {
     if (armed) return 1;
     int ok = modwerk_runtime_backend.retire(u);
-    if (ok == 1) modwerk_modset_accepted(); /* accepted: it stays after a power cycle */
+    if (ok == 1) modwerk_modset_accepted(), modwerk_boot_accepted = modwerk_boot_accepted + 1; /* it stays after a power cycle */
     return ok;
 }
 /* Updates stop playback themselves (owner, 10 October 2026; the site asks

@@ -56,9 +56,11 @@ static unsigned read_words = 3u;        /* how many of them */
 static unsigned waited;
 static uint32_t cpu_recent[8];
 static void missing_check(void);
+static void memory_tick(void);
 void modwerk_status_tick(void)
 {
     modwerk_status_close_menu();
+    memory_tick();
     if (++ticks % 30u) return; /* twice a second */
     missing_check();
     uint32_t count = DTCN3, frames = dl_frames, idle = modwerk_idle_counts;
@@ -91,7 +93,7 @@ void modwerk_status_tick(void)
 /* The dialogs: while one shows it takes every key and encoder, so nothing changes under it; NO closes it and the
  * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere. SYSTEM > MODWERK (the row
  * build_core.py adds) first explains that shortcut: YES goes on to the status, NO back to the menu. */
-enum { CLOSED, HINT, SHOWN, TEST, MISSING };
+enum { CLOSED, HINT, SHOWN, TEST, MISSING, MEMORY };
 static int open, taken = -1; /* which shows; a key press the handler took, whose release it takes too (-1: none; TRIG 1 is 0) */
 #define YES 0x31
 /* Our rows close PROJ's menu on the next tick, as its NO does (stock's FUN_40064bc0, Octabam's MAINMENU.md; not from
@@ -154,6 +156,32 @@ static void missing_check(void)
     missing_told &= handles; /* one that comes back and goes missing again is told again */
     missing_last = handles;
 }
+/* The memory after a module loads (owner, 11 October 2026): picked onto a track, or accepted over USB. A box with
+ * each core's code memory and the module pool, used, for a second and a half; it takes no key, and a key closes it. */
+#ifdef MODWERK_HOST
+extern uint8_t modwerk_test_live_fx[16];
+#define LIVE ((const volatile uint8_t *)modwerk_test_live_fx)
+#else
+#define LIVE ((const volatile uint8_t *)0x80000ec4u) /* the FX ids each track runs: FX1 T1-T8, then FX2 */
+#endif
+extern volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
+extern const uint32_t modwerk_dsp_modules;
+static unsigned memory_left; /* ticks the box still shows */
+static void memory_tick(void)
+{
+    static uint32_t completed, accepted;
+    static uint8_t before[16];
+    int loaded = modwerk_boot_accepted != accepted;
+    if (dl_selection_completed != completed) { /* a pick changes one slot; a Part change, usually many: no box then */
+        unsigned changed = 0, module = 0;
+        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, module |= modwerk_dsp_modules >> (LIVE[i] & 31u) & 1u;
+        loaded |= changed == 1u && module;
+    }
+    if (dl_selection_completed != completed || loaded) for (unsigned i = 0; i < 16u; ++i) before[i] = LIVE[i];
+    completed = dl_selection_completed, accepted = modwerk_boot_accepted;
+    if (loaded && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
+    if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
+}
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
@@ -162,6 +190,7 @@ int modwerk_status_key(int code, int pressed)
         return 0;
     }
     if (code == CUE) cue = pressed;
+    if (open == MEMORY && pressed) open = CLOSED; /* a popup: the key goes on to stock */
     if (pressed && open == MISSING && code != CUE && !(code == PROJ && cue)) {
         if (code == UP && missing_top) --missing_top;
         if (code == DOWN && missing_top + ROWS < missing[3]) ++missing_top;
@@ -176,7 +205,7 @@ int modwerk_status_key(int code, int pressed)
         return 1;
     }
     if (!pressed && code == taken) { taken = -1; return 1; }
-    return open && code != CUE; /* CUE's own release reaches stock, as it would without the dialog */
+    return open && open != MEMORY && code != CUE; /* CUE's own release reaches stock, as it would without the dialog */
 }
 int modwerk_status_enc(int encoder, int delta) { (void)encoder, (void)delta; return open != CLOSED; }
 
@@ -356,8 +385,28 @@ static void missing_page(unsigned char *frame)
     label(X0 + 4u, Y1 - 8u, text);
     button(frame, X1 - 26u, Y1 - 10u, "YES");
 }
+static void memory_box(unsigned char *frame)
+{
+    static const char *const names[3] = {"T1-4", "T5-8", "POOL"};
+    uint32_t largest, pool = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
+    const uint32_t used[3] = {share(dl_residency_words[1], modwerk_dsp_arena[1]), share(dl_residency_words[0], modwerk_dsp_arena[0]),
+                              share(pool, RUNTIME_POOL_BYTES)};
+    for (unsigned i = 0; i < 7u; ++i) surface[i] = ((const volatile uint32_t *)SURFACE)[i];
+    surface[3] = (uint32_t)(uintptr_t)frame;
+    fill(frame, 18u, 12u, 109u, 50u, 0);
+    outline(frame, 18u, 12u, 109u, 50u);
+    label((unsigned)(64 - TEXT_WIDTH(FONT, -1, "MEMORY USED") / 2), 15u, "MEMORY USED");
+    fill(frame, 18u, 22u, 109u, 22u, 1);
+    for (unsigned i = 0; i < 3u; ++i) {
+        unsigned y = 26u + 8u * i;
+        label(23u, y, names[i]);
+        bar(frame, 45u, y, 40, 6, used[i], 0);
+        percent(89u, y, used[i]);
+    }
+}
 void modwerk_status_draw(unsigned char *frame)
 {
+    if (open == MEMORY) { memory_box(frame); return; }
     if (open == MISSING) { missing_page(frame); return; }
     if (open == TEST) { test_page(frame); return; }
     if (open == HINT) { explain(frame); return; }

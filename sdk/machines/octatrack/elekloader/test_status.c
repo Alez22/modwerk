@@ -37,6 +37,10 @@ unsigned modwerk_dsp_missing_list(uint8_t *out)
 static int restored;
 int modwerk_modset_restored(void) { return restored; }
 volatile uint32_t modwerk_modset_result;
+/* The memory box: picks (the guard's completed count) and USB accepts. */
+uint8_t modwerk_test_live_fx[16];
+volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
+const uint32_t modwerk_dsp_modules = 1u << 27 | 1u << 29;
 int main(void)
 {
     CHECK(!modwerk_status_key(0, 1) && !modwerk_status_key(0, 0)); /* TRIG 1, dialog closed */
@@ -71,6 +75,18 @@ int main(void)
     listed = 6; missing_check(); CHECK(open == CLOSED);                /* a new one: not until it holds still */
     missing_check(); CHECK(open == MISSING);
     listed = 0; missing_check(); CHECK(open == CLOSED);                /* all installed: it closes */
+    /* The memory box: after a pick that puts a module on one slot, or an accept; not after a Part change. */
+    memory_tick();
+    modwerk_test_live_fx[8] = 27; ++dl_selection_completed; memory_tick();
+    CHECK(open == MEMORY);                                             /* E-Verb picked on T1 FX2 */
+    CHECK(!modwerk_status_key(YES, 0) && open == MEMORY);              /* the pick's YES release: it stays */
+    CHECK(!modwerk_status_key(0, 1) && open == CLOSED);                /* a press closes it and goes on to stock */
+    modwerk_test_live_fx[9] = 27, modwerk_test_live_fx[10] = 29; ++dl_selection_completed; memory_tick();
+    CHECK(open == CLOSED);                                             /* two slots changed: a Part change */
+    ++modwerk_boot_accepted; memory_tick();
+    CHECK(open == MEMORY);
+    for (unsigned i = 0; i < 90u; ++i) memory_tick();
+    CHECK(open == CLOSED);                                             /* gone after a second and a half */
     if (failures) return 1;
     puts("status keys: ok");
     return 0;
