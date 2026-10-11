@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { OctatrackLink } from './octatrack-link'
+import { UploadUnconfirmedError } from './upload-session'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 async function linked(kind: 'base' | 'stock' | 'none' = 'base') {
@@ -96,6 +97,24 @@ describe('sending a module', () => {
     link.subscribe(() => { if (link.getState().progress) link.cancel() }) // the button shows once sending has started
     await link.update('PREVIEW VOL', data)
     expect(link.getState().notice?.text).toBe('Cancelled. Nothing changed on the Octatrack.')
+  })
+  it('recovers from a missing reply without asking to unplug', async () => {
+    const unit = fakeUnit(), base = fakeSession(unit)
+    let calls = 0
+    const connect: typeof base = async (...args) => {
+      const session = await base(...args)
+      if (++calls !== 2) return session
+      let trusted = true // the update's session: a chunk's reply goes missing mid-transfer
+      return Object.create(session, {
+        connectionTrusted: { get: () => trusted },
+        stage: { value: async () => { trusted = false; throw new UploadUnconfirmedError('chunk was not confirmed', session.status) } },
+      })
+    }
+    const link = new OctatrackLink(unit.usb, connect, 300)
+    link.start(); await settle(); await settle()
+    await link.update('PREVIEW VOL', data)
+    expect(calls).toBe(3)
+    expect(link.getState()).toMatchObject({ status: 'ready', notice: { text: 'The Octatrack missed a reply, so nothing changed. Try again.' } })
   })
   it('keeps the trial alive with a request every second, and explains an unplug mid-trial', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })

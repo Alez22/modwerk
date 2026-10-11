@@ -58,6 +58,7 @@ const REFUSED: Partial<Record<UploadResultName, string>> = {
   rejected: 'The Octatrack can’t run this module file.',
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
+const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
 
 /** A stress test found a problem; its reason is shown to the user. */
 export class StressTestFailure extends Error {}
@@ -232,25 +233,32 @@ export class OctatrackLink {
     }
   }
 
-  /** Undo what this session left behind if the connection is still trusted; otherwise the unplug advice. */
+  /** Undo what this session left behind. When a reply went missing (the session no longer trusts its
+   * connection), a fresh session reads where the base stands and undoes it from there; only when that fails
+   * too does the user get the unplug advice. */
   private async failed(error: unknown, session?: LinkSession) {
     if (!(error instanceof UploadDeviceError) && !(error instanceof DOMException) && !(error instanceof StressTestFailure)) console.error(error)
     this.stopKeepalive()
-    let clean = !session
-    if (session?.connectionTrusted) {
-      try {
-        const phase = session.status.phase
-        if (phase === 'receiving' || phase === 'verified') await session.cancel()
-        else if (phase === 'pending' || phase === 'trial' || phase === 'recovery') { await session.rollback(); await session.leaveUploadMode() }
-        else if (phase === 'ready') await session.leaveUploadMode()
-        clean = session.status.phase === 'normal'
-      } catch { clean = false }
+    let clean = !session, settled = session?.connectionTrusted ? session : undefined, recovered = false
+    if (session && !session.connectionTrusted && error instanceof UploadUnconfirmedError && this.transport && this.state.identity?.base) {
+      try { settled = await this.connectSession(this.transport, this.state.identity.base); recovered = true } catch { settled = undefined }
+    }
+    if (settled) {
+      try { clean = await this.cleanUp(settled) } catch { clean = false }
     }
     this.session = undefined
     await this.release()
-    // An untrusted connection leaves the running set unknown.
-    if (this.device) this.ready({ tone: 'error', text: explainLinkError(error) + (clean ? '' : ' ' + UNPLUG) },
-      session ? (session.connectionTrusted ? session.status.active : undefined) : this.state.active)
+    // An untrusted connection that could not be read again leaves the running set unknown.
+    const text = recovered && clean ? RECOVERED : explainLinkError(error) + (clean ? '' : ' ' + UNPLUG)
+    if (this.device) this.ready({ tone: 'error', text }, session ? settled?.status.active : this.state.active)
+  }
+  /** Cancel, roll back or leave upload mode from whatever phase `session` reports; true once back to normal. */
+  private async cleanUp(session: LinkSession) {
+    const phase = session.status.phase
+    if (phase === 'receiving' || phase === 'verified') await session.cancel()
+    else if (phase === 'pending' || phase === 'trial' || phase === 'recovery') { await session.rollback(); await session.leaveUploadMode() }
+    else if (phase === 'ready') await session.leaveUploadMode()
+    return session.status.phase === 'normal'
   }
   /** Repeat a step the base refused only because the unit plays or records, for `stopWaitMs`. */
   private async whenStopped<T>(step: () => Promise<T>): Promise<T> {

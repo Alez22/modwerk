@@ -273,7 +273,7 @@ if (command === 'serve') {
         values.accept = true; seconds = 1 // the session accepts at once; `try` from the shell keeps its trial
         console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined))))
       } else await run(line)
-    } catch (error) { out.push('error: ' + error.message) } finally { console.log = log }
+    } catch (error) { out.push('error: ' + error.message + (error.cause ? ' (cause: ' + (error.cause.message ?? error.cause) + ')' : '')) } finally { console.log = log }
     return out.join('\n') + '\n'
   }
   rmSync(path, { force: true })
