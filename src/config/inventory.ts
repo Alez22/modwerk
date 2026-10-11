@@ -17,3 +17,9 @@ export function inventoryChanges(current: Inventory, target: InventoryTarget): I
   }
 }
 export const changeCount = (changes: InventoryChanges) => changes.add.length + changes.remove.length + changes.stockOff.length + changes.stockOn.length
+
+export type UnitState = 'on' | 'load' | 'leaving'
+export const UNIT_STATE: Record<UnitState, string> = { on: 'On your Octatrack', load: 'Not loaded yet', leaving: 'Leaves next load' }
+/** Where a module stands against the unit: on it, only in the module set, or on it but leaving with the next load. */
+export const unitState = (id: string, setIds: readonly string[], inventory?: Inventory): UnitState | undefined =>
+  !inventory ? undefined : inventory.moduleIds.includes(id) ? setIds.includes(id) ? 'on' : 'leaving' : setIds.includes(id) ? 'load' : undefined

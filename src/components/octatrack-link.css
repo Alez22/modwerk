@@ -89,12 +89,29 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .module-tile .module-tile-open .compact-preview { width: 100%; height: 112px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
 .module-tile-open strong { margin: 8px 10px 0; font-size: 13px; }
 .module-tile-open small { overflow: hidden; margin: 2px 10px 0; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.module-tile-state { position: absolute; top: 7px; left: 7px; padding: 2px 7px; border-radius: 999px; background: #000b; color: var(--text-secondary); font-size: 10px; }
-.module-tile.is-on .module-tile-state { background: #25332ce6; color: #bcd7c5; }
-.module-tile.is-load .module-tile-state { background: #353540e6; color: var(--accent); }
-.module-tile.is-leaving { border-style: dashed; }
-.module-tile.is-leaving .module-tile-open { opacity: .55; }
-.module-tile.is-leaving .module-tile-state { background: #36272ae6; color: #e4b0b4; }
+/* Lit LED: on the Octatrack right now (the sidebar's connected green). Outlined: only in the module set. */
+.module-tile-state { position: absolute; top: 7px; left: 7px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 7px; border-radius: 999px; background: #000c; color: var(--text-secondary); font-size: 10px; line-height: 1.2; }
+.module-tile-state i { flex: none; width: 6px; height: 6px; border-radius: 50%; }
+.module-tile-state.is-on { color: #c4e6cf; }
+.module-tile-state.is-on i { background: #7fd39b; box-shadow: 0 0 6px #7fd39bcc; }
+.module-tile-state.is-load { color: var(--accent); }
+.module-tile-state.is-load i { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.module-tile-state.is-leaving { color: #efb9bd; }
+.module-tile-state.is-leaving i { background: #e8868e; box-shadow: 0 0 6px #e8868ecc; }
+.module-tile-state.is-off { color: var(--muted); }
+.module-tile-state.is-off i { box-shadow: inset 0 0 0 1.5px #6b6b78; }
+.module-tile-state.is-set i { display: none; }
+.module-tile-state.is-legend { position: static; padding: 0; background: none; font-size: 12px; }
+.module-grid-summary:has(.is-legend) { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+/* Not on the unit yet: an outline of what will be there. */
+.module-tile.is-load { border: 1px dashed var(--accent-line); background: none; }
+.module-tile.is-load .compact-preview, .module-tile.is-load .stock-tile-art { opacity: .45; filter: saturate(.25); transition: opacity .2s, filter .2s; }
+.module-tile.is-load:hover .compact-preview, .module-tile.is-load:hover .stock-tile-art { opacity: .85; filter: none; }
+/* On the unit but leaving with the next load: hatched over its picture. */
+.module-tile.is-leaving { border-color: #6a3f45; }
+.module-tile.is-leaving .module-tile-open { position: relative; opacity: .6; }
+.module-tile.is-leaving .module-tile-open::before { content: ''; position: absolute; z-index: 1; inset: 0 0 auto; height: 112px; background: repeating-linear-gradient(135deg, #e8868e2e 0 1.5px, transparent 1.5px 8px); pointer-events: none; }
+.stock-tile.is-leaving .module-tile-open::before { height: 72px; }
 .module-tile-action { position: absolute; top: 5px; right: 5px; }
 .module-tile-action.icon-button { width: 26px; height: 26px; border-radius: 6px; background: #000b; opacity: 0; transition: opacity .15s; }
 .module-tile:hover .module-tile-action, .module-tile:focus-within .module-tile-action { opacity: 1; }
@@ -105,9 +122,6 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .module-tile.is-add strong { color: var(--text); font-size: 13px; }
 .module-grid-save { margin-top: 14px; }
 @media (hover: none) { .module-tile-action.icon-button { opacity: 1; } }
-/* A module's page in a dialog over the module set. */
-.module-dialog { width: min(1180px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 10px 28px 28px; border: 1px solid var(--control-border); border-radius: 14px; background: var(--background); color: var(--text); box-shadow: 0 24px 90px #000a; outline: none; }
-.module-dialog::backdrop { background: #000b; backdrop-filter: blur(4px); }
 .card-install { margin-bottom: 22px; }
 .card-install > summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .card-install[open] > summary { margin-bottom: 14px; }
@@ -125,12 +139,68 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 /* Stock effects as tiles like the modules': the effect's name as art, a click switches it in or out. */
 .stock-tiles { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .stock-tile-art { display: flex; align-items: flex-end; justify-content: center; height: 72px; padding-bottom: 14px; border-bottom: 1px solid var(--line); background: radial-gradient(ellipse at 60% 100%, #a5adff18, transparent 75%), var(--preview); color: var(--accent); font: 10px var(--mono); letter-spacing: 1.2px; }
-.stock-tile.is-out .module-tile-open { opacity: .45; }
-.stock-tile.is-out .stock-tile-art { color: var(--muted); background: var(--preview); }
-.stock-tile.is-in .module-tile-state { background: #25332ce6; color: #bcd7c5; }
-.stock-tile.is-changed { border-color: var(--accent-line); }
-.stock-tile.is-changed .module-tile-state { background: #353540e6; color: var(--accent); }
-/* The module dialog's bar: page through the set, or close. */
-.module-dialog-bar { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 -16px; padding: 6px 0 10px; background: linear-gradient(var(--background) 75%, transparent); }
-.module-dialog-bar .icon-button { background: var(--surface-raised); }
-.module-dialog-position { min-width: 56px; color: var(--muted); font-size: 12px; text-align: center; }
+.stock-tile.is-off .module-tile-open { opacity: .45; }
+/* Most stock effects just stay: their LED alone says so (the label stays for screen readers), so changes stand out. */
+.stock-tile.is-on .module-tile-state { gap: 0; padding: 5px; font-size: 0; }
+.stock-tile:is(.is-off, .is-leaving) .stock-tile-art { color: var(--muted); background: var(--preview); }
+/* A module's page in a dialog over the module set: the panel in the middle, chevrons in the gutters beside it. */
+.module-dialog { position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: 24px 16px; border: 0; background: none; color: var(--text); overflow: hidden; }
+.module-dialog[open] { display: grid; grid-template-columns: minmax(76px, 1fr) minmax(0, 1120px) minmax(76px, 1fr); grid-template-rows: minmax(0, 1fr); align-items: center; animation: module-dialog-fade .2s ease-out; }
+.module-dialog::backdrop { background: radial-gradient(120% 100% at 50% 35%, #0b0b10b3, #050507eb); backdrop-filter: blur(6px) saturate(.85); animation: module-dialog-fade .2s ease-out; }
+/* The glow stays put at the top while the page scrolls under it. */
+.module-dialog-panel { grid-column: 2; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding: 0 32px 32px; border: 1px solid var(--line); border-radius: 18px; background: radial-gradient(70% 240px at 50% 0, #a5adff14, transparent), var(--background); box-shadow: inset 0 1px 0 #ffffff12, 0 30px 100px #000c; outline: none; animation: module-dialog-rise .3s cubic-bezier(.2, .8, .2, 1); }
+.module-dialog-bar { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -18px; padding: 14px 0 12px; pointer-events: none; }
+.module-dialog-bar > * { pointer-events: auto; }
+/* Once the page scrolls, a shade fades in behind the bar so the pills don't sit on text. */
+.module-dialog-bar::before { content: ''; position: absolute; z-index: -1; inset: 0 -14px -22px; background: linear-gradient(var(--background) 58%, transparent); opacity: 0; animation: module-dialog-shade linear both; animation-timeline: scroll(nearest); animation-range: 0 90px; pointer-events: none; }
+@keyframes module-dialog-shade { to { opacity: 1; } }
+.module-dialog-meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.module-dialog-bar .module-tile-state { position: static; height: 34px; padding: 0 14px 0 12px; gap: 8px; font-size: 12px; white-space: nowrap; }
+.module-dialog-bar .module-tile-state i { width: 7px; height: 7px; }
+.module-dialog-position, .module-dialog-close, .module-dialog-actions .button, .module-dialog-bar .module-tile-state { border: 1px solid var(--line); background: #19191ceb; backdrop-filter: blur(10px); }
+.module-dialog-position { display: inline-flex; align-items: center; gap: 11px; height: 34px; padding: 0 13px; border-radius: 999px; color: var(--muted); font: 11px var(--mono); letter-spacing: .08em; }
+.module-dialog-position em { margin: 0 3px; color: var(--line-hover); font-style: normal; }
+/* Where you are in the set, lit like the Octatrack's trig keys, in groups of four. */
+.module-dialog-trigs { display: flex; gap: 3px; }
+.module-dialog-trigs i { width: 10px; height: 4px; border-radius: 1px; background: var(--line); transition: background .2s, box-shadow .2s; }
+.module-dialog-trigs i:nth-child(4n + 1):not(:first-child) { margin-left: 4px; }
+.module-dialog-trigs i.is-on { background: var(--accent); box-shadow: 0 0 8px #a5adffaa; }
+.module-dialog-actions { display: flex; align-items: center; gap: 8px; }
+.module-dialog-actions .button { height: 34px; min-height: 34px; padding: 0 14px; border-radius: 999px; font-size: 12px; }
+.module-dialog-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, transform .25s cubic-bezier(.2, .8, .2, 1); }
+.module-dialog-close:hover { border-color: var(--line-hover); color: var(--text); transform: rotate(90deg); }
+.module-dialog-step { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.module-dialog-step.is-prev { grid-column: 1; justify-self: end; margin-right: 18px; }
+.module-dialog-step.is-next { grid-column: 3; justify-self: start; margin-left: 18px; }
+.module-dialog-step-icon { display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid #ffffff1f; border-radius: 50%; background: #2c2c31b3; backdrop-filter: blur(12px); box-shadow: 0 10px 30px #0008; transition: transform .2s cubic-bezier(.2, .8, .2, 1), border-color .2s, color .2s; }
+.module-dialog-step.is-next svg { transform: scaleX(-1); }
+.module-dialog-step:hover:not(:disabled) .module-dialog-step-icon, .module-dialog-step:focus-visible .module-dialog-step-icon { border-color: var(--accent-line); color: var(--accent); }
+.module-dialog-step.is-prev:hover:not(:disabled) .module-dialog-step-icon { transform: translateX(-3px); }
+.module-dialog-step.is-next:hover:not(:disabled) .module-dialog-step-icon { transform: translateX(3px); }
+.module-dialog-step:focus-visible { outline: none; }
+.module-dialog-step:focus-visible .module-dialog-step-icon { outline: 2px solid var(--accent); outline-offset: 3px; }
+.module-dialog-step:disabled { opacity: .25; cursor: default; }
+/* The neighbour's name, shown on hover like the preview cards' labels. */
+.module-dialog-step-label { max-width: 96px; overflow: hidden; color: var(--faint); font: 10px var(--mono); letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .2s; }
+.module-dialog-step:hover .module-dialog-step-label, .module-dialog-step:focus-visible .module-dialog-step-label { opacity: 1; transform: none; }
+/* Paging slides the next page in from the side you went. */
+.module-dialog[data-step] .detail-page { animation: module-dialog-page .28s cubic-bezier(.2, .8, .2, 1); }
+.module-dialog[data-step="prev"] .detail-page { --module-dialog-from: -20px; }
+@keyframes module-dialog-fade { from { opacity: 0; } }
+@keyframes module-dialog-rise { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+@keyframes module-dialog-page { from { opacity: 0; transform: translateX(var(--module-dialog-from, 20px)); } }
+@media (prefers-reduced-motion: reduce) { .module-dialog[open], .module-dialog::backdrop, .module-dialog-panel, .module-dialog .detail-page { animation: none; } .module-dialog-step-icon, .module-dialog-close { transition: none; } }
+/* Phones: the panel fills the screen, the chevrons sit under it with their names. */
+@media (max-width: 768px) {
+  .module-dialog { padding: 12px; }
+  .module-dialog[open] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .module-dialog-panel { grid-column: 1; align-self: stretch; padding: 0 16px 24px; border-radius: 16px; }
+  .module-dialog-bar { margin: 0 -6px; }
+  .module-dialog-step { grid-row: 2; flex-direction: row; padding: 12px 0 0; }
+  .module-dialog-step.is-prev, .module-dialog-step.is-next { grid-column: 1; justify-self: start; margin: 0; }
+  .module-dialog-step.is-next { flex-direction: row-reverse; justify-self: end; }
+  .module-dialog-step-icon { width: 44px; height: 44px; }
+  .module-dialog-step-label { max-width: 34vw; opacity: 1; transform: none; }
+  .module-dialog-trigs, .module-dialog-actions .share-button-label { display: none; }
+  .module-dialog-actions .button { width: 34px; padding: 0; justify-content: center; }
+}

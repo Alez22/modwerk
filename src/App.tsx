@@ -46,8 +46,10 @@ import { FirmwareBuildPanel } from './components/FirmwareBuildPanel'
 import { OctatrackUpdate, type PrepareUpdate, type ReadInventory, type StressTest } from './components/OctatrackUpdate'
 import { InstrumentItem } from './components/InstrumentItem'
 import { CardInstall, UnitStrip } from './components/UnitPanel'
-import { ModuleGrid } from './components/ModuleGrid'
+import { ModuleGrid, StateChip } from './components/ModuleGrid'
+import { UNIT_STATE, unitState } from './config/inventory'
 import { ModuleDialog } from './components/ModuleDialog'
+import { ShareModuleButton } from './community/ShareModuleButton'
 import { StockEffects } from './components/StockEffects'
 import { OctatrackActivity, OctatrackStatus } from './components/OctatrackStatus'
 import { BaseInstallDialog } from './components/BaseInstallDialog'
@@ -375,7 +377,9 @@ export default function App() {
         // Page through the grid's order: the set's modules, then the ones leaving the unit.
         const order = [...selectedIds, ...(inventory?.moduleIds.filter(id => !selectedIds.includes(id)) ?? [])].filter(id => MODULES.some(item => item.id === id))
         const module = MODULES.find(item => item.id === openModule), index = order.indexOf(openModule)
-        return module && <ModuleDialog title={module.name} position={index >= 0 ? `${index + 1} of ${order.length}` : undefined} onPrev={index > 0 ? () => setOpenModule(order[index - 1]) : undefined} onNext={index >= 0 && index < order.length - 1 ? () => setOpenModule(order[index + 1]) : undefined} onClose={() => setOpenModule(undefined)}><ModuleDetail key={module.id} modal module={module} selected={selectedIds.includes(module.id)} addBlock={addBlockMap[module.id]} onSwap={removeIds => swapModule(module.id, removeIds)} usbAudio={active?.usbAudio} configurationName={active?.name} configurationId={active?.id} onConfigureUsbAudio={configureUsbAudio} onToggle={() => toggleModule(module.id)} /></ModuleDialog> })()}
+        const step = (at: number) => { const id = index >= 0 ? order[at] : undefined; return id ? { title: MODULES.find(item => item.id === id)!.name, go: () => setOpenModule(id) } : undefined }
+        const state = unitState(openModule, selectedIds, inventory)
+        return module && <ModuleDialog title={module.name} index={index >= 0 ? index : undefined} total={order.length} prev={step(index - 1)} next={step(index + 1)} status={state && <StateChip state={state}>{UNIT_STATE[state]}</StateChip>} actions={<ShareModuleButton id={module.id} title={module.name} />} onClose={() => setOpenModule(undefined)}><ModuleDetail key={module.id} modal module={module} selected={selectedIds.includes(module.id)} addBlock={addBlockMap[module.id]} onSwap={removeIds => swapModule(module.id, removeIds)} usbAudio={active?.usbAudio} configurationName={active?.name} configurationId={active?.id} onConfigureUsbAudio={configureUsbAudio} onToggle={() => toggleModule(module.id)} /></ModuleDialog> })()}
       {usbLink && (baseInstall || baseInstallPrompt.open) && <BaseInstallDialog link={usbLink} launch={baseInstall !== 'manual'} firmwareReady={!!firmware} onChooseFirmware={file => void readFile(file)} onClose={done => { if (baseInstall) setBaseInstall(null); else if (done) baseInstallPrompt.close(); else baseInstallPrompt.later() }}/>}
       {supportOpen && <SupportDialog url={SUPPORT_URL} onClose={() => setSupportOpen(false)} />}
       <HardwareFeedbackCheckIn enabled={!accountRoute && !developerRoute && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content', 'submit'].includes(route.split('/')[0]) && !firmwareFeedbackPreview}/>

@@ -69,10 +69,10 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
   const discussionBadge = <span className="module-tab-count-slot"><span className="tab-count">{discussionCount ?? '—'}<span className="sr-only">{discussionCount === null ? ' comments loading' : discussionCount === 1 ? ' comment' : ' comments'}</span></span></span>
   return <div className={'detail-page' + (navigation && navigation.total > 1 ? ' has-catalog-navigation' : '')}>
     {navigation && navigation.total > 1 && <CatalogNavigation navigation={navigation} />}
-    <div className="module-page-actions">
-      {modal ? <span /> : <div className="module-browse-context"><a className="back-link" href={navigation?.backHref ?? backHref} onClick={navigation ? onBackToResults : undefined}><Icon name="back" size={15} />{navigation ? 'Back to results' : backLabel}</a>{navigation && <span className="catalog-position" aria-label={'Module ' + navigation.position + ' of ' + navigation.total + ' results'}>{navigation.position} of {navigation.total}</span>}</div>}
+    {!modal && <div className="module-page-actions">
+      <div className="module-browse-context"><a className="back-link" href={navigation?.backHref ?? backHref} onClick={navigation ? onBackToResults : undefined}><Icon name="back" size={15} />{navigation ? 'Back to results' : backLabel}</a>{navigation && <span className="catalog-position" aria-label={'Module ' + navigation.position + ' of ' + navigation.total + ' results'}>{navigation.position} of {navigation.total}</span>}</div>
       <div className="module-page-buttons"><ShareModuleButton id={id} title={title} /></div>
-    </div>
+    </div>}
     <section className="detail-hero detail-hero-with-resources" aria-labelledby="module-title">
       {preview}
       <div className="detail-intro">
