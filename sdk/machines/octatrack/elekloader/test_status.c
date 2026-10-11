@@ -22,6 +22,21 @@ int modwerk_selftest_start(void) { ++selftest_starts; return 1; }
 void modwerk_selftest_abort(void) { ++selftest_aborts; }
 void modwerk_selftest_refresh(void) {}
 uint32_t modwerk_runtime_free(uint32_t *largest) { if (largest) *largest = 0; return 0; }
+/* dsp.c's MISSING list: `listed` modules at handles 20 and up; modset.c's restore. */
+static unsigned listed;
+unsigned modwerk_dsp_missing_list(uint8_t *out)
+{
+    for (unsigned i = 0; i < listed; ++i) {
+        uint8_t *e = out + 4u + 24u * i;
+        for (unsigned c = 0; c < 24u; ++c) e[c] = 0;
+        e[0] = (uint8_t)(20u + i), e[8] = 'm', e[9] = 'o', e[10] = 'd', e[11] = (uint8_t)('a' + i);
+    }
+    out[0] = 'M', out[1] = 'W', out[2] = 'M', out[3] = (uint8_t)listed;
+    return 4u + 24u * listed;
+}
+static int restored;
+int modwerk_modset_restored(void) { return restored; }
+volatile uint32_t modwerk_modset_result;
 int main(void)
 {
     CHECK(!modwerk_status_key(0, 1) && !modwerk_status_key(0, 0)); /* TRIG 1, dialog closed */
@@ -41,6 +56,21 @@ int main(void)
     CHECK(selftest_starts == 1 && modwerk_status_key(YES, 1) && modwerk_status_key(YES, 0)); /* started; keys stay with the page */
     CHECK(modwerk_status_key(NO, 1) && selftest_aborts == 1 && modwerk_status_key(NO, 0));  /* NO aborts and closes */
     CHECK(!modwerk_status_key(0, 1) && !modwerk_status_key(0, 0));     /* closed: TRIG 1 reaches stock */
+    /* The missing modules' page: not before the boot's restore is over, then once the list holds still. */
+    listed = 5; missing_check(); missing_check();
+    CHECK(open == CLOSED);                                             /* the restore is not over: all still missing */
+    restored = 1, modwerk_modset_result = 1; missing_check();
+    CHECK(open == MISSING && missing_top == 0);
+    CHECK(modwerk_status_key(DOWN, 1) && modwerk_status_key(DOWN, 0) && missing_top == 1);
+    modwerk_status_key(DOWN, 1); modwerk_status_key(DOWN, 0);
+    CHECK(missing_top == 1);                                           /* five names, four rows: no further */
+    CHECK(modwerk_status_key(UP, 1) && modwerk_status_key(UP, 0) && missing_top == 0);
+    CHECK(modwerk_status_key(0, 1) && modwerk_status_key(0, 0));       /* other keys stay with the page */
+    CHECK(modwerk_status_key(YES, 1) && open == CLOSED && modwerk_status_key(YES, 0));
+    missing_check(); CHECK(open == CLOSED);                            /* told already: it stays closed */
+    listed = 6; missing_check(); CHECK(open == CLOSED);                /* a new one: not until it holds still */
+    missing_check(); CHECK(open == MISSING);
+    listed = 0; missing_check(); CHECK(open == CLOSED);                /* all installed: it closes */
     if (failures) return 1;
     puts("status keys: ok");
     return 0;

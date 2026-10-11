@@ -767,10 +767,9 @@ void modwerk_dsp_tick(void)
     if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
     else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
     rebind_tick();
-    uint32_t dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = dry & ~missing_shown;
+    uint32_t dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = 0;
     missing_shown = dry;
-    /* Said when it goes missing, and again whenever a track running it is selected: at boot the
-     * first can land behind stock's LOADING FILES bar (stock's popup slot stays "open" after it). */
+    /* Said whenever a track running a missing module is selected; the project's whole list is status.c's page. */
     static unsigned last_track = 0xffu;
     unsigned track = *(volatile uint8_t *)0x80000000u; /* the current track; 8 and up on the MIDI side */
     if (track != last_track) {

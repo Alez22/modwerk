@@ -55,10 +55,12 @@ static int reading = -1, read_last = 1; /* the core whose window (least, most, s
 static unsigned read_words = 3u;        /* how many of them */
 static unsigned waited;
 static uint32_t cpu_recent[8];
+static void missing_check(void);
 void modwerk_status_tick(void)
 {
     modwerk_status_close_menu();
     if (++ticks % 30u) return; /* twice a second */
+    missing_check();
     uint32_t count = DTCN3, frames = dl_frames, idle = modwerk_idle_counts;
     uint32_t counts = count - last_count, df = frames - last_frames, di = idle - last_idle;
     last_count = count, last_frames = frames, last_idle = idle;
@@ -89,7 +91,7 @@ void modwerk_status_tick(void)
 /* The dialogs: while one shows it takes every key and encoder, so nothing changes under it; NO closes it and the
  * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere. SYSTEM > MODWERK (the row
  * build_core.py adds) first explains that shortcut: YES goes on to the status, NO back to the menu. */
-enum { CLOSED, HINT, SHOWN, TEST };
+enum { CLOSED, HINT, SHOWN, TEST, MISSING };
 static int open, taken = -1; /* which shows; a key press the handler took, whose release it takes too (-1: none; TRIG 1 is 0) */
 #define YES 0x31
 /* Our rows close PROJ's menu on the next tick, as its NO does (stock's FUN_40064bc0, Octabam's MAINMENU.md; not from
@@ -127,6 +129,31 @@ void modwerk_test_menu(int unused)
     if (!menu_open()) return;
     open = TEST, close_menu = 1, test_started = modwerk_selftest_start();
 }
+/* Missing modules (owner, 11 October 2026: a list to close, not a popup): every module the project names, in any
+ * bank or Part, that is not installed (dsp.c's MISSING list). It opens when the list gains one and has held still
+ * for half a second (a project load's rebind passes through), once the boot's restore is over (until then every
+ * module is missing). UP and DOWN scroll, YES or NO closes it; it closes itself once nothing is missing. */
+#define UP 0x33
+#define DOWN 0x20
+#define ROWS 4u
+unsigned modwerk_dsp_missing_list(uint8_t *out);
+int modwerk_modset_restored(void);
+extern volatile uint32_t modwerk_modset_result;
+static uint8_t missing[4 + 24 * 32];
+static unsigned missing_top;
+static uint32_t missing_told, missing_last; /* the handles the page told about; the list at the last check */
+static void missing_check(void)
+{
+    unsigned n = (modwerk_dsp_missing_list(missing) - 4u) / 24u;
+    uint32_t handles = 0;
+    for (unsigned i = 0; i < n; ++i) handles |= 1u << (missing[4 + 24 * i] & 31u);
+    if (open == MISSING && !n) open = CLOSED;
+    if (missing_top + ROWS > n) missing_top = n > ROWS ? n - ROWS : 0;
+    if (handles & ~missing_told && handles == missing_last && open == CLOSED && modwerk_modset_restored() && modwerk_modset_result)
+        open = MISSING, missing_top = 0, missing_told = handles;
+    missing_told &= handles; /* one that comes back and goes missing again is told again */
+    missing_last = handles;
+}
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
@@ -135,6 +162,13 @@ int modwerk_status_key(int code, int pressed)
         return 0;
     }
     if (code == CUE) cue = pressed;
+    if (pressed && open == MISSING && code != CUE && !(code == PROJ && cue)) {
+        if (code == UP && missing_top) --missing_top;
+        if (code == DOWN && missing_top + ROWS < missing[3]) ++missing_top;
+        if (code == NO || code == YES) open = CLOSED;
+        taken = code;
+        return 1;
+    }
     if (pressed && open == TEST && code == NO) { modwerk_selftest_abort(); open = CLOSED; taken = code; return 1; }
     if (pressed && ((code == PROJ && cue) || (open && (code == NO || (code == YES && open == HINT))))) {
         open = code == NO || (code == PROJ && open == SHOWN) ? CLOSED : SHOWN;
@@ -298,8 +332,33 @@ static void test_page(unsigned char *frame)
     label(X0 + 4u, Y1 - 8u, verdict);
     button(frame, X1 - 24u, Y1 - 10u, "NO");
 }
+/* The missing modules: four names at a time, arrows when there are more, the count and YES. */
+static void arrow(unsigned char *frame, unsigned x, unsigned y, int up)
+{
+    for (unsigned r = 0; r < 3u; ++r) fill(frame, x + 2u - r, up ? y + r : y + 2u - r, x + 2u + r, up ? y + r : y + 2u - r, 1);
+}
+static void missing_page(unsigned char *frame)
+{
+    unsigned n = missing[3];
+    dialog(frame, "MISSING MODULES");
+    for (unsigned i = 0; i < ROWS && missing_top + i < n; ++i) {
+        const uint8_t *e = missing + 4u + 24u * (missing_top + i);
+        char name[17];
+        for (unsigned c = 0; c < 16u; ++c) name[c] = e[8 + c] >= 'a' && e[8 + c] <= 'z' ? (char)(e[8 + c] - 32) : (char)e[8 + c];
+        name[16] = 0;
+        label(X0 + 6u, Y0 + 14u + 9u * i, name[0] ? name : "UNNAMED MODULE");
+    }
+    if (missing_top) arrow(frame, X1 - 10u, Y0 + 14u, 1);
+    if (missing_top + ROWS < n) arrow(frame, X1 - 10u, Y0 + 14u + 9u * (ROWS - 1u) + 3u, 0);
+    char text[24], *s = number(text, n);
+    for (const char *t = " NOT INSTALLED"; *t; ) *s++ = *t++;
+    *s = 0;
+    label(X0 + 4u, Y1 - 8u, text);
+    button(frame, X1 - 26u, Y1 - 10u, "YES");
+}
 void modwerk_status_draw(unsigned char *frame)
 {
+    if (open == MISSING) { missing_page(frame); return; }
     if (open == TEST) { test_page(frame); return; }
     if (open == HINT) { explain(frame); return; }
     if (open != SHOWN) return;
