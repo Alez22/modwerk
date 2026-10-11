@@ -29,7 +29,7 @@ Use a disposable project and your stock recovery file. Select core 2.1, DIGICHAI
 4. Save the project and sounds, reload/change projects, then physically power-cycle. Confirm both models, separate values and playable audio persist. Digitakt has no Octatrack Parts or dual DSP-core/FX-slot assignment; track/voice isolation applies here.
 5. Check DSP average/peak and long-running playback with existing monitoring tooling and record conditions and observed audio behavior. Do not treat the emulator as timing evidence.
 
-**No physical results have been supplied.** Hardware, audio, timing, persistence, reboot, complete runtime memory bounds and stress remain unverified. This version has emulator evidence only. Any owner-authorized publication exception must bind the exact version/source and disclose these limits; it does not record a hardware pass.
+**No physical results have been supplied.** Hardware, audio, timing, persistence, reboot, complete runtime memory bounds and stress remain unverified. This version has emulator evidence only. On 11 October 2026, owner repeat98 explicitly approved publishing this exact experimental release and closing #180 after live-download verification with all these limits disclosed. The exception binds runtime source `e3b33c2059d7daa2b589ba6f47d359dd5f2568e1123791555b3cf661138c0173` and the two D180 image hashes above; its literal authorization and scope are in the evidence JSON. It does not record a hardware pass. Reopen #180 if the updated build still loses controls on a physical unit, including the OS, build/module versions, track/model and reproduction steps.
 
 Reproduce the documentation session with the pinned emulator and exact private image:
 
