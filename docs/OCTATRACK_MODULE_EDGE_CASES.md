@@ -55,12 +55,12 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 
 | # | Case | Today | Status |
 |---|---|---|---|
-| 21 | More module effects than the list holds (owner, 11 October 2026: "we need to be able to list more FX") | The DSP dispatch table has 32 effect ids and stock keeps 19, so at most 13 module effects are installed or named at once; configurations of ~90 modules need more. Needs a design: for example one id dispatching to a second-level table keyed by another byte the slot carries, with the choosers listing from the base's own table | open (design) |
+| 21 | More module effects than the list holds (owner, 11 October 2026: "I just want a longer list than 32 entries"; categories in the choosers: not now) | The chooser itself scrolls any length (stock's 7 is only its viewport, build_bus.py CHOOSER_ROWS); the 32 is the base's lists and the 32 effect ids, of which stock keeps 19. Owner: more than 13 different module effects at once are needed, so ids handed out on pick are not enough; the DSP dispatch and stock's per-id tables have to grow, or one id has to dispatch to a second-level table. Research under way | open (design) |
 
 ## Order
 
 1. ~~Cases 1, 2 and 3~~: done (the unit's page, the site's note).
-2. Case 21: more effects than 13 at once (design first).
+2. Case 21: more than 13 module effects at once and a list longer than 32 (owner's priority; design first).
 3. Case 7: an update with the same layout swaps in place instead of being refused (design first: the DSP
    manager must retire the old code from the slots running it before the new code binds, as the rebind does).
 4. Case 6: layout numbers, before the first module update that changes its knobs.
