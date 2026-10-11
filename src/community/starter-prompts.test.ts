@@ -70,6 +70,17 @@ describe('starter prompts', () => {
     }
   })
 
+  it('has the agent check the catalogue for duplicates before it plans a new module', () => {
+    for (const { machine, starter } of all.filter(item => DEVICES.find(device => device.id === item.machine)?.sdk)) {
+      const prompt = starterPrompt(machine, starter)
+      expect(prompt).toContain('look at what Modwerk already has')
+      expect(prompt).toContain('instead of building a duplicate')
+      expect(prompt.indexOf('look at what Modwerk already has')).toBeLessThan(prompt.indexOf('Before you write code, read:'))
+    }
+    for (const file of ['sdk/catalog.json', 'src/catalog/machine-modules.json', 'sdk/drafts']) expect(existsSync(file), file).toBe(true)
+    expect(updatePrompt('digitakt')).not.toContain('look at what Modwerk already has')
+  })
+
   it('opens every prompt with a setup check: coding agents skip it, chat assistants guide a newcomer', () => {
     const prompts = [
       starterPrompt('octatrack', startersFor('octatrack')[0], '', 'octo-dev', 'https://github.com/acme/modwerk'),
