@@ -3295,7 +3295,7 @@
       ]
     }
   ],
-  "sourceCommit": "88ff1cb803ab171161dd74ee2c075d48765a2d59",
+  "sourceCommit": null,
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -3310,7 +3310,7 @@
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
-    "quantizer": "0.1.2-experimental",
+    "quantizer": "0.1.3-experimental",
     "synth": "0.1.2-experimental",
     "previewvol": "0.1.2-experimental",
     "cc-map": "0.1.2-experimental",

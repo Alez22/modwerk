@@ -8,6 +8,11 @@ from dataclasses import replace
 import hashlib,json
 ROOT=Path(__file__).resolve().parents[2]
 POLICY=json.loads((ROOT/'modules/poly8/composition.json').read_text())
+# Quantizer's MIDI-safe hook replaces its historical declaration. Keep the
+# approved POLY8 source untouched, and share this exact rule with the packager.
+QUANTIZER_RULE=json.loads((ROOT/'modules/quantizer/composition.json').read_text())
+if QUANTIZER_RULE['moduleId']!='quantizer':raise ValueError('Expected Quantizer composition rule')
+POLICY['groups']=[QUANTIZER_RULE if r['moduleId']=='quantizer' else r for r in POLICY['groups']]
 
 def fingerprint(expect):
  return dict(guardLength=len(expect),guardSha256=expect.sha256 if hasattr(expect,'sha256') else hashlib.sha256(expect).hexdigest())

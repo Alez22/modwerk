@@ -3294,7 +3294,7 @@
       "id": "quantizer",
       "key": "SCALE QUANTIZER",
       "name": "Scale Quantizer",
-      "version": "0.1.2-experimental",
+      "version": "0.1.3-experimental",
       "category": "machines",
       "source": {
         "repository": "https://github.com/sambanks/octabam",
@@ -3411,8 +3411,10 @@
         "conflicts": [],
         "limitations": [
           "Sample pitch quantization works on Flex, Static and Pickup; RATE is not a semitone control.",
-          "Synth polyphony and synth-specific tuning/glide depend on SYNTH MACHINE, which is outside this catalog.",
-          "v2.9’s last fixes have emulator evidence; the earlier MKI result does not qualify the complete current pin."
+          "SCALE, ROOT and GLIDE are shared project settings, not independent per-track scale selectors.",
+          "Synth polyphony and synth-specific tuning/glide require FM Synth and are outside the standalone Quantizer.",
+          "POLY8 configurations use the existing POLY8 keyboard hooks; this update does not change POLY8 or FM Synth runtime code.",
+          "Current-version physical hardware, reboot, audio, chip timing and complete memory bounds remain untested."
         ]
       },
       "resources": {
@@ -3459,10 +3461,29 @@
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "Upstream records pitch/lock/key, ROOT, save/load and warm-boot checks, and MKI operation through the v2.9 line before its last two fixes. Those last fixes are emulator-verified. This import pins octatrick-modules v2.9. Octamod native and actual-browser composition/packaging parity and rejection checks passed on 1 October 2026. The owner reported both combined test images working; this is a smoke report, not full feature/load qualification.",
-        "hardwareStatus": "historical",
+        "summary": "MIDI trig-mode stack corruption reproduced on the old standalone build; the repaired popup passes on MKI/MKII emulated panels. Native/browser comparison: 53 matching module-owned images, 73 matching refusals, zero mismatches. The owner approved this exact experimental source with hardware, chip timing and complete memory bounds untested.",
+        "hardwareStatus": "untested",
         "evidenceRevision": "363861e31ee963c478fab2b190a0fabe1d7ce37b",
-        "gates": []
+        "gates": [],
+        "documentation": {
+          "tutorial": {
+            "title": "Quick tutorial: choose a scale",
+            "steps": [
+              "Open PROJECT > CONTROL > SEQUENCER and scroll to SCALE. Turn LEVEL to select MAJOR; OFF restores stock pitch behavior.",
+              "Scroll to ROOT and turn LEVEL to choose C. ROOT transposes the selected scale and the audio chromatic keyboard.",
+              "Close the project menu, select a Flex or Static audio track with a sample assigned, and turn PTCH or play the chromatic trig keys. Notes follow the selected scale.",
+              "Switch to MIDI mode. Hold FUNC and press DOWN or UP to change trig mode; release FUNC to leave the popup. MIDI octave numbers retain the stock format."
+            ]
+          },
+          "screenshots": [
+            "media/ot-location.png",
+            "media/ot-scale.png",
+            "media/ot-root.png",
+            "media/ot-glide.png",
+            "media/ot-midi-trig-mode.png"
+          ],
+          "screenshotStyle": "black-and-white"
+        }
       },
       "license": {
         "spdx": "MIT",
@@ -3482,9 +3503,9 @@
             "page": "PROJECT > CONTROL",
             "shows": "location",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.2-experimental",
-            "imageSha256": "2e5abefa1484788a6953db45e111b266a1f31d810fb45fa7155104a9780e8d3e",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty scratch card; no samples or user projects."
+            "moduleVersion": "0.1.3-experimental",
+            "imageSha256": "1ceba9f613dcf0d6bb6c32b0ae18e82a399e42644a89b2f76d9088c18c255c15",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty disposable card; no samples, user projects or physical hardware."
           }
         },
         {
@@ -3499,9 +3520,9 @@
             "page": "CONTROL SEQUENCER: SCALE",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.2-experimental",
-            "imageSha256": "2e5abefa1484788a6953db45e111b266a1f31d810fb45fa7155104a9780e8d3e",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty scratch card; no samples or user projects."
+            "moduleVersion": "0.1.3-experimental",
+            "imageSha256": "1ceba9f613dcf0d6bb6c32b0ae18e82a399e42644a89b2f76d9088c18c255c15",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty disposable card; no samples, user projects or physical hardware."
           }
         },
         {
@@ -3516,9 +3537,9 @@
             "page": "CONTROL SEQUENCER: ROOT",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.2-experimental",
-            "imageSha256": "2e5abefa1484788a6953db45e111b266a1f31d810fb45fa7155104a9780e8d3e",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty scratch card; no samples or user projects."
+            "moduleVersion": "0.1.3-experimental",
+            "imageSha256": "1ceba9f613dcf0d6bb6c32b0ae18e82a399e42644a89b2f76d9088c18c255c15",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty disposable card; no samples, user projects or physical hardware."
           }
         },
         {
@@ -3533,9 +3554,26 @@
             "page": "CONTROL SEQUENCER: GLIDE",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.2-experimental",
-            "imageSha256": "2e5abefa1484788a6953db45e111b266a1f31d810fb45fa7155104a9780e8d3e",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty scratch card; no samples or user projects."
+            "moduleVersion": "0.1.3-experimental",
+            "imageSha256": "1ceba9f613dcf0d6bb6c32b0ae18e82a399e42644a89b2f76d9088c18c255c15",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty disposable card; no samples, user projects or physical hardware."
+          }
+        },
+        {
+          "path": "media/ot-midi-trig-mode.png",
+          "captureType": "emulator",
+          "caption": "The MIDI trig-mode popup stays responsive while FUNC+DOWN is held.",
+          "alt": "Actual Octatrack MIDI trig-mode popup with QUICK MUTE selected.",
+          "credit": "Modwerk contributors (headless capture)",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "MIDI trig mode",
+            "shows": "controls",
+            "firmware": "1.40C",
+            "moduleVersion": "0.1.3-experimental",
+            "imageSha256": "1ceba9f613dcf0d6bb6c32b0ae18e82a399e42644a89b2f76d9088c18c255c15",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6. Empty disposable card; no samples, user projects or physical hardware."
           }
         }
       ]

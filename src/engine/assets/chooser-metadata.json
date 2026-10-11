@@ -177,6 +177,13 @@
       "fx1Only": false
     },
     {
+      "id": "quantizer",
+      "key": "SCALE QUANTIZER",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
       "id": "synth",
       "key": "SYNTH MACHINE",
       "fxId": null,
