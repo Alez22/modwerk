@@ -29,8 +29,10 @@ function linkedTab(): DetailTab {
   return tabs.find(value => value.toLowerCase() === query.get('tab')) ?? 'Overview'
 }
 
-export function ModuleDetailLayout({ id, title, family, detail, author, authorUrl, contributors, description, selected, onToggle, backHref, backLabel, preview, resources, notice, guide, issueReport, browse, onBackToResults, titleBadge, configureTarget, overviewIntro, addBlock, onSwap }: {
+export function ModuleDetailLayout({ id, title, family, detail, author, authorUrl, contributors, description, selected, onToggle, backHref, backLabel, preview, resources, notice, guide, issueReport, browse, onBackToResults, titleBadge, configureTarget, overviewIntro, addBlock, onSwap, modal = false }: {
   browse?: CatalogBrowse | null; onBackToResults?: () => void
+  /** Shown in a dialog over another page: no way back, since nothing navigated. */
+  modal?: boolean
   id: string; title: string; family: string; detail: string; author: string; authorUrl: string; description: string
   contributors?: readonly ModuleContributor[]
   titleBadge?: string
@@ -68,7 +70,7 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
   return <div className={'detail-page' + (navigation && navigation.total > 1 ? ' has-catalog-navigation' : '')}>
     {navigation && navigation.total > 1 && <CatalogNavigation navigation={navigation} />}
     <div className="module-page-actions">
-      <div className="module-browse-context"><a className="back-link" href={navigation?.backHref ?? backHref} onClick={navigation ? onBackToResults : undefined}><Icon name="back" size={15} />{navigation ? 'Back to results' : backLabel}</a>{navigation && <span className="catalog-position" aria-label={'Module ' + navigation.position + ' of ' + navigation.total + ' results'}>{navigation.position} of {navigation.total}</span>}</div>
+      {modal ? <span /> : <div className="module-browse-context"><a className="back-link" href={navigation?.backHref ?? backHref} onClick={navigation ? onBackToResults : undefined}><Icon name="back" size={15} />{navigation ? 'Back to results' : backLabel}</a>{navigation && <span className="catalog-position" aria-label={'Module ' + navigation.position + ' of ' + navigation.total + ' results'}>{navigation.position} of {navigation.total}</span>}</div>}
       <div className="module-page-buttons"><ShareModuleButton id={id} title={title} /></div>
     </div>
     <section className="detail-hero detail-hero-with-resources" aria-labelledby="module-title">

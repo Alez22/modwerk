@@ -19,13 +19,13 @@ import { UsbAudioConfigurator } from './UsbAudioConfigurator'
 import { USB_AUDIO_MIDI_CREDITS } from './credits'
 import { USB_AUDIO_MODULE, usbAudioPreset, type UsbAudioConfiguration } from '../config/usb-audio'
 
-export function ModuleDetail({ module, selected, onToggle, addBlock, onSwap, browse, onBackToResults, usbAudio, configurationName, configurationId, onConfigureUsbAudio }: { browse?: CatalogBrowse | null; onBackToResults?: () => void; module: FirmwareModule; selected: boolean; onToggle: () => void; addBlock?: AddBlock; onSwap?: (removeIds: readonly string[]) => void; usbAudio?: UsbAudioConfiguration; configurationName?: string; configurationId?: string; onConfigureUsbAudio?: (value: UsbAudioConfiguration | undefined) => void }) {
+export function ModuleDetail({ module, selected, onToggle, addBlock, onSwap, browse, onBackToResults, usbAudio, configurationName, configurationId, onConfigureUsbAudio, modal }: { modal?: boolean; browse?: CatalogBrowse | null; onBackToResults?: () => void; module: FirmwareModule; selected: boolean; onToggle: () => void; addBlock?: AddBlock; onSwap?: (removeIds: readonly string[]) => void; usbAudio?: UsbAudioConfiguration; configurationName?: string; configurationId?: string; onConfigureUsbAudio?: (value: UsbAudioConfiguration | undefined) => void }) {
   const previewKey = configurationId + JSON.stringify(usbAudio)
   const [usbDraft, setUsbDraft] = useState<{ key: string; value: UsbAudioConfiguration }>({ key: previewKey, value: usbAudio ?? usbAudioPreset('outbox') })
   const draft = usbDraft.key === previewKey ? usbDraft.value : usbAudio ?? usbAudioPreset('outbox')
   const details = DETAILS[module.id]
   const moduleDocument = MODULE_DOCUMENTS_BY_ID[module.id]
-  return <ModuleDetailLayout browse={browse} onBackToResults={onBackToResults} id={module.id} title={module.name} family={details.family} detail={module.detail}
+  return <ModuleDetailLayout modal={modal} browse={browse} onBackToResults={onBackToResults} id={module.id} title={module.name} family={details.family} detail={module.detail}
     titleBadge={isBetaModule(module.id) ? 'Beta' : module.id === USB_AUDIO_MODULE ? 'Outbox 8 compatible' : undefined}
     configureTarget={module.id === USB_AUDIO_MODULE && onConfigureUsbAudio ? 'usb-setup' : undefined}
     author={module.authorName} authorUrl={module.authorUrl} contributors={module.contributors} description={module.description}

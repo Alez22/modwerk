@@ -45,7 +45,9 @@ import { issueRepository, setWorkspaceReportContext } from './community/report-c
 import { FirmwareBuildPanel } from './components/FirmwareBuildPanel'
 import { OctatrackUpdate, type PrepareUpdate, type ReadInventory, type StressTest } from './components/OctatrackUpdate'
 import { InstrumentItem } from './components/InstrumentItem'
-import { AlsoOnUnit, UnitStrip } from './components/UnitPanel'
+import { CardInstall, UnitStrip } from './components/UnitPanel'
+import { ModuleGrid } from './components/ModuleGrid'
+import { ModuleDialog } from './components/ModuleDialog'
 import { StockEffects } from './components/StockEffects'
 import { OctatrackActivity, OctatrackStatus } from './components/OctatrackStatus'
 import { BaseInstallDialog } from './components/BaseInstallDialog'
@@ -56,7 +58,6 @@ import { DIGI_DOWNLOADS_ENABLED } from './engine/elekloader/protocol'
 import { USB_AUDIO_MODULE, usbAudioLayout, type UsbAudioConfiguration } from './config/usb-audio'
 import { downloadSelection, parseSelection } from './config/selection'
 import { Icon } from './components/Icon'
-import { ModulePreview } from './components/ModulePreview'
 import { ModuleDetail } from './components/ModuleDetail'
 import { useModuleUpdates } from './hooks/useModuleUpdates'
 import { FaqPage } from './components/FaqPage'
@@ -135,6 +136,7 @@ export default function App() {
   const usbLink = usbKit?.link
   const usbBase = useOctatrackBase(usbLink ?? null)
   const inventory = useInventory(usbLink, usbKit?.readInventory)
+  const [openModule, setOpenModule] = useState<string>()
   const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(usbPreview === 'base-install' ? 'preview' : null)
   // At release, once per member wherever they are, except on account, sign-in, admin and legal pages.
   const baseInstallPrompt = useBaseInstallPrompt(session.user?.verified ? session.user.id : null, !!usbLink && !usbLinkPreview && !accountRoute && !developerRoute && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route))
@@ -365,6 +367,7 @@ export default function App() {
       {configDialog && <ConfigurationDialog mode={configDialog} initialName={configDialog === 'create' ? '' : configDialog === 'duplicate' ? (machineActive?.name ?? '') + ' copy' : machineActive?.name ?? ''} onSubmit={submitConfigurationDialog} onClose={() => { setConfigDialog(null); setCreateDevice(null) }} />}
       <PublicAnnouncement next={route} enabled={!accountRoute && !developerRoute && !configuration && machineView !== 'configuration' && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route)} />
       {usbLink && !configuration && <OctatrackActivity link={usbLink}/>}
+      {openModule && (() => { const module = MODULES.find(item => item.id === openModule); return module && <ModuleDialog title={module.name} onClose={() => setOpenModule(undefined)}><ModuleDetail modal module={module} selected={selectedIds.includes(module.id)} addBlock={addBlockMap[module.id]} onSwap={removeIds => swapModule(module.id, removeIds)} usbAudio={active?.usbAudio} configurationName={active?.name} configurationId={active?.id} onConfigureUsbAudio={configureUsbAudio} onToggle={() => toggleModule(module.id)} /></ModuleDialog> })()}
       {usbLink && (baseInstall || baseInstallPrompt.open) && <BaseInstallDialog link={usbLink} launch={baseInstall !== 'manual'} firmwareReady={!!firmware} onChooseFirmware={file => void readFile(file)} onClose={done => { if (baseInstall) setBaseInstall(null); else if (done) baseInstallPrompt.close(); else baseInstallPrompt.later() }}/>}
       {supportOpen && <SupportDialog url={SUPPORT_URL} onClose={() => setSupportOpen(false)} />}
       <HardwareFeedbackCheckIn enabled={!accountRoute && !developerRoute && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content', 'submit'].includes(route.split('/')[0]) && !firmwareFeedbackPreview}/>
@@ -397,13 +400,10 @@ export default function App() {
               <input ref={inputRef} type="file" accept=".bin" onChange={chooseFile} hidden aria-label="Choose base firmware" />
               <div className="configuration-layout">
                 <div className="configuration-main">
-                  <section className="configuration-section" aria-labelledby="selection-title"><div className="section-title"><h2 id="selection-title">Selected modules <span className="subtle">{selection.length}</span></h2><a className="text-button" href="#library">Browse modules <Icon name="plus" size={14} /></a></div>
-                    {availabilityError && <p className="file-error" role="alert">{availabilityError}</p>}
-                    {selection.length ? <ul className="selected-list">{selection.map((module) => <li key={module.id}><a className="selected-module-link" href={moduleHref(module.id)}><ModulePreview id={module.id} compact /><span><strong>{module.name}</strong><small>{module.id === USB_AUDIO_MODULE && active?.usbAudio ? usbAudioLayout(active.usbAudio.layout).name + ' · 0.2 experimental' : (!isModuleAvailable(module.id, betaAccess) ? 'Temporarily unavailable' : module.detail) + ' · ' + module.authorName}</small></span></a>{inventory && <span className={'unit-tag' + (inventory.moduleIds.includes(module.id) ? ' is-on' : '')}>{inventory.moduleIds.includes(module.id) ? 'On Octatrack' : 'Not loaded yet'}</span>}<button className="icon-button" aria-label={'Remove ' + module.name} onClick={() => toggleModule(module.id)}><Icon name="close" size={17} /></button></li>)}</ul> : <div className="selection-empty"><Icon name="grid" size={26} /><strong>No modules selected</strong><p>Find something in the library and add it to your module set.</p><a className="button button-quiet" href="#library">Browse modules</a></div>}
-                  </section>
-                  {inventory && inventory.moduleIds.some(id => !selectedIds.includes(id)) && <AlsoOnUnit ids={inventory.moduleIds.filter(id => !selectedIds.includes(id))} onAdd={toggleModule} onSaveSet={() => workspace.importConfiguration('From my Octatrack', inventory.moduleIds, true, undefined, 'octatrack', undefined, inventory.removedStockFx)} />}
+                  {availabilityError && <p className="file-error" role="alert">{availabilityError}</p>}
+                  <ModuleGrid ids={selectedIds} inventory={inventory} describe={id => id === USB_AUDIO_MODULE && active?.usbAudio ? usbAudioLayout(active.usbAudio.layout).name + ' · 0.2 experimental' : !isModuleAvailable(id, betaAccess) ? 'Temporarily unavailable' : MODULES.find(module => module.id === id)?.detail ?? ''} onOpen={setOpenModule} onRemove={toggleModule} onKeep={toggleModule} onSaveUnit={() => inventory && workspace.importConfiguration('From my Octatrack', inventory.moduleIds, true, undefined, 'octatrack', undefined, inventory.removedStockFx)} />
                   {usbBase ? <StockEffects removed={active?.removedStockFx ?? []} onChange={workspace.setRemovedStockFx} /> : <ConfigurationEffects ids={selectedIds} keepStockFx2={active?.keepStockFx2 ?? true} build={firmwareBuild} />}
-                  <section className="configuration-section" aria-labelledby="firmware-title"><div className="section-title"><h2 id="firmware-title">Base firmware</h2><span className="subtle">Read locally</span></div>
+                  <CardInstall folded={usbBase}><section className="configuration-section" aria-labelledby="firmware-title"><div className="section-title"><h2 id="firmware-title">Base firmware</h2><span className="subtle">Read locally</span></div>
                     <div className={'firmware-drop ' + (dragging ? 'is-dragging ' : '') + (fileState === 'ready' ? 'is-verified' : '')} onDragOver={(event) => event.preventDefault()} onDragEnter={() => setDragging(true)} onDragLeave={() => setDragging(false)} onDrop={dropFile} aria-busy={fileState === 'reading'}>
                       <span className="file-symbol"><Icon name={firmware ? 'check' : 'file'} size={26} /></span>
                       <div className="file-copy" aria-live="polite"><strong>{firmware ? firmware.name : fileState === 'reading' ? 'Checking your firmware…' : 'Original Octatrack OS 1.40C'}</strong><span>{firmware ? 'SHA-256 verified · ' + (firmware.bytes / 1024).toFixed(0) + ' KB' : 'Drop your .bin file here, or choose it from your device.'}</span></div>
@@ -412,7 +412,7 @@ export default function App() {
                     {fileError && <p className="file-error" role="alert">{fileError}</p>}
                     <div className="file-footnote"><span>{firmware ? (firmwareSaved ? 'Saved on this device and verified again each time you return.' : 'Verified for this session. Saving on this device…') : 'Saved in this browser after verification. Never uploaded.'}</span>{(firmware || fileState === 'reading') && <button className="text-button" onClick={clearFile}>Remove from device</button>}</div>
                     <p className="firmware-help"><a href="#faq">Where do I get the .bin? Read the FAQ & flashing guide <Icon name="arrow" size={14} /></a></p>
-                  </section>
+                  </section></CardInstall>
                   {DSP_LOADER && <section className="configuration-section chooser-options"><h2>Effect menus</h2><label><input type="checkbox" checked={active?.keepStockFx2??true} onChange={event=>setKeepStockFx2(event.target.checked)}/><span><strong>Keep stock FX2 effects</strong><small>Keep the original FX2 effects alongside your modules.</small></span></label></section>}
                   <div ref={setBuildResultsSlot} className="build-results" />
                 </div>
