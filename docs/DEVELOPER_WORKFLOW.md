@@ -19,7 +19,7 @@ For repeated release checks, the [local firmware download API](FIRMWARE_DOWNLOAD
 
 ## Update or fix an approved module
 
-Read the report and reproduce it where possible. Change the module, explicitly bump its semantic version, and synchronize the catalog pin, shipped packages, docs and version-matched release notes. Pushing commits neither increments the version nor publishes the frontend.
+Read the report and reproduce it where possible. Every fix must include a changelog update in `src/community/module-changelogs.json` in the same PR; it is part of the fix, not a later follow-up. Describe the actual fix or mitigation, link the issue when available, and disclose remaining limitations and unverified behavior. Change the module, explicitly bump its semantic version for behavior changes, and synchronize the catalog pin, shipped packages, docs and the exact version in the changelog. Preserve previous entries. Documentation/media-only fixes add a clearly marked note to the current version unless publishing a new version. Pushing commits neither increments the version nor publishes the frontend.
 
 The registered author personally verifies the exact source, rights, UI and qualification evidence. Missing, failed or untested required hardware acceptance checks block automatic publication. An agent records only reported results and never attests on the author's behalf without that actual verification. Editorial updates retain approved evidence only through the documented checked path.
 
