@@ -31,8 +31,9 @@ struct selftest {
     uint32_t culprit;               /* the module behind the first failure (its runtime id), 0 none: the one that failed
                                      * alone, or the dearest of the batch that overloaded or ran late */
     char culprit_name[16];          /* its name as the chooser shows it, empty when it brings no effect */
+    uint32_t refusal;               /* now: the loader's last refusal (loader.h), so a host can say why it refused */
 };
-typedef char selftest_size[sizeof(struct selftest) == 92u ? 1 : -1]; /* not a whole number of 64-byte EP0 packets */
+typedef char selftest_size[sizeof(struct selftest) == 96u ? 1 : -1]; /* not a whole number of 64-byte EP0 packets */
 extern volatile struct selftest modwerk_selftest;
 int modwerk_selftest_start(void); /* 1 when it started: stopped, the loader idle */
 void modwerk_selftest_refresh(void); /* the record's "now" fields, before a host reads it */

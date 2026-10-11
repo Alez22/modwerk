@@ -101,6 +101,13 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 1;
     }
+    if (s[1] == 22 && want == 1 && s[2] <= 9u && !s[3]) { /* HOLD TEST: ep0.c holds host frames s[2] seconds, as after a boot */
+        extern volatile uint32_t modwerk_ep0_hold_until;
+        modwerk_ep0_hold_until = modwerk_runtime_ticks + 60u * s[2];
+        out[0] = 1;
+        *reply = out;
+        return 1;
+    }
     if (s[1] == 15 && want == 1) {
         mem_high = s[2] | (uint32_t)s[3] << 8;
         out[0] = 1;

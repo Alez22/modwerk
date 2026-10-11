@@ -184,6 +184,7 @@ async function statusWords() {
  * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
  * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (SYSTEM > MODWERK TEST, about 15 s)
+ * hold:N (development bases: host frames wait N seconds, as after a boot)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -205,6 +206,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if (step === 'stalltest') await devIn(18, 0, 1) // development bases: write the stall record now, nothing recovered
     else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
+    else if ((m = /^hold:(\d)$/.exec(step))) await devIn(22, Number(m[1]), 1) // development bases: host frames wait N seconds, as after a boot
     else if (step === 'selftest') { // dsp.c's self-test (SYSTEM > MODWERK TEST): started, then read until it is done
       const read = async go => { const b = Buffer.from(await devIn(21, go, 92)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
         modules: b.readUInt32BE(12), dsp: b.readUInt32BE(16), intact: b.readUInt32BE(20), ran: b.readUInt32BE(24), peak: [b.readUInt32BE(28), b.readUInt32BE(32)],
@@ -317,7 +319,11 @@ if (command === 'serve') {
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined
         values.accept = true; seconds = 1 // the session accepts at once; `try` from the shell keeps its trial
-        console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined))))
+        try { console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined)))) }
+        catch (error) { // why the loader rejected it (loader.h runtime_refusal: 5 busy, 7 a track plays the effect)
+          if (/rejected/.test(error.message)) error.message += ` (loader refusal ${(await transport.selftest(false).catch(() => undefined))?.refusal})`
+          throw error
+        }
       } else await run(line, until)
     } catch (error) { out.push('error: ' + error.message + (error.cause ? ' (cause: ' + (error.cause.message ?? error.cause) + ')' : '')) } finally { console.log = log }
     return out.join('\n') + '\n'

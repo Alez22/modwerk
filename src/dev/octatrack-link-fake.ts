@@ -5,7 +5,7 @@
 import type { Inventory, InventoryTarget } from '../config/inventory.ts'
 import { OctatrackLink, type LinkDevice, type LinkSession, type LinkUsb } from '../engine/elekloader/octatrack-link.ts'
 import { UploadDeviceError } from '../engine/elekloader/upload-session.ts'
-import { VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
+import { SELFTEST_BYTES, VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
 import type { UploadPhaseName, UploadResultName, UploadStatus } from '../engine/elekloader/upload-wire.ts'
 
 export const FAKE_BASE = '5b'.repeat(32)
@@ -29,6 +29,8 @@ export interface FakeUnit {
   pending?: Inventory
   /** A transaction a session left staged when its reply went missing: only a session that adopts it can cancel it. */
   staged?: boolean
+  /** The loader refuses the next load with this reason (loader.h runtime_refusal), as the base's record reports it. */
+  refusal?: number
 }
 
 export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
@@ -46,7 +48,11 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
       async releaseInterface() {},
       async controlTransferOut() { return { status: 'stall', bytesWritten: 0 } },
       async controlTransferIn(setup: { request: number }) {
-        return setup.request === 3 ? { status: 'ok', data: new DataView(identity.buffer.slice(0)) } : { status: 'stall' }
+        if (setup.request === 3) return { status: 'ok', data: new DataView(identity.buffer.slice(0)) }
+        if (setup.request !== 21 || unit.refusal === undefined) return { status: 'stall' }
+        const record = new DataView(new ArrayBuffer(SELFTEST_BYTES)) // the base's record, idle, with its last refusal
+        record.setUint32(92, unit.refusal)
+        return { status: 'ok', data: record }
       },
     }
     return device
@@ -84,6 +90,7 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
       get status() { return status }, connectionTrusted: true,
       async stage(pkg, { signal, progress } = {}) {
         if (unit.playing) return step('normal', 'unsafe')
+        if (unit.refusal) return step('normal', 'rejected')
         staged = pkg.sha256
         for (let sent = 0; sent < pkg.data.length;) {
           if (signal?.aborted) { status = { ...status, phase: 'normal' }; throw new DOMException('Module staging cancelled.', 'AbortError') }

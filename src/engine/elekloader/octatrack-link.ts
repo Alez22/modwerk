@@ -58,6 +58,15 @@ const REFUSED: Partial<Record<UploadResultName, string>> = {
   hash: 'The module arrived damaged. Nothing changed; send it again.',
   rejected: 'The Octatrack can’t run this module file.',
 }
+/** Why the loader rejected a module (sdk/runtime/loader/loader.h runtime_refusal), read from the base after a "rejected". */
+const REJECTED: Partial<Record<number, string>> = {
+  2: 'There isn’t enough module memory left on the Octatrack. Remove a module, then try again.',
+  3: 'This module changes the same part of the Octatrack as one that’s already installed.',
+  4: 'The Octatrack has no room for another module. Remove one, then try again.',
+  5: 'The Octatrack is still loading module code. Try again in a moment.',
+  6: 'This module needs more DSP time than an effect slot has.',
+  7: 'A track is playing this module’s effect, so the Octatrack can’t change it now. Pick another effect on that track, then try again.',
+}
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
 
@@ -254,10 +263,12 @@ export class OctatrackLink {
     if (settled) {
       try { clean = await this.cleanUp(settled) } catch { clean = false }
     }
+    const why = error instanceof UploadDeviceError && error.status.result === 'rejected' ?
+      (await this.transport?.selftest(false).catch(() => undefined))?.refusal : undefined
     this.session = undefined
     await this.release()
     // An untrusted connection that could not be read again leaves the running set unknown.
-    const text = recovered && clean ? RECOVERED : explainLinkError(error) + (clean ? '' : ' ' + UNPLUG)
+    const text = recovered && clean ? RECOVERED : (REJECTED[why ?? 0] ?? explainLinkError(error)) + (clean ? '' : ' ' + UNPLUG)
     if (this.device) this.ready({ tone: 'error', text }, session ? settled?.status.active : this.state.active)
   }
   /** Cancel, roll back or leave upload mode from whatever phase `session` reports; true once back to normal. */

@@ -75,7 +75,7 @@ int main(void)
     modwerk_machine_dsp_switch(&other, &none);
     /* A track running it, or the manager mid-transaction, keeps it: removal and replacement wait. */
     modwerk_test_live_fx[13] = 26;
-    CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_BUSY && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_BUSY);
+    CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_IN_USE && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_IN_USE);
     modwerk_test_live_fx[13] = 4; idle = 0;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_BUSY && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_BUSY);
     third = fx; third.module = 73;

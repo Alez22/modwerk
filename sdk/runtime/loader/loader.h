@@ -47,7 +47,8 @@ enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 /* At the start of the module's pool extent, followed by its sites, code, data, bss and DSP code. */
 struct runtime_module { uint32_t id, size; uintptr_t hook[RUNTIME_EVENTS]; const struct runtime_site *site; uint32_t sites; struct runtime_dsp dsp; }; /* hook 0: none */
 /* Why the last package was refused, for diagnostics and the unit's own message. */
-enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES };
+enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
+                       RUNTIME_IN_USE /* a track runs the effect it would replace or remove */ };
 #define RUNTIME_PACKAGE_BYTES (RUNTIME_HEADER_BYTES + 4u * RUNTIME_EVENTS + RUNTIME_IMAGE_BYTES + 4u * RUNTIME_RELOCATIONS + \
                                RUNTIME_SITES * (8u + 2u * RUNTIME_SITE_BYTES + 2u * RUNTIME_SITE_RELOCATIONS) + \
                                4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)

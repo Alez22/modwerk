@@ -169,7 +169,7 @@ uint32_t modwerk_ep0_dispatch(void)
         modwerk_ep0_reply = out;
         return modwerk_dsp_missing_list(out);
     }
-    /* SELFTEST (0xC1, bRequest 21, wValue 1 start or 0 read, wLength 56): dsp.c's self-test (SYSTEM > MODWERK
+    /* SELFTEST (0xC1, bRequest 21, wValue 1 start or 0 read, wLength 96): dsp.c's self-test (SYSTEM > MODWERK
      * TEST), which the site runs on a trial before it is kept; the record either way (selftest.h). */
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 1u && !SETUP[3] &&
         SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && (SETUP[6] | SETUP[7] << 8) == sizeof modwerk_selftest) {
@@ -319,8 +319,14 @@ int dl_publication_idle(void);
  * it, so it would put a removed module back. shortcut: past ten seconds hosts go ahead regardless,
  * so a restore the gate holds back longer (USB disk mode or playback right after boot) can still meet an install;
  * have the restore skip a set changed before it if that shows up. */
+#ifdef MODWERK_DEV
+volatile uint32_t modwerk_ep0_hold_until; /* dev.c's HOLD TEST: hold as after a boot until this tick */
+#endif
 static int settled(void)
 {
+#ifdef MODWERK_DEV
+    if ((int32_t)(modwerk_ep0_hold_until - modwerk_runtime_ticks) > 0) return 0;
+#endif
     if (modwerk_runtime_ticks > 600u) return 1;
 #ifdef MODWERK_DSP_LOADER
     if (!dl_publication_idle()) return 0;

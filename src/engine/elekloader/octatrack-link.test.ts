@@ -98,6 +98,15 @@ describe('sending a module', () => {
     await link.update('PREVIEW VOL', data)
     expect(link.getState().notice?.text).toBe('Cancelled. Nothing changed on the Octatrack.')
   })
+  it('says why the Octatrack rejected a module, from the base’s record', async () => {
+    const { unit, link } = await linked()
+    unit.refusal = 7 // a track plays the effect it would replace
+    await link.update('PREVIEW VOL', data)
+    expect(link.getState().notice?.text).toMatch(/A track is playing this module’s effect/)
+    unit.refusal = 1 // malformed: the plain text
+    await link.update('PREVIEW VOL', data)
+    expect(link.getState().notice?.text).toBe('The Octatrack can’t run this module file.')
+  })
   it('recovers from a missing reply without asking to unplug', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)
     let calls = 0

@@ -110,7 +110,8 @@ int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp
     /* An effect a track runs, or one a transaction may hold between prepare and retirement, stays.
      * A new one may register at any time: no transaction names an effect nobody has picked. */
     int had = from->count ? handle_of(from->module) : -1;
-    if (from->count && (!dl_publication_idle() || rebinding || (had >= 0 && in_use((unsigned)had)))) return RUNTIME_BUSY;
+    if (from->count && had >= 0 && in_use((unsigned)had)) return RUNTIME_IN_USE; /* the host says why: pick another effect */
+    if (from->count && (!dl_publication_idle() || rebinding)) return RUNTIME_BUSY;
     if (!to->count) return RUNTIME_OK;
     if (rebinding) return RUNTIME_BUSY;
     int id = had >= 0 ? had : choose(to->module, to->id, to->pinned);
@@ -517,6 +518,7 @@ void modwerk_selftest_refresh(void)
 {
     modwerk_selftest.saved = modwerk_modset_result, modwerk_selftest.saved_count = modwerk_modset_count;
     modwerk_selftest.live = modwerk_runtime_active();
+    modwerk_selftest.refusal = modwerk_runtime_refusal();
 }
 enum { PLACE, WAIT, HOLD, CODE, CLEAR };
 static uint8_t st_live[16], st_want[16], st_queue[32], st_later[32];

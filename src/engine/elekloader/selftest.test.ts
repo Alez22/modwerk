@@ -4,7 +4,7 @@ import { parseSelftest, SELFTEST_BYTES, type SelftestRecord } from './upload-usb
 
 const record = (state: number, failed = 0, done = 0, total = 4, saved = 7, savedCount = 2): SelftestRecord =>
   ({ state, failed, modules: 2, dsp: 2, intact: 2, ran: 2, peaks: { cpu: 500, tracks1to4: 600, tracks5to8: 550 }, done, total,
-    frameGap: 48000, saved, savedCount, live: 2, culprit: 0, culpritName: '' })
+    frameGap: 48000, saved, savedCount, live: 2, culprit: 0, culpritName: '', refusal: 0 })
 /** A unit whose self-test answers `states` in turn, the first to the start request. */
 function unit(states: (SelftestRecord | undefined)[]) {
   const calls: boolean[] = []
@@ -32,13 +32,14 @@ describe('the base self-test as the update stress test', () => {
   it('gives up after its time limit', async () => {
     expect(await runSelftest(unit([record(1)]), { pollMs: 1, timeoutMs: 5 })).toBe('it took too long')
   })
-  it('reads the base record, big-endian, 92 bytes', () => {
+  it('reads the base record, big-endian, 96 bytes', () => {
     const view = new DataView(new ArrayBuffer(SELFTEST_BYTES))
     ;[2, 3, 0, 6, 6, 6, 6, 669, 571, 536, 8, 8, 0, 0, 52000, 7, 6, 6, 0x873d83cc].forEach((v, i) => view.setUint32(4 * i, v))
     ;[...'E-Verb'].forEach((ch, i) => view.setUint8(76 + i, ch.charCodeAt(0)))
+    view.setUint32(92, 7)
     expect(parseSelftest(view)).toEqual({ state: 2, failed: 0, modules: 6, dsp: 6, intact: 6, ran: 6,
       peaks: { tracks1to4: 669, tracks5to8: 571, cpu: 536 }, done: 8, total: 8, frameGap: 52000, saved: 7, savedCount: 6, live: 6,
-      culprit: 0x873d83cc, culpritName: 'E-Verb' })
+      culprit: 0x873d83cc, culpritName: 'E-Verb', refusal: 7 })
     expect(() => parseSelftest(new DataView(new ArrayBuffer(72)))).toThrow()
   })
   it('names the module that failed, when the unit names one', async () => {

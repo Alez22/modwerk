@@ -12,7 +12,7 @@ export const VENDOR_RESULT = 2
 export const VENDOR_IDENTIFY = 3
 export const VENDOR_IDENTITY_BYTES = 72 // never a multiple of 64: see sdk/runtime/upload/vendor.h
 export const VENDOR_SELFTEST = 21 // the Octatrack base's self-test (sdk/machines/octatrack/elekloader/selftest.h)
-export const SELFTEST_BYTES = 92
+export const SELFTEST_BYTES = 96
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -57,13 +57,15 @@ export interface SelftestRecord { state: number; failed: number; modules: number
   /** Now: the card's saved set (7 saved and read back, 1 restored at boot, 8 the save failed), its modules, modules live. */
   saved: number; savedCount: number; live: number
   /** The module behind the first failure: its runtime id (0 none) and its name as the chooser shows it ('' none). */
-  culprit: number; culpritName: string }
+  culprit: number; culpritName: string
+  /** The loader's last refusal (sdk/runtime/loader/loader.h runtime_refusal), why a "rejected" was rejected. */
+  refusal: number }
 export function parseSelftest(view: DataView): SelftestRecord {
   if (view.byteLength !== SELFTEST_BYTES) throw new VendorTransportError('The self-test record has the wrong length.')
   const u = (i: number) => view.getUint32(4 * i)
   return { state: u(0), failed: u(2), modules: u(3), dsp: u(4), intact: u(5), ran: u(6),
     peaks: { tracks1to4: u(7), tracks5to8: u(8), cpu: u(9) }, done: u(10), total: u(11), frameGap: u(14), saved: u(15), savedCount: u(16), live: u(17),
-    culprit: u(18), culpritName: String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + 76, 16)).replace(/\0.*$/s, '').trim() }
+    culprit: u(18), culpritName: String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + 76, 16)).replace(/\0.*$/s, '').trim(), refusal: u(23) }
 }
 export function parseVendorIdentity(bytes: Uint8Array): VendorIdentity {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
