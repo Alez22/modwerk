@@ -80,6 +80,13 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 1;
     }
+    if (s[1] == 18 && want == 1 && !s[2] && !s[3]) { /* STALL RECORD TEST: dsp.c's record, reason 0, nothing recovered */
+        void modwerk_dsp_stall_record(unsigned reason);
+        modwerk_dsp_stall_record(0);
+        out[0] = 1;
+        *reply = out;
+        return 1;
+    }
     if (s[1] == 15 && want == 1) {
         mem_high = s[2] | (uint32_t)s[3] << 8;
         out[0] = 1;

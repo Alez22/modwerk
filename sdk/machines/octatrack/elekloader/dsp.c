@@ -292,11 +292,33 @@ extern volatile uint32_t dl_frames, dl_phase, dl_rx_nbytes, dl_residency_enabled
 extern volatile uint32_t dl_c1_phase, dl_c1_sent; /* dsp_core1.s: core 1's packet after stock's state 2 */
 int dl_job_status(unsigned core);
 void dl_abort(void);
+/* The last stall, in battery RAM after crash.c's record, so it survives the power cycle a stopped DSP needs: why
+ * (1 frames stopped, 2 eDMA refused a transfer, 0 a test), the tick, the loader's report as it stood (dsp.c and
+ * status.c, report_words of them), each core's last packet header (magic, sequence, opcode, core, count or id,
+ * offset or init, checksum, proc) and what each track ran. */
+struct stall { uint32_t magic, count, reason, ticks, report_words, report[96]; uint16_t tx[2][8]; uint8_t live[16]; };
+#define STALL ((volatile struct stall *)0x100ff900u)
+typedef char stall_fits_battery_ram[0x100ff900u + sizeof(struct stall) <= 0x100fff00u ? 1 : -1];
+typedef char stall_holds_report[sizeof ((struct stall *)0)->report / 4u >= 78u ? 1 : -1]; /* 66 + status.c's 12 today */
+unsigned modwerk_dsp_report(uint32_t *out);
+extern volatile uint32_t modwerk_dsp_watch_ticks;
+void modwerk_dsp_stall_record(unsigned reason)
+{
+    volatile struct stall *s = STALL;
+    uint32_t count = s->magic == 0x4d575354u ? s->count + 1 : 1; /* "MWST" */
+    s->magic = 0;
+    s->reason = reason, s->ticks = modwerk_dsp_watch_ticks;
+    s->report_words = modwerk_dsp_report((uint32_t *)(uintptr_t)s->report);
+    for (unsigned c = 0; c < 2; ++c) for (unsigned i = 0; i < 8; ++i) s->tx[c][i] = dl_tx[c][i];
+    for (unsigned i = 0; i < 16; ++i) s->live[i] = LIVE_FX[i];
+    s->count = count, s->magic = 0x4d575354u;
+}
 /* Best effort: take whatever a core still offers the host (a DSP waiting to hand
  * over words waits at P:$97 for ever), put the transfer machine's channel 1 back,
  * forget the transfer and let the next frame interrupt in, as stock state 7 does. */
-static void recover(void)
+static void recover(unsigned reason)
 {
+    modwerk_dsp_stall_record(reason); /* before anything below changes the loader's state */
     uint32_t sr = modwerk_machine_mask();
     if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31) {
         /* eDMA refused our transfer, so the core's DMA still waits for the words its host command
@@ -438,8 +460,8 @@ void modwerk_dsp_tick(void)
         dl_job_release((unsigned)probing);
         probing = -1;
     }
-    if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(); /* eDMA refused our transfer: at once */
-    else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover();
+    if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
+    else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
     rebind_tick();
     uint32_t dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = dry & ~missing_shown;
     missing_shown = dry;

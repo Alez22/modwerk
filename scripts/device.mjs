@@ -172,6 +172,7 @@ const REPORT_NAMES = ['version', 'frames', 'phase', 'job0', 'job1', 'hostFlags',
   'edmaErrors', 'edmaEsSeen', 'missCore', 'missBits', 'missCheck', 'miss0', 'miss1', 'miss2', 'pin7', 'straddles', 'core1Sent',
   'meterCore', 'meterBits', 'meterSerial', 'idleLeast', 'idleMost', 'idleSum', 'missed', 'mapGeneration', 'mapRead', 'mapWritten', 'setGeneration', 'setModules', 'setResult',
   'cpu', 'dsp0Mean', 'dsp0Peak', 'dsp1Mean', 'dsp1Peak', 'buffers', 'poolUsed', 'modules', 'idleWrap', 'arenas', 'idleSum0', 'idleSum1']
+const named = w => REPORT_NAMES.map((name, i) => name + '=' + (REPORT_HEX.has(name) ? '0x' + w(i).toString(16) : ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? w(i) | 0 : w(i))).join(' ')
 const REPORT_HEX = new Set(['buffers', 'arenas', 'hostFlags', 'manager', 'used', 'dry', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs', 'edmaEsSeen', 'missCheck', 'miss0', 'miss1', 'miss2'])
 /** status.c's tail of the report (version 11): word i of 78. */
 async function statusWords() {
@@ -181,7 +182,8 @@ async function statusWords() {
 }
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
  * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
- * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose)
+ * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
+ * stall (the last DSP stall's record), stalltest (development bases: write one now)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -199,9 +201,14 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       for (let off = 0; off < length; off += 500) parts.push(Buffer.from(await mem(at + off, Math.min(500, length - off))).toString('hex'))
       console.log(parts.join(''))
     }
-    else if (step === 'report') { // the loader's full report (dsp.c modwerk_dsp_report), as the report command prints it
-      const w = await statusWords()
-      console.log(REPORT_NAMES.map((name, i) => name + '=' + (REPORT_HEX.has(name) ? '0x' + w(i).toString(16) : ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? w(i) | 0 : w(i))).join(' '))
+    else if (step === 'report') console.log(named(await statusWords())) // the loader's full report (dsp.c modwerk_dsp_report)
+    else if (step === 'stalltest') await devIn(18, 0, 1) // development bases: write the stall record now, nothing recovered
+    else if (step === 'stall') { // dsp.c's record in battery RAM: the loader as it stood when the last stall was seen
+      const b = await mem(0x100ff900, 452), v = new DataView(b.buffer, b.byteOffset, 452), w = i => v.getUint32(4 * i)
+      if (w(0) !== 0x4d575354) console.log('stall: none recorded')
+      else console.log(`stall ${w(1)}: ${['test', 'frames stopped', 'eDMA refused a transfer'][w(2)] ?? 'reason ' + w(2)} at tick ${w(3)}\n  ` +
+        named(i => i < w(4) ? w(5 + i) : 0) + `\n  packets core 0 ${Buffer.from(b.subarray(404, 420)).toString('hex')} core 1 ${Buffer.from(b.subarray(420, 436)).toString('hex')}` +
+        `\n  live FX ${Buffer.from(b.subarray(436, 452)).toString('hex')}`)
     }
     else if (step === 'crashtest') await devIn(17, 0, 1) // development bases: an illegal instruction on the next tick (crash.c)
     else if (step === 'crash') { // crash.c's record in battery RAM: what the last error exception was, and where

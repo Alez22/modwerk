@@ -57,6 +57,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | `png:/path.png` | a screenshot, 256 x 128: cheaper to read than the text rendering |
 | `screen` | the screen as block characters (thousands of tokens; avoid) |
 | `crash` | the last crash record (vector, PC, registers); `crashtest` makes one |
+| `stall` | the last DSP stall record: why, the loader's whole report, each core's last packet header, the live FX ids, as they stood when the stall was seen (it survives the power cycle); `stalltest` writes one now |
 | `try FILE`, `remove FILE` | install or remove a module package, accepted at once |
 | `boot DIR` | RAM boot a `build_core.py` output; the session restarts on the new base |
 
@@ -88,7 +89,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | effect ids and chooser rows | FX1_IDS `0x400d5f58`, FX2_IDS `0x400d5fdc` (id -> descriptor, name at +9), FX1_ID2POS `0x400d60d0`, ID2POS `0x400d6150` (id -> row) |
 | chooser cursor | FX1 `0x460d5c94`, FX2 `0x460d5ca8` |
 | input layers (menus, windows) | list at `0x460d165c`: two entries with no menu open |
-| crash record | `0x100ff800` (battery RAM) |
+| crash record, stall record | `0x100ff800`, `0x100ff900` (battery RAM) |
 
 To compare a Part's working and saved copies: `mem:` both addresses with length 6322 and compare the output.
 
