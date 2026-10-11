@@ -89,8 +89,8 @@ static unsigned char before[1024];      /* the frame as drawn, for the wave to b
 
 #define DOCK_X (BOOT_DISC_X * 16 + BOOT_DISC_W * 8)   /* the detached tile's middle, 1/16 px */
 #define DOCK_Y (BOOT_DISC_Y * 16 + BOOT_DISC_H * 8)
-#define ZOOM_X ((BOOT_MARK_X + 17) * 16)              /* the mark's middle, where the flight converges */
-#define ZOOM_Y ((BOOT_MARK_Y + 17) * 16)
+#define ZOOM_X BOOT_MID_X                            /* the mark's middle, where the flight converges */
+#define ZOOM_Y BOOT_MID_Y
 
 static int32_t span(int32_t t, int32_t t0, int32_t t1) /* 0..4096 */
 {
@@ -266,8 +266,8 @@ void modwerk_boot_draw(unsigned char *frame)
                     dot(frame, BOOT_DISC_X + i, BOOT_DISC_Y + j);
     }
     if (r) {
-        for (int32_t x = 0; x < 110; x++)   /* what the wave has passed shows */
-            for (int32_t y = 0; y < 15; y++)
+        for (int32_t x = 0; x < BOOT_WORD_W; x++)   /* what the wave has passed shows */
+            for (int32_t y = 0; y < BOOT_WORD_H; y++)
                 if (boot_word[x] >> y & 1 && near(BOOT_WORD_X + x, BOOT_WORD_Y + y, r))
                     dot(frame, BOOT_WORD_X + x, BOOT_WORD_Y + y);
         for (int g = 0; g < BOOT_GLYPHS; g++)

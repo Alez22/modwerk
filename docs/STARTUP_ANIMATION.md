@@ -81,7 +81,9 @@ shudder of the screen's rows. Its wave bends the screen as it passes (a lens: up
 3 px outwards within 7 px of the ring, with a solid ring and a dotted echo on top),
 reveals MODWERK, **NEW** and the version (`0.3.1`, from `VERSION` in
 `build_core.py`) and rolls on across the panel. It takes 3.5 s, 0.7 s longer than
-stock. Public builds are unchanged.
+stock. The base draws its own compact art from `base.json`, with room between the
+elements: the mark at 29 px (5 px tiles), MODWERK at 11 px tall, and NEW and the
+version in the panel's small 7 px type. Public builds are unchanged.
 
 ![MKII LCD capture of the base startup, from the real base image in the emulator](media/startup/base-startup.gif)
 
@@ -109,7 +111,7 @@ emulator with the boot logo on:
 
 | Check | MKI | MKII |
 | --- | --- | --- |
-| Last startup frame vs. authored pixels (mark, wordmark, NEW, version) | 1,382 of 1,382, 0 missing, 0 extra | 1,382 of 1,382, 0 missing, 0 extra |
+| Last startup frame vs. authored pixels (mark, wordmark, NEW, version) | 887 of 887, 0 missing, 0 extra | 887 of 887, 0 missing, 0 extra |
 | LEDs: one channel, levels 0-15, dark before the stock code takes over | yes; all 44 lamps take part | yes; all 67 lamps take part, white |
 | Hand-over; LED rows, levels and colours afterwards as stock | yes, identical | yes, identical |
 

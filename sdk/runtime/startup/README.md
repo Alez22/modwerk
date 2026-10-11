@@ -88,7 +88,7 @@ builds. The empty corner, the socket, blinks, and a light far off at trig 1 answ
 trig row, turns up through the keys under the screen, enters it from below and docks;
 the screen's rows shudder. Its wave bends the screen like a lens as it passes,
 reveals MODWERK, **NEW** and the version and rolls on across the whole panel. It takes 3.5 s and ends on the same frame each
-time (`base_art.final_pixels`), lowered three rows for room at the edges.
+time (`base_art.final_pixels`).
 
 Screen and lamps are one plane: the LCD sits in the panel (lamp positions from the
 stock lamp table at run time, 54.2 hundredths of a millimetre per pixel), so the
@@ -98,11 +98,12 @@ an MKII. The startup sets channel A's colour to white at the panel's LED intensi
 and repeats the firmware's own pre-logo colour call before it returns. An MKI has
 fixed colours, so there they are red.
 
-This folder holds the authored data the base draws from: `artwork.json` (the mark and
-the wordmark, shared with public builds), `base.json` (the layout shift, the font,
-NEW and the version line) and `base_art.py`, which writes them as C data
-(`boot_art.h`) for `build_core.py` and gives the final frame to the tests. Public
-builds are unchanged: `build.py` still writes only the two graphic tables above.
+The base has its own compact art in `base.json`, with room between the elements: the
+mark at 29 px (the same frame, 3 x 3 grid of 5 px tiles and detached tile), MODWERK
+at 11 px tall, NEW and the version in a small 7 px type, and where each sits.
+`base_art.py` writes it as C data (`boot_art.h`) for `build_core.py` and gives the
+final frame to the tests. Public builds are unchanged: they keep `artwork.json`, and
+`build.py` still writes only the two graphic tables above.
 
 ## Authorship and licence
 
