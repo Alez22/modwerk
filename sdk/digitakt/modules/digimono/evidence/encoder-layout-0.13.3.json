@@ -1558,5 +1558,30 @@
         "samePixelsAs0132": true
       }
     ]
+  },
+  "sourcePackageCommit": "20ce6bcc910741ab2bc49fd288ee57dd13d7900f",
+  "preparedCatalogRevision": "55fb4937fc92338acce5b2ef73cb783488d0acfd00f65e9d8c0bbf0311792825",
+  "releaseCatalogVerification": {
+    "sourcePackageCommit": "20ce6bcc910741ab2bc49fd288ee57dd13d7900f",
+    "catalogRevision": "55fb4937fc92338acce5b2ef73cb783488d0acfd00f65e9d8c0bbf0311792825",
+    "catalogSha256": "440e66a4e7579b4dc1965dfb31f3a3eb57201e72f068cd1b1eb0490249295d91",
+    "kitLockSha256": "3a73138c7383a2c5d4af01b5a5e5189ae8fc1e25c7027c9fe39717a461560689",
+    "method": "Build from the final catalogue pins without overrides; save and read back both private files. Both exactly match the native candidate images used for regression and captures.",
+    "images": [
+      {
+        "os": "1.53",
+        "firmwareSha256": "b1650a2be1ef7e805cca325f63cc74b1f0303bcb2441aa0fc0438c7f1586a7bb",
+        "firmwareBytes": 1598240,
+        "catalogRevision": "55fb4937fc92338acce5b2ef73cb783488d0acfd00f65e9d8c0bbf0311792825",
+        "sourcePackageCommit": "20ce6bcc910741ab2bc49fd288ee57dd13d7900f"
+      },
+      {
+        "os": "1.54",
+        "firmwareSha256": "0d54f54eb4691530faa0b839cf0b9cfa21cdd5e5412ccd09af5eb05e8cf15f27",
+        "firmwareBytes": 1599008,
+        "catalogRevision": "55fb4937fc92338acce5b2ef73cb783488d0acfd00f65e9d8c0bbf0311792825",
+        "sourcePackageCommit": "20ce6bcc910741ab2bc49fd288ee57dd13d7900f"
+      }
+    ]
   }
 }

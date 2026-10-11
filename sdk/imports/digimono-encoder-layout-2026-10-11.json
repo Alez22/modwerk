@@ -28,5 +28,7 @@
     }
   ],
   "stockPolicy": "No firmware or stock-derived code/tables are present. Addresses, lengths and SHA-256 guards are metadata; exported instructions and sections are authored module code. Local materialized recipes and firmware are never committed.",
-  "evidence": "sdk/digitakt/modules/digimono/evidence/encoder-layout-0.13.3.json"
+  "evidence": "sdk/digitakt/modules/digimono/evidence/encoder-layout-0.13.3.json",
+  "sourcePackageCommit": "20ce6bcc910741ab2bc49fd288ee57dd13d7900f",
+  "preparedCatalogRevision": "55fb4937fc92338acce5b2ef73cb783488d0acfd00f65e9d8c0bbf0311792825"
 }
