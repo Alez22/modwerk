@@ -1153,6 +1153,34 @@ card, another unit) and change version, and old projects must keep loading:
       installed and giving the whole-block modules the other three first, a
       module is refused only when it would be the fourth whole-block user on
       one core's FX2 at once.
+  - **Status page and live meters** (owner, 11 October 2026: CPU load, each DSP core and the memories,
+    read from a distance and over USB for development without opening anything). `status.c`, base
+    `fb639d29…` (S11), on the unit:
+    - CUE + PROJ opens it as a dialog over the screen, stock's style (frame, title, rule; NO or CUE + PROJ
+      closes it, and while it shows it takes every key and encoder, so the screen behind is as it was):
+      bars for the ColdFire and each DSP core with a peak tick (the core's window, the CPU's last four
+      seconds), then each core's code arena and the module pool. FUNC + NO was the first pick: stock's disarm-all (owner). CUE held while PROJ
+      is pressed otherwise just opens PROJECT. `npm run device -- stats` reads the same figures from the
+      report (version 11, 78 words) whether or not the page is open.
+    - ColdFire: main's idle spin (`0x4001fc96`, `status.s`) adds up each pass nothing broke, in counts of
+      DTIM3, which runs free over 32 bits at about 132 MHz (47,893 counts a 362.8 µs frame). Stopped, near-
+      blank project: 40%.
+    - DSP: core 1 now has a meter too. Its wait for core 0 (P:$57) is a counted one in the receiver
+      (`c1wait`, X:$2840, free on core 1 in the inventory); its frame hook publishes the window as core
+      0's does. Calibrated with 1,000 cycles a frame on each core (`--dsp-burn`, negative for core 1): core
+      0 50.0 fewer passes (20.0 cycles a pass), core 1 69.1 (14.5). Same project: core 0 42%, core 1 32%.
+      The page reads each core's least, most and summed idle passes by PEEK, 24 bits a tick (72 a core).
+    - Costs: nothing while hidden but the idle spin's counting (idle time) and a PEEK a tick; the page draws
+      only while open. A development base with it has 2,864 bytes of RAM-boot room left.
+    - One RAM boot of S6 failed (the unit off USB until a power cycle); the next boot of the same image
+      worked, after S5 had booted twice. The earlier one-in-six RAM boot failure without USB had a fix.
+    - Reading the meters all the time broke picks in the emulator (T5's E-Verb refused): the PEEK reader took
+      whatever job was in a core's channel as its answer and released it, the manager's included, and the
+      manager refused a transaction whose command found the channel busy. Now the reader touches only its
+      own job and pauses while the manager publishes, and a busy channel makes the manager wait a tick. The
+      emulator's pick, beside and queue checks pass again (base `fb639d29…`, S11). ot_emu parks main at its
+      stock spin after a bench call, so the idle detour takes only main's last init call and leaves the spin.
+    - A base build takes about 10 s; an emulator check 5 to 15 minutes (both DSP cores emulated).
   - **Measured loads for the site** (owner, 11 October 2026): the module pages
     show each module's DSP and CPU impact from its manifest, mostly estimated.
     Measure each module on the unit with the load meter, typical (defaults, a

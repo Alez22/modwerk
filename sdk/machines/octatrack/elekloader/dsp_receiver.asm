@@ -32,8 +32,9 @@
 ; before any effect. Entry changes keep the stock per-instance state.
 frame:
         move    r6,x:>$207              ; the instruction the hook displaced
-; Load meter, core 0: stock's main loop (P:$4b) counts its idle iterations in b until a
-; frame is due, and this runs before stock stores that count (P:$92); b stays untouched.
+; Load meter: core 0's main loop (P:$4b) counts its idle iterations in b until a frame is due, and
+; this runs before stock stores that count (P:$92); b stays untouched. Core 1 counts its wait for
+; core 0 in X:$2840 (c1wait), taken and cleared here (the build substitutes that for core 1).
 ; Each window of 1024 frames is published after its serial: the least and most idle
 ; counts, their sum and the frames with none (missed). Core 1 keeps no such count.
         move    b1,x0
@@ -452,6 +453,18 @@ reply:
         move    #>0,a
         move    a1,x:(r0)               ; consume the packet
 finish:
+        rts
+; Core 1's wait for core 0 (P:$57, brclr #1,y:<<$ffffd3) as a counted one: each pass adds one to
+; X:$2840 (core 1's, untouched by stock), which its frame hook takes as its idle count (see frame).
+; DO FOREVER and BRKCS, not a branch back: dsp_asm writes a backward brclr's target absolute.
+c1wait:
+        do      forever,c1over
+        move    x:>$2840,a
+        add     #>1,a
+        move    a1,x:>$2840
+        btst    #1,y:<<$ffffd3
+        brkcs
+c1over:
         rts
 tablebase:
         move    #>dltable,a

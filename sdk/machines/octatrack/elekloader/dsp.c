@@ -366,14 +366,17 @@ volatile uint32_t modwerk_dsp_meter_bits, modwerk_dsp_meter[MISS_WORDS];
 #ifndef MODWERK_HOST
 extern volatile uint32_t dl_rejected[2];
 static volatile int meter_wanted = -1;
-int modwerk_dsp_meter_read(unsigned core)
+static unsigned meter_first, meter_words;
+/* Words first .. first + words - 1 of core's window (into modwerk_dsp_meter[first..]): 24 bits a tick. */
+int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words)
 {
-    if (core > 1 || meter_wanted >= 0) return 0;
+    if (core > 1 || meter_wanted >= 0 || !words || first + words > MISS_WORDS) return 0;
+    meter_first = first, meter_words = words;
     meter_wanted = (int)core;
     return 1;
 }
 static int peeking = -1;
-static unsigned peek_from;
+static unsigned peek_from, peek_words, peek_inflight;
 static volatile uint32_t *peek_into, *peek_bits;
 static uint32_t peek_seen[2];
 static void peek_tick(void)
@@ -387,7 +390,7 @@ static void peek_tick(void)
                 modwerk_dsp_miss_core = (int32_t)c;
                 modwerk_dsp_miss_bits = 0;
                 for (unsigned i = 0; i < MISS_WORDS; ++i) modwerk_dsp_miss[i] = 0;
-                peek_from = record[c] - 2u, peek_into = modwerk_dsp_miss, peek_bits = &modwerk_dsp_miss_bits;
+                peek_from = record[c] - 2u, peek_into = modwerk_dsp_miss, peek_bits = &modwerk_dsp_miss_bits, peek_words = MISS_WORDS;
             }
         if (peeking < 0 && meter_wanted >= 0 && probing < 0 && dl_publication_idle() && dl_job_status((unsigned)meter_wanted) == -2) {
             peeking = meter_wanted;
@@ -395,23 +398,30 @@ static void peek_tick(void)
             modwerk_dsp_meter_core = peeking;
             modwerk_dsp_meter_bits = 0;
             for (unsigned i = 0; i < MISS_WORDS; ++i) modwerk_dsp_meter[i] = 0;
-            peek_from = meter[peeking], peek_into = modwerk_dsp_meter, peek_bits = &modwerk_dsp_meter_bits;
+            peek_from = meter[peeking] + meter_first, peek_into = modwerk_dsp_meter + meter_first;
+            peek_bits = &modwerk_dsp_meter_bits, peek_words = meter_words;
         }
         if (peeking < 0) return;
     }
     unsigned c = (unsigned)peeking, bit = *peek_bits;
-    int status = dl_job_status(c);
-    if (!status) return; /* in flight */
-    if (status != -2) {  /* answered: refused (HF3) is a 1 */
-        if (status < 0) peek_into[bit / 24u] |= 1u << bit % 24u;
-        dl_job_release(c);
-        *peek_bits = ++bit;
-        if (bit == 24u * MISS_WORDS) { peeking = -1; return; }
+    if (peek_inflight) { /* only its own job: the manager's in this core's channel is never read or released here */
+        int status = dl_job_status(c);
+        if (!status) return; /* in flight */
+        peek_inflight = 0;
+        if (status != -2) {  /* answered: refused (HF3) is a 1 */
+            if (status < 0) peek_into[bit / 24u] |= 1u << bit % 24u;
+            dl_job_release(c);
+            *peek_bits = ++bit;
+            if (bit == 24u * peek_words) { peeking = -1; return; }
+        }
     }
+    /* A pick, a Part change or a probe goes first: the read waits between bits, never holding the core's
+     * channel while the manager publishes (the status page reads all the time). */
+    if (!dl_publication_idle() || probing >= 0) return;
     /* Bits 16-23 come from the word shifted right by 8 (the packet's mask is 16 bits). */
     unsigned b = bit % 24u;
-    if (!dl_command_start(c, DL_PEEK, b >= 16u, peek_from + bit / 24u, b >= 16u ? 1u << (b - 8u) : 1u << b))
-        peeking = -1; /* the manager or a probe took the core: keep what was read */
+    if (dl_command_start(c, DL_PEEK, b >= 16u, peek_from + bit / 24u, b >= 16u ? 1u << (b - 8u) : 1u << b)) peek_inflight = 1;
+    else peeking = -1; /* the manager or a probe took the core: keep what was read */
 }
 #endif
 void modwerk_dsp_unpack(void); /* identity.c: the stock effects' code into RAM, before the manager needs it */
@@ -470,13 +480,14 @@ extern volatile uint32_t dl_selection_requested, dl_selection_completed, dl_sele
 extern volatile uint32_t dl_residency_commits, dl_residency_failures, dl_residency_rollbacks, dl_residency_words[2];
 extern volatile uint32_t dl_early, dl_parked, dl_reinit, dl_pin7, dl_straddle;
 uint32_t dl_manager_state(void);
+uint32_t modwerk_status_report(uint32_t *out); /* status.c: load and memory, twelve words */
 #define R8(a) (*(volatile uint8_t *)(a))
 #define R16(a) (*(volatile uint16_t *)(a))
 #define R32(a) (*(volatile uint32_t *)(a))
 unsigned modwerk_dsp_report(uint32_t *out)
 {
-    const uint32_t words[DSP_REPORT_WORDS] = {
-        10, dl_frames, dl_phase, (uint32_t)dl_job_status(0), (uint32_t)dl_job_status(1), modwerk_dsp_last_flags,
+    const uint32_t words[] = {
+        11, dl_frames, dl_phase, (uint32_t)dl_job_status(0), (uint32_t)dl_job_status(1), modwerk_dsp_last_flags,
         dl_accepted[0], dl_accepted[1], dl_rejected[0], dl_rejected[1], dl_errors, modwerk_dsp_stalls, modwerk_dsp_drained,
         dl_residency_enabled, dl_manager_state(), modwerk_dsp_watch_ticks, modwerk_dsp_probes, modwerk_dsp_probes_ok,
         modwerk_dsp_probes_failed,
@@ -495,8 +506,9 @@ unsigned modwerk_dsp_report(uint32_t *out)
         (uint32_t)modwerk_dsp_meter_core, modwerk_dsp_meter_bits, modwerk_dsp_meter[0], modwerk_dsp_meter[1], modwerk_dsp_meter[2],
         modwerk_dsp_meter[3], modwerk_dsp_meter[4], modwerk_fxmap_generation(), modwerk_fxmap_read, modwerk_fxmap_written,
         modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result};
-    for (unsigned i = 0; i < DSP_REPORT_WORDS; ++i) out[i] = words[i];
-    return DSP_REPORT_WORDS;
+    unsigned n = sizeof words / sizeof words[0]; /* then status.c's twelve */
+    for (unsigned i = 0; i < n; ++i) out[i] = words[i];
+    return n + modwerk_status_report(out + n);
 }
 #endif
 

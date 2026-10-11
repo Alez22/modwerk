@@ -56,7 +56,10 @@ DYNLOAD_HOOKS = (
     (0x400888c8, 6, '456d2abcb4566bd836c3fca9361d944909299ab5f3722ff6ec74affc41e77689', 'mw_project_write'),
     (0x4008540e, 6, 'c607734f7f97b4a13e2047f38d5e2feace1aa3018ec9f19742f612139e7ac0bd', 'mw_project_end'),
     # Modwerk's: the shared wide dial for module pages' controls with more than five labels (fxpage.s).
-    (0x40047a3c, 6, '9b2c003ba4d776237ad71bef15451bfea4447f2acca77ef6922dcea6ac52ca78', 'mw_wide_dial'))
+    (0x40047a3c, 6, '9b2c003ba4d776237ad71bef15451bfea4447f2acca77ef6922dcea6ac52ca78', 'mw_wide_dial'),
+    # Modwerk's: main's idle spin counts the ColdFire's idle time (status.s, status.c). Its last init call only:
+    # stock's spin stays, where ot_emu parks main again after a bench call.
+    (0x4001fc96, 6, '2edb8c17ea73bf5ecd097ec929f3bfd6f8a74c81b11080d0d74efd55bec6b416', 'mw_idle'))
 # Catalogue modules allowed to patch what this base owns, and why (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configuration',
              'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port'}
@@ -145,6 +148,22 @@ DSP_EDITS = {
                      '    replay=1; dl_selection_apply(queued.slot,given,queued.source); replay=0;')),
     # Modules register effects at run time (dsp.c), and admission charges their cycles.
     'manager.c': (('extern const struct dl_package dl_catalog[32];', 'extern struct dl_package dl_catalog[32];'),
+                  # A core's channel held by another job (status.c's meter reads, dsp.c's probes) is a wait, not a
+                  # refusal: the next tick tries again. Only a start the transfer layer refused outright refuses.
+                  ('        if(!waiting) { report(DL_SELECT_UNAVAILABLE); if(phase==8) { cancelling=1; phase=7; cursor=0; } }',
+                   '        if(!waiting && dl_job_status((unsigned)i/8)==-2) { report(DL_SELECT_UNAVAILABLE); if(phase==8) { cancelling=1; phase=7; cursor=0; } }'),
+                  ('        if(!waiting) { report(DL_SELECT_UNAVAILABLE); cancelling=1; }',
+                   '        if(!waiting && dl_job_status(c)==-2) { report(DL_SELECT_UNAVAILABLE); cancelling=1; }'),
+                  # status.c: the delay-buffer blocks each core's slots hold, FX1 and FX2 (core 0 bits 0-7, core 1 8-15).
+                  ('static struct dl_buffers buffers={0};',
+                   'static struct dl_buffers buffers={0};\n'
+                   'uint32_t dl_buffers_in_use(void) {\n'
+                   '    uint32_t m=0;\n'
+                   '    for(unsigned i=0;i<16;++i) {\n'
+                   '        if(buffers.live[i]!=DL_BUF_NONE) m|=1u<<(buffers.live[i]+((i&7)<4 ? 8u : 0u)+(i>=8 ? 4u : 0u));\n'
+                   '    }\n'
+                   '    return m;\n'
+                   '}'),
                   ('extern const struct code dl_codes[2][32];', 'extern struct code dl_codes[2][32];'),
                   ('dl_allocator_init(&allocator,dl_catalog,0,0,0,0);',
                    'dl_allocator_init(&allocator,dl_catalog,0,0,MODWERK_DSP_ALLOWANCE,MODWERK_DSP_ALLOWANCE);'),
@@ -452,7 +471,7 @@ def main():
     parser.add_argument('--dsp-loader', action='store_true',
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
-                        help='with --dsp-loader, calibration only: core 0\'s receiver spends this many more cycles (1-4095) every frame.')
+                        help='with --dsp-loader, calibration only: core 0\'s receiver spends this many more cycles (2-4094, even) every frame; negative, core 1\'s.')
     args = parser.parse_args()
     os.environ['ELEKLOADER_CROSS'] = args.cross
     upstream = args.upstream.resolve()
@@ -542,7 +561,7 @@ def main():
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
-        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s'):
+        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s'):
             shutil.copyfile(HERE / name, source / name)
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
@@ -629,7 +648,7 @@ modwerk_retained_end:
                   license='GPL-3.0-or-later',
                   description='Private core-only Elekloader base with logger/startup, a USB vendor interface and a runtime module loader (hooks and stock-code sites); NOT a flash candidate.')
     recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s'] + (
-        ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
+        ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s', 'status.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
@@ -674,6 +693,11 @@ modwerk_retained_end:
     if args.dsp_loader:  # the DSP manager's UI work (its own hook was the UI tick, 0x4005221e) and its ColdFire hooks
         recipe['subscribe'].append(dict(event='ev_tick', fn='modwerk_dsp_tick', order=92))  # dsp.c's test picks
         recipe['subscribe'].append(dict(event='ev_tick', fn='dl_ui', order=93))
+        # The status modal (status.c): CUE + PROJ before stock and the modules see it, drawn under the dev capture.
+        recipe['subscribe'] += [dict(event='ev_key', fn='modwerk_status_key', order=89),
+                                dict(event='ev_enc', fn='modwerk_status_enc', order=89),
+                                dict(event='ev_tick', fn='modwerk_status_tick', order=94),
+                                dict(event='ev_draw', fn='modwerk_status_draw', order=94)]
         for addr, n, guard, label in DYNLOAD_HOOKS:
             stock = image[addr - device.main_load:addr - device.main_load + n]
             if sha(stock) != guard:

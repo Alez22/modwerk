@@ -52,9 +52,18 @@ PROBES = {
 }
 
 
-def receiver_source(text, null, table_words, probe=None, burn=0):
-    """The receiver with its table's size and stock's null stub (dry ids) filled in; `burn` (calibration
-    builds) spends that many more cycles every frame, so the load meter's idle count falls by a known amount."""
+CORE1_WAIT = (0x57, (0x0cd341, 0x000000))  # payload B: brclr #1,y:<<$ffffd3,* (core 1 waits for core 0)
+CORE1_METER = ('        move    b1,x0\n', '        move    x:>$2840,x0\n        clr     a\n        move    a1,x:>$2840\n')
+
+
+def receiver_source(text, null, table_words, probe=None, burn=0, tag='A'):
+    """The receiver with its table's size and stock's null stub (dry ids) filled in, its idle count
+    core 1's counted wait on payload B; `burn` (calibration builds) spends that many more cycles every
+    frame, so the load meter's idle count falls by a known amount."""
+    if tag == 'B':
+        if text.count(CORE1_METER[0]) != 1:
+            raise ValueError('The DSP receiver changed; review core 1\'s idle count.')
+        text = text.replace(*CORE1_METER)
     if probe:
         old, new = PROBES[probe]
         if text.count(old) != 1:
@@ -182,12 +191,12 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
             raise ValueError('Payload %s: the frame head is not the stock instruction the receiver replays.' % tag)
         # The receiver's size does not depend on its table's: every operand it moves is a long one.
         path = Path(work) / ('receiver-%s.asm' % tag)
-        # Core 0 only: with 2,000 more cycles a frame on both cores the unit hung at its logo (10 October 2026).
-        burned = burn if tag == 'A' else 0
-        path.write_text(receiver_source(RECEIVER.read_text(), null, 0, probe, burned))
+        # One core at a time: with 2,000 more cycles a frame on both cores the unit hung at its logo (10 October 2026).
+        burned = abs(burn) if (tag == 'B') == (burn < 0) else 0  # a negative burn is core 1's
+        path.write_text(receiver_source(RECEIVER.read_text(), null, 0, probe, burned, tag))
         size = len(assemble(str(path))[0])
         table = hi - origin - size
-        path.write_text(receiver_source(RECEIVER.read_text(), null, table, probe, burned))
+        path.write_text(receiver_source(RECEIVER.read_text(), null, table, probe, burned, tag))
         code, labels, relocations = assemble(str(path))
         # The least arena that still runs every stock effect on its own: the largest, DARK REV.
         if len(code) != size or labels['dltable'] != size or table < SAVED + max(len(s['words']) for s in stock.values()):
@@ -212,6 +221,12 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
         first = at(0, FRAME[tag]) - device.main_load
         sites.append(dict(addr=hex(at(0, FRAME[tag])), stock=image[first:first + 6].hex(), op='bytes', kind='data',
                           new=b''.join(w.to_bytes(3, 'little') for w in (0x0bf080, frame)).hex()))
+        if tag == 'B':  # core 1's wait for core 0, counted (c1wait)
+            if [read(0, CORE1_WAIT[0] + k) for k in range(2)] != list(CORE1_WAIT[1]):
+                raise ValueError('Payload B: core 1 no longer waits for core 0 at P:$57.')
+            first = at(0, CORE1_WAIT[0]) - device.main_load
+            sites.append(dict(addr=hex(at(0, CORE1_WAIT[0])), stock=image[first:first + 6].hex(), op='bytes', kind='data',
+                              new=b''.join(w.to_bytes(3, 'little') for w in (0x0bf080, origin + labels['c1wait'])).hex()))
         for fx in sorted(stock):
             for table_at, value in ((INIT, null[0]), (PROC, null[1])):
                 first = at(1, table_at + fx) - device.main_load

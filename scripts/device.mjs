@@ -16,7 +16,8 @@
 //   npm run device -- mem 0x80000ec4 16             # RAM, read-only (development bases)
 //   npm run device -- state                         # stopped / playing, recording
 //   npm run device -- loader                        # the DSP loader's counters (--dsp-loader bases)
-//   npm run device -- report                        # its full report (dsp.c modwerk_dsp_report, version 10: 66 words; miss0-2 the first refused packet (dsp_receiver.asm))
+//   npm run device -- report                        # its full report (dsp.c modwerk_dsp_report, version 11: 78 words; miss0-2 the first refused packet (dsp_receiver.asm))
+//   npm run device -- stats                         # CPU and DSP load, DSP arena, delay buffers, module pool (status.c; the modal is CUE + PROJ)
 //   npm run device -- probe 0|1                     # one no-op loader packet to a DSP core
 //   npm run device -- meter 0|1                     # the DSP load meter's last 1024-frame window (core 0's idle iterations)
 //   npm run device -- missing                       # the modules the project names that are not installed (MISSING request)
@@ -46,10 +47,10 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   scale: { type: 'string', default: '4' },
 } })
 const seconds = Number(values.seconds)
-if (!['status', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
-  (['status', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
+if (!['status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
+  (['status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
   !Number.isInteger(seconds) || seconds < 1 || seconds > 3600) {
-  console.error('Usage: device.mjs status | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
+  console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
   process.exit(2)
 }
 
@@ -211,11 +212,24 @@ try {
       'words0', 'words1', 'earlyVisits', 'parked', 'reinit', 'missing', 'used', 'dry',
       'frameState', 'frameBusy', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs',
       'edmaErrors', 'edmaEsSeen', 'missCore', 'missBits', 'missCheck', 'miss0', 'miss1', 'miss2', 'pin7', 'straddles', 'core1Sent',
-      'meterCore', 'meterBits', 'meterSerial', 'idleLeast', 'idleMost', 'idleSum', 'missed', 'mapGeneration', 'mapRead', 'mapWritten', 'setGeneration', 'setModules', 'setResult']
+      'meterCore', 'meterBits', 'meterSerial', 'idleLeast', 'idleMost', 'idleSum', 'missed', 'mapGeneration', 'mapRead', 'mapWritten', 'setGeneration', 'setModules', 'setResult',
+      'cpu', 'dsp0Mean', 'dsp0Peak', 'dsp1Mean', 'dsp1Peak', 'buffers', 'poolUsed', 'modules', 'idleWrap', 'arenas', 'idleSum0', 'idleSum1']
     const bytes = await devIn(11, 0, 4 * names.length), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * names.length)
-    const hex = new Set(['hostFlags', 'manager', 'used', 'dry', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs', 'edmaEsSeen', 'missCheck', 'miss0', 'miss1', 'miss2'])
+    const hex = new Set(['buffers', 'arenas', 'hostFlags', 'manager', 'used', 'dry', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs', 'edmaEsSeen', 'missCheck', 'miss0', 'miss1', 'miss2'])
     console.log(Object.fromEntries(names.map((name, i) => [name, ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? view.getInt32(4 * i)
       : hex.has(name) ? '0x' + view.getUint32(4 * i).toString(16) : view.getUint32(4 * i)])))
+    process.exit(0)
+  }
+  if (command === 'stats') { // status.c's tail of the report: per mille, block masks, bytes
+    const bytes = await devIn(11, 0, 4 * 78), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * 78), w = i => view.getUint32(4 * i)
+    if (w(0) < 11) throw new Error('This base has no status (report version ' + w(0) + ').')
+    const pc = permille => Math.round(permille / 10) + '%', blocks = mask => [0, 1, 2, 3].filter(b => mask >> b & 1).length + '/4'
+    const [buf, arena] = [w(71), w(75)]
+    console.log(`CPU ${pc(w(66))}\nDSP T1-4 ${pc(w(69))} (peak ${pc(w(70))})  T5-8 ${pc(w(67))} (peak ${pc(w(68))})\n` +
+      `arena T1-4 ${w(27)}/${arena >>> 16} words  T5-8 ${w(26)}/${arena & 0xffff} words\n` +
+      `buffers FX1 T1-4 ${blocks(buf >> 8)} T5-8 ${blocks(buf)}  FX2 T1-4 ${blocks(buf >> 12)} T5-8 ${blocks(buf >> 4)}\n` +
+      `modules ${w(73)}, pool ${Math.round(w(72) / 1024)} KiB of 256\n` +
+      `idle passes a frame (last window): core 0 ${(w(76) / 1024).toFixed(1)}, core 1 ${(w(77) / 1024).toFixed(1)}`)
     process.exit(0)
   }
   if (command === 'missing') { // MISSING (ep0.c, dsp.c): "MWM", a count, then 24 bytes a handle

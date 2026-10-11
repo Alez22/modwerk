@@ -35,7 +35,7 @@
 #include "runtime.h"
 uint32_t modwerk_dsp_used(void);
 int modwerk_dsp_probe(unsigned core);
-int modwerk_dsp_meter_read(unsigned core);
+int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words);
 extern volatile uint32_t modwerk_dsp_missing;
 #endif
 
@@ -115,7 +115,7 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         return 1;
     }
     if (s[1] == 13 && want == 1 && s[2] <= 1u && !s[3]) {
-        out[0] = (uint8_t)modwerk_dsp_meter_read(s[2]);
+        out[0] = (uint8_t)modwerk_dsp_meter_read(s[2], 0, 5);
         *reply = out;
         return 1;
     }

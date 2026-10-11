@@ -132,6 +132,11 @@ Static E-Verb and dynamic E-Verb share effect id 27, so installing E-Verb
 started an upload at once on a project that already used it. Test the loader
 on a blank project first.
 
+**dsp_asm writes a backward `brclr` target absolute.** The chip reads that word as a displacement (stock's
+self-wait at P:$57 is `0cd341 000000`); dsp_asm emitted `0cd341 001000` for a branch back to $1000. Loop
+with `do forever` and `brkcs` instead (core 1's counted wait), and keep labels from being parts of other
+labels (dsp_asm substitutes label text anywhere: `c1wait` inside `c1waited` stopped the build).
+
 **Don't burn DSP time with `rep`, and not on core 1 without measuring it.**
 A calibration build spending 2,000 more cycles a frame with `rep` on both cores
 hung the unit at its logo (`dsp3-B2`); the emulator ran it. The same amount in

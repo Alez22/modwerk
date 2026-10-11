@@ -138,7 +138,9 @@ if (mode === 'dumps') {
     await pick(0, 1, proofs.configuration.fx2.indexOf('PLATE REV')); await pick(4, 1, proofs.configuration.fx2.indexOf('DARK REV'))
     bench.socket.end(); process.exit(0)
   }
-  if (data.length > 32768) await settle(900) // a large package's commit would wait behind the project load's engine work
+  // Install once the project load has set the map (fxmap.c, battery RAM 0x100fe000), as a user would: handles follow
+  // the project, and a large package's commit does not wait behind the load's engine work.
+  for (let tries = 0; tries < 120 && await long(0x100fe000) !== 0x4d574658; tries++) await settle(10)
   await keep(data); console.log('module installed')
   await settle(60) // the manager handles the project's own effects in its first ticks
   // missing: what the project named is restored; restore: install only (old_projects.py checks the result).
