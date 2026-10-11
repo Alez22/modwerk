@@ -145,6 +145,16 @@ static int holds(const struct runtime_module *m, int patched)
     }
     return 1;
 }
+/* The live modules whose stock-code sites still hold their patches (a self-test's configuration check). */
+unsigned modwerk_runtime_intact(void)
+{
+    unsigned n = 0;
+    uint32_t lock = modwerk_machine_lock(), mask = modwerk_machine_mask();
+    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) n += live[i] && holds(live[i], 1);
+    modwerk_machine_unmask(mask);
+    modwerk_machine_unlock(lock);
+    return n;
+}
 static void put(const struct runtime_module *m, int patched)
 {
     for (uint32_t i = 0; m && i < m->sites; ++i) {

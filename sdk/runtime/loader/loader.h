@@ -60,6 +60,7 @@ extern struct modwerk_runtime_api modwerk_runtime_api;
  * still running old code stays valid. */
 const struct runtime_module *modwerk_runtime_module(unsigned position);
 unsigned modwerk_runtime_active(void);               /* modules live */
+unsigned modwerk_runtime_intact(void);               /* of them, those whose stock-code sites hold their patches */
 uint32_t modwerk_runtime_free(uint32_t *largest);    /* pool bytes free, and the largest free run */
 enum runtime_refusal modwerk_runtime_refusal(void);
 extern volatile uint32_t modwerk_runtime_ticks; /* advanced by the glue's tick, for diagnostics */

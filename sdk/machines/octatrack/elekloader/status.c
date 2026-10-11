@@ -10,6 +10,8 @@
  * frame is 72,520 cycles. */
 #include <stdint.h>
 #include "loader.h"
+#include "selftest.h"
+void modwerk_status_close_menu(void); /* below, with the menu rows */
 
 #define CUE 0x2a
 #define PROJ 0x1c
@@ -47,11 +49,15 @@ static uint32_t busy(unsigned core, uint32_t idle)
 }
 
 static uint32_t last_frames, last_idle, last_count, ticks;
+volatile uint32_t modwerk_status_reads; /* each core's window read back, counted (dsp.c's self-test waits for fresh ones) */
+volatile uint32_t modwerk_status_fast;  /* set by the self-test: the least idle count alone (the peak), 24 bits a window */
 static int reading = -1, read_last = 1; /* the core whose window (least, most, sum) is being read back */
+static unsigned read_words = 3u;        /* how many of them */
 static unsigned waited;
 static uint32_t cpu_recent[8];
 void modwerk_status_tick(void)
 {
+    modwerk_status_close_menu();
     if (++ticks % 30u) return; /* twice a second */
     uint32_t count = DTCN3, frames = dl_frames, idle = modwerk_idle_counts;
     uint32_t counts = count - last_count, df = frames - last_frames, di = idle - last_idle;
@@ -61,14 +67,17 @@ void modwerk_status_tick(void)
     modwerk_status[CPU] = per && ticks > 30u && di / per < 1000u ? 1000u - di / per : 0;
     cpu_recent[(ticks / 30u) % 8u] = modwerk_status[CPU]; /* the page's CPU peak: the last four seconds */
     if (reading >= 0) { /* least, most and sum of 1,024 frames, read 24 bits a tick */
-        if (modwerk_dsp_meter_core == reading && modwerk_dsp_meter_bits >= 72u) {
-            modwerk_status[reading ? DSP1_MEAN : DSP0_MEAN] = busy((unsigned)reading, modwerk_dsp_meter[3] >> 10);
-            modwerk_status[reading ? SUM1 : SUM0] = modwerk_dsp_meter[3];
+        if (modwerk_dsp_meter_core == reading && modwerk_dsp_meter_bits >= (read_words == 1u ? 24u : 72u)) {
+            if (read_words == 3u) {
+                modwerk_status[reading ? DSP1_MEAN : DSP0_MEAN] = busy((unsigned)reading, modwerk_dsp_meter[3] >> 10);
+                modwerk_status[reading ? SUM1 : SUM0] = modwerk_dsp_meter[3];
+            }
             modwerk_status[reading ? DSP1_PEAK : DSP0_PEAK] = busy((unsigned)reading, modwerk_dsp_meter[1]);
+            modwerk_status_reads = modwerk_status_reads + 1;
             reading = -1;
         } else if (++waited > 6u) reading = -1; /* the manager took the core: start again */
     }
-    if (reading < 0 && modwerk_dsp_meter_read((unsigned)(read_last ^ 1), 1, 3))
+    if (reading < 0 && modwerk_dsp_meter_read((unsigned)(read_last ^ 1), 1, read_words = modwerk_status_fast ? 1u : 3u))
         reading = read_last ^= 1, waited = 0;
     uint32_t largest;
     modwerk_status[BUFFERS] = dl_buffers_in_use();
@@ -80,15 +89,49 @@ void modwerk_status_tick(void)
 /* The dialogs: while one shows it takes every key and encoder, so nothing changes under it; NO closes it and the
  * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere. SYSTEM > MODWERK (the row
  * build_core.py adds) first explains that shortcut: YES goes on to the status, NO back to the menu. */
-enum { CLOSED, HINT, SHOWN };
+enum { CLOSED, HINT, SHOWN, TEST };
 static int open, taken = -1; /* which shows; a key press the handler took, whose release it takes too (-1: none; TRIG 1 is 0) */
 #define YES 0x31
+/* Our rows close PROJ's menu on the next tick, as its NO does (stock's FUN_40064bc0, Octabam's MAINMENU.md; not from
+ * the row's own dispatch): a menu left open under the dialog kept its input layer, and YES in an FX chooser then
+ * reached our row again (owner, 11 October 2026). */
+#ifdef MODWERK_HOST
+void modwerk_test_close_menu(void);
+#define CLOSE_MENU modwerk_test_close_menu
+#else
+#define CLOSE_MENU ((void (*)(void))0x40064bc0u)
+#endif
+static int close_menu;
+/* PROJ's menu is open: its input layer 0x400cbf2c is in stock's list at 0x460d165c (Octabam's MAINMENU.md 6c). A YES
+ * in an FX chooser reached our rows' actions with the menu closed (11 October 2026): they act only when it is open. */
+#ifdef MODWERK_HOST
+int modwerk_test_menu_open;
+static int menu_open(void) { return modwerk_test_menu_open; }
+#else
+static int menu_open(void)
+{
+    uint32_t at = *(volatile uint32_t *)0x460d165cu;
+    for (unsigned n = 0; at && n < 16u; ++n, at = *(volatile uint32_t *)(uintptr_t)at) if (at == 0x400cbf2cu) return 1;
+    return 0;
+}
+#endif
+void modwerk_status_close_menu(void) { if (close_menu) close_menu = 0, CLOSE_MENU(); }
 char modwerk_status_label[] = "MODWERK"; /* the SYSTEM menu's row */
-void modwerk_status_menu(int unused) { (void)unused; open = HINT; }
+void modwerk_status_menu(int unused) { (void)unused; if (menu_open()) open = HINT, close_menu = 1; }
+/* SYSTEM > MODWERK TEST (dsp.c's self-test): its page shows at once, the test starting if it can. */
+char modwerk_test_label[] = "MODWERK TEST";
+static int test_started;
+void modwerk_test_menu(int unused)
+{
+    (void)unused;
+    if (!menu_open()) return;
+    open = TEST, close_menu = 1, test_started = modwerk_selftest_start();
+}
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
     if (code == CUE) cue = pressed;
+    if (pressed && open == TEST && code == NO) { modwerk_selftest_abort(); open = CLOSED; taken = code; return 1; }
     if (pressed && ((code == PROJ && cue) || (open && (code == NO || (code == YES && open == HINT))))) {
         open = code == NO || (code == PROJ && open == SHOWN) ? CLOSED : SHOWN;
         taken = code;
@@ -178,8 +221,58 @@ static void explain(unsigned char *frame)
     button(frame, X0 + 14u, Y1 - 12u, "YES");
     button(frame, X1 - 30u, Y1 - 12u, "NO");
 }
+/* The self-test's page: a row per check (what it found, and OK, FAIL or ... at the right), the load bars of the
+ * together check under it, then the verdict and NO. */
+static void right(unsigned top, const char *t) { label((unsigned)(X1 - 4 - TEXT_WIDTH(FONT, -1, t)), top, t); }
+static void check(unsigned top, const char *name, const char *found, const char *mark)
+{
+    label(X0 + 4u, top, name);
+    if (found) label(X0 + 52u, top, found);
+    right(top, mark);
+}
+static char *fraction(char *s, uint32_t a, uint32_t b) { s = number(s, a); *s++ = '/'; s = number(s, b); *s = 0; return s; }
+static void test_page(unsigned char *frame)
+{
+    const volatile struct selftest *t = &modwerk_selftest;
+    dialog(frame, "MODWERK TEST");
+    if (!test_started && t->state != SELFTEST_RUNNING) {
+        label(X0 + 6u, Y0 + 17u, "STOP PLAYBACK FIRST,");
+        label(X0 + 6u, Y0 + 25u, "THEN OPEN IT AGAIN.");
+        button(frame, X1 - 30u, Y1 - 12u, "NO");
+        return;
+    }
+    int running = t->state == SELFTEST_RUNNING, none = !t->dsp;
+    char modules[12], ran[12];
+    fraction(modules, t->intact, t->modules), fraction(ran, t->ran, t->dsp);
+    check(Y0 + 13u, "MODULES", t->modules ? modules : "NONE", t->failed & SELFTEST_BROKEN ? "FAIL" : "OK");
+    check(Y0 + 20u, "TOGETHER", none ? 0 : ran, none ? "-" : running && t->phase == SELFTEST_TOGETHER ? "..." :
+          t->failed & (SELFTEST_PEAK | SELFTEST_CPU | SELFTEST_STOPPED | SELFTEST_NOT_LOADED) ? "FAIL" : "OK");
+    check(Y0 + 27u, "STRESS", 0, none ? "-" : running && t->phase <= SELFTEST_TOGETHER ? "" : running && t->phase == SELFTEST_STRESS ? "..." :
+          t->failed & (SELFTEST_REFUSED | SELFTEST_STOPPED) ? "FAIL" : "OK");
+    static const char *const names[3] = {"CPU", "T1-4", "T5-8"};
+    const uint32_t load[3] = {t->cpu, t->peak[0], t->peak[1]};
+    for (unsigned i = 0; i < 3u; ++i) {
+        unsigned y = Y0 + 34u + 6u * i;
+        label(X0 + 4u, y - 1u, names[i]);
+        bar(frame, X0 + 30u, y, 52, 4, load[i], 900u); /* the tick: the 90 % limit */
+        percent(X0 + 86u, y - 1u, load[i]);
+    }
+    if (running) { /* progress, and how to stop it */
+        bar(frame, X0 + 4u, Y1 - 8u, 64, 5, share(t->done, t->total), 0);
+        button(frame, X1 - 39u, Y1 - 10u, "NO STOPS");
+        return;
+    }
+    const char *verdict = t->state == SELFTEST_PASSED ? "ALL PASSED" :
+                          t->failed & SELFTEST_ABORTED ? "STOPPED" : t->failed & SELFTEST_BROKEN ? "MODULE BROKEN" :
+                          t->failed & SELFTEST_NOT_LOADED ? "NOT ALL LOADED" : t->failed & SELFTEST_STOPPED ? "DSP STOPPED" :
+                          t->failed & SELFTEST_PEAK ? "DSP OVER 90%" : t->failed & SELFTEST_CPU ? "CPU OVER 90%" :
+                          t->failed & SELFTEST_REFUSED ? "REFUSED" : t->failed & SELFTEST_COUNTED ? "LOADER ERRORS" : "FAILED";
+    label(X0 + 4u, Y1 - 8u, verdict);
+    button(frame, X1 - 24u, Y1 - 10u, "NO");
+}
 void modwerk_status_draw(unsigned char *frame)
 {
+    if (open == TEST) { test_page(frame); return; }
     if (open == HINT) { explain(frame); return; }
     if (open != SHOWN) return;
     dialog(frame, "MODWERK STATUS");

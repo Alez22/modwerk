@@ -14,6 +14,11 @@ const uint16_t modwerk_dsp_arena[2];
 int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words) { (void)core, (void)first, (void)words; return 0; }
 uint32_t dl_buffers_in_use(void) { return 0; }
 unsigned modwerk_runtime_active(void) { return 0; }
+volatile struct selftest modwerk_selftest;
+static int selftest_starts, selftest_aborts, menu_closes;
+void modwerk_test_close_menu(void) { ++menu_closes; }
+int modwerk_selftest_start(void) { ++selftest_starts; return 1; }
+void modwerk_selftest_abort(void) { ++selftest_aborts; }
 uint32_t modwerk_runtime_free(uint32_t *largest) { if (largest) *largest = 0; return 0; }
 int main(void)
 {
@@ -24,6 +29,16 @@ int main(void)
     CHECK(modwerk_status_key(0, 1) && modwerk_status_key(0, 0));       /* open: keys stay with the dialog */
     CHECK(modwerk_status_key(NO, 1) && modwerk_status_key(NO, 0));     /* NO closes, its release taken */
     CHECK(!modwerk_status_key(0, 1) && !modwerk_status_key(0, 0));     /* closed again: TRIG 1 reaches stock */
+    extern int modwerk_test_menu_open;
+    modwerk_test_menu(0);                                              /* reached with PROJ's menu closed (a chooser's YES) */
+    CHECK(!selftest_starts && !modwerk_status_key(0, 1) && !modwerk_status_key(0, 0)); /* nothing happens */
+    modwerk_test_menu_open = 1;
+    modwerk_test_menu(0);                                              /* SYSTEM > MODWERK TEST */
+    CHECK(!menu_closes); modwerk_status_close_menu(); modwerk_status_close_menu();
+    CHECK(menu_closes == 1);                                           /* PROJ's menu closed once, after the row's dispatch */
+    CHECK(selftest_starts == 1 && modwerk_status_key(YES, 1) && modwerk_status_key(YES, 0)); /* started; keys stay with the page */
+    CHECK(modwerk_status_key(NO, 1) && selftest_aborts == 1 && modwerk_status_key(NO, 0));  /* NO aborts and closes */
+    CHECK(!modwerk_status_key(0, 1) && !modwerk_status_key(0, 0));     /* closed: TRIG 1 reaches stock */
     if (failures) return 1;
     puts("status keys: ok");
     return 0;

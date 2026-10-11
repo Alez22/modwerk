@@ -26,6 +26,9 @@
  *          composed 128x64 frame (ev_draw: 8 bytes a column, bit 7 = row 0).
  *
  * Replies are never a whole number of 64-byte packets (vendor.h). */
+#ifdef MODWERK_DSP_LOADER
+#include "selftest.h"
+#endif
 #include "boot.h"
 #include "usb_base.h"
 #include "loader.h"
@@ -101,6 +104,15 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 1;
     }
+#ifdef MODWERK_DSP_LOADER
+    if (s[1] == 21 && s[2] <= 1u && !s[3]) { /* SELFTEST: 1 starts dsp.c's self-test, 0 only reads; the record either way */
+        if (want != sizeof modwerk_selftest) return 0;
+        if (s[2]) (void)modwerk_selftest_start();
+        for (unsigned i = 0; i < sizeof modwerk_selftest; ++i) out[i] = ((const volatile uint8_t *)&modwerk_selftest)[i];
+        *reply = out;
+        return sizeof modwerk_selftest;
+    }
+#endif
     if (s[1] == 15 && want == 1) {
         mem_high = s[2] | (uint32_t)s[3] << 8;
         out[0] = 1;

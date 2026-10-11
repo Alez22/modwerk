@@ -176,7 +176,14 @@ DSP_EDITS = {
                    'int dl_publication_idle(void) { return phase==0; }\n'
                    'void dl_residency_nudge(void) { observed_valid=0; for(unsigned i=0;i<16;++i) last[i]=255; }\n'
                    '/* Modwerk diagnostics (dsp.c\'s report): phase | cursor << 8 | waiting << 16 | result << 24 */\n'
-                   'uint32_t dl_manager_state(void) { return phase|cursor<<8|waiting<<16|(uint32_t)(result&0xff)<<24; }'),
+                   'uint32_t dl_manager_state(void) { return phase|cursor<<8|waiting<<16|(uint32_t)(result&0xff)<<24; }\n'
+                   '#ifndef DL_NATIVE_TEST\n/* Modwerk\'s self-test (dsp.c): a slot on core c running id p runs bound code. */\n'
+                   'int dl_bound(unsigned c,unsigned p) { return c<2 && p<32 && slot_bound(c,p); }\n#endif'),
+                  # dsp.c's self-test places effects by the live array alone: what it holds there is what a parked
+                  # slot waits for, not the Part's byte (else the slot is let go to NONE and never loads).
+                  ('static unsigned intended(unsigned i) {\n',
+                   'volatile uint8_t dl_intended_override[16]={255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};\n'
+                   'static unsigned intended(unsigned i) {\n    if(dl_intended_override[i]!=255) return dl_intended_override[i];\n'),
                   # A pick made while the manager runs its own transaction waits its turn instead of being refused.
                   ('static void advance(void) {\n    if(!phase) return;',
                    'static uint8_t queued_ids[16]={0};\nstatic uint32_t queued_token=0;\n'
@@ -600,7 +607,7 @@ def main():
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
-        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s'):
+        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'selftest.h'):
             shutil.copyfile(HERE / name, source / name)
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
@@ -668,15 +675,16 @@ def main():
             ', '.join('{%#xu, %d, %s}' % (int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], 'big'), fx,
                                            ctext(names.get(key, key)[:15])) for fx, key in legacy), len(legacy))
         definitions += loader_dsp.catalog_c(dsp_layout, DSP_RESERVE) + chooser_lists
-        # status.c's row in SYSTEM (PROJ > SYSTEM > MODWERK): stock's six rows, copied, then its own. The descriptor
+        # status.c's rows in SYSTEM (PROJ > SYSTEM > MODWERK, MODWERK TEST): stock's six rows, copied, then its own. The descriptor
         # stays where it is (stock compares its address); its count and rows pointer change (Octabam's MAINMENU.md).
         rows_at = int.from_bytes(image[SYSTEM_MENU + 0x18 - device.main_load:][:4], 'big')
         if int.from_bytes(image[SYSTEM_MENU - device.main_load:][:4], 'big') != 6 or rows_at != SYSTEM_ROWS:
             raise ValueError('PROJ > SYSTEM is not the six stock rows; review the status row.')
         stock_rows = image[rows_at - device.main_load:][:6 * 24]
         definitions += ('struct menu_row { const void *label, *window, *action, *value, *child; uint32_t page; };\n'
-                        'extern char modwerk_status_label[];\nvoid modwerk_status_menu(int);\n'
-                        'const struct menu_row modwerk_system_rows[7] = {%s,\n    {modwerk_status_label, 0, (const void *)modwerk_status_menu, 0, 0, 0}};\n' % (
+                        'extern char modwerk_status_label[], modwerk_test_label[];\nvoid modwerk_status_menu(int), modwerk_test_menu(int);\n'
+                        'const struct menu_row modwerk_system_rows[8] = {%s,\n    {modwerk_status_label, 0, (const void *)modwerk_status_menu, 0, 0, 0},\n'
+                        '    {modwerk_test_label, 0, (const void *)modwerk_test_menu, 0, 0, 0}};\n' % (
                             ',\n'.join('    {' + ', '.join('(const void *)%#xu' % int.from_bytes(stock_rows[24 * r + 4 * f:][:4], 'big')
                                                           for f in range(5)) + ', %#xu}' % int.from_bytes(stock_rows[24 * r + 20:][:4], 'big')
                                          for r in range(6))))
@@ -758,7 +766,7 @@ modwerk_retained_end:
             recipe['sites'].append(dict(addr=hex(addr), stock=stock.hex(), op='jmp', target=label))
         recipe['sites'] += [] if args.dsp_probe == 'S' else dsp_sites
         recipe['sites'] += [dict(addr=hex(SYSTEM_MENU), stock=image[SYSTEM_MENU - device.main_load:][:4].hex(), op='bytes', kind='data',
-                                 new='00000007'),
+                                 new='00000008'),
                             dict(addr=hex(SYSTEM_MENU + 0x18), stock=image[SYSTEM_MENU + 0x18 - device.main_load:][:4].hex(), op='ptr',
                                  target='modwerk_system_rows')]
     spec = importlib.util.spec_from_file_location('modwerk_startup', artwork.parent/'build.py')
