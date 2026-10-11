@@ -43,6 +43,7 @@ def counters():
 
 
 def meters(n):
+    send('w3000')  # each core's meter window is read in turn: let a fresh one settle after a change
     rows = [list(map(int, m.groups())) for m in
             re.finditer(r'stats cpu (\d+) T1-4 (\d+)/(\d+) T5-8 (\d+)/(\d+)', send(' '.join(['w1500 stats'] * n)))]
     return dict(cpu=max(r[0] for r in rows), core1=sum(r[1] for r in rows) // len(rows), core1_peak=max(r[2] for r in rows),
@@ -59,6 +60,7 @@ def main():
     if 'stopped' not in send('state'): raise SystemExit('Stop the transport first.')
     before = counters()
     live = bytes.fromhex(send('mem:0x80000ec4:16').strip())  # what each track runs now: FX1 T1-8, then FX2
+    names = [line[4:16].strip() for line in send('ui').splitlines()[:8]], [line[17:].strip() for line in send('ui').splitlines()[:8]]
     try:
         for p in pkgs: send('try ' + p['path'])
         for p in pkgs:
@@ -72,7 +74,7 @@ def main():
                     log('  %s on T%d:' % (p['name'], track), entry['T%d' % track])
                 except RuntimeError as e:
                     failures.append(str(e)); entry['T%d' % track] = 'refused'
-                send('pick:T%d:FX%d:NONE' % (track, slot))
+                send('pick:T%d:FX%d:%s' % (track, slot, names[slot - 1][track - 1].replace(' ', '_')))
             result['modules'].append(entry)
         # All at once: one module a track, T1-T8, FX2 where it fits, while the pattern plays.
         placed = []
@@ -91,14 +93,16 @@ def main():
         result['together'] = together
         for core, peak in (('core1', together['core1_peak']), ('core0', together['core0_peak'])):
             if peak > PEAK_LIMIT: failures.append('%s peaked at %d per mille with everything at once' % (core, peak))
-        for track, slot, name in placed:
-            if name: send('pick:T%d:FX%d:NONE' % (track, slot))
     finally:
         send('STOP w300')
+        for i in range(16):  # put back what each track ran, by name (ui), before the modules go
+            track, slot = i % 8 + 1, i // 8 + 1
+            if bytes.fromhex(send('mem:0x80000ec4:16').strip())[i] != live[i]:
+                try: send('pick:T%d:FX%d:%s' % (track, slot, names[slot - 1][track - 1].replace(' ', '_')))
+                except RuntimeError as e: failures.append(str(e))
         for p in pkgs:
             try: send('remove ' + p['path'])
             except RuntimeError as e: failures.append(str(e))
-        # shortcut: effects are put back by name only where they were NONE before the run; restore others by hand
         changed = [i for i, v in enumerate(bytes.fromhex(send('mem:0x80000ec4:16').strip())) if v != live[i]]
         if changed: failures.append('tracks not back as before (FX index %s); restore them' % changed)
     after = counters()
