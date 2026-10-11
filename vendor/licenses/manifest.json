@@ -67,8 +67,8 @@
       "usedIn": [
         "vendor/elekloader/catalog/digichain-1.6.elemod",
         "vendor/elekloader/catalog/digichain-1.6-os1.54.elemod",
-        "vendor/elekloader/catalog/digieq-1.0b.elemod",
-        "vendor/elekloader/catalog/digieq-1.0b-os1.54.elemod",
+        "vendor/elekloader/catalog/digieq-1.0.2-experimental-os1.53.elemod",
+        "vendor/elekloader/catalog/digieq-1.0.2-experimental-os1.54.elemod",
         "vendor/elekloader/catalog/digimatrix-1.0b.elemod",
         "vendor/elekloader/catalog/digimatrix-1.0b-os1.54.elemod",
         "vendor/elekloader/catalog/digimono-0.13.3-experimental-os1.53.elemod",

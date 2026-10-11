@@ -324,7 +324,7 @@
       "schemaVersion": 3,
       "id": "digieq",
       "name": "Digi EQ",
-      "version": "1.0.1-experimental",
+      "version": "1.0.2-experimental",
       "machine": "digitakt",
       "category": "effects",
       "exclusive": false,
@@ -354,7 +354,7 @@
           "Use a build containing Digi EQ. Press FUNC + LFO twice to reach Master EQ (2/4). Start a pattern with audio already loaded.",
           "Turn band 1 level with A and its frequency with E to compare a small low-frequency cut with the initial 0 dB setting.",
           "Press A to edit the band’s Q and E to edit its type; press them again to return to level and frequency.",
-          "Return every band to 0 dB and use the original shelf/bell types for the starting response, then stop playback. A zero-level HP, LP, BP or notch still filters."
+          "Hold FUNC and LFO, then press PLAY (CLEAR) for the flat default response; stop playback. A zero-level HP, LP, BP or notch still filters until its type is reset."
         ]
       },
       "access": {
@@ -363,6 +363,7 @@
           "Press FUNC + LFO for the master pages; FUNC + LFO steps through Compressor (1/4), Master EQ (2/4), Internal Mixer (3/4) and External Mixer (4/4).",
           "Turn knobs A-D for the bands’ levels and E-H for their frequencies; bands 1-4 are the columns A/E, B/F, C/G and D/H.",
           "Press a knob to switch it to its band’s Q (A-D) or type (E-H); press it again to go back.",
+          "Hold FUNC and LFO, then press PLAY (CLEAR) to reset all four bands to their default gain, frequency, Q and type. Knob modes and the global override stay as they were.",
           "For one EQ on every pattern, turn on SETTINGS > GLOBAL FX/MIX > MASTER EQ."
         ],
         "screenshots": [
@@ -441,7 +442,7 @@
         ]
       },
       "resources": {
-        "memoryBytes": 9090,
+        "memoryBytes": 9146,
         "fastBytes": 0,
         "load": {
           "display": "Not measured in Modwerk yet",
@@ -451,15 +452,17 @@
       },
       "evidence": {
         "tier": "none",
-        "moduleVersion": "1.0.0-experimental",
-        "sourceSha256": null,
-        "reports": [],
+        "moduleVersion": "1.0.2-experimental",
+        "sourceSha256": "eeeb9242b68a5c0770403caee5feba821fe7960727215a701fe93426e60319af",
+        "reports": [
+          "evidence/clear-1.0.2.json"
+        ],
         "hardware": null,
         "verifiedBy": null
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "Modwerk’s elekloader builder linked and verified a build of Digi EQ 1.0b with core 2.1 for OS 1.53 and 1.54; nothing was flashed or tested on hardware, and the evidence tier is none. Documentation captures verify the listed UI pages on OS 1.53; audio, timing and hardware remain unqualified.",
+        "summary": "Native compilation, source-only package/materialization parity and builder verification pass on OS 1.53 and 1.54 with core 2.1, DIGICHAIN 1.6 and Digi Mono 0.13.3. Native panel regressions confirm all sixteen band parameters reset and other sound bytes remain unchanged. Hardware, audio, timing, complete memory bounds, persistence, physical reboot and stress remain unverified.",
         "documentation": {
           "tutorial": {
             "title": "Quick tutorial: shape the master mix",
@@ -467,7 +470,7 @@
               "Use a build containing Digi EQ. Press FUNC + LFO twice to reach Master EQ (2/4). Start a pattern with audio already loaded.",
               "Turn band 1 level with A and its frequency with E to compare a small low-frequency cut with the initial 0 dB setting.",
               "Press A to edit the band’s Q and E to edit its type; press them again to return to level and frequency.",
-              "Return every band to 0 dB and use the original shelf/bell types for the starting response, then stop playback. A zero-level HP, LP, BP or notch still filters."
+              "Hold FUNC and LFO, then press PLAY (CLEAR) for the flat default response; stop playback. A zero-level HP, LP, BP or notch still filters until its type is reset."
             ]
           },
           "screenshots": [
@@ -480,7 +483,7 @@
       "license": {
         "spdx": "MIT",
         "file": "LICENSE",
-        "declaration": "The author’s source, imported unchanged from github.com/gdeo607/digi1_mods at commit 35bacb3730d1 under its MIT licence. Stock firmware bytes in the upstream build manifest were replaced with length and SHA-256 guards."
+        "declaration": "MIT source imported from gdeo607/digi1_mods at 35bacb3730d108e4dc48a7bd6de4c99ae9b161e6, with Modwerk page-clear and display-alignment fixes. Stock firmware is represented only by addresses, lengths and SHA-256 guards."
       },
       "media": [
         {
@@ -503,8 +506,8 @@
           "capture": {
             "type": "emulator",
             "release": "1.53",
-            "moduleVersion": "1.0.1-experimental",
-            "imageSha256": "4542b2464429b97b77205ed7c793d39c94a5b3bce2116896411369f0e2a07e80",
+            "moduleVersion": "1.0.2-experimental",
+            "imageSha256": "d8717d1d10418c6833d8312ba266d96fa7e3ecb03c78c3a927f2e45caeb5b6c5",
             "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
           }
         },
@@ -519,8 +522,8 @@
           "capture": {
             "type": "emulator",
             "release": "1.53",
-            "moduleVersion": "1.0.1-experimental",
-            "imageSha256": "4542b2464429b97b77205ed7c793d39c94a5b3bce2116896411369f0e2a07e80",
+            "moduleVersion": "1.0.2-experimental",
+            "imageSha256": "d8717d1d10418c6833d8312ba266d96fa7e3ecb03c78c3a927f2e45caeb5b6c5",
             "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
           }
         }
@@ -551,6 +554,10 @@
           {
             "addr": "0x401846bc",
             "len": 4
+          },
+          {
+            "addr": "0x40184698",
+            "len": 4
           }
         ],
         "1.54": [
@@ -572,6 +579,10 @@
           },
           {
             "addr": "0x401849bc",
+            "len": 4
+          },
+          {
+            "addr": "0x40184998",
             "len": 4
           }
         ]
