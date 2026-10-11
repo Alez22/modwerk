@@ -74,6 +74,20 @@ auto-stop work this way (development base `54f2ce5c`).
 
 **Moving the cursor in an FX chooser does not pick; YES does.**
 
+**A script's YES can land somewhere else.**
+- *The MODWERK CONNECTED popup.* It shows when a host connects after a
+  quiet spell, and seemed to swallow a YES sent about 2.9 s after the
+  connection (one try, 11 October 2026). Wait 3.5 s after connecting before
+  sending YES or NO.
+- *A PROJ menu left open under a page.* If page keys open another window
+  while the PROJ menu is still open, the menu's input layer stays
+  registered. YES then reaches the menu's focused row, unseen: a pick on
+  the FX2 list opened SYSTEM > MODWERK's hint. The menu also keeps its
+  focus after closing (`0x400cbda8`).
+- *Check.* The input layers are a list at `0x460d165c` (`npm run device
+  -- mem`). With no menu open there are two: the base layer and the open
+  window's. To clear a stale menu, open PROJ, press LEFT, then NO.
+
 **Auto-stop never stops a recording, and never for a disconnect's
 rollback.** The controller answers `unsafe` while the unit plays (the
 backend's "not stopped") and the host retries.

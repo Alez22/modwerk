@@ -12,7 +12,7 @@
 //   npm run device -- key PLAY | FUNC+PLAY | 0x27   # development bases (build_core.py --dev)
 //   npm run device -- screen [--png FILE] [--scale 1-4]  # the display, in block characters or as a PNG (4x unless --scale)
 //   npm run device -- ui                            # tracks, effects and transport as text, read from RAM (MEM)
-//   npm run device -- do 'T5 FX2 FUNC+FX2 DOWN*4 YES w300 encC+3 ui'  # a sequence in one connection
+//   npm run device -- do 'T5 FX2 FUNC+FX2 DOWN*4 YES w300 encC+3 ui stats'  # a sequence in one connection
 //   npm run device -- mem 0x80000ec4 16             # RAM, read-only (development bases)
 //   npm run device -- state                         # stopped / playing, recording
 //   npm run device -- loader                        # the DSP loader's counters (--dsp-loader bases)
@@ -119,7 +119,14 @@ async function ui() {
     lines.push(`${t === track ? '>' : ' '}T${t + 1} ${(await name(view.getUint32(4 * live[t]))).padEnd(12)} ${await name(view.getUint32(132 + 4 * live[8 + t]))}`)
   console.log(lines.join('\n') + `\n${stopped ? 'stopped' : 'playing'}${recording ? ', recording' : ''}`)
 }
-/** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state. */
+/** status.c's tail of the report (version 11): word i of 78. */
+async function statusWords() {
+  const bytes = await devIn(11, 0, 4 * 78), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * 78), w = i => view.getUint32(4 * i)
+  if (w(0) < 11) throw new Error('This base has no status (report version ' + w(0) + ').')
+  return w
+}
+/** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
+ * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame). */
 async function run(sequence) {
   for (const step of sequence.trim().split(/\s+/)) {
     let m
@@ -129,6 +136,7 @@ async function run(sequence) {
     else if (step === 'ui') await ui()
     else if (step === 'screen') await screen()
     else if (step === 'state') { const [s, r] = await devIn(6, 0, 2); console.log(s ? 'stopped' : 'playing', r ? 'recording' : '') }
+    else if (step === 'stats') { const w = await statusWords(); console.log(`stats cpu ${w(66)} T1-4 ${w(69)}/${w(70)} T5-8 ${w(67)}/${w(68)} passes ${(w(76) / 1024).toFixed(1)} ${(w(77) / 1024).toFixed(1)}`) }
     else { const [, spec, times] = /^(.+?)(?:\*(\d+))?$/.exec(step); for (let i = 0; i < Number(times ?? 1); i++) await keys(spec) }
     await wait(60)
   }
@@ -221,9 +229,7 @@ try {
     process.exit(0)
   }
   if (command === 'stats') { // status.c's tail of the report: per mille, block masks, bytes
-    const bytes = await devIn(11, 0, 4 * 78), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * 78), w = i => view.getUint32(4 * i)
-    if (w(0) < 11) throw new Error('This base has no status (report version ' + w(0) + ').')
-    const pc = permille => Math.round(permille / 10) + '%', blocks = mask => [0, 1, 2, 3].filter(b => mask >> b & 1).length + '/4'
+    const w = await statusWords(), pc = permille => Math.round(permille / 10) + '%', blocks = mask => [0, 1, 2, 3].filter(b => mask >> b & 1).length + '/4'
     const [buf, arena] = [w(71), w(75)]
     console.log(`CPU ${pc(w(66))}\nDSP T1-4 ${pc(w(69))} (peak ${pc(w(70))})  T5-8 ${pc(w(67))} (peak ${pc(w(68))})\n` +
       `arena T1-4 ${w(27)}/${arena >>> 16} words  T5-8 ${w(26)}/${arena & 0xffff} words\n` +
