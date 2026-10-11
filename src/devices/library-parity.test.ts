@@ -74,7 +74,7 @@ describe('All machines library parity', () => {
     expect(html.slice(html.indexOf('class="discovery-tools"'), html.indexOf('id="machine-octatrack"'))).toContain('Build firmware')
     expect(html.slice(html.indexOf('id="machine-octatrack"'),html.indexOf('id="machine-digitakt"'))).not.toContain('Build firmware')
     expect(html).toContain('aria-label="Build firmware for Octatrack"')
-    expect(html).toContain('5 working')
+    expect(html).toContain('aria-label="5 members report this module working, across versions"')
     expect(html).not.toContain('4.5 (2)')
     expect(html).toContain(count('7', 'likes'))
     expect(html).toContain(count('12', 'downloads'))
@@ -153,13 +153,13 @@ describe('Digi library parity', () => {
     const digitakt = renderToStaticMarkup(createElement(DigiLibrary, {...digiProps, sort, statistics}))
     for (const html of [all, digitakt]) {
       expect(html.indexOf('View SOPHIE')).toBeLessThan(html.indexOf('View digihealth'))
-      for (const value of ['9 working', count('19', 'likes'), count('42', 'downloads'), '4 working', count('8', 'likes'), count('11', 'downloads')]) expect(html).toContain(value)
+      for (const value of ['aria-label="9 members report this module working, across versions"', count('19', 'likes'), count('42', 'downloads'), 'aria-label="4 members report this module working, across versions"', count('8', 'likes'), count('11', 'downloads')]) expect(html).toContain(value)
       expect(html).not.toContain('4.8 (5)')
       expect(html).not.toContain('counts are not available yet')
     }
     const digitone = renderToStaticMarkup(createElement(DigiLibrary, {...digiProps, device: {...DEVICES_BY_ID.digitone, id: 'digitone'}, statistics}))
     for (const html of [all.slice(all.indexOf('id="machine-digitone"')), digitone]) {
-      for (const value of ['2 working', count('3', 'likes'), count('7', 'downloads')]) expect(html).toContain(value)
+      for (const value of ['aria-label="2 members report this module working, across versions"', count('3', 'likes'), count('7', 'downloads')]) expect(html).toContain(value)
       expect(html).not.toContain(count('8', 'likes'))
       expect(html).not.toContain(count('11', 'downloads'))
     }
