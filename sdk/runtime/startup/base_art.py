@@ -67,14 +67,21 @@ def final_pixels(version):
 
 def header(version):
     art, base, dy, (mx, my), tiles, disc, frame, cells = layers(version)
-    tile = [sum(1 << (5 - x) for x in range(6) if (6 + x, 6 + y) in tiles) for y in range(6)]
     dx0, dy0 = min(x for x, _ in disc), min(y for _, y in disc)
     dw, dh = max(x for x, _ in disc) - dx0 + 1, max(y for _, y in disc) - dy0 + 1
     disc_rows = [sum(1 << (dw - 1 - x) for x in range(dw) if (dx0 + x, dy0 + y) in disc) for y in range(dh)]
 
-    def phase(x, y):  # clockwise from the top of the mark, 0-255
+    # Every pixel of the frame and the eight tiles is a particle that sets off at its own time (ms): the
+    # frame clockwise from the top over 300 ms, the tiles from the middle one round the ring, 45 ms apart.
+    def phase(x, y):
         return int(math.atan2(x - 16.5, 16.5 - y) % (2 * math.pi) / (2 * math.pi) * 256) & 255
-    ring = sorted(((mx + x, my + y, phase(x, y)) for x, y in frame), key=lambda p: p[2])
+    ring = ((1, 2, 3), (8, 0, 4), (7, 6, 5))
+    turns = sorted((ring[gy][gx], gx, gy) for gy in range(3) for gx in range(3) if (gx, gy) != (2, 2))
+    tile_delay = [150 + 45 * n for n in range(8)]
+    rank = {(gx, gy): n for n, (_, gx, gy) in enumerate(turns)}
+    dots = [(mx + x, my + y, phase(x, y) * 300 // 256) for x, y in frame]
+    dots += [(mx + x, my + y, tile_delay[rank[(x - 6) // 8, (y - 6) // 8]]) for x, y in tiles]
+    dots.sort(key=lambda d: d[2])
     wx, wy = art['wordmark']['x'], art['wordmark']['y'] + dy
     columns = [sum(1 << y for y in range(15) if art['wordmark']['rows'][y][x] == '#') for x in range(110)]
     ink = [p for c in cells for p in c[5]]
@@ -88,10 +95,11 @@ def header(version):
            '#define BOOT_DISC_X %d' % (mx + dx0), '#define BOOT_DISC_Y %d' % (my + dy0),
            '#define BOOT_DISC_W %d' % dw, '#define BOOT_DISC_H %d' % dh,
            '#define BOOT_WORD_X %d' % wx, '#define BOOT_WORD_Y %d' % wy,
-           '#define BOOT_RING %d' % len(ring), '#define BOOT_GLYPHS %d' % len(cells),
-           'static const uint8_t boot_tile[6] = {%s};' % ', '.join(map(str, tile)),
+           '#define BOOT_DOTS %d' % len(dots), '#define BOOT_GLYPHS %d' % len(cells),
            'static const uint8_t boot_disc[%d] = {%s};' % (dh, ', '.join(map(str, disc_rows))),
-           'static const uint8_t boot_ring[%d][3] = {%s};' % (len(ring), ', '.join('{%d, %d, %d}' % p for p in ring)),
+           'struct boot_dot { uint8_t x, y; uint16_t delay; };',
+           'static const struct boot_dot boot_dots[%d] = {%s};' % (len(dots), ', '.join('{%d, %d, %d}' % d for d in dots)),
+           'static const uint16_t boot_tile_delay[8] = {%s};  /* in the order the tiles land */' % ', '.join(map(str, tile_delay)),
            'static const uint16_t boot_word[110] = {%s};' % ', '.join(map(str, columns)),
            'struct boot_glyph { uint8_t item, x, y, w, h; uint16_t first, count; };',
            'static const struct boot_glyph boot_glyph[%d] = {%s};' % (len(cells), ', '.join(glyphs)),

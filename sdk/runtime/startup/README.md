@@ -81,13 +81,14 @@ LCD capture results and remaining checks.
 
 The Elekloader base replaces the stock logo loop with its own startup,
 [`boot_anim.c`](../../machines/octatrack/elekloader/boot_anim.c): **docking**. The
-mark's ninth dot is a module arriving. First the plan: a dashed frame and nine
-dotted slots, while the panel wakes around the screen. A placement head drops in and
-stamps the eight tiles, serpentine, each with a press and its track key (T1-T8), then
-leaves. The ninth slot, the socket at the corner, blinks, and a light far off at trig
-1 answers. The module runs along the trig row, turns up through the keys under the
-screen, enters it from below and docks. Its wave makes the frame solid, reveals
-MODWERK, **NEW** and the version, and rolls on across the whole panel. It takes 3.24 s and ends on the same frame each
+mark's ninth dot is a module arriving. First the mark flies in: every pixel of the
+frame and the tiles comes from far beyond the screen and lands, the frame clockwise,
+the tiles from the middle one round the ring, and the lamps catch the pixels as they
+pass over the panel. Each landing tile lights its track key (T1-T8). The empty corner,
+the socket, blinks, and a light far off at trig 1 answers. The module runs along the
+trig row, turns up through the keys under the screen, enters it from below and docks.
+Its wave reveals MODWERK, **NEW** and the version and rolls on across the whole
+panel. It takes 3.5 s and ends on the same frame each
 time (`base_art.final_pixels`), lowered three rows for room at the edges.
 
 Screen and lamps are one plane: the LCD sits in the panel (lamp positions from the

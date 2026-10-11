@@ -1,7 +1,7 @@
 {
  "kind": "modwerk-base-startup-emulator",
  "version": "0.3.1",
- "imageSha256": "481b2dd87fa3101df31d7fcd60ec489c69a17f098feb23e183c3eacda8e20e42",
+ "imageSha256": "ed743254b2830b9dda016238747b7e2503e3cdab79ff7af1278d16e5471d9464",
  "emulatorSha256": "2e388ae83925016f06785a4f62728c9e33ed5a1ea9be976c0be719f706e26e4b",
  "captureMethod": "--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 10 ms, read the panel UART with tx",
  "results": {
@@ -32,11 +32,11 @@
  },
  "hardware": "untested",
  "sourceSha256": {
-  "sdk/machines/octatrack/elekloader/boot_anim.c": "b2388d723c1f41ec8cf819873f5c08827448c2ffc13e2ed3331cc14f361b4484",
+  "sdk/machines/octatrack/elekloader/boot_anim.c": "5a563a4144ec167514fed8993d717ed4e9e0b630fefcae7465ce8ae7fd6f903e",
   "sdk/machines/octatrack/elekloader/boot_anim.s": "c1abdf728b67ee9a1b5509b197edc6592c17baf35200634311765686e4ab839d",
-  "sdk/runtime/startup/base_art.py": "5d77884fe6b78af186d127c129397332cccad22db78bf443c8b919564b2f276e",
+  "sdk/runtime/startup/base_art.py": "b2e0ccdd458c796be17944a2cadcfbff3ccbe62c0b914e8e90a486815ca40295",
   "sdk/runtime/startup/base.json": "af8f6d54fef99c1726519969ff7bb509860eafb1df260e5404e3d18389ac6ab0",
   "sdk/runtime/startup/artwork.json": "191f28c9870db93bccebb2c9f81723213f3f8f7e3a679ba286a16522d4ea7e6f",
-  "scripts/verify-startup-base.py": "fa94feca4aec90a82c3c9ff26070ff9c5dffb3655b0dbd645c87ad83884f1855"
+  "scripts/verify-startup-base.py": "76ed4d68ed42837ac62c71c525e0ad8c74a11894714fe46c43ba3210fda2697e"
  }
 }

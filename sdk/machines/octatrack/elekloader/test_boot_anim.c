@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Host check of boot_anim.c on a simulated clock (20 ms per composed frame), as an MKII and as an MKI:
  * it runs to its end and ends on exactly the authored frame (boot_expect.h, from base_art.final_pixels),
- * never writes outside the frame, drives one LED channel with levels 0-15 (track keys with the tiles,
- * the module's answer, the run, the wave) and leaves every lamp dark; on an MKII it sets channel A
+ * never writes outside the frame, drives one LED channel with levels 0-15 (the mark's pixels on their
+ * way in, track keys with the tiles, the module's answer, the run, the wave) and leaves every lamp dark; on an MKII it sets channel A
  * white first and calls the firmware's colour scheme as the boot did before the logo at the end, on an
  * MKI neither. test_recipe.py generates both headers. */
 #include <stdio.h>
@@ -19,7 +19,7 @@ int32_t host_lamps[134];
 const uint32_t host_white[3] = {0x0c, 0x30, 0x44};
 static unsigned char memory[1024 + 64];   /* the frame with 32 guard bytes either side */
 static unsigned char *const frame = memory + 32;
-static int levels[134], frames, odd_lit, out_of_range, tracks_lit, answer_lit, run_lit, wave_lit;
+static int levels[134], frames, odd_lit, out_of_range, incoming_lit, tracks_lit, answer_lit, run_lit, wave_lit;
 static int whites, wrong_palette, schemes, scheme_args[4], scheme_while_on;
 
 void host_clear(void *window, int a, int b) { (void)window; (void)a; (void)b; }
@@ -44,7 +44,8 @@ void host_led_level(int id, int level)
 {
     if (level < 0 || level > 15) out_of_range++;
     if (id & 1 && level) odd_lit++;
-    if (level && id >= 40 && id < 56 && now >= T_DROP && now < T_WAIT) tracks_lit++;
+    if (level && (id < 40 || id >= 56) && now < boot_tile_delay[0] + FLIGHT) incoming_lit++;
+    if (level && id >= 40 && id < 56 && now >= boot_tile_delay[0] + FLIGHT && now < T_WAIT) tracks_lit++;
     if (level && id == 0 && now >= T_WAIT && now < T_FLY0) answer_lit++;
     if (level >= 8 && now >= T_FLY0 && now < T_DOCK) run_lit++;
     if (level && now > T_WAVE + 400) wave_lit++;
@@ -64,7 +65,7 @@ void host_compose(void)
 
 static void run(uint32_t mkii)
 {
-    host_mkii = mkii, frames = odd_lit = out_of_range = tracks_lit = answer_lit = run_lit = wave_lit = 0;
+    host_mkii = mkii, frames = odd_lit = out_of_range = incoming_lit = tracks_lit = answer_lit = run_lit = wave_lit = 0;
     whites = wrong_palette = schemes = scheme_while_on = 0;
     int window;
     modwerk_boot_run(&window);
@@ -77,7 +78,7 @@ static void run(uint32_t mkii)
     }
     CHECK(memcmp(frame, expect, 1024) == 0);
     CHECK(out_of_range == 0 && odd_lit == 0);
-    CHECK(tracks_lit > 0 && answer_lit > 0 && run_lit > 0 && wave_lit > 0);
+    CHECK(incoming_lit > 0 && tracks_lit > 0 && answer_lit > 0 && run_lit > 0 && wave_lit > 0);
     for (int id = 0; id < 134; id++)
         CHECK(levels[id] == 0);
     if (mkii) {
