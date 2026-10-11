@@ -2136,6 +2136,54 @@ Export bounded diagnostic snapshots through the planned USB interface;
 collection must not block the audio path. Existing private-evidence and
 explicit trial-acceptance rules still apply.
 
+### Measured on the owner's MKII (11 October 2026)
+
+**Method.** `scripts/octatrack-measure.py` on S18:
+- The status meters count idle passes: core 0's main loop and core 1's counted wait, per 1024-frame window.
+- Busy = frame − passes × one pass. The frame is 72,520 cycles (16 samples); one pass is 20.0 cycles on core 0 and 14.48 on core 1.
+- Each effect runs in FX2 on T1 (core 1) and T5 (core 0) against NONE, pattern playing.
+- Three settings: as picked, every knob at its minimum, every knob at its maximum. The dearest of the three is shown.
+- Figures are chip cycles per sample (of 4,532). Peak frames run 40–100 above.
+
+**Stock's own work**, no effects: about 959 cycles on core 0 (it mixes) and 514 on core 1. Derived from the baseline less four FILTERs, with one pattern.
+
+**Stock effects** (core 1 / core 0):
+
+| Effect | Cost | Effect | Cost |
+|---|---|---|---|
+| DJ EQUALIZER | 342 / 330 | PLATE REV | 249 / 241 |
+| LO-FI | 311 / 301 | PHASER | 242 / 234 |
+| SPRING REV | 299 / 288 | EQUALIZER | 193 / 187 |
+| CHORUS | 295 / 285 | FLANGER | 147 / 142 |
+| FILTER | 285 / 276 | COMB FILTER | 128 / 124 |
+| DARK REV | 257 / 248 | COMPRESSOR | 102 / 99 |
+| SPATIALIZER | 80 / 78 | DELAY | ~0 (ColdFire) |
+
+**Modules** (core 1), against the cycles their packages claim:
+
+| Module | Measured | Claim (kind) | Ratio |
+|---|---|---|---|
+| E-Verb 0.1.0 | 663 | 382 (executed) | 1.74 |
+| Air Chorus 0.1.2 | 670 | 395 (executed) | 1.70 |
+| Mini Verb 0.2.0 | 665 | 411 (modeled) | 1.62 |
+| Euclid 0.1.4 | 227 | 143 (executed) | 1.59 |
+| TAPEHEAD 0.1.2 | 420 | 295 (modeled) | 1.42 |
+| Tape Echo 0.1.2 | ~0 (ColdFire) | 4 (modeled) | – |
+
+DJ EQUALIZER's 331 executed instructions (emulator) run as 342 cycles: stock's code runs at about one cycle per instruction. Ours runs at 1.4–1.7.
+
+**The ledger since S19 (owner's choice: a 90% frame ceiling)**, all in chip cycles:
+- **Allowances.** Core 0 3,120 and core 1 3,565, each 90% of the frame less stock's own work.
+- **Stock slots.** Each is charged the dearest stock effect, 342, so a stock pick is never refused.
+- **Modules.** A module carrying an emulator figure is charged 7/4 of it until it carries a hardware figure.
+- **Effect.** One ~665-cycle module fits on core 0 beside anything stock, two on core 1.
+
+**Checked.** Qualification v2 on S19 with all six modules refused the second heavy module on each core and peaked at 68% (core 1) and 57% (core 0).
+
+**Before the ledger,** units were mixed (instruction counts against a cycle allowance). It admitted three E-Verbs beside five dearest stock effects on core 0, about 4,657 cycles against 4,532.
+
+**Not yet measured:** heavier patterns (the stress project above) may raise stock's own work.
+
 ## End-user workflow (owner, 10 October 2026)
 
 The target for the browser flow: the site connects to the unit over WebUSB
