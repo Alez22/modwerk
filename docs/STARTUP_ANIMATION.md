@@ -117,6 +117,13 @@ It checks the exact final frame, writes only inside the frame, one LED channel, 
 beat on the lamps, all dark at the end, and the white and restore calls on an MKII
 only.
 
+Cost per frame, as executed instructions in the emulator (MKII, counted between
+hits of the frame's draw entry, against the stock loop's head): the startup runs a
+median of 223k instructions per frame (90th percentile 270k, one frame 811k), the
+stock logo loop 95k (90th percentile 299k, max 331k). Either is around a millisecond
+of CPU, so the panel link rather than the processor sets the frame rate. These are
+instruction counts, not cycles or hardware timing.
+
 Limits: emulator only; no unit has run it yet. Untested on hardware: the frame rate
 on the real panel link (the startup is time-based, so a slower link drops frames
 rather than stretching it), how the white looks on the panel, and the MKI's LCD
