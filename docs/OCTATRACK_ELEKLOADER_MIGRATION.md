@@ -518,7 +518,7 @@ the unit ran for more than three minutes without a crash.
 interface (`dev.c`, never in a base users install): KEY, PANEL (encoder
 turns and the crossfader as raw panel bytes), STATE (stopped, recording)
 and SCREEN (the last composed 128x64 frame), used by
-`npm run device -- key FUNC+PLAY | enc A+3 | fader 128 | state | screen`.
+`npm run device -- key FUNC+FX1 | enc A+3 | fader 128 | state | screen`.
 
 Development bases also stream MAIN and CUE to the computer as USB audio
 (owner: for development only, never in the base users install). They carry

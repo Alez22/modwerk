@@ -50,7 +50,8 @@ def mem(addr, n): return bytes.fromhex(''.join(send('mem:%#x:%d' % (addr, n)).sp
 def u32(addr): return int.from_bytes(mem(addr, 4), 'big')
 BANK, PART = 0x46c82456, 0x80000003  # the current bank's base; the current Part (docs/OCTATRACK_DRIVING.md)
 def part_fx(part, saved=False): return mem(u32(BANK) + (0x9504a if saved else 0x8ed80) + part * 6322, 16)
-def part_saved_equal(): part = mem(PART, 1)[0]; return mem(u32(BANK) + 0x8ed80 + part * 6322, 6322) == mem(u32(BANK) + 0x9504a + part * 6322, 6322)
+def part_copy(part, saved=False): return mem(u32(BANK) + (0x9504a if saved else 0x8ed80) + part * 6322, 6322)
+def part_saved_equal(): part = mem(PART, 1)[0]; return part_copy(part) == part_copy(part, saved=True)
 def frames(): return int(re.search(r'frames=(\d+)', send('report')).group(1))
 
 
@@ -91,6 +92,7 @@ def main():
     failures, result = [], dict(base=None, modules=[], together=None)
     if 'stopped' not in send('state'): raise SystemExit('Stop the transport first.')
     if not part_saved_equal(): raise SystemExit('The current Part differs from its saved copy: run on one that does not (RELOAD it first).')
+    saved_start = part_copy(mem(PART, 1)[0], saved=True)  # what the reload at the end must bring back, in both copies
     before = counters()
     start_part, (start_bank, start_pattern) = mem(PART, 1)[0], mem(0x800065bd, 2)
     live = mem(0x80000ec4, 16)  # what each track runs now: FX1 T1-8, then FX2
@@ -160,8 +162,9 @@ def main():
     finally:
         send('STOP w300')
         if mem(PART, 1)[0] != start_part: send('part%d' % (start_part + 1))
-        send('PART+FUNC+PLAY w800')  # RELOAD: the Part as saved, every pick and knob of this run undone
-        if not part_saved_equal(): failures.append('Part %d does not match its saved copy after the reload' % (start_part + 1))
+        send('reload')  # the Part as saved, every pick and knob of this run undone
+        if part_copy(start_part) != saved_start or part_copy(start_part, saved=True) != saved_start:
+            failures.append('Part %d is not back as saved after the reload (working or saved copy changed)' % (start_part + 1))
         if mem(0x800065bd, 2) != bytes([start_bank, start_pattern]):
             send('BANK w150 TRIG%d w150 TRIG%d w500' % (start_bank + 1, start_pattern + 1))
             if mem(0x800065bd, 2) != bytes([start_bank, start_pattern]): failures.append('not back on the bank and pattern it started on')
@@ -188,4 +191,5 @@ def main():
     sys.exit(1 if failures else 0)
 
 
-main()
+if __name__ == '__main__':
+    main()

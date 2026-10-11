@@ -11,7 +11,7 @@
 //   npm run device -- remove [MODULE.mwrm] [--accept]   # that file's module, else module 0
 //   npm run device -- lifecycle
 //   npm run device -- boot BUILD_DIR       # RAM boot: build_core.py's output, no flashing
-//   npm run device -- key PLAY | FUNC+PLAY | 0x27   # development bases (build_core.py --dev)
+//   npm run device -- key PLAY | FUNC+FX1 | 0x27    # development bases (build_core.py --dev)
 //   npm run device -- screen [--png FILE] [--scale 1-4]  # the display, in block characters or as a PNG (4x unless --scale)
 //   npm run device -- ui                            # tracks, effects and transport as text, read from RAM (MEM)
 //   npm run device -- do 'T5 FX2 FUNC+FX2 DOWN*4 YES w300 encC+3 ui stats'  # a sequence in one connection
@@ -180,11 +180,23 @@ async function statusWords() {
   if (w(0) < 11) throw new Error('This base has no status (report version ' + w(0) + ').')
   return w
 }
+/** MISSING (ep0.c, dsp.c): the modules the project names that are not installed. "MWM", a count, then 24 bytes a handle. */
+async function missing() {
+  const reply = await unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: 14, value: 0, index }, 316)
+  if (reply.status !== 'ok' || !reply.data) throw new Error('This base does not answer MISSING: build it with --dsp-loader.')
+  const bytes = new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength), view = new DataView(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength)
+  const n = bytes[3], text = (at, length) => String.fromCharCode(...bytes.subarray(at, at + length)).replace(/\0.*$/, '')
+  if (text(0, 3) !== 'MWM' || bytes.byteLength !== 4 + 24 * n) throw new Error('Not a MISSING reply.')
+  return n ? JSON.stringify(Array.from({ length: n }, (_, i) => ({ handle: bytes[4 + 24 * i], layout: view.getUint16(6 + 24 * i),
+    module: view.getUint32(8 + 24 * i).toString(16).padStart(8, '0'), name: text(12 + 24 * i, 16) }))) : 'nothing missing'
+}
+
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
  * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
  * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (SYSTEM > MODWERK TEST, about 15 s)
- * hold:N (development bases: host frames wait N seconds, as after a boot)
+ * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
+ * reload (the current Part from its saved copy, through the Part menu)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -206,6 +218,9 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if (step === 'stalltest') await devIn(18, 0, 1) // development bases: write the stall record now, nothing recovered
     else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
+    else if (step === 'missing') console.log(await missing())
+    // RELOAD from the Part menu, which keeps its cursor and stops at RENAME. Never PART+FUNC+PLAY: that is CLEAR.
+    else if (step === 'reload') await run('FUNC+PART w600 UP w150 UP w150 UP w150 DOWN w200 YES w1000')
     else if ((m = /^hold:(\d)$/.exec(step))) await devIn(22, Number(m[1]), 1) // development bases: host frames wait N seconds, as after a boot
     else if (step === 'selftest') { // dsp.c's self-test (SYSTEM > MODWERK TEST): started, then read until it is done
       const read = async go => { const b = Buffer.from(await devIn(21, go, 92)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
@@ -390,16 +405,7 @@ if (command === 'serve') {
       `idle passes a frame (last window): core 0 ${(w(76) / 1024).toFixed(1)}, core 1 ${(w(77) / 1024).toFixed(1)}`)
     process.exit(0)
   }
-  if (command === 'missing') { // MISSING (ep0.c, dsp.c): "MWM", a count, then 24 bytes a handle
-    const reply = await unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: 14, value: 0, index }, 316)
-    if (reply.status !== 'ok' || !reply.data) throw new Error('This base does not answer MISSING: build it with --dsp-loader.')
-    const bytes = new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength), view = new DataView(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength)
-    const n = bytes[3], text = (at, length) => String.fromCharCode(...bytes.subarray(at, at + length)).replace(/\0.*$/, '')
-    if (text(0, 3) !== 'MWM' || bytes.byteLength !== 4 + 24 * n) throw new Error('Not a MISSING reply.')
-    console.log(n ? Array.from({ length: n }, (_, i) => ({ handle: bytes[4 + 24 * i], layout: view.getUint16(6 + 24 * i),
-      module: view.getUint32(8 + 24 * i).toString(16).padStart(8, '0'), name: text(12 + 24 * i, 16) })) : 'nothing missing')
-    process.exit(0)
-  }
+  if (command === 'missing') { console.log(await missing()); process.exit(0) }
   if (command === 'meter') { // dsp_receiver.asm's load meter, read back a bit a frame (66 report words, version 10)
     if (!['0', '1'].includes(file)) throw new Error('Use meter 0 or meter 1.')
     if (!(await devIn(13, Number(file), 1))[0]) throw new Error('A meter read is already waiting.')

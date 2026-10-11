@@ -9,8 +9,9 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
 
 - Never SAVE, SAVE ALL or SYNC TO CARD the owner's project, unless the owner asks to recover something.
 - Do not change the owner's Parts. Test on a bank whose working Part equals its saved Part (bank B in
-  LIVE/Dev12: every Part FILTER/DELAY). Check that with `mem` (below) first, and put it back with RELOAD
-  afterwards.
+  LIVE/Dev12: every Part FILTER/DELAY). Check that with `mem` (below) first, and put it back with `reload`
+  afterwards; then both copies must equal the saved copy read before. (Until 11 October 2026 this said
+  PART+FUNC+PLAY, which clears: Dev12's bank B Part 1 is named `PART 1` from it.)
 - Read the state before you change it, and after you put it back.
 - After a power cycle, check the Part again: the unit can come back with an older working copy from the card
   (11 October 2026: a RELOAD made before the unplug was gone, and picks from before it were back).
@@ -68,9 +69,11 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 
 - **Effects.** FUNC+FX1/FX2 opens the chooser (the left list; its right side are the effect's setup knobs).
   Moving the cursor does not pick; YES does. NO closes. LEVEL scrolls. `pick:` does all of it.
-- **Parts.** Holding PART shows the selector: UP Part 1, RIGHT 2, DOWN 3, LEFT 4. In that selector,
-  PART+FUNC+PLAY reloads the active Part from its saved copy (checked byte for byte). FUNC+PART opens RENAME,
-  RELOAD, SAVE, SAVE ALL: do not use SAVE.
+- **Parts.** Holding PART shows the selector: UP Part 1, RIGHT 2, DOWN 3, LEFT 4. **Never FUNC+PLAY there
+  (`PART+FUNC+PLAY`): it CLEARS the Part**, both working and saved copies, its knobs, machines and name
+  (`PART 1`), and saves that (stock's Part Clear; 11 October 2026). FUNC+PLAY elsewhere clears the pattern.
+  To reload, use `reload`: FUNC+PART opens RENAME, RELOAD, SAVE, SAVE ALL, keeps its cursor from last time and
+  stops at RENAME, so UP three times, DOWN, YES. Do not use SAVE or SAVE ALL.
 - **Patterns.** PATTERN+TRIG n selects pattern n of this bank. Another bank: BANK, then TRIG b (bank b), then
   TRIG n (pattern n) within four seconds (the manual's "CHOOSE BANK", "CHOOSE PATTERN"). Stopped, it applies
   at once; playing, it waits for the pattern's end.
