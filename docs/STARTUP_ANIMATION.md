@@ -69,6 +69,44 @@ stateful-module qualification or physical reports.
 
 No hardware flashing or module qualification-status change was performed.
 
+## Base edition: NEW and the version (11 October 2026)
+
+The Elekloader base starts with its own edition of the animation, so beta testers see at once that the
+new base is running. **NEW** arrives left of the mark and the base version (`0.3.1`, from `VERSION` in
+`build_core.py`) right of it, as part of the same particle flight; the mark and the wordmark are the ones above.
+The whole composition sits three rows lower than in public builds and nothing is squeezed under the
+wordmark, so the top edge and the bottom have room. Public builds are unchanged.
+
+![MKII LCD capture of the base startup, from the real base image in the emulator](media/startup/base-startup.gif)
+
+The LEDs follow the screen. Green converges from the edge of the panel to the middle while the particles
+fly in; red follows the wordmark's wipe from left to right; T1-T8 pop as the eight tiles lock in, in that
+order; REC lights as the detached tile lands, last. Nothing stays lit when the loop ends. The stock loop gave
+every lamp two soft 1.2 s waves; the edition sets each lamp's red and green peak time itself and shortens the
+pulse to 0.3 s so the cues stay separate. That needs three small instruction changes (six bytes: the LED time
+step, its rounding and the wordmark's row) next to the replaced lamp tables, all guarded by the SHA-256 of the
+stock bytes. It is the first time the startup patch touches instructions. MKI and MKII get the same show on
+their own lamps.
+
+[Verification record](media/startup/base-verification.json). `scripts/verify-startup-base.py` boots the real
+base image (built with `build_core.py`, checked with `check_flash_safety.py`) in the emulator with the boot logo on:
+
+| Check | MKI | MKII |
+| --- | --- | --- |
+| Last logo frame vs. authored pixels (mark, wordmark, NEW, version) | 1,382 of 1,382, 0 missing, 0 extra | 1,382 of 1,382, 0 missing, 0 extra |
+| LED levels vs. the firmware's own formula at the recovered loop time | 212 iterations, 0 unexplained | 214 iterations, 0 unexplained |
+| Hand-over to the normal screen after the animation | yes | yes |
+
+The checker rejects an image without the edition (the public image fails it). `sdk/tests/test_startup_base.py`
+covers the encoder: the public bytes against the recorded hashes, text landing where authored, margins,
+version limits, and each lamp's peak at its authored time and dark at the end.
+
+Limits: emulator only. A real unit has not run it, so the physical LED colours, the loop's pace on the real
+panel link (the loop is time-based; in the emulator it iterates faster than stock because it sends far fewer LED
+updates) and the look on the real LCD are unconfirmed. The browser encoder (`src/engine/startup-animation.ts`) has not been
+ported; the base is composed natively today. A longer version string takes room from the comet tail and is
+refused beyond the space beside the mark (about `0.10.100`).
+
 ## Firmware name before the animation
 
 Updates now use **ELEKLOADER** in the fixed ten-byte ELEK name field, including

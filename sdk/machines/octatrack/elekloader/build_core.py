@@ -539,6 +539,7 @@ def main():
     artwork = APP / 'sdk/runtime/startup/artwork.json'
     inputs['sdk/runtime/startup/artwork.json'] = sha(artwork.read_bytes())
     inputs['sdk/runtime/startup/build.py'] = sha((artwork.parent/'build.py').read_bytes())
+    inputs['sdk/runtime/startup/base.json'] = sha((artwork.parent/'base.json').read_bytes())
     source_hash = sha(json.dumps(inputs, sort_keys=True, separators=(',', ':')).encode())
     chooser = json.loads((APP/'src/engine/assets/chooser-metadata.json').read_text())
     configuration = dict(fx1=['NONE', *chooser['stockFx1']], fx2=['NONE', *chooser['stockFx2']],
@@ -642,7 +643,8 @@ modwerk_retained_end:
         recipe['sites'] += [] if args.dsp_probe == 'S' else dsp_sites
     spec = importlib.util.spec_from_file_location('modwerk_startup', artwork.parent/'build.py')
     startup = importlib.util.module_from_spec(spec); spec.loader.exec_module(startup)
-    for guard, authored in startup.writes():
+    # The base's own startup: NEW, its version (the part of VERSION before the dev suffix) and the LED show.
+    for guard, authored in startup.writes(VERSION.split('-')[0]):
         at = guard['address'] - device.main_load
         if sha(image[at:at+len(authored)]) != guard['sha256']:
             raise ValueError('Startup stock table guard failed.')

@@ -77,6 +77,36 @@ ninth tile's later arrival/echo.
 See [the verification record](../../../docs/STARTUP_ANIMATION.md) for actual
 LCD capture results and remaining checks.
 
+## Base edition
+
+The Elekloader base boots with its own edition of this animation, so a tester knows at a glance that
+the new base is running: **NEW** left of the mark, the base version right of it (the part of
+`VERSION` in `build_core.py` before the dev suffix, e.g. `0.3.1`), the mark and the wordmark as above.
+Public builds keep the animation described so far, byte for byte (`test_startup_base.py` compares it with
+the recorded hashes). `build.py` produces the edition when `writes()` / `apply()` get a version, and
+`--base-version 0.3.1` does the same from the command line; `build_core.py` passes `VERSION` itself.
+
+`base.json` is the authored data: the small pixel font, the text (size, place, landing times), the layout
+shift and the LED show. The text uses the same stock particle records as the mark: the records the mark does
+not need carry the letters, and the ninth tile's comet tail takes what is left. The edition lowers the mark
+and the wordmark by three rows for balanced margins and leaves out any caption under the wordmark: the stock
+renderer lands particles on the bottom three rows one pixel off, so text stays above row 61 (the encoder
+refuses anything else).
+
+The LED show replaces the two lamp tables of the boot loop (67 lamps on an MKII panel, 44 on an MKI): green
+converges from the edge of the panel to the middle while the particles fly in, red follows the wordmark's
+wipe from left to right, T1-T8 pop as the eight tiles lock in and REC lights as the detached tile lands. The
+stock loop gives every lamp two brightness waves, 15 - |p + s|, where p comes from the lamp's table entry and
+s from the loop time; `base.json` stores when each lamp's red and green peak, in milliseconds of logo time, and
+the encoder turns that into table entries. Nothing is left lit when the loop ends. Three instruction
+immediates change as well (six bytes, each guarded by the SHA-256 of the stock bytes): the loop's time step for
+the LEDs goes from 40 ms to 10 ms per brightness level, so pulses last 0.3 s instead of 1.2 s, and the
+wordmark's row moves down three rows with the mark. This is the first time the startup patch touches
+instructions.
+
+Check a composed base image with `scripts/verify-startup-base.py` (see its header). It needs the reviewed
+emulator and the image; it writes nothing unless you ask for the GIF, PNG or record.
+
 ## Authorship and licence
 
 Original Modwerk artwork and encoders © 2026 Modwerk contributors, under the
