@@ -11,6 +11,8 @@ export const VENDOR_SUBMIT = 1
 export const VENDOR_RESULT = 2
 export const VENDOR_IDENTIFY = 3
 export const VENDOR_IDENTITY_BYTES = 72 // never a multiple of 64: see sdk/runtime/upload/vendor.h
+export const VENDOR_SELFTEST = 21 // the Octatrack base's self-test (sdk/machines/octatrack/elekloader/selftest.h)
+export const SELFTEST_BYTES = 56
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -46,6 +48,16 @@ export interface VendorResult { status: VendorStatusName; sequence: number; resp
 export interface VendorIdentity { canSubmit: boolean; base: string; model: string }
 
 /** IDENTIFY's 64 bytes, refused unless every field is exactly what this client speaks. */
+/** The base's self-test record (selftest.h): its state (0 idle, 1 running, 2 passed, 3 failed), what failed (bits),
+ * the modules checked, the DSP modules that ran, the peaks per mille and the progress. */
+export interface SelftestRecord { state: number; failed: number; modules: number; dsp: number; intact: number; ran: number;
+  peaks: { cpu: number; tracks1to4: number; tracks5to8: number }; done: number; total: number }
+export function parseSelftest(view: DataView): SelftestRecord {
+  if (view.byteLength !== SELFTEST_BYTES) throw new VendorTransportError('The self-test record has the wrong length.')
+  const u = (i: number) => view.getUint32(4 * i)
+  return { state: u(0), failed: u(2), modules: u(3), dsp: u(4), intact: u(5), ran: u(6),
+    peaks: { tracks1to4: u(7), tracks5to8: u(8), cpu: u(9) }, done: u(10), total: u(11) }
+}
 export function parseVendorIdentity(bytes: Uint8Array): VendorIdentity {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const fail = (why: string): never => { throw new VendorTransportError('Unsupported vendor identity: ' + why + '.') }
@@ -114,6 +126,16 @@ export class UsbVendorTransport implements UploadTransport {
     signal?.throwIfAborted()
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the result request.')
     return parseVendorResult(new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength))
+  }
+  /** The unit's self-test: start it (`start`), or read where it stands. Answered by the USB interrupt; undefined
+   * when the base stalls the request (one built before the self-test). */
+  async selftest(start: boolean, signal?: AbortSignal): Promise<SelftestRecord | undefined> {
+    signal?.throwIfAborted()
+    const reply = await this.device.controlTransferIn(this.setup(VENDOR_SELFTEST, start ? 1 : 0), SELFTEST_BYTES)
+    signal?.throwIfAborted()
+    if (reply.status === 'stall') return undefined
+    if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the self-test request.')
+    return parseSelftest(reply.data)
   }
   async exchange(frame: Uint8Array, signal: AbortSignal): Promise<Uint8Array> {
     if (this.busy) throw new VendorTransportError('A vendor exchange is already in progress.')

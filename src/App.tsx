@@ -132,8 +132,9 @@ export default function App() {
   const developerRoute = route === 'developer' || route.startsWith('developer/')
   const accountRoute = route === 'account' || route.startsWith('account/')
   // One link to the unit for the whole site: it connects by itself whenever an allowed Octatrack is plugged in.
-  // The builder's prepareUpdate and the test runner's stressTest join it once they exist.
-  const [usbKit, setUsbKit] = useState<{ link: OctatrackLink; prepareUpdate?: PrepareUpdate; readInventory?: ReadInventory; stressTest?: StressTest } | null>(() => USB_LINK && !touchOnly && !usbLinkPreview ? { link: new OctatrackLink() } : null)
+  // The builder's prepareUpdate joins it once it exists; the stress test is the base's own self-test.
+  const [usbKit, setUsbKit] = useState<{ link: OctatrackLink; prepareUpdate?: PrepareUpdate; readInventory?: ReadInventory; stressTest?: StressTest } | null>(
+    () => { if (!USB_LINK || touchOnly || usbLinkPreview) return null; const link = new OctatrackLink(); return { link, stressTest: () => link.selftest() } })
   useEffect(() => { if (import.meta.env.DEV && usbLinkPreview) void import('./dev/octatrack-link-fake').then(fake => setUsbKit(fake.previewKit())) }, [])
   const usbLink = usbKit?.link
   const usbBase = useOctatrackBase(usbLink ?? null)

@@ -3,6 +3,7 @@
 // send one runtime module, run it as a trial, then keep or undo it. The base
 // itself undoes anything not kept when USB goes quiet or away, so every
 // failure here ends in "unplug to undo" at worst.
+import { runSelftest } from './selftest.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { UploadDeviceError, UploadSession, UploadUnconfirmedError } from './upload-session.ts'
 import type { UploadResultName } from './upload-wire.ts'
@@ -208,6 +209,11 @@ export class OctatrackLink {
     }
   }
   cancel() { this.abort?.abort() }
+  /** The base's self-test, as an update's stress test: null when it passed, else why not; progress while it runs. */
+  selftest(): Promise<string | null> {
+    if (!this.transport) return Promise.resolve('the Octatrack isn’t connected')
+    return runSelftest(this.transport, { signal: this.abort?.signal, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }) })
+  }
   keep() { return this.finish(true) }
   undo() { return this.finish(false) }
 

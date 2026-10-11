@@ -14,6 +14,9 @@
  *
  * The controller's backend is boot.c's: the runtime loader's for module
  * packages, plus whole OS images for a RAM boot. */
+#ifdef MODWERK_DSP_LOADER
+#include "selftest.h"
+#endif
 #include "vendor.h"
 #include "usb_base.h"
 #include "runtime.h"
@@ -160,6 +163,15 @@ uint32_t modwerk_ep0_dispatch(void)
         unsigned modwerk_dsp_missing_list(uint8_t *);
         modwerk_ep0_reply = out;
         return modwerk_dsp_missing_list(out);
+    }
+    /* SELFTEST (0xC1, bRequest 21, wValue 1 start or 0 read, wLength 56): dsp.c's self-test (SYSTEM > MODWERK
+     * TEST), which the site runs on a trial before it is kept; the record either way (selftest.h). */
+    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 1u && !SETUP[3] &&
+        SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && (SETUP[6] | SETUP[7] << 8) == sizeof modwerk_selftest) {
+        if (SETUP[2]) (void)modwerk_selftest_start();
+        for (unsigned i = 0; i < sizeof modwerk_selftest; ++i) out[i] = ((const volatile uint8_t *)&modwerk_selftest)[i];
+        modwerk_ep0_reply = out;
+        return sizeof modwerk_selftest;
     }
 #endif
 #ifdef MODWERK_DEV
