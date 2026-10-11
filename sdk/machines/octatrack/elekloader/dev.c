@@ -172,6 +172,14 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 276;
     }
+    if (s[1] == 25 && want == 8 && s[2] <= 1u && !s[3]) { /* COMPACT: start packing the code (1), or read: step, counts */
+        extern volatile uint32_t modwerk_dsp_compact_step, modwerk_dsp_compact_counts;
+        int modwerk_dsp_compact(void);
+        uint32_t step = s[2] ? (uint32_t)modwerk_dsp_compact() : modwerk_dsp_compact_step, counts = modwerk_dsp_compact_counts;
+        for (unsigned b = 0; b < 4u; ++b) out[b] = (uint8_t)(step >> (24 - 8 * b)), out[4 + b] = (uint8_t)(counts >> (24 - 8 * b));
+        *reply = out;
+        return 8;
+    }
     if (s[1] == 23 && want == 4 && !s[2] && !s[3]) { /* GAP: the longest time between two frames since the last read, DTCN3 counts */
         extern volatile uint32_t dl_frame_gap;
         uint32_t gap = dl_frame_gap;

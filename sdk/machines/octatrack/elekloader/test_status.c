@@ -24,6 +24,7 @@ void modwerk_selftest_refresh(void) {}
 uint32_t modwerk_runtime_free(uint32_t *largest) { if (largest) *largest = 0; return 0; }
 /* dsp.c's MISSING list: `listed` modules at handles 20 and up; modset.c's restore. */
 static unsigned listed;
+volatile uint32_t modwerk_runtime_ticks;
 unsigned modwerk_dsp_missing_list(uint8_t *out)
 {
     for (unsigned i = 0; i < listed; ++i) {

@@ -739,6 +739,72 @@ static void selftest_tick(void)
     if (st_played && PLAYING) { if (st_step != 9) press(0x27u), st_step = 9, st_ticks = 0; if (st_ticks < 60u) return; }
     finish();
 }
+/* Packing each core's code (owner, 11 October 2026). Code a track runs never moves on its own, so taking a module off
+ * leaves a hole a later, larger one may not fit. Each hole is closed by moving a block into it the way a copying
+ * collector moves objects: the new copy is uploaded while the old one runs, the dispatch entry is bound to it at a
+ * frame, and the old copy is freed (manager.c's dl_move, build_core.py's edit). A slot's state lives in X and Y, and
+ * stock reruns init only when the id changes, so the effect carries on, playing or not. One move at a time, when
+ * the manager is idle and two seconds after the last key, so no move meets a pick. Dev request 25 times a run:
+ * modwerk_dsp_compact_counts, DTCN3 counts until no hole is left (0xffffffff: one could not be closed). */
+volatile uint32_t modwerk_dsp_compact_counts, modwerk_dsp_compact_step, modwerk_dsp_compact_moves;
+extern volatile uint32_t modwerk_status_key_at; /* status.c: modwerk_runtime_ticks at the last key press */
+int dl_move(unsigned core, unsigned p, unsigned offset);
+static uint32_t compact_at;
+int modwerk_dsp_compact(void)
+{
+    if (modwerk_dsp_compact_step) return 0;
+    compact_at = *(volatile uint32_t *)0xfc07c00cu, modwerk_dsp_compact_step = 1;
+    return 1;
+}
+static int holes(void) /* a core's placed code has a gap below its top */
+{
+    for (unsigned c = 0; c < 2u; ++c) {
+        uint32_t used = 0, top = 0;
+        for (unsigned p = 0; p < 32u; ++p) {
+            int at = dl_placed(c, p);
+            if (at < 0) continue;
+            used += dl_catalog[p].words;
+            if ((uint32_t)at + dl_catalog[p].words > top) top = (uint32_t)at + dl_catalog[p].words;
+        }
+        if (top > 64u + used) return 1; /* dl_placed counts from DL_CODE_START */
+    }
+    return 0;
+}
+/* One move: on the first core with a hole, the first block above the lowest hole that fits in it clear of its own
+ * old copy; if none does, the block right above the hole goes to the top of the free space first (which widens the
+ * hole). 1 when a move started. */
+static int move_one(void)
+{
+    for (unsigned c = 0; c < 2u; ++c) {
+        unsigned at[32], n[32], id[32], k = 0, top = 0;
+        for (unsigned p = 0; p < 32u; ++p) {
+            int a = dl_placed(c, p);
+            if (a < 0) continue;
+            unsigned j = k++;
+            for (; j && at[j - 1] > (unsigned)a - 64u; --j) at[j] = at[j - 1], n[j] = n[j - 1], id[j] = id[j - 1];
+            at[j] = (unsigned)a - 64u, n[j] = dl_catalog[p].words, id[j] = p;
+            if (at[j] + n[j] > top) top = at[j] + n[j];
+        }
+        for (unsigned i = 0, end = 0; i < k; end = at[i] + n[i], ++i) {
+            if (at[i] <= end) continue;
+            for (unsigned j = i; j < k; ++j) {
+                unsigned align = dl_catalog[id[j]].alignment ? dl_catalog[id[j]].alignment : 1u, to = (end + align - 1u) & ~(align - 1u);
+                if (to + n[j] <= at[i]) return dl_move(c, id[j], to);
+            }
+            unsigned align = dl_catalog[id[i]].alignment ? dl_catalog[id[i]].alignment : 1u;
+            return dl_move(c, id[i], (top + align - 1u) & ~(align - 1u));
+        }
+    }
+    return 0;
+}
+static void compact_tick(void)
+{
+    if (modwerk_selftest.state == SELFTEST_RUNNING || !dl_publication_idle() || rebinding || picks_in != picks_out) return;
+    if (!modwerk_dsp_compact_step && modwerk_runtime_ticks - modwerk_status_key_at < 120u) return;
+    if (holes() && move_one()) { modwerk_dsp_compact_moves = modwerk_dsp_compact_moves + 1; return; }
+    if (modwerk_dsp_compact_step)
+        modwerk_dsp_compact_counts = holes() ? 0xffffffffu : *(volatile uint32_t *)0xfc07c00cu - compact_at, modwerk_dsp_compact_step = 0;
+}
 #endif
 void modwerk_dsp_unpack(void); /* identity.c: the stock effects' code into RAM, before the manager needs it */
 /* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3
@@ -758,6 +824,7 @@ void modwerk_dsp_tick(void)
     if (!unpacked) unpacked = 1, modwerk_dsp_unpack();
     peek_tick();
     selftest_tick();
+    compact_tick();
     if (probing >= 0 && dl_job_status((unsigned)probing) != 0) {
         if (dl_job_status((unsigned)probing) > 0) modwerk_dsp_probes_ok = modwerk_dsp_probes_ok + 1;
         else modwerk_dsp_probes_failed = modwerk_dsp_probes_failed + 1;

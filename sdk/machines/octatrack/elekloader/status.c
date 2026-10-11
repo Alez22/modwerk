@@ -182,9 +182,11 @@ static void memory_tick(void)
     if (loaded && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
     if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
 }
+volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key press: dsp.c's compaction waits for quiet */
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
+    if (pressed) modwerk_status_key_at = modwerk_runtime_ticks;
     if (modwerk_selftest_key && (unsigned)code + 1u == modwerk_selftest_key) { /* the test's own PLAY or STOP */
         if (!pressed) modwerk_selftest_key = 0;
         return 0;

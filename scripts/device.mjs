@@ -197,7 +197,7 @@ async function missing() {
  * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (SYSTEM > MODWERK TEST, about 15 s)
  * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
  * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
- * memory (development bases: each memory's use, holes and largest free run)
+ * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -236,6 +236,14 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
           `holes ${holes} words, largest free run ${Math.max(largestHole, tail)} of ${arena - used} free`)
       }
       console.log(`buffer blocks in use: 0x${b.readUInt32BE(16).toString(16)}`)
+    }
+    else if (step === 'compact') { // COMPACT (dev request 25): pack each core's code now (transport stopped); how long it took
+      const read = async go => { const b = Buffer.from(await devIn(25, go, 8)); return { step: b.readUInt32BE(0), counts: b.readUInt32BE(4) } }
+      if (!(await read(1)).step) throw new Error('Compaction did not start: stop the transport and let the loader finish.')
+      const start = Date.now()
+      for (let r = await read(0); r.step && Date.now() - start < 15000; r = await read(0)) await wait(20)
+      const r = await read(0)
+      console.log(r.counts === 0xffffffff ? 'compaction gave up (playing again, or ten seconds)' : `compacted in ${(r.counts / 132000).toFixed(1)} ms (${Date.now() - start} ms seen from here)`)
     }
     else if (step === 'gap') { const g = Buffer.from(await devIn(23, 0, 4)).readUInt32BE(0); console.log(`gap ${g} counts ${(g / 132).toFixed(0)} us`) } // since the last read
     // RELOAD from the Part menu, which keeps its cursor and stops at RENAME. Never PART+FUNC+PLAY: that is CLEAR.

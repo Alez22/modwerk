@@ -152,6 +152,21 @@ DSP_EDITS = {
                      '    replay=1; dl_selection_apply(queued.slot,given,queued.source); replay=0;')),
     # Modules register effects at run time (dsp.c), and admission charges their cycles.
     'manager.c': (('extern const struct dl_package dl_catalog[32];', 'extern struct dl_package dl_catalog[32];'),
+                  # A moved package (dl_move) uploads its new copy and binds it like a new one; its old copy stays live
+                  # and bound until the bind, and is freed at the retirement.
+                  ('    return allocator.target[c][p].present && !allocator.live[c][p].present;\n}',
+                   '    return allocator.target[c][p].present && (!allocator.live[c][p].present ||\n'
+                   '           allocator.target[c][p].offset!=allocator.live[c][p].offset);\n}'),
+                  ('void dl_selection_commit(uint32_t token) {',
+                   '/* Modwerk (dsp.c\'s compaction): p\'s code on core c to `offset` while it runs; only when idle. */\n'
+                   'int dl_move(unsigned c,unsigned p,unsigned offset) {\n'
+                   '    if(phase || !initialized || !dl_residency_enabled) return 0;\n'
+                   '    uint32_t token=auto_serial+1; if(!token) token=0x80000000u;\n'
+                   '    if(dl_allocator_move(&allocator,c,p,offset,token)!=DL_ALLOC_OK) return 0;\n'
+                   '    auto_serial=token; begin(allocator.active,token,1); phase=2; /* placed: upload, bind, commit, free */\n'
+                   '    return 1;\n'
+                   '}\n'
+                   'void dl_selection_commit(uint32_t token) {'),
                   # A core's channel held by another job (status.c's meter reads, dsp.c's probes) is a wait, not a
                   # refusal: the next tick tries again. Only a start the transfer layer refused outright refuses.
                   ('        if(!waiting) { report(DL_SELECT_UNAVAILABLE); if(phase==8) { cancelling=1; phase=7; cursor=0; } }',
@@ -280,8 +295,29 @@ DSP_EDITS = {
                      '        if(core_of(i)!=c || p==DL_NONE || a->catalog[p].resident || a->target[c][p].present) continue;',
                      '    for(unsigned i=0;i<16+DL_PACKAGES;++i) {\n'
                      '        unsigned p=i<16 ? (core_of(i)==c ? ids[i] : DL_NONE) : (a->keep[c]>>(i-16)&1u ? i-16 : DL_NONE);\n'
-                     '        if(p==DL_NONE || a->catalog[p].resident || a->target[c][p].present) continue;')),
-    'allocator.h': (('    uint8_t phase, required, ready;\n};',
+                     '        if(p==DL_NONE || a->catalog[p].resident || a->target[c][p].present) continue;'),
+                    # Compaction without a gap (owner, 11 October 2026): one live package gets a new copy at `offset`,
+                    # uploaded and bound while the old one runs, then the old is freed; never over live code.
+                    ('int dl_allocator_cancel(struct dl_allocator *a,uint32_t token) {',
+                     '/* Modwerk: one live package to `offset` on core c, everything else where it is: a new copy, uploaded\n'
+                     ' * and bound while the old one runs, then freed (dsp.c). Never over live code, its own old copy included. */\n'
+                     'int dl_allocator_move(struct dl_allocator *a,unsigned c,unsigned p,unsigned offset,uint32_t token) {\n'
+                     '    if(a->phase || !token || token==a->token || c>1 || p>=DL_PACKAGES || !a->live[c][p].present) return DL_ALLOC_STALE;\n'
+                     '    unsigned n=a->live[c][p].words,align=a->catalog[p].alignment;\n'
+                     '    if(!align || (offset&(align-1)) || offset+n>a->capacity[c]) return DL_ALLOC_MEMORY;\n'
+                     '    for(unsigned q=0;q<DL_PACKAGES;++q)\n'
+                     '        if(a->live[c][q].present && offset<(unsigned)a->live[c][q].offset+a->live[c][q].words &&\n'
+                     '           offset+n>a->live[c][q].offset) return DL_ALLOC_TRANSITION;\n'
+                     '    copy(a->target,a->live,sizeof a->target);\n'
+                     '    a->target[c][p].offset=(uint16_t)offset;\n'
+                     '    copy(a->requested,a->active,16); a->token=token; a->ready=0; a->required=(uint8_t)(1u<<c); a->phase=1;\n'
+                     '    return DL_ALLOC_OK;\n'
+                     '}\n'
+                     'int dl_allocator_cancel(struct dl_allocator *a,uint32_t token) {')),
+    'allocator.h': (('int dl_allocator_cancel(struct dl_allocator *,uint32_t token);',
+                     'int dl_allocator_cancel(struct dl_allocator *,uint32_t token);\n'
+                     'int dl_allocator_move(struct dl_allocator *,unsigned core,unsigned p,unsigned offset,uint32_t token);'),
+                    ('    uint8_t phase, required, ready;\n};',
                      '    uint8_t phase, required, ready;\n'
                      '    uint32_t keep[2]; /* Modwerk: more ids to place per core, beside the target\'s own */\n};'),),
     # No reads from a DSP (dsp_receiver.asm says why): the receiver answers in the host flags, an upload

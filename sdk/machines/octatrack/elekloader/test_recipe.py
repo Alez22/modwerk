@@ -230,6 +230,29 @@ class RuntimeSlotTests(unittest.TestCase):
     def test_status_keys_on_the_host(self):
         self.host_test('test_status.c')
 
+    def test_allocator_move_on_the_host(self):
+        """build_core.py's edits to Octabam's allocator, applied to copies, with test_move.c."""
+        import importlib.util, pathlib, shutil, subprocess, tempfile
+        cc = shutil.which('cc')
+        if not cc:
+            self.skipTest('no host C compiler')
+        here = pathlib.Path(__file__).resolve().parent
+        transport = here.parents[2] / 'octabam/platform/dsp-dynload-transport'
+        spec = importlib.util.spec_from_file_location('build_core_for_test', here / 'build_core.py')
+        build_core = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(build_core)
+        with tempfile.TemporaryDirectory() as temp:
+            for name in ('allocator.c', 'allocator.h'):
+                text = (transport / name).read_text()
+                for old, new in build_core.DSP_EDITS[name]:
+                    self.assertEqual(text.count(old), 1, name)
+                    text = text.replace(old, new)
+                (pathlib.Path(temp) / name).write_text(text)
+            subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-I', temp, temp + '/allocator.c', here / 'test_move.c',
+                            '-o', temp + '/t'], check=True, capture_output=True)
+            result = subprocess.run([temp + '/t'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_dsp_packages_rebuild_from_source(self):
         """dsp_packages.py rebuilds the catalogue's DSP effects byte for byte on the Elekloader path."""
         import os, pathlib, subprocess, sys

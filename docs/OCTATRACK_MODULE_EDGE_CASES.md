@@ -73,6 +73,15 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
   (`DL_ALLOC_TRANSITION`) after the base lets go of what it holds; live code is never moved. On the unit the
   cycle ledger refused first: E-Verb on T4 was refused for cycles (manager result -2) with core 1's code
   memory 51 % used.
+- **Holes now close by moving code (S51).** A block moves into a hole the way a copying collector moves an object:
+  its new copy is uploaded while the old one runs, the dispatch entry is bound to it at a frame, and the old copy
+  is freed (`dl_move` in manager.c and `dl_allocator_move`, build_core.py's edits; the planner in dsp.c). A slot's
+  state lives in X and Y and stock reruns init only when the id changes, so the effect never goes dry. One move at
+  a time, when the manager is idle and two seconds after the last key, playing or not. On the unit: a 532-word hole
+  closed in 4 moves and 507 ms (about 125 ms a move); playing, a 422-word hole closed by itself within 5 s with
+  Euclid running on T3 throughout; frame gaps 408-415 us, no errors, stalls or rollbacks. Not listened to: an audio
+  check (a sample through a moving module, MAIN recorded) is still to do. A first version silenced every module
+  slot and reloaded (373-425 ms, stopped only); it is gone.
 - **The module pool** (256 KB) held six modules in 26 KB with no hole; removing Euclid from the middle and
   installing it again left none (first fit at the lowest address; nothing moves).
 
