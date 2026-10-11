@@ -85,9 +85,9 @@ mark's ninth dot is a module arriving. First the mark flies in: every pixel of t
 frame and the tiles comes from far beyond the screen and lands, the frame clockwise,
 the tiles from the middle one round the ring. The lamps stay dark while the mark
 builds. The empty corner, the socket, blinks, and a light far off at trig 1 answers. The module runs along the
-trig row, turns up through the keys under the screen, enters it from below and docks.
-Its wave reveals MODWERK, **NEW** and the version and rolls on across the whole
-panel. It takes 3.5 s and ends on the same frame each
+trig row, turns up through the keys under the screen, enters it from below and docks;
+the screen's rows shudder. Its wave bends the screen like a lens as it passes,
+reveals MODWERK, **NEW** and the version and rolls on across the whole panel. It takes 3.5 s and ends on the same frame each
 time (`base_art.final_pixels`), lowered three rows for room at the edges.
 
 Screen and lamps are one plane: the LCD sits in the panel (lamp positions from the

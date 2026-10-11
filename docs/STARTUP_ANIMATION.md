@@ -76,8 +76,10 @@ the new base is running. The mark's ninth dot is a module arriving, which is wha
 this base does. First the mark flies in: every pixel of the frame and the tiles comes
 from far beyond the screen and lands, as in the stock logo's flight, while the lamps stay
 dark. The empty corner, the socket, blinks, and a light far off at trig 1 answers. The module
-runs along the trig row, turns up through the keys under the screen and docks. Its
-wave reveals MODWERK, **NEW** and the version (`0.3.1`, from `VERSION` in
+runs along the trig row, turns up through the keys under the screen and docks with a
+shudder of the screen's rows. Its wave bends the screen as it passes (a lens: up to
+3 px outwards within 7 px of the ring, with a solid ring and a dotted echo on top),
+reveals MODWERK, **NEW** and the version (`0.3.1`, from `VERSION` in
 `build_core.py`) and rolls on across the panel. It takes 3.5 s, 0.7 s longer than
 stock. Public builds are unchanged.
 
@@ -119,10 +121,12 @@ only.
 
 Cost per frame, as executed instructions in the emulator (MKII, counted between
 hits of the frame's draw entry, against the stock loop's head): the startup runs a
-median of 56k instructions per frame (90th percentile 90k, one frame 663k), the stock
-logo loop 95k (90th percentile 299k, max 331k). Either is well under a millisecond of
-CPU, so the panel link rather than the processor sets the frame rate. These are
-instruction counts, not cycles or hardware timing.
+median of 56k instructions per frame (90th percentile 93k), the stock logo loop 95k
+(90th percentile 299k, max 331k). The frames in which the wave bends the screen, about
+400 ms, run 520k-565k (a square root and two divisions per pixel in the band), and the
+setup frame 664k: roughly twice the stock loop's worst, a few milliseconds of CPU.
+These are instruction counts, not cycles or hardware timing; divisions cost more
+cycles than most instructions.
 
 Limits: emulator only; no unit has run it yet. Untested on hardware: the frame rate
 on the real panel link (the startup is time-based, so a slower link drops frames

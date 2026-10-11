@@ -75,6 +75,9 @@ extern const uint32_t host_white[3];
 #define R_HEAD 34       /* px: how far from the module a lamp glows */
 #define R_RING 36       /* px: the wave's width on the panel */
 #define FADE_MS 200     /* a lamp's afterglow from full to dark */
+#define BAND 7          /* px: how far either side of the wave's ring the screen bends */
+#define LENS 3          /* px: how far it bends at the ring */
+#define SHAKE_MS 90     /* the rows shudder this long at the dock */
 
 static int32_t now, on, lamps;
 static int32_t path[4][2];              /* the module's run: a cubic curve, 1/16 px */
@@ -82,6 +85,7 @@ static int16_t lamp_x[67], lamp_y[67];  /* lamps in screen pixels */
 static int32_t glow[67];                /* 1/16 levels */
 static int32_t dot_x[BOOT_DOTS], dot_y[BOOT_DOTS];  /* the mark's pixels in flight, 1/16 px */
 static int8_t dot_r[BOOT_DOTS];         /* their blob radius in 1/16 px; 0 landed, -1 not yet on their way */
+static unsigned char before[1024];      /* the frame as drawn, for the wave to bend */
 
 #define DOCK_X (BOOT_DISC_X * 16 + BOOT_DISC_W * 8)   /* the detached tile's middle, 1/16 px */
 #define DOCK_Y (BOOT_DISC_Y * 16 + BOOT_DISC_H * 8)
@@ -185,16 +189,54 @@ static int near(int32_t x, int32_t y, int32_t r) /* is pixel (x, y) within r px 
     return dx * dx + dy * dy <= r * r * 256;
 }
 
-static void ring(unsigned char *frame, int32_t r) /* the wave on the screen: a dotted circle */
+static void ring(unsigned char *frame, int32_t r, int every) /* a circle round the dock, every n-th pixel */
 {
     int32_t cx = DOCK_X >> 4, cy = DOCK_Y >> 4, x = r, y = 0, err = 0;
     for (int n = 0; x >= y; n++) {
-        if (n % 2 == 0) {
+        if (n % every == 0) {
             dot(frame, cx + x, cy + y), dot(frame, cx + y, cy + x), dot(frame, cx - y, cy + x), dot(frame, cx - x, cy + y);
             dot(frame, cx - x, cy - y), dot(frame, cx - y, cy - x), dot(frame, cx + y, cy - x), dot(frame, cx + x, cy - y);
         }
         y++, err += 2 * y + 1;
         if (2 * err > 2 * x - 1) x--, err -= 2 * x + 1;
+    }
+}
+
+static int lit(const unsigned char *frame, int32_t x, int32_t y)
+{
+    int32_t bit = 63 - y;
+    return (uint32_t)x < 128 && (uint32_t)y < 64 && frame[x * 8 + (bit >> 3)] >> (7 - (bit & 7)) & 1;
+}
+
+/* The wave bends what it passes: within BAND px of the ring each pixel shows what lies up to LENS px
+ * nearer the dock, so the logo bulges outwards as the ring goes through; at the dock the rows shudder.
+ * Only the band is redrawn, the whole frame only while the rows shudder. */
+static void bend(unsigned char *frame, int32_t t, int32_t r)
+{
+    int32_t cx = DOCK_X >> 4, cy = DOCK_Y >> 4, shake = t >= T_DOCK && t < T_DOCK + SHAKE_MS ? T_DOCK + SHAKE_MS - t : 0;
+    int32_t lo = r > BAND ? (r - BAND) * (r - BAND) : 0, hi = (r + BAND) * (r + BAND), reach = r + BAND;
+    int32_t x0 = shake || cx - reach < 0 ? 0 : cx - reach, x1 = shake || cx + reach > 127 ? 127 : cx + reach;
+    int32_t y0 = shake || cy - reach < 0 ? 0 : cy - reach, y1 = shake || cy + reach > 63 ? 63 : cy + reach;
+    for (int i = 0; i < 1024; i++)
+        before[i] = frame[i];
+    for (int32_t y = y0; y <= y1; y++) {
+        int32_t off = shake ? ((y * 7 + t / 20 * 13) % 5 - 2) * shake / SHAKE_MS : 0;
+        for (int32_t x = x0; x <= x1; x++) {
+            int32_t dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy, sx = x - off, sy = y, in = r > 0 && d2 > lo && d2 < hi;
+            if (!in && !shake)
+                continue;
+            if (in) {
+                int32_t d = isqrt((uint32_t)d2), off2 = d - r, s = LENS * (BAND - (off2 < 0 ? -off2 : off2)) / BAND;
+                if (d > 0)
+                    sx = cx + dx * (d - s) / d - off, sy = cy + dy * (d - s) / d;
+            }
+            int32_t bit = 63 - y;
+            unsigned char mask = (unsigned char)(0x80 >> (bit & 7));
+            if (lit(before, sx, sy))
+                frame[x * 8 + (bit >> 3)] |= mask;
+            else
+                frame[x * 8 + (bit >> 3)] &= (unsigned char)~mask;
+        }
     }
 }
 
@@ -223,20 +265,25 @@ void modwerk_boot_draw(unsigned char *frame)
                 for (int j = -1; j <= BOOT_DISC_H; j++)
                     dot(frame, BOOT_DISC_X + i, BOOT_DISC_Y + j);
     }
-    if (!r)
-        return;
-    for (int32_t x = 0; x < 110; x++)   /* what the wave has passed shows */
-        for (int32_t y = 0; y < 15; y++)
-            if (boot_word[x] >> y & 1 && near(BOOT_WORD_X + x, BOOT_WORD_Y + y, r))
-                dot(frame, BOOT_WORD_X + x, BOOT_WORD_Y + y);
-    for (int g = 0; g < BOOT_GLYPHS; g++)
-        for (int i = 0; i < boot_glyph[g].count; i++) {
-            const uint8_t *p = boot_ink[boot_glyph[g].first + i];
-            if (near(p[0], p[1], r))
-                dot(frame, p[0], p[1]);
-        }
-    if (r < 150)   /* until it has left the screen */
-        ring(frame, r);
+    if (r) {
+        for (int32_t x = 0; x < 110; x++)   /* what the wave has passed shows */
+            for (int32_t y = 0; y < 15; y++)
+                if (boot_word[x] >> y & 1 && near(BOOT_WORD_X + x, BOOT_WORD_Y + y, r))
+                    dot(frame, BOOT_WORD_X + x, BOOT_WORD_Y + y);
+        for (int g = 0; g < BOOT_GLYPHS; g++)
+            for (int i = 0; i < boot_glyph[g].count; i++) {
+                const uint8_t *p = boot_ink[boot_glyph[g].first + i];
+                if (near(p[0], p[1], r))
+                    dot(frame, p[0], p[1]);
+            }
+    }
+    if ((r > 0 && r < 110) || (t >= T_DOCK && t < T_DOCK + SHAKE_MS))   /* until it has left the screen */
+        bend(frame, t, r);
+    if (r > 0 && r < 110) {   /* the ring itself on top, with a dotted echo behind it */
+        ring(frame, r, 1);
+        if (r > 8)
+            ring(frame, r - 6, 3);
+    }
 }
 
 static void light(int32_t t, int32_t dt)

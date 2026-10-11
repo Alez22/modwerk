@@ -1,7 +1,7 @@
 {
  "kind": "modwerk-base-startup-emulator",
  "version": "0.3.1",
- "imageSha256": "51d34a9bc4e86b13747eb426820fccfed1ab685f3b45d3c5fbeada025d66dd95",
+ "imageSha256": "95b4ddfb1ed117482fbafbca0c38d6760727c0ea1508fc41e1cac92e0d005be5",
  "emulatorSha256": "2e388ae83925016f06785a4f62728c9e33ed5a1ea9be976c0be719f706e26e4b",
  "captureMethod": "--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 10 ms, read the panel UART with tx",
  "results": {
@@ -32,7 +32,7 @@
  },
  "hardware": "untested",
  "sourceSha256": {
-  "sdk/machines/octatrack/elekloader/boot_anim.c": "60beaf5f0c577fd9188c9851c00118c7d5724001c765e511fcc75df846eff7e2",
+  "sdk/machines/octatrack/elekloader/boot_anim.c": "3f21e32af0ccd2e707e3efa7be1d3ef2eaaf50baf587a9cecd37f45cdfc4dabc",
   "sdk/machines/octatrack/elekloader/boot_anim.s": "c1abdf728b67ee9a1b5509b197edc6592c17baf35200634311765686e4ab839d",
   "sdk/runtime/startup/base_art.py": "6cd082ee30a076ff57dca407788c67f9ee1c3d4ae95467b69bad1e9b35aaf2b7",
   "sdk/runtime/startup/base.json": "af8f6d54fef99c1726519969ff7bb509860eafb1df260e5404e3d18389ac6ab0",
