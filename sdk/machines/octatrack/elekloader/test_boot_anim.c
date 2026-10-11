@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
- * Host check of boot_anim.c on a simulated clock (20 ms per composed frame): it runs to its end, ends on
- * exactly the authored frame (boot_expect.h, from base_art.final_pixels), never writes outside the frame,
- * drives one LED channel only with levels 0-15, lights lamps while the cube is out over the panel and
- * leaves every lamp dark at the end. test_recipe.py generates both headers. */
+ * Host check of boot_anim.c on a simulated clock (20 ms per composed frame), as an MKII and as an MKI:
+ * it runs to its end and ends on exactly the authored frame (boot_expect.h, from base_art.final_pixels),
+ * never writes outside the frame, drives one LED channel with levels 0-15 (track keys with the tiles,
+ * the module's answer, the run, the wave) and leaves every lamp dark; on an MKII it sets channel A
+ * white first and calls the firmware's colour scheme as the boot did before the logo at the end, on an
+ * MKI neither. test_recipe.py generates both headers. */
 #include <stdio.h>
 #include <string.h>
 #include "boot_anim.c"
@@ -12,22 +14,40 @@ static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
 
 volatile uint32_t host_dtcn3;
-uint32_t host_mkii = 1;
+uint32_t host_mkii, host_intensity = 1;
 int32_t host_lamps[134];
+const uint32_t host_white[3] = {0x0c, 0x30, 0x44};
 static unsigned char memory[1024 + 64];   /* the frame with 32 guard bytes either side */
 static unsigned char *const frame = memory + 32;
-static int levels[134], frames, lit_out, odd_lit, out_of_range;
+static int levels[134], frames, odd_lit, out_of_range, tracks_lit, answer_lit, run_lit, wave_lit;
+static int whites, wrong_palette, schemes, scheme_args[4], scheme_while_on;
 
 void host_clear(void *window, int a, int b) { (void)window; (void)a; (void)b; }
 void host_led_on(int id) { (void)id; }
 void host_led_off(int id) { (void)id; }
 void host_led_send(void) {}
 
+void host_palette(int id, int reg, int r, int g, int b)
+{
+    if (reg != 1 || id & 1 || r != 0x30 || g != r || b != r || frames) wrong_palette++;
+    whites++;
+}
+
+void host_scheme(int level, int backlight, int lists, int keys)
+{
+    scheme_args[0] = level, scheme_args[1] = backlight, scheme_args[2] = lists, scheme_args[3] = keys;
+    scheme_while_on += on;
+    schemes++;
+}
+
 void host_led_level(int id, int level)
 {
     if (level < 0 || level > 15) out_of_range++;
     if (id & 1 && level) odd_lit++;
-    if (level && now > T_OUT && now < T_REST) lit_out++;
+    if (level && id >= 40 && id < 56 && now >= T_TILE && now < T_WAIT) tracks_lit++;
+    if (level && id == 0 && now >= T_WAIT && now < T_FLY0) answer_lit++;
+    if (level >= 8 && now >= T_FLY0 && now < T_DOCK) run_lit++;
+    if (level && now > T_WAVE + 400) wave_lit++;
     levels[id] = level;
 }
 
@@ -42,10 +62,10 @@ void host_compose(void)
     host_dtcn3 += 132000u * 20;
 }
 
-int main(void)
+static void run(uint32_t mkii)
 {
-    for (int i = 0; i < 67; i++)   /* a 17 x 4 grid of lamps over a panel-sized area, the LCD among them */
-        host_lamps[2 * i] = 1500 + i % 17 * 2000, host_lamps[2 * i + 1] = 2500 + i / 17 * 3800;
+    host_mkii = mkii, frames = odd_lit = out_of_range = tracks_lit = answer_lit = run_lit = wave_lit = 0;
+    whites = wrong_palette = schemes = scheme_while_on = 0;
     int window;
     modwerk_boot_run(&window);
     CHECK(frames >= T_END / 20 - 1 && frames <= T_END / 20 + 1);
@@ -57,12 +77,26 @@ int main(void)
     }
     CHECK(memcmp(frame, expect, 1024) == 0);
     CHECK(out_of_range == 0 && odd_lit == 0);
-    CHECK(lit_out > 0);
+    CHECK(tracks_lit > 0 && answer_lit > 0 && run_lit > 0 && wave_lit > 0);
     for (int id = 0; id < 134; id++)
         CHECK(levels[id] == 0);
-    /* at rest the sixteen corners are on the nine grid points, 8 px apart */
-    place(T_REST);
-    CHECK(vx[0] == rest_x(0) && vy[0] == rest_y(0) && vx[5] - vx[0] == 16 * 16 && vy[10] - vy[0] == 16 * 16);
+    if (mkii) {
+        CHECK(whites == 67 && wrong_palette == 0);
+        CHECK(schemes == 1 && scheme_while_on == 0);
+        CHECK(scheme_args[0] == 1 && scheme_args[1] == 0 && scheme_args[2] == 1 && scheme_args[3] == 0);
+    } else
+        CHECK(whites == 0 && schemes == 0);
+    int32_t x, y;   /* the run ends in the detached tile's place */
+    module(T_DOCK, &x, &y);
+    CHECK(x == DOCK_X && y == DOCK_Y);
+}
+
+int main(void)
+{
+    for (int i = 0; i < 67; i++)   /* a 17 x 4 grid of lamps over a panel-sized area, the LCD among them */
+        host_lamps[2 * i] = 1500 + i % 17 * 2000, host_lamps[2 * i + 1] = 2500 + i / 17 * 3800;
+    run(1);
+    run(0);
     if (failures) fprintf(stderr, "%u failures\n", failures);
     return failures != 0;
 }

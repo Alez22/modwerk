@@ -69,24 +69,24 @@ stateful-module qualification or physical reports.
 
 No hardware flashing or module qualification-status change was performed.
 
-## Base edition: a hypercube, NEW and the version (11 October 2026)
+## Base edition: docking (11 October 2026)
 
 The Elekloader base starts with its own animation, so beta testers see at once that
-the new base is running. After Manfred Mohr: a seed pixel opens into a
-four-dimensional cube that unfolds past the edges of the screen, tumbles back in and
-settles in the one orientation where its sixteen corners fall on a 3 x 3 grid, the
-Modwerk mark. The edges drop away, the corners become the tiles, the corner (1,1,1,1)
-slips out as the detached tile, the frame closes, the wordmark wipes in and **NEW** and
-the version (`0.3.1`, from `VERSION` in `build_core.py`) are typed beside the mark. It
-takes 3.4 s, 0.6 s longer than stock. Public builds are unchanged.
+the new base is running. The mark's ninth dot is a module arriving, which is what
+this base does. The box draws itself while the panel wakes around it. The eight
+tiles light up one by one, each with its track key. The empty socket blinks, and a
+light far off at trig 1 answers. The module runs along the trig row, turns up
+through the keys under the screen and docks. The dock's wave reveals MODWERK,
+**NEW** and the version (`0.3.1`, from `VERSION` in `build_core.py`) and rolls on
+across the panel. It takes 3.2 s, 0.4 s longer than stock. Public builds are unchanged.
 
 ![MKII LCD capture of the base startup, from the real base image in the emulator](media/startup/base-startup.gif)
 
-The LEDs show what lies beyond the screen. The panel is one plane with the LCD in it,
-and a lamp glows wherever the cube's edges cross it, so the cube visibly leaves the
-screen, sweeps over the panel and comes back. When the detached tile slips out, its
-momentum carries on across the panel towards the lower right. One channel per lamp,
-monochrome.
+Screen and lamps are one plane, so the module and the wave cross the screen's edge
+without a break. The lamps are white on an MKII, at the panel's LED intensity, and
+red on an MKI, which has fixed colours. Afterwards the MKII gets its stock colours
+back: the startup repeats the firmware's own pre-logo colour call (`0x4003f430` with
+the lamp lists only), and the firmware's own post-logo call follows as usual.
 
 How it is built: `build_core.py` puts a jump on the first instruction of the stock
 logo loop (0x400559c6) to `boot_anim.s`, which calls the C startup and continues with
@@ -106,17 +106,18 @@ emulator with the boot logo on:
 | Check | MKI | MKII |
 | --- | --- | --- |
 | Last startup frame vs. authored pixels (mark, wordmark, NEW, version) | 1,382 of 1,382, 0 missing, 0 extra | 1,382 of 1,382, 0 missing, 0 extra |
-| LEDs: one channel, levels 0-15, dark before the stock code takes over | yes; 36 of 44 lamps lit at some point | yes; 55 of 67 lamps lit at some point |
-| Hand-over to the normal screen; LED rows and levels afterwards as stock | yes, identical | yes, identical |
+| LEDs: one channel, levels 0-15, dark before the stock code takes over | yes; all 44 lamps take part | yes; all 67 lamps take part, white |
+| Hand-over; LED rows, levels and colours afterwards as stock | yes, identical | yes, identical |
 
 The checker rejects the public image. A host test (`test_boot_anim.c`, run by
-`test_recipe.py` in CI) plays the startup on a simulated clock. It checks the exact
-final frame, writes only inside the frame, one LED channel, lamps lit while the cube
-is out and all dark at the end.
+`test_recipe.py` in CI) plays the startup on a simulated clock as an MKII and an MKI.
+It checks the exact final frame, writes only inside the frame, one LED channel, each
+beat on the lamps, all dark at the end, and the white and restore calls on an MKII
+only.
 
 Limits: emulator only; no unit has run it yet. Untested on hardware: the frame rate
 on the real panel link (the startup is time-based, so a slower link drops frames
-rather than stretching it), the LED brightness and colour, and the MKI's LCD
+rather than stretching it), how the white looks on the panel, and the MKI's LCD
 position. The browser builder does not compose the base, so only `build_core.py`
 has this startup.
 

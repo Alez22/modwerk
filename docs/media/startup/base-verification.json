@@ -1,7 +1,7 @@
 {
  "kind": "modwerk-base-startup-emulator",
  "version": "0.3.1",
- "imageSha256": "ba3ebd2f3a44edf479c8f15c0e279993cb3eb11ecb6a9d41df067a395717f88c",
+ "imageSha256": "1a5656d229bd5f895789974a99e5cfce8c7faca4cc37900e44f6bd54770d05dc",
  "emulatorSha256": "2e388ae83925016f06785a4f62728c9e33ed5a1ea9be976c0be719f706e26e4b",
  "captureMethod": "--boot-logo --ms 50 --main-level off --interactive --rtc off (+ --mkii); run 10 ms, read the panel UART with tx",
  "results": {
@@ -9,32 +9,34 @@
    "finalFramePixels": 1382,
    "missing": 0,
    "extra": 0,
-   "lampsLit": 36,
+   "lampsLit": 44,
    "oddChannelLevels": 0,
    "outOfRange": 0,
    "darkBeforeReset": true,
    "handsOverToUi": true,
-   "ledStateAfterwardsAsStock": true
+   "ledStateAfterwardsAsStock": true,
+   "coloursAfterwardsAsStock": true
   },
   "MKII": {
    "finalFramePixels": 1382,
    "missing": 0,
    "extra": 0,
-   "lampsLit": 55,
+   "lampsLit": 67,
    "oddChannelLevels": 0,
    "outOfRange": 0,
    "darkBeforeReset": true,
    "handsOverToUi": true,
-   "ledStateAfterwardsAsStock": true
+   "ledStateAfterwardsAsStock": true,
+   "coloursAfterwardsAsStock": true
   }
  },
  "hardware": "untested",
  "sourceSha256": {
-  "sdk/machines/octatrack/elekloader/boot_anim.c": "a9d76580d41b7fd9bd8feda05092ee7c4f04d83147c8e22f5cb7c4a5e98b2dbc",
+  "sdk/machines/octatrack/elekloader/boot_anim.c": "228e93efc3b596604f643c48e60a79a1faafcde3aaf02abe52ac8266cfe4c5fa",
   "sdk/machines/octatrack/elekloader/boot_anim.s": "c1abdf728b67ee9a1b5509b197edc6592c17baf35200634311765686e4ab839d",
-  "sdk/runtime/startup/base_art.py": "3b063669109102e45b43145ed82bf380e98fd8c17b410b4637ef0359c0a34914",
+  "sdk/runtime/startup/base_art.py": "5d77884fe6b78af186d127c129397332cccad22db78bf443c8b919564b2f276e",
   "sdk/runtime/startup/base.json": "af8f6d54fef99c1726519969ff7bb509860eafb1df260e5404e3d18389ac6ab0",
   "sdk/runtime/startup/artwork.json": "191f28c9870db93bccebb2c9f81723213f3f8f7e3a679ba286a16522d4ea7e6f",
-  "scripts/verify-startup-base.py": "60d74e8cd075482fae57d183293a7479009a22d3eec69723c287aedac7a218b0"
+  "scripts/verify-startup-base.py": "0edfc15e1adb81969ef044e4a1fa58f74195d2fb7c313947ec0fdd78b7b830c4"
  }
 }

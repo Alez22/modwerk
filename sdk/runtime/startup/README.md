@@ -80,20 +80,21 @@ LCD capture results and remaining checks.
 ## Base edition
 
 The Elekloader base replaces the stock logo loop with its own startup,
-[`boot_anim.c`](../../machines/octatrack/elekloader/boot_anim.c), after Manfred
-Mohr's hypercubes. A seed pixel opens into a four-dimensional cube, which unfolds
-past the edges of the screen, tumbles back in and comes to rest in the one
-orientation where its sixteen corners fall on a 3 x 3 grid: the Modwerk mark. The
-edges drop away one by one, the corners grow into the tiles, the corner (1,1,1,1)
-slips out as the detached tile, the frame closes, the wordmark wipes in and **NEW**
-and the version are typed beside the mark. It ends on the same frame each time
-(`base_art.final_pixels`), lowered three rows for room at the edges. It takes 3.4 s.
+[`boot_anim.c`](../../machines/octatrack/elekloader/boot_anim.c): **docking**. The
+mark's ninth dot is a module arriving. The box draws itself while the panel wakes
+around it. The eight tiles light up one by one, each with its track key (T1-T8). The
+empty socket at the corner blinks, and a light far off at trig 1 answers. The module
+runs along the trig row, turns up through the keys under the screen, enters it from
+below and docks. The dock sends a wave that reveals MODWERK, **NEW** and the version
+and rolls on across the whole panel. It takes 3.2 s and ends on the same frame each
+time (`base_art.final_pixels`), lowered three rows for room at the edges.
 
-The LEDs are the world beyond the screen. The panel is treated as one plane with
-the LCD in it (lamp positions from the stock lamp table at run time, 54.2 hundredths
-of a millimetre per pixel), and each lamp glows where the cube's edges cross it,
-with a short afterglow. When the detached tile slips out, its momentum carries on
-across the panel towards the lower right. It is monochrome: one channel per lamp.
+Screen and lamps are one plane: the LCD sits in the panel (lamp positions from the
+stock lamp table at run time, 54.2 hundredths of a millimetre per pixel), so the
+module and the wave cross the screen's edge without a break. The lamps are white on
+an MKII. The startup sets channel A's colour to white at the panel's LED intensity
+and repeats the firmware's own pre-logo colour call before it returns. An MKI has
+fixed colours, so there they are red.
 
 This folder holds the authored data the base draws from: `artwork.json` (the mark and
 the wordmark, shared with public builds), `base.json` (the layout shift, the font,

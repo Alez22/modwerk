@@ -52,7 +52,7 @@ class BaseArtTests(unittest.TestCase):
     def test_header_carries_the_version_and_the_art(self):
         text = base_art.header('0.3.1')
         self.assertIn('#define BOOT_VERSION "0.3.1"', text)
-        self.assertIn('static const int16_t boot_sin[1024]', text)
+        self.assertIn('static const uint8_t boot_disc[7]', text)
         self.assertIn('#define BOOT_GLYPHS 8', text)
 
 
