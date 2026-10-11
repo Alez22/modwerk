@@ -230,6 +230,16 @@ class RuntimeSlotTests(unittest.TestCase):
     def test_status_keys_on_the_host(self):
         self.host_test('test_status.c')
 
+    def test_dsp_packages_rebuild_from_source(self):
+        """dsp_packages.py rebuilds the catalogue's DSP effects byte for byte on the Elekloader path."""
+        import os, pathlib, subprocess, sys
+        if not os.environ.get('ELEKLOADER_DSP_ASM'):
+            self.skipTest('ELEKLOADER_DSP_ASM is not set')
+        here = pathlib.Path(__file__).resolve().parent
+        run = subprocess.run([sys.executable, '-B', str(here / 'dsp_packages.py'), '--check',
+                              str(here.parents[3] / 'src/engine/assets/dsp-packages.json')], capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
     def test_startup_on_the_host(self):
         import importlib.util, pathlib, shutil, subprocess, tempfile
         cc = shutil.which('cc')
