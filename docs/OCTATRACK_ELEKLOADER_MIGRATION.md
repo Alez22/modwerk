@@ -1628,6 +1628,14 @@ The stall record's host ISR showed core 0 not waiting for the host (RXDF clear).
 
 **The check.** 20 Euclid and 20 E-Verb install/remove cycles while playing ran without a stall. At the old rate, about one in ten, that would happen by chance about 1.5% of the time.
 
+The full qualification on S29 then passed with no failures, with a 1-minute soak and no crash test (a crash restart boots the flashed base, which can't be read). Results:
+- **Six modules:** each alone on both cores, then all at once, with the second heavy module refused on each core; peaks 68% and 59%.
+- **Knob sweeps** on every placed module.
+- **Part switches:** 12 while playing.
+- **Bank change:** a queued change into another bank and back.
+- **Masking:** 924 fully masked spans, the longest 3,219 counts (24 µs).
+- **No new stall**, and the Part reloaded byte for byte.
+
 **Tools from the hunt:**
 - the stall record (battery RAM `0x100ff900`: why, the loader's report, both packet headers, the live FX, the host ISR; the `stall` and `stalltest` steps);
 - `modwerk_masked_max`/`_last`/`_spans` in `runtime.c` (full-mask spans, outermost only, in DTCN3 counts);
