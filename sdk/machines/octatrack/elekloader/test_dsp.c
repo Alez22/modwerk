@@ -151,6 +151,11 @@ int main(void)
     CHECK(modwerk_fxmap_handle(0x873d83ccu) == 27 && !modwerk_fxmap_module(26));
     written[0] = 0; modwerk_fxmap_write(7);
     CHECK(!strcmp(written, "#MODWERK_FX=27:873d83cc:0:E-Verb\r\n"));
+    /* A handle an old project uses for a module no map or catalogue names is never handed to another module. */
+    modwerk_test_live_fx[0] = 26; third.module = 0x49; third.id = 26;
+    CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);
+    modwerk_test_live_fx[0] = 0;
+    CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_OK && third.id == 26);
     if (failures) { fprintf(stderr, "%u DSP glue checks failed\n", failures); return 1; }
     puts("Octatrack DSP glue: admission (ids, arena, instance block, cycles, effects in use), the catalog, the effects a bank names, the stall watchdog, the project handle map and rebinding passed.");
     return 0;

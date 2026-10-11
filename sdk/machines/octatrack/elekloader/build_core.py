@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import os
 from pathlib import Path
 import shutil
@@ -46,11 +47,32 @@ DYNLOAD_HOOKS = (
     (0x4004a8a4, 6, '20577862965e35b56da3cc4660ac5df6a325e455467496552d181b68fff15e2d', 'dl_part_guard'),
     # Modwerk's: core 1's packet right after stock's own push to core 1 (dsp_core1.s), at frame-transfer state 3.
     (0x400049ca, 8, '2945c558a5df272b3fb2ef6df3e3ab594b0c2c162f29c38ba624c3ec610c71f5', 'dl_state3'),
-    # Modwerk's: the project's map of module effect handles in project.work (fxmap.s, fxmap.c).
-    (0x400866d4, 6, '2fd04d71c59a1c9023b7b2b5ad2cf5a7445d464be69c48340b45e33b9ad07056', 'mw_project_begin'),
-    (0x400867aa, 6, 'b304cfb26163106388891990b3c67d3fe0b7f927d6a9f973d8d93d26d1171259', 'mw_project_line'),
-    (0x400888b2, 6, 'b7d260815d4140a98163e14d6e541df300de70a7bfc32b99792b5e61e46235c3', 'mw_project_write'),
+    # Modwerk's: the project's map of module effect handles in project.work (fxmap.s, fxmap.c), beside the
+    # seams PLAY MODES and SCALE QUANTIZER patch, so both still install on this base (catalogue_overlaps).
+    (0x400866e2, 8, '6b5f250f244620fe2acc97ddca8e7e1fa03b3b7a174ef7dc7bada335f1777378', 'mw_project_begin'),
+    (0x40088224, 6, '5cf9e6109ce8cb58a9bf4dc66339e546dd063412195eeb9d8290218748e8fdd2', 'mw_project_line'),
+    (0x400888c8, 6, '456d2abcb4566bd836c3fca9361d944909299ab5f3722ff6ec74affc41e77689', 'mw_project_write'),
     (0x4008540e, 6, 'c607734f7f97b4a13e2047f38d5e2feace1aa3018ec9f19742f612139e7ac0bd', 'mw_project_end'))
+# Catalogue modules allowed to patch what this base owns, and why (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
+BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configuration',
+             'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port'}
+
+
+def catalogue_overlaps(sites):
+    """Catalogue modules a site of this base would lock out: each must still install over the stock bytes
+    it patches or keeps, beside the base (PLAY MODES once met the project map's seams)."""
+    from elekloader.sdk import octabam as port
+    ob = port.Octabam(str(APP / 'sdk/octabam'))
+    base = [(int(s['addr'], 16), len(bytes.fromhex(s['stock']))) for s in sites]
+    found = []
+    for name, m in sorted(ob.modules.items()):
+        spans = ([(d.site, max(len(d.expect), d.pad_to or 6)) for d in m.detours] + [(p.addr, len(p.expect)) for p in m.pokes] +
+                 [(k.addr, len(k.expect)) for k in m.keeps] + [(site, 6) for t in m.tables for site, _ in t.refs])
+        if name not in BASE_OWNS and any(a < b + bn and b < a + n for a, n in spans for b, bn in base):
+            found.append(name)
+    return found
+
+
 DSP_ALLOWANCE = 2808  # per core and sample: 3,120 cycles our code may spend (hardware) less a 10% margin (owner default)
 # The dearest stock effect per slot: DJ EQ, 330.75 executed instructions per sample at its worst split
 # (stock_dsp_worst.py, emulator; not hardware timing). Every slot without a module is charged it (dsp.c).
@@ -650,6 +672,15 @@ modwerk_retained_end:
             raise ValueError('Startup stock table guard failed.')
         recipe['sites'].append(dict(addr=hex(guard['address']), stock=image[at:at+len(authored)].hex(),
                                     op='bytes', new=authored.hex(), kind='data'))
+    # A detour's way back must not land inside a patched site (fxmap.s once returned two bytes short).
+    spans = [(int(site['addr'], 16), len(bytes.fromhex(site['stock']))) for site in recipe['sites']]
+    inside = sorted({hex(t) for f in source.glob('*.s') for t in map(lambda h: int(h, 16), re.findall(
+        r'\bj(?:mp|sr)\s+0x([0-9a-fA-F]+)', f.read_text())) for a, n in spans if a < t < a + n})
+    if inside:
+        raise ValueError('Base code jumps into the middle of a patched site: ' + ', '.join(inside))
+    locked = catalogue_overlaps(recipe['sites'])
+    if locked:
+        raise ValueError('Base sites overlap what these catalogue modules patch: ' + ', '.join(locked))
     (source/'mod.json').write_text(json.dumps(recipe, indent=2)+'\n')
     path, _ = sdk.build(str(source), str(args.stock), str(out/'package'))
     document = json.loads(Path(path).read_text())

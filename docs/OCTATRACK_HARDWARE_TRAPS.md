@@ -138,6 +138,23 @@ hung the unit at its logo (`dsp3-B2`); the emulator ran it. The same amount in
 an interruptible DO loop on core 0 alone was fine. `rep` holds off interrupts
 while it repeats, and core 1's headroom is not measured yet.
 
+## Patching stock code
+
+**A detour returns after the whole span it displaced, never into it.** The
+map's writer detour at `0x400888c8` displaced `lea` (4 bytes) and `tstl` (2)
+and jumped back to `0x400888cc`, the second half of its own `jmp`. SYNC TO
+CARD then stopped on stock's exception screen (`VEC:04`, illegal
+instruction, `ADDR:400888CC`) and USB went away until a power cycle, with the
+project file half-written (`dsp3-R4`). The build now refuses any absolute
+jump in the base's assembly that lands strictly inside a patched site.
+
+**Base seams must leave catalogue modules' sites alone.** The runtime loader
+patches only over the exact stock bytes a package expects, so a base site on
+a module's site refuses that module on the base. The project map once took
+PLAY MODES' three project-file seams; it now sits beside them and SCALE
+QUANTIZER's, and the build fails when a base site meets the stock bytes any
+catalogue module patches or keeps (`catalogue_overlaps`).
+
 ## The emulator and the tools
 
 What `ot_emu` does not show:
@@ -148,6 +165,10 @@ What `ot_emu` does not show:
 - It never restarts from RAM, so the park-and-upload path is not covered.
 - `--dsp` dies with a bus error in Docker unless `--shm-size=128m`;
   `--frame` is needed for the audio producer (USB audio) to run.
+- It boots as an MKI unless given `--mkii`, and the MKI panel has no PROJ,
+  PART, AED or ARR key: remote PROJ does nothing. Card writes stay in memory
+  unless given `--card-rw`. Hold remote keys for unit ticks, not wall time:
+  under `--dsp` it runs far slower than the clock.
 
 **Drive the unit in one connection and read it as text.** Each `npm run
 device` call opens the bridge again (about a second). `npm run device -- do

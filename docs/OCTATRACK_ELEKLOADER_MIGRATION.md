@@ -991,10 +991,13 @@ card, another unit) and change version, and old projects must keep loading:
   (`fxmap.c`, `fxmap.s`, `51d1d6d2`) lives in battery RAM at `0x100fe000` (1
   KiB, checksummed; nothing else uses it) and rides in `project.work` as
   `#MODWERK_FX=<handle>:<module id>:<layout>:<name>` lines, one per handle the
-  project names in any bank. The base hooks stock's project loader
-  (`0x400866d4`), its `#` line check (`0x400867aa`), the writer (`0x400888b2`,
-  the seams PLAY MODES and SCALE QUANTIZER use) and the end of the engine's
-  project load (`0x4008540e`). A loaded project naming an installed module at
+  project names in any bank. The base hooks stock's project loader's head
+  (`0x400866e2`), the loop's next line, where every line ends whoever skipped
+  it (`0x40088224`), the writer after PATTERN_CHANGE_AUTO_SILENCE_TRACKS
+  (`0x400888c8`) and the end of the engine's project load (`0x4008540e`). The
+  first three sit beside the seams PLAY MODES and SCALE QUANTIZER patch (until
+  11 October the map took PLAY MODES' own, which would have refused PLAY MODES
+  on this base; see "Old projects on the new base" below). A loaded project naming an installed module at
   another handle, or another module at one it holds, rebinds in two steps: the
   module lets go (its slots run dry while the manager retires its code), then
   takes its handle once the manager is idle.
@@ -1051,6 +1054,39 @@ card, another unit) and change version, and old projects must keep loading:
     each of the 16 hits the level 200 ms later was -13.9 dB with E-Verb and
     -41.2 dB dry, 400 ms later -37.4 dB against silence. Both cores reverberate.
     Set up and run entirely from the Mac (`npm run device -- do`, `ui`).
+  - **Old projects on the new base** (owner, 11 October 2026: a user who moves
+    to the new base and opens old projects must find them working). Checked:
+    - A stock 1.40C project and one saved with E-Verb before the map open as on
+      stock (`old_projects.py` stock-fx, module-set, module-restored; emulator).
+      Projects without map lines read today's catalogue assignments, which
+      cover every FX id a released build used (main's chooser metadata has
+      only these; Shimmer's 30 never shipped).
+    - The map's seams moved off PLAY MODES' (`build_core.py`'s
+      `catalogue_overlaps` now fails the build when any base site meets the
+      stock bytes a catalogue module patches or keeps; USB AUDIO OUT and MIDI
+      SCENES are the listed exceptions). A project naming E-Verb at handle 9,
+      which no default names, by its line beside PLAY MODES' and SCALE
+      QUANTIZER's lines bound E-Verb there once installed (`module-lines`,
+      emulator), and SYNC TO CARD wrote the line back (`save`, emulator).
+    - A handle the project uses for a module neither its map nor the catalogue
+      names is no longer handed to another module (it would have played the
+      other module with the unknown one's knob values; `test_dsp.c`).
+    - On the unit (`dsp3-R5`, base `404dd11a…`): SYNC TO CARD wrote the line
+      and PROJECT > CHANGE to the same project read it back (map generation
+      10), E-Verb bound on T1 and T5 throughout, nothing missing, no errors.
+      `dsp3-R4` before it crashed at SYNC TO CARD (`VEC:04`, `ADDR:400888CC`):
+      its writer detour returned two bytes into its own jump. Recovered by a
+      power cycle and SYNC TO CARD from R3; the build now refuses any base
+      jump into the middle of a patched site (hardware traps).
+    - Still not seamless: CHARACTER, TAPE ECHO, EUCLID and SIDECHAIN
+      COMPRESSOR have no package for this base, so their tracks run dry and
+      are named; SIDECHAIN replacing COMPRESSOR in place needs the owner's
+      decision. A module's own project lines (PLAY MODES, SCALE QUANTIZER)
+      are dropped by a save while the module is not installed, so the
+      migration should install the user's modules before projects are saved.
+      A new base refuses the saved module set (another configuration hash), so
+      the site reinstalls after a base update. Octabam firmware's projects are
+      not checked.
   - Not yet: rebinding on the unit, the site using MISSING, the other modules'
     pages on the unit (Spectrum and Tape Echo carry formatter units with
     fixups), and EUCLID's shared wide dial.
@@ -1851,11 +1887,12 @@ changes) remain a card OS install.
 
 | Step | Built (emulator only) | Still needed | Rules |
 | --- | --- | --- | --- |
-| 1. Connect automatically | Upload mode entered by the host's ENTER while nothing plays or records; [`octatrack-link.ts`](../src/engine/elekloader/octatrack-link.ts) reopens a granted unit through `getDevices()` and the `connect` event, so the unit returning from its OS upgrade is found by itself (vitest with a pretend unit) | The site finds a unit it was granted before (`navigator.usb.getDevices()`, the `connect` event) and connects without a prompt; Chrome's device chooser appears once per site, on a click, and cannot be skipped. The unit may show that a host is linked | No mode to open on the unit (owner, 10 October 2026: the site should just connect). Writes need a stopped unit and a host the user granted the device to. IDENTIFY, HELLO and DIAG stay read-only; stock MIDI recovery is untouched |
+| 1. Connect automatically | The unit shows `MODWERK CONNECTED` for about a second at a host's first request after 10 s of quiet (`ep0.c`; on the unit, 11 October 2026). Upload mode entered by the host's ENTER while nothing plays or records; [`octatrack-link.ts`](../src/engine/elekloader/octatrack-link.ts) reopens a granted unit through `getDevices()` and the `connect` event, so the unit returning from its OS upgrade is found by itself (vitest with a pretend unit) | The site finds a unit it was granted before (`navigator.usb.getDevices()`, the `connect` event) and connects without a prompt; Chrome's device chooser appears once per site, on a click, and cannot be skipped. The unit may show that a host is linked | No mode to open on the unit (owner, 10 October 2026: the site should just connect). Writes need a stopped unit and a host the user granted the device to. IDENTIFY, HELLO and DIAG stay read-only; stock MIDI recovery is untouched |
 | 2. Connect over WebUSB | `UsbVendorTransport`, the session client, a Chrome test page (`dev/octatrack-usb.html`) and, in dev builds only (`USB_LINK`), on computers only: a site-wide link that connects by itself, its status in the sidebar and status bar with a pill while an update runs ([`OctatrackStatus`](../src/components/OctatrackStatus.tsx)), the checkout card's Load onto Octatrack flow (the library's Build firmware button says the same) (stop playback, load, stress test, keep or undo; the .bin download stays one click away; [`OctatrackUpdate`](../src/components/OctatrackUpdate.tsx)) and the base install dialog ([`BaseInstallDialog`](../src/components/BaseInstallDialog.tsx)), which the card opens at any time and which opens once per member at release ([app notes](APP_DEVELOPMENT.md#octatrack-base-install-prompt)); `?preview=usb-link` and `?preview=base-install` drive them with a pretend unit | The builder's `buildBase` (base .bin from the stock OS) and `prepareUpdate` (runtime package for the configuration), the test runner's `stressTest`, the base stopping playback itself when an update starts (it refuses today); beta or public gating; Windows WinUSB binding; the card's first hardware run | Claim only the vendor interface; a mismatched base identity is refused before any write |
 | 3. Load new modules | Up to 32 runtime modules at once with tick, draw, key and encoder hooks, their own data and relocations, and patches to stock code no two share ([machine-neutral loader](../sdk/runtime/loader/README.md)): load, trial, accept, replace, roll back and remove without a reboot, memory reclaimed; catalogue ColdFire modules converted by Elekloader | Data-table patches, modules that add to the core's tables, MIDI and audio-frame hooks, DSP code on demand and the DSP ledger ([design](#several-modules-on-the-device-design-10-october-2026)), a browser builder | The previous set stays live until acceptance; refusals happen before dispatch changes |
 | 4. Automated stress and bug checks | DIAG counters, emulator checks, Octabam's MIDI/audio hardware tools | A test runner driven over the vendor interface: bounded transport and parameter actions on a generated test project, CPU/DSP load and audio-path counters, a trial verdict per module | Never write the user's projects. A failed check rolls back automatically; acceptance stays an explicit user action unless the owner changes that rule |
 | 5. Upload failures, open issues | `OCTAMOD.LOG` format, the strict browser/Worker parser, the report API and GitHub issue mirroring with author commands | Read the logger ring and test results over USB (a bounded read command) instead of from the card; a run report bound to the exact base and module identities; automatic submission after a one-time opt-in, de-duplicated by failure signature and version into existing reports for the module's author | Show the user what is sent. Never upload firmware, stock bytes, projects, samples or audio. Reuse the existing sanitized report contract and rate limits |
+| 6. Stay connected while playing (later; owner, 11 October 2026) | Nothing beyond steps 1, 2 and 5: the link reconnects by itself, and the loader report, MISSING and the logger ring are readable over USB | An opt-in in the Octatrack link's settings to leave the unit connected to an open site tab during normal use, so the site files reports by itself: DSP refusals (`DSP MEMORY FULL`), missing modules, load-meter overruns, stalled frames, watchdog and logger events. Frontend: the opt-in switch, a visible "watching" state in [`OctatrackStatus`](../src/components/OctatrackStatus.tsx), a list of what was sent, and a pause | Off by default. Read-only while the unit plays: reports and counters only, no writes. Polling stays light (the same bounded reads, at most about once a second), never touches the audio path, and stops when the tab or the cable goes. Same rules as step 5 for what is sent |
 
 The connection must survive disconnects, dropouts, faulty cables and host USB
 driver failures (owner, 10 October 2026). The unit must never wait on the
@@ -1867,7 +1904,8 @@ host and must end every interruption in a known, working state.
 | Dropped, short or corrupted transfer | A short data stage or a new SETUP refuses the frame; the client retries a positively refused frame under a new sequence; the whole package's SHA-256 is checked before activation; an unconfirmed command stops the connection | Resume an interrupted upload from the last confirmed chunk instead of restarting |
 | Host stops talking without a bus reset (driver or app hang, half-broken cable) | After 10 s without any request during an upload or trial, the unit handles it as unplugged. On the owner's MKII (`usbtest6`), the CLI was killed mid-trial with the cable and bridge still connected; 12 s later the unit had rolled the trial back by itself | A client keeps a long trial alive with status reads (the CLI reads DIAG every second); the site's UI must do the same |
 | Device-side stalls | Replies are never a whole number of 64-byte packets (a stale zero-length packet once froze the unit), and nothing spins on the host | Keep that rule for every future request; fault-injection runs with random unplugs |
-| Power loss | RAM only: a reboot starts stock plus the base | When accepted modules persist (planned), write the new set beside the old one and switch only once it is complete |
+| Power loss | The accepted module set is kept on the card twice (`/MODWERK0.SET`, `/MODWERK1.SET`, `modset.c`) and installed after boot; FUNC held at boot skips it; a set another base wrote is refused | A power cycle with a flashed base that has it (RAM boots only so far) |
+| A crash (the unit's exception screen; first seen 11 October 2026, `VEC:04 ADDR:400888CC`, a base bug) | Stock's exception screen until a power cycle; battery RAM keeps the project, USB is gone | Owner, 11 October 2026: restore from that state. The base takes the exception vectors, writes the vector, address and running modules to the card log, and restarts as a RAM boot does (controller stopped first); the next connection reports it, and a module named in it is not reinstalled until the user says so |
 
 The SDK exposes the same interface for working directly on a unit, for
 module authors and agents (owner, 10 October 2026): a command-line client

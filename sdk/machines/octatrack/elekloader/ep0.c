@@ -255,6 +255,14 @@ void modwerk_ep0_bus_reset(void)
 void modwerk_ep0_tick(void);
 void modwerk_ep0_tick(void)
 {
+    /* A host's first request after 10 s of quiet: the unit says a host is linked (owner, 11 October 2026). */
+    static uint8_t heard;
+    static uint32_t quiet = HOST_TIMEOUT_TICKS;
+    uint8_t activity = vendor()->activity;
+    if (activity != heard) {
+        if (quiet >= HOST_TIMEOUT_TICKS) ((void (*)(const char *, unsigned))0x4005a2b8u)("MODWERK CONNECTED", 0x60);
+        heard = activity, quiet = 0;
+    } else if (quiet < HOST_TIMEOUT_TICKS) ++quiet;
     if (started && controller_started && mv_tick(vendor(), controller.phase != MU_NORMAL, HOST_TIMEOUT_TICKS)) wake();
     if (modwerk_boot_tick()) wake(); /* an armed RAM boot is due */
 }

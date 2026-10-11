@@ -5,11 +5,14 @@ track and slot, and one saved with a module (E-Verb, effect 27), must load on a
 DSP-loader base as they do on stock: the same Part bytes, the same live effects,
 every stock effect that runs loaded and bound into its core's arena (resident
 ones dispatching as on stock), and a module that is absent dry and reported,
-then restored when installed.
+then restored when installed. In the third card the project names E-Verb at
+handle 9, which no catalogue default names, by its '#MODWERK_FX=' line beside
+PLAY MODES' and SCALE QUANTIZER's lines: installing E-Verb binds it there only
+if the base read the line.
 
-    python3 -B old_projects.py cards PRIVATE_PROJECT_DIR OUT     # OUT/stock-fx.img, OUT/module-set.img
+    python3 -B old_projects.py cards PRIVATE_PROJECT_DIR OUT     # OUT/{stock-fx,module-set,module-lines}.img
     python3 -B old_projects.py dumps BUILD|stock OUT              # ot_emu --mem-dump/--dsp-peek arguments
-    python3 -B old_projects.py check STOCK_RUN BASE_RUN BUILD stock-fx|module-set|module-restored
+    python3 -B old_projects.py check STOCK_RUN BASE_RUN BUILD stock-fx|module-set|module-restored|module-lines
 
 The project is copied, never changed. Cards, dumps and logs are private.
 Emulator evidence: state, not audio.
@@ -25,18 +28,20 @@ OCTABAM = HERE.parents[2] / 'octabam'
 FX1 = (4, 12, 13, 16, 17, 18, 5, 19, 24, 28)
 FX2 = (21, 20, 8, 24, 22, 28, 19, 5, 4, 12, 13, 16, 17, 18)
 EVERB = 27
+HANDLE = {'module-set': EVERB, 'module-restored': EVERB, 'module-lines': 9}  # where each card's project names E-Verb
+LINES = b'#MODWERK_FX=9:873d83cc:1:E-Verb\r\n#PLAY_MODES=A01:00000000000000000\r\n#SEQUENCER_SCALE=0\r\n'
 LIVE_FX, BANK_POINTER = 0x80000ec4, 0x46c82456
 BANK0, BANK_BYTES, PARTS, SAVED, PART_BYTES = 0x400e21e0, 635712, 0x8ed80, 0x9504a, 6322  # selection.c, publication.c
 
 
-def assignment(module):
+def assignment(module, handle=EVERB):
     """Part p's FX1 and FX2 ids per track: every stock effect in some Part, reverbs on both cores in Part 1."""
     parts = []
     for p in range(4):
         fx1 = [FX1[(8 * p + t) % len(FX1)] for t in range(8)]
         fx2 = [FX2[(8 * p + t) % len(FX2)] for t in range(8)]
         if module:
-            fx2[1] = fx2[5] = EVERB  # T2 (core 1) and T6 (core 0)
+            fx2[1] = fx2[5] = handle  # T2 (core 1) and T6 (core 0)
         parts.append((fx1, fx2))
     return parts
 
@@ -47,11 +52,16 @@ def cards(project, out):
     import emu_card
     import ot_project
     out.mkdir(parents=True, exist_ok=False)
-    for name, module in (('stock-fx', False), ('module-set', True)):
+    for name, module in (('stock-fx', False), ('module-set', True), ('module-lines', True)):
         tree = out / name / 'MODWERK'
         shutil.copytree(project, tree / 'TEMPLATE')
         (tree / 'AUDIO').mkdir()
-        parts = assignment(module)
+        parts = assignment(module, HANDLE.get(name, EVERB))
+        if name == 'module-lines':  # where the writer puts them, after PATTERN_CHANGE_AUTO_SILENCE_TRACKS
+            work = tree / 'TEMPLATE' / 'project.work'
+            data = work.read_bytes()
+            at = data.index(b'\n', data.index(b'PATTERN_CHANGE_AUTO_SILENCE_TRACKS=')) + 1
+            work.write_bytes(data[:at] + LINES + data[at:])
         for bank in sorted((tree / 'TEMPLATE').glob('bank*.work')):
             def mutate(data):
                 for p in range(ot_project.NPARTS_ALL):  # four current Parts, then their saved copies
@@ -97,7 +107,8 @@ def check(stock_run, base_run, build, case):
     live = list(read(base_run, 'ids'))
     assert live == list(read(stock_run, 'ids')), ('the live effects differ', live, list(read(stock_run, 'ids')))
     module = case != 'stock-fx'
-    fx1, fx2 = assignment(module)[0]
+    handle = HANDLE.get(case, EVERB)
+    fx1, fx2 = assignment(module, handle)[0]
     assert live == fx1 + fx2, ('Part 1 is not what runs', live)
     logs = [(run / 'log.txt').read_text() for run in (stock_run, base_run)]
     dry = set()
@@ -106,9 +117,9 @@ def check(stock_run, base_run, build, case):
         null = tuple(layout[tag]['null'])
         tracks = range(4, 8) if core == 0 else range(4)
         for fx in {live[t] for t in tracks} | {live[8 + t] for t in tracks}:
-            if fx == EVERB:
+            if module and fx == handle:
                 bound = (bi[fx], bp[fx]) != null
-                assert bound == (case == 'module-restored'), ('effect 27 on core %d' % core, hex(bi[fx]))
+                assert bound == (case != 'module-set'), ('effect %d on core %d' % (fx, core), hex(bi[fx]))
                 assert (si[fx], sp[fx]) == null, 'stock runs its null stub for an unknown id'
             elif fx in loaded:
                 table = int(layout[tag]['table'], 16)
@@ -119,13 +130,14 @@ def check(stock_run, base_run, build, case):
     assert u32(base_run, 'dl_errors') == 0
     told = u32(base_run, 'modwerk_dsp_missing')
     assert told >= (1 if dry or module else 0), 'the unit did not say a slot runs dry'
-    if case == 'module-restored':
+    if case != 'module-set' and module:
         assert u32(base_run, 'dl_reinit') >= 2, 'both E-Verb slots started from their init'
     print('%s: Part records of all 16 banks and the live effects as on stock; every stock effect that runs is loaded '
           'and bound (resident ones as on stock)%s%s: passed' % (
               case, '; %s dry and reported' % sorted(dry) if dry else '',
               {'module-set': '; E-Verb absent: dry, reported, its bytes kept',
-               'module-restored': '; E-Verb installed afterwards: both slots bound and started from init'}.get(case, '')))
+               'module-restored': '; E-Verb installed afterwards: both slots bound and started from init',
+               'module-lines': '; E-Verb named at handle 9 by its line, installed afterwards: bound there and started from init'}.get(case, '')))
 
 
 if __name__ == '__main__':

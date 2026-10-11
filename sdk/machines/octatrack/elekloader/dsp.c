@@ -82,7 +82,7 @@ static int free_for(unsigned k, uint32_t module, uint32_t used)
 {
     if (k >= 32u || !(modwerk_dsp_modules >> k & 1u) || owner[k]) return 0;
     uint32_t named = modwerk_fxmap_module(k);
-    return !named || named == module || !(used >> k & 1u);
+    return named == module || !(used >> k & 1u); /* a handle the project uses for an unknown module stays its own */
 }
 static int choose(uint32_t module, unsigned preferred)
 {

@@ -6,7 +6,7 @@
 // ot_emu writes its memory dumps when the client hangs up:
 //
 //   ARGS=$(node scripts/verify-octatrack-dsp-loader.mjs dumps BUILD OUT)
-//   ot_emu --image BUILD/MAIN.raw --card CARD --set SET --project PROJECT --load-ms 20000 --frame --dsp \
+//   ot_emu --image BUILD/MAIN.raw --card CARD --set SET --project PROJECT --mount --load-ms 20000 --frame --dsp \
 //     --usb-host SOCK --usb-hold-ms 600000 $ARGS > OUT/log.txt &      # docker run --shm-size=128m
 //   node scripts/verify-octatrack-dsp-loader.mjs drive SOCK BUILD SCENARIO PACKAGE
 //   node scripts/verify-octatrack-dsp-loader.mjs check BUILD OUT SCENARIO
@@ -24,7 +24,9 @@
 // FILTER on T6 on the next ticks, while T1's upload runs: they wait, the latest per slot, and none is dropped),
 // union (more modules as SECOND, comma-separated, a last argument to drive: what an inactive Part names is
 // preloaded, a Part change to it sends nothing to the DSPs, and a pick of the module that the union of Parts cannot
-// hold is refused although nothing live holds the others).
+// hold is refused although nothing live holds the others), save (no install: once the project is up, PROJECT > SYNC TO
+// CARD by keys, on a development base; the project file's map lines go out through the writer's seam; ot_emu needs
+// --mkii, whose panel has PROJ, and --card-rw to keep the file).
 // SCENARIO:MODULE names the module by its catalogue id (src/engine/assets/dsp-packages.json); E-Verb by default.
 // The card needs a project whose Part 1 has no module effect on T1, T2, T5 or T6.
 // Emulator evidence only: executed instructions, no hardware timing or audio.
@@ -42,7 +44,7 @@ const LIVE_FX = 0x80000ec4
 const COUNTERS = { dl_residency_words: 8, dl_pool_base: 8, dl_selection_requested: 4, dl_selection_completed: 4,
   dl_selection_refused: 4, dl_errors: 4, dl_modal_shown: 4, dl_parked: 4, dl_reinit: 4, modwerk_dsp_missing: 4,
   modwerk_dsp_probes_ok: 4, modwerk_dsp_probes_failed: 4, dl_frames: 4, modwerk_dsp_meter_core: 4, modwerk_dsp_meter_bits: 4,
-  modwerk_dsp_meter: 20, dl_selection_queued: 4, dl_selection_cancelled: 4 }
+  modwerk_dsp_meter: 20, dl_selection_queued: 4, dl_selection_cancelled: 4, modwerk_fxmap_written: 4 }
 const json = path => JSON.parse(readFileSync(path, 'utf8'))
 const build = dir => ({ proofs: json(join(dir, 'proofs.json')), symbols: json(join(dir, 'symbols.json')) })
 const [scenario, module = 'everb'] = (args[2] ?? '').split(':')
@@ -106,8 +108,16 @@ if (mode === 'dumps') {
     return value
   }
   const byte = async address => ((await long(address - address % 4)) >>> 8 * (3 - address % 4)) & 0xff
-  if (scenario === 'restore') { // install once the loaded project names the module and the unit has said it is missing
+  if (scenario === 'restore' || scenario === 'save') { // once the loaded project names the module and the unit has said it is missing
     for (let tries = 0; tries < 120 && !(await long(symbols.modwerk_dsp_missing)); tries++) await settle(10)
+  }
+  if (scenario === 'save') { // NO (the date prompt), PROJ, RIGHT, DOWN x3 (SYNC TO CARD), YES; each key held for unit ticks
+    for (const code of [0x32, 0x1c, 0x21, 0x20, 0x20, 0x20, 0x31]) for (const value of [code | 0x100, code]) {
+      const reply = await device(bench).controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: 5, value, index }, 1)
+      assert.equal(reply.status, 'ok', 'a development base takes keys'); await settle(10)
+    }
+    for (let tries = 0; tries < 120 && !(await long(symbols.modwerk_fxmap_written)); tries++) await settle(10)
+    bench.socket.end(); process.exit(0)
   }
   if (scenario === 'missing') {
     const bank = await long(0x46c82456)
@@ -279,8 +289,11 @@ if (mode === 'dumps') {
     assert.equal(u32('modwerk_dsp_probes_ok')[0], answered ? 2 : 0); assert.equal(u32('modwerk_dsp_probes_failed')[0], answered ? 0 : 2)
     assert(u32('dl_frames')[0] > 1000, 'frames kept running')
     console.log(`probe ${proofs.configuration.dsp.probe ?? 'none (whole receiver)'}: each core ${answered ? 'answered' : 'took the packet and never answered, as built'}, frames kept running: passed`)
+  } else if (scenario === 'save') {
+    assert(u32('modwerk_fxmap_written')[0] >= 1, 'SYNC TO CARD wrote the map line')
+    console.log(`SYNC TO CARD: the writer wrote ${u32('modwerk_fxmap_written')[0]} map line(s) through its seam, no transport errors: passed`)
   } else throw new Error('Unknown scenario ' + scenario)
 } else {
-  console.error('Usage: verify-octatrack-dsp-loader.mjs dumps BUILD OUT | drive SOCK BUILD SCENARIO PACKAGE [SECOND] | check BUILD OUT SCENARIO[:MODULE] (pick, remove, cycles, missing, restore, probe, stock, beside, queue, union)')
+  console.error('Usage: verify-octatrack-dsp-loader.mjs dumps BUILD OUT | drive SOCK BUILD SCENARIO PACKAGE [SECOND] | check BUILD OUT SCENARIO[:MODULE] (pick, remove, cycles, missing, restore, probe, stock, beside, queue, union, save)')
   process.exit(2)
 }
