@@ -189,12 +189,18 @@ What `ot_emu` does not show:
   unless given `--card-rw`. Hold remote keys for unit ticks, not wall time:
   under `--dsp` it runs far slower than the clock.
 
-**Drive the unit in one connection and read it as text.** Each `npm run
-device` call opens the bridge again (about a second). `npm run device -- do
-'T1 FX2 FUNC+FX2 DOWN*8 YES w1500 NO ui'` runs a whole sequence in one
-connection, and `ui` prints each track's effects, the current track and the
-transport from RAM (the development MEM request, read-only, RAM only). Take a
-screenshot only for menus `ui` cannot name, at `--scale 2`.
+**Keep one link open and drive it by name.**
+- *The session.* Each `npm run device` call opens the bridge again (one to
+  two seconds) and, after a quiet spell, brings up MODWERK CONNECTED.
+  Instead run `while :; do npm run device -- serve; sleep 1; done` in a
+  terminal. It starts the bridge, keeps the link open, sends a request every
+  4 s so the popup shows once, and comes back after a RAM boot (`boot DIR`).
+- *Sending.* `scripts/device-send.py 'part2 pick:T1:FX2:E-Verb stats'`
+  replies in well under a second: `pick` by name (scrolled with LEVEL, done
+  once the track runs it, about 1.4 s), `part1`-`part4`, `ui` (effects,
+  current track, Part, transport), `stats`, `png:FILE`, `try`/`remove`.
+- *Looking.* A screenshot at `--scale 2` (`png:FILE`) is cheaper to read
+  than the text rendering. Take one only for screens `ui` cannot name.
 
 Tools that work on this Mac:
 - Development bases (`build_core.py --dev`): `npm run device -- key`,

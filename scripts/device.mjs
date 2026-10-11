@@ -5,6 +5,8 @@
 //
 //   ~/.cache/modwerk-upstream/venv/bin/python -B sdk/machines/octatrack/elekloader/usb_bridge.py /tmp/modwerk-ot.sock &
 //   npm run device -- status
+//   while :; do npm run device -- serve; sleep 1; done   # one long-lived link (starts the bridge if needed); send it
+//       scripts/device-send.py part2 pick:T1:FX2:E-Verb stats png:/tmp/s.png   # or 'try FILE', 'remove FILE', 'boot DIR'
 //   npm run device -- try MODULE.mwrm [--seconds 5] [--accept]
 //   npm run device -- remove [MODULE.mwrm] [--accept]   # that file's module, else module 0
 //   npm run device -- lifecycle
@@ -31,6 +33,10 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { deflateSync, crc32 } from 'node:zlib'
 import { join } from 'node:path'
+import { createConnection, createServer } from 'node:net'
+import { spawn, spawnSync } from 'node:child_process'
+import { homedir } from 'node:os'
+import { rmSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { sha } from '../vendor/elekloader/kit/src/bytes.ts'
 import { UploadSession } from '../src/engine/elekloader/upload-session.ts'
@@ -47,14 +53,20 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   scale: { type: 'string', default: '4' },
 } })
 const seconds = Number(values.seconds)
-if (!['status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
-  (['status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
+if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
+  (['serve', 'status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
   !Number.isInteger(seconds) || seconds < 1 || seconds > 3600) {
   console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
   process.exit(2)
 }
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+if (command === 'serve' && !await new Promise(resolve => { const c = createConnection(values.socket, () => { c.end(); resolve(true) }); c.on('error', () => resolve(false)) })) {
+  const bridge = spawn(process.env.MODWERK_PYTHON ?? join(homedir(), '.cache/modwerk-upstream/venv/bin/python'),
+    ['-B', 'sdk/machines/octatrack/elekloader/usb_bridge.py', values.socket], { stdio: ['ignore', 'pipe', 'inherit'] })
+  await new Promise((resolve, reject) => { bridge.stdout.on('data', d => /ready/.test(d) && resolve()); bridge.once('exit', code => reject(new Error('bridge exited ' + code))) })
+  process.once('exit', () => bridge.kill())
+}
 const bench = new Bench(values.socket)
 await bench.ready()
 const unit = device(bench), index = findVendorInterface(await enumerate(bench, !values.emulator))
@@ -82,19 +94,19 @@ async function keys(spec) {
   for (const code of codes) { await devIn(5, code | 0x100, 1); await wait(code === codes.at(-1) ? 80 : 30) }
   for (const code of codes.reverse()) { await devIn(5, code, 1); await wait(30) }
 }
-async function screen() {
+async function screen(png = values.png) {
   const frame = (await devIn(7, 0, 1028)).subarray(4)
   const on = (x, y) => (frame[x * 8 + ((63 - y) >> 3)] >> (7 - ((63 - y) & 7))) & 1
   const s = Math.max(1, Math.min(4, Number(values.scale) | 0))
-  if (values.png) { // greyscale, each pixel s x s (4 unless --scale)
+  if (png) { // greyscale, each pixel s x s (4 unless --scale)
     const rows = Buffer.concat(Array.from({ length: 64 * s }, (_, y) =>
       Buffer.from([0, ...Array.from({ length: 128 * s }, (_, x) => on(Math.floor(x / s), Math.floor(y / s)) ? 255 : 24)])))
     const chunk = (type, data) => { const t = Buffer.from(type), l = Buffer.alloc(4), c = Buffer.alloc(4)
       l.writeUInt32BE(data.length); c.writeUInt32BE(crc32(Buffer.concat([t, data]))); return Buffer.concat([l, t, data, c]) }
     const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(128 * s, 0); ihdr.writeUInt32BE(64 * s, 4); ihdr[8] = 8; ihdr[9] = 0
-    writeFileSync(values.png, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr),
+    writeFileSync(png, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr),
       chunk('IDAT', deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]))
-    return console.log('screen saved to ' + values.png)
+    return console.log('screen saved to ' + png)
   }
   for (let y = 0; y < 64; y += 2)
     console.log(Array.from({ length: 128 }, (_, x) => ' ▄▀█'[on(x, y) * 2 + on(x, y + 1)]).join(''))
@@ -117,7 +129,34 @@ async function ui() {
   const lines = []
   for (let t = 0; t < 8; t++)
     lines.push(`${t === track ? '>' : ' '}T${t + 1} ${(await name(view.getUint32(4 * live[t]))).padEnd(12)} ${await name(view.getUint32(132 + 4 * live[8 + t]))}`)
-  console.log(lines.join('\n') + `\n${stopped ? 'stopped' : 'playing'}${recording ? ', recording' : ''}`)
+  console.log(lines.join('\n') + `\npart ${(await mem(0x80000003, 1))[0] + 1}, ${stopped ? 'stopped' : 'playing'}${recording ? ', recording' : ''}`)
+}
+/** Wait until test() holds, polling every 50 ms; false after ms. */
+async function until(test, ms = 5000) {
+  for (const start = Date.now(); Date.now() - start < ms; await wait(50)) if (await test()) return true
+  return false
+}
+/** PART + an arrow (1 up, 2 right, 3 down, 4 left), then wait for the Part to change. */
+async function part(n) {
+  await keys('PART+' + ['UP', 'RIGHT', 'DOWN', 'LEFT'][n - 1])
+  if (!await until(async () => (await mem(0x80000003, 1))[0] === n - 1)) throw new Error('Part ' + n + ' did not become active.')
+}
+/** Pick an effect by name through the stock chooser, then wait until the track runs it. Stock's tables: FX1_IDS / FX2_IDS
+ * (id -> descriptor, its name at +9) and FX1_ID2POS / ID2POS (id -> chooser row); what runs, 0x80000ec4 (FX1 T1-8, FX2). */
+async function pick(track, slot, wanted) {
+  const ids = await mem(slot === 1 ? 0x400d5f58 : 0x400d5fdc, 128), rows = await mem(slot === 1 ? 0x400d60d0 : 0x400d6150, 128)
+  const word = (b, i) => new DataView(b.buffer, b.byteOffset).getUint32(4 * i)
+  let id = -1
+  for (let i = 0; i < 32 && id < 0; i++)
+    if (word(ids, i) && Buffer.from(await mem(word(ids, i) + 9, 13)).toString('latin1').replace(/\0.*$/s, '').toLowerCase() === wanted.toLowerCase()) id = i
+  if (id < 0) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
+  await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
+  const move = word(rows, id) - word(await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4), 0) // the chooser's cursor (dsp.c)
+  await run((move ? `encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100 ` : '') + 'YES') // LEVEL scrolls the chooser, a row a detent
+  const ok = await until(async () => (await mem(0x80000ec4 + 8 * (slot - 1) + track, 1))[0] === id)
+  await keys('NO')
+  if (!ok) throw new Error(wanted + ' was not admitted on T' + (track + 1) + ' FX' + slot + ' within 5 s.')
+  console.log(`T${track + 1} FX${slot} ${wanted}`)
 }
 /** status.c's tail of the report (version 11): word i of 78. */
 async function statusWords() {
@@ -126,7 +165,8 @@ async function statusWords() {
   return w
 }
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
- * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame). */
+ * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, part1-4, pick:T1:FX2:NAME
+ * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence) {
   for (const step of sequence.trim().split(/\s+/)) {
     let m
@@ -135,6 +175,9 @@ async function run(sequence) {
     else if ((m = /^fader(\d+)$/.exec(step))) await devIn(8, 0x40 | Number(m[1]) << 8, 1)
     else if (step === 'ui') await ui()
     else if (step === 'screen') await screen()
+    else if ((m = /^png:(\S+)$/.exec(step))) await screen(m[1])
+    else if ((m = /^part([1-4])$/.exec(step))) await part(Number(m[1]))
+    else if ((m = /^pick:T([1-8]):FX([12]):(\S+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), m[3].replace(/_/g, ' '))
     else if (step === 'state') { const [s, r] = await devIn(6, 0, 2); console.log(s ? 'stopped' : 'playing', r ? 'recording' : '') }
     else if (step === 'stats') { const w = await statusWords(); console.log(`stats cpu ${w(66)} T1-4 ${w(69)}/${w(70)} T5-8 ${w(67)}/${w(68)} passes ${(w(76) / 1024).toFixed(1)} ${(w(77) / 1024).toFixed(1)}`) }
     else { const [, spec, times] = /^(.+?)(?:\*(\d+))?$/.exec(step); for (let i = 0; i < Number(times ?? 1); i++) await keys(spec) }
@@ -186,7 +229,39 @@ async function rebooted() {
   throw new Error('The unit did not come back within 60 s; a power cycle boots the flashed base.')
 }
 
-try {
+if (command === 'serve') {
+  // One request per connection: a line in (a do sequence, or try/remove FILE), its output back, then close.
+  const path = process.env.MODWERK_DEV_SOCKET ?? '/tmp/modwerk-dev.sock'
+  let queue = Promise.resolve()
+  const serial = task => (queue = queue.then(task, task))
+  const capture = async line => {
+    const out = [], log = console.log
+    console.log = (...a) => out.push(a.join(' '))
+    try {
+      const [verb, arg] = line.trim().split(/\s+/)
+      if (verb === 'boot') { // the unit reboots and this link goes with it: hand the bridge to a one-shot boot, then exit (run serve in a loop)
+        bench.socket.end(); await wait(300)
+        const r = spawnSync(process.execPath, [process.argv[1], 'boot', arg, '--socket', values.socket], { encoding: 'utf8', timeout: 180000 })
+        out.push(r.stdout, r.stderr, 'serve exits; the loop restarts it'); setTimeout(() => process.exit(0), 200)
+      } else if (verb === 'try' || verb === 'remove') {
+        const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
+        const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined
+        values.accept = true
+        console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined))))
+      } else await run(line)
+    } catch (error) { out.push('error: ' + error.message) } finally { console.log = log }
+    return out.join('\n') + '\n'
+  }
+  rmSync(path, { force: true })
+  createServer(c => {
+    let line = ''
+    c.setEncoding('utf8').on('data', d => {
+      line += d
+      if (line.includes('\n')) serial(() => capture(line.slice(0, line.indexOf('\n'))).then(reply => c.end(reply)))
+    })
+  }).listen(path, () => console.log('serving on ' + path))
+  setInterval(() => serial(() => devIn(6, 0, 2).catch(() => {})), 4000) // a request every 4 s: MODWERK CONNECTED shows once
+} else try {
   if (command === 'key') { await keys(file); process.exit(0) }
   if (command === 'screen') { await screen(); process.exit(0) }
   if (command === 'ui') { await ui(); process.exit(0) }
