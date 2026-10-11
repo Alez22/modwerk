@@ -19,8 +19,10 @@ const STEPS = ['Load', 'Stress test', 'Keep']
  * one click away. Without such a unit, `children` (the .bin flow) shows with a hint about USB.
  * `prepareUpdate` (the builder) and `stressTest` (the test runner) are absent until they exist.
  */
-export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stressTest, onInstall, children }: {
+export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stressTest, onInstall, children, bar = false }: {
   link: OctatrackLink
+  /** The sticky sync bar of the full-width page, shown only while a unit with the base is connected. */
+  bar?: boolean
   /** The module set on this page; loading makes the unit match it. */
   set: InventoryTarget
   readInventory?: ReadInventory
@@ -57,6 +59,21 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
     : preparing === 'busy' ? 'Preparing your modules…'
     : changes && !changeCount(changes) ? 'Your Octatrack already matches this module set.'
     : 'Your Octatrack will match this module set. Playback stops, the stress tests run, then you keep it or undo.'
+  if (bar) return <section className="sync-bar" aria-label="Load onto your Octatrack" aria-busy={status === 'sending' || status === 'testing' || status === 'finishing'}>
+    <div className="sync-bar-status" role="status">
+      {status === 'ready' && changes && changeCount(changes) > 0 && preparing !== 'busy' ? <><strong>Next load</strong><ChangeSummary changes={changes} inline /></>
+        : <p>{status === 'ready' && changes && !changeCount(changes) ? <><span className="status-dot verified" /> Your Octatrack matches this module set.</> : text}</p>}
+      {status === 'sending' && <progress className="link-progress" max={1} value={progress} aria-label="Loading" />}
+      {preparing === 'failed' && <p className="file-error" role="alert">This module set could not be prepared for USB.</p>}
+      {notice && <p className={notice.tone === 'success' ? 'success-note' : 'file-error'} role={notice.tone === 'success' ? 'status' : 'alert'}>{notice.text}</p>}
+    </div>
+    <div className="sync-bar-actions">
+      {status === 'ready' && !prepareUpdate && <span className="subtle">The browser can’t build updates yet.</span>}
+      {status === 'ready' && <button className="button button-primary" disabled={!prepareUpdate || (!moduleCount && !inventory?.moduleIds.length) || (!!changes && !changeCount(changes)) || preparing === 'busy'} onClick={() => void update()}><Icon name="download" size={16} />Load onto Octatrack</button>}
+      {status === 'sending' && progress < 1 && <button className="button button-quiet" onClick={() => link.cancel()}>Cancel</button>}
+      {(status === 'trial' || status === 'finishing') && <><button className="button button-quiet" disabled={status === 'finishing'} onClick={() => void link.undo()}>Undo</button><button className="button button-primary" disabled={status === 'finishing'} onClick={() => void link.keep()}><Icon name="check" size={16} />Keep</button></>}
+    </div>
+  </section>
   return <section className="build-section usb-update" aria-labelledby="usb-update-title" aria-busy={status === 'sending' || status === 'testing' || status === 'finishing'}>
     <div>
       <h2 id="usb-update-title">Load onto your Octatrack</h2>

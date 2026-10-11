@@ -2,6 +2,7 @@ import metadata from '../engine/assets/chooser-metadata.json'
 
 /** The Octatrack's stock effects by the key its menus use: FX1 offers the first ten, FX2 all fourteen. */
 export const STOCK_EFFECTS: readonly string[] = metadata.stockFx2
+export const STOCK_FX1: readonly string[] = metadata.stockFx1
 export const STOCK_EFFECT_NAMES: Record<string, string> = {
   FILTER: 'Filter', EQUALIZER: 'Equalizer', 'DJ EQ': 'DJ EQ', PHASER: 'Phaser',
   FLANGER: 'Flanger', CHORUS: 'Chorus', SPATIALIZER: 'Spatializer',
