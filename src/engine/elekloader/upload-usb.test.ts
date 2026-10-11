@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  findVendorInterface, parseVendorIdentity, parseVendorResult, UsbVendorTransport, VendorTransportError, type ControlDevice,
+  findVendorInterface, parseMissing, parseVendorIdentity, parseVendorResult, UsbVendorTransport, VendorTransportError, type ControlDevice,
   VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_RESULT_BYTES, VENDOR_SUBCLASS,
 } from './upload-usb'
 
@@ -128,5 +128,16 @@ describe('vendor transport', () => {
     await expect(t.exchange(new Uint8Array(47), new AbortController().signal)).rejects.toThrow(RangeError)
     await expect(t.exchange(new Uint8Array(4149), new AbortController().signal)).rejects.toThrow(RangeError)
     expect(() => new UsbVendorTransport(d, 256)).toThrow(RangeError)
+  })
+})
+
+describe('the modules a project names that are not installed', () => {
+  it('reads MISSING: "MWM", a count, 24 bytes a module', () => {
+    const view = new DataView(new ArrayBuffer(4 + 24))
+    ;[0x4d, 0x57, 0x4d, 1, 27].forEach((b, i) => view.setUint8(i < 4 ? i : 4, b))
+    view.setUint16(6, 1); view.setUint32(8, 0x873d83cc); [...'E-Verb'].forEach((ch, i) => view.setUint8(12 + i, ch.charCodeAt(0)))
+    expect(parseMissing(view)).toEqual([{ handle: 27, layout: 1, module: '873d83cc', name: 'E-Verb' }])
+    expect(parseMissing(new DataView(new Uint8Array([0x4d, 0x57, 0x4d, 0]).buffer))).toEqual([])
+    expect(() => parseMissing(new DataView(new Uint8Array([0x4d, 0x57, 0x4d, 1]).buffer))).toThrow(VendorTransportError)
   })
 })

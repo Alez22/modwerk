@@ -1,3 +1,4 @@
+import { sha } from '../../vendor/elekloader/kit/src/bytes.ts'
 import { STOCK_EFFECTS } from '../catalog/stock-effects'
 
 /** What an Octatrack running the Modwerk base has on it: its modules and the stock effects left out of the menus. */
@@ -23,3 +24,11 @@ export const UNIT_STATE: Record<UnitState, string> = { on: 'On your Octatrack', 
 /** Where a module stands against the unit: on it, only in the module set, or on it but leaving with the next load. */
 export const unitState = (id: string, setIds: readonly string[], inventory?: Inventory): UnitState | undefined =>
   !inventory ? undefined : inventory.moduleIds.includes(id) ? setIds.includes(id) ? 'on' : 'leaving' : setIds.includes(id) ? 'load' : undefined
+
+/** What the unit's project needs that the unit lacks (its MISSING list): the catalogue ids it names, and the names
+ * of modules the catalogue does not know. A module's id is the first four bytes of the SHA-256 of its catalogue id. */
+export function missingFromProject(missing: { module: string; name: string }[], catalogIds: string[]) {
+  if (!missing.length) return { ids: [], unknown: [] }
+  const byModule = new Map(catalogIds.map(id => [sha(new TextEncoder().encode(id)).slice(0, 8), id]))
+  return { ids: missing.flatMap(item => byModule.get(item.module) ?? []), unknown: missing.filter(item => !byModule.has(item.module)).map(item => item.name) }
+}

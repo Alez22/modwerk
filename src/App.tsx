@@ -32,7 +32,7 @@ import { hasBetaAccess } from './community/beta-access'
 import { SubmissionPage } from './community/SubmissionPage'
 import { AdminPage } from './community/AdminPage'
 import { PublishedModulePage } from './community/PublishedModulePage'
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { LIBRARY_CATEGORIES, LIBRARY_CATEGORY_LABELS, MODULES, resolveSelection, type ModuleCategory } from './catalog/modules'
@@ -47,7 +47,7 @@ import { OctatrackUpdate, type PrepareUpdate, type ReadInventory, type StressTes
 import { InstrumentItem } from './components/InstrumentItem'
 import { CardInstall, UnitStrip } from './components/UnitPanel'
 import { ModuleGrid, StateChip } from './components/ModuleGrid'
-import { UNIT_STATE, unitState } from './config/inventory'
+import { missingFromProject, UNIT_STATE, unitState } from './config/inventory'
 import { ModuleDialog } from './components/ModuleDialog'
 import { ShareModuleButton } from './community/ShareModuleButton'
 import { StockEffects } from './components/StockEffects'
@@ -55,7 +55,7 @@ import { OctatrackActivity, OctatrackStatus } from './components/OctatrackStatus
 import { BaseInstallDialog } from './components/BaseInstallDialog'
 import { OctatrackLink } from './engine/elekloader/octatrack-link'
 import { useBaseInstallPrompt } from './hooks/useBaseInstallPrompt'
-import { OctatrackLinkContext, useInventory, useOctatrackBase } from './hooks/useOctatrackLink'
+import { OctatrackLinkContext, useInventory, useMissing, useOctatrackBase } from './hooks/useOctatrackLink'
 import { DIGI_DOWNLOADS_ENABLED } from './engine/elekloader/protocol'
 import { USB_AUDIO_MODULE, usbAudioLayout, type UsbAudioConfiguration } from './config/usb-audio'
 import { downloadSelection, parseSelection } from './config/selection'
@@ -138,7 +138,8 @@ export default function App() {
   useEffect(() => { if (import.meta.env.DEV && usbLinkPreview) void import('./dev/octatrack-link-fake').then(fake => setUsbKit(fake.previewKit())) }, [])
   const usbLink = usbKit?.link
   const usbBase = useOctatrackBase(usbLink ?? null)
-  const inventory = useInventory(usbLink, usbKit?.readInventory)
+  const inventory = useInventory(usbLink, usbKit?.readInventory), missingOnUnit = useMissing(usbLink)
+  const unitNeeds = useMemo(() => missingFromProject(missingOnUnit, MODULES.map(module => module.id)), [missingOnUnit])
   const [openModule, setOpenModule] = useState<string>()
   const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(usbPreview === 'base-install' ? 'preview' : null)
   // At release, once per member wherever they are, except on account, sign-in, admin and legal pages.
@@ -277,6 +278,10 @@ export default function App() {
     }
     workspace.toggleModule(id); setSaved(false); setRiskAccepted({key:'',accepted:false})
   }
+  // What the unit's project names that the unit lacks; "Add to set" adds the ones this set does not have yet.
+  const neededIds = unitNeeds.ids.filter(id => !selectedIds.includes(id))
+  const projectNeeds = { names: unitNeeds.ids.map(id => MODULES.find(module => module.id === id)?.name ?? id), unknown: unitNeeds.unknown,
+    add: neededIds.length ? () => neededIds.forEach(toggleModule) : undefined }
   // Replaces the modules a new one cannot run beside. Adding last goes through toggleModule, which also opens USB setup.
   function swapModule(id: string, removeIds: readonly string[]) {
     for (const removed of removeIds) if (selectedIds.includes(removed)) workspace.toggleModule(removed)
@@ -429,9 +434,9 @@ export default function App() {
                   {DSP_LOADER && <section className="configuration-section chooser-options"><h2>Effect menus</h2><label><input type="checkbox" checked={active?.keepStockFx2??true} onChange={event=>setKeepStockFx2(event.target.checked)}/><span><strong>Keep stock FX2 effects</strong><small>Keep the original FX2 effects alongside your modules.</small></span></label></section>}
                   <div ref={setBuildResultsSlot} className="build-results" />
                 </div>
-                {usbBase && usbKit ? <MemberGate action="build firmware" next={route}><OctatrackUpdate bar link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds, removedStockFx: active?.removedStockFx }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} onInstall={() => setBaseInstall('manual')}>{null}</OctatrackUpdate></MemberGate> : <div className="configuration-checkout">
+                {usbBase && usbKit ? <MemberGate action="build firmware" next={route}><OctatrackUpdate bar link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds, removedStockFx: active?.removedStockFx }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} needs={projectNeeds} onInstall={() => setBaseInstall('manual')}>{null}</OctatrackUpdate></MemberGate> : <div className="configuration-checkout">
                   {compatibilityPanel}
-                  <div className="checkout-card">{riskAcceptance}<MemberGate action="build firmware" next={route}>{usbKit ? <OctatrackUpdate link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds, removedStockFx: active?.removedStockFx }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} onInstall={() => setBaseInstall('manual')}>{firmwareBuildPanel}</OctatrackUpdate> : firmwareBuildPanel}</MemberGate></div>
+                  <div className="checkout-card">{riskAcceptance}<MemberGate action="build firmware" next={route}>{usbKit ? <OctatrackUpdate link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds, removedStockFx: active?.removedStockFx }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} needs={projectNeeds} onInstall={() => setBaseInstall('manual')}>{firmwareBuildPanel}</OctatrackUpdate> : firmwareBuildPanel}</MemberGate></div>
                 </div>}
               </div>
             </div>

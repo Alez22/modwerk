@@ -13,6 +13,8 @@ export const VENDOR_IDENTIFY = 3
 export const VENDOR_IDENTITY_BYTES = 72 // never a multiple of 64: see sdk/runtime/upload/vendor.h
 export const VENDOR_SELFTEST = 21 // the Octatrack base's self-test (sdk/machines/octatrack/elekloader/selftest.h)
 export const SELFTEST_BYTES = 96
+export const VENDOR_MISSING = 14 // the modules the unit's project names that are not installed (elekloader/ep0.c)
+export const MISSING_BYTES = 316
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -66,6 +68,17 @@ export function parseSelftest(view: DataView): SelftestRecord {
   return { state: u(0), failed: u(2), modules: u(3), dsp: u(4), intact: u(5), ran: u(6),
     peaks: { tracks1to4: u(7), tracks5to8: u(8), cpu: u(9) }, done: u(10), total: u(11), frameGap: u(14), saved: u(15), savedCount: u(16), live: u(17),
     culprit: u(18), culpritName: String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + 76, 16)).replace(/\0.*$/s, '').trim(), refusal: u(23) }
+}
+/** A module the unit's project names that is not installed: its effect handle, parameter layout, module id (the
+ * first four bytes of the SHA-256 of its catalogue id, hex) and name. */
+export interface MissingModule { handle: number; layout: number; module: string; name: string }
+/** MISSING: "MWM", a count, then 24 bytes a module (handle, -, layout u16, module id u32, name 16). */
+export function parseMissing(view: DataView): MissingModule[] {
+  const n = view.byteLength >= 4 ? view.getUint8(3) : -1
+  if (n < 0 || view.getUint32(0) >>> 8 !== 0x4d574d || view.byteLength !== 4 + 24 * n) throw new VendorTransportError('Not a MISSING reply.')
+  return Array.from({ length: n }, (_, i) => ({ handle: view.getUint8(4 + 24 * i), layout: view.getUint16(6 + 24 * i),
+    module: view.getUint32(8 + 24 * i).toString(16).padStart(8, '0'),
+    name: String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + 12 + 24 * i, 16)).replace(/\0.*$/s, '').trim() }))
 }
 export function parseVendorIdentity(bytes: Uint8Array): VendorIdentity {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
@@ -145,6 +158,15 @@ export class UsbVendorTransport implements UploadTransport {
     if (reply.status === 'stall') return undefined
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the self-test request.')
     return parseSelftest(reply.data)
+  }
+  /** The modules the unit's project names that are not installed, answered by the USB interrupt; undefined when the
+   * base stalls the request (one built before it). */
+  async missing(signal?: AbortSignal): Promise<MissingModule[] | undefined> {
+    signal?.throwIfAborted()
+    const reply = await this.device.controlTransferIn(this.setup(VENDOR_MISSING, 0), MISSING_BYTES)
+    if (reply.status === 'stall') return undefined
+    if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the missing-modules request.')
+    return parseMissing(reply.data)
   }
   async exchange(frame: Uint8Array, signal: AbortSignal): Promise<Uint8Array> {
     if (this.busy) throw new VendorTransportError('A vendor exchange is already in progress.')

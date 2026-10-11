@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import type { Inventory } from '../config/inventory'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
+import type { MissingModule } from '../engine/elekloader/upload-usb'
 
 /** The site's one link to the Octatrack, or null where there is no USB workflow (phones, flag off). */
 export const OctatrackLinkContext = createContext<OctatrackLink | null>(null)
@@ -32,4 +33,21 @@ export function useInventory(link?: OctatrackLink | null, read?: () => Promise<I
     return () => { live = false }
   }, [key, read])
   return key && inventory?.key === key ? inventory.value : undefined
+}
+
+/** The modules the connected unit's project names that are not installed, read every 3 s while it is idle (a
+ * project can be loaded on the unit at any time); [] while unknown. Re-renders only when the list changes. */
+export function useMissing(link?: OctatrackLink | null) {
+  const idle = () => { const state = link?.getState(); return state?.status === 'ready' && !!state.identity?.canSubmit }
+  const live = useSyncExternalStore(link?.subscribe ?? noSubscription, idle, idle)
+  const [missing, setMissing] = useState<MissingModule[]>([])
+  useEffect(() => {
+    if (!live || !link) return
+    let on = true
+    const read = () => void link.missing().then(list => { if (on) setMissing(old => JSON.stringify(old) === JSON.stringify(list) ? old : list) })
+    read()
+    const timer = setInterval(read, 3000)
+    return () => { on = false; clearInterval(timer) }
+  }, [live, link])
+  return live ? missing : []
 }

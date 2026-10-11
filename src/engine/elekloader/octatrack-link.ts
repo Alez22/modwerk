@@ -7,7 +7,7 @@ import { runSelftest, waitUntilSaved } from './selftest.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { UploadDeviceError, UploadSession, UploadUnconfirmedError } from './upload-session.ts'
 import type { UploadResultName } from './upload-wire.ts'
-import { findVendorInterface, UsbVendorTransport, type ControlDevice, type VendorIdentity } from './upload-usb.ts'
+import { findVendorInterface, UsbVendorTransport, type ControlDevice, type MissingModule, type VendorIdentity } from './upload-usb.ts'
 
 export const ELEKTRON_VENDOR_ID = 0x1935
 /** Well inside the base's 10 s quiet limit (sdk/runtime/upload/vendor.c mv_tick); any vendor request counts. */
@@ -222,6 +222,11 @@ export class OctatrackLink {
   selftest(): Promise<string | null> {
     if (!this.transport) return Promise.resolve('the Octatrack isn’t connected')
     return runSelftest(this.transport, { signal: this.abort?.signal, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }) })
+  }
+  /** The modules the unit's project names that are not installed, while it is idle; [] when it can't say. */
+  async missing(): Promise<MissingModule[]> {
+    if (!this.transport || this.state.status !== 'ready') return []
+    return await this.transport.missing().catch(() => undefined) ?? []
   }
   keep() { return this.finish(true) }
   undo() { return this.finish(false) }

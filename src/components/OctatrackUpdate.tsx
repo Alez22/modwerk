@@ -12,6 +12,19 @@ export type PrepareUpdate = (target: InventoryTarget) => Promise<{ name: string;
 export type ReadInventory = () => Promise<Inventory>
 export type StressTest = () => Promise<string | null>
 const STEPS = ['Load', 'Stress test', 'Keep']
+/** What the unit's project names that the unit lacks: library names, names the library does not know, and how to add
+ * the ones this set does not have yet (absent when it has them all). */
+export interface ProjectNeeds { names: string[]; unknown: string[]; add?: () => void }
+const list = (items: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(items)
+export function MissingNote({ needs }: { needs?: ProjectNeeds }) {
+  if (!needs || !needs.names.length && !needs.unknown.length) return null
+  const { names, unknown, add } = needs, verb = (n: number) => n === 1 ? 'isn’t' : 'aren’t'
+  return <p className="usb-missing" role="status">
+    {names.length > 0 && <>Your project uses {list(names)}, which {verb(names.length)} on your Octatrack. {add
+      ? <button className="text-button" onClick={add}>Add to set</button> : `Load onto Octatrack to bring ${names.length === 1 ? 'it' : 'them'} back.`}</>}
+    {unknown.length > 0 && <>{names.length ? ' It also uses ' : 'Your project uses '}{list(unknown)}, which {verb(unknown.length)} in the library.</>}
+  </p>
+}
 
 /**
  * The checkout card's flow once an Octatrack with the Modwerk base is connected: update it over USB
@@ -19,7 +32,7 @@ const STEPS = ['Load', 'Stress test', 'Keep']
  * one click away. Without such a unit, `children` (the .bin flow) shows with a hint about USB.
  * `prepareUpdate` (the builder) and `stressTest` (the test runner) are absent until they exist.
  */
-export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stressTest, onInstall, children, bar = false }: {
+export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stressTest, needs, onInstall, children, bar = false }: {
   link: OctatrackLink
   /** The sticky sync bar of the full-width page, shown only while a unit with the base is connected. */
   bar?: boolean
@@ -28,6 +41,8 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
   readInventory?: ReadInventory
   prepareUpdate?: PrepareUpdate
   stressTest?: StressTest
+  /** Modules the unit's project names that the unit lacks (its MISSING list). */
+  needs?: ProjectNeeds
   onInstall: () => void
   children: ReactNode
 }) {
@@ -63,6 +78,7 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
     <div className="sync-bar-status" role="status">
       {status === 'ready' && changes && changeCount(changes) > 0 && preparing !== 'busy' ? <><strong>Next load</strong><ChangeSummary changes={changes} inline /></>
         : <p>{status === 'ready' && changes && !changeCount(changes) ? <><span className="status-dot verified" /> Your Octatrack matches this module set.</> : text}</p>}
+      {status === 'ready' && <MissingNote needs={needs} />}
       {status === 'sending' && <progress className="link-progress" max={1} value={progress} aria-label="Loading" />}
       {preparing === 'failed' && <p className="file-error" role="alert">This module set could not be prepared for USB.</p>}
       {notice && <p className={notice.tone === 'success' ? 'success-note' : 'file-error'} role={notice.tone === 'success' ? 'status' : 'alert'}>{notice.text}</p>}
@@ -84,6 +100,7 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
           <span className="build-progress-track" /><span className="build-progress-label"><span className="build-progress-marker">{i < step ? <Icon name="check" size={14} /> : i + 1}</span><span>{label}</span></span>
         </li>)}</ol>
       </div>}
+      {status === 'ready' && <MissingNote needs={needs} />}
       {status === 'ready' && changes && changeCount(changes) > 0 && <ChangeSummary changes={changes} />}
       {status === 'trial' && <p className="subtle">Unplugging or closing the site also undoes it.</p>}
       {preparing === 'failed' && <p className="file-error" role="alert">This module set could not be prepared for USB.</p>}
