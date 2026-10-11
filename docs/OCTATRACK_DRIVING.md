@@ -12,6 +12,8 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
   LIVE/Dev12: every Part FILTER/DELAY). Check that with `mem` (below) first, and put it back with RELOAD
   afterwards.
 - Read the state before you change it, and after you put it back.
+- After a power cycle, check the Part again: the unit can come back with an older working copy from the card
+  (11 October 2026: a RELOAD made before the unplug was gone, and picks from before it were back).
 - Keep each command short: a few steps, a time limit, its output read at once. A long run goes in the
   background and logs every step, and you look at the log.
 - Never power-cycle on your own; ask the owner. Never flash.
