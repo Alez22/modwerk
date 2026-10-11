@@ -90,12 +90,12 @@ export function ModuleCommunity({id,mode='all',onDiscuss,onReportIssue,onDiscuss
   const signals = (overview:boolean) => <section className={'community-signals'+(overview?'':' detail-section')} aria-label="Community feedback">
     <h2>Community</h2>
     <div className="signal-tiles">
-      {mode!=='likes'&&<div className="signal-tile is-works" title={WORKS_REPORT_NOTE}><Icon name="check" size={16}/><strong>{works?.toLocaleString()??'—'}</strong><span>Working reports</span></div>}
-      <button className="signal-tile is-like" aria-label={(data?.liked?'Unlike ':'Like ')+id} aria-pressed={data?.liked??false} disabled={!session.available||!data||busy} onClick={gate('Sign in to like this module',()=>void toggleLike())}><Icon name="heart" size={16}/><strong>{data?.likes.toLocaleString()??'—'}</strong><span>{data?.liked?'You like this':'Like this'}</span></button>
+      {mode!=='likes'&&<div className="signal-tile is-works" title={WORKS_REPORT_NOTE}><Icon name="check" size={16}/><strong>{works?.toLocaleString()??'—'}</strong><span>Working</span></div>}
+      <button className="signal-tile is-like" title="Like this module" aria-label={(data?.liked?'Unlike ':'Like ')+id} aria-pressed={data?.liked??false} disabled={!session.available||!data||busy} onClick={gate('Sign in to like this module',()=>void toggleLike())}><Icon name="heart" size={16}/><strong>{data?.likes.toLocaleString()??'—'}</strong><span>{data?.liked?'Liked':'Likes'}</span></button>
     </div>
     <ModulePopularity statistics={data??undefined} id={id} secondary/>
     {overview&&<button className="button button-quiet" onClick={onDiscuss}>Join the discussion <Icon name="arrow" size={14}/></button>}
-    <p className="service-note">{!session.available||(!data&&error)?'Community figures unavailable.':mode==='likes'?'Likes come from registered members.':'Working reports count members who confirmed the module on their instrument. Likes come from registered members.'}</p>
+    <p className="service-note">{!session.available||(!data&&error)?'Community figures unavailable.':mode==='likes'?'Likes come from registered members.':'Working counts members who tried it on their instrument.'}</p>
     {!data&&error&&<button className="text-button" onClick={()=>{setError('');void api<Data>('/modules/'+id).then(value=>setData(value)).catch(error=>setError(error.message))}}>Try again</button>}
     {!overview&&<MemberPrompt/>}
   </section>
