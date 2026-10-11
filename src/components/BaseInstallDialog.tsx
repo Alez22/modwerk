@@ -130,7 +130,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, onChoos
       <LinkHero />
       <h2 id="base-install-title" className="link-title" tabIndex={-1}>Load modules over USB</h2>
       <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot.</p>
-      <ul className="link-promises">{ALSO_NEW.map(([icon, lead, rest]) => <li key={lead}><span className="link-feature-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><span><strong>{lead}</strong>{rest}</span></li>)}</ul>
+      <ul className="link-promises">{ALSO_NEW.map(([icon, lead, rest]) => <li key={lead}><span className="link-feature-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><span><strong>{lead}</strong><span className="link-feature-rest">{rest}</span></span></li>)}</ul>
       <p className={'link-needs' + (state.status === 'unsupported' ? ' is-missing' : '')}>You need an Octatrack MKII, your OS 1.40C file, a USB cable and Chrome or Edge on a computer.</p>
       {state.status === 'unsupported' && <p className="file-error" role="alert">This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.</p>}
     </> : <>
