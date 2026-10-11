@@ -1119,7 +1119,34 @@ card, another unit) and change version, and old projects must keep loading:
       DSP-loader development base 3.5 KB over the 1.25 MiB a RAM boot takes.
       `selection.c`'s 6 KB paste buffer now sits in .bss, which the core clears
       at boot; 2,804 bytes are left.
-    - SIDECHAIN next.
+    - SIDECHAIN next. It needs DSP code resident on both cores while it is
+      installed (its tap publishes every track's audio every block, for
+      cross-core keys), two-word sites in stock's dispatcher on each core, a
+      site in COMPRESSOR's own code (the base's RAM copy of the stock
+      package), Y $7f0-$9ff on both cores and, for cross-core keys, the last
+      $202 words of each core's half of the shared window (the tail of local
+      track 3's FX2 buffer), and a page that replaces COMPRESSOR's in its row.
+  - **DSP memory inventory** (emulator, base `cb2b01a6…` R10, 11 October 2026):
+    two runs with `--dsp-dirty` and different seeds, stock effects on every
+    track and slot (`stock-fx`), E-Verb picked on T1 and T5, all of X and Y
+    dumped at the end; a word the two runs left different was never written.
+    - Untouched in runs of 64 words or more, per core: X $2840-$3f7f (A) /
+      $3fff (B), $5840-$600a, $7a92-$7fff (A) / $803f (B), $8340-$857f (A
+      only); Y $795-$fff and $1800-$1bff and $325c-$3fff (A), $7a5-$5377 (B),
+      $7ded-$7fff (B). Above X $8d98 / $8858 and Y $c000 up to $30bff the
+      emulator's flat memory is untouched too; whether the chip has RAM there
+      is not checked.
+    - Sidechain's Y $7f0-$9ff is free on both cores.
+    - The shared window from $30c00 up is written by the running effects; only
+      core 0 X $30000-$300ff carried non-zero data. The card plays no audio, so
+      silent delay buffers write zeros: whether Sidechain's tails hold audio
+      needs a run with samples playing (or a marker read back on the unit).
+  - **Measured loads for the site** (owner, 11 October 2026): the module pages
+    show each module's DSP and CPU impact from its manifest, mostly estimated.
+    Measure each module on the unit with the load meter, typical (defaults, a
+    normal pattern) and worst (dearest settings, trig splits), on both cores
+    (core 1's meter is not built yet), and publish both through a pull
+    request on main, where the live catalogue comes from.
   - Not yet: rebinding on the unit, the site using MISSING, the other modules'
     pages on the unit (Spectrum and Tape Echo carry formatter units with
     fixups), and EUCLID's shared wide dial.
