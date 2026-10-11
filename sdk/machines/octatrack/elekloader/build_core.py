@@ -280,6 +280,8 @@ DSP_EDITS = {
     # receiver's mismatch record with it. Its refusals are bits, so they count neither as rejects nor errors.
     'transfer.h': (('DL_BYPASS=6, DL_BASE=7 };', 'DL_BYPASS=6, DL_BASE=7, DL_PEEK=8 };'),),
     'transfer.c': (('op!=DL_BYPASS && op!=DL_BASE)) return 0;', 'op!=DL_BYPASS && op!=DL_BASE && op!=DL_PEEK)) return 0;'),
+                   # A refusal for cycles reads as the DSP being full, not failing (owner, 11 October 2026).
+                   ('reason==3 ? "DSP OVERLOAD"', 'reason==3 ? "DSP FULL"'),
                    ('opcode==DL_BYPASS || opcode==DL_BASE) {', 'opcode==DL_BYPASS || opcode==DL_BASE || opcode==DL_PEEK) {'),
                    ('volatile uint16_t dl_tx[2][DL_WORDS]={{0}}, dl_rx[2][32]={{0}};',
                     'volatile uint16_t dl_tx[2][DL_WORDS] __attribute__((aligned(16)))={{0}}, '

@@ -1296,7 +1296,7 @@ Module packages fill its catalog instead of the build (`dsp.c`):
   the allowance. On a pick: the allocator places the code once per core
   and charges each instance's cycles against 2,808 per sample and core
   (3,120 less the 10% margin); a pick that does not fit is refused before
-  anything is written, with `DSP MEMORY FULL`, `DSP OVERLOAD` or
+  anything is written, with `DSP MEMORY FULL`, `DSP FULL` (cycles; `DSP OVERLOAD` before 11 October 2026) or
   `DSP LOAD FAILED` on the screen, and the track keeps its effect. Removing
   or replacing a module whose effect a track runs is refused.
 - **Scripted picks.** `modwerk_dsp_pick(slot, track, row)` queues an FX1 or
