@@ -130,10 +130,12 @@ setup frame 664k: roughly twice the stock loop's worst, a few milliseconds of CP
 These are instruction counts, not cycles or hardware timing; divisions cost more
 cycles than most instructions.
 
-Limits: emulator only; no unit has run it yet. Untested on hardware: the frame rate
-on the real panel link (the startup is time-based, so a slower link drops frames
-rather than stretching it), how the white looks on the panel, and the MKI's LCD
-position. The browser builder does not compose the base, so only `build_core.py`
+On hardware, 11 October 2026: the owner's MKII RAM-booted a base with this startup
+(`de124ebd8a069763…`, built from `b4e0584f` with `--dev --dsp-loader`, 1,305,168 bytes of
+MAIN, under the gate's 1,310,720), came back to the normal screen with its project
+loaded, and the owner watched the startup and reports that everything worked. That is
+the owner's observation of one boot; no frame rate or brightness was measured. An MKI
+has not run it, and its LCD position is still an estimate. The browser builder does not compose the base, so only `build_core.py`
 has this startup.
 
 ## Firmware name before the animation
