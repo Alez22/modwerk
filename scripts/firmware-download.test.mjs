@@ -81,7 +81,9 @@ describe('local firmware release verification', () => {
 
   it('saves and reads back bytes in private fresh folders, retaining implicit dependencies and pins', async () => {
     const f = await fixture()
-    const result = await buildAndSave({ ...request, expectedSha256: sha256(image), expectedVersions: { digimono: '0.13.2-experimental' } }, f.options)
+    const expectedVersion = f.inventory.modules.find(module => module.id === 'digitakt-digimono').version
+    const result = await buildAndSave({ ...request, expectedSha256: sha256(image), expectedVersions: { digimono: expectedVersion } }, f.options)
+    expect(result.moduleVersions.digimono).toBe(expectedVersion)
     expect(result.files[0].sha256).toBe(sha256(await readFile(result.files[0].path)))
     expect(result.moduleVersions.digichain).toBeTruthy()
     expect(result.modules.find(pin => pin.id === 'digimono').source.commit).toMatch(/^[a-f0-9]{40}$/)

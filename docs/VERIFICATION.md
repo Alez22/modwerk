@@ -1335,3 +1335,32 @@ combinations as clean. Existing declaration records are preserved.
 PR [#424](https://github.com/repeat98/modwerk/pull/424) replaces only Digi Mono's two 0.13b catalog pins with source-built 0.13.2-experimental objects from Modwerk source/package commit `48a9b5ade88052d4fb0130d87a79be64935d4d9d`. The upstream author and MIT notice are preserved. The transactional catalog updater verifies both package hashes; kit 0.5.0, cores and other module pins are unchanged. Evidence and exact private-image identities are recorded in [Digi Mono testing](../sdk/digitakt/modules/digimono/TESTING.md).
 
 Owner repeat98 explicitly approved this exact 0.13.2-experimental source and the two D180 private images on 11 October 2026, with issue #180 closure gated on live-download verification. The scope and literal approval are in Digi Mono’s evidence JSON. Physical hardware, audio, timing, complete runtime memory bounds, persistence, reboot and stress remain unverified. A passing PR does not establish a saved live download.
+
+## Mini Verb mixer regression — 11 October 2026
+
+Mini Verb 0.2.1-experimental fixes clipping when the wide wet-minus-dry
+difference entered a 24-bit multiplier register. A measured raw-wet oracle
+reproduces the 0.2.0 error at 0.9 FS / MIX 32 on both DSP cores without final
+mixed-output clipping. Scaling the difference before multiplication and
+restoring it in the accumulator passes the regression. All 53 DSP checks pass,
+including exact dry, bounded low-level quantization, eight-instance isolation,
+dirty-state guards and a 30-second moving render. The change adds four program
+words, no state and 1.096% executed instructions with eight moving instances.
+
+The current native/browser matrix has 126 selections: 52 matching builds,
+74 matching refusals and zero mismatches; a modified original is refused.
+Both chooser profiles of #428's saved six-module selection also match native
+module-owned writes outside platform differences. Exact candidate images,
+source hashes and packaging identities are in the module's TESTING.md. Real
+LCD captures match that candidate. Separate native T1/T5 THRU runs produce
+nonzero audio without output clipping or emulator failure; their private
+diagnostic emulator extends the bounded checksum watchdog. Those moderate
+input runs do not confirm the reporter's hardware noise.
+
+Physical hardware, played automation, Part/project/reboot persistence, chip
+timing and complete runtime bounds remain unverified. The original noise
+symptom is unconfirmed. The owner explicitly approved this exact 0.2.1 source and the two I428
+private updates with those limits disclosed on 11 October 2026. This is a new
+source-bound exception, not an extension of 0.2.0. Report #428 remains open
+until reporter confirmation; publication and saved live-download verification
+are separate steps.
