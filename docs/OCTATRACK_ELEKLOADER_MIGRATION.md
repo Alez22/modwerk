@@ -1705,6 +1705,50 @@ The plan it follows:
   Compressor) is ported with its own id, which changes what old projects
   with COMPRESSOR hear back to stock.
 
+## Plan: a stress test after every module-set sync (owner, 11 October 2026)
+
+The site already has a step for this: Load onto Octatrack stages the set as a trial, then keeps
+or undoes it. A stress test fills that step, and the same results make the bug report.
+
+**On a user's unit** (a production base; no remote keys or RAM reads; the project is never
+changed). A SELFTEST vendor request, sent while the trial runs with the transport stopped. The
+base runs the test itself and answers with a result record:
+
+1. **Integrity.** Each module's image hash, its hooks and stock-code sites in place, and its DSP
+   code on each core read back by PEEK and compared with the package.
+2. **Each DSP module, alone.** Bound to a live FX slot for a few seconds (the live array only,
+   never the Part, and put back exactly), with silence in: no refusal, no DSP stall, no crash,
+   and its mean and peak load from the status meters. That is the module's real cost on this
+   unit.
+3. **Everything at once.** As many installed effects as the admission ledger accepts, on both
+   cores, for about 30 s: the peak must stay below 90% of a frame, with no missed frames and no
+   errors. This checks the ledger against the real chip.
+4. **Persistence.** The saved set reads back from the card and matches.
+5. **Nothing broke.** The crash record count, loader rejections and errors are unchanged.
+
+The site then keeps the set if every check passes. If one fails, it undoes the set, shows which
+check failed, and offers the report.
+
+**The diagnostic bundle** (attached to a bug report, after a failed test or on request): base
+identity, the module set's hashes, the loader report, the status words, the self-test results
+and the crash record. No project data. The privacy text has to say so.
+
+**Before each release, on our unit**, a qualification run over the development session
+(`device.mjs serve`), scripted from the steps used by hand on 11 October 2026:
+- install the set;
+- picks on both cores;
+- Part switches while playing;
+- a queued pattern change into another bank;
+- parameter sweeps;
+- a deliberate crash and its recovery;
+- a 30-minute soak with a meter log;
+- a power cycle by the owner.
+
+It reports the same records, so a hardware run and a user's self-test compare directly.
+
+**Order**: the qualification script first (all its tools exist), then SELFTEST in the base, then
+the site's step (development builds only, behind `USB_LINK`).
+
 ## Work required before public cutover
 
 | Area | Observed gap / next implementation |
