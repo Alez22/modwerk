@@ -85,6 +85,11 @@ python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json
   --slots fx1 --cycles 262 --cycles-kind modeled --state 120 -o /private/spectrum.mwrm
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:modulation \
   --slots fx1 --cycles 354 --cycles-kind modeled --state 112 --buffer 2048 -o /private/modulation.mwrm
+# TAPE ECHO runs on the ColdFire: its own units and two detours from its Octabam manifest, beside a
+# five-word DSP stub, pinned to effect 15 (its C names it). Holds stock bytes: private.
+python3 -B sdk/runtime/loader/build.py --octabam tapeecho --stock /private/OCTATRACK_OS1.40C.bin \
+  --upstream /private/pinned-elekloader --dsp src/engine/assets/dsp-packages.json:tapeecho \
+  --slots fx2 --cycles 4 --cycles-kind modeled --state 1 --pinned -o /private/tapeecho.mwrm
 ```
 
 

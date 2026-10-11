@@ -70,7 +70,7 @@ if (mode === 'dumps') {
   const index = findVendorInterface(await enumerate(bench, false))
   const transport = new UsbVendorTransport(device(bench), index, { pollMs: 5 })
   const base = (await transport.identify()).base
-  const session = await UploadSession.connect(transport, base, { timeoutMs: 30000 })
+  const session = await UploadSession.connect(transport, base, { timeoutMs: 60000 }) // the most it allows: a 110 KB package commits slowly under --dsp
   // The unit's own time: the emulator runs far slower than the wall clock under --dsp.
   const settle = async ticks => {
     const start = (await diagnostics(device(bench), index)).ticks
@@ -133,6 +133,7 @@ if (mode === 'dumps') {
     await pick(0, 1, proofs.configuration.fx2.indexOf('PLATE REV')); await pick(4, 1, proofs.configuration.fx2.indexOf('DARK REV'))
     bench.socket.end(); process.exit(0)
   }
+  if (data.length > 32768) await settle(900) // a large package's commit would wait behind the project load's engine work
   await keep(data); console.log('module installed')
   await settle(60) // the manager handles the project's own effects in its first ticks
   // missing: what the project named is restored; restore: install only (old_projects.py checks the result).
@@ -234,7 +235,7 @@ if (mode === 'dumps') {
     assert.equal(ids[8], EFFECT); assert.equal(ids[12], EFFECT)
     assert.deepEqual(u32('dl_residency_words'), resident()); assert.equal(u32('dl_selection_refused')[0], 0)
     core(0, 'A', true); core(1, 'B', true)
-    console.log('E-Verb picked on FX2 of T1 and T5: each core holds its code word for word and dispatches to it: passed')
+    console.log(`${pkg.key} picked on T1 and T5: each core holds its code word for word and dispatches to it: passed`)
   } else if (scenario === 'remove') {
     assert.equal(ids[8], 4); assert.deepEqual(u32('dl_residency_words'), resident()); core(1, 'B', false)
     console.log('removal refused while T1 ran E-Verb; after FILTER was picked it was removed and core 1 freed its code: passed')

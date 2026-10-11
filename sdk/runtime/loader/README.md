@@ -85,6 +85,13 @@ version raises when its stored parameter values change meaning. `build.py
 module id from the catalogue id. ABI 5 packages still load, with no name and
 layout 0.
 
+ABI 6 flags: 1, the image starts with the effect's page recipe (the machine
+builds its chooser row and pages from it); 2, the effect id is pinned: the
+module's own ColdFire code names it (EUCLID 29, TAPE ECHO 15), so the machine
+gives it that id or refuses it, and never moves it to another. A package may
+carry ColdFire code, stock-code sites and DSP code together (`build.py
+--octabam MODULE --dsp …`); they change together.
+
 ## Several modules at once
 
 - **Admission before anything changes.** A package is refused, with the

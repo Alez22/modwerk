@@ -33,8 +33,8 @@ int main(void)
 {
     static const uint32_t words[3] = {1, 2, 3};
     static const uint16_t relocations[1] = {0};
-    struct runtime_dsp none = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", 0, 0};
-    struct runtime_dsp fx = {words, relocations, 3, 1, 1, 2, 244, 0, 26, 1, RUNTIME_MODELED, 70, 70, 1, "Test FX", 0, 0};
+    struct runtime_dsp none = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", 0, 0, 0};
+    struct runtime_dsp fx = {words, relocations, 3, 1, 1, 2, 244, 0, 26, 1, RUNTIME_MODELED, 70, 70, 1, "Test FX", 0, 0, 0};
     CHECK(modwerk_machine_dsp_admit(&none, &none) == RUNTIME_OK && modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK);
     /* The effect id is a handle: the preferred one when it is a free module id, else the lowest free module id. */
     fx.id = 27; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK && fx.id == 27);
@@ -156,6 +156,12 @@ int main(void)
     CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);
     modwerk_test_live_fx[0] = 0;
     CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_OK && third.id == 26);
+    /* A pinned effect id (its ColdFire code names it): that id or none, never another. */
+    third.pinned = 1; third.module = 0x4a; third.id = 26;
+    CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_OK && third.id == 26);
+    third.id = 27; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);   /* 27 is held */
+    third.module = 0x873d83ccu; third.id = 26; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL); /* the map has it at 27 */
+    third.pinned = 0;
     if (failures) { fprintf(stderr, "%u DSP glue checks failed\n", failures); return 1; }
     puts("Octatrack DSP glue: admission (ids, arena, instance block, cycles, effects in use), the catalog, the effects a bank names, the stall watchdog, the project handle map and rebinding passed.");
     return 0;

@@ -26,6 +26,14 @@ fresh assembly there; checked again here), with what it needs:
 
     python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:everb \\
         --slots fx2 --cycles 382 --cycles-kind executed --state 132 --buffer 16384 -o everb.mwrm
+
+A hybrid catalogue effect (ColdFire and DSP, such as TAPE ECHO and EUCLID), which Elekloader's converter
+refuses: its own GNU-as units from its Octabam manifest, linked after the page recipe, its detours as
+stock-code sites (checked against their stock hashes), and its DSP code, in one package. --pinned when its
+ColdFire code names its effect id. It holds stock bytes: keep it private.
+
+    python3 -B sdk/runtime/loader/build.py --octabam tapeecho --stock OS.bin --upstream ~/.cache/modwerk-upstream/elekloader \\
+        --dsp src/engine/assets/dsp-packages.json:tapeecho --slots fx2 --cycles 20 --cycles-kind modeled --state 1 --pinned -o tapeecho.mwrm
 """
 import argparse
 import hashlib
@@ -219,31 +227,75 @@ def link_elemod(doc, stock_at, base_symbols):
     return bytes(image), offsets, sites
 
 
+def link_units(objects, cross, origin, tmp):
+    """Objects linked at `origin` and origin + SHIFT: (image, its symbols, bss bytes, self-reference offsets)."""
+    images, symbols = [], {}
+    for base in (origin, origin + SHIFT):
+        (tmp / 'link.ld').write_text(SCRIPT % base)
+        elf = tmp / ('%x.elf' % base)
+        subprocess.run([cross + 'ld', '--orphan-handling=error', '--no-warn-rwx-segments', '-T', str(tmp / 'link.ld'),
+                        '-o', str(elf), *map(str, objects)], check=True)
+        subprocess.run([cross + 'objcopy', '-O', 'binary', '-j', '.image', str(elf), str(tmp / 'image')], check=True)
+        images.append((tmp / 'image').read_bytes())
+        if base == origin:
+            for line in subprocess.check_output([cross + 'nm', str(elf)], text=True).splitlines():
+                value, _, name = line.split()
+                symbols[name] = int(value, 16)
+    image, length, end = images[0], symbols['__image_end'] - origin, symbols['__bss_end']
+    if len(image) != length:
+        raise ValueError('The module image is not contiguous.')
+    return image, symbols, end - symbols['__image_end'], relocations(image, images[1], end)
+
+
+def octabam_units(name, stock_at, origin, cross, upstream):
+    """A hybrid catalogue module's ColdFire half from its Octabam manifest, linked at `origin`:
+    (image, bss, self-reference offsets, sites). Only units and jmp/jsr detours; anything else is refused."""
+    sys.path.insert(0, str(upstream))
+    from elekloader.sdk import octabam as port
+    root = Path(__file__).resolve().parents[2] / 'octabam'
+    ob = port.Octabam(str(root))
+    if name not in ob.modules:
+        raise ValueError('No Octabam module ' + name)
+    m = ob.modules[name]
+    own = [c for c in m.cf_patches if c.registers_formatter and c.registers_formatter.module == m.key]  # in the page recipe
+    extra = [what for what, there in (('requires', m.requires), ('pokes', m.pokes), ('tables', m.tables), ('keeps', m.keeps),
+                                      ('symbol references', m.symbol_refs), ('DRAM regions', m.dram_regions), ('overrides', m.overrides),
+                                      ('other cave patches', [c for c in m.cf_patches if c not in own])) if there]
+    extra += ['generated includes or defsyms of ' + u.label for u in m.linked if u.include or getattr(u, 'defsyms', ())]
+    if extra or not m.linked:
+        raise ValueError('%s needs what a runtime package cannot carry yet: %s' % (name, ', '.join(extra) or 'no ColdFire unit'))
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        objects = []
+        for i, unit in enumerate(m.linked):
+            objects.append(tmp / ('%d.o' % i))
+            subprocess.run([cross + 'as', '-mcpu=' + unit.cpu, unit.source, '-o', str(objects[-1])], cwd=root, check=True)
+        image, symbols, bss, offsets = link_units(objects, cross, origin, tmp)
+    sites = []
+    for d in m.detours:
+        n = d.pad_to or 6
+        if d.kind not in ('jmp', 'jsr') or d.target is not None or d.symbol not in symbols or n < 6 or n % 2:
+            raise ValueError('Detour at %#x: only jmp or jsr to the module\'s own symbol.' % d.site)
+        stock = stock_at(d.site, n)
+        expect = d.expect
+        if getattr(expect, 'length', len(stock)) != n or hashlib.sha256(stock).hexdigest() != getattr(expect, 'sha256', None):
+            raise ValueError('Stock bytes at %#x are not the ones %s expects.' % (d.site, name))
+        code = struct.pack('>HI', 0x4ef9 if d.kind == 'jmp' else 0x4eb9, symbols[d.symbol]) + b'\x4e\x71' * ((n - 6) // 2)
+        sites.append((d.site, stock, code, [2]))
+    return image, bss, offsets, sites
+
+
 def build_c(sources, cross, module, dsp=None):
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         objects = [tmp / ('%d.o' % i) for i in range(len(sources))]
         for source, obj in zip(sources, objects):
             subprocess.run([cross + 'gcc', *CFLAGS, '-c', str(source), '-o', str(obj)], check=True)
-        images, symbols = [], {}
-        for base in (0, SHIFT):
-            (tmp / 'link.ld').write_text(SCRIPT % base)
-            elf = tmp / ('%x.elf' % base)
-            subprocess.run([cross + 'ld', '--orphan-handling=error', '--no-warn-rwx-segments', '-T', str(tmp / 'link.ld'),
-                            '-o', str(elf), *map(str, objects)], check=True)
-            subprocess.run([cross + 'objcopy', '-O', 'binary', '-j', '.image', str(elf), str(tmp / 'image')], check=True)
-            images.append((tmp / 'image').read_bytes())
-            if base == 0:
-                for line in subprocess.check_output([cross + 'nm', str(elf)], text=True).splitlines():
-                    value, _, name = line.split()
-                    symbols[name] = int(value, 16)
-    image, length, end = images[0], symbols['__image_end'], symbols['__bss_end']
-    if len(image) != length:
-        raise ValueError('The module image is not contiguous.')
+        image, symbols, bss, offsets = link_units(objects, cross, 0, tmp)
     hooks = [symbols.get(name, NONE) for name in HANDLERS]
     if all(h == NONE for h in hooks):
         raise ValueError('Define at least one of ' + ', '.join(HANDLERS) + '.')
-    return package(image, end - length, hooks, relocations(image, images[1], end), name=module, dsp=dsp)
+    return package(image, bss, hooks, offsets, name=module, dsp=dsp)
 
 
 def build_elemod(args):
@@ -286,9 +338,12 @@ def main():
     parser.add_argument('--name', help='the display name projects record it by (default: its catalogue name)')
     parser.add_argument('--layout', type=int, default=1, help='parameter-layout number: raise it when stored values change meaning')
     parser.add_argument('--no-page', action='store_true', help='leave out the effect page recipe (no chooser row on the unit)')
+    parser.add_argument('--octabam', help='a hybrid catalogue module: its ColdFire units and detours beside --dsp')
+    parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     args = parser.parse_args()
-    if (bool(args.sources) and bool(args.elemod)) or not (args.sources or args.elemod or args.dsp) or (args.elemod and args.dsp):
-        parser.error('Give C sources, --elemod or --dsp.')
+    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) > 1 or not (args.sources or args.elemod or args.dsp)
+            or (args.elemod and args.dsp) or (args.octabam and not (args.dsp and args.stock and args.upstream))):
+        parser.error('Give C sources, --elemod, --dsp, or --octabam with --dsp, --stock and --upstream.')
     dsp = None
     if args.dsp:
         path, _, key = args.dsp.partition(':')
@@ -306,7 +361,22 @@ def main():
         data = build_c(args.sources, args.cross, args.output.stem, dsp)
     else:
         image, relocations = page_section(pkg['id']) if 'id' in pkg and not args.no_page else (b'', [])
-        data = package(image, 0, [], relocations, name=pkg.get('id', args.output.stem), dsp=dsp, flags=1 if image else 0)
+        bss, sites, flags = 0, [], (1 if image else 0) | (2 if args.pinned else 0)
+        if args.octabam:  # the ColdFire half after the recipe, at a 16-byte boundary
+            sys.path.insert(0, str(args.upstream.expanduser().resolve()))
+            from elekloader import formats
+            parsed, device, _ = formats.load(str(args.stock))
+            main_image = formats.main_image(parsed, device)
+
+            def stock_at(address, length):
+                at = address - device.main_load
+                if at < 0 or at + length > len(main_image):
+                    raise ValueError('Stock bytes outside the OS image: %#x' % address)
+                return main_image[at:at + length]
+            origin = (len(image) + 15) & ~15
+            unit, bss, offsets, sites = octabam_units(args.octabam, stock_at, origin, args.cross, args.upstream.expanduser().resolve())
+            image, relocations = image + b'\0' * (origin - len(image)) + unit, relocations + [origin + r for r in offsets]
+        data = package(image, bss, [], relocations, sites, name=pkg.get('id', args.output.stem), dsp=dsp, flags=flags)
     args.output.write_bytes(data)
     image, bss, count, hooks, sites, ident = struct.unpack_from('>IIIIII', data, 8)
     header = 68 if dsp else 32

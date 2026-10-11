@@ -1087,6 +1087,25 @@ card, another unit) and change version, and old projects must keep loading:
       A new base refuses the saved module set (another configuration hash), so
       the site reinstalls after a base update. Octabam firmware's projects are
       not checked.
+  - **TAPE ECHO, EUCLID and SIDECHAIN COMPRESSOR** (owner, 11 October 2026:
+    port these three; sambanks modules such as CHARACTER are not packaged for
+    Modwerk; SIDECHAIN replaces COMPRESSOR in place; a new base refusing the
+    saved set is fine). Elekloader's converter refuses hybrid modules, so
+    `build.py --octabam MODULE` assembles a module's own units from its
+    manifest, links them after its page recipe, turns its jmp/jsr detours into
+    stock-code sites (stock hashes checked) and adds its DSP code: one package.
+    Their ColdFire code names their effect id (`TE_ID` 15, `EU_ID` 29), so the
+    package pins it (ABI 6 flag 2): the base gives that id or refuses, and never
+    moves it. The image limit is now 128 KiB (Tape Echo's tone table alone is
+    86 KiB); a replacement holds old and new at once in the 256 KiB pool.
+    - TAPE ECHO (111,400 bytes, 17 relocations, 2 sites, a 5-word DSP stub):
+      emulator `pick` and `beside` passed (base `e4f30366…`). On the unit (same
+      base): installed and accepted, picked on T1 and T5 from its own chooser
+      row, the clap pattern recorded over USB: after each clap, repeats about
+      every 140 ms at -24, -30 and -38 dB against -53 dB dry, on both cores
+      (TIME 64 FREE, feedback 64, its defaults). Frames ran, no errors.
+    - EUCLID installs in the emulator without its page; its page needs the
+      shared wide dial and its mode views. SIDECHAIN next.
   - Not yet: rebinding on the unit, the site using MISSING, the other modules'
     pages on the unit (Spectrum and Tape Echo carry formatter units with
     fixups), and EUCLID's shared wide dial.

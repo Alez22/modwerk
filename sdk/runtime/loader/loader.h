@@ -8,7 +8,7 @@
 #include "upload.h"
 #include "modwerk_module.h"
 #define RUNTIME_HEADER_BYTES 68u        /* ABI 6 (DSP code, its name and layout); ABI 5 50, ABI 4 32, ABI 3 28 (module 0) */
-#define RUNTIME_IMAGE_BYTES 32768u       /* one module's image and bss */
+#define RUNTIME_IMAGE_BYTES 131072u      /* one module's image and bss (Tape Echo's tone table is 86 KiB) */
 #define RUNTIME_RELOCATIONS 2048u
 #define RUNTIME_SITES 64u
 #define RUNTIME_SITE_BYTES 32u
@@ -40,6 +40,8 @@ struct runtime_dsp {
     const uint8_t *page;             /* the module image's head, when the package's flag 1 says it
                                       * starts with the effect's page recipe for the machine (ABI 6) */
     uint32_t page_bytes;             /* the image's length, all the recipe may reach */
+    uint8_t pinned;                  /* flag 2: its ColdFire code names its effect id, so it takes that one or
+                                      * none (ABI 6) */
 };
 enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 /* At the start of the module's pool extent, followed by its sites, code, data, bss and DSP code. */

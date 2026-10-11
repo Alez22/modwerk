@@ -161,7 +161,7 @@ int main(void)
     CHECK(b->retire(0) && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
     unsigned loads = 0;
     for (; loads < 64; ++loads) {
-        begin(RUNTIME_IMAGE_BYTES - 16, 0, 0, 0, 0, 0, 0xc3);
+        begin(RUNTIME_POOL_BYTES / 8u, 0, 0, 0, 0, 0, 0xc3); /* a replacement holds old and new at once */
         if (!b->prepare(0, p, n)) break;
         CHECK(b->publish(0) == MU_APPLIED && b->retire(0));
     }
@@ -274,7 +274,10 @@ int main(void)
     fx = modwerk_runtime_module(0);
     CHECK(fx->dsp.page && fx->dsp.page == (const uint8_t *)fx + ((sizeof(struct runtime_module) + 15u) & ~15u) && dsp_to.page == fx->dsp.page &&
           fx->dsp.page_bytes == 4);
-    p[7] = 2; CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
+    /* Flag 2: the effect id is pinned (its ColdFire code names it); flag 4 is not defined. */
+    p[7] = 3; CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && modwerk_runtime_module(0)->dsp.pinned);
+    fx = modwerk_runtime_module(0);
+    p[7] = 4; CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
     dsp_switches = 1;
     /* Malformed DSP sections change nothing. */
     for (unsigned bad = 0; bad < 6; ++bad) {

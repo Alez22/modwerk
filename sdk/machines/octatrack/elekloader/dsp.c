@@ -72,6 +72,9 @@ static uint16_t owner_layout[32];
 static char owner_name[32][16];
 static uint8_t *owner_page[32]; /* its page recipe (the module image's head), and that image's length */
 static uint32_t owner_page_bytes[32];
+static uint8_t owner_pinned[32]; /* its ColdFire code names this id: it never moves (loader.h) */
+/* shortcut: a pinned module's ColdFire hooks still act on tracks running its id after it lets go of it (a project
+ * from elsewhere naming another module there); give such modules their handle at run time to lift this. */
 static unsigned rebinding; /* ticks into a rebind, 0 none */
 static int handle_of(uint32_t module)
 {
@@ -84,10 +87,11 @@ static int free_for(unsigned k, uint32_t module, uint32_t used)
     uint32_t named = modwerk_fxmap_module(k);
     return named == module || !(used >> k & 1u); /* a handle the project uses for an unknown module stays its own */
 }
-static int choose(uint32_t module, unsigned preferred)
+static int choose(uint32_t module, unsigned preferred, int pinned)
 {
     uint32_t used = modwerk_fxmap_used();
     int mapped = modwerk_fxmap_handle(module);
+    if (pinned) return (mapped < 0 || mapped == (int)preferred) && free_for(preferred, module, used) ? (int)preferred : -1;
     if (mapped >= 0 && !owner[mapped]) return mapped;
     if (free_for(preferred, module, used)) return (int)preferred;
     for (unsigned k = 0; k < 32u; ++k) if (free_for(k, module, used)) return (int)k;
@@ -101,7 +105,7 @@ int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp
     if (from->count && (!dl_publication_idle() || rebinding || (had >= 0 && in_use((unsigned)had)))) return RUNTIME_BUSY;
     if (!to->count) return RUNTIME_OK;
     if (rebinding) return RUNTIME_BUSY;
-    int id = had >= 0 ? had : choose(to->module, to->id);
+    int id = had >= 0 ? had : choose(to->module, to->id, to->pinned);
     if (id < 0) return RUNTIME_FULL; /* every module handle is held or named */
     to->id = (uint8_t)id;
     unsigned arena = modwerk_dsp_arena[0] < modwerk_dsp_arena[1] ? modwerk_dsp_arena[0] : modwerk_dsp_arena[1];
@@ -119,7 +123,7 @@ static void release(unsigned k)
 {
     dl_catalog[k] = unheld;
     dl_codes[0][k] = dl_codes[1][k] = (struct code){0, 0, 0, 0, 0, 0};
-    owner[k] = 0, owner_page[k] = 0;
+    owner[k] = 0, owner_page[k] = 0, owner_pinned[k] = 0;
     modwerk_fxpage_drop(k);
 }
 /* Its page in the choosers at handle k, when it brought one (a module without one still runs where a
@@ -138,7 +142,7 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
         dl_catalog[to->id] = (struct dl_package){(uint16_t)to->count, 1, cycles, to->slots, 0, 1, to->buffer != 0};
         dl_codes[0][to->id] = dl_codes[1][to->id] =
             (struct code){to->words, to->relocations, (uint16_t)to->count, to->init, to->proc, to->relocation_count};
-        owner[to->id] = to->module, owner_layout[to->id] = to->layout;
+        owner[to->id] = to->module, owner_layout[to->id] = to->layout, owner_pinned[to->id] = to->pinned;
         for (unsigned i = 0; i < 16u; ++i) owner_name[to->id][i] = to->name[i];
         list(to->id, (uint8_t *)(uintptr_t)to->page, to->page_bytes);
         modwerk_fxmap_assign(to->id, to->module, to->layout, to->name);
@@ -148,7 +152,7 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
 /* A project load can name an installed module at another handle, or another module at the handle one
  * holds. Those modules let go first: the manager retires their code, so no slot runs the wrong module.
  * Once it is idle, each takes the handle the map gives it (choose); one that finds none stays out. */
-static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes; uint8_t *page; uint16_t layout; char name[16]; } moving[32];
+static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from; } moving[32];
 static unsigned moving_count;
 static uint32_t mapped; /* the map generation the handles follow */
 static void rebind_tick(void)
@@ -168,6 +172,7 @@ static void rebind_tick(void)
             moving[moving_count].code[0] = dl_codes[0][k], moving[moving_count].code[1] = dl_codes[1][k];
             moving[moving_count].module = owner[k], moving[moving_count].layout = owner_layout[k];
             moving[moving_count].page = owner_page[k], moving[moving_count].page_bytes = owner_page_bytes[k];
+            moving[moving_count].pinned = owner_pinned[k], moving[moving_count].from = (uint8_t)k;
             for (unsigned i = 0; i < 16u; ++i) moving[moving_count].name[i] = owner_name[k][i];
             ++moving_count;
             release(k);
@@ -177,11 +182,11 @@ static void rebind_tick(void)
     }
     if (++rebinding < 4u || !dl_publication_idle()) return; /* the manager has retired what let go */
     for (unsigned i = 0; i < moving_count; ++i) {
-        int id = choose(moving[i].module, 32u);
+        int id = choose(moving[i].module, moving[i].pinned ? moving[i].from : 32u, moving[i].pinned); /* pinned: its own or none */
         if (id < 0) continue;
         dl_catalog[id] = moving[i].package;
         dl_codes[0][id] = moving[i].code[0], dl_codes[1][id] = moving[i].code[1];
-        owner[id] = moving[i].module, owner_layout[id] = moving[i].layout;
+        owner[id] = moving[i].module, owner_layout[id] = moving[i].layout, owner_pinned[id] = moving[i].pinned;
         for (unsigned c = 0; c < 16u; ++c) owner_name[id][c] = moving[i].name[c];
         list((unsigned)id, moving[i].page, moving[i].page_bytes);
         if (modwerk_fxmap_handle(moving[i].module) != id) modwerk_fxmap_assign((unsigned)id, moving[i].module, moving[i].layout, moving[i].name);
