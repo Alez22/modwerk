@@ -196,7 +196,8 @@ async function missing() {
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
  * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (SYSTEM > MODWERK TEST, about 15 s)
  * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
- * reload (the current Part from its saved copy, through the Part menu)
+ * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
+ * memory (development bases: each memory's use, holes and largest free run)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -219,6 +220,24 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
     else if (step === 'missing') console.log(await missing())
+    else if (step === 'memory') { // MEMORY MAP (dev request 24): how full and how fragmented each memory is
+      const b = Buffer.from(await devIn(24, 0, 276))
+      if (b.toString('latin1', 0, 4) !== 'MWMP') throw new Error('Not a memory map.')
+      const pool = 262144, free = b.readUInt32BE(4), largest = b.readUInt32BE(8)
+      console.log(`pool: ${pool - free} of ${pool} bytes used; free ${free}, largest free run ${largest}${free ? ` (${Math.round(100 * largest / free)} % of free)` : ''}`)
+      for (const [core, name] of [[1, 'core 1 (T1-4)'], [0, 'core 0 (T5-8)']]) {
+        const arena = b.readUInt16BE(12 + 2 * core), blocks = []
+        for (let p = 0; p < 32; p++) { const at = b.readUInt16BE(20 + 4 * (32 * core + p)); if (at !== 0xffff) blocks.push({ p, at: at - 64, n: b.readUInt16BE(22 + 4 * (32 * core + p)) }) }
+        blocks.sort((x, y) => x.at - y.at)
+        let end = 0, holes = 0, largestHole = 0
+        for (const k of blocks) { const h = k.at - end; if (h > 0) holes += h, largestHole = Math.max(largestHole, h); end = Math.max(end, k.at + k.n) }
+        const used = blocks.reduce((s, k) => s + k.n, 0), tail = arena - end
+        console.log(`${name}: ${used} of ${arena} words in ${blocks.length} blocks [${blocks.map(k => `id ${k.p} @${k.at}+${k.n}`).join(', ')}]; ` +
+          `holes ${holes} words, largest free run ${Math.max(largestHole, tail)} of ${arena - used} free`)
+      }
+      console.log(`buffer blocks in use: 0x${b.readUInt32BE(16).toString(16)}`)
+    }
+    else if (step === 'gap') { const g = Buffer.from(await devIn(23, 0, 4)).readUInt32BE(0); console.log(`gap ${g} counts ${(g / 132).toFixed(0)} us`) } // since the last read
     // RELOAD from the Part menu, which keeps its cursor and stops at RENAME. Never PART+FUNC+PLAY: that is CLEAR.
     else if (step === 'reload') await run('FUNC+PART w600 UP w150 UP w150 UP w150 DOWN w200 YES w1000')
     else if ((m = /^hold:(\d)$/.exec(step))) await devIn(22, Number(m[1]), 1) // development bases: host frames wait N seconds, as after a boot

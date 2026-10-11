@@ -57,6 +57,25 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 |---|---|---|---|
 | 21 | More module effects than the list holds (owner, 11 October 2026: "I just want a longer list than 32 entries"; categories in the choosers: not now) | The chooser itself scrolls any length (stock's 7 is only its viewport, build_bus.py CHOOSER_ROWS); the 32 is the base's lists and the 32 effect ids, of which stock keeps 19. Owner: more than 13 different module effects at once are needed, so ids handed out on pick are not enough; the DSP dispatch and stock's per-id tables have to grow, or one id has to dispatch to a second-level table. Research under way | open (design) |
 
+## Loading and memory, measured (11 October 2026, S47/S48, `scripts/octatrack-loadbench.py`, `memory`)
+
+- **Speed.** Every pick, module or stock, ran 114-123 ms after YES whether it moved 0 or 68 packets (E-Verb's
+  1,588 words): the time is the key hold and the tool's polling, not the load. The longest gap between two audio
+  frames during loads was 403-420 us, the same as idle (420 us; a frame is about 363 us). A Part switch with
+  modules preloaded sent no packet, and five idle seconds sent none.
+- **Code leaves a core when no working Part names it**, so a second pick sends the same packets again (Mini Verb
+  24, E-Verb 68); that costs nothing measurable. Modules a working Part names stay loaded (Air Chorus, named by
+  Part 2, came free on core 1).
+- **Packing.** Fresh, each core's code sits packed from the arena's start with no holes (core 1: 3,641 of 5,075
+  words in five blocks). The allocator places first-fit and never moves live code: taking E-Verb off T1 left a
+  1,588-word hole, and Mini Verb (532) then filled its start, leaving a 1,056-word hole (2,490 free, the largest
+  run 1,434). A placement that fits the free words but not one run is refused as memory
+  (`DL_ALLOC_TRANSITION`) after the base lets go of what it holds; live code is never moved. On the unit the
+  cycle ledger refused first: E-Verb on T4 was refused for cycles (manager result -2) with core 1's code
+  memory 51 % used.
+- **The module pool** (256 KB) held six modules in 26 KB with no hole; removing Euclid from the middle and
+  installing it again left none (first fit at the lowest address; nothing moves).
+
 ## Order
 
 1. ~~Cases 1, 2 and 3~~: done (the unit's page, the site's note).

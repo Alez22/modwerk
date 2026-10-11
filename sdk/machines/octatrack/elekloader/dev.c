@@ -32,6 +32,7 @@
 #ifdef MODWERK_DSP_LOADER
 #include "transfer.h"
 #include "selection.h"
+#include "allocator.h"
 #include "runtime.h"
 uint32_t modwerk_dsp_used(void);
 int modwerk_dsp_probe(unsigned core);
@@ -148,6 +149,36 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         out[0] = (uint8_t)modwerk_dsp_probe(s[2]);
         *reply = out;
         return 1;
+    }
+    if (s[1] == 24 && want == 276u && !s[2] && !s[3]) { /* MEMORY MAP: the module pool, each core's code arena, buffer blocks */
+        extern struct dl_package dl_catalog[DL_PACKAGES];
+        extern const uint16_t modwerk_dsp_arena[2];
+        int dl_placed(unsigned c, unsigned p);
+        uint32_t dl_buffers_in_use(void);
+        uint32_t largest, words[3];
+        words[0] = modwerk_runtime_free(&largest), words[1] = largest, words[2] = dl_buffers_in_use();
+        out[0] = 'M', out[1] = 'W', out[2] = 'M', out[3] = 'P';
+        for (unsigned i = 0; i < 3u; ++i)
+            for (unsigned b = 0; b < 4u; ++b) out[(i < 2u ? 4u + 4u * i : 16u) + b] = (uint8_t)(words[i] >> (24 - 8 * b));
+        out[12] = (uint8_t)(modwerk_dsp_arena[0] >> 8), out[13] = (uint8_t)modwerk_dsp_arena[0];
+        out[14] = (uint8_t)(modwerk_dsp_arena[1] >> 8), out[15] = (uint8_t)modwerk_dsp_arena[1];
+        for (unsigned c = 0; c < 2u; ++c) /* per package: where its code starts (0xffff none) and its words */
+            for (unsigned p = 0; p < 32u; ++p) {
+                int at = dl_placed(c, p);
+                uint8_t *e = out + 20u + 4u * (32u * c + p);
+                uint16_t where = at < 0 ? 0xffffu : (uint16_t)at, n = at < 0 ? 0 : dl_catalog[p].words;
+                e[0] = (uint8_t)(where >> 8), e[1] = (uint8_t)where, e[2] = (uint8_t)(n >> 8), e[3] = (uint8_t)n;
+            }
+        *reply = out;
+        return 276;
+    }
+    if (s[1] == 23 && want == 4 && !s[2] && !s[3]) { /* GAP: the longest time between two frames since the last read, DTCN3 counts */
+        extern volatile uint32_t dl_frame_gap;
+        uint32_t gap = dl_frame_gap;
+        dl_frame_gap = 0;
+        out[0] = (uint8_t)(gap >> 24), out[1] = (uint8_t)(gap >> 16), out[2] = (uint8_t)(gap >> 8), out[3] = (uint8_t)gap;
+        *reply = out;
+        return 4;
     }
     if (s[1] == 13 && want == 1 && s[2] <= 1u && !s[3]) {
         out[0] = (uint8_t)modwerk_dsp_meter_read(s[2], 0, 5);
