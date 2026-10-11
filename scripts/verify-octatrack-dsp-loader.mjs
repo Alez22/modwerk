@@ -27,6 +27,7 @@
 // hold is refused although nothing live holds the others), save (no install: once the project is up, PROJECT > SYNC TO
 // CARD by keys, on a development base; the project file's map lines go out through the writer's seam; ot_emu needs
 // --mkii, whose panel has PROJ, and --card-rw to keep the file).
+// parts (no module: Parts 2, 3, 4 and 1 in turn, so every effect the bank's Parts name runs; for memory censuses).
 // SCENARIO:MODULE names the module by its catalogue id (src/engine/assets/dsp-packages.json); E-Verb by default.
 // The card needs a project whose Part 1 has no module effect on T1, T2, T5 or T6.
 // Emulator evidence only: executed instructions, no hardware timing or audio.
@@ -127,6 +128,10 @@ if (mode === 'dumps') {
     await settle(120)
     assert(await call(symbols.modwerk_dsp_used) & 1 << EFFECT, 'the bank reports the effect in use')
     console.log(`T1 names ${pkg.key} before it is installed; the bank reports it in use`)
+  }
+  if (scenario === 'parts') { // no module: each of the bank's four Parts in turn, so every effect the Parts name runs
+    for (const part of [1, 2, 3, 0]) { assert.equal(await call(symbols.modwerk_dsp_pick, 2, 0, part), 1); await settle(240) }
+    bench.socket.end(); process.exit(0)
   }
   if (scenario === 'stock') { // no module: the project's stock effects load at boot, then two reverbs are picked
     await settle(60)
@@ -290,6 +295,8 @@ if (mode === 'dumps') {
     assert.equal(u32('modwerk_dsp_probes_ok')[0], answered ? 2 : 0); assert.equal(u32('modwerk_dsp_probes_failed')[0], answered ? 0 : 2)
     assert(u32('dl_frames')[0] > 1000, 'frames kept running')
     console.log(`probe ${proofs.configuration.dsp.probe ?? 'none (whole receiver)'}: each core ${answered ? 'answered' : 'took the packet and never answered, as built'}, frames kept running: passed`)
+  } else if (scenario === 'parts') {
+    console.log('Parts 2, 3, 4 and 1 ran in turn: passed')
   } else if (scenario === 'save') {
     assert(u32('modwerk_fxmap_written')[0] >= 1, 'SYNC TO CARD wrote the map line')
     console.log(`SYNC TO CARD: the writer wrote ${u32('modwerk_fxmap_written')[0]} map line(s) through its seam, no transport errors: passed`)

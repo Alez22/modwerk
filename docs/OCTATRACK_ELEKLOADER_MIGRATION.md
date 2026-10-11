@@ -1137,10 +1137,22 @@ card, another unit) and change version, and old projects must keep loading:
       emulator's flat memory is untouched too; whether the chip has RAM there
       is not checked.
     - Sidechain's Y $7f0-$9ff is free on both cores.
-    - The shared window from $30c00 up is written by the running effects; only
-      core 0 X $30000-$300ff carried non-zero data. The card plays no audio, so
-      silent delay buffers write zeros: whether Sidechain's tails hold audio
-      needs a run with samples playing (or a marker read back on the unit).
+    - The shared window is FX2 delay buffers: each core has four 16K FX2
+      blocks (`buffers.c`: Y $4000 and $8000, and $30000 and $34000 on core 0,
+      $38000 and $3c000 on core 1), and this base hands them to whichever slots
+      read a buffer. Stock itself writes only its per-frame staging
+      ($30000-$30047) and core 1's mailbox ($38000-$3800f) there (Octabam's
+      `dsp_ranges.py`). With all four Parts run (`parts`), the untouched words
+      left in the window were pieces of buffers the run did not fill, so there
+      is no free shared memory to move Sidechain's region to.
+    - Sidechain's region is the last $202 words of block $30000 (core 0) and
+      $38000 (core 1). Stock effects reach at most +$3DA2 of a block (its
+      author's measurement), so they fit beside it; E-Verb, MINIVERB and AIR
+      CHORUS use the whole block (E-Verb clears 128 x 128 words). With the
+      buffer allocator treating that block as 15,870 words while Sidechain is
+      installed and giving the whole-block modules the other three first, a
+      module is refused only when it would be the fourth whole-block user on
+      one core's FX2 at once.
   - **Measured loads for the site** (owner, 11 October 2026): the module pages
     show each module's DSP and CPU impact from its manifest, mostly estimated.
     Measure each module on the unit with the load meter, typical (defaults, a
