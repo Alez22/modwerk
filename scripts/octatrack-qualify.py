@@ -170,6 +170,7 @@ def main():
             except RuntimeError as e: failures.append(str(e))
         changed = [i for i, v in enumerate(mem(0x80000ec4, 16)) if v != live[i]]
         if changed: failures.append('tracks not back as before (FX index %s); restore them' % changed)
+    time.sleep(1)  # the DSP watchdog records a stall after half a second of still frames (dsp.c STALL_TICKS)
     after = counters()
     for key in ('rejected', 'errors'):
         if after[key] != before[key]: failures.append('the loader counted %d more %s' % (after[key] - before[key], key))

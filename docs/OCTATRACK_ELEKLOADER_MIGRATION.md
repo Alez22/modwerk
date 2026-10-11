@@ -1601,6 +1601,38 @@ Limits: a fault inside the handler (a stack pointer that is itself bad) still ha
 come back as the card has them, as after a power cycle. Hosts can read the record only on
 development bases so far; the support report should carry it.
 
+### DSP stalls (11 October 2026, open)
+
+Frames stopped twice on the owner's MKII. The DSP watchdog (`dsp.c`) said DSP STOPPED and shut the loader off. The first time the sequencer stayed stuck until a power cycle.
+
+**The stall record.** Since S18, `recover()` first writes a stall record to battery RAM at `0x100ff900`:
+- the loader's whole report;
+- each core's last packet header;
+- the live FX ids;
+- since S20, the selected core's host ISR, whose RXDF bit separates "core 0 waits at P:$97 for the ColdFire to take a word" from "core 0 hung inside".
+
+The `stall` step prints it; `stalltest` writes a test record.
+
+**What the two stalls had in common:**
+- A PEEK to core 0 was in flight.
+- Core 0's frame interrupt was still enabled, with no edge pending.
+- Our transfer had finished (phase 0).
+
+The PEEK is no clue. The status meter keeps one in flight nearly all the time, and a storm of 242,538 PEEKs in 82 s (`storm1`, development request 19) did not stall S22.
+
+**The S19 record** shows four modules still active and 134 KB of the module pool in use. So that stall came during the qualification's cleanup, while it removed six modules (likely around Euclid, whose sites include a detour in stock's frame interrupt, `0x4000d562`). The qualification missed it: it read its counters within the half second before the watchdog wrote the record.
+
+**Afterwards** the unit came back on S19 itself, minutes later, with no crash record. A crash restart would have booted the flashed base, so what restarted it is unknown.
+
+**Ruled out:** the receiver's HCR read-modify-write racing stock. Stock's core 0 writes HCR once, at boot (`movep #>$4,x:<<M_HCR`).
+
+**Not reproduced:**
+- a second identical qualification on S22;
+- rapid picks on both cores;
+- a full TYPE and BAL sweep of SPRING REV.
+
+**Next:** module removal under load, Euclid's frame-interrupt site first. The qualification has to wait half a second before reading the stall count.
+
 ### Part switching on the unit (11 October 2026)
 
 First hardware run of the union of Parts, on the owner's MKII. Project LIVE/Dev12, bank A. T1 played a
