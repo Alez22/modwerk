@@ -1729,6 +1729,12 @@ base runs the test itself and answers with a result record:
 The site then keeps the set if every check passes. If one fails, it undoes the set, shows which
 check failed, and offers the report.
 
+**On the unit itself** (owner, 11 October 2026): the same self-test from PROJ > SYSTEM > MODWERK
+(a TEST choice beside the status page). It runs with the transport stopped and shows each check
+as passed or failed on a page in the status dialog's style, keeping the record for the next host
+that connects. A unit can then be checked without a computer, and a user can run it before
+reporting a problem.
+
 **The diagnostic bundle** (attached to a bug report, after a failed test or on request): base
 identity, the module set's hashes, the loader report, the status words, the self-test results
 and the crash record. No project data. The privacy text has to say so.

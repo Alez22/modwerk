@@ -52,7 +52,7 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   png: { type: 'string' },
   scale: { type: 'string', default: '2' },
 } })
-const seconds = Number(values.seconds)
+let seconds = Number(values.seconds)
 if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
   (['serve', 'status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
   !Number.isInteger(seconds) || seconds < 1 || seconds > 3600) {
@@ -153,9 +153,11 @@ async function pick(track, slot, wanted) {
   await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
   const move = word(rows, id) - word(await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4), 0) // the chooser's cursor (dsp.c)
   if (move) await run(`encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100`) // LEVEL scrolls the chooser, a row a detent
-  const start = Date.now()
+  const refused = (await statusWords())(21), start = Date.now()
   await keys('YES')
-  const ok = await until(async () => (await mem(0x80000ec4 + 8 * (slot - 1) + track, 1))[0] === id)
+  let no = false
+  const ok = await until(async () => (await mem(0x80000ec4 + 8 * (slot - 1) + track, 1))[0] === id || (no = (await statusWords())(21) !== refused))
+  if (no) { await keys('NO'); throw new Error(wanted + ' refused on T' + (track + 1) + ' FX' + slot + ' (the loader said no)') }
   const took = Date.now() - start
   await keys('NO')
   if (!ok) throw new Error(wanted + ' was not admitted on T' + (track + 1) + ' FX' + slot + ' within 5 s.')
@@ -196,7 +198,7 @@ async function run(sequence) {
     }
     else if (step === 'loader') { // packets each core took, the jobs in flight, the manager's transactions (report words)
       const w = await statusWords()
-      console.log(`loader accepted ${w(6)}/${w(7)} jobs ${w(3) | 0}/${w(4) | 0} selections ${w(20)}/${w(19)} commits ${w(23)} rollbacks ${w(25)} words ${w(26)}/${w(27)} dry 0x${w(33).toString(16)}`)
+      console.log(`loader accepted ${w(6)}/${w(7)} rejected ${w(8)}/${w(9)} errors ${w(10)} jobs ${w(3) | 0}/${w(4) | 0} selections ${w(20)}/${w(19)} commits ${w(23)} rollbacks ${w(25)} words ${w(26)}/${w(27)} dry 0x${w(33).toString(16)}`)
     }
     else if ((m = /^part([1-4])$/.exec(step))) await part(Number(m[1]))
     else if ((m = /^pick:T([1-8]):FX([12]):(\S+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), m[3].replace(/_/g, ' '))
@@ -268,7 +270,7 @@ if (command === 'serve') {
       } else if (verb === 'try' || verb === 'remove') {
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined
-        values.accept = true
+        values.accept = true; seconds = 1 // the session accepts at once; `try` from the shell keeps its trial
         console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined))))
       } else await run(line)
     } catch (error) { out.push('error: ' + error.message) } finally { console.log = log }
@@ -279,7 +281,8 @@ if (command === 'serve') {
     let line = ''
     c.setEncoding('utf8').on('data', d => {
       line += d
-      if (line.includes('\n')) serial(() => capture(line.slice(0, line.indexOf('\n'))).then(reply => c.end(reply)))
+      if (line.includes('\n')) serial(() => Promise.race([capture(line.slice(0, line.indexOf('\n'))), // a hung request answers, and the queue moves on
+        wait(20000).then(() => 'error: no answer from the unit within 20 s\n')]).then(reply => c.end(reply)))
     })
   }).listen(path, () => console.log('serving on ' + path))
   setInterval(() => serial(() => devIn(6, 0, 2).catch(() => {})), 4000) // a request every 4 s: MODWERK CONNECTED shows once

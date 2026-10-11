@@ -189,7 +189,7 @@ What `ot_emu` does not show:
   unless given `--card-rw`. Hold remote keys for unit ticks, not wall time:
   under `--dsp` it runs far slower than the clock.
 
-**Keep one link open and drive it by name.**
+**Keep one link open and drive it by name** (the full how-to: [OCTATRACK_DRIVING.md](OCTATRACK_DRIVING.md)).
 - *The session.* Each `npm run device` call opens the bridge again (one to
   two seconds) and, after a quiet spell, brings up MODWERK CONNECTED.
   Instead run `while :; do npm run device -- serve; sleep 1; done` in a
