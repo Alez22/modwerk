@@ -1518,7 +1518,38 @@
     "Current NOISE/ENS screenshots omit some common display regions; complete common TUNE/sidebar redraw and full documentation qualification need owner review or hardware captures."
   ],
   "hardware": null,
-  "ownerException": null,
+  "ownerException": {
+    "owner": "repeat98",
+    "date": "2026-10-11",
+    "authorization": "Approve this exact experimental release and issue closure with the limits disclosed",
+    "moduleVersion": "0.13.3-experimental",
+    "runtimeSourceSha256": "6fa2c66f23d85458bd0655b40a0c2f5b820532e5e1f993cb92842fc06bf335db",
+    "images": [
+      {
+        "os": "1.53",
+        "outputVersion": "D182",
+        "firmwareSha256": "b1650a2be1ef7e805cca325f63cc74b1f0303bcb2441aa0fc0438c7f1586a7bb"
+      },
+      {
+        "os": "1.54",
+        "outputVersion": "D182",
+        "firmwareSha256": "0d54f54eb4691530faa0b839cf0b9cfa21cdd5e5412ccd09af5eb05e8cf15f27"
+      }
+    ],
+    "scope": "Publish this exact experimental release and close #182 only after saved live-download verification, disclosing the limits and how to reopen.",
+    "unverified": [
+      "hardware",
+      "audio",
+      "DSP timing",
+      "complete runtime memory bounds",
+      "persistence",
+      "physical reboot",
+      "played p-lock/LFO",
+      "stress"
+    ],
+    "documentationLimit": "Current NOISE/ENS native gallery frames omit some common display regions. These remain limited captures, not a complete-page redraw pass.",
+    "hardwarePass": false
+  },
   "galleryComparison": {
     "method": "SHA-256 and byte comparison of freshly captured current-build PNGs against the 0.13.2 PNGs in parent main. Only PULSE changes; the other six current captures reproduce the previous pixels, including the documented NOISE/ENS omissions.",
     "images": [
