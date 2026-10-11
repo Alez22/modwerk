@@ -5,11 +5,12 @@
  * instruction (0x400559c6) and goes on with the stock code after the loop (0x40055b7e), which resets
  * every LED.
  *
- * Docking: the mark's ninth dot is a module arriving. The box draws itself while the panel wakes around
- * it; the eight tiles light up one by one, each with its track key; the empty socket at the corner blinks
- * and a light far off on the trig row answers; the module runs along the trig row, turns up into the
- * screen and docks; the dock sends a wave that reveals MODWERK, NEW and the version and rolls on across
- * the whole panel.
+ * Docking: the mark's ninth dot is a module arriving. First the plan: a dashed frame and nine dotted
+ * slots, while the panel wakes around the screen. A placement head drops in and sets the eight tiles,
+ * serpentine, each with a press and its track key; then it leaves, and the ninth slot, the socket, blinks
+ * while a light far off on the trig row answers. The module runs along the trig row, turns up into the
+ * screen and docks; its wave makes the frame solid, reveals MODWERK, NEW and the version and rolls on
+ * across the whole panel.
  *
  * Screen and lamps are one plane: the LCD sits in the panel (54.2 hundredths of a millimetre per pixel,
  * lamp positions from the stock lamp table), so the module and the wave keep going across the edge.
@@ -63,14 +64,15 @@ extern const uint32_t host_white[3];
 #endif
 
 /* The score, in ms. */
-#define T_BOX0 100      /* the box draws itself, clockwise; the panel wakes around it */
-#define T_BOX1 420
-#define T_TILE 460      /* a tile every 60 ms, each with its track key */
-#define T_WAIT 920      /* the empty socket blinks and the module answers, twice */
-#define T_FLY0 1120     /* the module's run */
-#define T_DOCK 1950
-#define T_WAVE 1950     /* the dock's wave: radius (dt / 40 ms)^2 px */
-#define T_END 3200
+#define T_PLAN0 100     /* the plan: the dashed frame, clockwise; the panel wakes around the screen */
+#define T_PLAN1 300
+#define T_SLOTS 180     /* a dotted slot every 20 ms, the socket last */
+#define T_DROP 440      /* the head sets a tile every 60 ms (40 ms moving, 20 ms pressing) */
+#define T_WAIT 960      /* the socket blinks and the module answers, twice */
+#define T_FLY0 1160     /* the module's run */
+#define T_DOCK 1990
+#define T_WAVE 1990     /* the dock's wave: radius (dt / 40 ms)^2 px */
+#define T_END 3240
 
 #define R_HEAD 34       /* px: how far from the module a lamp glows */
 #define R_RING 30       /* px: the wave's width on the panel */
@@ -80,6 +82,10 @@ static int32_t now, on, lamps;
 static int32_t path[4][2];              /* the module's run: a cubic curve, 1/16 px */
 static int16_t lamp_x[67], lamp_y[67];  /* lamps in screen pixels */
 static int32_t glow[67];                /* 1/16 levels */
+
+/* The head's round: top row left to right, middle row back, bottom row (tile k is row k / 3, column
+ * k % 3); the same table gives each tile's turn, since the round swaps 3 and 5 only. */
+static const uint8_t order[8] = {0, 1, 2, 5, 4, 3, 6, 7};
 
 #define DOCK_X (BOOT_DISC_X * 16 + BOOT_DISC_W * 8)   /* the detached tile's middle, 1/16 px */
 #define DOCK_Y (BOOT_DISC_Y * 16 + BOOT_DISC_H * 8)
@@ -175,22 +181,70 @@ static void ring(unsigned char *frame, int32_t r) /* the wave on the screen: a d
     }
 }
 
+static void dotted(unsigned char *frame, int32_t x, int32_t y, int32_t w, int32_t h)
+{
+    for (int32_t i = 0; i < w; i++)
+        for (int32_t j = 0; j < h; j++)
+            if ((i == 0 || j == 0 || i == w - 1 || j == h - 1) && (i + j) % 2 == 0)
+                dot(frame, x + i, y + j);
+}
+
+static void slot(int k, int32_t *x, int32_t *y) /* a tile's middle, 1/16 px */
+{
+    *x = (BOOT_MARK_X + 9 + 8 * (k % 3)) * 16, *y = (BOOT_MARK_Y + 9 + 8 * (k / 3)) * 16;
+}
+
+/* The placement head at time t (1/16 px): down from above the screen onto the first slot, slot to slot,
+ * then out past the top right. Returns 2 while it presses, 1 while it moves, 0 when it is gone. */
+static int head(int32_t t, int32_t *x, int32_t *y)
+{
+    int32_t wx[10], wy[10];
+    slot(0, &wx[0], &wy[0]), wy[0] = -10 * 16;
+    for (int n = 0; n < 8; n++)
+        slot(order[n], &wx[n + 1], &wy[n + 1]);
+    wx[9] = 140 * 16, wy[9] = -10 * 16;
+    if (t < T_DROP - 60 || t > T_DROP + 7 * 60 + 80)
+        return 0;
+    for (int n = 0; n < 9; n++) {
+        int32_t depart = n ? T_DROP + (n - 1) * 60 + 20 : T_DROP - 60, arrive = n < 8 ? T_DROP + n * 60 : T_DROP + 7 * 60 + 80;
+        if (t <= arrive || n == 8) {
+            int32_t u = smooth(span(t, depart, arrive));
+            *x = wx[n] + (wx[n + 1] - wx[n]) * u / 4096, *y = wy[n] + (wy[n + 1] - wy[n]) * u / 4096;
+            return t < depart && n ? 2 : 1;
+        }
+    }
+    return 0;
+}
+
 void modwerk_boot_draw(unsigned char *frame)
 {
     int32_t t = now;
-    if (!on || t < T_BOX0)
+    if (!on || t < T_PLAN0)
         return;
-    int32_t box = 256 * span(t, T_BOX0, T_BOX1) / 4096;
-    for (int i = 0; i < BOOT_RING && boot_ring[i][2] < box; i++)
-        dot(frame, boot_ring[i][0], boot_ring[i][1]);
-    for (int k = 0; k < 8; k++)   /* the tiles: top row, middle row, bottom row */
-        if (t >= T_TILE + k * 60)
-            bits(frame, BOOT_MARK_X + 6 + 8 * (k % 3), BOOT_MARK_Y + 6 + 8 * (k / 3), boot_tile, 6, 6);
-    if (t >= T_WAIT && t < T_FLY0 && (t - T_WAIT) % 120 < 60)   /* the empty socket */
-        for (int i = 0; i < BOOT_DISC_W; i++)
-            for (int j = 0; j < BOOT_DISC_H; j++)
-                if ((i == 0 || j == 0 || i == BOOT_DISC_W - 1 || j == BOOT_DISC_H - 1) && (i + j) % 2 == 0)
-                    dot(frame, BOOT_DISC_X + i, BOOT_DISC_Y + j);
+    int32_t plan = 256 * span(t, T_PLAN0, T_PLAN1) / 4096, r = wave(t), hx, hy, h;
+    for (int i = 0; i < BOOT_RING && boot_ring[i][2] < plan; i++) {   /* dashed until the dock's wave */
+        int32_t x = boot_ring[i][0], y = boot_ring[i][1];
+        if ((x + y) % 2 == 0 || (r && near(x, y, r)))
+            dot(frame, x, y);
+    }
+    for (int k = 0; k < 8; k++) {
+        int32_t at = T_DROP + order[k] * 60, x = BOOT_MARK_X + 6 + 8 * (k % 3), y = BOOT_MARK_Y + 6 + 8 * (k / 3);
+        if (t >= at) {
+            bits(frame, x, y, boot_tile, 6, 6);
+            if (t < at + 20)   /* the press */
+                for (int i = -1; i < 7; i++)
+                    for (int j = -1; j < 7; j++)
+                        dot(frame, x + i, y + j);
+        } else if (t >= T_SLOTS + k * 20)
+            dotted(frame, x, y, 6, 6);
+    }
+    if (t >= T_SLOTS + 8 * 20 && t < T_DOCK && (t < T_WAIT || t >= T_FLY0 || (t - T_WAIT) % 120 < 60))   /* the socket */
+        dotted(frame, BOOT_DISC_X, BOOT_DISC_Y, BOOT_DISC_W, BOOT_DISC_H);
+    if ((h = head(t, &hx, &hy)) != 0) {   /* a reticle reaching past the slot; it closes in as it presses */
+        int32_t cx = hx >> 4, cy = hy >> 4, d0 = h == 2 ? 4 : 5;
+        for (int32_t d = d0; d <= d0 + 2; d++)
+            dot(frame, cx - d, cy), dot(frame, cx + d, cy), dot(frame, cx, cy - d), dot(frame, cx, cy + d);
+    }
     if (t >= T_FLY0 && t < T_DOCK) {   /* the module on the screen, with a short streak */
         for (int k = 2; k >= 0; k--) {
             int32_t x, y;
@@ -204,7 +258,6 @@ void modwerk_boot_draw(unsigned char *frame)
                 for (int j = -1; j <= BOOT_DISC_H; j++)
                     dot(frame, BOOT_DISC_X + i, BOOT_DISC_Y + j);
     }
-    int32_t r = wave(t);
     if (!r)
         return;
     for (int32_t x = 0; x < 110; x++)   /* what the wave has passed shows */
@@ -228,16 +281,16 @@ static void light(int32_t t, int32_t dt)
         module(t, &mx, &my), mx >>= 4, my >>= 4;
     for (int i = 0; i < lamps; i++) {
         int32_t px = lamp_x[i], py = lamp_y[i], best = 0, level;
-        /* waking: a soft pass around the screen, clockwise with the box */
+        /* waking: a soft pass around the screen, clockwise with the plan's frame */
         int32_t d = isqrt((uint32_t)((px - 64) * (px - 64) + (py - 32) * (py - 32)));
         if (d < 170) {
-            int32_t peak = T_BOX0 + clockwise(px - 64, py - 32) * (T_BOX1 - T_BOX0) / 256, off = t - peak;
+            int32_t peak = T_PLAN0 + clockwise(px - 64, py - 32) * (T_PLAN1 - T_PLAN0) / 256, off = t - peak;
             level = 5 - (off < 0 ? -off : off) / 16;
             if (level > best) best = level;
         }
-        /* the tracks: each lights with its tile and stays faintly on until the wave */
-        if (i >= 20 && i < 28 && t >= T_TILE + (i - 20) * 60) {
-            int32_t since = t - T_TILE - (i - 20) * 60;
+        /* the tracks: T1-T8 light with the head's drops and stay faintly on until the wave */
+        if (i >= 20 && i < 28 && t >= T_DROP + (i - 20) * 60) {
+            int32_t since = t - T_DROP - (i - 20) * 60;
             level = since < 150 ? 15 - since * 11 / 150 : r > 0 ? 0 : 4;
             if (level > best) best = level;
         }

@@ -73,12 +73,14 @@ No hardware flashing or module qualification-status change was performed.
 
 The Elekloader base starts with its own animation, so beta testers see at once that
 the new base is running. The mark's ninth dot is a module arriving, which is what
-this base does. The box draws itself while the panel wakes around it. The eight
-tiles light up one by one, each with its track key. The empty socket blinks, and a
-light far off at trig 1 answers. The module runs along the trig row, turns up
-through the keys under the screen and docks. The dock's wave reveals MODWERK,
-**NEW** and the version (`0.3.1`, from `VERSION` in `build_core.py`) and rolls on
-across the panel. It takes 3.2 s, 0.4 s longer than stock. Public builds are unchanged.
+this base does. First the plan: a dashed frame and nine dotted slots, while the
+panel wakes around the screen. A placement head drops in and stamps the eight tiles,
+serpentine, each with a press and its track key, then leaves. The ninth slot, the
+socket, blinks, and a light far off at trig 1 answers. The module runs along the trig
+row, turns up through the keys under the screen and docks. Its wave makes the frame
+solid, reveals MODWERK, **NEW** and the version (`0.3.1`, from `VERSION` in
+`build_core.py`) and rolls on across the panel. It takes 3.24 s, 0.44 s longer than
+stock. Public builds are unchanged.
 
 ![MKII LCD capture of the base startup, from the real base image in the emulator](media/startup/base-startup.gif)
 

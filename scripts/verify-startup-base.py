@@ -84,9 +84,9 @@ def lcd(plane):
     return im
 
 
-def led_story(led, length_ms=3200):
+def led_story(led, length_ms=3240):
     """The startup's own LED traffic: from its first act (every id to level 0; before it, the stock boot's
-    own brightness init) to the end of its 3.2 s, when the stock code takes the LEDs back."""
+    own brightness init) to the end of its 3.24 s, when the stock code takes the LEDs back."""
     levels, odd, lit, out_of_range = {}, 0, set(), 0
     start = next(n for n, (_, _, level) in enumerate(led) if level == 0)
     for t, i, level in led[start:]:

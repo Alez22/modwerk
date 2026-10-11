@@ -44,7 +44,7 @@ void host_led_level(int id, int level)
 {
     if (level < 0 || level > 15) out_of_range++;
     if (id & 1 && level) odd_lit++;
-    if (level && id >= 40 && id < 56 && now >= T_TILE && now < T_WAIT) tracks_lit++;
+    if (level && id >= 40 && id < 56 && now >= T_DROP && now < T_WAIT) tracks_lit++;
     if (level && id == 0 && now >= T_WAIT && now < T_FLY0) answer_lit++;
     if (level >= 8 && now >= T_FLY0 && now < T_DOCK) run_lit++;
     if (level && now > T_WAVE + 400) wave_lit++;
