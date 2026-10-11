@@ -571,6 +571,17 @@
     ],
     "digitakt-digimono": [
       {
+        "version": "0.13.3-experimental",
+        "date": "2026-10-11",
+        "changes": [
+          "Align MONO PULSE SUB1 and SUB2 with MONO SAW on encoders G and H. PULSE PW, PWAD and PWRS move to D, E and F; TUNE and unison stay on A, B and C.",
+          "Reorder the page descriptors without changing saved parameter slots, defaults, synth code, parameter locks or LFO destination meanings. Existing sounds need no parameter migration.",
+          "Current-build native encoder and LCD checks are recorded separately from hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot, parameter-lock/LFO execution and stress qualification, which remain unverified.",
+          "The owner approved this exact experimental source and both D182 images for release and #182 closure after live-download verification with those qualification limits and NOISE/ENS common-region capture omissions disclosed. No hardware pass is recorded."
+        ],
+        "sourceCommit": "20ce6bcc910741ab2bc49fd288ee57dd13d7900f"
+      },
+      {
         "version": "0.13.2-experimental",
         "date": "2026-10-11",
         "changes": [

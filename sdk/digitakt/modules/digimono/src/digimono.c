@@ -416,6 +416,15 @@ uint32_t *digimono_layout_for(uint32_t machine)
         for (i = 0; i < KNOBS; i++)
             if (knob_p[m][i] < 0)
                 lay[m][at[i]] = 0;
+        if (m == MONO_PULS) {
+            /* Match SAW's SUB1/SUB2 at G/H. Move descriptors, not saved sound slots:
+             * existing values, p-locks and LFO destinations keep their meaning. */
+            lay[m][5] = LAY_SLICE[7];   /* D: PW   (slot 22) */
+            lay[m][6] = LAY_SLICE[8];   /* E: PWAD (slot 23) */
+            lay[m][7] = LAY_SLICE[9];   /* F: PWRS (slot 24) */
+            lay[m][8] = LAY_SLICE[6];   /* G: SUB1 (slot 21) */
+            lay[m][9] = LAY_SLICE[5];   /* H: SUB2 (slot 20) */
+        }
         lay_ok[m] = 1;
     }
     return lay[m];
