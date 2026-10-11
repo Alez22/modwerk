@@ -31,6 +31,7 @@ def run(bench, code, init, proc, blocks, work, tag, inp, params, split):
     cmd = [bench, '-code', str(code), '-init', '%x' % init, '-proc', '%x' % proc, '-blocks', str(blocks),
            '-out', str(out), '-in', str(inp), '-params', str(params)]
     if split: cmd += ['-split', str(split)]
+    cmd += ['-clobber', '1']  # other effects scratch X:$20-$FF between calls on the unit
     line = [l for l in subprocess.run(cmd, capture_output=True, text=True, check=True).stdout.splitlines() if l.startswith('instructions/block')][-1]
     return out.read_bytes(), line
 

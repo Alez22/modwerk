@@ -163,6 +163,16 @@ async function pick(track, slot, wanted) {
   if (!ok) throw new Error(wanted + ' was not admitted on T' + (track + 1) + ' FX' + slot + ' within 5 s.')
   console.log(`T${track + 1} FX${slot} ${wanted} (running ${took} ms after YES)`)
 }
+/** The loader's report words (dsp.c modwerk_dsp_report, version 11), and those printed in hex. */
+const REPORT_NAMES = ['version', 'frames', 'phase', 'job0', 'job1', 'hostFlags', 'accepted0', 'accepted1', 'rejected0', 'rejected1',
+  'errors', 'stalls', 'drained', 'residencyEnabled', 'manager', 'watchTicks', 'probesSent', 'probesAnswered', 'probesTimedOut',
+  'selRequested', 'selCompleted', 'selRefused', 'selCancelled', 'resCommits', 'resFailures', 'resRollbacks',
+  'words0', 'words1', 'earlyVisits', 'parked', 'reinit', 'missing', 'used', 'dry',
+  'frameState', 'frameBusy', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs',
+  'edmaErrors', 'edmaEsSeen', 'missCore', 'missBits', 'missCheck', 'miss0', 'miss1', 'miss2', 'pin7', 'straddles', 'core1Sent',
+  'meterCore', 'meterBits', 'meterSerial', 'idleLeast', 'idleMost', 'idleSum', 'missed', 'mapGeneration', 'mapRead', 'mapWritten', 'setGeneration', 'setModules', 'setResult',
+  'cpu', 'dsp0Mean', 'dsp0Peak', 'dsp1Mean', 'dsp1Peak', 'buffers', 'poolUsed', 'modules', 'idleWrap', 'arenas', 'idleSum0', 'idleSum1']
+const REPORT_HEX = new Set(['buffers', 'arenas', 'hostFlags', 'manager', 'used', 'dry', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs', 'edmaEsSeen', 'missCheck', 'miss0', 'miss1', 'miss2'])
 /** status.c's tail of the report (version 11): word i of 78. */
 async function statusWords() {
   const bytes = await devIn(11, 0, 4 * 78), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * 78), w = i => view.getUint32(4 * i)
@@ -187,6 +197,10 @@ async function run(sequence) {
       const at = Number(m[1]), length = Number(m[2]), parts = []
       for (let off = 0; off < length; off += 500) parts.push(Buffer.from(await mem(at + off, Math.min(500, length - off))).toString('hex'))
       console.log(parts.join(''))
+    }
+    else if (step === 'report') { // the loader's full report (dsp.c modwerk_dsp_report), as the report command prints it
+      const w = await statusWords()
+      console.log(REPORT_NAMES.map((name, i) => name + '=' + (REPORT_HEX.has(name) ? '0x' + w(i).toString(16) : ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? w(i) | 0 : w(i))).join(' '))
     }
     else if (step === 'crashtest') await devIn(17, 0, 1) // development bases: an illegal instruction on the next tick (crash.c)
     else if (step === 'crash') { // crash.c's record in battery RAM: what the last error exception was, and where
@@ -281,8 +295,10 @@ if (command === 'serve') {
     let line = ''
     c.setEncoding('utf8').on('data', d => {
       line += d
-      if (line.includes('\n')) serial(() => Promise.race([capture(line.slice(0, line.indexOf('\n'))), // a hung request answers, and the queue moves on
-        wait(20000).then(() => 'error: no answer from the unit within 20 s\n')]).then(reply => c.end(reply)))
+      if (!line.includes('\n')) return
+      const request = line.slice(0, line.indexOf('\n')), waits = [...request.matchAll(/\bw(\d+)\b/g)].reduce((sum, m) => sum + Number(m[1]), 0)
+      const limit = 20000 + waits // 20 s beyond the waits the sequence asks for: a hung request answers, and the queue moves on
+      serial(() => Promise.race([capture(request), wait(limit).then(() => `error: no answer from the unit within ${Math.round(limit / 1000)} s\n`)]).then(reply => c.end(reply)))
     })
   }).listen(path, () => console.log('serving on ' + path))
   setInterval(() => serial(() => devIn(6, 0, 2).catch(() => {})), 4000) // a request every 4 s: MODWERK CONNECTED shows once
@@ -314,16 +330,8 @@ if (command === 'serve') {
     process.exit(0)
   }
   if (command === 'report') {
-    const names = ['version', 'frames', 'phase', 'job0', 'job1', 'hostFlags', 'accepted0', 'accepted1', 'rejected0', 'rejected1',
-      'errors', 'stalls', 'drained', 'residencyEnabled', 'manager', 'watchTicks', 'probesSent', 'probesAnswered', 'probesTimedOut',
-      'selRequested', 'selCompleted', 'selRefused', 'selCancelled', 'resCommits', 'resFailures', 'resRollbacks',
-      'words0', 'words1', 'earlyVisits', 'parked', 'reinit', 'missing', 'used', 'dry',
-      'frameState', 'frameBusy', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs',
-      'edmaErrors', 'edmaEsSeen', 'missCore', 'missBits', 'missCheck', 'miss0', 'miss1', 'miss2', 'pin7', 'straddles', 'core1Sent',
-      'meterCore', 'meterBits', 'meterSerial', 'idleLeast', 'idleMost', 'idleSum', 'missed', 'mapGeneration', 'mapRead', 'mapWritten', 'setGeneration', 'setModules', 'setResult',
-      'cpu', 'dsp0Mean', 'dsp0Peak', 'dsp1Mean', 'dsp1Peak', 'buffers', 'poolUsed', 'modules', 'idleWrap', 'arenas', 'idleSum0', 'idleSum1']
+    const names = REPORT_NAMES, hex = REPORT_HEX
     const bytes = await devIn(11, 0, 4 * names.length), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * names.length)
-    const hex = new Set(['buffers', 'arenas', 'hostFlags', 'manager', 'used', 'dry', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs', 'edmaEsSeen', 'missCheck', 'miss0', 'miss1', 'miss2'])
     console.log(Object.fromEntries(names.map((name, i) => [name, ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? view.getInt32(4 * i)
       : hex.has(name) ? '0x' + view.getUint32(4 * i).toString(16) : view.getUint32(4 * i)])))
     process.exit(0)

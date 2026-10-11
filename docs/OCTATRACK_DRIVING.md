@@ -27,7 +27,9 @@ Run it in a terminal of the owner's, or in a background task: those stop after t
 bridge, keeps one connection open, pings every 4 s (so MODWERK CONNECTED shows once) and comes back after a
 RAM boot. One process at a time: a second `serve` or a one-shot `npm run device` fights it for the bridge.
 After an unplug, a crash restart or a RAM boot, the bridge can hold a dead handle; `pkill -f usb_bridge;
-pkill -f "device.mjs serve"` and the loop starts both again.
+pkill -f 'node scripts/device.mjs serve'` and the loop starts both again. Match the node process exactly: a
+looser pattern such as `device.mjs serve` also matches a shell whose command line contains it, and kills the
+loop itself.
 
 ## Send steps
 
@@ -51,6 +53,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | `stats` | CPU, each core's mean/peak per mille, idle passes |
 | `loader` | packets accepted, rejected, errors, jobs, selections, commits, rollbacks, code words per core |
 | `mem:0x80000ec4:16` | RAM in hex, read-only, any length (not below the image) |
+| (any sequence) | answers within 20 s beyond its own `w` waits, else an error, and the next request runs |
 | `png:/path.png` | a screenshot, 256 x 128: cheaper to read than the text rendering |
 | `screen` | the screen as block characters (thousands of tokens; avoid) |
 | `crash` | the last crash record (vector, PC, registers); `crashtest` makes one |

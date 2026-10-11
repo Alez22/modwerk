@@ -8,6 +8,7 @@
 // -in     int32 little-endian stereo frames (L, R), 16 a block; silence when absent
 // -params lines "block,k0,...,k5": knob values 0-127 from that block on (stock hands knob << 16 at r6+n)
 // -split  frames in a block's first call (1-15); the second call takes the rest, as a trig mid-block does
+// -clobber 1: noise over stock's scratch X:$20-$FF before every call, as the other effects of a frame leave it
 // -out    int32 stereo frames as the effect left them
 // Prints the instructions executed a block, mean and peak. Not chip cycles: a displacement or two-word operand
 // costs the chip more, and the emulator models no stalls; measure cycles on the unit (status meters).
@@ -69,6 +70,8 @@ int main(int argc, char** argv)
     }
     const TWord init = std::strtoul(a["-init"].c_str(), nullptr, 16), proc = std::strtoul(a["-proc"].c_str(), nullptr, 16);
     const int blocks = std::atoi(a["-blocks"].c_str()), split = a.count("-split") ? std::atoi(a["-split"].c_str()) : 0;
+    const bool clobber = a.count("-clobber") && a["-clobber"] == "1";
+    uint32_t noise = 0x1234567;
     if (blocks < 1 || split < 0 || split > 15) { std::fprintf(stderr, "blocks >= 1, split 0-15\n"); return 2; }
 
     // On the heap: the core is large (its JIT and caches) and overflows the stack.
@@ -127,6 +130,7 @@ int main(int argc, char** argv)
         for (int p = 0, start = 0; p < 2; start += parts[p], ++p) {
             if (!parts[p]) continue;
             entry(b);
+            for (TWord at = 0x20; clobber && at < 0x100; ++at) mem.set(MemArea_X, at, (noise = noise * 1664525u + 1013904223u) >> 8);
             dsp.regs().r[0].var = AUDIO + 2 * start;
             dsp.regs().n[7].var = parts[p];
             if (!call(dsp, CODE + proc)) { std::fprintf(stderr, "proc did not return in block %d\n", b); return 1; }
