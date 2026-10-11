@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "id": "digimono",
   "name": "Digi Mono",
-  "version": "0.13.1-experimental",
+  "version": "0.13.2-experimental",
   "machine": "digitakt",
   "category": "machines",
   "exclusive": false,
@@ -10,7 +10,8 @@
     "github": "gdeo607",
     "credits": [
       "gdeo607 (the digi1_mods authors) \u2014 Digi Mono\u2019s clean-room synth engine and elekloader mod",
-      "Machine and parameter names after the Monomachine manual; vowel formants from Peterson and Barney (1952)"
+      "Machine and parameter names after the Monomachine manual; vowel formants from Peterson and Barney (1952)",
+      "Modwerk \u2014 repeated-SRC page fix and source-built 0.13.2 packaging"
     ]
   },
   "maintainers": [
@@ -147,7 +148,7 @@
     ]
   },
   "resources": {
-    "memoryBytes": 32235,
+    "memoryBytes": 32341,
     "fastBytes": 0,
     "load": {
       "display": "Not measured in Modwerk yet",
@@ -156,16 +157,18 @@
     }
   },
   "evidence": {
-    "tier": "none",
-    "moduleVersion": "0.13.0-experimental",
-    "sourceSha256": null,
-    "reports": [],
+    "tier": "emulator",
+    "moduleVersion": "0.13.2-experimental",
+    "sourceSha256": "e3b33c2059d7daa2b589ba6f47d359dd5f2568e1123791555b3cf661138c0173",
+    "reports": [
+      "evidence/src-page-0.13.2.json"
+    ],
     "hardware": null,
     "verifiedBy": null
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Modwerk\u2019s builder linked and verified a build with core 2.1 and DIGICHAIN 1.6 on OS 1.53 and 1.54; nothing was flashed or tested on hardware, and the evidence tier is none. Documentation captures verify the listed UI pages on OS 1.53; audio, timing and hardware remain unqualified.",
+    "summary": "Native compilation and private builder verification pass on OS 1.53 and 1.54 with core 2.1, DIGICHAIN 1.6 and Digi EQ 1.0b. Firmware-native emulator input reproduces the old repeated-SRC failure and retains controls after the fix. Physical hardware, audio, timing, persistence and stress remain unverified.",
     "documentation": {
       "tutorial": {
         "title": "Quick tutorial: play a MONO SIN voice",
@@ -191,7 +194,7 @@
   "license": {
     "spdx": "MIT",
     "file": "LICENSE",
-    "declaration": "The author\u2019s source, imported unchanged from github.com/gdeo607/digi1_mods at commit 35bacb3730d1 under its MIT licence. Stock firmware bytes in the upstream build manifest were replaced with length and SHA-256 guards."
+    "declaration": "MIT source imported from gdeo607/digi1_mods at 35bacb3730d108e4dc48a7bd6de4c99ae9b161e6, with a Modwerk SRC-page regression fix. Stock firmware is represented only by addresses, lengths and SHA-256 guards."
   },
   "media": [
     {
@@ -213,9 +216,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     },
@@ -229,9 +232,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     },
@@ -245,9 +248,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     },
@@ -261,9 +264,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     },
@@ -277,9 +280,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     },
@@ -293,9 +296,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     },
@@ -309,9 +312,9 @@
       "source": "original",
       "capture": {
         "type": "emulator",
-        "release": "1.53",
-        "moduleVersion": "0.13.1-experimental",
-        "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
+        "release": "1.54",
+        "moduleVersion": "0.13.2-experimental",
+        "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
         "setup": "Pinned digiemu, firmware-native drawing, disposable first-boot project. No audio or cycle-timing qualification."
       }
     }

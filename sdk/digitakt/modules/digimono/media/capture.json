@@ -2,46 +2,64 @@
   "schemaVersion": 1,
   "machine": "digitakt",
   "moduleId": "digimono",
-  "moduleVersion": "0.13.1-experimental",
-  "capturedAt": "2026-10-07",
-  "firmware": "1.53",
-  "imageSha256": "734d97eee93237736fbeea07a756ed04af28ad6840b2e6fb9953e69423b8274e",
-  "stockSha256": "9bdd44bb6102fb25c143cfab97bc92b7a89c463f795d3112dce89771e29bcc92",
+  "moduleVersion": "0.13.2-experimental",
+  "capturedAt": "2026-10-11",
+  "firmware": "1.54",
+  "imageSha256": "b90e05a46af97b7179e7a17123b9335bcec90db4cec20996575d036a25249130",
+  "stockSha256": "f78ba80fa7b1da5fb0e1ff61ad61e9e71aafe79f4364fc49679f3651353e3cf6",
   "source": {
     "repository": "https://github.com/gdeo607/digi1_mods",
     "revision": "35bacb3730d108e4dc48a7bd6de4c99ae9b161e6",
-    "path": "mods/digimono"
+    "path": "mods/digimono",
+    "modwerkPatch": {
+      "version": "0.13.2-experimental",
+      "runtimeSourceSha256": "e3b33c2059d7daa2b589ba6f47d359dd5f2568e1123791555b3cf661138c0173",
+      "files": {
+        "build.json": "064ef625a87e48d7b71fc87694ced58c039f0d7a4fbfec61f6bde2fb1378ac1b",
+        "src/digimono.c": "dd6dbd5050a54bed2f6875a89423920fe3c8f87a07c309057b7592054254ced0",
+        "src/glue.s": "d8852a9472c86694ca27c147081894ff8045367062d0af7ef9bec3c4544195a8",
+        "src/mono.c": "c2ba55320f17ed53edc87f1cc2d01551e13d10522e0ac839f7e78f9677c9b826",
+        "src/mono.h": "1ccaa197dfb73d04c933c8f16a1b4106431bf875ba260617fe620f6eb58eb2c2",
+        "src/mono_tables.h": "e16556e8a5d56a2d119065deb54b4004926c83acc3f7bfbfb058a5ffae7e011e"
+      }
+    }
   },
   "kit": {
     "version": "0.4.0",
-    "lockSha256": "b9bc224eee31d1fda75841ce78fe5a28d5cbfee79071385329ca2517a247c04c"
+    "lockSha256": "52f40a411fc44e4c8064bd3ce8a0aa7a14e3451ae729554c57edff363f0497e8"
   },
   "catalog": {
-    "revision": "a1be3ce0c006ea0c46fa82c6f254c11a05d42beb",
-    "sha256": "e207c3ff58fc7f5608d1fced67115406408a4b6202076824cf82cb043dc2d2c1",
-    "cores": 5,
-    "mods": 21
+    "revision": "49b6059bec17c74170e1a09467b776ab3d556d0c8e9a6ee3f32905463f81e307",
+    "sha256": "7b7338ae68a33a88b93ffed345ca2d1e6b723fd3a789553380a025a5fc831c1a",
+    "cores": 6,
+    "mods": 23
   },
   "build": {
     "modules": [
       {
         "id": "core",
         "version": "2.1",
-        "sha256": "f38b0c193677a060b3fdb28fe71b9332be8a5e7d36ecaf91a3c86a61bab558eb"
+        "sha256": "8c1fe78ccd1427d6a93f181eaad9f064efb65cf6dd683192dbcc33e83dc548b9"
       },
       {
         "id": "digichain",
         "version": "1.6",
-        "sha256": "819f6045b5ad4deaa720c74f0126d078cc15c019dfcb07710112ac453b65d47d"
+        "sha256": "5d4910f597874ac2f5348e2cd76bea7e34b9ea0060c9bcf1406dd317a7af9e42"
       },
       {
         "id": "digimono",
         "version": "0.13b",
-        "sha256": "79b51a364b1b7fd8ca13ac6aacba15bd1439bb46569b11d1ad5b3a35b1cec3ec"
+        "sha256": "bbd79b944ab7a2176d933d671cc3019e2f55748412c37e1b9c64779348137dbc"
+      },
+      {
+        "id": "digieq",
+        "version": "1.0b",
+        "sha256": "82dcd78faf44e67bc7fd0920266bb122583bd60288c1dd03fa878b6f3f9301a0"
       }
     ],
-    "outputVersion": "D001",
-    "verified": true
+    "outputVersion": "D180",
+    "verified": true,
+    "localReleaseOverride": "Digi Mono compiled from the recorded Modwerk source; dependency pins come from the catalog. The stock-free exported package and private materialized recipe produce byte-identical firmware."
   },
   "emulator": {
     "repository": "https://github.com/irpina/digiemu",
@@ -57,7 +75,7 @@
         "unicorn-2.1.4-m68k-fast-mem.patch": "7f79332f318352cbd8055386dbf5149efc801d0663ae2450e33f9f39fed53374",
         "unicorn-2.1.4-m68k-hook-ccr-sync.patch": "56de71acf2adbd5ca2f448095478e65e49fd79d378aeb5b5e4217d2c90f52f4e"
       },
-      "librarySha256": "a83b0d8a588cba2087c08712183df5106b3d2f1670af6024991eb85005e0f184"
+      "librarySha256": "7d4e027659f45c1f231551a3842e327c2329465ddbc28412a139babebd8f3209"
     },
     "python": "3.12.13",
     "platform": "macOS arm64",
@@ -66,7 +84,7 @@
     "cycleTiming": false,
     "framebuffer": "firmware front LCD buffer at panel_diff flush",
     "scale": 6,
-    "frameSelection": "Most populated unmodified frame since the latest panel action."
+    "frameSelection": "Most populated actual LCD frame within the final 250 ms after the latest panel action; 6x integer scaling."
   },
   "setup": {
     "project": "Disposable first-boot A01, stock initial track state; no owner projects or samples.",
@@ -75,371 +93,427 @@
   },
   "inputs": [
     [
-      1000.028,
+      1000.004,
       "press 1"
     ],
     [
-      1100.032,
+      1100.004,
       "press 20"
     ],
     [
-      1200.035,
+      1200.004,
       "release 20"
     ],
     [
-      1500.044,
+      1500.006,
       "release 1"
     ],
     [
-      1600.047,
+      1600.006,
       "press 15"
     ],
     [
-      1700.049,
+      1700.006,
       "release 15"
     ],
     [
-      2000.058,
+      2000.007,
       "press 15"
     ],
     [
-      2100.061,
+      2100.008,
       "release 15"
     ],
     [
-      2400.069,
+      2400.008,
       "press 15"
     ],
     [
-      2500.072,
+      2500.009,
       "release 15"
     ],
     [
-      2800.081,
+      2800.01,
       "press 15"
     ],
     [
-      2900.084,
+      2900.011,
       "release 15"
     ],
     [
-      3200.093,
+      3200.012,
       "press 12"
     ],
     [
-      3300.095,
+      3300.012,
       "release 12"
     ],
     [
-      3600.104,
+      3600.013,
       "press 22"
     ],
     [
-      3700.107,
+      3700.013,
       "release 22"
     ],
     [
-      4000.116,
+      4000.015,
       "press 20"
     ],
     [
-      4100.119,
+      4070.712,
       "release 20"
     ],
     [
-      4400.128,
+      4120.713,
+      "press 20"
+    ],
+    [
+      4200.015,
+      "release 20"
+    ],
+    [
+      5000.018,
       "press 1"
     ],
     [
-      4500.131,
+      5100.018,
       "press 20"
     ],
     [
-      4600.134,
+      5200.019,
       "release 20"
     ],
     [
-      4900.142,
+      5500.02,
       "release 1"
     ],
     [
-      5000.145,
+      5600.02,
       "press 15"
     ],
     [
-      5100.148,
+      5700.021,
       "release 15"
     ],
     [
-      5400.156,
+      6000.022,
       "press 12"
     ],
     [
-      5500.16,
+      6100.022,
       "release 12"
     ],
     [
-      5800.169,
+      6400.023,
       "press 22"
     ],
     [
-      5900.171,
+      6500.024,
       "release 22"
     ],
     [
-      6200.18,
+      6800.025,
       "press 20"
     ],
     [
-      6300.183,
+      6870.793,
       "release 20"
     ],
     [
-      6600.192,
+      6920.795,
+      "press 20"
+    ],
+    [
+      7000.025,
+      "release 20"
+    ],
+    [
+      7800.028,
       "press 1"
     ],
     [
-      6700.194,
+      7900.028,
       "press 20"
     ],
     [
-      6800.197,
+      8000.029,
       "release 20"
     ],
     [
-      7100.206,
+      8300.031,
       "release 1"
     ],
     [
-      7200.209,
+      8404.171,
       "press 15"
     ],
     [
-      7300.212,
+      8504.175,
       "release 15"
     ],
     [
-      7600.221,
+      8804.183,
       "press 12"
     ],
     [
-      7700.224,
+      8904.186,
       "release 12"
     ],
     [
-      8000.232,
+      9204.194,
       "press 22"
     ],
     [
-      8100.235,
+      9304.197,
       "release 22"
     ],
     [
-      8400.244,
+      9604.206,
       "press 20"
     ],
     [
-      8500.247,
+      9686.089,
       "release 20"
     ],
     [
-      8800.255,
+      9726.089,
+      "press 20"
+    ],
+    [
+      9800.035,
+      "release 20"
+    ],
+    [
+      10600.039,
       "press 1"
     ],
     [
-      8900.259,
+      10700.039,
       "press 20"
     ],
     [
-      9000.262,
+      10804.241,
       "release 20"
     ],
     [
-      9300.27,
+      11104.25,
       "release 1"
     ],
     [
-      9400.273,
+      11204.253,
       "press 15"
     ],
     [
-      9500.276,
+      11304.256,
       "release 15"
     ],
     [
-      9800.285,
+      11604.265,
       "press 12"
     ],
     [
-      9900.287,
+      11704.267,
       "release 12"
     ],
     [
-      10200.297,
+      12004.276,
       "press 22"
     ],
     [
-      10300.3,
+      12104.279,
       "release 22"
     ],
     [
-      10600.308,
+      12404.287,
       "press 20"
     ],
     [
-      10700.311,
+      12486.089,
       "release 20"
     ],
     [
-      11000.32,
+      12526.09,
+      "press 20"
+    ],
+    [
+      12600.046,
+      "release 20"
+    ],
+    [
+      13400.049,
       "press 1"
     ],
     [
-      11100.322,
+      13500.049,
       "press 20"
     ],
     [
-      11200.325,
+      13600.049,
       "release 20"
     ],
     [
-      11500.334,
+      13900.05,
       "release 1"
     ],
     [
-      11600.337,
+      14000.051,
       "press 15"
     ],
     [
-      11700.34,
+      14100.051,
       "release 15"
     ],
     [
-      12000.349,
+      14400.053,
       "press 12"
     ],
     [
-      12100.352,
+      14504.349,
       "release 12"
     ],
     [
-      12400.361,
+      14804.358,
       "press 22"
     ],
     [
-      12500.363,
+      14904.36,
       "release 22"
     ],
     [
-      12800.372,
+      15204.369,
       "press 20"
     ],
     [
-      12900.375,
+      15286.089,
       "release 20"
     ],
     [
-      13200.383,
+      15326.089,
+      "press 20"
+    ],
+    [
+      15400.056,
+      "release 20"
+    ],
+    [
+      16200.059,
       "press 1"
     ],
     [
-      13300.387,
+      16300.059,
       "press 20"
     ],
     [
-      13400.389,
+      16400.059,
       "release 20"
     ],
     [
-      13700.398,
+      16700.06,
       "release 1"
     ],
     [
-      13800.401,
+      16800.061,
       "press 15"
     ],
     [
-      13900.404,
+      16904.418,
       "release 15"
     ],
     [
-      14200.413,
+      17204.428,
       "press 12"
     ],
     [
-      14300.416,
+      17304.431,
       "release 12"
     ],
     [
-      14600.424,
+      17604.439,
       "press 22"
     ],
     [
-      14700.427,
+      17704.442,
       "release 22"
     ],
     [
-      15000.436,
+      18004.45,
       "press 20"
     ],
     [
-      15100.439,
+      18086.09,
       "release 20"
     ],
     [
-      15400.447,
+      18126.09,
+      "press 20"
+    ],
+    [
+      18200.066,
+      "release 20"
+    ],
+    [
+      19000.069,
       "press 1"
     ],
     [
-      15500.451,
+      19100.069,
       "press 20"
     ],
     [
-      15600.454,
+      19200.07,
       "release 20"
     ],
     [
-      15900.463,
+      19500.071,
       "release 1"
     ],
     [
-      16000.465,
+      19600.071,
       "press 15"
     ],
     [
-      16100.468,
+      19700.072,
       "release 15"
     ],
     [
-      16400.477,
+      20000.073,
       "press 12"
     ],
     [
-      16500.48,
+      20100.073,
       "release 12"
     ],
     [
-      16800.489,
+      20400.074,
       "press 22"
     ],
     [
-      16900.491,
+      20500.074,
       "release 22"
     ],
     [
-      17200.5,
+      20800.075,
       "press 20"
     ],
     [
-      17300.503,
+      20871.201,
       "release 20"
     ],
     [
-      17600.512,
+      20921.202,
+      "press 20"
+    ],
+    [
+      21000.076,
+      "release 20"
+    ],
+    [
+      21800.079,
       "press 23"
     ],
     [
-      17700.515,
+      21900.079,
       "release 23"
     ]
   ],
@@ -447,51 +521,51 @@
     {
       "path": "media/chooser.png",
       "sha256": "39d6ec946e20f721c728d45ae54d47910a0f2ac582a37f1dc85807b380673760",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 2821.539316239316,
-      "requestedAtMs": 3200.0929487179487
+      "atMs": 3200.011752136752,
+      "requestedAtMs": 3200.011752136752,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     },
     {
       "path": "media/sin.png",
       "sha256": "2dee8bfebcd4aafc8d900606b27d9e1931dc30247c20396c78aedebed2424cb0",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 4183.454487179487,
-      "requestedAtMs": 4400.127564102564
+      "atMs": 4937.403418803418,
+      "requestedAtMs": 5000.018162393162,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     },
     {
       "path": "media/noise.png",
       "sha256": "184f12bf5c6c8c1c2dcbbddc956d257efaad9b7609f0f00bced8825996449d8c",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 6383.519017094017,
-      "requestedAtMs": 6600.191666666667
+      "atMs": 7746.089316239316,
+      "requestedAtMs": 7800.027991452991,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     },
     {
       "path": "media/saw.png",
       "sha256": "2367ca5632e25a2943d7e18a771b04074d2e8c551b76c108ba0fca320aad24fb",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 8583.58247863248,
-      "requestedAtMs": 8800.255341880342
+      "atMs": 10546.527564102564,
+      "requestedAtMs": 10600.038888888888,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     },
     {
       "path": "media/pulse.png",
       "sha256": "0dc09721b890a65006fb891edd15701b1d1794010cce31793df37079648cf5eb",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 10783.647008547008,
-      "requestedAtMs": 11000.319658119659
+      "atMs": 13346.089316239317,
+      "requestedAtMs": 13400.048717948717,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     },
     {
       "path": "media/ens.png",
       "sha256": "3ba83767c8d529fe8c7c5c04696d019d0ef06fc29277f6c8c19f9de4671d081f",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 12983.71047008547,
-      "requestedAtMs": 13200.383333333333
+      "atMs": 16146.08952991453,
+      "requestedAtMs": 16200.058547008546,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     },
     {
       "path": "media/vo.png",
       "sha256": "4f93581a2688d219f601198f51b9dd109569120d50de8eac60cf4fd539db9d81",
-      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC\nsnap poly-sin\ntap LFO\nsnap lfo\n",
-      "atMs": 15184.212820512821,
-      "requestedAtMs": 15400.447435897437
+      "atMs": 18954.477777777778,
+      "requestedAtMs": 19000.068803418802,
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap sin\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap noise\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap saw\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap pulse\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap ens\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap vo\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap YES\ntap AMP\ntap SRC 70 40\ntap SRC 70 800\nsnap poly-sin\ntap LFO\nsnap lfo\n"
     }
   ],
   "limitations": [

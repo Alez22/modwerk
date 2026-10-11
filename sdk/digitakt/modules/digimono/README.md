@@ -1,12 +1,14 @@
 # Digi Mono
 
-Modwerk metadata version: `0.13.1-experimental`.
+Modwerk release version: `0.13.2-experimental`.
 
 ## Overview
 
 Digi Mono adds seven synth machines to the FUNC+SRC list, after the Monomachine’s GND and SWAVE machines: MONO SIN, MONO NOISE, MONO SAW, MONO PULSE, MONO ENS, MONO VO and POLY SIN. They need no sample: the engine’s output takes the sample’s place in the voice, so the track’s filter, amp, LFOs, sends, p-locks and level work on it as on a sample. Knob A stays TUNE; B to H are the machine’s own parameters, named and shown in their units. The engine is a clean-room rewrite from the Monomachine manual, with no Monomachine code or data.
 
 ## Controls
+
+Repeated SRC presses keep Digi Mono on its normal control page. These synth machines have no sample waveform page; sample tracks retain their stock detail view.
 
 Knobs B to H mean something different on each machine. Each shows its short name and its value in its units; the pop-up gives the long name.
 
@@ -71,18 +73,19 @@ SRC machine list, after SLICE and any other mod’s machines
 
 ## Tests and measurements
 
-See [TESTING.md](TESTING.md) for the documentation capture run and the separate pinned author evidence. UI captures do not qualify audio, timing, stress behaviour, persistence or hardware. Imported object memory estimates remain separate from measured runtime cost.
+See [TESTING.md](TESTING.md) for the documentation capture run and the separate pinned author evidence. UI captures do not qualify audio, timing, stress behaviour, persistence or hardware. The compiled module occupies 32,341 bytes before shared core/dependency overhead and alignment; measured runtime cost remains unknown.
 
 ## Authorship and licences
 
 - gdeo607 (the digi1_mods authors) — Digi Mono’s clean-room synth engine and elekloader mod
+- Modwerk — the SRC-page regression fix for report #180, retaining the original parameter slots and synthesis code
 - Machine and parameter names after the Monomachine manual; vowel formants from Peterson and Barney (1952)
 
 The source is pinned to [35bacb3730d108e4dc48a7bd6de4c99ae9b161e6](https://github.com/gdeo607/digi1_mods/tree/35bacb3730d108e4dc48a7bd6de4c99ae9b161e6). The full MIT licence is in [LICENSE](LICENSE). Capture rights are declared separately in [media/LICENSE.md](media/LICENSE.md).
 
 ## Screens and audio
 
-Real firmware-rendered emulator captures on OS 1.53. The [capture record](media/capture.json) includes source/build identities, panel inputs, timestamps and PNG hashes. [Capture rights](media/LICENSE.md) preserve the underlying interface rights. The [thumbnail](media/thumbnail.svg) is an illustration. No audio demonstration is claimed.
+Real firmware-rendered emulator captures on OS 1.54. The [capture record](media/capture.json) includes source/build identities, panel inputs, timestamps and PNG hashes. [Capture rights](media/LICENSE.md) preserve the underlying interface rights. The [thumbnail](media/thumbnail.svg) is an illustration. No audio demonstration is claimed.
 
 ![MONO SIN in the machine chooser](media/chooser.png)
 
