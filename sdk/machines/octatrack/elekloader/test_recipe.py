@@ -227,6 +227,9 @@ class RuntimeSlotTests(unittest.TestCase):
     def test_module_set_on_the_host(self):
         self.host_test('test_modset.c')
 
+    def test_status_keys_on_the_host(self):
+        self.host_test('test_status.c')
+
     def test_startup_on_the_host(self):
         import importlib.util, pathlib, shutil, subprocess, tempfile
         cc = shutil.which('cc')

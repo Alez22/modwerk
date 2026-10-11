@@ -81,7 +81,7 @@ void modwerk_status_tick(void)
  * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere. SYSTEM > MODWERK (the row
  * build_core.py adds) first explains that shortcut: YES goes on to the status, NO back to the menu. */
 enum { CLOSED, HINT, SHOWN };
-static int open, taken; /* which shows; a key press the handler took, whose release it takes too */
+static int open, taken = -1; /* which shows; a key press the handler took, whose release it takes too (-1: none; TRIG 1 is 0) */
 #define YES 0x31
 char modwerk_status_label[] = "MODWERK"; /* the SYSTEM menu's row */
 void modwerk_status_menu(int unused) { (void)unused; open = HINT; }
@@ -94,7 +94,7 @@ int modwerk_status_key(int code, int pressed)
         taken = code;
         return 1;
     }
-    if (!pressed && code == taken) { taken = 0; return 1; }
+    if (!pressed && code == taken) { taken = -1; return 1; }
     return open && code != CUE; /* CUE's own release reaches stock, as it would without the dialog */
 }
 int modwerk_status_enc(int encoder, int delta) { (void)encoder, (void)delta; return open != CLOSED; }
