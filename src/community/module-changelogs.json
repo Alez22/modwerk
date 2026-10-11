@@ -571,6 +571,16 @@
     ],
     "digitakt-digimono": [
       {
+        "version": "0.13.2-experimental",
+        "date": "2026-10-11",
+        "changes": [
+          "Fix repeated SRC presses opening a label-only sample-detail page on Digi Mono synth tracks. Preserve the normal controls, track number and level display; stock sample tracks keep their detail page.",
+          "Preserve all seven engines, parameter positions and saved sound settings. Current-build physical hardware, audio, timing and project/power-cycle persistence remain unverified.",
+          "Owner-approved experimental release with hardware, audio, timing, complete runtime memory bounds, persistence, reboot and stress unverified."
+        ],
+        "sourceCommit": "48a9b5ade88052d4fb0130d87a79be64935d4d9d"
+      },
+      {
         "version": "0.13.1-experimental",
         "date": "2026-10-07",
         "changes": [

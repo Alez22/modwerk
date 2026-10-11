@@ -9,7 +9,8 @@ tap DOWN
 snap chooser
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap sin
 press FUNC
 tap SRC
@@ -17,7 +18,8 @@ release FUNC
 tap DOWN
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap noise
 press FUNC
 tap SRC
@@ -25,7 +27,8 @@ release FUNC
 tap DOWN
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap saw
 press FUNC
 tap SRC
@@ -33,7 +36,8 @@ release FUNC
 tap DOWN
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap pulse
 press FUNC
 tap SRC
@@ -41,7 +45,8 @@ release FUNC
 tap DOWN
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap ens
 press FUNC
 tap SRC
@@ -49,7 +54,8 @@ release FUNC
 tap DOWN
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap vo
 press FUNC
 tap SRC
@@ -57,7 +63,8 @@ release FUNC
 tap DOWN
 tap YES
 tap AMP
-tap SRC
+tap SRC 70 40
+tap SRC 70 800
 snap poly-sin
 tap LFO
 snap lfo
