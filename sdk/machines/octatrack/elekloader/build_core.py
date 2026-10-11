@@ -190,21 +190,25 @@ DSP_EDITS = {
                    '    begin(s->target,token,0);\n'
                    '    for(unsigned n=0;n<4 && phase && phase!=5 && !waiting;++n) advance();\n'
                    '    return result;'),
-                  # Preload the union of the bank's Parts: every transaction also holds the modules the four Parts
-                  # name (allocator.c's keep; stock effects load as the target selects them), and the observer
-                  # reloads when that changes (a project or bank load, a Part edit). Memory is admitted over the
-                  # union, cycles over the target, which is one Part.
+                  # Preload the union of the bank's Parts: every transaction also holds the effects the four Parts
+                  # name (allocator.c's keep), so a Part change only flips dispatch, and the observer reloads when
+                  # that changes (a project or bank load, a Part edit). Modules are kept firmly; the bank's stock
+                  # effects too while they fit, else they load as a Part selects them (a Part change then waits
+                  # for an upload: COMPRESSOR, 9 packets, on the unit, 11 October 2026). Memory is admitted over
+                  # the union, cycles over the target, which is one Part.
                   ('static unsigned observed_valid=0;',
                    'static unsigned observed_valid=0;\nstatic uint32_t observed_held[2]={0,0}; /* parts() when last observed */'),
                   ('static unsigned needed(unsigned index,unsigned mode) {',
-                   '/* The module effects the current bank\'s four Parts name, per core (keep), and those ids names (named). */\n'
+                   '/* What the current bank\'s four Parts name, per core: modules (keep), stock effects loaded on demand\n'
+                   ' * (soft), and the modules ids names (named). */\n'
                    'extern const uint32_t modwerk_dsp_modules;\n'
-                   'static void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2]) {\n'
+                   'static void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2],uint32_t soft[2]) {\n'
                    '    uint32_t bank=*(volatile uint32_t *)0x46c82456u;\n'
-                   '    keep[0]=keep[1]=named[0]=named[1]=0;\n'
+                   '    keep[0]=keep[1]=named[0]=named[1]=soft[0]=soft[1]=0;\n'
                    '    for(unsigned n=0;n<5;++n) for(unsigned i=0;i<16;++i) {\n'
                    '        unsigned p=n==4 ? ids[i] : bank ? *(volatile uint8_t *)(uintptr_t)(bank+0x8ed80u+n*6322u+i) : 255u;\n'
-                   '        if(p>=32 || !(modwerk_dsp_modules>>p&1u) || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
+                   '        if(p>=32 || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
+                   '        if(!(modwerk_dsp_modules>>p&1u)) { if(n<4) soft[(i&7)<4 ? 1:0]|=1u<<p; continue; }\n'
                    '        (n==4 ? named : keep)[(i&7)<4 ? 1:0]|=1u<<p;\n'
                    '    }\n'
                    '}\n'
@@ -212,9 +216,15 @@ DSP_EDITS = {
                   # A target naming a module no Part holds yet must fit beside all of them; anything else that does
                   # not (a bank that never fitted) falls back to loading what it runs.
                   ('        int r=dl_allocator_prepare(&allocator,desired,current);\n',
-                   '        uint32_t named[2];\n'
-                   '        parts(desired,allocator.keep,named);\n'
+                   '        uint32_t named[2],soft[2];\n'
+                   '        parts(desired,allocator.keep,named,soft);\n'
+                   '        uint32_t firm[2]={allocator.keep[0],allocator.keep[1]};\n'
+                   '        allocator.keep[0]|=soft[0]; allocator.keep[1]|=soft[1];\n'
                    '        int r=dl_allocator_prepare(&allocator,desired,current);\n'
+                   '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (soft[0]|soft[1])) {\n'
+                   '            allocator.keep[0]=firm[0]; allocator.keep[1]=firm[1];\n'
+                   '            r=dl_allocator_prepare(&allocator,desired,current);\n'
+                   '        }\n'
                    '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (allocator.keep[0]|allocator.keep[1]) &&\n'
                    '           (automatic || !((named[0]&~allocator.keep[0])|(named[1]&~allocator.keep[1])))) {\n'
                    '            allocator.keep[0]=allocator.keep[1]=0;\n'
@@ -222,8 +232,9 @@ DSP_EDITS = {
                    '        }\n'),
                   ('    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n    if(!changed) return;',
                    '    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n'
-                   '    uint32_t held[2],named[2];\n'
-                   '    parts(ids,held,named);\n'
+                   '    uint32_t held[2],named[2],soft[2];\n'
+                   '    parts(ids,held,named,soft);\n'
+                   '    held[0]|=soft[0]; held[1]|=soft[1];\n'
                    '    if(held[0]!=observed_held[0] || held[1]!=observed_held[1]) changed=1;\n'
                    '    observed_held[0]=held[0]; observed_held[1]=held[1];\n'
                    '    if(!changed) return;'),

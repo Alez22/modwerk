@@ -1580,6 +1580,29 @@ code, and the union keeps more code live; and in `ot_emu` an install right
 after another timed out at ENTER unless a bench command came between (on
 `dsp2-AB3` too; not understood). No hardware run yet.
 
+### Part switching on the unit (11 October 2026)
+
+First hardware run of the union of Parts, on the owner's MKII. Project LIVE/Dev12, bank A. T1 played a
+looped bass sample, and the Parts were switched while playing.
+
+- **Before** (S12, `3fe99d6b…`): modules stayed resident, but stock effects did not. Part 1 has
+  COMPRESSOR on T1's FX1 and Part 2 does not, so every switch into Part 1 uploaded COMPRESSOR again
+  (9 packets to core 1, 180 words) and every switch out unloaded it.
+- **Now** (S13, `bc4e97ae…`): stock effects the bank's Parts name are held too, while they fit
+  (`build_core.py`, the manager's `parts()`). If they don't fit, the transaction retries holding the
+  modules only, as before. Four switches sent no packet to either core, and each core's code stayed
+  at 1,236 and 2,209 words.
+- **Sound**: the level dips after a switch the same way whether Part 2's T1 switches to stock
+  SPRING REV or to E-Verb (2 ms windows, compared with the same spot a pattern cycle earlier). The
+  two Parts differ in more than their effects, and a module adds nothing measurable beyond stock's
+  hard switch.
+- **Loading at a pick**: E-Verb picked on T5, where core 0 held none of its 1,588 words (68
+  packets), ran 117 ms after YES. Picks that upload nothing took the same, and that time is mostly
+  the 80 ms key hold, so the upload itself is under about 40 ms.
+- **Still loading at the change**: a pattern change into another bank. The union covers the
+  current bank, so the new bank's effects load when the change happens. Starting that when the
+  change is queued is next.
+
 ### Keeping the module set across power cycles (built, 11 October 2026)
 
 The owner decided yes. `modset.c` keeps the accepted set in RAM, each package

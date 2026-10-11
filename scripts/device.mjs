@@ -50,7 +50,7 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   accept: { type: 'boolean', default: false },
   emulator: { type: 'boolean', default: false },
   png: { type: 'string' },
-  scale: { type: 'string', default: '4' },
+  scale: { type: 'string', default: '2' },
 } })
 const seconds = Number(values.seconds)
 if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
@@ -98,7 +98,7 @@ async function screen(png = values.png) {
   const frame = (await devIn(7, 0, 1028)).subarray(4)
   const on = (x, y) => (frame[x * 8 + ((63 - y) >> 3)] >> (7 - ((63 - y) & 7))) & 1
   const s = Math.max(1, Math.min(4, Number(values.scale) | 0))
-  if (png) { // greyscale, each pixel s x s (4 unless --scale)
+  if (png) { // greyscale, each pixel s x s (2 unless --scale)
     const rows = Buffer.concat(Array.from({ length: 64 * s }, (_, y) =>
       Buffer.from([0, ...Array.from({ length: 128 * s }, (_, x) => on(Math.floor(x / s), Math.floor(y / s)) ? 255 : 24)])))
     const chunk = (type, data) => { const t = Buffer.from(type), l = Buffer.alloc(4), c = Buffer.alloc(4)
@@ -152,11 +152,14 @@ async function pick(track, slot, wanted) {
   if (id < 0) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
   await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
   const move = word(rows, id) - word(await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4), 0) // the chooser's cursor (dsp.c)
-  await run((move ? `encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100 ` : '') + 'YES') // LEVEL scrolls the chooser, a row a detent
+  if (move) await run(`encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100`) // LEVEL scrolls the chooser, a row a detent
+  const start = Date.now()
+  await keys('YES')
   const ok = await until(async () => (await mem(0x80000ec4 + 8 * (slot - 1) + track, 1))[0] === id)
+  const took = Date.now() - start
   await keys('NO')
   if (!ok) throw new Error(wanted + ' was not admitted on T' + (track + 1) + ' FX' + slot + ' within 5 s.')
-  console.log(`T${track + 1} FX${slot} ${wanted}`)
+  console.log(`T${track + 1} FX${slot} ${wanted} (running ${took} ms after YES)`)
 }
 /** status.c's tail of the report (version 11): word i of 78. */
 async function statusWords() {
@@ -165,7 +168,7 @@ async function statusWords() {
   return w
 }
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
- * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, part1-4, pick:T1:FX2:NAME
+ * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence) {
   for (const step of sequence.trim().split(/\s+/)) {
@@ -176,6 +179,15 @@ async function run(sequence) {
     else if (step === 'ui') await ui()
     else if (step === 'screen') await screen()
     else if ((m = /^png:(\S+)$/.exec(step))) await screen(m[1])
+    else if ((m = /^mem:(0x[0-9a-f]+):(\d+)$/i.exec(step))) { // RAM, read-only, hex; any length (500-byte reads)
+      const at = Number(m[1]), length = Number(m[2]), parts = []
+      for (let off = 0; off < length; off += 500) parts.push(Buffer.from(await mem(at + off, Math.min(500, length - off))).toString('hex'))
+      console.log(parts.join(''))
+    }
+    else if (step === 'loader') { // packets each core took, the jobs in flight, the manager's transactions (report words)
+      const w = await statusWords()
+      console.log(`loader accepted ${w(6)}/${w(7)} jobs ${w(3) | 0}/${w(4) | 0} selections ${w(20)}/${w(19)} commits ${w(23)} rollbacks ${w(25)} words ${w(26)}/${w(27)} dry 0x${w(33).toString(16)}`)
+    }
     else if ((m = /^part([1-4])$/.exec(step))) await part(Number(m[1]))
     else if ((m = /^pick:T([1-8]):FX([12]):(\S+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), m[3].replace(/_/g, ' '))
     else if (step === 'state') { const [s, r] = await devIn(6, 0, 2); console.log(s ? 'stopped' : 'playing', r ? 'recording' : '') }
