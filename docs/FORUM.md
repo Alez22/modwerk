@@ -1,6 +1,6 @@
 # Forum, accounts and transactional email
 
-The 3 October 2026 owner decision replaces guest participation with verified email accounts. Reading and configuring remain available without an account. Member-only controls (like, rate, follow, bookmark, reply, the Shoutbox composer, update notifications) stay visible to visitors and open the sign-in prompt, which returns them to the page afterwards. Firmware composition requires a verified member account. Reply notifications and private reports live in Your account; there is no separate activity page. Legacy `#activity` links open the account page. Threads, replies, comments, ratings, likes, public bugs and private module reports require registration. Module releases still require owner-merged GitHub PRs; a community account grants no administrator or publication privileges.
+The 3 October 2026 owner decision replaces guest participation with verified email accounts. Reading and configuring remain available without an account. Member-only controls (like, mark a module working, follow, bookmark, reply, the Shoutbox composer, update notifications) stay visible to visitors and open the sign-in prompt, which returns them to the page afterwards. Firmware composition requires a verified member account. Reply notifications and private reports live in Your account; there is no separate activity page. Legacy `#activity` links open the account page. Threads, replies, comments, likes, working reports, public bugs and private module reports require registration. Module releases still require owner-merged GitHub PRs; a community account grants no administrator or publication privileges.
 
 ## Local draft
 
@@ -116,7 +116,7 @@ One private `notifications` store (migration 0024, which replaces `forum_notific
 
 - replies in threads a member follows (authors follow their own threads), and `@username` mentions in new threads and replies (at most 10 names per post; a mentioned follower gets the mention only);
 - likes on a member's posts;
-- comments, ratings and likes on a catalog module, for its current claimed maintainers, and new bug reports and their replies (unchanged delivery rules);
+- comments and likes on a catalog module (rating notifications from before ratings were retired stay readable), for its current claimed maintainers, and new bug reports and their replies (unchanged delivery rules);
 - status changes on a member's own report, whether changed by an authorized maintainer/administrator in Modwerk or by the signed GitHub webhook;
 - replies on a private report: the reporter hears when a maintainer or administrator replies, and the report's current claimed maintainers hear when the reporter replies, while the report stays shared with them;
 - new published versions of a module the member follows.
