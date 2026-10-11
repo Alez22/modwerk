@@ -550,7 +550,7 @@ def main():
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')
     usb = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb)
-    for name in ('ep0.c', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s') + (('dev.c',) if args.dev else ()):
+    for name in ('ep0.c', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s') + (('dev.c',) if args.dev else ()):
         shutil.copyfile(HERE / name, source / name)
     # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.
     spec = importlib.util.spec_from_file_location('modwerk_base_art', APP / 'sdk/runtime/startup/base_art.py')
@@ -677,7 +677,7 @@ modwerk_retained_end:
     recipe.update(version=VERSION, title='Modwerk base prototype', author='irpina; Modwerk contributors',
                   license='GPL-3.0-or-later',
                   description='Private core-only Elekloader base with logger/startup, a USB vendor interface and a runtime module loader (hooks and stock-code sites); NOT a flash candidate.')
-    recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s'] + (
+    recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s', 'crash.s'] + (
         ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s', 'status.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
@@ -718,6 +718,7 @@ modwerk_retained_end:
     recipe['subscribe'].append(dict(event='ev_draw', fn='modwerk_boot_draw', order=10))  # boot_anim.c, while it runs
     # The host time limit counts on the same tick (ep0.c).
     recipe['subscribe'].append(dict(event='ev_tick', fn='modwerk_ep0_tick', order=91))
+    recipe['subscribe'].append(dict(event='ev_tick', fn='modwerk_crash_tick', order=96))  # crash.c: restart after a crash
     if args.dev:  # the screen as composed, modules' drawing included
         recipe['subscribe'].append(dict(event='ev_draw', fn='modwerk_dev_draw', order=95))
     if args.dsp_loader:  # the DSP manager's UI work (its own hook was the UI tick, 0x4005221e) and its ColdFire hooks

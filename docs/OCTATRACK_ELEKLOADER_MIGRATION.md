@@ -1580,6 +1580,27 @@ code, and the union keeps more code live; and in `ot_emu` an install right
 after another timed out at ENTER unless a bench command came between (on
 `dsp2-AB3` too; not understood). No hardware run yet.
 
+### Crash recovery (11 October 2026)
+
+An exception used to stop the unit on stock's exception screen until a power cycle. Now the base
+takes the error vectors (access and address errors, illegal and unsupported instructions,
+privilege and format errors; `crash.c`, `crash.s`). It writes a record to battery RAM at
+`0x100ff800` (vector, PC, SR, the registers, the stack pointer and eight longs above the frame)
+and restarts through `boot.s`'s soft reset: DSPs parked, panel and USB reset, nothing armed, so
+the flashed base boots as after a power cycle. A base that finds a new record shows "CRASH
+RECOVERED" once, 4 s after its start. `npm run device -- do crash` decodes the record;
+`crashtest` (development bases) executes an illegal instruction on the next tick.
+
+On the owner's MKII (S16c, `fff2d6f1…`): the deliberate crash was recorded (vector 4 at its PC),
+the unit left USB 1 s later and was back 5 s after that on the flashed base, with no power cycle.
+A RAM boot afterwards showed the message once. With the vectors installed, S16c ran two minutes
+twice without a problem. After the first test the unit once went off USB after the message and
+needed a power cycle; that did not happen again.
+
+Limits: a fault inside the handler (a stack pointer that is itself bad) still halts. Projects
+come back as the card has them, as after a power cycle. Hosts can read the record only on
+development bases so far; the support report should carry it.
+
 ### Part switching on the unit (11 October 2026)
 
 First hardware run of the union of Parts, on the owner's MKII. Project LIVE/Dev12, bank A. T1 played a

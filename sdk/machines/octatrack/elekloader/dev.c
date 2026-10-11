@@ -73,6 +73,13 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 1;
     }
+    if (s[1] == 17 && want == 1 && !s[2] && !s[3]) { /* CRASH TEST: an illegal instruction on the next tick (crash.c) */
+        extern volatile uint32_t modwerk_crash_test;
+        modwerk_crash_test = 1;
+        out[0] = 1;
+        *reply = out;
+        return 1;
+    }
     if (s[1] == 15 && want == 1) {
         mem_high = s[2] | (uint32_t)s[3] << 8;
         out[0] = 1;

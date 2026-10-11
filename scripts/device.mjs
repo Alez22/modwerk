@@ -168,7 +168,8 @@ async function statusWords() {
   return w
 }
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
- * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME
+ * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
+ * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence) {
   for (const step of sequence.trim().split(/\s+/)) {
@@ -178,11 +179,20 @@ async function run(sequence) {
     else if ((m = /^fader(\d+)$/.exec(step))) await devIn(8, 0x40 | Number(m[1]) << 8, 1)
     else if (step === 'ui') await ui()
     else if (step === 'screen') await screen()
+    else if ((m = /^([+-])([A-Z0-9]+)$/i.exec(step))) await devIn(5, KEYS[m[2].toUpperCase()] | (m[1] === '+' ? 0x100 : 0), 1) // +BANK holds, -BANK lets go
     else if ((m = /^png:(\S+)$/.exec(step))) await screen(m[1])
     else if ((m = /^mem:(0x[0-9a-f]+):(\d+)$/i.exec(step))) { // RAM, read-only, hex; any length (500-byte reads)
       const at = Number(m[1]), length = Number(m[2]), parts = []
       for (let off = 0; off < length; off += 500) parts.push(Buffer.from(await mem(at + off, Math.min(500, length - off))).toString('hex'))
       console.log(parts.join(''))
+    }
+    else if (step === 'crashtest') await devIn(17, 0, 1) // development bases: an illegal instruction on the next tick (crash.c)
+    else if (step === 'crash') { // crash.c's record in battery RAM: what the last error exception was, and where
+      const b = await mem(0x100ff800, 116), v = new DataView(b.buffer, b.byteOffset, 116), w = i => v.getUint32(4 * i)
+      if (w(0) !== 0x4d574352) console.log('crash: none recorded')
+      else console.log(`crash ${w(1)} (shown ${w(28)}): vector ${w(2) >>> 18 & 0xff} PC 0x${w(3).toString(16)} SR 0x${(w(2) & 0xffff).toString(16)} ` +
+        `FS ${(w(2) >>> 24 & 0xc) | (w(2) >>> 16 & 3)} SP 0x${w(19).toString(16)}\n  d ${[...Array(8)].map((_, i) => w(4 + i).toString(16)).join(' ')}\n` +
+        `  a ${[...Array(7)].map((_, i) => w(12 + i).toString(16)).join(' ')}\n  stack ${[...Array(8)].map((_, i) => w(20 + i).toString(16)).join(' ')}`)
     }
     else if (step === 'loader') { // packets each core took, the jobs in flight, the manager's transactions (report words)
       const w = await statusWords()
