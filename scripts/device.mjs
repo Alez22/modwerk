@@ -204,11 +204,12 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if (step === 'report') console.log(named(await statusWords())) // the loader's full report (dsp.c modwerk_dsp_report)
     else if (step === 'stalltest') await devIn(18, 0, 1) // development bases: write the stall record now, nothing recovered
     else if (step === 'stall') { // dsp.c's record in battery RAM: the loader as it stood when the last stall was seen
-      const b = await mem(0x100ff900, 452), v = new DataView(b.buffer, b.byteOffset, 452), w = i => v.getUint32(4 * i)
+      const b = await mem(0x100ff900, 456), v = new DataView(b.buffer, b.byteOffset, 456), w = i => v.getUint32(4 * i)
       if (w(0) !== 0x4d575354) console.log('stall: none recorded')
       else console.log(`stall ${w(1)}: ${['test', 'frames stopped', 'eDMA refused a transfer'][w(2)] ?? 'reason ' + w(2)} at tick ${w(3)}\n  ` +
         named(i => i < w(4) ? w(5 + i) : 0) + `\n  packets core 0 ${Buffer.from(b.subarray(404, 420)).toString('hex')} core 1 ${Buffer.from(b.subarray(420, 436)).toString('hex')}` +
-        `\n  live FX ${Buffer.from(b.subarray(436, 452)).toString('hex')}`)
+        `\n  live FX ${Buffer.from(b.subarray(436, 452)).toString('hex')}\n  host ISR selected core 0x${v.getUint16(452).toString(16)} ` +
+        `(RXDF ${v.getUint16(452) & 1}: a word the ColdFire never took), core 1 as last read 0x${v.getUint16(454).toString(16)}`)
     }
     else if (step === 'crashtest') await devIn(17, 0, 1) // development bases: an illegal instruction on the next tick (crash.c)
     else if (step === 'crash') { // crash.c's record in battery RAM: what the last error exception was, and where

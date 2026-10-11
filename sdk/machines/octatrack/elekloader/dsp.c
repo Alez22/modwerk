@@ -303,8 +303,10 @@ void dl_abort(void);
 /* The last stall, in battery RAM after crash.c's record, so it survives the power cycle a stopped DSP needs: why
  * (1 frames stopped, 2 eDMA refused a transfer, 0 a test), the tick, the loader's report as it stood (dsp.c and
  * status.c, report_words of them), each core's last packet header (magic, sequence, opcode, core, count or id,
- * offset or init, checksum, proc) and what each track ran. */
-struct stall { uint32_t magic, count, reason, ticks, report_words, report[96]; uint16_t tx[2][8]; uint8_t live[16]; };
+ * offset or init, checksum, proc), what each track ran, and the host port's status: the selected core's ISR now
+ * (RXDF bit 0 set: the core holds a word the ColdFire never took, so it waits at P:$97 for ever) and core 1's
+ * as dsp_core1.s last read it. Read only: selecting a core here could break stock's transfer. */
+struct stall { uint32_t magic, count, reason, ticks, report_words, report[96]; uint16_t tx[2][8]; uint8_t live[16]; uint16_t isr[2]; };
 #define STALL ((volatile struct stall *)0x100ff900u)
 typedef char stall_fits_battery_ram[0x100ff900u + sizeof(struct stall) <= 0x100fff00u ? 1 : -1];
 typedef char stall_holds_report[sizeof ((struct stall *)0)->report / 4u >= 78u ? 1 : -1]; /* 66 + status.c's 12 today */
@@ -319,6 +321,7 @@ void modwerk_dsp_stall_record(unsigned reason)
     s->report_words = modwerk_dsp_report((uint32_t *)(uintptr_t)s->report);
     for (unsigned c = 0; c < 2; ++c) for (unsigned i = 0; i < 8; ++i) s->tx[c][i] = dl_tx[c][i];
     for (unsigned i = 0; i < 16; ++i) s->live[i] = LIVE_FX[i];
+    s->isr[0] = HOST_ISR, s->isr[1] = dl_c1_isr;
     s->count = count, s->magic = 0x4d575354u;
 }
 /* Best effort: take whatever a core still offers the host (a DSP waiting to hand
