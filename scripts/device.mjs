@@ -183,8 +183,9 @@ async function statusWords() {
  * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose)
  * (spaces in NAME as _; it waits until the track runs it). */
-async function run(sequence) {
+async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
+    if (Date.now() > until) throw new Error('stopped at the time limit before ' + step)
     let m
     if ((m = /^w(\d+)$/.exec(step))) await wait(Number(m[1]))
     else if ((m = /^enc([A-F]|LEVEL)([+-]\d+)$/i.exec(step))) await devIn(8, 0x30 | ('ABCDEF'.indexOf(m[1].toUpperCase()) >= 0 ? 'ABCDEF'.indexOf(m[1].toUpperCase()) : 6) | (Number(m[2]) & 0xff) << 8, 1)
@@ -272,7 +273,7 @@ if (command === 'serve') {
   const path = process.env.MODWERK_DEV_SOCKET ?? '/tmp/modwerk-dev.sock'
   let queue = Promise.resolve()
   const serial = task => (queue = queue.then(task, task))
-  const capture = async line => {
+  const capture = async (line, until) => {
     const out = [], log = console.log
     console.log = (...a) => out.push(a.join(' '))
     try {
@@ -286,7 +287,7 @@ if (command === 'serve') {
         const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined
         values.accept = true; seconds = 1 // the session accepts at once; `try` from the shell keeps its trial
         console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined))))
-      } else await run(line)
+      } else await run(line, until)
     } catch (error) { out.push('error: ' + error.message + (error.cause ? ' (cause: ' + (error.cause.message ?? error.cause) + ')' : '')) } finally { console.log = log }
     return out.join('\n') + '\n'
   }
@@ -297,8 +298,14 @@ if (command === 'serve') {
       line += d
       if (!line.includes('\n')) return
       const request = line.slice(0, line.indexOf('\n')), waits = [...request.matchAll(/\bw(\d+)\b/g)].reduce((sum, m) => sum + Number(m[1]), 0)
-      const limit = 20000 + waits // 20 s beyond the waits the sequence asks for: a hung request answers, and the queue moves on
-      serial(() => Promise.race([capture(request), wait(limit).then(() => `error: no answer from the unit within ${Math.round(limit / 1000)} s\n`)]).then(reply => c.end(reply)))
+      const limit = 20000 + waits // 20 s beyond the waits the sequence asks for: a hung request answers at once
+      serial(() => {
+        const work = capture(request, Date.now() + limit)
+        Promise.race([work, wait(limit).then(() => `error: no answer from the unit within ${Math.round(limit / 1000)} s\n`)]).then(reply => c.end(reply))
+        // The next request waits until this sequence has stopped: two sequences pressing keys at once retired
+        // and reloaded an effect under a knob sweep (11 October 2026). A step stuck 30 s more is a dead link.
+        return Promise.race([work, wait(limit + 30000)])
+      })
     })
   }).listen(path, () => console.log('serving on ' + path))
   setInterval(() => serial(() => devIn(6, 0, 2).catch(() => {})), 4000) // a request every 4 s: MODWERK CONNECTED shows once
