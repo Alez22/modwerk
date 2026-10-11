@@ -466,7 +466,7 @@ export const MODULE_MEDIA_GUIDES: Readonly<Record<string, ScreenshotGuide>> = {
     ]
   },
   "digitakt-digieq": {
-    "version": "1.0.1-experimental",
+    "version": "1.0.2-experimental",
     "screenshots": [
       {
         "path": "media/eq.png",
@@ -475,7 +475,7 @@ export const MODULE_MEDIA_GUIDES: Readonly<Record<string, ScreenshotGuide>> = {
       },
       {
         "path": "media/q-type.png",
-        "caption": "Press A–D to edit band Q, or E–H to choose the filter type; press again to return to level and frequency. For the starting response, restore 0 dB with low/high shelves on bands 1/4 and bells on 2/3. HP, LP, BP and notch still filter at 0 dB.",
+        "caption": "Press A–D to edit band Q, or E–H to choose the filter type; press again to return to level and frequency. Hold FUNC and LFO, then press PLAY (CLEAR) to restore all four bands to the flat defaults. HP, LP, BP and notch still filter at 0 dB until their types are reset.",
         "alt": "Master EQ with pressed knobs displaying Q and LSHF, BELL, BELL and HSHF types."
       }
     ]
