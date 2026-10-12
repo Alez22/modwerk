@@ -1,4 +1,4 @@
-import { useRef, type ReactNode, type Ref } from 'react'
+import { useRef, useState, type ReactNode, type Ref } from 'react'
 import { isBetaModule } from '../catalog/availability'
 import type { AddBlock } from '../catalog/add-blocks'
 import { DETAILS } from '../catalog/details'
@@ -16,6 +16,8 @@ import { ModuleWorksCount } from '../community/ModuleWorksCount'
 import { ModuleAuthors } from './ModuleAuthors'
 import { AddBlockChip, AddBlockPrompt } from './AddBlockPrompt'
 import { useAddBlockPrompt } from './use-add-block-prompt'
+import { useModuleAudioPreviews } from './audio-preview-context'
+import { ModuleAudioCardCover } from './ModuleAudioPreview'
 
 export type ModuleCardProps = {
   module: FirmwareModule
@@ -72,14 +74,16 @@ export function CardProof({ stability, statistics, name, compared, canCompare, o
 }
 
 export function ModuleCard({ module, selected, statistics, viewedVersion, baseline, compared, canCompare, onToggle, onCompare, onBrowse, block, onSwap }: ModuleCardProps) {
+  const { clips } = useModuleAudioPreviews(module.id)
+  const [audioReady, setAudioReady] = useState(false)
   const pending = selected ? undefined : block
   const trigger = useRef<HTMLButtonElement>(null)
   const prompt = useAddBlockPrompt(pending, trigger)
-  return <article className={'module-card ' + (selected ? 'is-selected' : '')}>
-    <a href={moduleHref(module.id)} onClick={onBrowse} onAuxClick={onBrowse} className="module-cover" aria-label={'View ' + module.name} inert={prompt.open}>
+  return <article className={'module-card ' + (selected ? 'is-selected' : '')} onPointerEnter={event => { if (clips.length && event.pointerType !== 'touch') setAudioReady(true) }} onFocus={() => { if (clips.length) setAudioReady(true) }}>
+    {clips[0] ? <ModuleAudioCardCover id={module.id} name={module.name} href={moduleHref(module.id)} onBrowse={onBrowse} inert={prompt.open} prepare={audioReady} clip={clips[0]}><ModulePreview id={module.id}/></ModuleAudioCardCover> : <a href={moduleHref(module.id)} onClick={onBrowse} onAuxClick={onBrowse} className="module-cover" aria-label={'View ' + module.name} inert={prompt.open}>
       <ModulePreview id={module.id} />
       <div className="hover-info"><span>{module.description}</span><strong>Explore module <Icon name="arrow" size={15} /></strong></div>
-    </a>
+    </a>}
     <div className="module-card-body" inert={prompt.open}>
       <div className="module-card-title">
         <div className="module-card-heading"><a href={moduleHref(module.id)} onClick={onBrowse} onAuxClick={onBrowse}>{module.name}</a>{isBetaModule(module.id) && <span className="module-beta-badge">Beta</span>}<ModuleRelease module={module} viewedVersion={viewedVersion} baseline={baseline} /></div>
