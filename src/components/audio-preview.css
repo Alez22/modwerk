@@ -6,8 +6,8 @@
 .audio-preview-hint { position: absolute; bottom: 12px; left: 14px; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #ffffff24; border-radius: 50%; background: #19191cad; color: var(--signal); backdrop-filter: blur(8px); pointer-events: none; transition: opacity .18s; }
 .audio-preview-dock { position: absolute; z-index: 1; bottom: 8px; left: 8px; right: 8px; border: 1px solid #ffffff18; border-radius: 8px; background: #17171bdd; backdrop-filter: blur(12px); box-shadow: 0 4px 16px #0003; }
 .module-audio-cover .audio-preview-dock { opacity: 0; transform: translateY(4px); pointer-events: none; transition: opacity .18s, transform .18s; }
-.module-audio-cover:hover .audio-preview-dock, .module-audio-cover:has(:focus-visible) .audio-preview-dock { opacity: 1; transform: none; pointer-events: auto; }
-.module-audio-cover:hover .audio-preview-hint, .module-audio-cover:has(:focus-visible) .audio-preview-hint { opacity: 0; }
+.module-audio-cover:hover .audio-preview-dock, .module-audio-cover:has(:focus-visible) .audio-preview-dock, .module-audio-cover:has([data-playing="true"]) .audio-preview-dock { opacity: 1; transform: none; pointer-events: auto; }
+.module-audio-cover:hover .audio-preview-hint, .module-audio-cover:has(:focus-visible) .audio-preview-hint, .module-audio-cover:has([data-playing="true"]) .audio-preview-hint { opacity: 0; }
 .audio-preview-hint-idle { display: flex; }
 .audio-preview-hint-playing { display: none; }
 .module-audio-cover:has([data-playing="true"]) .audio-preview-hint-idle { display: none; }
@@ -51,7 +51,7 @@
 .module-audio-detail .audio-preview-navigation .audio-preview-add:hover { border-color: #ffffff25; background: #ffffff08; color: var(--text); }
 @media (hover: none), (pointer: coarse), (max-width: 600px) {
   .module-audio-cover .audio-preview-dock { display: none; }
-  .module-audio-cover:hover .audio-preview-hint, .module-audio-cover:has(:focus-visible) .audio-preview-hint { opacity: 1; }
+  .module-audio-cover:hover .audio-preview-hint, .module-audio-cover:has(:focus-visible) .audio-preview-hint, .module-audio-cover:has([data-playing="true"]) .audio-preview-hint { opacity: 1; }
   .audio-preview-hint { left: auto; right: 12px; width: 28px; height: 28px; }
 }
 @media (max-width: 820px) {
