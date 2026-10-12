@@ -2,7 +2,7 @@
 
 ## 12 October 2026
 
-- Added a guarded private VECTOR/FM machine composition adapter for subsets without POLY8. It gives shared chooser and parameter-page hooks one owner, retains each selected engine, and keeps runtime descriptor pointers inside the group. Source, host controller and fresh two-origin link checks are preparation only: ABI8 packaging, active-Part removal/quiescence, browser inventory, hardware timing and Keep/Undo still require their own qualification; no public base or module release changes.
+- Added a guarded private VECTOR/FM machine composition adapter for all VECTOR/FM subsets without POLY8, including either machine alone. It gives shared chooser and parameter-page hooks one owner, retains each selected engine, and keeps runtime descriptor pointers inside the group. Added a bounded known-UI-root scanner that refuses retained, malformed or unreadable layer/key/encoder state before dereferencing retired code; FM widget roots still need their own audit. Source, host controller and fresh two-origin link checks are preparation only: ABI8 packaging, active-Part removal/quiescence, browser inventory, hardware timing and Keep/Undo still require their own qualification; no public base or module release changes.
 
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.

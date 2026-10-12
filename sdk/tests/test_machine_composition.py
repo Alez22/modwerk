@@ -13,3 +13,4 @@ SourceTests = tests.SourceTests
 ManifestTests = tests.ManifestTests
 LinkTests = tests.LinkTests
 HostTests = tests.HostTests
+LifetimeTests = tests.LifetimeTests

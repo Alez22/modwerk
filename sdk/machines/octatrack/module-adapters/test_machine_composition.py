@@ -78,10 +78,10 @@ class SourceTests(unittest.TestCase):
         self.assertIn('bridge_draw_replay:\n        .space 8', hooks)
         self.assertIn('mr_src_names:\n        .space 20', hooks)
 
-    def test_single_module_keeps_native_declarations(self):
-        original = modules()
-        for m in original:
-            self.assertEqual(adapter.effective_modules([m], SDK), [m])
+    def test_machine_subsets_require_private_source_lifetime(self):
+        for m in modules():
+            with self.assertRaisesRegex(ValueError, 'private source work directory'):
+                adapter.effective_modules([m], SDK)
 
     def test_changed_participant_claim_is_not_silently_removed(self):
         vector, synth = modules()
@@ -110,7 +110,7 @@ class ManifestTests(unittest.TestCase):
         unrelated = registry._load_one(SDK / 'modules/repitch/manifest.py')
         with tempfile.TemporaryDirectory() as work:
             result = adapter.effective_modules([vector, synth, unrelated], SDK, work)
-            self.assertEqual([m.name for m in result], ['vector-fm-bridge', 'vector', 'synth', 'repitch'])
+            self.assertEqual([m.name for m in result], ['machine-bridge', 'vector', 'synth', 'repitch'])
             self.assertIs(result[-1], unrelated)
             bridge, v, fm = result[:3]
             self.assertEqual(len(bridge.detours), 19)
@@ -131,7 +131,7 @@ class ManifestTests(unittest.TestCase):
                 self.assertLessEqual(previous[1], current[0], (previous, current))
             self.assertEqual(sum(r.symbol == 'mr_pb_table' for r in bridge.symbol_refs), 5)
             self.assertEqual({c.symbol for c in bridge.linked[0].stock_copies},
-                             {'bridge_main_replay', 'bridge_edit_replay', 'bridge_draw_replay', 'mr_src_names'})
+                             {'bridge_main_replay', 'bridge_edit_replay', 'bridge_draw_replay', 'bridge_stock_pool_open', 'mr_src_names'})
 
 
 FM_ADAPTER = Path(os.environ.get('MODWERK_FM_ADAPTER', Path(__file__).with_name('fm_runtime.py')))
@@ -139,11 +139,18 @@ FM_ADAPTER = Path(os.environ.get('MODWERK_FM_ADAPTER', Path(__file__).with_name(
                      'native toolchain and reviewed FM runtime adapter required')
 class LinkTests(unittest.TestCase):
     def test_complete_pair_two_origin_relocation_and_private_parameter_routes(self):
+        self._proof(False)
+
+    def test_fm_only_two_origin_relocation_without_absent_engines(self):
+        self._proof(True)
+
+    def _proof(self, only_fm):
         spec = importlib.util.spec_from_file_location('composed_fm_adapter', FM_ADAPTER)
         fm = importlib.util.module_from_spec(spec);spec.loader.exec_module(fm)
         with tempfile.TemporaryDirectory(dir='/private/tmp' if HOST_IMAGE else None) as temp:
             work = Path(temp)
-            result = adapter.effective_modules(modules(), SDK, work / 'bridge')
+            selected = modules()[1:] if only_fm else modules()
+            result = adapter.effective_modules(selected, SDK, work / 'bridge')
             result = [fm.port(m, SDK, work / 'fm', composition=True) if m.name == 'synth' else m for m in result]
             objects = []
             for i, unit in enumerate(u for m in result for u in m.linked):
@@ -186,7 +193,12 @@ class LinkTests(unittest.TestCase):
             self.assertEqual(int.from_bytes(low[page+2:page+6], 'big'), maps[0]['sy_render'])
             for fixed in (0x400d2cb0, 0x400d2ca8, 0x400d24d0):
                 self.assertNotIn(fixed.to_bytes(4, 'big'), low)
-            print(f'VECTOR/FM composition proof: {len(low)}B, {len(offsets)} self-relocations, no POLY member; 85 disjoint sites')
+            if only_fm:
+                self.assertNotIn('st_type', maps[0])
+                self.assertNotIn('st_key', maps[0])
+                self.assertEqual([m.name for m in result], ['machine-bridge', 'synth'])
+            sites = sum(len(m.detours)+len(m.symbol_refs)+len(m.pokes)+sum(len(t.refs) for t in m.tables) for m in result)
+            print(f'{"FM only" if only_fm else "VECTOR/FM"} composition proof: {len(low)}B, {len(offsets)} self-relocations, {sites} sites, no absent engine')
 
 
 HOST_IMAGE = os.environ.get('MODWERK_COMPOSITION_HOST_IMAGE')
@@ -194,10 +206,16 @@ HOST_IMAGE = os.environ.get('MODWERK_COMPOSITION_HOST_IMAGE')
                      'Linux host compiler or explicit private Docker host fixture required')
 class HostTests(unittest.TestCase):
     def test_actual_controller_rows_parameters_saved_fallback_and_private_page(self):
+        self._proof('vector_fm_controller_fixture.c')
+
+    def test_fm_only_controller_private_page_and_missing_machine_preservation(self):
+        self._proof('fm_controller_fixture.c')
+
+    def _proof(self, fixture):
         with tempfile.TemporaryDirectory(dir='/private/tmp' if HOST_IMAGE else None) as temp:
             work = Path(temp)
             (work / 'controller.c').write_text(adapter.controller_source(SDK))
-            shutil.copyfile(Path(__file__).with_name('vector_fm_controller_fixture.c'), work / 'probe.c')
+            shutil.copyfile(Path(__file__).with_name(fixture), work / 'probe.c')
             if HOST_IMAGE:
                 command = ['docker', 'run', '--rm', '--network', 'none', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--read-only',
                            '--tmpfs', '/tmp:rw,exec,nosuid,nodev,size=16m', '--mount', f'type=bind,source={work},target=/fixture,readonly', HOST_IMAGE,
@@ -210,6 +228,26 @@ class HostTests(unittest.TestCase):
                 result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
             self.assertIn('independent tracks', result.stdout)
             print(result.stdout.strip())
+
+
+@unittest.skipUnless(shutil.which('cc'), 'host C compiler required')
+class LifetimeTests(unittest.TestCase):
+    def test_known_stock_ui_roots_refuse_retained_or_unreadable_graphs(self):
+        source = Path(__file__).parent
+        with tempfile.TemporaryDirectory() as temp:
+            binary = Path(temp) / 'lifetime'
+            subprocess.run(['cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-I', str(source),
+                            str(source / 'machine_lifetime.c'), str(source / 'machine_lifetime_fixture.c'),
+                            '-o', str(binary)], check=True, capture_output=True)
+            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
+            self.assertIn('retained-before-read', result.stdout)
+            print(result.stdout.strip())
+        if shutil.which('m68k-elf-gcc'):
+            with tempfile.TemporaryDirectory() as temp:
+                obj = Path(temp) / 'lifetime.o'
+                subprocess.run(['m68k-elf-gcc', *adapter.FLAGS, '-c', str(source / 'machine_lifetime.c'),
+                                '-o', str(obj)], check=True, capture_output=True)
+                self.assertNotIn(' U ', subprocess.check_output(['m68k-elf-nm', str(obj)], text=True))
 
 
 if __name__ == '__main__':
