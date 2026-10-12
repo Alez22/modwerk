@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, renameSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, renameSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { BROWSER_PRESERVATION_PATH, BROWSER_PARITY_PATH, browserProtectedInputs, browserProtectedInputsSha256, loadBrowserInfrastructurePreservation } from './browser-infrastructure-preservation.mjs'
+import { generateBrowserPreservationBinding, writeBrowserPreservationBinding } from './generate-browser-preservation.mjs'
+import { matchedParityImages, parityImage, parityReportSha256 } from './verify-tapeecho-browser-parity.mjs'
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')
 const evidence = '32ac46b0c7e8c11e48ebc41674695e033142b46e'
 const os = '34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad'
@@ -23,14 +25,16 @@ async function fixture() {
   write('.git/objects/info/alternates', resolve(common, 'objects') + '\n')
   git('symbolic-ref', 'HEAD', 'refs/heads/main'); git('update-ref', 'refs/heads/main', evidence)
   for (const path of ['sdk/octabam/platform/fixture.txt', 'sdk/octabam/dsp/fixture.txt', 'sdk/octabam/tools/build/fixture.txt', 'sdk/octabam/tools/remix/fixture.txt', 'scripts/build-module-packages.py', 'scripts/module-source.mjs', 'src/engine/assets/legacy-packages.json', ...allowed.filter(path => ['client.ts', 'protocol.ts', 'session.ts', 'digi-build.ts'].includes(path.split('/').at(-1)))]) write(path, 'approved:' + path)
+  write('sdk/octabam/modules/tapeecho/octamod.module.json', document)
   git('add', '.'); git('commit', '-qm', 'Synthetic approved main')
   const base = git('rev-parse', 'HEAD'), before = await browserProtectedInputs(root, base)
   for (const path of allowed) write(path, 'candidate:' + path)
+  write('scripts/verify-tapeecho-browser-parity.mjs', 'synthetic test runner')
   git('add', '.'); git('commit', '-qm', 'Synthetic integrated candidate')
   const candidate = git('rev-parse', 'HEAD'), after = await browserProtectedInputs(root, candidate)
   const image = { bytes: 100, sha256: 'a'.repeat(64), reportSha256: 'b'.repeat(64) }
   const guards = { clearRefused: true, modifiedUpgradeRefused: true, failedInspectionLeavesNoBase: true }
-  const proof = { schemaVersion: 1, method: 'executed-legacy-worker-parity', beforeCommit: base, afterCommit: candidate, moduleVersion: document.version, originalOsSha256: os, runnerSha256: 'c'.repeat(64), hardware: false, inputUnchanged: true, bundles: { before: 'd'.repeat(64), after: 'e'.repeat(64) },
+  const proof = { schemaVersion: 1, method: 'executed-legacy-worker-parity', beforeCommit: base, afterCommit: candidate, moduleVersion: document.version, originalOsSha256: os, runnerSha256: sha('synthetic test runner'), hardware: false, inputUnchanged: true, bundles: { before: 'd'.repeat(64), after: 'e'.repeat(64) },
     selections: profiles.flatMap(moduleIds => [false, true].flatMap(keepStockFx2 => [false, true].map(betaAccess => ({ moduleIds, keepStockFx2, betaAccess, before: { ...image }, after: { ...image } })))),
     completeUpgrade: { before: { ...image }, after: { ...image } }, guards: { before: { ...guards }, after: { ...guards } } }
   const record = { schemaVersion: 1, retainedModule: 'tapeecho@' + document.version, evidenceCommit: evidence, evidenceModuleVersion: document.tests.retainedEvidence.moduleVersion, approvedMain: base, validatedCommit: candidate, originalOsSha256: os,
@@ -63,6 +67,8 @@ describe('one exact Tape Echo browser infrastructure binding', () => {
     try { expect(await loadBrowserInfrastructurePreservation(f.root, f.base, value)).toBeNull() } finally { f.cleanup() }
   })
   for (const [name, mutate] of [
+    ['a symlinked runner', f => { rmSync(resolve(f.root, 'scripts/verify-tapeecho-browser-parity.mjs')); symlinkSync(resolve(f.root, 'src/engine/client.ts'), resolve(f.root, 'scripts/verify-tapeecho-browser-parity.mjs')) }],
+    ['a changed checked-in runner', f => f.write('scripts/verify-tapeecho-browser-parity.mjs', 'later runner')],
     ['one changed source byte', f => f.write('src/engine/client.ts', 'later')],
     ['an unchanged legacy package edit', f => f.write('src/engine/assets/legacy-packages.json', 'later')],
     ['an unchanged DSP input edit', f => f.write('sdk/octabam/dsp/fixture.txt', 'later')],
@@ -102,5 +108,60 @@ describe('one exact Tape Echo browser infrastructure binding', () => {
   it('rejects duplicate JSON keys', async () => {
     const f = await fixture()
     try { f.write(BROWSER_PRESERVATION_PATH, JSON.stringify(f.record, null, 2).replace('"schemaVersion": 1,', '"schemaVersion": 1,\n  "schemaVersion": 1,') + '\n'); await expect(loadBrowserInfrastructurePreservation(f.root, f.base, document)).rejects.toThrow('Invalid or stale') } finally { f.cleanup() }
+  })
+})
+
+describe('actual-worker report adapter and validation-first generation', () => {
+  it('hashes report key order consistently without dropping version or provenance', () => {
+    expect(parityReportSha256({ version: '0.1.3', sourceCommit: 'original' })).toBe(parityReportSha256({ sourceCommit: 'original', version: '0.1.3' }))
+    expect(parityReportSha256({ version: '0.1.3', sourceCommit: 'original' })).not.toBe(parityReportSha256({ version: '0.1.3', sourceCommit: 'changed' }))
+    expect(parityReportSha256({ version: '0.1.3' })).not.toBe(parityReportSha256({ version: '0.1.2' }))
+  })
+  it('refuses actual byte or report differences before producing a matched pair', () => {
+    const original = parityImage(Buffer.from('authored synthetic output'), { version: '0.1.3' })
+    expect(() => matchedParityImages(original, parityImage(Buffer.from('changed synthetic output'), { version: '0.1.3' }))).toThrow('preservation refused')
+    expect(() => matchedParityImages(original, parityImage(Buffer.from('authored synthetic output'), { version: '0.1.2' }))).toThrow('preservation refused')
+    expect(matchedParityImages(original, { ...original })).toEqual({ before: original, after: original })
+  })
+  it('constructs an exact binding solely from the actual Git snapshots and complete proof', async () => {
+    const f = await fixture()
+    try { expect(await generateBrowserPreservationBinding(f.root, f.base, Buffer.from(JSON.stringify(f.proof, null, 2) + '\n'))).toEqual(f.record) } finally { f.cleanup() }
+  })
+  it('writes validated artifacts once and refuses replacing them', async () => {
+    const f = await fixture()
+    try {
+      rmSync(resolve(f.root, BROWSER_PRESERVATION_PATH)); rmSync(resolve(f.root, BROWSER_PARITY_PATH))
+      const bytes = Buffer.from(JSON.stringify(f.proof, null, 2) + '\n')
+      await writeBrowserPreservationBinding(f.root, f.base, bytes)
+      expect(await loadBrowserInfrastructurePreservation(f.root, f.base, document)).not.toBeNull()
+      await expect(writeBrowserPreservationBinding(f.root, f.base, bytes)).rejects.toThrow('already exists')
+    } finally { f.cleanup() }
+  })
+  it('writes no binding for a failed worker comparison', async () => {
+    const f = await fixture()
+    try {
+      rmSync(resolve(f.root, BROWSER_PRESERVATION_PATH)); rmSync(resolve(f.root, BROWSER_PARITY_PATH))
+      f.proof.completeUpgrade.after.sha256 = 'f'.repeat(64)
+      await expect(writeBrowserPreservationBinding(f.root, f.base, Buffer.from(JSON.stringify(f.proof, null, 2) + '\n'))).rejects.toThrow('Invalid or stale')
+      expect(existsSync(resolve(f.root, BROWSER_PRESERVATION_PATH))).toBe(false)
+      expect(existsSync(resolve(f.root, BROWSER_PARITY_PATH))).toBe(false)
+    } finally { f.cleanup() }
+  })
+  it('refuses dirty catalogue inputs outside the protected hash prefixes', async () => {
+    const f = await fixture()
+    try {
+      rmSync(resolve(f.root, BROWSER_PRESERVATION_PATH)); rmSync(resolve(f.root, BROWSER_PARITY_PATH))
+      f.write('src/catalog/module-documents.json', 'uncommitted catalogue')
+      await expect(writeBrowserPreservationBinding(f.root, f.base, Buffer.from(JSON.stringify(f.proof, null, 2) + '\n'))).rejects.toThrow('Commit all build inputs')
+      expect(existsSync(resolve(f.root, BROWSER_PRESERVATION_PATH))).toBe(false)
+    } finally { f.cleanup() }
+  })
+  it('rejects rehashing an altered runner while its validated Git version differs', async () => {
+    const f = await fixture()
+    try {
+      f.write('scripts/verify-tapeecho-browser-parity.mjs', 'altered runner')
+      f.proof.runnerSha256 = sha('altered runner'); f.record.proof.runnerSha256 = f.proof.runnerSha256; f.save()
+      await expect(loadBrowserInfrastructurePreservation(f.root, f.base, document)).rejects.toThrow('Invalid or stale')
+    } finally { f.cleanup() }
   })
 })

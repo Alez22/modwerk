@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util'
 
 export const BROWSER_PRESERVATION_PATH = 'sdk/browser-infrastructure-preservation/tapeecho-usb-integration.json'
 export const BROWSER_PARITY_PATH = 'sdk/browser-infrastructure-preservation/tapeecho-usb-integration-proof.json'
+export const BROWSER_PARITY_RUNNER = 'scripts/verify-tapeecho-browser-parity.mjs'
 const evidence = '32ac46b0c7e8c11e48ebc41674695e033142b46e'
 const originalOs = '34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad'
 const prefixes = ['sdk/octabam/platform', 'sdk/octabam/dsp', 'sdk/octabam/tools/build', 'sdk/octabam/tools/remix', 'src/engine', 'scripts/build-module-packages.py', 'scripts/module-source.mjs']
@@ -57,17 +58,24 @@ export async function browserProtectedInputs(root, ref) {
   }
   return sorted(out)
 }
-async function fixedJson(root, path) {
-  // Canonical pretty JSON also rejects duplicate keys without silently accepting the last value.
+async function fixedBytes(root, path) {
   const parts = path.split('/')
   for (let i = 1; i < parts.length; i++) {
     const parent = await lstat(resolve(root, ...parts.slice(0, i)))
     if (!parent.isDirectory() || parent.isSymbolicLink()) fail()
   }
   const info = await lstat(resolve(root, path)); if (!info.isFile() || info.isSymbolicLink()) fail()
-  const bytes = await readFile(resolve(root, path)), value = JSON.parse(bytes.toString('utf8'))
+  return readFile(resolve(root, path))
+}
+function canonicalJson(bytes) {
+  // Canonical pretty JSON also rejects duplicate keys without silently accepting the last value.
+  const value = JSON.parse(bytes.toString('utf8'))
   if (bytes.toString('utf8') !== JSON.stringify(value, null, 2) + '\n') fail()
-  return { bytes, value }
+  return value
+}
+async function fixedJson(root, path) {
+  const bytes = await fixedBytes(root, path)
+  return { bytes, value: canonicalJson(bytes) }
 }
 function image(value) {
   return keys(value, ['bytes', 'sha256', 'reportSha256']) && Number.isSafeInteger(value.bytes) && value.bytes > 0 && hash(value.sha256) && hash(value.reportSha256)
@@ -85,12 +93,10 @@ function parity(value, record) {
   if (!keys(value.guards, ['before', 'after']) || !isDeepStrictEqual(value.guards.before, guards) || !isDeepStrictEqual(value.guards.after, guards)) fail()
 }
 
-export async function loadBrowserInfrastructurePreservation(root, approvedRef, document) {
+export async function validateBrowserPreservationBinding(root, approvedRef, document, record, reportBytes) {
   const retained = document.tests?.retainedEvidence
-  if (document.id !== 'tapeecho' || document.version !== '0.1.3-experimental' || retained?.commit !== evidence || retained.moduleVersion !== '0.1.2-experimental') return null
-  try { await lstat(resolve(root, BROWSER_PRESERVATION_PATH)) } catch (error) { if (error.code === 'ENOENT') return null; throw error }
+  if (document.id !== 'tapeecho' || document.version !== '0.1.3-experimental' || retained?.commit !== evidence || retained.moduleVersion !== '0.1.2-experimental') fail()
   try {
-    const { value: record } = await fixedJson(root, BROWSER_PRESERVATION_PATH)
     if (!keys(record, ['schemaVersion', 'retainedModule', 'evidenceCommit', 'evidenceModuleVersion', 'approvedMain', 'validatedCommit', 'originalOsSha256', 'changes', 'protectedInputHashes', 'protectedInputsSha256', 'approvedProtectedInputsSha256', 'proof']) || record.schemaVersion !== 1 || record.retainedModule !== 'tapeecho@0.1.3-experimental' || record.evidenceCommit !== evidence || record.evidenceModuleVersion !== retained.moduleVersion || record.originalOsSha256 !== originalOs || !commit(record.approvedMain) || !commit(record.validatedCommit) || record.approvedMain === record.validatedCommit || !keys(record.proof, ['reportSha256', 'runnerSha256']) || !hash(record.proof.reportSha256) || !hash(record.proof.runnerSha256)) fail()
     // The original evidence and reviewed main are approved history. A proof snapshot
     // must be an actual ancestor of this candidate, never a prospective overlay.
@@ -103,12 +109,21 @@ export async function loadBrowserInfrastructurePreservation(root, approvedRef, d
     const changed = [...new Set([...Object.keys(before), ...Object.keys(current)])].filter(path => before[path] !== current[path]).sort()
     if (!isDeepStrictEqual(changed, allowed)) fail()
     for (const path of allowed) if (!keys(record.changes[path], ['before', 'after']) || record.changes[path].before !== (before[path] ?? null) || record.changes[path].after !== current[path]) fail()
-    const report = await fixedJson(root, BROWSER_PARITY_PATH)
-    if (sha(report.bytes) !== record.proof.reportSha256) fail()
-    parity(report.value, record)
+    if (sha(await fixedBytes(root, BROWSER_PARITY_RUNNER)) !== record.proof.runnerSha256 || sha(git(root, 'show', record.validatedCommit + ':' + BROWSER_PARITY_RUNNER)) !== record.proof.runnerSha256 || sha(reportBytes) !== record.proof.reportSha256) fail()
+    parity(canonicalJson(reportBytes), record)
     return { matchesFile(beforeBytes, afterBytes, path) {
       const change = record.changes[path]
       return !!change && (beforeBytes ? sha(beforeBytes) : null) === change.before && (afterBytes ? sha(afterBytes) : null) === change.after
     } }
+  } catch { fail() }
+}
+
+export async function loadBrowserInfrastructurePreservation(root, approvedRef, document) {
+  const retained = document.tests?.retainedEvidence
+  if (document.id !== 'tapeecho' || document.version !== '0.1.3-experimental' || retained?.commit !== evidence || retained.moduleVersion !== '0.1.2-experimental') return null
+  try { await lstat(resolve(root, BROWSER_PRESERVATION_PATH)) } catch (error) { if (error.code === 'ENOENT') return null; throw error }
+  try {
+    const { value: record } = await fixedJson(root, BROWSER_PRESERVATION_PATH)
+    return await validateBrowserPreservationBinding(root, approvedRef, document, record, await fixedBytes(root, BROWSER_PARITY_PATH))
   } catch { fail() }
 }

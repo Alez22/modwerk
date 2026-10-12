@@ -1,5 +1,7 @@
 # Octatrack USB development checkpoint — 9 October 2026
 
+**Frozen again on 12 October 2026 for a handover: start from [OCTATRACK_BETA_HANDOVER.md](OCTATRACK_BETA_HANDOVER.md).**
+
 The owner froze implementation here on 9 October and resumed it on
 10 October. This is a WIP checkpoint on `codex/octatrack-elekloader-migration`,
 not a hardware-qualified release. Keep the work on this branch until the
