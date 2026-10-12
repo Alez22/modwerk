@@ -10,13 +10,14 @@ const load = async (entry: { path: string }) => file(entry.path)
 const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
-  it('publishes each listed module as its manifest says: DSP effects with no stock-code sites', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus'])
+  it('publishes each listed module with its checked runtime identity and ABI', () => {
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch'])
     for (const entry of manifest.packages) {
       const data = file(entry.path), view = new DataView(data.buffer)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)
       expect([data.length, sha(data), view.getUint32(28).toString(16).padStart(8, '0')]).toEqual([entry.bytes, entry.sha256, runtimeId(entry.id)])
-      expect([String.fromCharCode(...data.subarray(0, 4)), view.getUint16(4), view.getUint32(20), view.getUint32(24)]).toEqual(['MWRM', 6, 0, 0]) // no hooks, no sites
+      expect([String.fromCharCode(...data.subarray(0, 4)), view.getUint16(4), view.getUint32(20)]).toEqual(['MWRM', 'octabam' in entry ? 7 : 6, 0])
+      if (!('octabam' in entry)) expect(view.getUint32(24)).toBe(0) // ABI 6 public packages cannot carry stock-code bytes
     }
   })
   it('names a module by the first four bytes of the SHA-256 of its catalogue id, and removes it with an empty package', () => {
@@ -38,7 +39,7 @@ describe('preparing a module set', () => {
     expect(changes[2]).toEqual({ module: 'TapeHead', data: file(manifest.packages[2].path), undo: removalPackage('tapehead') })
   })
   it('refuses what the base cannot do yet, before anything is sent', async () => {
-    await expect(prepareModuleSet({ name: 'Set', moduleIds: ['everb', 'tapeecho'] }, empty, load)).rejects.toThrow(ModuleSetError)
+    await expect(prepareModuleSet({ name: 'Set', moduleIds: ['everb', 'quantizer'] }, empty, load)).rejects.toThrow(ModuleSetError)
     await expect(prepareModuleSet({ name: 'Set', moduleIds: [], removedStockFx: ['DARK REV'] }, empty, load)).rejects.toThrow(/stock effects/)
   })
   it('fetches the site’s copy and refuses one that did not arrive intact', async () => {

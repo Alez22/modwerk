@@ -54,6 +54,26 @@
       "bytes": 3710,
       "sha256": "3be09ec1b69cd50ee439a368a05d73d76a2ca02a8bea597993cbece42a36fc00",
       "path": "octatrack-modules/airwindows-chorus/0.1.2-experimental.mwrm"
+    },
+    {
+      "id": "previewvol",
+      "octabam": true,
+      "version": "0.1.2-experimental",
+      "name": "Preview Vol",
+      "module": "8e791a15",
+      "bytes": 204,
+      "sha256": "9fd95d9a9a5a1c5932892ab1af36b39994650a51161df3903f36fa8afa6cb1c2",
+      "path": "octatrack-modules/previewvol/0.1.2-experimental.mwrm"
+    },
+    {
+      "id": "repitch",
+      "octabam": true,
+      "version": "0.1.2-experimental",
+      "name": "Repitch",
+      "module": "5c49f0f0",
+      "bytes": 1358,
+      "sha256": "d7c28a9fedd22ca3fe35e460e05e5493e30069d6256f1992d1c9ef4d3ab0a3ba",
+      "path": "octatrack-modules/repitch/0.1.2-experimental.mwrm"
     }
   ]
 }

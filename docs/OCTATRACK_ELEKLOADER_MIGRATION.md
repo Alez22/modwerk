@@ -2459,6 +2459,31 @@ the first allowed unit today. Telling units apart needs a unit identity from the
 unit reports the same USB serial (`000000000001`). The sidebar would then list each unit, and a
 load would name its target.
 
+## ABI 7 side branch: emulator task initialization and package gates (12 October 2026)
+
+This follow-up stays on `claude/octatrack-abi7`. It does not replace the qualified tester base (`dc1d7a39…`, flashed `.bin` `9a86d7e1…`) or change the runtime loader's refusal of unknown task state.
+
+The emulator blocker was its detoured-idle recognition. `status.s` replays main's last initialization call before its idle loop; that call creates task `p1b`. The native emulator treated the entire first 128 bytes of the detour as idle, skipped the initialization, and later returned borrowed calls to the stock park. The previous run's kernel gate reported nine tasks created, ten contexts run and `p1b` absent. The loader's zero-stack refusal was correct for that emulated state.
+
+The [private emulator adapter](../scripts/octatrack-emulator/README.md) leaves imported Octabam files exact and recognizes only Modwerk's authored idle loop, excluding its initialization. Its synthetic branch/range regression passes. With the unchanged ABI 7 development image, the kernel gate creates all ten tasks and runs all eleven contexts; Preview Vol's two sites and Repitch's fifteen sites install with consistent relocations and restore their original bytes on removal. No hardware interaction was performed. The stock RTOS gate, including its serial negative control, passes with byte-identical reports before and after the adapter.
+
+Only six runtime packages are staged publicly on this side branch: the existing E-Verb, Mini Verb, TapeHead and Air Chorus, plus Preview Vol and Repitch 0.1.2-experimental (ABI 7). They rebuild byte for byte and pass both stock-overlap scans. Six other prepared packages remain private because their compiled payloads fail the existing strict scan:
+
+| Package | Most nonzero bytes in a shared run | Additional gate |
+| --- | ---: | --- |
+| Play Modes | 13 | Matching compiled instructions need provenance review. |
+| VECTOR | 20 | Matching compiled instructions and shared machine hook ownership need review. |
+| Analog BD | 20 | Its native DSP engine integration is not carried by the standalone ColdFire package; shared hook ownership also needs a runtime composition path. |
+| POLY8 | 512 | The largest run maps to initialized zero/255 arrays near `poly_next`; other matching instructions remain. Shared machine hook ownership and its collision with Repitch also need a runtime composition path. |
+| Tape Echo | 19 | Matching compiled instructions need provenance review. |
+| Euclid | 15 | Matching compiled instructions need provenance review. |
+
+A scanner match alone does not establish copied firmware or independently authored coincidence. No scanner threshold or ownership rule was relaxed. The compiled matches map to `pm_track_length`, `st_ui_tick`, `ab_src_names`, `render_head` and `eu_publish_frame`; their further export needs source/provenance review and a stock-free package representation.
+
+The candidate base was regenerated only on this side branch. Its browser-builder/native `.bin` parity hash is `ebec67bcbecc48a263ce16222ae3155bd88bca7962214c3aab19712fc4c8eed4` (642,412 bytes); this is a saved local script build, not an actual browser UI download or hardware result. The stock-free base package hashes to `c29a05274cbc521bce10f0e5c038e7c92168bd44ce640015bb4a0e6c67dbda02`. Bootloader-copy and declared-site guards pass. Changed base fingerprint inputs are the already prepared ABI 7 loader builder/parser/header/static verifier, module-package builder and two host test files; `runtime.c` and `status.s` are unchanged.
+
+The browser link now retries a busy commit reported as `backend` with refusal 5 as well as a busy `rejected` stage. A discarded commit candidate must first clear the client's retained offer, then be staged again. The regression includes the real TypeScript/C wire controller, whose unchanged-publication path reports `ready` with zero received bytes. Required owner review, combined stock-FX/ABI 7 hardware requalification, exact candidate audio/flow tests and physical reboot persistence remain open before this base or these new USB packages enter the loader branch.
+
 ## Agreed implementation sequence
 
 1. Qualify the Elekloader base and stopped upload mode, preserving logger,

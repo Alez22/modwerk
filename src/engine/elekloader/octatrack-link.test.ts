@@ -3,7 +3,7 @@ import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { removalPackage } from './module-set'
 import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
-import { UploadUnconfirmedError } from './upload-session'
+import { UploadDeviceError, UploadUnconfirmedError } from './upload-session'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 async function linked(kind: 'base' | 'stock' | 'none' = 'base') {
@@ -109,6 +109,9 @@ describe('sending a module', () => {
     unit.refusal = 1 // malformed: the plain text
     await link.update('PREVIEW VOL', one)
     expect(link.getState().notice?.text).toBe('The Octatrack can’t run this module file.')
+    unit.refusal = 8 // ABI 7 stock hash mismatch, before any site is changed
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().notice?.text).toMatch(/stock code doesn’t match/)
   })
   it('stages again when the loader was busy for a moment', async () => {
     const { unit, link } = await linked()
@@ -116,6 +119,51 @@ describe('sending a module', () => {
     setTimeout(() => { unit.refusal = undefined }, 50)
     await link.update('PREVIEW VOL', one)
     expect(link.getState().status).toBe('trial')
+  })
+  it('restages a site-bearing package after a busy commit discards its candidate', async () => {
+    const unit = fakeUnit(), base = fakeSession(unit)
+    let stages = 0, commits = 0, cancels = 0
+    const connect: typeof base = async (...args) => {
+      const session = await base(...args)
+      let refused: typeof session.status | undefined
+      return Object.create(session, {
+        status: { get: () => refused ?? session.status },
+        stage: { value: async (...stageArgs: Parameters<typeof session.stage>) => { stages++; return session.stage(...stageArgs) } },
+        cancel: { value: async () => { cancels++; refused = undefined; return session.cancel() } },
+        activate: { value: async () => {
+          if (++commits === 1) {
+            unit.refusal = 5
+            setTimeout(() => { unit.refusal = undefined }, 50)
+            throw new UploadDeviceError(refused = { ...session.status, command: 'commit', phase: 'ready', result: 'backend' })
+          }
+          return session.activate()
+        } },
+      })
+    }
+    const link = new OctatrackLink(unit.usb, connect, 300)
+    link.start(); await settle(); await settle()
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().status).toBe('trial')
+    expect(stages).toBe(2); expect(commits).toBe(2); expect(cancels).toBe(1)
+  })
+  it('retries a verified commit without restaging when playback briefly blocks it', async () => {
+    const unit = fakeUnit(), base = fakeSession(unit)
+    let stages = 0, commits = 0
+    const connect: typeof base = async (...args) => {
+      const session = await base(...args)
+      return Object.create(session, {
+        stage: { value: async (...args: Parameters<typeof session.stage>) => { stages++; return session.stage(...args) } },
+        activate: { value: async () => {
+          if (++commits === 1) throw new UploadDeviceError({ ...session.status, command: 'commit', result: 'unsafe' })
+          return session.activate()
+        } },
+      })
+    }
+    const link = new OctatrackLink(unit.usb, connect, 300)
+    link.start(); await settle(); await settle()
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().status).toBe('trial')
+    expect(stages).toBe(1); expect(commits).toBe(2)
   })
   it('recovers from a missing reply without asking to unplug', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)

@@ -158,6 +158,11 @@ int main(void)
     uint32_t b_size = n;
     put32(paused + 20, STOCK + 34);                              /* inside A's site */
     CHECK(b->prepare(0, p, b_size) && b->publish(0) == MU_UNCHANGED && b->discard(0) && modwerk_runtime_module(0) == a);
+    /* The browser cancels a positively unchanged commit before restaging. Discard and leave must not erase the
+     * busy diagnostic it reads between those steps; only the next prepare clears it. */
+    CHECK(modwerk_runtime_refusal() == RUNTIME_BUSY);
+    CHECK(b->leave(0) && modwerk_runtime_refusal() == RUNTIME_BUSY);
+    CHECK(b->enter(0) && modwerk_runtime_refusal() == RUNTIME_BUSY);
     put32(paused + 20, STOCK + 30);                              /* at B's first byte: fine */
     unknown = 1;
     CHECK(b->prepare(0, p, b_size) && b->publish(0) == MU_UNCHANGED && b->discard(0) && modwerk_runtime_module(0) == a);

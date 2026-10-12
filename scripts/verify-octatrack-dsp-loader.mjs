@@ -31,6 +31,7 @@
 // sites (a package with stock-code sites, ABI 7 or earlier, any module: installed, then removed; RAM, read a long at a
 // time, must hold each site's new bytes while it is live (kept bytes as stock, relocated words at one base) and its
 // image's first 64 bytes and every stock copy there, and every site the bytes from before once it is removed).
+// Additional sites packages can be passed in SECOND, comma-separated; each is installed then removed in turn.
 // SCENARIO:MODULE names the module by its catalogue id (src/engine/assets/dsp-packages.json); E-Verb by default.
 // The card needs a project whose Part 1 has no module effect on T1, T2, T5 or T6.
 // Emulator evidence only: executed instructions, no hardware timing or audio.
@@ -176,35 +177,44 @@ if (mode === 'dumps') {
       for (let a = from; a < address + n; a += 4) out.writeUInt32BE(await long(a), a - from)
       return out.subarray(address - from, address - from + n)
     }
-    const { image, relocations, sites, copies } = unpack(data), before = []
-    for (const site of sites) before.push(await peek(site.address, site.length))
-    await keep(data).catch(async error => { // loader.h runtime_refusal: 8, the stock bytes under a site are not the ones it names
-      throw new Error(`${error.message} (loader refusal ${(await transport.selftest(false))?.refusal})`)
-    })
-    let at
-    for (const [i, site] of sites.entries()) {
-      const now = await peek(site.address, site.length), want = Buffer.from(site.code)
-      before[i].copy(want, 0, 0, site.keep)
-      for (const o of site.relocations) {
-        const placed = now.readUInt32BE(o) - want.readUInt32BE(o) >>> 0
-        assert(at === undefined || placed === at, `site 0x${hex(site.address)}: relocated to another base`)
-        at = placed; want.writeUInt32BE(now.readUInt32BE(o), o)
+    for (const path of [file, ...(second ? second.split(',') : [])]) {
+      const data = new Uint8Array(readFileSync(path)), id = new DataView(data.buffer).getUint32(28)
+      const { image, relocations, sites, copies } = unpack(data), before = []
+      for (const site of sites) before.push(await peek(site.address, site.length))
+      await keep(data).catch(async error => { // loader.h runtime_refusal: 8, the stock bytes under a site are not the ones it names
+        throw new Error(`${error.message} (loader refusal ${(await transport.selftest(false))?.refusal})`)
+      })
+      let at
+      for (const [i, site] of sites.entries()) {
+        const now = await peek(site.address, site.length), want = Buffer.from(site.code)
+        before[i].copy(want, 0, 0, site.keep)
+        for (const o of site.relocations) {
+          const placed = now.readUInt32BE(o) - want.readUInt32BE(o) >>> 0
+          assert(at === undefined || placed === at, `site 0x${hex(site.address)}: relocated to another base`)
+          at = placed; want.writeUInt32BE(now.readUInt32BE(o), o)
+        }
+        assert.deepEqual(now, want, `site 0x${hex(site.address)} while the module is live`)
       }
-      assert.deepEqual(now, want, `site 0x${hex(site.address)} while the module is live`)
-    }
-    if (at !== undefined) { // its code, relocated, and the stock bytes it copied
-      const code = Buffer.from(image)
-      for (const o of relocations) code.writeUInt32BE(code.readUInt32BE(o) + at >>> 0, o)
-      for (const c of copies) {
-        (await peek(c.address, c.length)).copy(code, c.offset)
-        assert.deepEqual(await peek(at + c.offset, c.length), code.subarray(c.offset, c.offset + c.length), `stock copy of 0x${hex(c.address)}`)
+      if (at !== undefined) { // its code, relocated, and the stock bytes it copied
+        const code = Buffer.from(image)
+        for (const o of relocations) code.writeUInt32BE(code.readUInt32BE(o) + at >>> 0, o)
+        for (const c of copies) {
+          (await peek(c.address, c.length)).copy(code, c.offset)
+          assert.deepEqual(await peek(at + c.offset, c.length), code.subarray(c.offset, c.offset + c.length), `stock copy of 0x${hex(c.address)}`)
+        }
+        if (new DataView(data.buffer).getUint16(6) & 1) { // fxpage_build records its destination descriptor in MWPG+48
+          assert.equal(code.toString('ascii', 0, 4), 'MWPG')
+          const item = (await transport.inventory())?.find(item => item.module === id.toString(16).padStart(8, '0'))
+          assert(item && item.handle !== 0xff, 'the live effect is present in inventory')
+          code.writeUInt32BE(symbols.pages + 0x1a0 * item.handle, 48)
+        }
+        assert.deepEqual(await peek(at, Math.min(64, code.length)), code.subarray(0, 64), `code at 0x${hex(at)}`)
       }
-      assert.deepEqual(await peek(at, Math.min(64, code.length)), code.subarray(0, 64), `code at 0x${hex(at)}`)
+      console.log(`installed: ${sites.length} sites hold, code and ${copies.length} stock copies at 0x${hex(at ?? 0)}`)
+      await keep(removal(base, id).data)
+      for (const [i, site] of sites.entries()) assert.deepEqual(await peek(site.address, site.length), before[i], `site 0x${hex(site.address)} after removal`)
+      console.log(`removed: every site holds what it held before`)
     }
-    console.log(`installed: ${sites.length} sites hold, code and ${copies.length} stock copies at 0x${hex(at ?? 0)}`)
-    await keep(removal(base, id).data)
-    for (const [i, site] of sites.entries()) assert.deepEqual(await peek(site.address, site.length), before[i], `site 0x${hex(site.address)} after removal`)
-    console.log(`removed: every site holds what it held before`)
     bench.socket.end(); process.exit(0)
   }
   await keep(data); console.log('module installed')
@@ -293,6 +303,14 @@ if (mode === 'dumps') {
   bench.socket.end()
 } else if (mode === 'check') {
   const [dir, out] = args, { proofs } = build(dir)
+  if (scenario === 'sites') {
+    const drive = readFileSync(join(out, 'drive.txt'), 'utf8'), log = readFileSync(join(out, 'log.txt'), 'utf8')
+    assert.match(log, /M6a gate\s+: PASS/, 'all stock tasks, including the displaced idle initialization, must run')
+    assert.match(drive, /installed: \d+ sites hold, code and \d+ stock copies at 0x[0-9a-f]+/)
+    assert.match(drive, /removed: every site holds what it held before/)
+    console.log('sites: task initialization, installation, stock copies and restoration passed')
+    process.exit(0)
+  }
   const words = Array.from({ length: pkg.words }, (_, i) => parseInt(pkg.code.slice(i * 6, i * 6 + 6), 16))
   const log = readFileSync(join(out, 'log.txt'), 'utf8'), bytes = name => readFileSync(join(out, name + '.bin'))
   const u32 = name => Array.from({ length: bytes(name).length / 4 }, (_, i) => bytes(name).readUInt32BE(4 * i))

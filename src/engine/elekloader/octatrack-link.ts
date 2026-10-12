@@ -62,7 +62,7 @@ const REFUSED: Partial<Record<UploadResultName, string>> = {
   hash: 'The module arrived damaged. Nothing changed; send it again.',
   rejected: 'The Octatrack can’t run this module file.',
 }
-/** Why the loader rejected a module (sdk/runtime/loader/loader.h runtime_refusal), read from the base after a "rejected". */
+/** Why the loader rejected a module (sdk/runtime/loader/loader.h runtime_refusal), read from the base after a staging or publication refusal. */
 const REJECTED: Partial<Record<number, string>> = {
   2: 'There isn’t enough module memory left on the Octatrack. Remove a module, then try again.',
   3: 'This module changes the same part of the Octatrack as one that’s already installed.',
@@ -70,6 +70,7 @@ const REJECTED: Partial<Record<number, string>> = {
   5: 'The Octatrack is still loading module code. Try again in a moment.',
   6: 'This module needs more DSP time than an effect slot has.',
   7: 'A track is playing this module’s effect, so the Octatrack can’t change it now. Pick another effect on that track, then try again.',
+  8: 'This module’s stock code doesn’t match the Octatrack’s base. Nothing changed.',
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
@@ -279,8 +280,16 @@ export class OctatrackLink {
    * the connected base's loader validates the file; bind the package to its base once module files carry one. */
   private async install(session: LinkSession, data: Uint8Array, signal?: AbortSignal, progress?: (received: number) => void) {
     if (data.length > session.status.capacity) throw new UploadDeviceError({ ...session.status, result: 'limit' })
-    await this.whenStopped(() => session.stage({ base: session.status.base, data, sha256: sha(data) }, { signal, progress }))
-    await session.activate()
+    const stage = () => session.stage({ base: session.status.base, data, sha256: sha(data) }, { signal, progress })
+    await this.whenStopped(stage)
+    await this.whenStopped(async () => {
+      // A refused commit in ready discarded the candidate. cancel clears this client's offer; the retry restages it.
+      if (session.status.phase !== 'verified') await stage()
+      try { await session.activate() } catch (error) {
+        if (session.status.phase === 'ready') await session.cancel()
+        throw error
+      }
+    })
   }
   /** Put back what the load's kept changes did, newest first, each kept at once; the modules it had no package for. */
   private async revert(session: LinkSession) {
@@ -360,7 +369,7 @@ export class OctatrackLink {
     if (settled) {
       try { clean = await this.cleanUp(settled) } catch { clean = false }
     }
-    const why = error instanceof UploadDeviceError && error.status.result === 'rejected' ?
+    const why = error instanceof UploadDeviceError && (error.status.result === 'rejected' || error.status.result === 'backend') ?
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal : undefined
     // A set's changes kept before the failure are undone too, once the base is back to normal.
     let lost: string[] = [], between = false
@@ -397,7 +406,7 @@ export class OctatrackLink {
     }
   }
   private async loaderBusy(error: unknown) {
-    return error instanceof UploadDeviceError && error.status.result === 'rejected' &&
+    return error instanceof UploadDeviceError && (error.status.result === 'rejected' || error.status.result === 'backend') &&
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal === 5
   }
   private startKeepalive() {
