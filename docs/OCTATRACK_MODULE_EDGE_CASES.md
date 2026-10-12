@@ -148,7 +148,8 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 3. Case 7: an update with the same layout swaps in place instead of being refused (design first: the DSP
    manager must retire the old code from the slots running it before the new code binds, as the rebind does).
 4. Case 6: layout numbers, before the first module update that changes its knobs.
-5. Needing the owner at the unit: 15 (FUNC held at boot), 16 (a power cycle into a flashed base that restores),
-   11 (SAVE TO NEW, EXPORT TO SET: read project.work in USB disk mode), 19 (the arranger), the site's note in a
-   browser.
+5. Needing the owner at the unit: 16 (a power cycle into a flashed base that restores), 11 (SAVE TO NEW, EXPORT
+   TO SET: read project.work in USB disk mode), 19 (the arranger), the site's note in a browser. Case 15 (FUNC held
+   at boot) is deferred (owner, 12 October 2026) but must run on the unit before the beta rollout: it is the way
+   out when a module breaks the unit at boot.
 6. Case 9: paste between projects (owner, 11 October 2026: not now).
