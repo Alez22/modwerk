@@ -267,7 +267,11 @@ The community runs separately through `worker.ts` and `wrangler.worker.jsonc`, i
 
 ### Public module audio previews
 
-Cards with recordings reveal a slim waveform strip on thumbnail hover or keyboard focus. Clicking the waveform seeks and starts playback; playing controls remain visible after pointer exit. Card and thumbnail dimensions stay unchanged. Touch users open the module page and tap its waveform to play. The detail thumbnail overlays the player and offers a manual carousel for multiple clips. Modules without recordings retain their artwork and an Add preview action.
+Declared module recordings play in the card and main detail preview; the screenshots gallery no longer repeats them as standalone audio tiles. Community submissions retain their contributor, caption and removal controls in the Previews tab, and media credits remain available.
+
+Cards with recordings retain the waveform strip on thumbnail hover or keyboard focus. Clicking the waveform seeks and starts playback; playing controls remain visible after pointer exit. Card dimensions and the hover description stay unchanged. The idle play indicator matches the Add button height: 32px on desktop and 40px on phones. Touch users open the module page to play.
+
+The module-page player has a persistent audio strip below the illustration, with 44px Play/Pause and seek targets. Play/Pause comes before seeking in keyboard order; elapsed and total times sit below the waveform. Pressing Play loads the clip on touch. A manual carousel provides previous/next controls and a clip counter when multiple previews are available. Modules without recordings retain their artwork and an Add preview action. The standalone preview player uses this layout too; forum and gallery players keep their existing layout.
 
 Verified members can submit WAV, MP3 or Ogg recordings, a credit and an optional caption after confirming permission to share all included samples. The Previews tab lists community recordings with the member's server-provided username, credit and caption alongside reviewed documentation media. Old `?tab=media` links continue to open this tab. Contributors and administrators can remove community recordings; removal immediately hides the metadata and media, with hourly storage cleanup. Suspended contributors' previews are hidden from the public list.
 
