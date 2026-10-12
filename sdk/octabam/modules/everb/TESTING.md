@@ -79,6 +79,15 @@ stress run, the sound audit and the 0.1.0 render evidence were not repeated: the
 LCD captures were re-taken on the 0.1.1 image with the same plan and are byte-identical to 0.1.0's; they do not show
 FUNC + turn.
 
+Packages: compiled from the evidence commit in the pinned network-free toolchain (`scripts/build-modules-isolated.sh`)
+and imported; they differ from main only in E-Verb's version, its descriptor recipe (the three words on six slots) and
+source provenance, and `import-module-build.mjs --check-only --verify-existing` reproduces them. `npm run module:verify --
+everb`: 126 selections, 48 matching module-owned images (18 identical outright, 30 outside platform writes), 78 matching
+refusals, zero mismatches; a changed original is refused. The Analog BD composition proofs, re-exported natively on this
+tree, are identical apart from their source-tree pin: E-Verb is in none of them. The browser side of that comparison
+needed the regenerated catalogue, which `modules:generate` writes only once the owner's approval exists; it ran with a
+local, never committed stand-in approval, and `npm run module:verify -- everb --os <file> --check` repeats it.
+
 **Not tested**: any hardware; the MKI panel; FUNC + turn on the SETUP page (its words did not change: TILT, EDCY and ESIZ
 carried the three-stop editor in 0.1.0, PRE inherited it and REV is a select); FUNC + turn while holding a trig (lock
 editing) or a scene button; FUNC + turn with the encoder pressed (the three-stop editor hands that case to the two-stop

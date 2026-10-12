@@ -176,7 +176,7 @@
     "report": "TESTING.md",
     "summary": "0.1.1 gives SIZE, DCY, ABSB and SPD stock's three-stop FUNC editor (issue #438). Four descriptor bytes change; both DSP memory images are byte-identical to 0.1.0, and the matched benchmark reproduces 0.1.0's figures. A new verify.py gate checks every knob's editor in the built image, and func_stops.py turns all six main-page knobs with FUNC held on the ColdFire emulator: 0, 64 and 127 on each (0.1.0: 0 and 127 only on those four). All 27 render gates pass on the 0.1.1 source; the stress record and sound audit carry over unchanged. Hardware evidence is the owner's MKII audition of 0.1.0 (EVRB01T01); 0.1.1 has not run on hardware.",
     "hardwareStatus": "historical",
-    "evidenceRevision": "e3047c0d9eb7bb150c003a86414886b22d8992f2",
+    "evidenceRevision": "62f9dd69e3a7e1332a49337becf80c11a87a2937",
     "gates": [
       "verify.py: source and init rules, static cycles, native placement, exact dry, reverb laws, idle, eight-instance isolation (-guard -dirty), garbage start, zipper census, trig splits, REV switching, DPTH locks, EDCY latch, FUNC editor words in the built descriptor",
       "func_stops.py: FUNC + turn on all six main-page knobs in ot_emu stops at 0, 64 and 127; once a FUNC turn has settled, a plain turn still moves one step per detent",
