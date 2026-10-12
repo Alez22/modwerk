@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  findVendorInterface, parseInventory, parseMissing, parseVendorIdentity, parseVendorResult, UsbVendorTransport, VendorTransportError, type ControlDevice,
+  findVendorInterface, parseInventory, parseMissing, parseRuntimeCapabilities, parseVendorIdentity, parseVendorResult, UsbVendorTransport, VendorTransportError, type ControlDevice,
   VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_RESULT_BYTES, VENDOR_SUBCLASS,
 } from './upload-usb'
 
@@ -9,6 +9,39 @@ const alt = (c: number, s: number, p: number, endpoints: unknown[] = []) =>
 const config = (...interfaces: [number, ...ReturnType<typeof alt>[]][]) =>
   ({ interfaces: interfaces.map(([interfaceNumber, ...alternates]) => ({ interfaceNumber, alternates })) })
 const ours = alt(VENDOR_CLASS, VENDOR_SUBCLASS, VENDOR_PROTOCOL)
+
+describe('runtime capabilities', () => {
+  // MWCP v1, ABI 8, sites/copies/fills/tables/groups, 128 sites and 32 copies.
+  const bytes = () => Uint8Array.from(Buffer.from('4d5743500108001f00800020', 'hex'))
+  it('reads the independently specified wire record and retains unknown feature bits', () => {
+    const data = bytes()
+    expect(parseRuntimeCapabilities(new DataView(data.buffer))).toEqual({ abi: 8, features: 31, maxSites: 128, maxCopies: 32 })
+    data[6] = 0x80
+    expect(parseRuntimeCapabilities(new DataView(data.buffer)).features).toBe(0x801f)
+  })
+  it('refuses truncated, extended, unknown-version and malformed records', () => {
+    for (const length of [0, 4, 11, 13]) expect(() => parseRuntimeCapabilities(new DataView(new ArrayBuffer(length)))).toThrow(VendorTransportError)
+    for (const [offset, value] of [[0, 0], [4, 2], [5, 0]]) {
+      const data = bytes(); data[offset] = value
+      expect(() => parseRuntimeCapabilities(new DataView(data.buffer))).toThrow(VendorTransportError)
+    }
+  })
+  it('distinguishes an old base from a missing or damaged reply without writing to the unit', async () => {
+    let reply: Awaited<ReturnType<ControlDevice['controlTransferIn']>> = { status: 'stall' }
+    const transport = new UsbVendorTransport({
+      async controlTransferOut() { throw new Error('Capabilities must be read-only') },
+      async controlTransferIn(setup, length) {
+        expect(setup).toMatchObject({ request: 29, value: 0, index: 6 }); expect(length).toBe(12)
+        return reply
+      },
+    }, 6)
+    expect(await transport.capabilities()).toBeUndefined()
+    reply = { status: 'ok' }
+    await expect(transport.capabilities()).rejects.toThrow(VendorTransportError)
+    reply = { status: 'ok', data: new DataView(bytes().buffer) }
+    expect((await transport.capabilities())?.abi).toBe(8)
+  })
+})
 
 describe('vendor interface selection', () => {
   it('finds exactly one endpoint-free Modwerk interface beside the stock ones', () => {

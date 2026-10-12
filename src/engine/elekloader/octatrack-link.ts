@@ -220,6 +220,8 @@ export class OctatrackLink {
       if (!await this.claim()) return
       try {
         const identity = await this.transport.identify()
+        const capabilities = await this.transport.capabilities()
+        if (capabilities) identity.capabilities = capabilities
         // HELLO is read-only; a base that cannot answer it still counts as ready.
         const active = identity.canSubmit ? await this.connectSession(this.transport, identity.base).then(s => s.status.active, () => undefined) : undefined
         this.set({ status: 'ready', identity, active })

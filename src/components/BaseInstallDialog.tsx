@@ -8,7 +8,7 @@ import { RiskAcceptance } from './ConfigurationLayout'
 import { Icon, type IconName } from './Icon'
 import './octatrack-link.css'
 
-export interface BaseImage { buffer: ArrayBuffer; sha256: string }
+export interface BaseImage { buffer: ArrayBuffer; sha256: string; base: string }
 /** The release prompt holds this long before it can be put off. */
 const LAUNCH_HOLD_SECONDS = 10
 // What the beta prompt promises: only what the base does today. Cross-compatibility, effects loaded on demand,
@@ -88,7 +88,7 @@ function LinkHero() {
  * seconds. Step 4 completes by itself when the unit comes back with the base.
  * `buildBase` is the builder's seam, absent until the browser can build the base.
  */
-export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwareError, onChooseFirmware, buildBase, onClose, onReady }: {
+export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwareError, onChooseFirmware, buildBase, returnSetId, onClose, onReady }: {
   link: OctatrackLink
   launch?: boolean
   firmwareReady: boolean
@@ -96,6 +96,8 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   firmwareError?: string
   onChooseFirmware: (file: File) => void
   buildBase?: () => Promise<BaseImage>
+  /** Return to this set after the exact downloaded base is confirmed, including after a page reload. */
+  returnSetId?: string
   /** `done` is false when the browser closed it early (Escape before the page was clicked), which must not count as seen. */
   onClose: (done: boolean) => void
   onReady: () => void
@@ -105,17 +107,13 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   const [hold, setHold] = useState(launch ? LAUNCH_HOLD_SECONDS : 0)
   const [accepted, setAccepted] = useState(false)
   const [pending, setPending] = useState(pendingBaseInstall)
-  const disconnected = useRef(false)
   const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>(pending ? 'done' : 'idle'), [failure, setFailure] = useState('')
   const [view, setView] = useState<'intro' | 'steps'>(launch && !pending ? 'intro' : 'steps')
-  const found = state.status === 'ready' && !!state.identity?.canSubmit
+  const found = !!pending && state.status === 'ready' && !!state.identity?.canSubmit && state.identity.base === pending.expectedBase
   const canClose = hold === 0 || found
   useEffect(() => {
-    if (!pending || finished.current) return
-    if (!found) { disconnected.current = true; return }
-    if (!pending.previousBase || pending.previousBase !== state.identity?.base || disconnected.current) {
-      finished.current = true; finishBaseInstall(); onReady()
-    }
+    if (!pending || !found || finished.current) return
+    finished.current = true; finishBaseInstall(); onReady()
   }, [found, pending, state.identity?.base, onReady])
   useEffect(() => {
     const element = dialog.current, previousFocus = document.activeElement
@@ -134,8 +132,8 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     try {
       const image = await buildBase!(); saveFirmware(image.buffer, 'base', image.sha256)
       const previousBase = link.getState().identity?.base
-      waitForBaseInstall(image.sha256, previousBase); disconnected.current = false
-      setPending({ sha256: image.sha256, previousBase }); setDownload('done')
+      waitForBaseInstall(image.sha256, image.base, previousBase, returnSetId)
+      setPending({ sha256: image.sha256, expectedBase: image.base, previousBase, returnSetId }); setDownload('done')
     }
     catch (error) { console.error(error); setFailure(error instanceof Error ? error.message : ''); setDownload('failed') }
   }
@@ -177,7 +175,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       </div></li>
       <li className={found ? 'is-complete' : undefined}>{step(found, 4)}<div className="link-step-body">
         <strong>{pending ? 'Waiting for your Octatrack' : 'Check it'}</strong>
-        {found ? <p role="status">Found the Modwerk base on your {state.identity!.model}. You can sync modules now.</p>
+        {found ? <p role="status">Confirmed the downloaded Modwerk base on your {state.identity!.model}. You can review your module set now.</p>
           : state.status === 'unsupported' ? <p>Checking needs Chrome or Edge on a computer.</p>
           : <><p role="status">Leave the USB cable in. Once the installed base reconnects, I’ll take you back to your module set.</p>{(state.status === 'idle' || state.status === 'stock') && <button type="button" className="button button-quiet" onClick={() => void link.connect()}>Connect Octatrack</button>}</>}
       </div></li>

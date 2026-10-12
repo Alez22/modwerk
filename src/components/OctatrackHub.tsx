@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { MODULES } from '../catalog/modules'
-import { changeCount, inventoryChanges, lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
+import { lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
+import { BaseUpdateRequired, moduleSetReview } from '../engine/elekloader/module-set'
 import { lastSuccessfulSync } from '../config/octatrack-progress'
 import type { Configuration } from '../config/workspace'
 import { DeviceImage } from '../devices/DeviceImage'
@@ -43,7 +44,9 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
     if (next === undefined) return
     event.preventDefault(); onSelect(sets[next].id); options.current[next]?.focus()
   }
-  const changes = connected && inventory && selected ? inventoryChanges(inventory, selected) : undefined
+  const review = connected && inventory && selected ? moduleSetReview(selected, inventory, identity?.capabilities) : undefined
+  const changes = review?.changes, updates = review?.updates ?? []
+  const needsBase = review?.problem instanceof BaseUpdateRequired
   const when = last && new Date(last.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
   const [line, action]: [ReactNode, ReactNode] = !usb ? ['This browser can’t use USB. Install from the card below, or open this page in Chrome or Edge on a computer.', null]
     : busy ? ['Syncing…', null]
@@ -78,11 +81,11 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
         {lastSync && <p className="hub-last-sync">Last sync from this browser: <b>{lastSync.name}</b> · <time dateTime={lastSync.at}>{new Date(lastSync.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></p>}
         {selected && usb && <div className="hub-sync-bar" aria-label="Module set sync">
           <div><strong>{selected.name}</strong>
-            <p>{changes ? changeCount(changes) ? <>Adds {changes.add.length} · Removes {changes.remove.length}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
+            <p>{review?.problem ? <span role="alert">{review.problem.message}</span> : changes ? review?.needsSync ? <>Adds {changes.add.length} · Removes {changes.remove.length}{updates.length > 0 && <> · Updates {updates.length}</>}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
                 : selected.moduleIds.length ? <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span> : 'No modules in this set.'
               : busy ? 'A sync is running.' : status === 'stock' ? 'Install the base to sync this set.' : connected ? 'Reading what’s on your Octatrack…' : 'Connect your Octatrack to sync this set.'}</p>
           </div>
-          <button type="button" className="button button-primary" disabled={!changes || !changeCount(changes)} onClick={() => onSync(selected.id)}><Icon name="download" size={16} />Sync to Octatrack</button>
+          <button type="button" className="button button-primary" disabled={!review || !needsBase && (!review.needsSync || !!review.problem)} onClick={() => { onSync(selected.id); if (needsBase) onInstall() }}><Icon name="download" size={16} />{needsBase ? 'Install latest base' : 'Sync to Octatrack'}</button>
         </div>}
         {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
         {grid}

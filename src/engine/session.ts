@@ -37,7 +37,7 @@ export function createEngineSession(reply: (response: EngineResponse, transfer?:
         const built = await buildBase(original, await response.text(), baseFills as BaseFill[])
         if (current !== generation) throw new Error('The selected firmware changed. Build again.')
         const buffer = built.bin.slice().buffer
-        reply({ id: request.id, type: 'base', buffer, sha256: built.sha256 }, [buffer]); return
+        reply({ id: request.id, type: 'base', buffer, sha256: built.sha256, base: built.base }, [buffer]); return
       }
       const usbError = usbAudioBuildError(request.usbAudio)
       if (usbError) throw new Error(usbError)

@@ -1,7 +1,7 @@
 import type { InventoryTarget } from './inventory'
 
 const INSTALL = 'modwerk.octatrack.pending-base', SYNC = 'modwerk.octatrack.last-sync'
-export interface PendingBase { sha256: string; previousBase?: string }
+export interface PendingBase { sha256: string; expectedBase: string; previousBase?: string; returnSetId?: string }
 export interface SuccessfulSync extends InventoryTarget { base: string; active: string; at: string }
 const hash = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
 
@@ -9,11 +9,13 @@ const hash = (value: unknown): value is string => typeof value === 'string' && /
 export function pendingBaseInstall(): PendingBase | undefined {
   try {
     const value = JSON.parse(sessionStorage.getItem(INSTALL) ?? 'null')
-    return value && hash(value.sha256) && (value.previousBase === undefined || hash(value.previousBase)) ? value : undefined
+    return value && hash(value.sha256) && hash(value.expectedBase) && (value.previousBase === undefined || hash(value.previousBase))
+      && (value.returnSetId === undefined || typeof value.returnSetId === 'string' && value.returnSetId.length > 0 && value.returnSetId.length <= 128) ? value : undefined
   } catch { return undefined }
 }
-export function waitForBaseInstall(sha256: string, previousBase?: string) {
-  try { sessionStorage.setItem(INSTALL, JSON.stringify({ sha256, previousBase })) } catch { /* this visit still waits */ }
+/** The download SHA and IDENTIFY configuration digest are separate identities. */
+export function waitForBaseInstall(sha256: string, expectedBase: string, previousBase?: string, returnSetId?: string) {
+  try { sessionStorage.setItem(INSTALL, JSON.stringify({ sha256, expectedBase, previousBase, returnSetId })) } catch { /* this visit still waits */ }
 }
 export function finishBaseInstall() {
   try { sessionStorage.removeItem(INSTALL) } catch { /* storage is optional */ }
