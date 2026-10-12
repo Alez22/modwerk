@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Prepared a fresh Discord invitation round with the existing announcement wording and link. Previous account and browser invitations no longer block this resend; each account or visitor browser receives the new round once. New signups still receive Discord inline in their welcome. Publication follows deployment through the admin announcement form.
 - Allowed up to 30 seconds for deployment release synchronization so a successful inventory fanout is not mistaken for a ten-second timeout. Existing idempotent retries, recipient preferences and digest processing remain in place.
 - Fixed imported README provenance after adding audio previews, and limited E-Verb's monochrome capture checks to instrument screenshots.
 - Documented imported-module media provenance updates and screenshot selection for mixed audio/image media.

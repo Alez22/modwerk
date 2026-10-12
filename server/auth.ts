@@ -7,6 +7,8 @@ import { socialRoutes } from './social'
 import { profileRoutes } from './profile'
 import { memberBetaAccess } from './beta-testers'
 import { moduleAvailabilityError } from '../src/catalog/availability'
+import { DISCORD_INVITE_CAMPAIGN } from '../src/config/development-discord'
+import { discordInvitationClaim } from './discord-invitations'
 /** Fixed actor row for administrator history; the administrator is not a visitor account. */
 export const ADMIN_ACTOR='administrator'
 const ADMIN_SECONDS=8*60*60
@@ -64,8 +66,12 @@ export async function authentication(request:Request,env:Env,path:string):Promis
   const member=needMember(await accountUser(request,env,db))
   const body=await jsonBody(request)
   if(body.alreadyShown!==undefined&&typeof body.alreadyShown!=='boolean')throw new HttpError(400,'Use a boolean invitation preference.')
-  const claimed=await db.prepare('INSERT OR IGNORE INTO member_discord_invites(user_id) VALUES(?)').bind(member.id).run()
-  return response({show:body.alreadyShown!==true&&claimed.meta.changes===1})
+  if(body.campaign!==undefined&&body.campaign!==DISCORD_INVITE_CAMPAIGN)throw new HttpError(400,'This Discord invitation is no longer current.')
+  // Old frontend requests can claim only the original round, never consume the resend.
+  const claimed=await (body.campaign===undefined
+   ? db.prepare('INSERT OR IGNORE INTO member_discord_invites(user_id) VALUES(?)').bind(member.id)
+   : discordInvitationClaim(db,member.id)).run()
+  return response({show:body.alreadyShown!==true&&claimed.meta.changes===1,...(body.campaign===undefined?{}:{campaign:DISCORD_INVITE_CAMPAIGN})})
  }
  if(path==='/api/auth/build-access'&&request.method==='POST'){
   const member=needMember(await accountUser(request,env,db)),body=await jsonBody(request)
