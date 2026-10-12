@@ -18,16 +18,25 @@ export function ModuleAudioCardCover({ id, name, href, onBrowse, inert, prepare,
   </div>
 }
 
-export function ModuleAudioDetailPreview({ id, name }: { id: string; name: string }) {
-  const { clips, onAdd } = useModuleAudioPreviews(id)
-  const [selected, setSelected] = useState('')
-  if (!clips.length && !onAdd) return <ModulePreview id={id}/>
+export function ModuleAudioDetailPreview({ id, name, children }: { id: string; name: string; children?: ReactNode }) {
+  const { clips, onAdd, onRemove, added, error } = useModuleAudioPreviews(id)
+  const [selection, setSelection] = useState({ id:'', added:'' })
+  const [removing, setRemoving] = useState(false)
+  const [removeError, setRemoveError] = useState('')
+  const selected = selection.added === added ? selection.id : added
+  if (!clips.length && !onAdd) return children ?? <ModulePreview id={id}/>
   const index = Math.max(0, clips.findIndex(clip => clip.id === selected))
   const clip = clips[index]
-  function step(direction: number) { setSelected(clips[(index + direction + clips.length) % clips.length].id) }
+  function step(direction: number) { setSelection({id:clips[(index + direction + clips.length) % clips.length].id,added}) }
+  async function remove() {
+    if (!clip || !onRemove || !window.confirm('Remove this audio preview?')) return
+    setRemoving(true); setRemoveError('')
+    try { await onRemove(clip.id) } catch (failure) { setRemoveError(failure instanceof Error ? failure.message : 'This preview could not be removed.') }
+    finally { setRemoving(false) }
+  }
   return <div className={'module-audio-detail' + (clip ? ' has-audio' : '')} data-module={id}>
     <div className="module-audio-art">
-      <ModulePreview id={id}/>
+      {children ?? <ModulePreview id={id}/>}
       {clip && <div className="audio-preview-dock"><AudioPreviewPlayer key={clip.id} clip={clip} name={name}/></div>}
     </div>
     {(clips.length > 1 || onAdd) && <div className="audio-preview-navigation">
@@ -37,6 +46,8 @@ export function ModuleAudioDetailPreview({ id, name }: { id: string; name: strin
         <button type="button" onClick={() => step(1)} aria-label="Next audio preview"><Icon name="back" size={16}/></button>
       </div>}
       {onAdd && <button type="button" className="text-button audio-preview-add" onClick={onAdd}><Icon name="plus" size={15}/>Add preview</button>}
+      {clip?.canRemove && onRemove && <button type="button" className="icon-button audio-preview-remove" aria-label="Remove this audio preview" onClick={() => void remove()} disabled={removing}><Icon name="close" size={16}/></button>}
     </div>}
+    {(removeError||error) && <p className="file-error" role="alert">{removeError||error}</p>}
   </div>
 }

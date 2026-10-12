@@ -2,27 +2,31 @@ import { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { AudioPreviewPlayer } from './AudioPreviewPlayer'
 import { waveformPeaks, type AudioPreviewClip } from './audio-preview'
+import './audio-preview-submission.css'
 
 const MAX_BYTES = 12 * 1024 * 1024
 const MAX_SECONDS = 90
 
-export function AudioPreviewSubmission({ name, onAdd, onClose }: { name: string; onAdd: (clip: AudioPreviewClip) => void; onClose: () => void }) {
+export function AudioPreviewSubmission({ name, onAdd, onClose, persistent = false, initialCredit = '' }: { name: string; onAdd: (clip: AudioPreviewClip, file: File) => void|Promise<void>; onClose: () => void; persistent?: boolean; initialCredit?: string }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const urls = useRef<string[]>([])
   const [file, setFile] = useState<File | null>(null)
-  const [credit, setCredit] = useState('')
+  const [credit, setCredit] = useState(initialCredit)
+  const [caption, setCaption] = useState('')
   const [rights, setRights] = useState(false)
   const [prepared, setPrepared] = useState<AudioPreviewClip | null>(null)
   const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const generation = useRef({ value: 0 })
 
   useEffect(() => {
     const element = dialog.current
+    const previousFocus = document.activeElement
     if (element && !element.open) element.showModal()
     const localUrls = urls.current
     const request = generation.current
-    return () => { request.value++; for (const url of localUrls) URL.revokeObjectURL(url) }
+    return () => { request.value++; for (const url of localUrls) URL.revokeObjectURL(url); if (previousFocus instanceof HTMLElement) previousFocus.focus() }
   }, [])
 
   async function choose(selected?: File) {
@@ -45,26 +49,33 @@ export function AudioPreviewSubmission({ name, onAdd, onClose }: { name: string;
     } finally { if (current === generation.current.value) setBusy(false) }
   }
 
-  function submit() {
-    if (!prepared || !credit.trim() || !rights) return
-    // Ownership moves to the prototype, which releases it on reset or unmount.
-    urls.current.splice(urls.current.indexOf(prepared.url), 1)
-    onAdd({ ...prepared, credit: credit.trim() })
-    onClose()
+  async function submit() {
+    if (!prepared || !file || !credit.trim() || !rights || saving) return
+    setSaving(true); setError('')
+    try {
+      await onAdd({ ...prepared, credit: credit.trim(), caption: caption.trim() }, file)
+      // The local prototype takes ownership; public uploads use their server URL.
+      if (!persistent) urls.current.splice(urls.current.indexOf(prepared.url), 1)
+      onClose()
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'The preview could not be submitted. Try again.')
+      setSaving(false)
+    }
   }
 
-  return <dialog ref={dialog} className="app-dialog audio-submission-dialog" aria-labelledby="audio-submission-title" onCancel={event => { event.preventDefault(); onClose() }}>
-    <form onSubmit={event => { event.preventDefault(); submit() }}>
-      <div className="section-title"><h2 id="audio-submission-title">Add audio preview</h2><button type="button" className="icon-button" aria-label="Close audio preview form" onClick={onClose}><Icon name="close" size={18}/></button></div>
+  return <dialog ref={dialog} className="app-dialog audio-submission-dialog" aria-labelledby="audio-submission-title" onCancel={event => { event.preventDefault(); if (!saving) onClose() }}>
+    <form onSubmit={event => { event.preventDefault(); void submit() }}>
+      <div className="section-title"><h2 id="audio-submission-title">Add audio preview</h2><button type="button" className="icon-button" aria-label="Close audio preview form" onClick={onClose} disabled={saving}><Icon name="close" size={18}/></button></div>
       <p className="audio-submission-module">{name}</p>
-      <label className="audio-submission-file"><Icon name="file" size={22}/><span><strong>{file?.name ?? 'Choose audio file'}</strong><small>WAV / MP3 / Ogg · 12 MB · up to 90 seconds</small></span><input type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/ogg,.wav,.mp3,.ogg" aria-label="Choose audio preview file" onChange={event => { void choose(event.target.files?.[0]) }}/></label>
+      <label className="audio-submission-file"><Icon name="file" size={22}/><span><strong>{file?.name ?? 'Choose audio file'}</strong><small>WAV / MP3 / Ogg · 12 MB · up to 90 seconds</small></span><input type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/ogg,.wav,.mp3,.ogg" aria-label="Choose audio preview file" disabled={saving} onChange={event => { void choose(event.target.files?.[0]) }}/></label>
       {busy && <p role="status" className="service-note">Preparing recording…</p>}
       {error && <p role="alert" className="file-error">{error}</p>}
       {prepared && <AudioPreviewPlayer key={prepared.id} clip={prepared} name={name}/>}
-      <label className="audio-submission-credit">Credit<input required maxLength={100} value={credit} onChange={event => setCredit(event.target.value)} autoComplete="name" placeholder="Your name"/></label>
-      <label className="audio-submission-rights"><input type="checkbox" required checked={rights} onChange={event => setRights(event.target.checked)}/><span>I have permission to share this recording.</span></label>
-      <p className="service-note">This prototype adds the clip locally. Nothing is uploaded.</p>
-      <div className="audio-submission-actions"><button type="button" className="button button-quiet" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary" disabled={!prepared || !credit.trim() || !rights || busy}>Add preview</button></div>
+      <label className="audio-submission-credit">Credit<input required maxLength={100} value={credit} onChange={event => setCredit(event.target.value)} autoComplete="name" placeholder="Your name" disabled={saving}/></label>
+      {persistent && <label className="audio-submission-credit"><span>Caption <span className="subtle">(optional)</span></span><input maxLength={300} value={caption} onChange={event => setCaption(event.target.value)} placeholder="What does this recording demonstrate?" disabled={saving}/></label>}
+      <label className="audio-submission-rights"><input type="checkbox" required checked={rights} onChange={event => setRights(event.target.checked)} disabled={saving}/><span>I have permission to share this recording, including any samples.</span></label>
+      <p className="service-note">{persistent ? 'Your recording and credit will be public. You can remove your preview from this module page.' : 'This prototype adds the clip locally. Nothing is uploaded.'}</p>
+      <div className="audio-submission-actions"><button type="button" className="button button-quiet" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="button button-primary" disabled={!prepared || !credit.trim() || !rights || busy || saving}>{saving ? 'Uploading…' : 'Add preview'}</button></div>
     </form>
   </dialog>
 }
