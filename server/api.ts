@@ -5,6 +5,7 @@ import { issueStatusStatements } from './issue-notifications'
 import { forum, SHARED_CONFIGURATIONS, sharedConfigurationBinds } from './forum'
 import { forumPublic } from './forum-public'
 import { forumMedia } from './forum-media'
+import { audioPreviewRoutes } from './audio-previews'
 import { avatarRoutes } from './avatars'
 import { messageRoutes } from './messages'
 import { notificationRoutes, notifyModuleMaintainers, unsubscribe, withdrawModuleLike } from './notifications'
@@ -103,6 +104,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if(avatar)return avatar
     const media = await forumMedia(request,env,db,user,admin)
     if(media)return media
+    const audioPreviews = await audioPreviewRoutes(request,env,db,user,admin)
+    if(audioPreviews)return audioPreviews
     const messages = await messageRoutes(request,db,user)
     if(messages)return messages
     const pages = await forumPublic(request,env,db)

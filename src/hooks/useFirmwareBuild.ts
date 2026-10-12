@@ -46,7 +46,7 @@ export function useFirmwareBuild(client: RefObject<FirmwareClient | null>, activ
     building.current = true; setView({ key, state: 'building', report: current.report, phase: 'composing' })
     let started = false
     try {
-      await requireBuildAccount(ids)
+      await requireBuildAccount(ids, betaAccess)
       if(operation.current!==request)return
       started = true
       const result = await client.current.build(ids, keepStock, phase => { if (operation.current === request) setView({ key, state: 'building', report: current.report, phase }) }, active?.usbAudio, betaAccess)

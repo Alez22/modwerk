@@ -50,7 +50,6 @@ import { ModuleGrid, StateChip } from './components/ModuleGrid'
 import { missingFromProject, UNIT_STATE, unitState } from './config/inventory'
 import { ModuleDialog } from './components/ModuleDialog'
 import { ShareModuleButton } from './community/ShareModuleButton'
-import { StockEffects } from './components/StockEffects'
 import { OctatrackActivity, OctatrackStatus } from './components/OctatrackStatus'
 import { BaseInstallDialog } from './components/BaseInstallDialog'
 import { OctatrackLink } from './engine/elekloader/octatrack-link'
@@ -427,7 +426,8 @@ export default function App() {
                 <div className="configuration-main">
                   {availabilityError && <p className="file-error" role="alert">{availabilityError}</p>}
                   <ModuleGrid ids={selectedIds} inventory={inventory} describe={id => id === USB_AUDIO_MODULE && active?.usbAudio ? usbAudioLayout(active.usbAudio.layout).name + ' · 0.2 experimental' : !isModuleAvailable(id, betaAccess) ? 'Temporarily unavailable' : MODULES.find(module => module.id === id)?.detail ?? ''} onOpen={setOpenModule} onRemove={toggleModule} onKeep={toggleModule} onSaveUnit={() => inventory && workspace.importConfiguration('From my Octatrack', inventory.moduleIds, true, undefined, 'octatrack', undefined, inventory.removedStockFx)} />
-                  {usbBase ? <StockEffects removed={active?.removedStockFx ?? []} unitRemoved={inventory?.removedStockFx} onChange={workspace.setRemovedStockFx} /> : <Suspense fallback={null}><ConfigurationEffects ids={selectedIds} keepStockFx2={active?.keepStockFx2 ?? true} build={firmwareBuild} /></Suspense>}
+                  {/* The base can't take stock effects out of its menus yet, so the USB flow offers no StockEffects tiles. */}
+                  {!usbBase && <Suspense fallback={null}><ConfigurationEffects ids={selectedIds} keepStockFx2={active?.keepStockFx2 ?? true} build={firmwareBuild} /></Suspense>}
                   <CardInstall folded={usbBase}><section className="configuration-section" aria-labelledby="firmware-title"><div className="section-title"><h2 id="firmware-title">Base firmware</h2><span className="subtle">Read locally</span></div>
                     <div className={'firmware-drop ' + (dragging ? 'is-dragging ' : '') + (fileState === 'ready' ? 'is-verified' : '')} onDragOver={(event) => event.preventDefault()} onDragEnter={() => setDragging(true)} onDragLeave={() => setDragging(false)} onDrop={dropFile} aria-busy={fileState === 'reading'}>
                       <span className="file-symbol"><Icon name={firmware ? 'check' : 'file'} size={26} /></span>
@@ -441,9 +441,9 @@ export default function App() {
                   {DSP_LOADER && <section className="configuration-section chooser-options"><h2>Effect menus</h2><label><input type="checkbox" checked={active?.keepStockFx2??true} onChange={event=>setKeepStockFx2(event.target.checked)}/><span><strong>Keep stock FX2 effects</strong><small>Keep the original FX2 effects alongside your modules.</small></span></label></section>}
                   <div ref={setBuildResultsSlot} className="build-results" />
                 </div>
-                {usbBase && usbKit ? <MemberGate action="build firmware" next={route}><OctatrackUpdate bar link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds, removedStockFx: active?.removedStockFx }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} needs={projectNeeds} onInstall={() => setBaseInstall('manual')}>{null}</OctatrackUpdate></MemberGate> : <div className="configuration-checkout">
+                {usbBase && usbKit ? <MemberGate action="build firmware" next={route}><OctatrackUpdate bar link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} needs={projectNeeds} onInstall={() => setBaseInstall('manual')}>{null}</OctatrackUpdate></MemberGate> : <div className="configuration-checkout">
                   {compatibilityPanel}
-                  <div className="checkout-card">{riskAcceptance}<MemberGate action="build firmware" next={route}>{usbKit ? <OctatrackUpdate link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds, removedStockFx: active?.removedStockFx }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} needs={projectNeeds} onInstall={() => setBaseInstall('manual')}>{firmwareBuildPanel}</OctatrackUpdate> : firmwareBuildPanel}</MemberGate></div>
+                  <div className="checkout-card">{riskAcceptance}<MemberGate action="build firmware" next={route}>{usbKit ? <OctatrackUpdate link={usbKit.link} set={{ name: active?.name ?? 'Module set', moduleIds: selectedIds }} prepareUpdate={usbKit.prepareUpdate} readInventory={usbKit.readInventory} stressTest={usbKit.stressTest} needs={projectNeeds} onInstall={() => setBaseInstall('manual')}>{firmwareBuildPanel}</OctatrackUpdate> : firmwareBuildPanel}</MemberGate></div>
                 </div>}
               </div>
             </div>

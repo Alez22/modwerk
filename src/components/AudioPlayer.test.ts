@@ -140,4 +140,28 @@ describe('site audio playback', () => {
     // Supply a fresh root for afterEach.
     root = createRoot(container)
   })
+
+  it('prepares a card waveform only on hover or focus, without starting playback', async () => {
+    const props = { src: '/card.wav', label: 'module preview', variant: 'dock' as const, activation: 'manual' as const, peaks: [.1, .8, .2], duration: 20 }
+    await act(() => root.render(createElement(AudioPlayer, props)))
+    expect(observers).toHaveLength(0)
+    expect(mocks.create).not.toHaveBeenCalled()
+    await act(async () => root.render(createElement(AudioPlayer, { ...props, prepare: true })))
+    expect(instances[0].options.peaks).toEqual([[.1, .8, .2]])
+    expect(instances[0].options.duration).toBe(20)
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  })
+
+  it('plays immediately from a waveform gesture and applies its seek after metadata arrives', async () => {
+    await act(() => root.render(createElement(AudioPlayer, { src: '/card.wav', label: 'module preview', activation: 'manual', seekStartsPlayback: true })))
+    const slider = container.querySelector('input')!, media = container.querySelector('audio')!
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue({ left: 10, width: 100 } as DOMRect)
+    await act(async () => slider.dispatchEvent(new MouseEvent('pointerdown', { clientX: 40, button: 0, bubbles: true })))
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce()
+    expect(media.paused).toBe(false)
+    await metadata(20)
+    expect(media.currentTime).toBe(6)
+    await act(() => slider.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })))
+    expect(media.paused).toBe(true)
+  })
 })

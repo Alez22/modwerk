@@ -20,12 +20,13 @@ import type { AddBlock } from '../catalog/add-blocks'
 import { AddBlockChip, AddBlockPrompt } from './AddBlockPrompt'
 import { useAddBlockPrompt } from './use-add-block-prompt'
 
-type DetailTab = 'Overview' | 'Media' | 'Discussion' | 'Changelog' | 'Issues'
-const tabs: DetailTab[] = ['Overview', 'Media', 'Discussion', 'Changelog', 'Issues']
+type DetailTab = 'Overview' | 'Previews' | 'Discussion' | 'Changelog' | 'Issues'
+const tabs: DetailTab[] = ['Overview', 'Previews', 'Discussion', 'Changelog', 'Issues']
 function linkedTab(): DetailTab {
   if (typeof window === 'undefined') return 'Overview'
   const query = new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search)
   if (query.get('report') === '1') return 'Issues'
+  if (query.get('tab') === 'media') return 'Previews'
   return tabs.find(value => value.toLowerCase() === query.get('tab')) ?? 'Overview'
 }
 
@@ -111,7 +112,7 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
         <ModuleCommunity id={id} mode="overview" onDiscuss={showDiscussion} onDiscussionCount={setDiscussionCount} />
         <div className="module-guide">{guide}</div>
       </>}
-      {tab === 'Media' && <ModuleCommunity id={id} mode="media" onDiscussionCount={setDiscussionCount} />}
+      {tab === 'Previews' && <ModuleCommunity id={id} mode="media" onDiscussionCount={setDiscussionCount} />}
       {tab === 'Discussion' && <ModuleCommunity id={id} mode="discussion" onReportIssue={showIssueReport} onDiscussionCount={setDiscussionCount} />}
       {tab === 'Changelog' && <ModuleChangelog key={id} id={id} />}
       {tab === 'Issues' && <ModuleIssues key={id} id={id} issues={issues} onReportIssue={showIssueReport} />}

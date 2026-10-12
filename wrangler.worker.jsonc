@@ -38,8 +38,8 @@
       "migrations_dir": "migrations"
     }
   ],
-  // Images and sound clips attached to forum posts. Module screenshots and audio arrive through PRs and are
-  // served by the site instead. Create the bucket once with `npx wrangler r2 bucket create modwerk-forum-media`.
+  // Forum attachments and public module audio previews. Reviewed module documentation media is served by
+  // the site. Create the bucket once with `npx wrangler r2 bucket create modwerk-forum-media`.
   "r2_buckets": [
     {
       "binding": "MEDIA",

@@ -10,6 +10,7 @@ import { DIGI_CORES, DIGI_MODS, digiModuleDocument, estimateCombination, type Di
 import { DigiModPreview } from './DigiModPreview'
 import { deviceHref, type DeviceProfile } from './registry'
 import { ModuleAuthors } from '../components/ModuleAuthors'
+import { ModuleAudioDetailPreview } from '../components/ModuleAudioPreview'
 
 const kib = (bytes: number) => (bytes / 1024).toFixed(bytes < 10240 ? 1 : 0) + ' KiB'
 const documentUrl = (mod: DigiMod, path: string) => issueRepository() + '/blob/main/sdk/' + mod.device + '/modules/' + mod.id + '/' + path
@@ -95,7 +96,7 @@ export function DigiModDetail({ device, mod, selected, onToggle, browse, onBackT
     detail={'location' in document.access ? document.access.location : document.access.noUiReason}
     author={mod.author} authorUrl={mod.repository} contributors={mod.contributors} description={mod.summary} selected={selected} onToggle={onToggle}
     backHref={deviceHref(mod.device)} backLabel={'All ' + device.name + ' modules'}
-    preview={<DigiModPreview mod={mod} />} resources={<DigiResourceIndicators mod={mod} />}
+    preview={<ModuleAudioDetailPreview id={id} name={mod.title}><DigiModPreview mod={mod}/></ModuleAudioDetailPreview>} resources={<DigiResourceIndicators mod={mod} />}
     guide={<DigiModuleGuide mod={mod} device={device} />}
     issueReport={openRequest => <DigiIssueReport id={id} openRequest={openRequest} />}
   />
