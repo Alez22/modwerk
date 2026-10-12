@@ -2,6 +2,8 @@
 
 ## 12 October 2026
 
+- Rebuilt the four E-Verb/POLY8 native comparison rows affected by POLY8 0.2.7, preserving the remaining matrix and hardware qualification limits.
+
 - Fixed the beta USB development flag when firmware tools run in Node, so native/browser module compatibility verification can start without Vite environment values. Browser beta access is unchanged.
 
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
