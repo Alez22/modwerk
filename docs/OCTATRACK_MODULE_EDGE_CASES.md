@@ -145,7 +145,7 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 
 1. ~~Cases 1, 2 and 3~~: done (the unit's page, the site's note).
 2. Case 21: more than 13 module effects at once and a list longer than 32 (owner's priority). Designed: wider ids,
-   160 of them so every installed module effect keeps its own, up to 128 modules installed, and longer lists
+   128 of them so every installed effect module keeps its own, up to 128 modules installed, and longer lists
    (owner, 12 October 2026); the plan is in
    [OCTATRACK_MORE_EFFECT_IDS.md](OCTATRACK_MORE_EFFECT_IDS.md#decision-and-plan-owner-12-october-2026).
 3. Case 7: an update with the same layout swaps in place instead of being refused (design first: the DSP

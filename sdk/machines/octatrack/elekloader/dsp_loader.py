@@ -280,13 +280,22 @@ def catalog_c(layout, reserve, ids=32):
     return '\n'.join(lines) + '\n'
 
 
-def choosers(image):
+def choosers(image, ids=32):
     """The stock FX choosers, read from the base's own lists, which fxpage.c extends with each module that
-    registers: -> (sites pointing stock's references at them and giving the module ids no descriptor and no
-    row yet, the lists' C definitions with stock's rows). Read from the user's firmware."""
+    registers: -> (sites pointing stock's references at them and at the base's own copies of the four id tables,
+    the C definitions of both with stock's rows). Read from the user's firmware.
+
+    The id tables (FX1_IDS and FX2_IDS: id -> descriptor, 32 entries and a 0; FX1_ID2POS and ID2POS: id -> chooser
+    row) are copied to `ids` entries (the base's MODWERK_FX_IDS; docs/OCTATRACK_MORE_EFFECT_IDS.md step 5): stock's
+    entries, the module ids (and every id past 31) with no descriptor and no row yet. Stock names each table only
+    by `lea table,%a0` (7, 7, 2 and 2 of them), so repointing those operands moves every reader; stock reads the
+    Part's id sign-extended, so ids stay below 128. The chooser counts its rows to the list's 0, so the lists are
+    `ids` long and need no other change."""
     meta = json.loads(CHOOSERS.read_text())
     layout = meta['layout']
     read = lambda at: int.from_bytes(image[at - 0x40000400:at - 0x40000400 + 4], 'big')
+    if not 32 <= ids <= 128:
+        raise ValueError('Effect ids stay between 32 and 128: stock reads the id as a signed byte.')
     lists = {}
     for slot, at in (('fx1', layout['FX1_LIST']), ('fx2', layout['FX2_LIST'])):
         rows = []
@@ -294,7 +303,8 @@ def choosers(image):
             rows.append(read(at + 4 * len(rows)))
         lists[slot] = rows
     none = read(layout['FX1_IDS'])
-    if none != layout['FX1_NONE'] or any(rows[0] != none or len(rows) > 31 - 13 for rows in lists.values()):
+    modules = set(meta['customIds']) | set(range(32, ids))
+    if none != layout['FX1_NONE'] or any(rows[0] != none or len(rows) + len(modules) + 1 > ids for rows in lists.values()):
         raise ValueError('The stock FX choosers are not the lists the base extends.')
     sites = []
     for slot, at, symbol in (('fx1', layout['FX1_LIST'], 'modwerk_fx1_list'), ('fx2', layout['FX2_LIST'], 'modwerk_fx2_list')):
@@ -302,11 +312,22 @@ def choosers(image):
             if read(ref) != at:
                 raise ValueError('A stock chooser reference at %#x does not name its list.' % ref)
             sites.append(dict(addr=hex(ref), stock=image[ref - 0x40000400:ref - 0x40000400 + 4].hex(), op='ptr', target=symbol))
-    for fx in meta['customIds']:
-        for table, value in ((layout['FX1_IDS'], none), (layout['FX2_IDS'], none), (layout['FX1_ID2POS'], 0), (layout['ID2POS'], 0)):
-            at = table + 4 * fx
-            sites.append(dict(addr=hex(at), stock=image[at - 0x40000400:at - 0x40000400 + 4].hex(), op='bytes', kind='data',
-                              new=value.to_bytes(4, 'big').hex()))
-    c = ''.join('uint32_t modwerk_%s_list[32] = {%s};\n' % (slot, ', '.join('%#xu' % row for row in rows)) for slot, rows in lists.items())
+    c = ''
+    for table, symbol, words, value, terminated, leas in (
+            (layout['FX1_IDS'], 'modwerk_fx1_ids', 32, none, True, 7), (layout['FX2_IDS'], 'modwerk_fx2_ids', 32, none, True, 7),
+            (layout['FX1_ID2POS'], 'modwerk_fx1_id2pos', 32, 0, False, 2), (layout['ID2POS'], 'modwerk_fx2_id2pos', 32, 0, False, 2)):
+        if terminated and read(table + 4 * words):
+            raise ValueError('Stock\'s table at %#x is not 32 entries and a 0.' % table)
+        entries = [value if fx in modules else read(table + 4 * fx) for fx in range(ids)] + ([0] if terminated else [])
+        c += 'uint32_t %s[%d] = {%s};\n' % (symbol, len(entries), ', '.join('%#xu' % e for e in entries))
+        found, needle, at = [], table.to_bytes(4, 'big'), image.find(table.to_bytes(4, 'big'))
+        while at >= 0:
+            found.append(0x40000400 + at)
+            at = image.find(needle, at + 1)
+        # lea abs.l,%aN is 0x41f9 | N << 9, then the address
+        if len(found) != leas or any(int.from_bytes(image[a - 0x40000400 - 2:a - 0x40000400], 'big') & 0xf1ff != 0x41f9 for a in found):
+            raise ValueError('Stock\'s table at %#x is not named by %d lea operands alone.' % (table, leas))
+        sites += [dict(addr=hex(a), stock=needle.hex(), op='ptr', target=symbol) for a in found]
+    c += ''.join('uint32_t modwerk_%s_list[%d] = {%s};\n' % (slot, ids, ', '.join('%#xu' % row for row in rows)) for slot, rows in lists.items())
     c += 'const uint32_t modwerk_fx_rows[2] = {%d, %d};\n' % (len(lists['fx1']), len(lists['fx2']))
     return sites, c

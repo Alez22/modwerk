@@ -25,9 +25,10 @@ uint32_t modwerk_test_tables[4][MODWERK_FX_IDS];
 #define ADDR(pointer) ((uint32_t)((const uint8_t *)(pointer) - modwerk_test_memory))
 static uint8_t (*const pages)[0x1a0] = (uint8_t (*)[0x1a0])(modwerk_test_memory + 0x10000);
 #else
-/* FX1_IDS, FX2_IDS, FX1_ID2POS and ID2POS (src/engine/assets/chooser-metadata.json's layout). */
-static volatile uint32_t *const tables[4] = {(volatile uint32_t *)0x400d5f58u, (volatile uint32_t *)0x400d5fdcu,
-                                             (volatile uint32_t *)0x400d60d0u, (volatile uint32_t *)0x400d6150u};
+/* The base's copies of FX1_IDS, FX2_IDS, FX1_ID2POS and ID2POS, MODWERK_FX_IDS long (dsp_loader.py choosers: stock's
+ * 18 lea operands name them instead of stock's own). */
+extern uint32_t modwerk_fx1_ids[], modwerk_fx2_ids[], modwerk_fx1_id2pos[], modwerk_fx2_id2pos[];
+static volatile uint32_t *const tables[4] = {modwerk_fx1_ids, modwerk_fx2_ids, modwerk_fx1_id2pos, modwerk_fx2_id2pos};
 #define TABLE(which) (tables[which])
 #define DONOR_LOW 0x40000400u  /* a donor is a stock descriptor in the OS image's RAM copy */
 #define DONOR_HIGH 0x400de1e0u

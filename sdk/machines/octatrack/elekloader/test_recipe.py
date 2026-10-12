@@ -230,11 +230,11 @@ class RuntimeSlotTests(unittest.TestCase):
     def test_status_keys_on_the_host(self):
         self.host_test('test_status.c')
 
-    def test_the_base_at_160_effect_ids_on_the_host(self):
+    def test_the_base_at_128_effect_ids_on_the_host(self):
         # docs/OCTATRACK_MORE_EFFECT_IDS.md: the base behind MODWERK_FX_IDS works past 32 before the tables move.
         for test in ('test_dsp.c', 'test_fxpage.c', 'test_status.c'):
             with self.subTest(test):
-                self.host_test(test, defines=('-DMODWERK_FX_IDS=160u',))
+                self.host_test(test, defines=('-DMODWERK_FX_IDS=128u',))
 
     def test_allocator_move_on_the_host(self):
         """build_core.py's edits to Octabam's allocator, applied to copies, with test_move.c."""

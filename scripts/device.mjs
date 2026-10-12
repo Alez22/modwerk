@@ -117,10 +117,20 @@ async function mem(at, length) {
   await devIn(15, at >>> 16, 1)
   return (await devIn(16, at & 0xffff, n)).subarray(0, length)
 }
+/** The effect id tables, wherever the base keeps them: stock names each only by lea operands, which a base
+ * repoints at its own copies (dsp_loader.py choosers): FX1_IDS and FX2_IDS (id -> descriptor, its name at +9, then
+ * a 0, which gives the id count) and FX1_ID2POS and ID2POS (id -> chooser row). */
+async function effectTables() {
+  const operand = async at => new DataView((await mem(at, 4)).buffer).getUint32(0)
+  const [fx1, fx2, row1, row2] = [await operand(0x40052798), await operand(0x4005252a), await operand(0x40037aa8), await operand(0x4003770c)]
+  const words = async (at, n) => { const b = await mem(at, 4 * n), v = new DataView(b.buffer, b.byteOffset, 4 * n); return Array.from({ length: n }, (_, i) => v.getUint32(4 * i)) }
+  const first = await words(fx1, 129), count = first.indexOf(0) < 0 ? 128 : first.indexOf(0)
+  return { count, ids: [first.slice(0, count), await words(fx2, count)], rows: [await words(row1, count), await words(row2, count)] }
+}
 /** What the unit shows, as text: each track's effects (their descriptors' names), the current track, transport. */
 async function ui() {
   const track = (await mem(0x80000000, 1))[0], live = await mem(0x80000ec4, 16)
-  const tables = await mem(0x400d5f58, 260), view = new DataView(tables.buffer, tables.byteOffset, 260), names = new Map()
+  const tables = await effectTables(), names = new Map()
   const name = async descriptor => {
     if (!names.has(descriptor)) names.set(descriptor, Buffer.from(await mem(descriptor + 9, 13)).toString('latin1').replace(/\0.*$/s, ''))
     return names.get(descriptor)
@@ -128,7 +138,7 @@ async function ui() {
   const [stopped, recording] = await devIn(6, 0, 2)
   const lines = []
   for (let t = 0; t < 8; t++)
-    lines.push(`${t === track ? '>' : ' '}T${t + 1} ${(await name(view.getUint32(4 * live[t]))).padEnd(12)} ${await name(view.getUint32(132 + 4 * live[8 + t]))}`)
+    lines.push(`${t === track ? '>' : ' '}T${t + 1} ${(await name(tables.ids[0][live[t]])).padEnd(12)} ${await name(tables.ids[1][live[8 + t]])}`)
   console.log(lines.join('\n') + `\npart ${(await mem(0x80000003, 1))[0] + 1}, ${stopped ? 'stopped' : 'playing'}${recording ? ', recording' : ''}`)
 }
 /** Wait until test() holds, polling every 50 ms; false after ms. */
@@ -141,17 +151,16 @@ async function part(n) {
   await keys('PART+' + ['UP', 'RIGHT', 'DOWN', 'LEFT'][n - 1])
   if (!await until(async () => (await mem(0x80000003, 1))[0] === n - 1)) throw new Error('Part ' + n + ' did not become active.')
 }
-/** Pick an effect by name through the stock chooser, then wait until the track runs it. Stock's tables: FX1_IDS / FX2_IDS
- * (id -> descriptor, its name at +9) and FX1_ID2POS / ID2POS (id -> chooser row); what runs, 0x80000ec4 (FX1 T1-8, FX2). */
+/** Pick an effect by name through the stock chooser, then wait until the track runs it (effectTables: id -> descriptor
+ * and id -> chooser row); what runs, 0x80000ec4 (FX1 T1-8, FX2). */
 async function pick(track, slot, wanted) {
-  const ids = await mem(slot === 1 ? 0x400d5f58 : 0x400d5fdc, 128), rows = await mem(slot === 1 ? 0x400d60d0 : 0x400d6150, 128)
-  const word = (b, i) => new DataView(b.buffer, b.byteOffset).getUint32(4 * i)
+  const tables = await effectTables(), ids = tables.ids[slot - 1], rows = tables.rows[slot - 1]
   let id = -1
-  for (let i = 0; i < 32 && id < 0; i++)
-    if (word(ids, i) && Buffer.from(await mem(word(ids, i) + 9, 13)).toString('latin1').replace(/\0.*$/s, '').toLowerCase() === wanted.toLowerCase()) id = i
+  for (let i = 0; i < tables.count && id < 0; i++)
+    if (ids[i] && Buffer.from(await mem(ids[i] + 9, 13)).toString('latin1').replace(/\0.*$/s, '').toLowerCase() === wanted.toLowerCase()) id = i
   if (id < 0) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
   await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
-  const move = word(rows, id) - word(await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4), 0) // the chooser's cursor (dsp.c)
+  const move = rows[id] - new DataView((await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4)).buffer).getUint32(0) // the chooser's cursor (dsp.c)
   if (move) await run(`encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100`) // LEVEL scrolls the chooser, a row a detent
   const refused = (await statusWords())(21), start = Date.now()
   await keys('YES')

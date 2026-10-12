@@ -100,8 +100,9 @@ DSP_ALLOWANCE = (3120, 3565)
 # The dearest stock effect per slot, chip cycles: DJ EQUALIZER, 342 a sample on the same unit (its 331 executed
 # instructions in the emulator, stock_dsp_worst.py, run at about one a cycle). Every slot without a module is charged it.
 DSP_RESERVE = 342
-# Effect ids the base handles (fxids.h MODWERK_FX_IDS; 160 is the plan, docs/OCTATRACK_MORE_EFFECT_IDS.md).
+# Effect ids the base handles (fxids.h MODWERK_FX_IDS; 128 is the plan, docs/OCTATRACK_MORE_EFFECT_IDS.md).
 FX_IDS = 32
+VALIDATOR_CLAMPS = (0x400023b6, 0x400023bc, 0x400023de, 0x400023e4)  # the Part validator's moveq #31, FX1 then FX2
 FX_WORDS = (FX_IDS + 31) // 32
 # Modules installed at once and their memory (loader.h; owner, 12 October 2026: up to 128 modules). About 5 KB a
 # module today; the pool is taken from sample memory at boot (core-ot's arena pages), and modset.c keeps a copy of
@@ -691,10 +692,10 @@ def main():
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
                         help='with --dsp-loader, calibration only: core 0\'s receiver spends this many more cycles (2-4094, even) every frame; negative, core 1\'s.')
-    parser.add_argument('--fx-ids', type=int, choices=(32, 160), default=32,
-                        help='with --dsp-loader, development only: the base\'s effect ids (fxids.h). 160 compiles and links the '
-                             'base and transport to check them; the image is not kept, since the DSP and ColdFire tables are '
-                             'still 32 wide (docs/OCTATRACK_MORE_EFFECT_IDS.md steps 4-5).')
+    parser.add_argument('--fx-ids', type=int, choices=(32, 128), default=32,
+                        help='with --dsp-loader, development only: the base\'s effect ids (fxids.h). 128 compiles and links the '
+                             'base, transport and ColdFire tables to check them; the image is not kept, since the DSP\'s tables are '
+                             'still 32 wide (docs/OCTATRACK_MORE_EFFECT_IDS.md step 4).')
     args = parser.parse_args()
     global FX_IDS, FX_WORDS
     FX_IDS, FX_WORDS = args.fx_ids, (args.fx_ids + 31) // 32
@@ -802,7 +803,14 @@ def main():
                 raise ValueError('An FX selector no longer reads its chooser list at %#x.' % lea)
         dsp_sites, dsp_layout = loader_dsp.recipe(image, device, dsp, lambda path: sdk.dsp_assemble(path, str(source)), str(source),
                                                   args.dsp_probe if args.dsp_probe in ('A', 'B') else None, args.dsp_burn)
-        chooser_sites, chooser_lists = loader_dsp.choosers(image)
+        chooser_sites, chooser_lists = loader_dsp.choosers(image, FX_IDS)
+        # The Part validator (0x40002318; bank load, battery restore) clears an id that reads negative and clamps one
+        # above 31 to 31: four `moveq #31` (docs/OCTATRACK_MORE_EFFECT_IDS.md). Past 32 ids they clamp to the last.
+        for at in (VALIDATOR_CLAMPS if FX_IDS != 32 else ()):
+            word = image[at - device.main_load:at - device.main_load + 2]
+            if word[0] & 0xf1 != 0x70 or word[1] != 31:
+                raise ValueError('The Part validator\'s clamp at %#x is not moveq #31.' % at)
+            chooser_sites.append(dict(addr=hex(at), stock=word.hex(), op='bytes', new=bytes((word[0], FX_IDS - 1)).hex()))
         dsp_sites += chooser_sites
     (source/'usb_base.h').write_text(usb.header())
     (source/'usb_base.s').write_text(usb.assembly(args.dev))
@@ -1033,10 +1041,10 @@ modwerk_retained_end:
     (out/'proofs.json').write_text(json.dumps(report, indent=2)+'\n')
     if sha(args.stock.read_bytes()) != stock_sha:
         raise ValueError('Input stock file changed.')
-    if FX_IDS != 32:  # a width check only: the tables it needs do not exist yet
+    if FX_IDS != 32:  # a width check only: the DSP's tables are still 32 wide
         for name in ('MAIN.raw', 'NOT_FLASH_CANDIDATE.bin', 'NOT_FLASH_CANDIDATE.syx'):
             (out / name).unlink(missing_ok=True)
-        print('Built and linked at %d effect ids; no image kept: it must not boot until the DSP and ColdFire tables move.' % FX_IDS)
+        print('Built and linked at %d effect ids; no image kept: it must not boot until the DSP\'s tables move (step 4).' % FX_IDS)
         return
     print('Private source-linked core prototype saved. Do not flash; qualification is pending.')
 

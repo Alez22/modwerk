@@ -53,8 +53,8 @@ def part_fx(part, saved=False): return mem(u32(BANK) + (0x9504a if saved else 0x
 def part_copy(part, saved=False): return mem(u32(BANK) + (0x9504a if saved else 0x8ed80) + part * 6322, 6322)
 def part_saved_equal(): part = mem(PART, 1)[0]; return part_copy(part) == part_copy(part, saved=True)
 def frames(): return int(re.search(r'frames=(\d+)', send('report')).group(1))
-FX_IDS = {1: 0x400d5f58, 2: 0x400d5fdc}  # FX1_IDS, FX2_IDS: id -> descriptor, its name at +9
-def fx_name(slot, fx): return mem(u32(FX_IDS[slot] + 4 * fx) + 9, 16).split(b'\0')[0].decode('latin1').upper().replace(' ', '_')
+FX_IDS = {1: 0x40052798, 2: 0x4005252a}  # lea operands naming FX1_IDS and FX2_IDS (id -> descriptor, its name at +9)
+def fx_name(slot, fx): return mem(u32(u32(FX_IDS[slot]) + 4 * fx) + 9, 16).split(b'\0')[0].decode('latin1').upper().replace(' ', '_')
 
 
 def restore_part(part, saved):

@@ -29,10 +29,11 @@ def capture(out, seconds):
             states.append(dict(t=round(time.time() - start, 3), cores=cores))
             print('%.2f s: %s' % (states[-1]['t'], {c: v['blocks'] for c, v in cores.items()}), file=sys.stderr)
     names = {}  # after the run: reading them takes longer than the base waits before it moves
-    table = qualify.mem(0x400d5fdc, 128)  # FX2_IDS: id -> descriptor, name at +9
-    for i in range(32):
+    table = qualify.mem(qualify.u32(0x4005252a), 4 * 128)  # FX2_IDS, named by a lea operand: id -> descriptor, name at +9
+    for i in range(128):
         d = int.from_bytes(table[4 * i:4 * i + 4], 'big')
-        if d: names[i] = qualify.mem(d + 9, 13).split(b'\0')[0].decode('latin1').strip()
+        if not d: break  # the table's closing 0: the id count
+        names[i] = qualify.mem(d + 9, 13).split(b'\0')[0].decode('latin1').strip()
     Path(out).write_text(json.dumps(dict(names=names, states=states)))
 
 
