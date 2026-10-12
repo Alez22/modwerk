@@ -55,6 +55,13 @@ def part_saved_equal(): part = mem(PART, 1)[0]; return part_copy(part) == part_c
 def frames(): return int(re.search(r'frames=(\d+)', send('report')).group(1))
 FX_IDS = {1: 0x40052798, 2: 0x4005252a}  # lea operands naming FX1_IDS and FX2_IDS (id -> descriptor, its name at +9)
 def fx_name(slot, fx): return mem(u32(u32(FX_IDS[slot]) + 4 * fx) + 9, 16).split(b'\0')[0].decode('latin1').upper().replace(' ', '_')
+def chooser_names(slot):  # every effect's name in a chooser table (128 ids at most; a 0 ends a shorter table)
+    table = mem(u32(FX_IDS[slot]), 4 * 128)
+    return [fx_name(slot, fx) for fx in range(128) if int.from_bytes(table[4 * fx:4 * fx + 4], 'big')]
+def chooser_name(names, name):
+    """The chooser's name for an installed package: its page may say more than the package (Spectrum79 for Spectrum)."""
+    want = name.upper().replace(' ', '_')
+    return want if want in names else next((n for n in names if n.startswith(want)), want)
 
 
 def restore_part(part, saved):
@@ -114,6 +121,8 @@ def main():
     names = [line[4:16].strip() for line in send('ui').splitlines()[:8]], [line[17:].strip() for line in send('ui').splitlines()[:8]]
     try:
         for p in pkgs: send('try ' + p['path'])
+        listed = {1: chooser_names(1), 2: chooser_names(2)}
+        for p in pkgs: p['name'] = chooser_name(listed[2 if p['slots'] & 2 else 1], p['name'])
         for p in pkgs:
             if not p['dsp']: continue
             slot = 2 if p['slots'] & 2 else 1
@@ -166,6 +175,9 @@ def main():
             if not until(lambda: mem(0x800065bd, 2) == bytes([bank, pattern]), 20):
                 failures.append('the queued change to bank %d pattern %d did not land within 20 s' % (bank + 1, pattern + 1)); break
             running(failures, 'after the change to bank %d' % (bank + 1))
+        # A track takes the new bank's effects at its next trig; one without trigs keeps the old: a Part switch there and
+        # back puts the start Part's effects on every track.
+        send('part%d part%d' % ((start_part + 1) % 4 + 1, start_part + 1))
         if args.soak:
             result['soak'] = []
             for _ in range(args.soak // 10):
