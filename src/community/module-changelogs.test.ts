@@ -50,7 +50,9 @@ describe('module release notes', () => {
     expect(html).toContain('module-release-notes')
     expect(html).toContain('Current version')
     expect(html).toContain('View changes')
-    expect(html).toContain(moduleChangelogs[id][0].sourceCommit)
+    const sourceCommit = moduleChangelogs[id][0].sourceCommit
+    if (sourceCommit) expect(html).toContain(sourceCommit)
+    expect(html).toContain(moduleChangelogs[id][0].changes[0])
     expect(html).not.toContain('Loading changelog')
     expect(html).not.toContain('No release history')
   })

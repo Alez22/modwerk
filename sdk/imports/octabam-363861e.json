@@ -393,13 +393,19 @@
       "revision": "363861e31ee963c478fab2b190a0fabe1d7ce37b",
       "sourcePath": "modules/quantizer/README.md",
       "sourceSha256": "7361d0da558aac29b9d02752bab6c9cc7d569d83d81a843988df767e29bb3c69",
-      "vendoredSha256": "e19df9692d4febc6fa63a0e9d3d1fb40c3de866b84a97697b2e6aa5fcc30a913",
+      "vendoredSha256": "c227405736714e02df40baff8695fb617e4d63f8c3179775ee76f9c7a549d609",
       "importedVendoredSha256": "7ffc975e6de64f77478f4f9bdce8ee2b43dbe5a0a704bff0acfa0e61f2cf0a65",
       "adaptation": " Octamod 0.1.1 version and native verification evidence appended; imported fingerprint retained.",
       "localDocumentationUpdate": {
         "moduleVersion": "0.1.2-experimental",
         "previousVendoredSha256": "095c6e3a93c4278943cbc7c692db5d6c5099b1ae9805d203b90ef533f3ad5c1b",
         "reason": "Add actual OT UI access/capture documentation; native import and original upstream fingerprints preserved."
+      },
+      "localReleaseUpdate": {
+        "moduleVersion": "0.1.3-experimental",
+        "previousVendoredSha256": "e19df9692d4febc6fa63a0e9d3d1fb40c3de866b84a97697b2e6aa5fcc30a913",
+        "record": "octabam/modules/quantizer/TESTING.md",
+        "reason": "Repair standalone MIDI trig-mode drawer stack corruption (#181), synchronize current-version tutorial and exact software evidence. Original author/source fingerprints and prior adaptations are preserved."
       }
     },
     {
@@ -618,7 +624,13 @@
       "revision": "525f4b19b04dc3ba3f3bae3b25abbf48df34a10a",
       "sourcePath": "quantizer/manifest.py",
       "sourceSha256": "b28a9a120e3e6e5e4a5719404f8ff56667c22b582a0fd4595315b4d20ac7d9a4",
-      "vendoredSha256": "3a8ba2d366320ce702b02129386e3d384f0e9d6ae7df64e4811b32f3e08e4011"
+      "vendoredSha256": "e637e3718e4b65320b847ef0758e0d46800f8be6b8020290f89192c798c535ef",
+      "localReleaseUpdate": {
+        "moduleVersion": "0.1.3-experimental",
+        "previousVendoredSha256": "3a8ba2d366320ce702b02129386e3d384f0e9d6ae7df64e4811b32f3e08e4011",
+        "record": "octabam/modules/quantizer/TESTING.md",
+        "reason": "Repair standalone MIDI trig-mode drawer stack corruption (#181), synchronize current-version tutorial and exact software evidence. Original author/source fingerprints and prior adaptations are preserved."
+      }
     },
     {
       "path": "modules/quantizer/upstream/quantizer/quantizer.s",
@@ -626,7 +638,13 @@
       "revision": "525f4b19b04dc3ba3f3bae3b25abbf48df34a10a",
       "sourcePath": "quantizer/quantizer.s",
       "sourceSha256": "91f34be65891fdc61988a3d3a7736b55457572355ffc42d0f423df688e1698fb",
-      "vendoredSha256": "91f34be65891fdc61988a3d3a7736b55457572355ffc42d0f423df688e1698fb"
+      "vendoredSha256": "b14f214cc8236c19b8881d1113ea42359052a6d7ef0e9e0f02aaa88279da64a9",
+      "localReleaseUpdate": {
+        "moduleVersion": "0.1.3-experimental",
+        "previousVendoredSha256": "91f34be65891fdc61988a3d3a7736b55457572355ffc42d0f423df688e1698fb",
+        "record": "octabam/modules/quantizer/TESTING.md",
+        "reason": "Repair standalone MIDI trig-mode drawer stack corruption (#181), synchronize current-version tutorial and exact software evidence. Original author/source fingerprints and prior adaptations are preserved."
+      }
     },
     {
       "path": "modules/quantizer/upstream/quantizer/scale.s",
@@ -1156,9 +1174,9 @@
     },
     {
       "path": "modules/quantizer/upstream/quantizer/manifest.py",
-      "address": 1074022840,
+      "address": 1074022846,
       "bytes": 8,
-      "sha256": "ba228773be7f5a27bf35390c81bc6b1947b642d5fd23ea9b5153ad3b48b54ff6"
+      "sha256": "494435e3f72313a14453f642bdba5b064022c657c63c015752fe23092eabd19f"
     },
     {
       "path": "modules/quantizer/upstream/quantizer/manifest.py",

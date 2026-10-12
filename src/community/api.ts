@@ -1,4 +1,11 @@
 import { apiUrl, communityBase } from '../hosting'
+import { createReadRecovery } from './read-recovery'
+const readRecoveries = new Map<string, ReturnType<typeof createReadRecovery>>()
+function readRecovery() {
+  const base = communityBase()
+  if (!readRecoveries.has(base)) readRecoveries.set(base, createReadRecovery())
+  return readRecoveries.get(base)!
+}
 const sessionKey = () => 'octamod.community.session:' + communityBase()
 const adminKey = () => 'octamod.community.admin:' + communityBase()
 const developerKey = () => 'modwerk.developer.session:' + communityBase()
@@ -22,19 +29,28 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   const replayable=method==='GET'?!path.includes('/auth/')||path==='/auth/session'||path==='/developer/auth/session':method==='PATCH'&&(path==='/notifications'||path==='/announcements/mine')
   const attempts=replayable?2:1
   const unreachable=()=>new Error('Couldn’t reach the Modwerk community service. Check your connection or content blocker, then try again. Your local workspace still works.')
+  const recovery=method==='GET'&&replayable?await readRecovery().begin(options.signal??undefined):undefined
+  if(recovery===null)throw unreachable()
   let result: Response|null=null
-  for(let attempt=0;attempt<attempts;attempt++){
-    try {
-      const timeout=AbortSignal.timeout(method==='GET'?10000:30000)
-      const signal=options.signal?AbortSignal.any([options.signal,timeout]):timeout
-      result=await fetch(apiUrl(path),{...options,headers,signal,credentials:'same-origin',redirect:'error'})
-      if(result.status<500||attempt===attempts-1)break
-      await result.body?.cancel()
-    } catch {
-      if(options.signal?.aborted||attempt===attempts-1)throw unreachable()
+  let reachable: boolean|undefined
+  try {
+    for(let attempt=0;attempt<attempts;attempt++){
+      if(options.signal?.aborted)throw unreachable()
+      try {
+        // Leave room for occasional slow network/edge responses; a ten-second cutoff drops live reads.
+        const timeout=AbortSignal.timeout(30000)
+        const signal=options.signal?AbortSignal.any([options.signal,timeout]):timeout
+        result=await fetch(apiUrl(path),{...options,headers,signal,credentials:'same-origin',redirect:'error'})
+        // Any HTTP response proves connectivity; one route's server error must not pause every route.
+        if(result.status<500||attempt===attempts-1){reachable=true;break}
+        await result.body?.cancel()
+      } catch {
+        if(options.signal?.aborted)throw unreachable()
+        if(attempt===attempts-1){reachable=false;throw unreachable()}
+      }
+      await new Promise(resolve=>setTimeout(resolve,200))
     }
-    await new Promise(resolve=>setTimeout(resolve,200))
-  }
+  } finally { recovery?.finish(reachable) }
   if(!result)throw unreachable()
   const next = result.headers.get('X-Octamod-Session')
   const nextDeveloper=result.headers.get('X-Modwerk-Developer')

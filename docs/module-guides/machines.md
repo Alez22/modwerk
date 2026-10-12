@@ -32,6 +32,7 @@ Test in layers, as Analog BD does: the DSP engine, the ColdFire glue, the port (
 - [ ] It lives in the stock menu where the setting belongs. Scale Quantizer's rows are PROJ → CONTROL → SEQUENCER.
 - [ ] **OFF restores stock behaviour** exactly (SCALE OFF is stock pitch behaviour). Test it.
 - [ ] It works on every track type it claims, and the README lists the ones it does not (Flex, Static and Pickup are covered; synth behaviour depends on a machine outside this catalog).
+- [ ] **Shared audio/MIDI drawers keep their calling convention.** Before replacing a ColdFire span, inspect every branch target inside it, including MIDI paths that enter after an audio-only load. Reproduce the displaced argument pushes on every entry path. Exercise FUNC+UP/DOWN on MIDI tracks while holding the popup through a redraw; brief taps can miss stack corruption. Quantizer 0.1.3 moves its octave detour to the common argument push for this reason ([#181](https://github.com/repeat98/modwerk/issues/181)).
 - [ ] It acts on everything that makes pitch, not only live edits. Scale Quantizer snaps the PTCH knob, chromatic trig keys **and parameter locks** to the scale. **Verify** locked values at both ends of the range.
 - [ ] **Persistence.** A setting and its defaults survive Part Save and project save and load, or the README says they do not. Settings storage today is "nowhere, or a private file" ([MODULES.md](../../sdk/octabam/docs/remixer/MODULES.md#settings-on-the-card)); do not invent a file format.
 

@@ -1,16 +1,18 @@
 # E-Verb
 
-Version: 0.1.0-experimental · author: [@user1303836](https://github.com/user1303836)
+Version: 0.1.1-experimental · author: [@user1303836](https://github.com/user1303836)
 
 A modulated feedback delay network reverb for the Octatrack's FX2 slot, modelled after Tom Erbe's
 Erbe-Verb: a space you can shrink to a two-millisecond box or stretch to a hall, decay past 100 % into a
 saturating drone, absorb or diffuse, swirl with a chorus, smear with random grains or lift with octave
 shimmer, reverse, and tilt dark or bright. Original code, written from Erbe's published paper.
 
-**Status: experimental release** (`sdk/octabam/modules/everb/`). The owner reports a positive
-functional audition on MKII using the exact private EVRB01T01 build. See
-[evidence/owner-hardware.md](evidence/owner-hardware.md) for actual statements and coverage limits.
-The source, emulator gates, performance record, sound audit and real LCD captures are unchanged.
+**Status: experimental release** (`sdk/octabam/modules/everb/`). 0.1.1 gives SIZE, DCY, ABSB and SPD
+the FUNC + turn stops MIX and DPTH already had: 0, the centre (64) and 127
+([#438](https://github.com/repeat98/modwerk/issues/438)). Nothing else changes; the DSP code is
+byte-identical to 0.1.0. The owner reports a positive functional audition of 0.1.0 on MKII using the
+exact private EVRB01T01 build; see [evidence/owner-hardware.md](evidence/owner-hardware.md) for actual
+statements and coverage limits. 0.1.1 has been measured on the emulator only.
 
 ## Overview
 
@@ -55,6 +57,9 @@ Main page (FX2), all lockable, LFO, scene and MIDI CC destinations:
 | E SPD | 64 | 0–127 | Modulation speed, 0.5 Hz at 0 to 256 Hz at 127 (about 12 Hz at 64): the cyclic rate, or how often a grain starts. In the shimmer zone a grain lasts a fixed share of the line length instead, so SIZE sets its pace. |
 | F MIX | 51 | 0–127 | Equal-power dry/wet. 0 is exactly the dry input; 127 is all reverb. |
 
+Hold FUNC while turning a knob to jump between 0, the centre and 127, as on the stock reverbs' MIX. The
+centre stop is 64 whatever the knob's default.
+
 SETUP page (FUNC + FX2), set per Part like a stock effect's SETUP page:
 
 | Knob | Default | Range | What it does |
@@ -98,9 +103,10 @@ holds the chord for that step.
 - **Octatrack MKI and MKII, OS 1.40C**, FX2 of any audio track, all eight tracks (four instances per DSP
   core). FX2 only: the effect needs the 16K-word delay buffer that the OS gives FX2 instances. Effect ID
   0x1b (27).
-- **Hardware report:** the owner reports a positive MKII functional audition on EVRB01T01.
+- **Hardware report:** the owner reports a positive MKII functional audition of 0.1.0 on EVRB01T01.
   Detailed coverage and unreported tests remain explicit in [the hardware report](evidence/owner-hardware.md).
-  MKI, full-load chip timing and broader hardware acceptance are not established.
+  0.1.1 has not run on hardware: it changes four editor words in E-Verb's FX2 page descriptor and
+  nothing on the DSP. MKI, full-load chip timing and broader hardware acceptance are not established.
 - **What a build with E-Verb gives up.** The site builds stock DSP code in, so a module's code takes the
   space of stock effects listed on neither menu. E-Verb's 1,588 words take the space of two of the
   FX2-only stock reverbs. On its own it gives up **SPRING REV and DARK REV**: they are missing from the FX2
@@ -113,7 +119,8 @@ holds the chord for that step.
   panel shows for that slot is not tested.
 - **No change to any stock flow.** E-Verb adds one chooser row and its own pages. Menus, gestures,
   saving and loading, Parts, scenes, recording, MIDI and timing are untouched. It takes over no MIDI
-  message and adds no ColdFire code.
+  message and adds no ColdFire code: its knobs use stock's own editors (FUNC + turn stops at 0, 64
+  and 127 through the editor of the stock reverbs' MIX).
 - **The SETUP page is not lockable.** The Octatrack stores parameter locks (and LFO, scene and MIDI CC
   targets) for the six main-page knobs of each FX slot only, so TILT, PRE, REV, EDCY and ESIZ are set per
   Part, as on every stock effect's SETUP page. Which six are on the main page was the author's choice:
@@ -150,10 +157,11 @@ holds the chord for that step.
 
 [TESTING.md](TESTING.md) has every command and result. In short:
 
-- **Render gates** (`python3 modules/everb/verify.py` from the native SDK, all 26
-  passing): the source and init rules; static cycles; placement in a real native image; exact dry at MIX
-  0 with knobs moving and trig splits; the pre-delay, decay and stereo laws; settling after the input
-  stops. Also eight instances isolated under `dsp_host -guard 0x4000 -guard-shared -dirty`, garbage
+- **Render gates** (`python3 modules/everb/verify.py` from the native SDK, all 27
+  passing): the source and init rules; static cycles; placement in a real native image; every knob's
+  FUNC editor in the built descriptor; exact dry at MIX 0 with knobs moving and trig splits; the
+  pre-delay, decay and stereo laws; settling after the input stops. Also eight instances isolated
+  under `dsp_host -guard 0x4000 -guard-shared -dirty`, garbage
   start, no zipper on any continuous knob, trig splits, REV switching without clicks, DPTH locked between
   shimmer and chorus every 70 ms, and EDCY unable to hold a loud tail.
 - **Performance** ([evidence/performance.json](evidence/performance.json)): 468 cycles/sample static per
@@ -163,7 +171,11 @@ holds the chord for that step.
   hang.
 - **Sound** (`npm run fx:audit`): every −12 dBFS tone is clean at the defaults; the tables, the loud-tone
   limits and the same audit of the stock reverbs are in TESTING.md.
-- **Hardware**: owner-reported MKII functional audition; see the exact-build report and its limits.
+- **FUNC stops** (`python3 modules/everb/func_stops.py`): the firmware's own panel code on the ColdFire
+  emulator, FUNC held, quick turns on each main-page knob: every knob steps 0, 64 and 127. On 0.1.0 the
+  same run fails on SIZE, DCY, ABSB and SPD (0 and 127 only), which reproduces #438.
+- **Hardware**: owner-reported MKII functional audition of 0.1.0; see the exact-build report and its
+  limits. 0.1.1 is not tested on hardware.
 
 ## Authorship and licences
 
@@ -192,4 +204,4 @@ the interface only, not sound or hardware behaviour.
 
 More screenshots: ![The FX2 main page at the defaults.](media/ot-main.png) ![The SETUP page with REV switched ON.](media/ot-reverse.png)
 
-**Audio preview.** [Listen](media/audio-preview.mp3). One chord stab, played three times: dry, then the Hall starting point (SIZE 110, DCY 90, ABSB 45, MIX 70), then the Shimmer pad starting point (SIZE 100, DCY 100, ABSB 70, DPTH +56, MIX 100). It is an offline render on a computer through the module's own code, not a recording of an Octatrack. The sample, settings and method are in [audio-preview.json](media/audio-preview.json); rights are in [media rights](media/LICENSE.md).
+**Audio preview.** [Listen](media/audio-preview.mp3). One chord stab, played three times: dry, then the Hall starting point (SIZE 110, DCY 90, ABSB 45, MIX 70), then the Shimmer pad starting point (SIZE 100, DCY 100, ABSB 70, DPTH +56, MIX 100). It is an offline render on a computer through version 0.1.0-experimental, not a recording of an Octatrack. The sample, settings and method are in [audio-preview.json](media/audio-preview.json); rights are in [media rights](media/LICENSE.md).

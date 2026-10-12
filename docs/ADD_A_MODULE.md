@@ -70,9 +70,9 @@ npm run modules:check -- --base origin/main   # version and publication rules fo
 
 Once your module is in the reviewed catalog, you can link your own Ko-fi page without changing its source or publishing a new module version. On Modwerk, open **Your account → Developer account**, verify the author/maintainer GitHub identity, claim the module, and save its HTTPS Ko-fi profile URL in **Developer workspace → Your Ko-fi page**. Visitors can then click the small cup beside your name to open an embedded tip dialog. You can replace or remove the link at any time. Support links are stored per module, including separate Digitakt and Digitone IDs. See [the developer workspace](DEVELOPER_WORKSPACE.md) for ownership rules.
 
-## Release notes (required for every module version)
+## Release notes (required for every fix and module version)
 
-Before publishing a new module or updating its version, add an entry under its community ID in `src/community/module-changelogs.json`. Octatrack IDs are the module ID (`euclid`); Digitakt and Digitone IDs include the machine (`digitakt-digihealth`, `digitone-digihealth`). Keep earlier entries. The module page’s Changelog tab shows these notes, including when live version history is unavailable.
+Every module fix must include its changelog update in the same PR; do not defer it until after the fix or release. Before publishing a new module or updating its version, add an entry under its community ID in `src/community/module-changelogs.json`. Octatrack IDs are the module ID (`euclid`); Digitakt and Digitone IDs include the machine (`digitakt-digihealth`, `digitone-digihealth`). Keep earlier entries. The module page’s Changelog tab shows these notes, including when live version history is unavailable.
 
 ```json
 {
@@ -82,13 +82,13 @@ Before publishing a new module or updating its version, add an entry under its c
 }
 ```
 
-Use the exact catalog/manifest version and the source-update date (`YYYY-MM-DD`). An optional `sourceCommit` is a full 40-character repository commit SHA; omit it until the referenced commit exists. Explain what changed, not just “updated module”. Mention changed controls, migration requirements and remaining limitations when relevant. Never imply hardware or audio testing that did not happen. Imported releases must distinguish upstream implementation changes from Modwerk packaging or documentation changes.
+Use the exact catalog/manifest version and the source-update date (`YYYY-MM-DD`). An optional `sourceCommit` is a full 40-character repository commit SHA; omit it until the referenced commit exists. Explain the actual fix or mitigation, not just “updated module”, and link the issue when available. Mention changed controls, migration requirements and remaining limitations when relevant. Never imply hardware or audio testing that did not happen. Imported releases must distinguish upstream implementation changes from Modwerk packaging or documentation changes.
 
 `npm run check -- --base origin/main` and `npm run build` reject missing current-version notes, duplicate/invalid versions, malformed dates and unknown module IDs. `node scripts/module-changelogs.mjs` runs just this inexpensive metadata check. Regenerate catalogs after a manifest version changes, then validate before committing. Notes live outside module source folders so adding them does not invalidate retained qualification records or trigger native compilation.
 
 The published release inventory includes these exact version-matched notes. Update emails include every change and limitation from that entry in HTML and plain text, with a link to the module’s Changelog tab. The Worker retains the published notes for delayed digests and refuses to announce a new version without them.
 
-Documentation-only changes do not need a version bump: update the current entry with a clearly marked documentation-only note if the change belongs in its release history. A new version, including a metadata-only version when deliberately published, must always have its own entry.
+Documentation/media-only fixes do not need a version bump unless requesting automatic author publication, but must add a clearly marked documentation-only or media-only note to the current entry in the same PR. A new version, including a metadata-only version when deliberately published, must always have its own entry.
 
 ## Documentation-only updates
 

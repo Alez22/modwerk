@@ -65,6 +65,9 @@ for (const variant of packages.get('resident-dsp.json').variants) {
 }
 const requested = packages.get('requested-packages.json')
 const composition = await json(resolve(native, 'modules/poly8/composition.json'))
+const quantizerRule = await json(resolve(native, 'modules/quantizer/composition.json'))
+if (quantizerRule.moduleId !== 'quantizer') throw new Error('Expected Quantizer composition rule')
+composition.groups = composition.groups.map(rule => rule.moduleId === 'quantizer' ? quantizerRule : rule)
 const importedComposition = structuredClone(requested.composition)
 for (const rule of importedComposition.groups) {
   if (rule.suppliedBy) {
