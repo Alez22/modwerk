@@ -109,26 +109,22 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .module-tile-state.is-set i { display: none; }
 .module-tile-state.is-legend { position: static; padding: 0; background: none; font-size: 12px; }
 .module-grid-summary:has(.is-legend) { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-/* Not on the unit yet: an outline of what will be there. */
-.module-tile.is-load { border: 1px dashed var(--accent-line); background: none; }
-.module-tile.is-load .compact-preview, .module-tile.is-load .stock-tile-art { opacity: .45; filter: saturate(.25); transition: opacity .2s, filter .2s; }
-.module-tile.is-load:hover .compact-preview, .module-tile.is-load:hover .stock-tile-art { opacity: .85; filter: none; }
-/* On the unit but leaving with the next load: hatched over its picture. */
+/* Keep the module's artwork at full colour in every sync state. The labels carry the change. */
+.module-tile.is-load { border-color: var(--accent-line); }
 .module-tile.is-leaving { border-color: #6a3f45; }
-.module-tile.is-leaving .module-tile-open { position: relative; }
-.module-tile.is-leaving .compact-preview { opacity: .6; }
-.module-tile.is-leaving .module-tile-open::before { content: ''; position: absolute; z-index: 1; inset: 0 0 auto; height: 112px; background: repeating-linear-gradient(135deg, #e8868e2e 0 1.5px, transparent 1.5px 8px); pointer-events: none; }
-.stock-tile.is-leaving .module-tile-open::before { height: 72px; }
-.module-tile-action { position: absolute; top: 5px; right: 5px; }
-.module-tile-action.icon-button { width: 26px; height: 26px; border-radius: 6px; background: #000b; opacity: 0; transition: opacity .15s; }
-.module-tile:hover .module-tile-action, .module-tile:focus-within .module-tile-action { opacity: 1; }
-.module-tile-action.text-button { padding: 3px 9px; border-radius: 6px; background: #000b; }
+.module-tile-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 0 8px 8px; }
+.module-tile-controls .module-tile-state { position: static; padding: 3px 2px; background: none; font-size: 11px; }
+.module-tile-action { flex: none; margin-left: auto; }
+.module-tile-action.icon-button, .module-tile-action.text-button { min-width: 32px; height: 32px; padding: 6px; border-radius: 6px; background: var(--surface); color: var(--text-secondary); }
+.module-tile-action.text-button { padding-inline: 10px; }
+.module-tile-action:hover { background: var(--surface-hover); color: var(--text); }
+.module-tile-action:active { background: var(--accent-soft); }
 .module-tile.is-add { border: 0; background: none; }
 .module-tile.is-add a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 100%; min-height: 168px; border: 1px dashed var(--control-border); border-radius: 10px; color: var(--muted); font-size: 11px; }
 .module-tile.is-add a:hover { border-color: var(--accent-line); color: var(--accent); }
 .module-tile.is-add strong { color: var(--text); font-size: 13px; }
 .module-grid-save { margin-top: 14px; }
-@media (hover: none) { .module-tile-action.icon-button { opacity: 1; } }
+@media (pointer: coarse), (max-width: 600px) { .module-tile-action.icon-button, .module-tile-action.text-button { min-width: 44px; height: 44px; } }
 .card-install { margin-bottom: 22px; }
 .card-install > summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .card-install[open] > summary { margin-bottom: 14px; }
@@ -214,6 +210,9 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .instrument-item .instrument-editing small { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; }
 .instrument-editing small.is-on { color: #c4e6cf; }
 .instrument-editing small.is-load { color: var(--accent); }
+.sidebar-build.is-connection { width: 100%; border-inline: 0; border-bottom: 0; background: none; color: var(--text); text-align: left; cursor: pointer; }
+.sidebar-build.is-connection strong { color: var(--accent); }
+.sidebar-build.is-connection:disabled { cursor: wait; }
 /* The hub: your module sets beside the unit, as a split view. */
 .hub-split { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .hub-sets { display: flex; flex-direction: column; min-width: 0; padding: 12px 8px; border-right: 1px solid var(--line); }
@@ -260,6 +259,10 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-footer .button { min-height: 40px; }
 @media (max-width: 1100px) { .hub-split { grid-template-columns: 240px minmax(0, 1fr); } .hub-unit-head .device-photo { width: 240px; } }
 @media (max-width: 760px) { .hub-split { grid-template-columns: 1fr; } .hub-sets { border-right: 0; border-bottom: 1px solid var(--line); } }
+@media (max-width: 600px) {
+  .hub-unit-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  .hub-unit-head .device-photo { grid-column: 1 / -1; width: 200px; max-width: 100%; }
+}
 /* The library's add control names the set it adds to (beta). */
 .unit-strip .button { min-height: 32px; margin-left: 6px; padding: 5px 12px; }
 .toolbar-load { flex-shrink: 0; height: 36px; padding: 0 12px; }
@@ -276,7 +279,6 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .load-change strong { display: block; font-size: 14px; font-weight: 500; }
 .load-change small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
 .load-change.is-leaving { border-color: #6a3f45; }
-.load-change.is-leaving .compact-preview { opacity: .5; }
 .load-change.is-on { background: none; }
 .load-change.is-card { border-color: #6b5a33; background: #2f2a20; }
 .load-change.is-card small { color: #e8cf9a; }

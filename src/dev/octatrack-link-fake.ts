@@ -140,15 +140,16 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
 /**
  * Dev previews (`?preview=usb-link|base-install&unit=base|stock|none|unsupported`): the link against a pretend
  * unit, driven from the console through `modwerkUsbPreview`: plug('base' | 'stock'), unplug(),
- * playing = true, taken = true. There is no pretend base build: a preview must never save a file
+ * playing = true, taken = true. Add `inventory=empty` to walk through a freshly installed base.
+ * There is no pretend base build: a preview must never save a file
  * that looks like firmware.
  */
 export function previewKit() {
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-  const kind = new URLSearchParams(window.location.search).get('unit')
+  const params = new URLSearchParams(window.location.search), kind = params.get('unit')
   if (kind === 'unsupported') return { link: new OctatrackLink(null) }
   const unit = fakeUnit(kind === 'stock' || kind === 'none' ? kind : 'base')
-  unit.installed = { moduleIds: ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: [] }
+  unit.installed = { moduleIds: params.get('inventory') === 'empty' ? [] : ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: [] }
   Object.assign(window, { modwerkUsbPreview: unit })
   return {
     link: new OctatrackLink(unit.usb, fakeSession(unit, 60)),

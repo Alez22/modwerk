@@ -8,7 +8,7 @@ export { InstrumentItem } from './InstrumentItem'
 export { CardInstall } from './UnitPanel'
 export { ModuleGrid, StateChip } from './ModuleGrid'
 export { ModuleDialog } from './ModuleDialog'
-export { OctatrackActivity, OctatrackStatus } from './OctatrackStatus'
+export { OctatrackActivity, OctatrackStatus, OctatrackSidebarStatus } from './OctatrackStatus'
 export { BaseInstallDialog } from './BaseInstallDialog'
 export { BetaModuleSets } from './BetaModuleSets'
 

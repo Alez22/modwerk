@@ -25,15 +25,15 @@ export function InstrumentItem({ device, set, href, link, current, inventory }: 
   const last = connection === 'off' || status === 'unsupported' ? lastInventory() : undefined
   const unit = status === 'connecting' ? 'Connecting…' : connection === 'busy' ? 'Syncing…'
     : status === 'connected' ? inventory ? inventory.moduleIds.length ? modules(inventory.moduleIds.length) + ' on it' : 'No modules on it' : 'Connected'
-    : status === 'stock' ? 'Original OS: install the base' : status === 'busy' ? 'In use by another tab or app' : last ? 'Last seen: ' + modules(last.moduleIds.length) : 'Not connected'
+    : status === 'stock' ? 'Original OS: install the base' : status === 'busy' ? 'In use by another tab or app' : 'Not connected'
   if (!link) return <a className="sidebar-device instrument-item" href={href} aria-current={current ? 'page' : undefined} aria-label={device.name + ', ' + (set ? set.name : 'No module set yet')}>
     <span className="instrument-picture"><DeviceImage device={device} eager /></span>
     <span><strong>{device.name}</strong><small>{set ? set.name : 'No module set yet'}</small></span>
     <Icon name="arrow" size={14} />
   </a>
   const known = status === 'connected' ? inventory?.moduleIds : last?.moduleIds
-  const on = !!set && !!known && sameModules(set.moduleIds, known)
-  const editing = on ? 'On your Octatrack' : known ? 'Not on your Octatrack yet' : ''
+  const on = status === 'connected' && !!set && !!known && sameModules(set.moduleIds, known)
+  const editing = on ? 'On your Octatrack' : status === 'connected' && known ? 'Not on your Octatrack yet' : last ? 'Last seen with ' + modules(last.moduleIds.length) : ''
   return <a className="sidebar-device instrument-item is-unit" href={href} aria-current={current ? 'page' : undefined}
     aria-label={device.name + ', ' + unit + (set ? '. Editing ' + set.name + ', ' + modules(set.moduleIds.length) + (editing ? ', ' + editing.toLowerCase() : '') : '')}>
     <span className="instrument-head">
@@ -44,7 +44,7 @@ export function InstrumentItem({ device, set, href, link, current, inventory }: 
     {set && <span className="instrument-editing">
       <em>Editing</em>
       <strong>{set.name}</strong><b>{modules(set.moduleIds.length)}</b>
-      {editing && <small className={on ? 'is-on' : 'is-load'}><span className={'unit-led is-' + (on ? 'on' : 'load')} />{editing}</small>}
+      {editing && <small className={on ? 'is-on' : status === 'connected' ? 'is-load' : ''}><span className={'unit-led is-' + (on ? 'on' : status === 'connected' ? 'load' : 'off')} />{editing}</small>}
     </span>}
   </a>
 }

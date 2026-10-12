@@ -2,6 +2,10 @@
 
 ## 12 October 2026
 
+- Beta Octatrack module tiles keep their artwork at full colour before syncing and when removing a module. State labels and Keep/remove controls sit below the artwork so they no longer cover thumbnail text; touch controls have 44px targets. The existing base-install introduction uses “Sync to Octatrack”, and the development preview can start with an empty base for the first-install walkthrough. Public library views are unchanged.
+- The beta sidebar prompts disconnected users to connect their Octatrack and original-OS users to install the base. Remembered modules are labelled “Last seen” rather than presented as currently connected.
+- On narrow screens the beta hub keeps the Octatrack connection status and install button below its photo, preventing horizontal overflow.
+
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.
 - Verified members can upload public audio previews with credits and optional captions. The renamed Previews tab lists submitted recordings with usernames and captions; contributors and administrators can remove them. Uploads use the existing media bucket with file/request limits, retry protection and account-deletion cleanup. Synthetic recordings remain development-only.

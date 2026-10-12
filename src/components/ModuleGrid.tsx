@@ -16,7 +16,7 @@ export const StateChip = ({ state, className = '', children }: { state: string; 
 export function ModuleGrid({ ids, inventory, describe, onOpen, onRemove, onKeep, onSaveUnit }: { ids: string[]; inventory?: Inventory; describe: (id: string) => string; onOpen: (id: string) => void; onRemove: (id: string) => void; onKeep: (id: string) => void; onSaveUnit: () => void }) {
   const leaving = inventory ? inventory.moduleIds.filter(id => !ids.includes(id)) : []
   const tiles = [...ids, ...leaving].map(id => ({ id, state: unitState(id, ids, inventory) }))
-  // Short chip words leave room for Keep and the remove button at the tile's top.
+  // State and actions sit below the artwork, where they cannot cover its labels.
   const changing = tiles.some(tile => tile.state === 'load' || tile.state === 'leaving')
   const chip: Record<UnitState, string> = { on: changing ? 'Stays' : 'On it', load: 'Adds', leaving: 'Leaves' }
   return <>
@@ -24,9 +24,11 @@ export function ModuleGrid({ ids, inventory, describe, onOpen, onRemove, onKeep,
       {tiles.map(({ id, state }) => { const module = MODULES.find(item => item.id === id), name = module?.name ?? id
         return <li key={id} className={'module-tile' + (state ? ' is-' + state : '')}>
           <button type="button" className="module-tile-open" aria-haspopup="dialog" disabled={!module} onClick={() => onOpen(id)}><ModulePreview id={id} compact /><strong>{name}</strong><small>{module ? describe(id) : 'Not in the library'}</small></button>
-          {state && <StateChip state={state}>{chip[state]}</StateChip>}
-          {state === 'leaving' ? module && <button type="button" className="module-tile-action text-button" aria-label={'Keep ' + name} onClick={() => onKeep(id)}>Keep</button>
-            : <button type="button" className="module-tile-action icon-button" aria-label={'Remove ' + name} onClick={() => onRemove(id)}><Icon name="close" size={15} /></button>}
+          <div className="module-tile-controls">
+            {state && <StateChip state={state}>{chip[state]}</StateChip>}
+            {state === 'leaving' ? module && <button type="button" className="module-tile-action text-button" aria-label={'Keep ' + name} onClick={() => onKeep(id)}>Keep</button>
+              : <button type="button" className="module-tile-action icon-button" aria-label={'Remove ' + name} onClick={() => onRemove(id)}><Icon name="close" size={15} /></button>}
+          </div>
         </li> })}
       <li className="module-tile is-add"><a href="#library"><Icon name="plus" size={20} /><strong>Add modules</strong><small>From the library</small></a></li>
     </ul>

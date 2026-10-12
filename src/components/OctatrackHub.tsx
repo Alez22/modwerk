@@ -58,10 +58,10 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
           {sets.map((set, index) => { const isSelected = set.id === selected?.id, on = same(set)
             return <li key={set.id} ref={element => { options.current[index] = element }} role="option" aria-selected={isSelected} tabIndex={isSelected ? 0 : -1}
               className={'hub-set' + (isSelected ? ' is-selected' : '')} onClick={() => onSelect(set.id)} onKeyDown={event => move(event, index)}>
-              <span className={'unit-led is-' + (on ? 'on' : 'off')} aria-hidden="true" />
+              <span className={'unit-led is-' + (on && connected ? 'on' : 'off')} aria-hidden="true" />
               <strong>{set.name}</strong><b>{set.moduleIds.length}</b>
               <small>{set.moduleIds.map(moduleName).join(' · ') || 'No modules yet'}</small>
-              {on && <em>On your Octatrack</em>}
+              {on && (connected ? <em>On your Octatrack</em> : <small>Last seen on your Octatrack</small>)}
             </li> })}
         </ul>
       </section>

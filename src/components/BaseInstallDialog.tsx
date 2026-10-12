@@ -13,7 +13,7 @@ const LAUNCH_HOLD_SECONDS = 10
 // automatic stress tests and bug reports are still to be built (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 const ALSO_NEW: [IconName, string, string][] = [
   ['check', 'Kept after a restart', ', the Octatrack loads your modules again when it starts'],
-  ['shield', 'A self-test on the Octatrack', ' after every load, then you keep it or undo it'],
+  ['shield', 'A self-test on the Octatrack', ' after every sync, then you keep it or undo it'],
   ['search', 'Missing modules named', ' when a project uses one the Octatrack doesn’t have'],
   ['sliders', 'Stock effects stay', ', none of them get replaced'],
 ]
@@ -128,7 +128,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     {canClose && <button type="button" className="icon-button base-install-close" aria-label="Close" onClick={finish}><Icon name="close" size={18} /></button>}
     {view === 'intro' ? <>
       <LinkHero />
-      <h2 id="base-install-title" className="link-title" tabIndex={-1}>Load modules over USB <span className="module-beta-badge">Beta</span></h2>
+      <h2 id="base-install-title" className="link-title" tabIndex={-1}>Sync to Octatrack <span className="module-beta-badge">Beta</span></h2>
       <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot. It’s a beta, so please tell me in the forum what goes wrong.</p>
       <ul className="link-promises">{ALSO_NEW.map(([icon, lead, rest]) => <li key={lead}><span className="link-feature-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><span><strong>{lead}</strong><span className="link-feature-rest">{rest}</span></span></li>)}</ul>
       <p className={'link-needs' + (state.status === 'unsupported' ? ' is-missing' : '')}>You need an Octatrack MKII, your OS 1.40C file, a USB cable and Chrome or Edge on a computer.</p>
@@ -160,7 +160,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       </div></li>
       <li className={found ? 'is-complete' : undefined}>{step(found, 4)}<div className="link-step-body">
         <strong>Check it</strong>
-        {found ? <p role="status">Found the Modwerk base on your {state.identity!.model}. You can send modules now.</p>
+        {found ? <p role="status">Found the Modwerk base on your {state.identity!.model}. You can sync modules now.</p>
           : state.status === 'unsupported' ? <p>Checking needs Chrome or Edge on a computer.</p>
           : <><p>Leave the USB cable in. This page finds the base by itself once the Octatrack has restarted.</p>{state.status === 'idle' && <button type="button" className="button button-quiet" onClick={() => void link.connect()}>Connect</button>}</>}
       </div></li>
