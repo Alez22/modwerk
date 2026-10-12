@@ -254,7 +254,7 @@ See the unchanged [TESTING.md](TESTING.md), Local gates and audition, and Status
 
 ## Authorship and licences
 
-Module author: [Jannik Aßfalg](https://github.com/repeat98). Octabam attribution includes Sam Banks; component-specific credits and terms remain in [SDK THIRD_PARTY.md](../../THIRD_PARTY.md) and the original [LICENSE](LICENSE). Existing LCD capture rights remain in [media/LICENSE.md](media/LICENSE.md). The new original woodblock and rendered audio use MIT terms, with attribution and source recipe in [audio preview provenance](docs/audio-preview.md).
+Module author: [Jannik Aßfalg](https://github.com/repeat98). Octabam attribution includes Sam Banks; component-specific credits and terms remain in [SDK THIRD_PARTY.md](../../THIRD_PARTY.md) and the original [LICENSE](LICENSE). Existing LCD capture rights remain in [media/LICENSE.md](media/LICENSE.md). The laser-snare input is from Legowelt’s Juno 106 kit and uses the pack’s unrestricted free-use permission; source audio remains under those terms. Credits, permission and source identity are in [audio preview provenance](docs/audio-preview.md).
 
 ## Screens and audio
 
@@ -264,4 +264,4 @@ The original real emulator captures above show the FX2 chooser and the six activ
 
 ![Tape Echo main controls: TIME, FDBK, WOW, AGE, SYNC and MIX.](media/ot-controls-mono.png)
 
-**Audio preview.** [Listen](media/audio-preview.mp3). One original woodblock: dry, then clean eighth-note repeats (FDBK 64, WOW 0, AGE 0), then worn dotted-eighth repeats (FDBK 82, WOW 72, AGE 100). SYNC BEAT, 120 BPM, wet MIX 64. First-hit RMS matched; repeats retain the module response. Offline render through Tape Echo 0.1.2's unchanged fixed-point engine. Pass timing, settings, source hashes, rights and render details are in [audio preview provenance](docs/audio-preview.md).
+**Audio preview.** [Listen](media/audio-preview.mp3). Legowelt Juno 106 laser snare: dry (0 s), bright 1/16 repeats (0.45 s; FDBK 84, WOW 0, AGE 0), worn 1/8 repeats (2.05 s; FDBK 98, WOW 105, AGE 110). BEAT, 120 BPM, MIX 85. 4.05 s, no added gaps; tails edited short. First-hit RMS matched (20 ms). Offline computer render through Tape Echo 0.1.2's unchanged CPU engine, not recorded on an Octatrack. Source credits, permission, excerpt preparation, settings, hashes and render details are in [audio preview provenance](docs/audio-preview.md).

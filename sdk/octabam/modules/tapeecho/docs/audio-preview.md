@@ -1,16 +1,14 @@
 # Tape Echo audio preview provenance
 
-This preview was rendered on 12 October 2026 through the unchanged 0.1.2-experimental fixed-point CPU engine. Editorial release 0.1.3-experimental retains that exact runtime and its historical test status. This is an offline computer render, with no new hardware or performance qualification.
+Rendered on 12 October 2026 through the unchanged 0.1.2-experimental fixed-point CPU engine. Editorial release 0.1.3-experimental retains that exact runtime and historical test status.
 
-`media/audio-preview.mp3` uses an original Modwerk woodblock transient created with deterministic additive synthesis. The original source sound and final render are copyright 2026 Modwerk contributors, licensed under the MIT terms in the module [LICENSE](../LICENSE). No third-party sample pack, firmware, extracted stock code/tables, card, memory dump or build image is included.
-
-The following record preserves the actual rendered version, file/source hashes, settings, pass timing, recipe and decoded MP3 checks.
+Source: `106 Drums Lazer Snare.wav` from Legowelt's Roland JUNO 106 sample kit. Credit: Legowelt (Danny Wolfers), ©2012 Pacific Micro International Software. The included `106 SAMPLES README.txt` declares the kit free with unrestricted use. The source and this processed comparison are used under that pack permission (LicenseRef-Legowelt-Juno106-Sample-Permission); the module's MIT software licence does not relicense the source audio. The provenance below records the exact permission quote/file hash, original WAV/PCM hashes, excerpt, gain/fades and processed file hash. Only the comparison MP3 is bundled; the source WAV and sample pack stay on the developer's computer. No firmware, extracted stock code/tables, card, memory dump or build image is included. This is an offline computer render, with no new physical-hardware or performance qualification.
 
 ```json
 {
   "file": "media/audio-preview.mp3",
-  "sha256": "9a86595504eea84a5c6885955cf49a32beaa4cc1c72f475cc6055c71444225ce",
-  "seconds": 12.400454,
+  "sha256": "62321000c02d064db2a486c1f50edec19d737cea8c0c825492b6c7d903782566",
+  "seconds": 4.05,
   "encoding": {
     "format": "MP3",
     "sampleRateHz": 44100,
@@ -18,8 +16,8 @@ The following record preserves the actual rendered version, file/source hashes, 
     "bitrateKbps": 192,
     "decodedPeakDbfs": -1.564,
     "fadeInMs": 5,
-    "passFadeOutMs": 200,
-    "gapSeconds": 0.3,
+    "passFadeOutMs": 35,
+    "gapSeconds": 0,
     "loudnessMatch": "first-hit",
     "matchWindowSeconds": 0.02,
     "limiter": false
@@ -27,9 +25,9 @@ The following record preserves the actual rendered version, file/source hashes, 
   "passes": [
     {
       "label": "dry",
-      "seconds": 1.2001814058956917,
+      "seconds": 0.45024943310657595,
       "settings": {
-        "time": 80,
+        "time": 48,
         "feedback": 0,
         "wow": 0,
         "age": 0,
@@ -37,57 +35,67 @@ The following record preserves the actual rendered version, file/source hashes, 
         "mix": 0,
         "tempoBpm": 120
       },
-      "pcmSha256": "59f9997acb815659e05f09c8fbd86a2bf8f31fe50ab19a6c1b1015a768994dec",
+      "pcmSha256": "96c1fe60512f761bbec4a935c94308116176b9fd701ef02e48f6bea050bf8902",
       "dryBitExact": true,
       "start": 0.0,
-      "duration": 1.200181,
+      "duration": 0.45,
+      "renderedFrames": 19856,
+      "trimStartFrame": 0,
+      "trimEndFrame": 19845,
       "matchGainDb": 0.0,
       "unmatchedPeakDbfs": -14.0
     },
     {
-      "label": "clean eighth-note repeats",
-      "seconds": 4.8,
+      "label": "bright sixteenth-note repeats",
+      "seconds": 1.6,
       "settings": {
-        "time": 80,
-        "feedback": 64,
+        "time": 48,
+        "feedback": 84,
         "wow": 0,
         "age": 0,
         "sync": 1,
-        "mix": 64,
+        "mix": 85,
         "tempoBpm": 120
       },
-      "pcmSha256": "0d5d20d98f7748e3a23ee1d34f886080a1260b9f556f079740d96171739845b9",
+      "pcmSha256": "6e9a53ee32a4f4d7fb89007cac3e709ce147f0d6662ebcf47b36fb094e6876d5",
       "dryBitExact": false,
-      "start": 1.500181,
-      "duration": 4.8,
-      "matchGainDb": 6.089,
-      "unmatchedPeakDbfs": -20.089
+      "start": 0.45,
+      "duration": 1.6,
+      "renderedFrames": 70560,
+      "trimStartFrame": 0,
+      "trimEndFrame": 70560,
+      "matchGainDb": 9.609,
+      "unmatchedPeakDbfs": -23.611
     },
     {
-      "label": "worn dotted-eighth repeats",
-      "seconds": 5.800272108843537,
+      "label": "worn eighth-note repeats",
+      "seconds": 2.0001814058956917,
       "settings": {
-        "time": 101,
-        "feedback": 82,
-        "wow": 72,
-        "age": 100,
+        "time": 80,
+        "feedback": 98,
+        "wow": 105,
+        "age": 110,
         "sync": 1,
-        "mix": 64,
+        "mix": 85,
         "tempoBpm": 120
       },
-      "pcmSha256": "3ad72078760f31002d82f079b703e91e92a5246772b5a0f19a29f3ba8573c3d5",
+      "pcmSha256": "06e09ee91173b3b95db3efeaa614fd0e5c0f1993561e66bced209e3736a234af",
       "dryBitExact": false,
-      "start": 6.600181,
-      "duration": 5.800272,
-      "matchGainDb": 6.089,
-      "unmatchedPeakDbfs": -20.089
+      "start": 2.05,
+      "duration": 2.0,
+      "renderedFrames": 88208,
+      "trimStartFrame": 0,
+      "trimEndFrame": 88200,
+      "matchGainDb": 9.611,
+      "unmatchedPeakDbfs": -22.173
     }
   ],
   "validation": {
     "nonzeroAudio": true,
     "decodedPeakBelowMinus1Dbfs": true,
-    "final50msPeakDbfs": -90.309,
-    "clippedSamples": 0
+    "final50msPeakDbfs": -21.163,
+    "clippedSamples": 0,
+    "maximumQuietRunSecondsBelowMinus48Dbfs": 0.04
   },
   "schemaVersion": 2,
   "moduleId": "tapeecho",
@@ -112,19 +120,33 @@ The following record preserves the actual rendered version, file/source hashes, 
   },
   "method": "Offline render of the module’s unchanged fixed-point cpu.c, compiled natively with cc -shared -fPIC -O2 -DTE_HOST=1 and called through te_process in 16-sample blocks using the existing verify_tapeecho_cpu.Engine ring-buffer harness. 300 silent blocks warm the controls. Direct onset RMS is matched over 20 ms; repeat levels and tails retain the module response. Not a hardware recording.",
   "sample": {
-    "name": "Original Modwerk woodblock transient",
-    "license": "MIT",
-    "credit": "Modwerk contributors, 2026",
-    "sourcePcmSha256": "f544ad6b81bb73c8fdc1f316d0a34f9e681f2c38aace73af8ab81929aba694af",
-    "recipe": {
+    "name": "106 Drums Lazer Snare.wav",
+    "pack": "Legowelt Roland JUNO 106 sample kit",
+    "pathWithinPack": "106 Drums Lazer Snare.wav",
+    "credit": "Legowelt (Danny Wolfers), ©2012 Pacific Micro International Software",
+    "license": "LicenseRef-Legowelt-Juno106-Sample-Permission",
+    "permissionFile": "106 SAMPLES README.txt",
+    "permissionFileSha256": "20398760fc080b8b53a8fff99b302d02a2ab73a420d90ee6333ee714ff47b2c3",
+    "permissionQuote": "This sample kit is free, you can do whatever you want it",
+    "originalFileSha256": "58047bd9dbd37de3b8c54c6b56c780af483a57ba7d2dcaa216575efee944c642",
+    "originalPcmSha256": "23bb1412b59eedb793a1a793a911e519c58ffd5221d43628f7cf2e3d69f16d6a",
+    "originalFormat": {
       "sampleRateHz": 44100,
-      "durationSeconds": 0.18,
-      "signal": "sum(sin(2*pi*f*t)*exp(-t/tau)) for (f,tau) = (620,0.032),(1040,0.023),(1760,0.014)",
-      "envelope": "min(t/0.001,1) * clamp((0.18-t)/0.01,0,1)",
+      "channels": 2,
+      "sampleBits": 16,
+      "frames": 34304
+    },
+    "preparation": {
+      "startFrame": 0,
+      "frames": 18522,
+      "fadeInMs": 0,
+      "fadeOutMs": 20.0,
+      "gainDb": -9.735022,
       "peakDbfs": -14,
-      "channels": "identical left/right",
-      "format": "interleaved stereo signed little-endian int32 containing Q23 words"
-    }
+      "resampled": false
+    },
+    "sourcePcmSha256": "ceb034dbe05d9da88f86f0589947a74b37c9ec4f9c9daefb9337f7f0c50a92e0",
+    "sourceFormat": "interleaved stereo signed little-endian int32 containing Q23 words"
   },
   "harness": {
     "name": "verify_tapeecho_cpu.Engine",

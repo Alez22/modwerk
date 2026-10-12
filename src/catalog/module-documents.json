@@ -951,11 +951,11 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "One original woodblock: dry, then clean 1/8-note repeats (FDBK 64, WOW 0, AGE 0), then worn dotted-1/8 repeats (FDBK 82, WOW 72, AGE 100). SYNC BEAT, 120 BPM, wet MIX 64. First-hit RMS matched; repeats left alone. Offline render through Tape Echo 0.1.2's fixed-point engine, not an Octatrack recording.",
-          "alt": "One woodblock dry, with clean eighth-note repeats, and with worn dotted-eighth tape repeats.",
-          "credit": "Modwerk contributors (offline render; original source sound).",
-          "license": "MIT (original audio; see docs/audio-preview.md)",
-          "source": "original"
+          "caption": "Legowelt Juno 106 laser snare: dry (0 s), bright 1/16 repeats (0.45 s; FDBK 84, WOW 0, AGE 0), worn 1/8 repeats (2.05 s; FDBK 98, WOW 105, AGE 110). BEAT, 120 BPM, MIX 85. 4.05 s, no added gaps; tails edited short. First-hit RMS matched (20 ms). Offline computer render through Tape Echo 0.1.2's unchanged CPU engine, not recorded on an Octatrack.",
+          "alt": "A Legowelt laser snare jumps from dry to bright sixteenth-note repeats to wobbling eighth-note repeats.",
+          "credit": "Legowelt — 106 Drums Lazer Snare.wav. Modwerk contributors (offline processing).",
+          "license": "LicenseRef-Legowelt-Juno106-Sample-Permission",
+          "source": "https://legowelt.org/samples/"
         }
       ]
     },
@@ -2483,10 +2483,10 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "One chord stab, played three times: dry, then the Hall starting point (SIZE 110, DCY 90, ABSB 45, MIX 70), then the Shimmer pad starting point (SIZE 100, DCY 100, ABSB 70, DPTH +56, MIX 100). Rendered offline through version 0.1.0-experimental on a computer, not recorded on an Octatrack.",
-          "alt": "A single synth chord stab heard dry, then in a large hall, then as a shimmering pad.",
-          "credit": "Modwerk contributors (offline render). Sample: Malin Genie Drum Sample Pack.",
-          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "caption": "One original chord stab: dry at 0 s, hall at 1.6 s (SIZE 110, DCY 85, ABSB 45, MIX 70), shimmer at 7.9 s (SIZE 100, DCY 95, ABSB 60, DPTH +56, SPD 80, MIX 100). First-hit RMS matched over 250 ms; tails left alone. Offline render through E-Verb 0.1.1 on a computer, not an Octatrack recording.",
+          "alt": "The same chord stab dry, in a hall, and with a longer shimmer tail.",
+          "credit": "Modwerk contributors (offline render; original source sound).",
+          "license": "MIT (original audio; see media/LICENSE.md)",
           "source": "original"
         }
       ]
@@ -2789,10 +2789,10 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "Four single hits from the 808 and 909 engines, 2.4 s apart: 808 at the defaults, 808 low and long (PITCH 40, DECAY 110, TONE 60, SWEEP 100), 909 at the defaults, and 909 with a hard attack and drive (DECAY 20, ATK 100, TDEP 100, SAT 50). No samples are used. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
-          "alt": "Four bass drum hits: a default 808, a low long 808, a default 909 and a hard, driven 909.",
-          "credit": "Modwerk contributors (offline render of the module's 808/909 engines; no samples).",
-          "license": "MIT",
+          "caption": "Five isolated hits: default 808, low/long 808, clean 909, 909 with attack/drive, and a long 909 body. Gaps follow each tail; one common gain preserves level differences. No external samples. Offline render through Analog BD 0.1.5's own 808/909 DSP, not an Octatrack recording.",
+          "alt": "Two contrasting 808 hits followed by three 909 hits, with clear gaps and audible tails.",
+          "credit": "Modwerk contributors (module-generated sound; no samples).",
+          "license": "MIT (original audio; see media/LICENSE.md)",
           "source": "original"
         }
       ]
