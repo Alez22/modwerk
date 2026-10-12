@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.
 - Verified members can upload public audio previews with credits and optional captions. The renamed Previews tab lists submitted recordings with usernames and captions; contributors and administrators can remove them. Uploads use the existing media bucket with file/request limits, retry protection and account-deletion cleanup. Synthetic recordings remain development-only.
 
