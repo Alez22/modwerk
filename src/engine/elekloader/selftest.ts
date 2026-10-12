@@ -1,4 +1,4 @@
-// The Octatrack base's self-test (SYSTEM > MODWERK TEST; sdk/machines/octatrack/elekloader/dsp.c), run by the site
+// The Octatrack base's self-test (PROJ > MODWERK > SELF TEST; sdk/machines/octatrack/elekloader/dsp.c), run by the site
 // on a trial before it is kept, with the pattern playing and the effects' knobs moving: every module intact and
 // running, never all at once but as many at a time as the ledger allows (no such combination may take a core or
 // the CPU past 90 %), and a stress round. About 3 s for every eight DSP modules.

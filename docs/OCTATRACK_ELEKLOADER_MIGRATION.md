@@ -1168,6 +1168,17 @@ card, another unit) and change version, and old projects must keep loading:
       SYSTEM while `0x80000088` is set); its count goes from 6 to 7 and its rows pointer to the base's copy
       of the six stock rows plus MODWERK (base `3fe99d6b…`, S12, on the unit: the row, the dialog, the
       status, and NO back to the list with the row still selected). RAM-boot room: 1,576 bytes.
+    - **Superseded by PROJ > MODWERK (owner, 12 October 2026: Modwerk's items in a category of their own, as
+      Octabam's BRAIN; and "load per module").** SYSTEM is stock again. MODWERK is a fifth root category: the root
+      window is five rows tall and stock fills four, so `build_core.py` copies the four stock root rows, appends
+      MODWERK (its icon, one long per column with the stock categories' shared second plane, and a list
+      descriptor shipped initialised to seven visible rows) and sets the root count to 5 (Octabam's MAINMENU.md
+      sections 1-5). Its rows: LOAD (the status page), MODULE LOAD (new: each installed module, what its instances
+      cost on each core as a share of the frame, from its own cycle figure, `~` when that is 7/4 of an emulator
+      claim; the cores' meters see only their sum), MISSING (the missing-modules page, also when nothing is
+      missing) and SELF TEST. Drawn and driven in `ot_emu --mkii` on S55 (12 October 2026: the category, its
+      icon, the list, LOAD, MODULE LOAD with no modules, MISSING, SELF TEST); not yet on the unit, and MODULE
+      LOAD with modules installed is not seen yet.
     - ColdFire: main's idle spin (`0x4001fc96`, `status.s`) adds up each pass nothing broke, in counts of
       DTIM3, which runs free over 32 bits at about 132 MHz (47,893 counts a 362.8 µs frame). Stopped, near-
       blank project: 40%.

@@ -42,6 +42,13 @@ volatile uint32_t modwerk_modset_result;
 uint8_t modwerk_test_live_fx[16];
 volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
 const uint32_t modwerk_dsp_modules = 1u << 27 | 1u << 29;
+/* dsp.c's MODULE LOAD list: `installed` modules. */
+static unsigned installed;
+unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)
+{
+    for (unsigned i = 0; i < installed; ++i) out[i] = (struct modwerk_module_load){{'m', (char)('a' + i)}, 400u, (uint8_t)(20u + i), 0, {0, 1}};
+    return installed;
+}
 int main(void)
 {
     CHECK(!modwerk_status_key(0, 1) && !modwerk_status_key(0, 0)); /* TRIG 1, dialog closed */
@@ -55,7 +62,7 @@ int main(void)
     modwerk_test_menu(0);                                              /* reached with PROJ's menu closed (a chooser's YES) */
     CHECK(!selftest_starts && !modwerk_status_key(0, 1) && !modwerk_status_key(0, 0)); /* nothing happens */
     modwerk_test_menu_open = 1;
-    modwerk_test_menu(0);                                              /* SYSTEM > MODWERK TEST */
+    modwerk_test_menu(0);                                              /* PROJ > MODWERK > SELF TEST */
     CHECK(!menu_closes); modwerk_status_close_menu(); modwerk_status_close_menu();
     CHECK(menu_closes == 1);                                           /* PROJ's menu closed once, after the row's dispatch */
     CHECK(selftest_starts == 1 && modwerk_status_key(YES, 1) && modwerk_status_key(YES, 0)); /* started; keys stay with the page */
@@ -88,6 +95,22 @@ int main(void)
     CHECK(open == MEMORY);
     for (unsigned i = 0; i < 90u; ++i) memory_tick();
     CHECK(open == CLOSED);                                             /* gone after a second and a half */
+    /* PROJ > MODWERK's other rows: each opens its page; NO closes it. */
+    modwerk_load_menu(0);
+    CHECK(open == SHOWN && modwerk_status_key(NO, 1) && open == CLOSED && modwerk_status_key(NO, 0));
+    modwerk_missing_menu(0);
+    missing_check();
+    CHECK(open == MISSING);                                            /* asked for: it stays with nothing missing */
+    CHECK(modwerk_status_key(YES, 1) && open == CLOSED && modwerk_status_key(YES, 0));
+    installed = 6; modwerk_modules_menu(0);
+    CHECK(open == MODULE_LOAD && modules_top == 0);
+    for (unsigned i = 0; i < 4u; ++i) modwerk_status_key(DOWN, 1), modwerk_status_key(DOWN, 0);
+    CHECK(modules_top == 2);                                           /* six modules, four rows: no further */
+    CHECK(modwerk_status_key(UP, 1) && modwerk_status_key(UP, 0) && modules_top == 1);
+    CHECK(modwerk_status_key(0, 1) && modwerk_status_key(0, 0) && open == MODULE_LOAD); /* other keys stay with the page */
+    CHECK(modwerk_status_key(NO, 1) && open == CLOSED && modwerk_status_key(NO, 0));
+    modwerk_test_menu_open = 0; modwerk_modules_menu(0);
+    CHECK(open == CLOSED);                                             /* only from the open menu */
     if (failures) return 1;
     puts("status keys: ok");
     return 0;

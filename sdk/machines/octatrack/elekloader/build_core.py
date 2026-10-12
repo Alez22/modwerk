@@ -80,7 +80,19 @@ def catalogue_overlaps(sites):
     return found
 
 
-SYSTEM_MENU, SYSTEM_ROWS = 0x400cbd1c, 0x400cc4e8  # PROJ > SYSTEM's list descriptor and its six rows (MAINMENU.md)
+# PROJ's root list: its descriptor (row count at +0), its rows pointer and the four stock rows (Octabam's MAINMENU.md
+# sections 1-5). The window is five rows tall and stock fills four: MODWERK is the fifth, as Octabam's BRAIN does.
+ROOT_MENU, ROOT_ROWS_POINTER, ROOT_ROWS = 0x400cbd8c, 0x400cbda4, 0x400cc698
+ICON_MASK = 0x400cbfc4  # the stock categories' shared second plane
+# MODWERK's icon, a module: 19 columns x 8 rows, one long per column, its pixels in the high byte, bit 0 the top row.
+ICON = ('.....#...#...#.....',
+        '...#############...',
+        '...#...........#...',
+        '...#.##........#...',
+        '...#...........#...',
+        '...#...........#...',
+        '...#############...',
+        '.....#...#...#.....')
 # Chip cycles per sample each core's eight FX slots may use (core 0, core 1): 90% of the 4,532-cycle frame less stock's
 # own work without effects, measured on the owner's MKII on 11 October 2026 (scripts/octatrack-measure.py: core 0 ~959,
 # it mixes; core 1 ~514; one pattern playing). The 90% ceiling is the owner's choice.
@@ -681,7 +693,7 @@ def main():
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
-        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'selftest.h'):
+        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'selftest.h'):
             shutil.copyfile(HERE / name, source / name)
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
@@ -749,19 +761,30 @@ def main():
             ', '.join('{%#xu, %d, %s}' % (int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], 'big'), fx,
                                            ctext(names.get(key, key)[:15])) for fx, key in legacy), len(legacy))
         definitions += loader_dsp.catalog_c(dsp_layout, DSP_RESERVE) + chooser_lists
-        # status.c's rows in SYSTEM (PROJ > SYSTEM > MODWERK, MODWERK TEST): stock's six rows, copied, then its own. The descriptor
-        # stays where it is (stock compares its address); its count and rows pointer change (Octabam's MAINMENU.md).
-        rows_at = int.from_bytes(image[SYSTEM_MENU + 0x18 - device.main_load:][:4], 'big')
-        if int.from_bytes(image[SYSTEM_MENU - device.main_load:][:4], 'big') != 6 or rows_at != SYSTEM_ROWS:
-            raise ValueError('PROJ > SYSTEM is not the six stock rows; review the status row.')
-        stock_rows = image[rows_at - device.main_load:][:6 * 24]
+        # PROJ > MODWERK (status.c's pages): the four stock root rows, copied, then MODWERK with its icon and list. The
+        # list descriptor ships initialised (7 visible rows): stock's boot init does not know it (MAINMENU.md section 1).
+        if int.from_bytes(image[ROOT_MENU - device.main_load:][:4], 'big') != 4 or \
+                int.from_bytes(image[ROOT_ROWS_POINTER - device.main_load:][:4], 'big') != ROOT_ROWS:
+            raise ValueError('PROJ\'s root menu is not the four stock rows; review the MODWERK category.')
+        stock_rows = image[ROOT_ROWS - device.main_load:][:4 * 24]
+        columns = [sum(1 << r for r in range(8) if ICON[r][c] == '#') << 24 for c in range(19)]
+        leaves = (('load', 'load'), ('modules', 'modules'), ('missing', 'missing'), ('test', 'test'))
         definitions += ('struct menu_row { const void *label, *window, *action, *value, *child; uint32_t page; };\n'
-                        'extern char modwerk_status_label[], modwerk_test_label[];\nvoid modwerk_status_menu(int), modwerk_test_menu(int);\n'
-                        'const struct menu_row modwerk_system_rows[8] = {%s,\n    {modwerk_status_label, 0, (const void *)modwerk_status_menu, 0, 0, 0},\n'
-                        '    {modwerk_test_label, 0, (const void *)modwerk_test_menu, 0, 0, 0}};\n' % (
+                        'extern char modwerk_menu_label[], %s;\nvoid %s;\n' % (
+                            ', '.join('modwerk_%s_label[]' % label for label, _ in leaves),
+                            ', '.join('modwerk_%s_menu(int)' % action for _, action in leaves)) +
+                        'static const uint32_t modwerk_icon_plane[19] = {%s};\n' % ', '.join('%#010xu' % c for c in columns) +
+                        'static const struct { uint32_t width, height, one; const uint32_t *plane, *mask; } modwerk_icon =\n'
+                        '    {0x13, 0x09, 0x01, modwerk_icon_plane, (const uint32_t *)%#xu};\n' % ICON_MASK +
+                        'static const struct menu_row modwerk_menu_rows[%d] = {\n%s};\n' % (len(leaves), ',\n'.join(
+                            '    {modwerk_%s_label, 0, (const void *)modwerk_%s_menu, 0, 0, 0}' % leaf for leaf in leaves)) +
+                        '/* count, scroll, cursor, selection, visible rows, count, rows: the menu engine writes it */\n'
+                        'struct { uint32_t count, scroll, cursor, selection, visible, count_again; const struct menu_row *rows; }\n'
+                        '    modwerk_menu_list = {%d, 0, 0, 0, 7, %d, modwerk_menu_rows};\n' % (len(leaves), len(leaves)) +
+                        'const struct menu_row modwerk_root_rows[5] = {%s,\n    {modwerk_menu_label, &modwerk_icon, 0, 0, &modwerk_menu_list, 0}};\n' % (
                             ',\n'.join('    {' + ', '.join('(const void *)%#xu' % int.from_bytes(stock_rows[24 * r + 4 * f:][:4], 'big')
                                                           for f in range(5)) + ', %#xu}' % int.from_bytes(stock_rows[24 * r + 20:][:4], 'big')
-                                         for r in range(6))))
+                                         for r in range(4))))
         definitions += 'const uint16_t modwerk_dsp_arena[2] = {%d, %d};\n' % tuple(
             dsp_layout[t]['tableWords'] - loader_dsp.SAVED for t in ('A', 'B'))
     (source/'identity.c').write_text(definitions)
@@ -839,10 +862,10 @@ modwerk_retained_end:
                 raise ValueError('Stock bytes at %#x are not the ones the DSP loader hooks.' % addr)
             recipe['sites'].append(dict(addr=hex(addr), stock=stock.hex(), op='jmp', target=label))
         recipe['sites'] += [] if args.dsp_probe == 'S' else dsp_sites
-        recipe['sites'] += [dict(addr=hex(SYSTEM_MENU), stock=image[SYSTEM_MENU - device.main_load:][:4].hex(), op='bytes', kind='data',
-                                 new='00000008'),
-                            dict(addr=hex(SYSTEM_MENU + 0x18), stock=image[SYSTEM_MENU + 0x18 - device.main_load:][:4].hex(), op='ptr',
-                                 target='modwerk_system_rows')]
+        recipe['sites'] += [dict(addr=hex(ROOT_MENU), stock=image[ROOT_MENU - device.main_load:][:4].hex(), op='bytes', kind='data',
+                                 new='00000005'),
+                            dict(addr=hex(ROOT_ROWS_POINTER), stock=image[ROOT_ROWS_POINTER - device.main_load:][:4].hex(), op='ptr',
+                                 target='modwerk_root_rows')]
     spec = importlib.util.spec_from_file_location('modwerk_startup', artwork.parent/'build.py')
     startup = importlib.util.module_from_spec(spec); spec.loader.exec_module(startup)
     for guard, authored in startup.writes():

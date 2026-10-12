@@ -194,7 +194,7 @@ async function missing() {
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
  * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
- * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (SYSTEM > MODWERK TEST, about 15 s)
+ * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (PROJ > MODWERK > SELF TEST, about 15 s)
  * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
  * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
  * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed)
@@ -250,7 +250,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     // RELOAD from the Part menu, which keeps its cursor and stops at RENAME. Never PART+FUNC+PLAY: that is CLEAR.
     else if (step === 'reload') await run('FUNC+PART w600 UP w150 UP w150 UP w150 DOWN w200 YES w1000')
     else if ((m = /^hold:(\d)$/.exec(step))) await devIn(22, Number(m[1]), 1) // development bases: host frames wait N seconds, as after a boot
-    else if (step === 'selftest') { // dsp.c's self-test (SYSTEM > MODWERK TEST): started, then read until it is done
+    else if (step === 'selftest') { // dsp.c's self-test (PROJ > MODWERK > SELF TEST): started, then read until it is done
       const read = async go => { const b = Buffer.from(await devIn(21, go, 96)); return { state: b.readUInt32BE(0), phase: b.readUInt32BE(4), failed: b.readUInt32BE(8),
         modules: b.readUInt32BE(12), dsp: b.readUInt32BE(16), intact: b.readUInt32BE(20), ran: b.readUInt32BE(24), peak: [b.readUInt32BE(28), b.readUInt32BE(32)],
         cpu: b.readUInt32BE(36), done: b.readUInt32BE(40), total: b.readUInt32BE(44), track: [...b.subarray(48, 56)], gap: b.readUInt32BE(56),

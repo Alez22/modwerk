@@ -154,6 +154,10 @@ int main(void)
     /* A track running it, or the manager mid-transaction, keeps it: removal and replacement wait. */
     modwerk_test_live_fx[13] = 26;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_IN_USE && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_IN_USE);
+    /* MODULE LOAD (status.c): the one module, unfloored 7/4 of its claim, an estimate, on T6 FX2 (core 0). */
+    struct modwerk_module_load loads[32];
+    CHECK(modwerk_dsp_module_loads(loads) == 1 && loads[0].id == 26 && loads[0].cycles == (244 * 7 + 3) / 4 &&
+          !loads[0].measured && loads[0].slots[0] == 1 && !loads[0].slots[1]);
     modwerk_test_live_fx[13] = 4; idle = 0;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_BUSY && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_BUSY);
     third = fx; third.module = 73;

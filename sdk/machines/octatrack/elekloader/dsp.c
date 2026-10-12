@@ -10,6 +10,7 @@
 #include "runtime.h"
 #include "allocator.h"
 #include "transfer.h"
+#include "status.h"
 
 /* manager.c's code descriptor, which it reads from dl_codes. */
 struct code { const uint32_t *words; const uint16_t *relocations; uint16_t count, init, proc, relocation_count; };
@@ -81,6 +82,8 @@ static char owner_name[32][16];
 static uint8_t *owner_page[32]; /* its page recipe (the module image's head), and that image's length */
 static uint32_t owner_page_bytes[32];
 static uint8_t owner_pinned[32]; /* its ColdFire code names this id: it never moves (loader.h) */
+static uint32_t owner_cycles[32]; /* an instance's chip cycles a sample, unfloored (status.c's MODULE LOAD) */
+static uint8_t owner_measured[32]; /* 1: a hardware figure; 0: 7/4 of an emulator claim */
 /* shortcut: a pinned module's ColdFire hooks still act on tracks running its id after it lets go of it (a project
  * from elsewhere naming another module there); give such modules their handle at run time to lift this. */
 static unsigned rebinding; /* ticks into a rebind, 0 none */
@@ -132,7 +135,7 @@ static void release(unsigned k)
 {
     dl_catalog[k] = unheld;
     dl_codes[0][k] = dl_codes[1][k] = (struct code){0, 0, 0, 0, 0, 0};
-    owner[k] = 0, owner_page[k] = 0, owner_pinned[k] = 0;
+    owner[k] = 0, owner_page[k] = 0, owner_pinned[k] = 0, owner_cycles[k] = 0, owner_measured[k] = 0;
     modwerk_fxpage_drop(k);
 }
 /* Its page in the choosers at handle k, when it brought one (a module without one still runs where a
@@ -152,6 +155,7 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
         dl_codes[0][to->id] = dl_codes[1][to->id] =
             (struct code){to->words, to->relocations, (uint16_t)to->count, to->init, to->proc, to->relocation_count};
         owner[to->id] = to->module, owner_layout[to->id] = to->layout, owner_pinned[to->id] = to->pinned;
+        owner_cycles[to->id] = chip_cycles(to), owner_measured[to->id] = to->kind == RUNTIME_HARDWARE;
         for (unsigned i = 0; i < 16u; ++i) owner_name[to->id][i] = to->name[i];
         list(to->id, (uint8_t *)(uintptr_t)to->page, to->page_bytes);
         modwerk_fxmap_assign(to->id, to->module, to->layout, to->name);
@@ -161,7 +165,7 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
 /* A project load can name an installed module at another handle, or another module at the handle one
  * holds. Those modules let go first: the manager retires their code, so no slot runs the wrong module.
  * Once it is idle, each takes the handle the map gives it (choose); one that finds none stays out. */
-static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from; } moving[32];
+static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured; } moving[32];
 static unsigned moving_count;
 static uint32_t mapped; /* the map generation the handles follow */
 static void rebind_tick(void)
@@ -182,6 +186,7 @@ static void rebind_tick(void)
             moving[moving_count].module = owner[k], moving[moving_count].layout = owner_layout[k];
             moving[moving_count].page = owner_page[k], moving[moving_count].page_bytes = owner_page_bytes[k];
             moving[moving_count].pinned = owner_pinned[k], moving[moving_count].from = (uint8_t)k;
+            moving[moving_count].cycles = owner_cycles[k], moving[moving_count].measured = owner_measured[k];
             for (unsigned i = 0; i < 16u; ++i) moving[moving_count].name[i] = owner_name[k][i];
             ++moving_count;
             release(k);
@@ -196,6 +201,7 @@ static void rebind_tick(void)
         dl_catalog[id] = moving[i].package;
         dl_codes[0][id] = moving[i].code[0], dl_codes[1][id] = moving[i].code[1];
         owner[id] = moving[i].module, owner_layout[id] = moving[i].layout, owner_pinned[id] = moving[i].pinned;
+        owner_cycles[id] = moving[i].cycles, owner_measured[id] = moving[i].measured;
         for (unsigned c = 0; c < 16u; ++c) owner_name[id][c] = moving[i].name[c];
         list((unsigned)id, moving[i].page, moving[i].page_bytes);
         if (modwerk_fxmap_handle(moving[i].module) != id) modwerk_fxmap_assign((unsigned)id, moving[i].module, moving[i].layout, moving[i].name);
@@ -213,6 +219,22 @@ uint32_t modwerk_dsp_used(void)
     for (unsigned part = 0; bank && part < 8; ++part)
         for (unsigned i = 0; i < 16; ++i) if (PART(bank, part)[i] < 32u) used |= 1u << PART(bank, part)[i];
     return used & modwerk_dsp_modules;
+}
+
+/* MODULE LOAD (status.c): each installed module effect, by handle: its name, an instance's chip cycles a sample
+ * (unfloored: what it costs, not the ledger's charge), whether that is a hardware figure, and how many slots run it
+ * on each core (T1-T4 core 1, T5-T8 core 0). Returns how many it wrote, at most 32. */
+unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)
+{
+    unsigned n = 0;
+    for (unsigned k = 0; k < 32u; ++k) {
+        if (!owner[k]) continue;
+        struct modwerk_module_load *m = &out[n++];
+        for (unsigned i = 0; i < 16u; ++i) m->name[i] = owner_name[k][i];
+        m->id = (uint8_t)k, m->measured = owner_measured[k], m->cycles = owner_cycles[k], m->slots[0] = m->slots[1] = 0;
+        for (unsigned i = 0; i < 16u; ++i) if (LIVE_FX[i] == k) ++m->slots[(i & 7u) < 4u ? 1 : 0];
+    }
+    return n;
 }
 
 /* Development only: a chooser pick or Part change replayed as the panel makes
@@ -461,7 +483,7 @@ static void peek_tick(void)
 }
 #endif
 #ifndef MODWERK_HOST
-/* The self-test (PROJ > SYSTEM > MODWERK TEST, or dev.c request 21; owner, 11 October 2026): with the transport
+/* The self-test (PROJ > MODWERK > SELF TEST, or dev.c request 21; owner, 11 October 2026): with the transport
  * stopped, by the live FX array only (never a Part), in about 3 s for every eight DSP modules:
  * 0. playback: PLAY, as the panel presses it; everything below runs with the pattern playing, and each placed
  *    effect's knobs are swept in its track's live lane (page 1 fast, page 2 slowly, the lanes locks and LFOs

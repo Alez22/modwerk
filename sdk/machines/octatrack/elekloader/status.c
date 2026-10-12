@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include "loader.h"
 #include "selftest.h"
+#include "status.h"
 void modwerk_status_close_menu(void); /* below, with the menu rows */
 
 #define CUE 0x2a
@@ -91,9 +92,9 @@ void modwerk_status_tick(void)
 }
 
 /* The dialogs: while one shows it takes every key and encoder, so nothing changes under it; NO closes it and the
- * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere. SYSTEM > MODWERK (the row
- * build_core.py adds) first explains that shortcut: YES goes on to the status, NO back to the menu. */
-enum { CLOSED, HINT, SHOWN, TEST, MISSING, MEMORY };
+ * screen it covered is back as it was. CUE + PROJ toggles the status from anywhere; PROJ's MODWERK category (the
+ * fifth root row build_core.py adds, owner 12 October 2026) opens each page: LOAD, MODULE LOAD, MISSING, SELF TEST. */
+enum { CLOSED, SHOWN, TEST, MISSING, MEMORY, MODULE_LOAD };
 static int open, taken = -1; /* which shows; a key press the handler took, whose release it takes too (-1: none; TRIG 1 is 0) */
 #define YES 0x31
 /* Our rows close PROJ's menu on the next tick, as its NO does (stock's FUN_40064bc0, Octabam's MAINMENU.md; not from
@@ -120,10 +121,15 @@ static int menu_open(void)
 }
 #endif
 void modwerk_status_close_menu(void) { if (close_menu) close_menu = 0, CLOSE_MENU(); }
-char modwerk_status_label[] = "MODWERK"; /* the SYSTEM menu's row */
-void modwerk_status_menu(int unused) { (void)unused; if (menu_open()) open = HINT, close_menu = 1; }
-/* SYSTEM > MODWERK TEST (dsp.c's self-test): its page shows at once, the test starting if it can. */
-char modwerk_test_label[] = "MODWERK TEST";
+/* PROJ > MODWERK's rows (build_core.py): the category's label, then each row's label and action. */
+char modwerk_menu_label[] = "MODWERK", modwerk_load_label[] = "LOAD", modwerk_modules_label[] = "MODULE LOAD",
+     modwerk_missing_label[] = "MISSING", modwerk_test_label[] = "SELF TEST";
+static unsigned missing_top, modules_top;
+static int missing_asked; /* MISSING opened from the menu: it stays open with nothing missing */
+void modwerk_load_menu(int unused) { (void)unused; if (menu_open()) open = SHOWN, close_menu = 1; }
+void modwerk_modules_menu(int unused) { (void)unused; if (menu_open()) open = MODULE_LOAD, modules_top = 0, close_menu = 1; }
+void modwerk_missing_menu(int unused) { (void)unused; if (menu_open()) open = MISSING, missing_top = 0, missing_asked = 1, close_menu = 1; }
+/* SELF TEST (dsp.c's self-test): its page shows at once, the test starting if it can. */
 static int test_started;
 void modwerk_test_menu(int unused)
 {
@@ -142,17 +148,16 @@ unsigned modwerk_dsp_missing_list(uint8_t *out);
 int modwerk_modset_restored(void);
 extern volatile uint32_t modwerk_modset_result;
 static uint8_t missing[4 + 24 * 32];
-static unsigned missing_top;
 static uint32_t missing_told, missing_last; /* the handles the page told about; the list at the last check */
 static void missing_check(void)
 {
     unsigned n = (modwerk_dsp_missing_list(missing) - 4u) / 24u;
     uint32_t handles = 0;
     for (unsigned i = 0; i < n; ++i) handles |= 1u << (missing[4 + 24 * i] & 31u);
-    if (open == MISSING && !n) open = CLOSED;
+    if (open == MISSING && !n && !missing_asked) open = CLOSED;
     if (missing_top + ROWS > n) missing_top = n > ROWS ? n - ROWS : 0;
     if (handles & ~missing_told && handles == missing_last && open == CLOSED && modwerk_modset_restored() && modwerk_modset_result)
-        open = MISSING, missing_top = 0, missing_told = handles;
+        open = MISSING, missing_top = 0, missing_asked = 0, missing_told = handles;
     missing_told &= handles; /* one that comes back and goes missing again is told again */
     missing_last = handles;
 }
@@ -182,6 +187,11 @@ static void memory_tick(void)
     if (loaded && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
     if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
 }
+/* MODULE LOAD (owner, 12 October 2026: "load per module"): each installed module effect, with what its instances
+ * cost on each core as a share of the frame, as the LOAD page's bars count. The cores' meters see only their sum, so
+ * this is each module's figure times the slots running it: a hardware figure, or 7/4 of an emulator claim (~). */
+static struct modwerk_module_load modules[32];
+static unsigned modules_count(void) { return modwerk_dsp_module_loads(modules); }
 volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key or knob: dsp.c's compaction waits for quiet */
 int modwerk_status_key(int code, int pressed)
 {
@@ -193,15 +203,16 @@ int modwerk_status_key(int code, int pressed)
     }
     if (code == CUE) cue = pressed;
     if (open == MEMORY && pressed) open = CLOSED; /* a popup: the key goes on to stock */
-    if (pressed && open == MISSING && code != CUE && !(code == PROJ && cue)) {
-        if (code == UP && missing_top) --missing_top;
-        if (code == DOWN && missing_top + ROWS < missing[3]) ++missing_top;
+    if (pressed && (open == MISSING || open == MODULE_LOAD) && code != CUE && !(code == PROJ && cue)) { /* lists */
+        unsigned *top = open == MISSING ? &missing_top : &modules_top, n = open == MISSING ? missing[3] : modules_count();
+        if (code == UP && *top) --*top;
+        if (code == DOWN && *top + ROWS < n) ++*top;
         if (code == NO || code == YES) open = CLOSED;
         taken = code;
         return 1;
     }
     if (pressed && open == TEST && code == NO) { modwerk_selftest_abort(); open = CLOSED; taken = code; return 1; }
-    if (pressed && ((code == PROJ && cue) || (open && (code == NO || (code == YES && open == HINT))))) {
+    if (pressed && ((code == PROJ && cue) || (open && code == NO))) {
         open = code == NO || (code == PROJ && open == SHOWN) ? CLOSED : SHOWN;
         taken = code;
         return 1;
@@ -287,14 +298,6 @@ static void button(unsigned char *frame, unsigned x, unsigned y, const char *nam
     outline(frame, x, y, x + w, y + 8u);
     label(x + 5u, y + 2u, name);
 }
-static void explain(unsigned char *frame)
-{
-    dialog(frame, "MODWERK STATUS");
-    static const char *const lines[4] = {"CPU AND DSP LOAD, AND", "THE MEMORY IN USE.", "OPEN IT ANYWHERE:", "HOLD CUE, PRESS PROJ."};
-    for (unsigned i = 0; i < 4u; ++i) label(X0 + 6u, Y0 + 15u + 8u * i + (i >= 2u ? 2u : 0u), lines[i]);
-    button(frame, X0 + 14u, Y1 - 12u, "YES");
-    button(frame, X1 - 30u, Y1 - 12u, "NO");
-}
 /* The self-test's page: a row per check (what it found, and OK, FAIL or ... at the right), the load bars of the
  * together check under it, then the verdict and NO. */
 static char *fraction(char *s, uint32_t a, uint32_t b) { s = number(s, a); *s++ = '/'; s = number(s, b); *s = 0; return s; }
@@ -309,7 +312,7 @@ static void test_page(unsigned char *frame)
 {
     volatile struct selftest *t = &modwerk_selftest;
     modwerk_selftest_refresh();
-    dialog(frame, "MODWERK TEST");
+    dialog(frame, "SELF TEST");
     if (!test_started && t->state != SELFTEST_RUNNING) {
         label(X0 + 6u, Y0 + 17u, "STOP PLAYBACK FIRST,");
         label(X0 + 6u, Y0 + 25u, "THEN OPEN IT AGAIN.");
@@ -377,6 +380,7 @@ static void missing_page(unsigned char *frame)
 {
     unsigned n = missing[3];
     dialog(frame, "MISSING MODULES");
+    if (!n) label(X0 + 6u, Y0 + 17u, "NOTHING MISSING.");
     for (unsigned i = 0; i < ROWS && missing_top + i < n; ++i) {
         const uint8_t *e = missing + 4u + 24u * (missing_top + i);
         char name[17];
@@ -389,7 +393,45 @@ static void missing_page(unsigned char *frame)
     char text[24], *s = number(text, n);
     for (const char *t = " NOT INSTALLED"; *t; ) *s++ = *t++;
     *s = 0;
-    label(X0 + 4u, Y1 - 8u, text);
+    if (n) label(X0 + 4u, Y1 - 8u, text);
+    button(frame, X1 - 26u, Y1 - 10u, "YES");
+}
+static void modules_page(unsigned char *frame)
+{
+    unsigned n = modules_count(), estimate = 0;
+    if (modules_top + ROWS > n) modules_top = n > ROWS ? n - ROWS : 0;
+    dialog(frame, "MODULE LOAD");
+    if (!n) label(X0 + 6u, Y0 + 17u, "NO MODULES INSTALLED.");
+    else {
+        label(X1 - 4u - (unsigned)TEXT_WIDTH(FONT, -1, "T5-8"), Y0 + 13u, "T5-8");
+        label(X1 - 24u - (unsigned)TEXT_WIDTH(FONT, -1, "T1-4"), Y0 + 13u, "T1-4");
+    }
+    for (unsigned i = 0; i < n; ++i) estimate |= !modules[i].measured && (modules[i].slots[0] || modules[i].slots[1]); /* shown */
+    for (unsigned i = 0; i < ROWS && modules_top + i < n; ++i) {
+        const struct modwerk_module_load *m = &modules[modules_top + i];
+        unsigned top = Y0 + 21u + 8u * i;
+        char name[17];
+        unsigned c = 0;
+        for (; c < 16u && m->name[c]; ++c) name[c] = m->name[c] >= 'a' && m->name[c] <= 'z' ? (char)(m->name[c] - 32) : m->name[c];
+        name[c] = 0;
+        while (c && TEXT_WIDTH(FONT, -1, name) > 52) name[--c] = 0; /* clear of the numbers */
+        label(X0 + 4u, top, name[0] ? name : "UNNAMED");
+        for (unsigned core = 0; core < 2u; ++core) { /* T1-4 (core 1), then T5-8 (core 0) */
+            unsigned slots = m->slots[core ? 0 : 1], right = core ? X1 - 4u : X1 - 24u;
+            char t[8], *e = t;
+            if (!slots) *e++ = '-';
+            else {
+                if (!m->measured) *e++ = '~';
+                e = number(e, (share(m->cycles * slots, FRAME_CYCLES / 16u) + 5u) / 10u);
+                *e++ = '%';
+            }
+            *e = 0;
+            label(right - (unsigned)TEXT_WIDTH(FONT, -1, t), top, t);
+        }
+    }
+    if (modules_top) arrow(frame, X0 + 62u, Y0 + 21u, 1);
+    if (modules_top + ROWS < n) arrow(frame, X0 + 62u, Y0 + 21u + 8u * (ROWS - 1u) + 3u, 0);
+    if (estimate) label(X0 + 4u, Y1 - 8u, "~ ESTIMATE");
     button(frame, X1 - 26u, Y1 - 10u, "YES");
 }
 static void memory_box(unsigned char *frame)
@@ -416,7 +458,7 @@ void modwerk_status_draw(unsigned char *frame)
     if (open == MEMORY) { memory_box(frame); return; }
     if (open == MISSING) { missing_page(frame); return; }
     if (open == TEST) { test_page(frame); return; }
-    if (open == HINT) { explain(frame); return; }
+    if (open == MODULE_LOAD) { modules_page(frame); return; }
     if (open != SHOWN) return;
     dialog(frame, "MODWERK STATUS");
     uint32_t cpu_peak = 0;
