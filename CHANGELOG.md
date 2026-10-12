@@ -2,6 +2,8 @@
 
 ## 12 October 2026
 
+- Bundled followed module releases into a daily digest, showing only the latest pending version and its changelog for each module. Replies and messages keep their chosen activity interval; existing follows, opt-outs and bell history are retained.
+
 - Allowed up to 30 seconds for deployment release synchronization so a successful inventory fanout is not mistaken for a ten-second timeout. Existing idempotent retries, recipient preferences and digest processing remain in place.
 - Fixed imported README provenance after adding audio previews, and limited E-Verb's monochrome capture checks to instrument screenshots.
 - Documented imported-module media provenance updates and screenshot selection for mixed audio/image media.
