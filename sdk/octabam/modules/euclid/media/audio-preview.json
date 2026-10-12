@@ -1,58 +1,68 @@
 {
+  "schemaVersion": 2,
+  "moduleId": "euclid",
+  "catalogModuleVersion": "0.1.4-experimental",
+  "recordedModuleVersion": null,
+  "rendered": "2026-10-12",
   "file": "media/audio-preview.mp3",
-  "sha256": "90862e387df5c80c678ba5d22b321f5bb4de5b40ae35621c56fcddda6cf5b9fc",
-  "seconds": 16.6,
-  "moduleVersion": "0.1.4-experimental",
-  "method": "Offline render on a computer: the module's DSP built into a private OS 1.40C image and run in dsp_host (Mini Verb, E-Verb, Air Chorus, TapeHead), its fixed-point C engine built natively (Tape Echo), or its 808/909 DSP engines in bd909_host (Analog BD). Not recorded on an Octatrack; no firmware or image is included.",
+  "sha256": "dac2dff3cda83285aa33b56d4f29edf90b3deee7c3616027fd2f520986279898",
+  "seconds": 15,
+  "method": "Owner-supplied audio; excerpt only. No additional Euclid processing. Exclude the first 22.5 and last 22.5 seconds, apply one common peak gain and 8/35 ms edge fades, and encode MP3. Capture method and DSP settings were not supplied.",
   "sample": {
-    "file": "Volpe - Dub Techno Sample Pack - 39 Pad Smooth.wav",
-    "pack": "Volpe - Dub Techno Sample Pack"
+    "name": "modpad.wav",
+    "originalFileSha256": "4e7b7c573907d6f52d88bb306891d7d4cdfe407b386afb9baabd317bb792cb44",
+    "originalPcmSha256": "eb9130628e0ef30d79a3654ce125dc223d1837aab33d3de2fcc81de623996dc5",
+    "originalFormat": {
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "sampleBits": 24,
+      "frames": 2880000,
+      "seconds": 60
+    },
+    "permission": "Owner supplied the file and explicitly requested its use as the Euclid preview on 2026-10-12.",
+    "license": "LicenseRef-Owner-Provided-Audio-Permission",
+    "credit": "Audio supplied by repeat98; underlying sample/capture attribution not supplied."
   },
   "passes": [
     {
-      "start": 0.0,
-      "label": "dry",
-      "sets": {
-        "FREQ": 48,
-        "RES": 48,
-        "DEPTH": 100,
-        "DECAY": 48,
-        "STEPS": 15,
-        "PULSE": 5,
-        "ROT": 0,
-        "RATE": 1,
-        "TYPE": 0,
-        "ATK": 0,
-        "OUT": 0,
-        "MIX": 0
-      }
-    },
-    {
-      "start": 5.52,
-      "label": "low-pass pulses",
-      "sets": {
-        "MIX": 127,
-        "FREQ": 36,
-        "RES": 70,
-        "DEPTH": 110,
-        "DECAY": 56,
-        "STEPS": 16,
-        "PULSE": 5
-      }
-    },
-    {
-      "start": 11.03,
-      "label": "amplitude pulses",
-      "sets": {
-        "TYPE": 3,
-        "OUT": 0,
-        "FREQ": 127,
-        "DEPTH": 0,
-        "DECAY": 48,
-        "STEPS": 12,
-        "PULSE": 7,
-        "RES": 0
-      }
+      "label": "Owner-supplied Euclid excerpt",
+      "start": 0,
+      "duration": 15,
+      "sourceStartFrame": 1080000,
+      "sourceEndFrame": 1800000,
+      "sourceStartSeconds": 22.5,
+      "sourceEndSeconds": 37.5,
+      "sourceExcerptPcmSha256": "e7e02adab891d50410b71d1836f345e1d22d1584d1f07e5d227e58bad8595dc1",
+      "settings": null
     }
+  ],
+  "tempo": {
+    "bpm": 128,
+    "status": "Audio estimate accepted by owner",
+    "method": "Spectral-flux transient grid from 10–50 seconds and recurring 3.75-second phrase; eight beats at 128 BPM. Sixteenth-note grid gives approximately 127.97 BPM; tempo rounded to 128 and confirmed by owner.",
+    "bars": 8,
+    "beats": 32
+  },
+  "encoding": {
+    "format": "MP3",
+    "sampleRateHz": 48000,
+    "channels": 2,
+    "bitrateKbps": 192,
+    "decodedPeakDbfs": -1.57,
+    "gainDb": -1.299,
+    "fadeInMs": 8,
+    "passFadeOutMs": 35,
+    "gapSeconds": 0,
+    "loudnessMatch": "single common peak gain",
+    "limiter": false
+  },
+  "validation": {
+    "nonzeroAudio": true,
+    "decodedPeakBelowMinus1Dbfs": true,
+    "clippedSamples": 0,
+    "sourceClippedSamples": 0
+  },
+  "limitations": [
+    "User-provided audio; capture method, recorded module version, source samples and hardware behaviour were not independently verified."
   ]
 }

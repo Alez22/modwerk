@@ -94,7 +94,7 @@ Documentation/media-only fixes do not need a version bump unless requesting auto
 
 Local module `README.md`, `TESTING.md` and `CPU.md` can be edited without updating import checksums. Their recorded hashes remain import history. Code, licences, archived snapshots and preserved `upstream/` documentation retain exact checksums. The lightweight `npm run sdk:imports:check` uses Node alone and runs on documentation PRs; the full SDK check at publication uses the same policy.
 
-Fixing a README, a tutorial, a caption or a screenshot of a module that already has its qualification record needs none of the heavy steps: no version bump, no rebuilt packages, no fresh approval, and no Docker compile in CI when only README, Markdown, `media/`, `presentation/` or `evidence/` files change. The packages and the owner's approval bind to the module's code fingerprint (`moduleSourceFingerprint` in `scripts/module-source.mjs`), which ignores those files and the manifest's prose. Open a normal pull request and run `npm run check -- --base origin/main`. The same classifier drives PR checks and deployment: prose and media on all three machines skip native compilation, while firmware source, linking/build inputs and compiler changes retain it. The site still bundles and publishes the documentation; unchanged Worker inputs skip its deploy. The frozen baseline modules, `cc-map`, `previewvol` and MIDI Scenes keep their older exact-folder rules (see [retained evidence](MODULE_QUALIFICATION.md#risk-based-update-checks--3-october-2026)).
+Fixing a README, a tutorial, a caption or a screenshot of a module that already has its qualification record needs none of the heavy steps: no version bump, no rebuilt packages, no fresh approval, and no Docker compile in CI when only README, Markdown, `media/`, `presentation/` or `evidence/` files change. Compiled packages bind to the module’s code fingerprint (`moduleSourceFingerprint` in `scripts/module-source.mjs`), which ignores those files and the manifest’s prose. Older native evidence can also bind the presentation thumbnail; use the [shared preview artwork path](#module-thumbnail-style) for those replacements. Open a normal pull request and run `npm run check -- --base origin/main`. The same classifier drives PR checks and deployment: prose and media on all three machines skip native compilation, while firmware source, linking/build inputs and compiler changes retain it. The site still bundles and publishes the documentation; unchanged Worker inputs skip its deploy. The frozen baseline modules, `cc-map`, `previewvol` and MIDI Scenes keep their older exact-folder rules (see [retained evidence](MODULE_QUALIFICATION.md#risk-based-update-checks--3-october-2026)).
 
 For imported files outside the three editable local guides, refresh affected `vendoredSha256` records in `sdk/imports/` after reviewed media or attribution edits, and record the local update while preserving upstream source fingerprints. Instrument capture checks must select `otUi` media; audio previews share the media list.
 
@@ -112,6 +112,32 @@ Its folder, `sdk/<platform>/modules/<id>/`, holds:
 
 The checks reject missing sections, coloured screenshots and a version that did not increase. They cannot tell whether the documentation is true; the owner reviews first releases and registered authors verify their scoped updates.
 
+## Module thumbnail style
+
+Always use the library's shared signal-art style for new or replacement module
+thumbnails. Reuse the SVG classes and drawing conventions in
+`src/components/ModulePreview.tsx` and `src/devices/DigiModPreview.tsx`; keep saved
+SVG thumbnails consistent with the displayed illustration.
+
+- Use a `320×192` viewBox, the shared dark preview surface (or transparency in
+  the preview component), and the faint grid at y=52/97/142 and x=64/128/192/256.
+- Use the module/category `--signal` accent from the shared styles. Primary,
+  secondary and ghost strokes follow the existing widths and opacity levels;
+  use the shared dot and rhythm classes for filled marks.
+- Draw a clear signal, routing, rhythm or control diagram that explains the
+  module. Keep it readable at card size, with quiet space around the drawing.
+- Use small monospace labels with the shared letter spacing. The preview
+  already carries the module title; avoid oversized repeated titles, unrelated
+  colours, heavy frames, decorative badges and generic placeholder waveforms.
+- Keep diagrams conceptual. They must not imply measured audio, processor
+  load, hardware verification or instrument-screen authenticity.
+
+Some older native qualification/approval fingerprints include the original
+`presentation/thumbnail.svg`, even though the compiled-package fingerprint
+excludes presentation files. For these modules, replace the displayed artwork
+through the existing `ART` entry in `ModulePreview.tsx` and preserve the bound
+asset; do not rewrite evidence hashes for an illustration change.
+
 ## Screenshot walkthroughs
 
 Make the gallery a short usage tutorial for every machine: two to five
@@ -122,7 +148,7 @@ Keep alt text about the visible screen and reserve extra pages for supplementary
 screenshots. Read the complete gallery as a first-time user and follow the
 [screenshot caption standard](MODULE_UI_CAPTURES.md#write-a-short-screenshot-walkthrough).
 
-A module that makes or changes sound can also carry one short [audio preview](MODULE_AUDIO_PREVIEWS.md): a single sample played dry, then through the module.
+A module that makes or changes sound can also carry one short [audio preview](MODULE_AUDIO_PREVIEWS.md): an isolated sample comparison or an explicitly requested musical phrase that makes its controls audible.
 
 ## Octatrack
 
