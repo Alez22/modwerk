@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { changeCount, inventoryChanges, missingFromProject, unitState } from './inventory'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { changeCount, inventoryChanges, lastInventory, loadStep, missingFromProject, rememberInventory, sameModules, unitState } from './inventory'
 
 describe('making the unit match a module set', () => {
   it('adds and removes modules and switches stock effects both ways', () => {
@@ -23,5 +23,40 @@ describe('what the unit’s project names that it lacks', () => {
     const missing = [{ module: '873d83cc', name: 'E-Verb' }, { module: 'deadbeef', name: 'Foo' }] // 873d83cc: SHA-256("everb")
     expect(missingFromProject(missing, ['poly8', 'everb'])).toEqual({ ids: ['everb'], unknown: ['Foo'] })
     expect(missingFromProject([], ['everb'])).toEqual({ ids: [], unknown: [] })
+  })
+})
+
+describe('the Octatrack hub', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+  it('matches a module set to the unit by its modules, in any order', () => {
+    expect(sameModules(['everb', 'poly8'], ['poly8', 'everb'])).toBe(true)
+    expect(sameModules(['everb'], ['everb', 'poly8'])).toBe(false)
+    expect(sameModules([], [])).toBe(true)
+  })
+  it('remembers the last read per base and shows the newest while the unit is away', () => {
+    const store = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => { store.set(key, value) } })
+    expect(lastInventory()).toBeUndefined()
+    rememberInventory('aa', { moduleIds: ['everb'], removedStockFx: [] }, '2026-10-12T10:00:00.000Z')
+    rememberInventory('bb', { moduleIds: ['poly8', 'tapeecho'], removedStockFx: [] }, '2026-10-12T11:00:00.000Z')
+    expect(lastInventory()).toEqual({ base: 'bb', moduleIds: ['poly8', 'tapeecho'], at: '2026-10-12T11:00:00.000Z' })
+    expect(lastInventory('aa')?.moduleIds).toEqual(['everb'])
+    store.set('modwerk.octatrack.last-seen', '{"cc":{"moduleIds":"broken","at":"2027"}}')
+    expect(lastInventory()).toBeUndefined() // a damaged record shows as never seen
+  })
+  it('works without storage', () => {
+    vi.stubGlobal('localStorage', { getItem() { throw new Error('blocked') }, setItem() { throw new Error('blocked') } })
+    expect(() => rememberInventory('aa', { moduleIds: [], removedStockFx: [] })).not.toThrow()
+    expect(lastInventory()).toBeUndefined()
+  })
+  it('steps the guided load from review through the trial to its result', () => {
+    expect(loadStep('ready', false, false)).toBe('review')
+    expect(loadStep('ready', true, true)).toBe('loading') // preparing the packages
+    expect(loadStep('sending', true, false)).toBe('loading')
+    expect(loadStep('testing', true, false)).toBe('testing')
+    expect(loadStep('trial', true, false)).toBe('trial')
+    expect(loadStep('finishing', true, false)).toBe('trial')
+    expect(loadStep('ready', true, false)).toBe('done') // kept, undone or failed: the link's notice says which
+    expect(loadStep('idle', true, false)).toBe('done') // unplugged part way
   })
 })

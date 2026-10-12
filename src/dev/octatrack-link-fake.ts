@@ -148,7 +148,7 @@ export function previewKit() {
   const kind = new URLSearchParams(window.location.search).get('unit')
   if (kind === 'unsupported') return { link: new OctatrackLink(null) }
   const unit = fakeUnit(kind === 'stock' || kind === 'none' ? kind : 'base')
-  unit.installed = { moduleIds: ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: ['DARK REV'] }
+  unit.installed = { moduleIds: ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: [] }
   Object.assign(window, { modwerkUsbPreview: unit })
   return {
     link: new OctatrackLink(unit.usb, fakeSession(unit, 60)),

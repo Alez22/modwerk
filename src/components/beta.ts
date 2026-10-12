@@ -2,7 +2,8 @@
 // without beta access never download it.
 import { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { moduleSetKit } from '../engine/elekloader/module-set'
-export { OctatrackUpdate } from './OctatrackUpdate'
+export { OctatrackHub } from './OctatrackHub'
+export { LoadDialog } from './LoadDialog'
 export { InstrumentItem } from './InstrumentItem'
 export { CardInstall, UnitStrip } from './UnitPanel'
 export { ModuleGrid, StateChip } from './ModuleGrid'

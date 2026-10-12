@@ -1,16 +1,17 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
-import type { Inventory } from '../config/inventory'
-import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
+import { rememberInventory, type Inventory } from '../config/inventory'
+import type { LinkState, OctatrackLink } from '../engine/elekloader/octatrack-link'
 import type { MissingModule } from '../engine/elekloader/upload-usb'
 
 /** The site's one link to the Octatrack, or null where there is no USB workflow (phones, flag off). */
 export const OctatrackLinkContext = createContext<OctatrackLink | null>(null)
 const noSubscription = () => () => {}
 
-/** The link's state for one view. The link listens for the unit while any view is mounted. */
-export function useOctatrackLink(link: OctatrackLink) {
-  useEffect(() => link.start(), [link])
-  return useSyncExternalStore(link.subscribe, link.getState, link.getState)
+const UNSUPPORTED: LinkState = { status: 'unsupported' }, unsupported = () => UNSUPPORTED
+/** The link's state for one view (unsupported without a link). The link listens for the unit while any view is mounted. */
+export function useOctatrackLink(link: OctatrackLink | null) {
+  useEffect(() => link?.start(), [link])
+  return useSyncExternalStore(link?.subscribe ?? noSubscription, link?.getState ?? unsupported, link?.getState ?? unsupported)
 }
 
 /** Whether an Octatrack with the Modwerk base is connected; re-renders only when that changes. `given` is for the provider's own component. */
@@ -29,7 +30,7 @@ export function useInventory(link?: OctatrackLink | null, read?: () => Promise<I
   useEffect(() => {
     if (!key || !read) return
     let live = true
-    read().then(value => { if (live) setInventory({ key, value }) }, error => console.error(error))
+    read().then(value => { rememberInventory(key.split('|')[0], value); if (live) setInventory({ key, value }) }, error => console.error(error))
     return () => { live = false }
   }, [key, read])
   return key && inventory?.key === key ? inventory.value : undefined

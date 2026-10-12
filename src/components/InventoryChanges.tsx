@@ -4,9 +4,10 @@ import type { InventoryChanges } from '../config/inventory'
 
 const moduleName = (id: string) => MODULES.find(module => module.id === id)?.name ?? id
 
-/** What a load will change on the Octatrack, shown before the user confirms. */
-export function ChangeSummary({ changes, inline = false }: { changes: InventoryChanges; inline?: boolean }) {
+/** What a load will change on the Octatrack, shown before the user confirms; `stays` lists what it leaves as it is. */
+export function ChangeSummary({ changes, stays = [], inline = false }: { changes: InventoryChanges; stays?: string[]; inline?: boolean }) {
   const rows: [string, string[]][] = [
+    ['Stays', stays.map(moduleName)],
     ['Adds', changes.add.map(moduleName)], ['Removes', changes.remove.map(moduleName)],
     ['Switches off', changes.stockOff.map(key => STOCK_EFFECT_NAMES[key] ?? key)], ['Switches on', changes.stockOn.map(key => STOCK_EFFECT_NAMES[key] ?? key)],
   ]

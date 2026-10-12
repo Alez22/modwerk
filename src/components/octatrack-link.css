@@ -200,3 +200,34 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
   .module-dialog-step.is-next { justify-self: end; }
   .module-dialog-trigs { display: none; }
 }
+/* The Octatrack hub: the unit, then your module sets against it. */
+.octatrack-hub .section-title { flex-wrap: wrap; }
+.octatrack-hub .section-title .unit-strip { margin: 0; }
+.octatrack-hub .unit-strip .button { min-height: 32px; padding: 5px 12px; }
+.hub-unit .module-tiles { margin-bottom: 14px; }
+.hub-unit > .link-hint, .hub-match, .hub-unit .usb-missing { margin: 0 0 10px; }
+.hub-match { color: var(--text-secondary); font-size: 13px; }
+.hub-sets > .link-hint { margin: -6px 0 12px; }
+.hub-set-list { list-style: none; margin: 0; padding: 0; }
+.hub-set-list li { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 0; }
+.hub-set-list li + li { border-top: 1px solid var(--line); }
+.hub-set-name { flex: 1; min-width: 0; }
+.hub-set-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
+.hub-set-name small { display: block; overflow: hidden; margin-top: 4px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.hub-set-list .button { flex: none; min-height: 34px; padding: 6px 12px; }
+.unit-strip .button { min-height: 32px; margin-left: 6px; padding: 5px 12px; }
+.toolbar-load { flex-shrink: 0; height: 36px; padding: 0 12px; }
+/* The guided load. */
+.load-dialog { width: min(560px, calc(100% - 32px)); }
+.load-dialog .base-install-header { margin-bottom: 16px; }
+.load-dialog .inventory-changes { margin: 0 0 12px; }
+.load-dialog .link-hint { margin: 0 0 12px; }
+.load-dialog .build-progress { margin: 4px 0 18px; }
+.load-check { display: flex; align-items: center; gap: 10px; margin: 18px 0 6px; padding: 12px 14px; border: 1px solid var(--control-border); border-radius: 8px; color: var(--text); font-size: 14px; cursor: pointer; }
+.load-check input { width: 16px; height: 16px; accent-color: var(--accent); }
+@media (max-width: 600px) {
+  .hub-set-list li { flex-wrap: wrap; }
+  .hub-set-name { flex-basis: 100%; }
+  .toolbar-load span { display: none; }
+  .toolbar-load { width: 36px; padding: 0; justify-content: center; }
+}

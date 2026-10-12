@@ -32,3 +32,32 @@ export function missingFromProject(missing: { module: string; name: string }[], 
   const byModule = new Map(catalogIds.map(id => [sha(new TextEncoder().encode(id)).slice(0, 8), id]))
   return { ids: missing.flatMap(item => byModule.get(item.module) ?? []), unknown: missing.filter(item => !byModule.has(item.module)).map(item => item.name) }
 }
+
+/** Whether a module set has exactly the unit's modules, in any order. */
+export const sameModules = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every(id => b.includes(id))
+
+/** Where the guided load stands: the review, sending, the self-test, the trial (Keep or Undo), or its result. */
+export type LoadStep = 'review' | 'loading' | 'testing' | 'trial' | 'done'
+export function loadStep(status: string, started: boolean, preparing: boolean): LoadStep {
+  if (preparing || status === 'sending') return 'loading'
+  if (status === 'testing') return 'testing'
+  if (status === 'trial' || status === 'finishing') return 'trial'
+  return started ? 'done' : 'review'
+}
+
+/** What this browser last read from each unit, by its base, so the sidebar and the hub can show it while the unit is away. */
+const LAST_SEEN = 'modwerk.octatrack.last-seen'
+export interface LastSeen { base: string; moduleIds: string[]; at: string }
+function allSeen(): Record<string, Omit<LastSeen, 'base'>> {
+  try { const value = JSON.parse(localStorage.getItem(LAST_SEEN) ?? '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {} } catch { return {} }
+}
+export function rememberInventory(base: string, inventory: Inventory, at = new Date().toISOString()) {
+  try { localStorage.setItem(LAST_SEEN, JSON.stringify({ ...allSeen(), [base]: { moduleIds: inventory.moduleIds, at } })) } catch { /* without storage it says Not connected */ }
+}
+/** The newest record (or one base's); undefined when this browser never read one or the record is damaged. */
+export function lastInventory(base?: string): LastSeen | undefined {
+  const [found] = Object.entries(allSeen())
+    .filter(([key, seen]) => (!base || key === base) && Array.isArray(seen?.moduleIds) && seen.moduleIds.every(id => typeof id === 'string') && typeof seen.at === 'string')
+    .sort((a, b) => b[1].at.localeCompare(a[1].at))
+  return found && { base: found[0], moduleIds: found[1].moduleIds, at: found[1].at }
+}
