@@ -39,8 +39,8 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 | # | Case | Today | Status |
 |---|---|---|---|
 | 14 | Power lost while the set is being saved | Two files in turn: the older set stays | built (host test) |
-| 15 | FUNC held at boot skips the restore | Everything the project names is missing | built, not run on the unit; owner steps below |
-| 16 | A real power cycle into a flashed base that restores | Needs a flash with the restore (the beta has it) | open; owner steps below |
+| 15 | FUNC held at boot skips the restore | Everything the project names is missing; the card's set is left alone, and the next normal boot restores it | done (flashed beta, 12 October 2026; below) |
+| 16 | A real power cycle into a flashed base that restores | MODULES LOADED, the set back from the card | done (flashed beta, 12 October 2026; below) |
 | 17 | The restore held back past 10 s (playback or USB disk mode right after boot) | Hosts then go ahead, and a late restore could still overwrite a change made before it. Installs need the transport stopped, so this needs the card unavailable or USB disk mode for 10 s after boot while installing | open (rare; shortcut in ep0.c) |
 
 ## While playing
@@ -151,10 +151,8 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 3. Case 7: an update with the same layout swaps in place instead of being refused (design first: the DSP
    manager must retire the old code from the slots running it before the new code binds, as the rebind does).
 4. Case 6: layout numbers, before the first module update that changes its knobs.
-5. Needing the owner at the unit: 16 (a power cycle into a flashed base that restores), 11 (SAVE TO NEW, EXPORT
-   TO SET: read project.work in USB disk mode), 19 (the arranger), the site's note in a browser. Case 15 (FUNC held
-   at boot) is deferred (owner, 12 October 2026) but must run on the unit before the beta rollout: it is the way
-   out when a module breaks the unit at boot.
+5. Needing the owner at the unit: 11 (SAVE TO NEW, EXPORT TO SET: read project.work in USB disk mode), 19 (the
+   arranger), the site's note in a browser. 15 and 16 are done (12 October 2026).
 6. Case 9: paste between projects (owner, 11 October 2026: not now).
 
 ## Owner steps for 15 and 16, on the flashed beta (12 October 2026)
@@ -187,3 +185,30 @@ Case 15, FUNC skips the restore:
     set alone.
 
 After steps 10, 13 and 14 the agent reads INVENTORY and MISSING over USB and records them here.
+
+### Results on the owner's MKII (12 October 2026)
+
+The owner flashed `Modwerk-octatrack-beta3.bin`. The agent then read the unit with vendor requests only:
+
+- **After the flash** (18:12): base `dc1d7a39…` from flash (DIAG ticks from about 18:11:54, the upgrade's own restart; no
+  RAM boot armed), idle, DIAG clean. The restore record said RESTORED: the flashed base took the card set that the
+  RAM-booted copy of the same build had written (an empty set). INVENTORY was empty.
+- **Install:** on bank C, transport stopped, the site's OctatrackLink loaded E-Verb 0.1.1 and Mini Verb 0.2.1 from
+  `public/octatrack-modules` as one set, with the self-test as its stress test, and kept it: 2 changes in 7.7 s.
+  - The self-test passed: 2/2 intact and ran, peaks T1-4 40.0 %, T5-8 56.8 %, CPU 44.2 %, longest frame 433 us.
+  - The card set was saved and read back, 2 of 2.
+  - INVENTORY: E-Verb (handle 27), Mini Verb (handle 23).
+- **Case 16:** the owner power-cycled with no key held and saw MODULES LOADED, then MISSING with Euclid, Air Chorus and
+  TapeHead. The restore record said RESTORED, 2 of 2, and INVENTORY listed E-Verb and Mini Verb.
+  - HELLO then shows generation 0 and the base's own digest as the active set: a restore installs through the loader,
+    not as an upload. INVENTORY, not HELLO, says what is installed.
+- **Case 15:** the owner held FUNC from the start of the startup animation; MODULES SKIPPED showed. The restore record
+  said SKIPPED. INVENTORY was empty, and MISSING listed E-Verb, Euclid, Air Chorus and TapeHead (Mini Verb is named by no
+  bank).
+- **The next normal power cycle:** MODULES LOADED again; RESTORED, 2 of 2; INVENTORY E-Verb and Mini Verb; MISSING
+  Euclid, Air Chorus and TapeHead. The skip had left the card's set alone.
+
+**Open, deferred past the beta** (so the qualified image stays as tested): MODULES SKIPPED and MODULES LOADED show only
+for a moment. They are stock popups (`modset.c`, `SAY`), and the MISSING MODULES page covers them half a second after
+its list stops changing, so the owner could hardly read MODULES SKIPPED. Either keep MISSING back for a few seconds
+after the restore's message, or put the restore's result on the MISSING page.

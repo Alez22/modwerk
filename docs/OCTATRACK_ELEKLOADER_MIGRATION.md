@@ -1963,8 +1963,19 @@ pattern 1 (the owner selected it and checked the screen):
   longest frame 433 us, card set saved and read back (the empty set). DIAG: 100 vendor frames, 5 refused as busy and
   retried, no abandoned stages. INVENTORY empty at the end.
 
-The unit was left RAM-booted on the tester image, with nothing installed, on bank C. It has no development requests, so
-the crash record of the crash test stays unread until a development base runs; a power cycle returns to `usbtest9`.
+The crash record of the crash test is still unread: the tester image has no development requests.
+
+**Flashed (12 October 2026, 18:11).** The owner then flashed `Modwerk-octatrack-beta3.bin`, so the unit's flashed base
+is now the tester image. Over USB with vendor requests only, the agent installed and kept E-Verb + Mini Verb with the
+self-test, and the card set was saved (2 of 2). Then three boots:
+- a power cycle restored the set (edge case 16, MODULES LOADED);
+- FUNC held at boot skipped it (edge case 15, MODULES SKIPPED, nothing installed);
+- the next normal power cycle restored it again.
+
+Details and the deferred popup issue are in
+[OCTATRACK_MODULE_EDGE_CASES.md](OCTATRACK_MODULE_EDGE_CASES.md#results-on-the-owners-mkii-12-october-2026). Since
+the flash, a crash restart or power cycle returns to `dc1d7a39…`. It has the S43 tick, so it should RAM-boot with the
+default frames; that has not been tried.
 
 ## Work required before public cutover
 
