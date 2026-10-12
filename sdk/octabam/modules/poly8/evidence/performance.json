@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "module": "poly8",
-  "version": "0.2.6-experimental",
+  "version": "0.2.7-experimental",
   "kind": "coldfire",
   "cycles": {
     "unit": "cycles/event",
@@ -25,11 +25,11 @@
     "stuckNotes": null,
     "hangs": null,
     "dropped": null,
-    "droppedExplanation": "No qualified physical wire-rate MIDI/audio flood. Native 128-key rapid-input, eight-voice/seven-FLEX/24-LFO workloads are recorded separately and do not substitute for this hardware measurement."
+    "droppedExplanation": "No qualified physical wire-rate MIDI/audio flood for 0.2.7. Three native sequencer release cases pass; historical 128-key/load workloads are recorded separately and do not qualify this hardware measurement."
   },
   "nativeEvidence": {
     "report": "evidence/performance-t06.json",
-    "method": "Historical 0.2.5/T06 only: twelve 1,000-block before/after native ColdFire instruction comparisons; all eight-channel 16,000-frame audio comparisons identical. These averages do not qualify the changed shared-machine bridge.",
+    "method": "Historical 0.2.5/T06 only: twelve 1,000-block before/after native ColdFire instruction comparisons; all eight-channel 16,000-frame audio comparisons identical. These averages do not qualify the 0.2.7 sequencer release pass. Current functional cases are in evidence/sequence-release-0.2.7.md; they are not timing or load measurements.",
     "highestTestedAverageInstructionsPer16SampleBlock": 58606.766,
     "hardwareTiming": null
   }

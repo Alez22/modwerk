@@ -23,8 +23,15 @@ int main(void){
  clear();poly_held[0][0]=72;trigger(0,72);poly_held[0][1]=84;trigger(0,84);assert(active()==2);
  pm_release_head(0,84);assert(active()==2);assert(poly_env_stage[0]==3);assert(poly_env_stage[8]==1);
  pm_release_head(0,72);assert(active()==2);assert(poly_env_stage[8]==3);
+ clear();trigger(0,255);trigger(0,255);trigger(0,72);trigger(1,255);
+ poly_pending_key[0]=73;pm_sequence_retrigger(0);assert(poly_env_stage[8]==1&&poly_env_stage[9]==1);
+ poly_pending_key[0]=255;pm_sequence_retrigger(0);
+ assert(poly_env_stage[8]==3&&poly_env_stage[9]==3);assert(poly_env_stage[0]==1&&poly_primary_note[0]==72);assert(poly_env_stage[1]==1);
+ trigger(0,255);assert(poly_env_stage[0]==1); // incoming chord starts after the one release pass
+ test_primary[0][0]=0;poly_env_stage[0]=2;poly_extra_voices[0][0]=0;poly_env_stage[8]=2;
+ pm_sequence_retrigger(0);pm_sequence_retrigger(8);assert(poly_env_stage[0]==2&&poly_env_stage[8]==2); // inactive records stay untouched
  clear();for(unsigned i=0;i<8;++i)trigger(0,i);pm_release_head(0,6);trigger(1,90);assert(active()==8);for(unsigned i=0;i<31;++i)assert(poly_extra_note[i]!=6);assert(poly_extra_note[0]==0); // release tail before oldest held
  poly_track_inc[0]=0x7fffffff;poly_track_inc[1]=0x7fffffff;pm_enforce_budget(0);assert(active()<=1);poly_track_inc[0]=poly_track_inc[1]=0x4000000;
  clear();trigger(0,10);trigger(0,11);enabled[0]=0;trigger(1,12);assert(!poly_extra_voices[0][0]);enabled[0]=1;clear();assert(active()==0);
- puts("PASS: eight-head bound; 10,000 cross-track steals; release tails first; pitch-work bound; independent release; machine cleanup");
+ puts("PASS: eight-head bound; 10,000 cross-track steals; release tails first; pitch-work bound; independent release; sequence retrigger and live/track isolation; machine cleanup");
 }

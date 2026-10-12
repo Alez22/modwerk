@@ -1,6 +1,9 @@
 # POLY8 validation
 
 Status: experimental release preparation, **not hardware-qualified**.
+The current 0.2.7 candidate is described in
+[sequence release evidence](evidence/sequence-release-0.2.7.md). Earlier results
+below retain their original versions and do not qualify this changed source.
 Historical 0.2.0 tests on 7 October 2026 used a locally verified Octatrack 1.40C, the native
 ColdFire/DSP port and the separate octemu/QEMU front-panel emulator. Firmware,
 project/card images, raw memory dumps and compiled executables remain private.
