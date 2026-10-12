@@ -135,7 +135,9 @@ separate. The card builder's Analog BD companion list and harvested P runs do
 not describe the runtime arena. USB eligibility starts with the published
 runtime-package manifest, then the base's actual site, state, buffer, code and
 cycle admission. Installing a set does not promise that every effect can run
-on every slot at once.
+on every slot at once. Published DSP package words stay in ColdFire memory;
+they consume DSP P space only while a core needs that effect. A baked card
+placement refusal does not establish a USB on-demand incompatibility.
 
 On the qualified beta base `dc1d7a39…` (tester `.bin` `9a86d7e1…`, from
 `c9146e66`), `modwerk_dsp_arena` in the filled base package is **5,021 words on
@@ -164,12 +166,18 @@ runtime packages cannot inherit:
   is not a complete port. In the card layout, Analog BD reserves 997 Spring
   words and a 35-word helper; the remaining disjoint openings are 594, 31 and
   1,067 words. E-Verb needs 1,588 contiguous words and has no split P table, so
-  allowing that card combination would still fail on both cores.
+  allowing that card combination would still fail on both cores. This is not
+  evidence against a future USB E-Verb/Analog BD pair: Analog BD first needs a
+  reviewed runtime DSP-source, tenant, relocation and cycle contract.
 - **Shared ColdFire sites need one runtime owner.** Analog BD, VECTOR and POLY8
   overlap at machine chooser/validator sites; POLY8 and Repitch share
   `0x40004100`. Native composition's shared-owner handling does not make two
   independently installed packages compatible. Port and verify that ownership
-  before offering the combination; preserve collision checks.
+  before offering the combination; preserve collision checks. Paused stacks
+  and registers are not the only lifetime roots: live UI layers, derived
+  key/encoder callbacks and page/widget state may retain package pointers.
+  Prove those references retire before unpublishing or reclaiming the image,
+  including cached/uncached aliases; an unresolved root keeps admission off.
 - **Hooked DSP effects need their full resource contract.** Sidechain Compressor
   needs resident cross-core taps, stock COMPRESSOR hooks and the last 0x202
   words of one FX2 buffer per core. See the measured inventory and planned

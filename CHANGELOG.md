@@ -2,6 +2,8 @@
 
 ## 12 October 2026
 
+- Clarified DSP demand versus installed USB packages, persistent UI-pointer retirement including cache aliases, and the disassembler’s exclusive DO-loop endpoint. Corrected the effects guide’s stale blanket Analog BD companion rule while keeping card placement and USB admission evidence separate.
+
 - Required new Octatrack modules to deliver the base/USB lifecycle alongside card builds, with companion ownership, browser/runtime package checks, lifecycle/persistence evidence and explicit owner review of unavoidable limits. Documented exact qualified-base capacities and current source-engine/shared-site gaps without presenting pending adapters as released.
 
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
