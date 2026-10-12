@@ -673,6 +673,40 @@ def stock_reference(parts, offset, length, address):
     return before + [['stock', hex(address), length]] + after
 
 
+def strip(document, fills, words, image, load):
+    """-> a copy of `document` without the stock DSP words each fill names, checked against `words(fill)`, the
+    words its recipe recovers. Format-2 cannot copy stock into a site or reorder bytes, so these leave as gaps:
+    the kit refuses the package until src/engine/elekloader/octatrack-base.ts inserts them from the user's own
+    firmware. In a section (the ColdFire's packed copies) a word is big-endian, in a DSP payload site little-endian."""
+    document = json.loads(json.dumps(document))
+    for fill in sorted(fills, key=lambda f: -f['offset']):  # from the end: earlier offsets stay where they were
+        start, end = fill['offset'], fill['offset'] + 3 * fill['count']
+        if 'section' in fill:
+            expected = b''.join(w.to_bytes(3, 'big') for w in words(fill))
+            kept, removed, at = [], b'', 0
+            for part in document['sections'][fill['section']]['parts']:
+                size = len(part[1]) // 2 if part[0] == 'hex' else part[2]
+                data = bytes.fromhex(part[1]) if part[0] == 'hex' else image[int(part[1], 16) - load:][:size]
+                lo, hi = max(at, start) - at, min(at + size, end) - at
+                if lo >= hi:
+                    kept.append(part)
+                else:
+                    removed += data[lo:hi]
+                    for a, b in ((0, lo), (hi, size)):  # what is left of the part, each piece its own part
+                        if a < b:
+                            kept.append(['hex', data[a:b].hex()] if part[0] == 'hex' else ['stock', hex(int(part[1], 16) + a), b - a])
+                at += size
+            document['sections'][fill['section']]['parts'] = kept
+        else:
+            expected = b''.join(w.to_bytes(3, 'little') for w in words(fill))
+            site = next(s for s in document['sites'] if s['addr'] == fill['site'])
+            removed = bytes.fromhex(site['new'])[start:end]
+            site['new'] = site['new'][:2 * start] + site['new'][2 * end:]
+        if removed != expected:
+            raise ValueError('A stock DSP fill does not name the bytes it removes: %s.' % fill)
+    return document
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stock', type=Path, required=True)
@@ -1004,6 +1038,16 @@ modwerk_retained_end:
         document['sections'][section]['parts'] = stock_reference(
             document['sections'][section]['parts'], offset, n, guard['address'])
     Path(path).write_text(json.dumps(document, indent=1)+'\n')
+    if args.dsp_loader:  # the package without stock bytes, for Git and the browser: base.elemod and base-fills.json
+        fills = [fill for t in 'AB' for fill in dsp_layout[t]['fills']]
+        for n, t in enumerate('AB'):
+            for fx, words in sorted(dsp_layout[t]['words'].items()):
+                section, offset = document['symbols']['stock%d_%d_packed' % (n, fx)]
+                fills.append(dict(tag=t, fx=fx, first=0, count=len(words), section=section, offset=offset))
+        recovered = lambda f: (dsp_layout[f['tag']]['words'][f['fx']] if 'fx' in f else
+                               dsp_layout[f['tag']]['shared'][f['shared']])[f['first']:f['first'] + f['count']]
+        (out/'base.elemod').write_text(json.dumps(strip(document, fills, recovered, image, device.main_load), indent=1)+'\n')
+        (out/'base-fills.json').write_text(json.dumps(fills, indent=1)+'\n')
     mod = elemod.load_any(path)
     if set(mod.imports) - {'__run_load','__run_start','__run_words','__bss_start','__bss_words',
                       'arena_base','__arena_pages','__arena_fill','__arena_clear',
@@ -1029,7 +1073,7 @@ modwerk_retained_end:
     (out/'MAIN.raw').write_bytes(main_out)
     report = dict(schema=1, kind='modwerk-elekloader-base-prototype', coreVersion=VERSION,
                   upstream=pin, sources=inputs, configuration=configuration, configurationHash=identity,
-                  dspLoader={t: {k: (hex(v) if isinstance(v, int) else v) for k, v in dsp_layout[t].items() if k != 'words'} for t in dsp_layout} if dsp_layout else None,  # no stock words in proofs
+                  dspLoader={t: {k: (hex(v) if isinstance(v, int) else v) for k, v in dsp_layout[t].items() if k not in ('words', 'shared')} for t in dsp_layout} if dsp_layout else None,  # no stock words in proofs
                   packageSha256=sha(Path(path).read_bytes()), manifest=manifest,
                   savedHashes={ext:sha(data) for ext,data in outputs.items()},
                   productionReady=False, hardware='not tested', emulator='not tested',

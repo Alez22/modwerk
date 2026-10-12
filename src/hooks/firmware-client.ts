@@ -14,6 +14,7 @@ export function createLazyFirmwareClient(create: () => FirmwareClient = createFi
     inspect: file => engine().inspect(file),
     validate: (...args) => engine().validate(...args),
     build: (...args) => engine().build(...args),
+    buildBase: () => engine().buildBase(),
     cancelBuild: () => { client?.cancelBuild() },
     clear: () => client?.clear() ?? Promise.resolve(),
     dispose: () => { disposed = true; client?.dispose(); client = null },

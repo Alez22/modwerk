@@ -12,12 +12,14 @@ export type EngineRequest =
   | { id: number; type: 'inspect'; buffer: ArrayBuffer; name: string }
   | { id: number; type: 'validate' | 'build'; moduleIds: string[]; keepStockFx2: boolean; usbAudio?: UsbAudioConfiguration; betaAccess?: boolean }
   | { id: number; type: 'clear' }
+  | { id: number; type: 'base' }
 export type EngineResponse =
   | { id: number; type: 'inspection'; inspection: FirmwareInspection }
   | { id: number; type: 'validated'; report: BuildReport }
   | { id: number; type: 'progress'; phase: BuildProgress }
   | { id: number; type: 'built'; buffer: ArrayBuffer; report: BuildReport; sha256: string }
   | { id: number; type: 'cleared' }
+  | { id: number; type: 'base'; buffer: ArrayBuffer; sha256: string }
   | { id: number; type: 'error'; message: string; conflict?: SelectionConflict }
 // The owner authorized the logger-enabled release on 3 October 2026.
 // The logger exception and remaining measurement limits are in docs/VERIFICATION.md.

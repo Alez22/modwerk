@@ -4,7 +4,7 @@
 import unittest
 from types import SimpleNamespace
 
-from build_core import stock_reference
+from build_core import stock_reference, strip
 from build_ports import check_table_contract, register_platform
 
 
@@ -31,6 +31,31 @@ class StockReplayTests(unittest.TestCase):
     def test_replaces_whole_source_part(self):
         self.assertEqual(stock_reference([['hex', '00' * 8]], 0, 8, 0x40000000),
                          [['stock', '0x40000000', 8]])
+
+
+class StockDspStripTests(unittest.TestCase):
+    # A section holding a packed copy (big-endian words) across a stock part, and a DSP site (little-endian words).
+    image = bytes.fromhex('c0ffee')
+    document = {'sections': {'.run': {'len': 10, 'parts': [['hex', 'aa123456'], ['stock', '0x40000401', 1], ['hex', 'abcdef01bb']]}},
+                'sites': [{'addr': '0x400f0ee3', 'len': 7, 'new': '11' + '0c0b0a' + '223344'}]}
+    words = {4: [0x123456, 0xffabcd, 0xef01bb], 0x7d1: [0x0a0b0c]}
+
+    def strip(self, fills):
+        return strip(self.document, fills, lambda f: self.words[f.get('fx', f.get('shared'))][f['first']:f['first'] + f['count']],
+                     self.image, 0x40000400)
+
+    def test_leaves_gaps_at_part_boundaries_and_keeps_the_rest(self):
+        stripped = self.strip([dict(tag='A', fx=4, first=0, count=2, section='.run', offset=1),
+                               dict(tag='A', shared=0x7d1, first=0, count=1, site='0x400f0ee3', offset=1)])
+        self.assertEqual(stripped['sections']['.run']['parts'], [['hex', 'aa'], ['hex', 'ef01bb']])
+        self.assertEqual(stripped['sites'][0]['new'], '11223344')
+        self.assertEqual(self.document['sites'][0]['new'], '110c0b0a223344')  # the input stays whole
+
+    def test_refuses_a_fill_that_does_not_name_the_bytes_it_removes(self):
+        with self.assertRaisesRegex(ValueError, 'does not name'):
+            self.strip([dict(tag='A', fx=4, first=1, count=1, section='.run', offset=1)])
+        with self.assertRaisesRegex(ValueError, 'does not name'):
+            self.strip([dict(tag='A', shared=0x7d1, first=0, count=1, site='0x400f0ee3', offset=0)])
 
 
 class PlatformDependencyTests(unittest.TestCase):

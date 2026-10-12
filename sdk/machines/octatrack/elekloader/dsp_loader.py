@@ -246,11 +246,12 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0, ids=32):
                         if not any(p['sourceAddress'] <= r['sourceAddress'] < p['sourceAddress'] + p['words'] for p in taken)])
         if [s for s, _ in spans] != [lo] + [s + n for s, n in spans[:-1]] or spans[-1][0] + spans[-1][1] != hi:
             raise ValueError('Payload %s: the stock effect block is not one run.' % tag)
-        shared, at_copy = [], lo
+        shared, at_copy, routines = [], lo, {}
         for routine in sorted(payload['shared'], key=lambda r: r['destination']):
             if routine['destination'] != at_copy:
                 raise ValueError('Payload %s: the shared stock routines do not pack from the block start.' % tag)
-            shared += recovered(read, routine)
+            routines[at_copy] = recovered(read, routine)
+            shared += routines[at_copy]
             at_copy += routine['words']
         if at_copy != origin or origin > 0x1000:  # their one-word calls reach only below P:$1000
             raise ValueError('Payload %s: the shared stock routines do not end at %#x below P:$1000.' % (tag, origin))
@@ -304,7 +305,7 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0, ids=32):
             raise ValueError('Payload %s: the receiver\'s mismatch record is not three consecutive words.' % tag)
         for index, offset in relocations:
             code[index] = origin + offset
-        words, covered = shared + code + [0] * table, 0  # the saved entries must start empty
+        words, covered, fills = shared + code + [0] * table, 0, []  # the saved entries must start empty
         for space, start, count, first in records:  # one site per payload record
             a, b = max(lo, start), min(hi, start + count)
             if space or a >= b:
@@ -312,6 +313,12 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0, ids=32):
             offset, covered = first + 3 * (a - start) - device.main_load, covered + b - a
             sites.append(dict(addr=hex(offset + device.main_load), stock=image[offset:offset + 3 * (b - a)].hex(), op='bytes',
                               kind='data', new=b''.join(w.to_bytes(3, 'little') for w in words[a - lo:b - lo]).hex()))
+            # The shared routines are stock code: the committed package names them by recipe (build_core.strip).
+            for d, routine in routines.items():
+                s, e = max(a, d), min(b, d + len(routine))
+                if s < e:
+                    fills.append(dict(tag=tag, shared=d, first=s - d, count=e - s, site='0x%08x' % (offset + device.main_load),
+                                      offset=3 * (s - a)))
         if covered != hi - lo:
             raise ValueError('Payload %s does not load the stock effect block exactly once.' % tag)
         frame = origin + labels['frame']
@@ -342,7 +349,7 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0, ids=32):
                            dispatch=TABLE_HOME, ids=ids,
                            miss=origin + labels['missoffset'], meter=origin + labels['idlepub'], null=null, free=free,
                            stock={fx: {k: v for k, v in s.items() if k != 'words'} for fx, s in stock.items()},
-                           reads=reads, words={fx: s['words'] for fx, s in stock.items()})
+                           reads=reads, words={fx: s['words'] for fx, s in stock.items()}, shared=routines, fills=fills)
     if layout['A']['free'] != layout['B']['free']:
         raise ValueError('The two payloads leave different effect ids free.')
     return sites, layout

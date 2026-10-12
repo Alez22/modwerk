@@ -10,20 +10,34 @@ import { diagnosePlacement, isPlacementFailure } from './placement-conflicts'
 import { checkSelection } from '../catalog/compatibility'
 import { moduleAvailabilityError } from '../catalog/availability'
 import { CATALOG_SOURCE, resolveSelection } from '../catalog/modules'
+import { buildBase, type BaseFill } from './elekloader/octatrack-base'
+// A file of its own, fetched when a base is built: the worker bundle inlines imports, and the package is 600 KB.
+import basePackage from './assets/octatrack-base.elemod?url'
+import baseFills from './assets/octatrack-base-fills.json'
 import { DOWNLOADS_ENABLED, DSP_LOADER, FIRMWARE_VERSION, type BuildReport, type EngineRequest, type EngineResponse } from './protocol'
 export function createEngineSession(reply: (response: EngineResponse, transfer?: Transferable[]) => void) {
   // `newest` is the latest validate or build: the worker runs requests concurrently, and the page ignores older answers.
-  let base: DecodedFirmware | null = null, generation = 0, newest = 0
+  let base: DecodedFirmware | null = null, stock: Uint8Array | null = null, generation = 0, newest = 0
   return async (request: EngineRequest) => {
     try {
-      if (request.type === 'clear') { ++generation; base = null; reply({ id: request.id, type: 'cleared' }); return }
+      if (request.type === 'clear') { ++generation; base = null; stock = null; reply({ id: request.id, type: 'cleared' }); return }
       if (request.type === 'inspect') {
-        const current = ++generation; base = null
+        const current = ++generation; base = null; stock = null
         const inspection = await inspectBaseFirmware(request.buffer, request.name)
         const decoded = decodeFirmware(new Uint8Array(request.buffer))
         await recoverStockDsp(decoded.mainOs)
         if (current !== generation) throw new Error('The selected firmware changed. Verify it again.')
-        base = decoded; reply({ id: request.id, type: 'inspection', inspection }); return
+        base = decoded; stock = new Uint8Array(request.buffer); reply({ id: request.id, type: 'inspection', inspection }); return
+      }
+      if (request.type === 'base') {
+        const original = stock, current = generation
+        if (!original) throw new Error('Choose and verify your OS 1.40C file first.')
+        const response = await fetch(basePackage)
+        if (!response.ok) throw new Error('The base package did not load. Reload the page and try again.')
+        const built = await buildBase(original, await response.text(), baseFills as BaseFill[])
+        if (current !== generation) throw new Error('The selected firmware changed. Build again.')
+        const buffer = built.bin.slice().buffer
+        reply({ id: request.id, type: 'base', buffer, sha256: built.sha256 }, [buffer]); return
       }
       const usbError = usbAudioBuildError(request.usbAudio)
       if (usbError) throw new Error(usbError)

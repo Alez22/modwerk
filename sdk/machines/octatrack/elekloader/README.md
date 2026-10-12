@@ -19,7 +19,8 @@ through the bootstrap's BSS clear, keeps its 512-byte I/O buffer on the
 uncached alias and records a core-only configuration identity. Stock function
 replays use guarded format-2 stock references recovered locally from the
 owner's original firmware. Generated stock-bearing recipes, packages, maps,
-images and proofs stay outside Git.
+images and proofs stay outside Git; the one committed package carries no
+stock bytes ([the base in the browser](#the-base-in-the-browser)).
 
 The bounded upload controller is compiled into the prototype but has no
 lifecycle backend or module executor connected: its USB-reachable
@@ -45,6 +46,31 @@ npm run octatrack:elekloader:verify -- \
   /private/pinned-elekloader \
   /private/NEW-core-output/package/core-0.3.1-modwerk-dev.1.elemod
 ```
+
+### The base in the browser
+
+The base install dialog's **Download base .bin** builds the `--dsp-loader` base (no `--dev`) in the firmware
+worker from the user's own OS 1.40C file. Format-2 copies stock bytes into sections only, as they are, so
+`build_core.py` also writes `base.elemod`: its package with every stock DSP word left out (the ColdFire's
+big-endian copies of the stock effects, the shared routines in the payload sites), and `base-fills.json`, each
+gap as a recipe of `src/engine/assets/stock-dsp-metadata.json`. The kit refuses the package until
+[`octatrack-base.ts`](../../../../src/engine/elekloader/octatrack-base.ts) has put the words back, recovered
+from the user's file and checked against each recipe's hashes; then it links, packs and verifies as
+`patch.build` does. [`check_stock_free.py`](check_stock_free.py) fails on any run of 16 or more stock bytes
+the package ships literally (`--min 8` lists the chance ones below that: effect names, its own code).
+
+The committed pair is `src/engine/assets/octatrack-base.elemod` and `octatrack-base-fills.json`. Any change
+to what the base's source hash covers (this folder, the logger, upload, loader, DSP transport and startup
+sources) changes the base: rebuild and commit it with
+
+```sh
+npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --write
+```
+
+Without `--write` it checks the committed pair is what this source builds. Both runs check the package is
+stock-free, that the browser's path builds a `.bin` identical to `build_core.py`'s `NOT_FLASH_CANDIDATE.bin`,
+and `check_flash_safety.py`; `--out NEW-DIR` (outside Git) saves that `.bin` and its `MAIN.raw` for a RAM
+boot. It uses `~/.cache/modwerk-upstream` (`--upstream`, `ELEKLOADER_DSP_ASM`) as the build above does.
 
 ### DSP effects on demand
 

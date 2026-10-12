@@ -1787,7 +1787,9 @@ needs it. The order (owner: yes to all three):
      `stock_guard.py`). They stay, or move beside the module sources.
 2. **The site builds the base and loads modules over USB.**
    - `buildBase`: the user's stock OS in, the base out. This is `build_core.py` through Elekloader's browser
-     kit (`vendor/elekloader/kit`); the base install dialog has the seam.
+     kit (`vendor/elekloader/kit`); the base install dialog has the seam. Built (12 October 2026): the firmware
+     worker fills the committed, stock-free package from the user's file and the kit links it, byte for byte
+     `build_core.py`'s `.bin` ([the base in the browser](../sdk/machines/octatrack/elekloader/README.md#the-base-in-the-browser)).
    - `prepareUpdate`: the module set's packages from step 1.
    - `stressTest`: the self-test (plan below).
    - The public path becomes "install the base once, then sync module sets". It replaces the whole-OS

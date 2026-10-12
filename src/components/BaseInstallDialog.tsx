@@ -86,10 +86,12 @@ function LinkHero() {
  * seconds. Step 4 completes by itself when the unit comes back with the base.
  * `buildBase` is the builder's seam, absent until the browser can build the base.
  */
-export function BaseInstallDialog({ link, launch = false, firmwareReady, onChooseFirmware, buildBase, onClose }: {
+export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwareError, onChooseFirmware, buildBase, onClose }: {
   link: OctatrackLink
   launch?: boolean
   firmwareReady: boolean
+  /** Why the chosen OS file was refused (not the original 1.40C). */
+  firmwareError?: string
   onChooseFirmware: (file: File) => void
   buildBase?: () => Promise<BaseImage>
   /** `done` is false when the browser closed it early (Escape before the page was clicked), which must not count as seen. */
@@ -99,7 +101,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, onChoos
   const state = useOctatrackLink(link)
   const [hold, setHold] = useState(launch ? LAUNCH_HOLD_SECONDS : 0)
   const [accepted, setAccepted] = useState(false)
-  const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>('idle')
+  const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>('idle'), [failure, setFailure] = useState('')
   const [view, setView] = useState<'intro' | 'steps'>(launch ? 'intro' : 'steps')
   const found = state.status === 'ready' && !!state.identity?.canSubmit
   const canClose = hold === 0 || found
@@ -118,7 +120,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, onChoos
   async function downloadBase() {
     setDownload('building')
     try { const image = await buildBase!(); saveFirmware(image.buffer, 'base', image.sha256); setDownload('done') }
-    catch (error) { console.error(error); setDownload('failed') }
+    catch (error) { console.error(error); setFailure(error instanceof Error ? error.message : ''); setDownload('failed') }
   }
   const step = (done: boolean, number: number) => <span className="link-step-marker" aria-hidden="true">{done ? <Icon name="check" size={14} /> : number}</span>
 
@@ -140,11 +142,12 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, onChoos
         <p>Built in your browser from your original OS 1.40C file. Nothing is uploaded.</p>
         {!firmwareReady && <><button type="button" className="button button-quiet" onClick={() => fileRef.current?.click()}><Icon name="file" size={16} />Choose your OS 1.40C file</button>
           <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }} />
-          <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get it? <Icon name="arrow" size={14} /></a></>}
+          <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get it? <Icon name="arrow" size={14} /></a>
+          {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}</>}
         <RiskAcceptance checked={accepted} onChange={setAccepted} />
         <button type="button" className="button button-primary" disabled={!buildBase || !firmwareReady || !accepted || download === 'building'} onClick={() => void downloadBase()}><Icon name="download" size={16} />{download === 'building' ? 'Building the base…' : 'Download base .bin'}</button>
         {!buildBase && <p className="link-hint">The browser can’t build the base yet.</p>}
-        {download === 'failed' && <p className="file-error" role="alert">The base could not be built. Check your OS file and try again.</p>}
+        {download === 'failed' && <p className="file-error" role="alert">The base could not be built. {failure || 'Check your OS file and try again.'}</p>}
         {download === 'done' && <p className="link-hint" role="status">Download requested. Check your browser’s downloads folder.</p>}
       </div></li>
       <li>{step(false, 2)}<div className="link-step-body">
