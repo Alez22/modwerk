@@ -52,9 +52,8 @@ Search combines with instrument and project-type filters. Instrument links can
 prefilter the directory with `?machine=<family-id>`. The production build emits
 the full link directory as readable HTML, with its own canonical URL, social
 card and sitemap entry. “Want me to add your project?” opens the existing support
-email address with a prefilled project-submission draft. The sidebar and mobile
-menu temporarily mark the directory as New. Selection criteria and independently
-researched additions are recorded in [the curation notes](EXTERNAL_PROJECTS.md).
+email address with a prefilled project-submission draft. Selection criteria and
+independently researched additions are recorded in [the curation notes](EXTERNAL_PROJECTS.md).
 
 Card thumbnails are cached GitHub repository Open Graph images, including each
 repository's custom sharing artwork when provided. Refresh them with
