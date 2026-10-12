@@ -2,7 +2,7 @@
 
 ## 12 October 2026
 
-- Fixed the host-side Windows package command by passing the qualified builder a relative JSON selector, and made temporary Git checkout cleanup handle read-only pack files. Firmware inputs and published package bytes remain unchanged.
+- Fixed the host-side Windows package command by passing the qualified builder a relative JSON selector, and made temporary Git checkout cleanup handle read-only pack files. Nested Python builders also inherit UTF-8 for the catalogue’s text. Firmware inputs and published package bytes remain unchanged.
 
 - Added the owner-approved, version-specific browser preservation guard for Tape Echo. It requires exact protected inputs and actual legacy-worker output equality; original evidence and hardware limitations remain unchanged. A missing or stale integration proof still blocks release. The binding also pins the checked-in two-snapshot runner; generation refuses mismatched or uncommitted inputs. The isolated publication test includes the preservation helper, so it still exercises the real release gates.
 
