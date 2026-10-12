@@ -11,6 +11,7 @@ import { sendActivityDigests } from './server/activity-mail'
 import { sendNewsMail } from './server/news-mail'
 import { syncModuleReleases } from './server/module-updates'
 import { cleanupForumMedia } from './server/forum-media'
+import { cleanupAudioPreviews } from './server/audio-previews'
 import { handleCommunity } from './server/transport'
 import type { Env } from './server/platform'
 
@@ -44,7 +45,7 @@ export default {
     const activity = () => syncModuleReleases(env, db).catch(error => { console.error(`Published module versions could not be checked; retrying next hour: ${failureDetail(error)}`) }).then(() => sendActivityDigests(env, db))
     context.waitUntil(runHourly({
       'push cleanup': () => cleanupPush(db), 'usage cleanup': () => cleanupUsage(db), 'presence cleanup': () => cleanupPresence(db), 'account cleanup': () => cleanupAccounts(db),
-      'developer auth cleanup': () => cleanupDeveloperAuth(db), 'module threads': () => ensureModuleThreads(db), 'activity digests': activity, 'news mail': () => sendNewsMail(env, db), 'forum media cleanup': () => cleanupForumMedia(env),
+      'developer auth cleanup': () => cleanupDeveloperAuth(db), 'module threads': () => ensureModuleThreads(db), 'activity digests': activity, 'news mail': () => sendNewsMail(env, db), 'forum media cleanup': () => cleanupForumMedia(env), 'audio preview cleanup': () => cleanupAudioPreviews(env),
     }))
   },
 }

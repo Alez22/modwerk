@@ -1,4 +1,4 @@
-import { MODULE_DOCUMENTS_BY_ID } from '../catalog/documents'
+import { moduleMediaDocument } from '../community/module-media'
 import { assetUrl } from '../hosting'
 
 export type AudioPreviewClip = {
@@ -7,11 +7,14 @@ export type AudioPreviewClip = {
   duration?: number
   peaks?: readonly number[]
   credit: string
+  canRemove?: boolean
+  caption?: string
+  username?: string
 }
 
 /** Only declared recordings get a player; illustrations never imply a sound clip exists. */
 export function moduleAudioPreviews(id: string): AudioPreviewClip[] {
-  const document = MODULE_DOCUMENTS_BY_ID[id]
+  const document = moduleMediaDocument(id)
   return document?.media.filter(item => item.captureType === 'audio').map(item => ({
     id: item.path,
     url: assetUrl('module-media/' + id + '/' + document.version + '/' + item.path),

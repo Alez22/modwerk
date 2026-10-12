@@ -61,6 +61,7 @@ export async function profileRoutes(request: Request, env: Env, db: Database, pa
     db.prepare('DELETE FROM auth_users WHERE id=?').bind(owner.id),
     // Posted text stays as anonymous discussion; images and sound clips are removed (the hourly job purges the files).
     db.prepare('UPDATE forum_media SET removed=1 WHERE user_id=?').bind(owner.id),
+    db.prepare('UPDATE module_audio_previews SET removed=1 WHERE user_id=?').bind(owner.id),
     db.prepare("UPDATE users SET username=NULL,display_name='Deleted member',profile_bio='',instagram_url='',soundcloud_url='',bandcamp_url='',avatar_id=NULL,avatar_mime=NULL,email_verified=0,suspended=1,github_id=NULL,github_login=NULL WHERE id=?").bind(owner.id),
   ])
   if (picture?.avatar_id && env.MEDIA) await env.MEDIA.delete(avatarKey(picture.avatar_id))

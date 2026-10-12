@@ -1,4 +1,4 @@
-# Audio preview prototype QA
+# Audio preview release QA
 
 Final result: passed
 
@@ -10,7 +10,7 @@ The selected direction is now a slim waveform overlay, refined to preserve Modwe
 - Implementation: `http://127.0.0.1:5177/?preview=audio`, rendered with Playwright in Edge. Desktop 1440 × 1024, mobile 390 × 844, tablet 820 × 1180 CSS pixels; device scale factor 1. Screenshots match those pixel dimensions.
 - Full-view comparisons: `artifacts/audio-design-qa/overlay-comparison-full.png` and `overlay-comparison-mobile.png`. Each comparison contains the actual source and browser capture together. Composite panels are proportionally reduced for inspection, without stretching. The existing application uses 90% CSS zoom on desktop, retained in both native and prototype captures; screenshot density remains 1.
 - Focused comparisons: `overlay-comparison-card.png` and `overlay-comparison-player.png` in the same evidence directory. These retain original crop density and compare original and overlay thumbnails side by side, including idle, hover, persistent playback after pointer exit and hidden paused states. Submission evidence remains in `audio-focused-submission.png`.
-- States captured: idle library, hover/playing card, idle detail carousel, empty detail, selected-file dialog, invalid file, mobile library/detail/playing/carousel/dialog and tablet detail.
+- States captured: idle library, hover/playing card, idle detail carousel, empty detail, selected-file dialog, invalid file, mobile library/detail/playing/carousel/dialog and tablet detail. Public upload additions are captured in `public-upload-dialog.png`, `public-upload-mobile.png`, `public-previews-desktop.png` and `public-previews-mobile.png`; gallery entries show contributor usernames, credits and captions.
 - Local screenshots and recordings remain in ignored `artifacts/`; none are committed.
 
 The concept is a direction, rather than a specification for replacing the established application layout. Its mobile title-before-art order, larger artwork and decorative active-card border were intentionally not introduced. Native card structure, author/version metadata, Add/Compare controls, navigation, detail hierarchy and illustrations remain in place. The prototype toolbar is development-only review chrome.
@@ -32,13 +32,15 @@ The final full-view and focused comparisons passed. No actionable P0/P1/P2 findi
 - **Spacing and layout:** card dimensions and artwork dimensions are identical idle, hovered and playing. The slim card strip measures approximately 38px after the existing desktop zoom, versus a 151px thumbnail (about 25% coverage). Native and overlay detail thumbnails and illustrations match exactly on desktop and mobile; mobile thumbnail height is 180px. Add/Compare and footer positioning remain unchanged. Touch detail controls and carousel controls retain 44px targets; the desktop-only card play control is 32px. Desktop, tablet and mobile captures show no horizontal overflow or collisions.
 - **Colors and tokens:** existing charcoal surfaces, muted text and lavender action tokens are retained. Tape Echo uses its warm signal color and Mini Verb its teal signal color. Playing progress and pause state are visible; focus uses the existing accent outline.
 - **Images and icons:** existing `ModulePreview` artwork and `Icon` components are reused as explicitly requested. No generated artwork replaces existing assets. Waveforms come from decoded recordings or actual synthetic PCM, rather than decorative shapes. The artwork stays at its native size underneath the slim overlay.
-- **Copy and content:** clips have no description/caption field. Module information remains native. Carousel counts describe actual clips. The file form asks for a recording, credit and permission; the development toolbar and confirmation explicitly identify synthetic clips and local-only submission.
+- **Copy and content:** thumbnail players omit descriptions. The owner subsequently requested optional captions and usernames in the Previews tab, so the public form includes a caption and the gallery lists it alongside the contributor's username and credit. Community previews precede documentation captures. Module information remains native. Carousel counts describe actual clips. Public submission explains publication and removal; the development prototype identifies its synthetic clips and local-only submission.
 
 ## Functional verification
 
 Playwright verified desktop click-to-seek/play without navigation; thumbnail-only reveal and preparation without autoplay or hidden-audio requests; persistent visibility during playback and hiding after pausing outside the thumbnail; unchanged artwork/card dimensions; exact native detail thumbnail dimensions on desktop/mobile; one playback owner across players; carousel wrap and stopping the old clip; keyboard seeking/play/pause and thumbnail focus access; mobile module navigation without autoplay and waveform tap-to-play; single-clip and empty states; invalid-file feedback; required credit/permission; decoded upload preview; local submission increasing the carousel count; and responsive layout at all three viewports. Runtime page errors and console errors: none. Latest results: `artifacts/audio-design-qa/overlay-verification.json`.
 
-`npm run check` passed: 233 test files, 1751 tests, lint, TypeScript, SDK/contract checks and production build. The production bundle excludes the synthetic fixtures and submission prototype.
+Public uploads were additionally verified through a real local Cloudflare Worker, D1 and R2 binding: upload, lost-response retry without duplication, refresh persistence, username/caption listing, card playback of stored bytes, Digitakt detail upload, mobile form/gallery layout, visitor sign-in gating and owner removal after refresh. No runtime page errors occurred. Backend tests cover verified membership, permission, captions, audio signatures, byte/request limits, byte ranges, owner/admin removal, storage failures, pending cleanup and deleted/suspended contributors. Evidence is in `public-upload-verification.json`.
+
+`npm run check -- --base origin/main` passed after integrating the latest main changes: 235 test files, 1775 tests, lint, TypeScript, SDK/contract checks and production build. The production bundle excludes the synthetic fixtures and local submission prototype; public submission uses the persisted API.
 
 ## Implementation checklist and limits
 
@@ -46,8 +48,9 @@ Playwright verified desktop click-to-seek/play without navigation; thumbnail-onl
 - [x] Original thumbnail and illustration sizing; no extra card height.
 - [x] Mobile detail player starts only after a tap.
 - [x] Optional recordings; unchanged cards when absent.
-- [x] Detail carousel for multiple clips and an Add preview entry point in the prototype, including empty modules.
-- [x] Local file submission, validation and review playback; no clip descriptions.
+- [x] Detail carousel for multiple clips and public Add preview, including empty modules and Digi module pages.
+- [x] Persistent public file submission, validation, retry protection, review playback and removal.
+- [x] Previews tab lists submitted recordings with username, credit and optional caption.
 - [x] Repeat visual comparison after fixing P2 findings.
 
-The submission flow is a local prototype, resets on reload, and does not upload to the community API. Ordinary pages use existing declared module media. Server persistence/moderation is outside this prototype. Browser validation covers Chromium/Edge; Safari and hardware-generated recordings have not been exercised. No blocking visual gaps remain.
+Production uses declared module recordings and persistent community uploads in the existing media bucket. The synthetic development fixtures still reset on reload. Contributors and administrators can remove community audio; account deletion queues files for cleanup. The browser validates decoded duration and the server bounds supplied duration/signatures/bytes without independently decoding it. Browser validation covers Chromium/Edge; Safari and hardware-generated recordings have not been exercised. No blocking visual gaps remain.
