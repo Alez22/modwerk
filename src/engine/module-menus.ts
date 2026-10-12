@@ -20,8 +20,9 @@ function pointer(value: number) {
   if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) throw new Error('A module menu pointer is outside its address range.')
   const bytes = new Uint8Array(4); new DataView(bytes.buffer).setUint32(0, value); return bytes
 }
-export async function composeModuleMenus(original: Uint8Array, ids: readonly string[], caveLimit = MENU_CAVE_END, runtime: CfRuntimeLink | null = null, leading: readonly string[] = []) {
-  const modules = placementOrder(resolveSelection(ids), leading), baseline = await composeDescriptors(original, ids, leading)
+export async function composeModuleMenus(original: Uint8Array, ids: readonly string[], caveLimit = MENU_CAVE_END, runtime: CfRuntimeLink | null = null, leading: readonly string[] = [], startupReserveBytes = 0) {
+  if (![0,80].includes(startupReserveBytes)) throw new Error('Invalid startup cave reservation.')
+  const modules = placementOrder(resolveSelection(ids), leading), baseline = await composeDescriptors(original, ids, leading, startupReserveBytes)
   if (recipes.schema !== 1 || recipes.revision !== CATALOG_SOURCE.revision || ![MENU_CAVE_END, MENU_LONG_LIST].includes(caveLimit)) throw new Error('The module menus do not match the pinned placement profile.')
   if (baseline.caveCursor > caveLimit) throw new Error('The descriptor clones run into the chooser list.')
   const writes: OsWrite[] = [...baseline.writes], regions: { address: number; bytes: number; note: string }[] = []

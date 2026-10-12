@@ -6,6 +6,7 @@ export type BuildReport = {
   osBytes: number; runtimeBytes: number; reservedBytes: number; fx1Rows: number; fx2Rows: number
   // Stock FX2 effects left out of this build's FX2 menu; FX1 keeps every stock effect.
   omittedStockFx2: string[]
+  startupAnimation?: 'classic' | 'beta-docking'
 }
 export type BuildProgress = 'composing' | 'packing' | 'verifying'
 export type EngineRequest =

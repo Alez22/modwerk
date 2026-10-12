@@ -24,6 +24,13 @@ The owner authorized beta publication of the staged DSP optimization on 9 Octobe
 
 ## Preserve public firmware availability
 
+Octatrack builds for beta testers and verified administrators also include the
+Elekloader migration's docking startup, marked **NEW / BETA**. The existing builder
+ports the animation independently of the new Elekloader base. Normal members
+retain the public startup. The build panel labels the beta edition, and
+`/api/auth/build-access` rechecks the optional `betaStartup` request against current
+membership. See [startup verification and limits](STARTUP_ANIMATION.md).
+
 Every visible module must support firmware generation and download in a compatible configuration. Pending updates stay on their branches; failed builds keep the approved deployment. Do not set the global download flag to false while an update awaits review. The public download policy regression test is part of `npm run check`; fix or isolate the pending change instead of weakening that check. MIDI Scenes remains standalone and ordinary compatibility/placement failures still explain how to fix a selection.
 
 ## Browsing module results
