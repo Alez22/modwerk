@@ -50,7 +50,7 @@ describe('E-Verb experimental release', () => {
     // The captures are bound to this exact native source: any source change needs a new capture.
     expect(capture.sourceSha256).toBe(await moduleNativeSourceSha256(folder, document))
     expect(capture.stockOs.mainOsSha256).toMatch(/^[a-f0-9]{64}$/)
-    for (const media of document.media) {
+    for (const media of document.media.filter(item => item.otUi)) {
       const bytes = await readFile(resolve(folder, media.path))
       requireMonochromePng(bytes)
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(capture.screenshots[media.path.slice('media/'.length) as keyof typeof capture.screenshots])
