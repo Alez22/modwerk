@@ -127,6 +127,57 @@ python3 -B sdk/runtime/loader/build.py --octabam euclid --stock /private/OCTATRA
   --slots both --cycles 143 --cycles-kind executed --state 64 --pinned -o /private/euclid.mwrm
 ```
 
+### Runtime compatibility and the card builder
+
+USB module sets use the on-demand arena above; the loader-free card builder
+uses unlisted stock effects as code donors. Keep their compatibility decisions
+separate. The card builder's Analog BD companion list and harvested P runs do
+not describe the runtime arena. USB eligibility starts with the published
+runtime-package manifest, then the base's actual site, state, buffer, code and
+cycle admission. Installing a set does not promise that every effect can run
+on every slot at once.
+
+On the qualified beta base `dc1d7a39…` (tester `.bin` `9a86d7e1…`, from
+`c9146e66`), `modwerk_dsp_arena` in the filled base package is **5,021 words on
+core 0 and 5,017 on core 1**. E-Verb, Mini Verb, TapeHead and Air Chorus together
+need 3,341 words per core (1,588 + 536 + 422 + 795, including Air Chorus's P
+table), with one code copy shared by instances. Capacity changes with the
+receiver and saved-id table; retain older measurements with their own build
+identity. Respect live stock words inside the FX2 buffers on T3/T7, both core
+layouts and contiguous openings during changes. The allocator still charges
+each active instance against its core's allowance, including stock slots;
+modeled/executed claims currently use its conservative 7/4 conversion. With
+these package claims, one instance of each of the four effects plus twelve
+stock-slot reserves costs 6,702, above the two cores' combined 6,685 allowance:
+that active quartet is refused even though its installed code fits. Reducing
+those claims needs exact worst-case hardware timing or a qualified source
+optimization. Host placement and admission tests do not establish chip timing
+or hardware qualification for a new source/base.
+
+Some native combinations also rely on shared implementations that separate
+runtime packages cannot inherit:
+
+- **Analog BD's DSP source engine is a separate integration.** Its manifest
+  declares the ColdFire machine/control units, while native `ab_image.py`
+  supplies both DSP engines, their X tables, the source seam and the preserved
+  stock helper. A `--octabam analog-bassdrum` package compiling those units alone
+  is not a complete port. In the card layout, Analog BD reserves 997 Spring
+  words and a 35-word helper; the remaining disjoint openings are 594, 31 and
+  1,067 words. E-Verb needs 1,588 contiguous words and has no split P table, so
+  allowing that card combination would still fail on both cores.
+- **Shared ColdFire sites need one runtime owner.** Analog BD, VECTOR and POLY8
+  overlap at machine chooser/validator sites; POLY8 and Repitch share
+  `0x40004100`. Native composition's shared-owner handling does not make two
+  independently installed packages compatible. Port and verify that ownership
+  before offering the combination; preserve collision checks.
+- **Hooked DSP effects need their full resource contract.** Sidechain Compressor
+  needs resident cross-core taps, stock COMPRESSOR hooks and the last 0x202
+  words of one FX2 buffer per core. See the measured inventory and planned
+  restricted-buffer admission in
+  [the migration record](../../../../docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
+  Output Matrix's stock DSP hooks likewise need loader support. A free effect
+  id or a successful ColdFire link proves neither layout.
+
 ### Status page
 
 `status.c` measures, all the time, the ColdFire's load (main's idle spin, timed on DTIM3, `status.s`), each
