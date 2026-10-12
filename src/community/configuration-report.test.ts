@@ -44,9 +44,11 @@ describe('which modules a configuration report is about', () => {
     expect(() => validateConfigurationReportContext(base, log.summary)).toThrow('structured reports only')
   })
 
-  it('names each author and maintainer once, ignoring case, in configuration order', () => {
+  it('names each current maintainer once, ignoring case, in configuration order', () => {
     expect(configurationOwners([{ id: 'sidechain-compressor' }, { id: 'miniverb' }, { id: 'repitch' }, { id: 'unknown' }])).toEqual(['Zac-Kyoti', 'repeat98'])
     expect(configurationOwners([{ id: 'miniverb' }, { id: 'synth' }, { id: 'sidechain-compressor' }])).toEqual(['repeat98', 'timhastie', 'Zac-Kyoti'])
+    expect(configurationOwners([{ id: 'cc-map' }, { id: 'recorder-loop-fix' }, { id: 'spectrum' }])).toEqual([])
+    expect(configurationOwners([{ id: 'cc-map' }, { id: 'miniverb' }, { id: 'recorder-loop-fix' }])).toEqual(['repeat98'])
     expect(configurationSummary(1)).toBe('1 module')
     expect(configurationSummary(3)).toBe('3 modules')
   })
