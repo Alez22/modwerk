@@ -33,7 +33,7 @@ export const DOWNLOADS_ENABLED = true
 export const DSP_LOADER = false
 // Loading modules over USB is a beta: outside dev builds, only beta testers and verified administrators get the
 // USB link and base install (hasUsbLinkAccess). True releases it to everyone, together with the server's prompt check.
-export const USB_LINK = import.meta.env.DEV
+export const USB_LINK = import.meta.env?.DEV ?? false
 // The ELEK update name appears on the resident bootloader's screen.
 // The panel boot font has uppercase letters; lowercase codes draw symbols.
 // Its fixed field is ten ASCII bytes; module versions are reported separately.
