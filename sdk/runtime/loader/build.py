@@ -91,12 +91,34 @@ def module_id(name):
     return int.from_bytes(hashlib.sha256(name.encode()).digest()[:4], 'big')
 
 
-def package(image, bss, hooks, offsets, sites=(), name='', dsp=None, flags=0, hashed=False, title='', layout=1, copies=()):
+def package(image, bss, hooks, offsets, sites=(), name='', dsp=None, flags=0, hashed=False, title='', layout=1, copies=(), fills=(), abi=None):
     """sites: (address, stock bytes, new bytes, offsets of self-references in them), or with `hashed` (ABI 7)
     (address, SHA-256 of the stock bytes, new bytes, offsets, how many leading new bytes are the stock bytes, how many
     leading stock bytes the hash covers);
     dsp: dsp_section()'s. An ABI 7 package without DSP code is named by `title` and `layout`; its `copies`
     ((image offset, stock address, length, SHA-256)) are stock bytes the base copies into the image."""
+    abi = abi or (8 if fills or len(sites) > 64 or len(copies) > 16 else 7 if hashed else 6 if dsp else 4)
+    if abi not in (4, 6, 7, 8) or (abi >= 7) != bool(hashed) or (fills and abi < 8):
+        raise ValueError('Hash sites/copies and constant fills need their declared ABI.')
+    if len(sites) > (128 if abi == 8 else 64) or len(copies) > (128 if abi == 8 else 16) or len(fills) > 64:
+        raise ValueError('The package exceeds the loader record bounds.')
+    spans = []
+    for offset, address, length, digest in copies:
+        if len(digest) != 32:
+            raise ValueError('A stock copy needs its SHA-256.')
+        spans.append((offset, length))
+    for offset, length, value in fills:
+        if abi != 8 or not 0 < value < 256:
+            raise ValueError('A constant fill needs ABI 8 and a nonzero byte.')
+        spans.append((offset, length))
+    if abi == 8:
+        for i, (offset, length) in enumerate(spans):
+            if not (offset >= 0 and length > 0 and offset + length <= len(image)) or any(image[offset:offset + length]):
+                raise ValueError('Copies and fills need zero placeholders inside the image.')
+            if any(offset < old + n and old < offset + length for old, n in spans[:i]):
+                raise ValueError('Copies and fills overlap.')
+            if any(offset < at + 4 and at < offset + length for at in offsets):
+                raise ValueError('A copy or fill overlaps a relocation word.')
     records = b''
     for address, stock, code, local, *more in sites:
         keep, checked = more if hashed else (0, len(code))
@@ -113,6 +135,7 @@ def package(image, bss, hooks, offsets, sites=(), name='', dsp=None, flags=0, ha
         if not (0 < length <= SITE_BYTES and offset + length <= len(image) and not any(image[offset:offset + length])):
             raise ValueError('The stock copy for %#x must fill zeros inside the image.' % address)
         records += struct.pack('>IIHH', offset, address, length, 0) + digest
+    records += b''.join(struct.pack('>IIB3x', offset, length, value) for offset, length, value in fills)
     head = struct.pack('>IIIIII', len(image), bss, len(offsets), len(hooks), len(sites), module_id(name))
     if dsp:
         head += struct.pack('>IHBBHHHBBH', len(dsp['words']), len(dsp['relocations']), dsp['effect'], dsp['slots'],
@@ -125,9 +148,11 @@ def package(image, bss, hooks, offsets, sites=(), name='', dsp=None, flags=0, ha
         head += bytes(18) + title.encode().ljust(16, b'\0') + struct.pack('>H', layout)
     if hashed:
         head += struct.pack('>I', len(copies))
+        if abi == 8:
+            head += struct.pack('>I', len(fills))
     elif copies:
         raise ValueError('Stock copies need ABI 7.')
-    return (b'MWRM' + struct.pack('>HH', 7 if hashed else 6 if dsp else 4, flags) + head + struct.pack('>%dI' % len(hooks), *hooks)
+    return (b'MWRM' + struct.pack('>HH', abi, flags) + head + struct.pack('>%dI' % len(hooks), *hooks)
             + image + struct.pack('>%dI' % len(offsets), *offsets) + records)
 
 
@@ -341,6 +366,131 @@ def octabam_units(name, origin, cross, upstream, dsp=False):
     return image, bss, offsets, sites, copies
 
 
+def octabam_group(args):
+    """One private extent and site owner for an explicitly selected machine subset.
+
+    The adapter owns shared hooks. This builder links all effective units once,
+    proves the same input at two origins, and leaves inherited stock table words
+    as checked-copy placeholders. Public inventory still needs retirement proof.
+    """
+    sys.path.insert(0, str(args.upstream.expanduser().resolve()))
+    from elekloader.sdk import octabam as port
+    sdk = Path(__file__).resolve().parents[2] / 'octabam'
+    adapters = Path(__file__).resolve().parents[2] / 'machines/octatrack/module-adapters'
+    sys.path.insert(0, str(adapters))
+    import machine_composition, fm_runtime, vector_runtime, stock_recipe
+    names = args.octabam_group.split(',')
+    if len(names) != len(set(names)) or not names or set(names) - {'poly8', 'vector', 'synth'}:
+        raise ValueError('A machine group must explicitly select a nonempty subset of poly8,vector,synth.')
+    ob = port.Octabam(str(sdk))
+    selected = [ob.modules[name] for name in sorted(names)]
+    inputs = {str(p.relative_to(Path(__file__).resolve().parents[3])): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in [*[adapters / name for name in ('machine_composition.py','fm_runtime.py','vector_runtime.py','stock_recipe.py')], *[sdk / ('modules/' + m.name + '/manifest.py') for m in selected],
+                        *[sdk / u.source for m in selected for u in m.linked],
+                        sdk / 'modules/poly8/shared-machine.c', sdk / 'modules/poly8/shared-machine-hooks.s',
+                        sdk / 'modules/poly8/composition.json', sdk / 'modules/quantizer/composition.json']}
+    recipe = json.loads(args.stock_recipe.read_text()) if args.stock_recipe else None
+    table_guards = recipe.get('tables', {}) if recipe else {}
+    stock_at = None
+    if args.stock:
+        from elekloader import formats
+        stock, device, release = formats.load(str(args.stock))
+        main = formats.main_image(stock, device)
+        if device.key != 'octatrack' or release.version != '1.40C' or hashlib.sha256(main).hexdigest() != release.main_sha256:
+            raise ValueError('Machine table guard capture requires original Octatrack 1.40C.')
+        def stock_at(address, n):
+            at = address - device.main_load
+            if at < 0 or at + n > len(main):
+                raise ValueError('A machine table lies outside stock MAIN.')
+            return main[at:at + n]
+    with tempfile.TemporaryDirectory() as folder:
+        work = Path(folder)
+        modules = machine_composition.effective_modules(selected, sdk_root=sdk, work=work / 'composition', cross=args.cross)
+        composed = any(m.name in ('poly8', 'vector-fm-bridge', 'machine-bridge') for m in modules)
+        if 'synth' in names and not composed:
+            raise ValueError('FM alone still needs its private descriptor owner; no unsafe standalone package is emitted.')
+        modules = [fm_runtime.port(m, sdk, work / 'fm', composition=True) if m.name == 'synth' else
+                   vector_runtime.port(m, sdk, work / 'vector') if m.name == 'vector' and not composed else m for m in modules]
+        units, objects, tables, sites = [], [], [], []
+        for m in modules:
+            if m.requires or m.keeps or m.dram_regions or m.overrides or m.cf_patches or m.dsp:
+                raise ValueError(m.name + ': the group has an unported resource or DSP claim.')
+            tables.extend(m.tables)
+            for unit in m.linked:
+                if unit.include or unit.defsyms or not unit.dram and unit.cave_addr is not None:
+                    raise ValueError(unit.label + ': the group still has a generated/pinned unit.')
+                obj = work / ('unit%d.o' % len(objects))
+                subprocess.run([args.cross + 'as', '-mcpu=54455', unit.source, '-o', str(obj)], cwd=sdk, check=True, capture_output=True)
+                for name in unit.exports:
+                    subprocess.run([args.cross + 'objcopy', '--globalize-symbol=' + name, str(obj)], check=True, capture_output=True)
+                objects.append(obj); units.append(unit)
+        table_copies = []
+        for index, table in enumerate(tables):
+            label = '__runtime_table_%d' % index
+            inserted = table.count if table.insert_at is None else table.insert_at
+            if table.count * 4 > 32:
+                raise ValueError('Split and review larger stock table copies before adding a group.')
+            guard = table_guards.get(hex(table.old))
+            if stock_at:
+                checked = {'count': table.count, 'sha256': hashlib.sha256(stock_at(table.old, table.count * 4)).hexdigest()}
+                if guard and guard != checked:
+                    raise ValueError('A reviewed stock table guard changed.')
+                table_guards[hex(table.old)] = guard = checked
+            if not guard or guard['count'] != table.count:
+                raise ValueError('Machine tables need a reviewed hash recipe or private --stock capture.')
+            # Current FM appends; insertion needs two independently hashed spans.
+            if inserted != table.count:
+                raise ValueError('A table insertion needs separately reviewed prefix/suffix stock guards.')
+            asm = work / ('table%d.s' % index)
+            asm.write_text('.text\n.balign 4\n.global ' + label + '\n' + label + ':\n.space %d\n' % (table.count * 4) +
+                           ''.join('.long ' + symbol + '\n' for _, symbol in table.symbols))
+            obj = work / ('table%d.o' % index)
+            subprocess.run([args.cross + 'as', '-mcpu=54455', str(asm), '-o', str(obj)], check=True, capture_output=True)
+            objects.append(obj); table_copies.append((label, table.old, table.count * 4, bytes.fromhex(guard['sha256'])))
+        origin = 16  # 8-byte metadata and authored alignment padding
+        image, symbols, bss, offsets = link_units(objects, args.cross, origin, work, anywhere=False)
+        def pointer(symbol, addend=0):
+            if symbol not in symbols:
+                raise ValueError('A group symbol is missing: ' + symbol)
+            return struct.pack('>I', symbols[symbol] + addend)
+        for m in modules:
+            for d in m.detours:
+                n = d.pad_to or 6
+                if d.kind not in OPCODES or d.target is not None or n < 6 or n % 2:
+                    raise ValueError('An effective group detour is not relocatable.')
+                digest, checked = stock_digest(d.expect)
+                sites.append((d.site, digest, OPCODES[d.kind] + pointer(d.symbol) + b'\x4e\x71' * ((n-6)//2), [2], 2 if d.kind == 'lea' else 0, checked))
+            for p in m.pokes:
+                digest, checked = stock_digest(p.expect)
+                sites.append((p.addr, digest, bytes(p.write), [], 0, checked))
+            for ref in m.symbol_refs:
+                digest, checked = stock_digest(ref.expect.to_bytes(4, 'big'))
+                sites.append((ref.addr, digest, pointer(ref.symbol, ref.addend), [0], 0, checked))
+        for index, table in enumerate(tables):
+            for address, expected in table.refs:
+                digest, checked = stock_digest(expected.to_bytes(4, 'big'))
+                sites.append((address, digest, pointer('__runtime_table_%d' % index), [0], 0, checked))
+        ordered = sorted(sites)
+        if any(a[0] + len(a[2]) > b[0] for a, b in zip(ordered, ordered[1:])):
+            raise ValueError('The effective machine group still has overlapping sites.')
+        copies = [(symbols[c.symbol], c.span.address, c.span.length, stock_digest(c.span)[0]) for u in units for c in u.stock_copies]
+        copies += [(symbols[label], address, n, digest) for label, address, n, digest in table_copies]
+        mask = sum(bit for name, bit in [('poly8', 1), ('vector', 2), ('synth', 4)] if name in names)
+        image = b'MWMG' + bytes([1, mask, 0, 0]) + bytes(8) + image
+        offsets = [origin + at for at in offsets]
+        if args.capture_stock_recipe:
+            args.capture_stock_recipe.write_text(json.dumps(dict(schema=1, imageSha256=hashlib.sha256(image).hexdigest(),
+                sources=inputs, tables=table_guards, symbols={name: value for name, value in symbols.items() if 0 <= value < len(image)}, copies=[], fills=[]), indent=2) + '\n')
+        fills = []
+        if recipe:
+            image, extra, fills = stock_recipe.apply(image, offsets, recipe, inputs)
+            copies += extra
+        if args.stock:
+            check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
+        return package(image, bss, [], offsets, sites, name=args.module_id or 'octatrack-machines', hashed=True,
+                       title=args.name or 'Machines', layout=args.layout, copies=copies, fills=fills, abi=8, flags=4)
+
+
 def check_stock(sites, stock, upstream):
     """Each ABI 7 site's hash against the stock OS: a manifest that names the wrong bytes fails here, not on a unit."""
     sys.path.insert(0, str(upstream.expanduser().resolve()))
@@ -408,11 +558,15 @@ def main():
     parser.add_argument('--no-page', action='store_true', help='leave out the effect page recipe (no chooser row on the unit)')
     parser.add_argument('--page-from', help='development only: another catalogue module\'s page (a copy of an effect under its own id, '
                                             'to fill more effect ids than the catalogue has)')
+    parser.add_argument('--octabam-group', help='private ABI8 composed subset: poly8,vector,synth; no extra member is inferred')
+    parser.add_argument('--module-id', help='stable group identity (default octatrack-machines)')
+    parser.add_argument('--stock-recipe', type=Path, help='reviewed source/image hashes and explicit copies/fills')
+    parser.add_argument('--capture-stock-recipe', type=Path, help='private hash-only recipe capture; no stock bytes')
     parser.add_argument('--octabam', help='a catalogue module from its Octabam manifest (ABI 7); a hybrid effect adds --dsp')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     args = parser.parse_args()
-    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) > 1 or not (args.sources or args.elemod or args.dsp)
-            and not args.octabam or (args.elemod and args.dsp) or (args.octabam and not args.upstream)):
+    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) > 1 or not (args.sources or args.elemod or args.dsp)
+            and not args.octabam and not args.octabam_group or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group) and not args.upstream)):
         parser.error('Give C sources, --elemod, --dsp, or --octabam with --upstream.')
     dsp, pkg = None, {}
     documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
@@ -425,7 +579,9 @@ def main():
         named = next((m.get('name') for m in documents.get('modules', []) if m.get('id') == pkg['id']), None) if 'id' in pkg else None
         dsp = dsp_section(pkg, args.slots, args.cycles or 0, args.cycles_kind, args.state or 0, args.buffer,
                           args.name or named or pkg.get('key', ''), args.layout)
-    if args.elemod:
+    if args.octabam_group:
+        data = octabam_group(args)
+    elif args.elemod:
         data = build_elemod(args)
     elif args.sources:
         data = build_c(args.sources, args.cross, args.output.stem, dsp)
@@ -445,7 +601,7 @@ def main():
                        title=title, layout=args.layout, copies=copies)
     args.output.write_bytes(data)
     image, bss, count, hooks, sites, ident = struct.unpack_from('>IIIIII', data, 8)
-    header = {7: 72, 6: 68}.get(data[5], 32)
+    header = {8: 76, 7: 72, 6: 68}.get(data[5], 32)
     print('%s: module %08x, %d bytes of code and data, %d of bss, %d relocations, %d hooks, %d stock-code sites%s' % (
         args.output, ident, image, bss, count, sum(h != NONE for h in struct.unpack_from('>%dI' % hooks, data, header)), sites,
         ', DSP effect %d: %d words, %d relocations' % (dsp['effect'], len(dsp['words']), len(dsp['relocations'])) if dsp else ''))

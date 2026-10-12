@@ -20,6 +20,12 @@
 #define STOCK_FROM 0x40000400u      /* the OS image in RAM */
 #define BOOTLOADER_FROM 0x400de1e0u /* what the OS re-flashes the bootloader from; bank data follows it */
 
+/* Code/data references may retain either alias of the same physical DRAM. */
+uint32_t modwerk_machine_reference(uint32_t value)
+{
+    return value >= STOCK_FROM && value < 0x47f00000u ? value + 0x08000000u : value;
+}
+
 #ifdef MODWERK_HOST
 int modwerk_test_stopped = 1;
 int modwerk_machine_stopped(void) { return modwerk_test_stopped; }

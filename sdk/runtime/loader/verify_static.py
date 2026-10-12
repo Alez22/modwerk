@@ -30,19 +30,28 @@ def unpack(data):
 
 
 def unpack_all(data):
+    code, offsets, sites, copies, fills = unpack_recipe(data)
+    image = bytearray(code)
+    for offset, length, value in fills:
+        image[offset:offset + length] = bytes([value]) * length
+    return bytes(image), offsets, sites, copies
+
+
+def unpack_recipe(data):
     abi = struct.unpack_from('>H', data, 4)[0] if data[:4] == b'MWRM' else 0
-    if abi not in (3, 4, 5, 6, 7):
-        raise ValueError('Not an ABI 3 to 7 runtime package.')
+    if abi not in (3, 4, 5, 6, 7, 8):
+        raise ValueError('Not an ABI 3 to 8 runtime package.')
     image, _, count, hooks, sites = struct.unpack_from('>IIIII', data, 8)
     dsp_words, dsp_relocations = struct.unpack_from('>IH', data, 32) if abi >= 5 else (0, 0)
-    copies = struct.unpack_from('>I', data, 68)[0] if abi == 7 else 0
-    at = {3: 28, 4: 32, 5: 50, 6: 68, 7: 72}[abi] + 4 * hooks
+    copies = struct.unpack_from('>I', data, 68)[0] if abi >= 7 else 0
+    fills = struct.unpack_from('>I', data, 72)[0] if abi == 8 else 0
+    at = {3: 28, 4: 32, 5: 50, 6: 68, 7: 72, 8: 76}[abi] + 4 * hooks
     code, at = data[at:at + image], at + image
     offsets = struct.unpack_from('>%dI' % count, data, at)
     at += 4 * count
     records, copied = [], []
     for _ in range(sites):
-        if abi == 7:
+        if abi >= 7:
             address, n, keep, checked, r = struct.unpack_from('>IBBBB', data, at)
             records.append((address, data[at + 8:at + 40], data[at + 40:at + 40 + n],
                             struct.unpack_from('>%dH' % r, data, at + 40 + n), keep, checked))
@@ -56,9 +65,16 @@ def unpack_all(data):
         offset, address, n = struct.unpack_from('>IIH', data, at)
         copied.append((offset, address, n, data[at + 12:at + 44]))
         at += 44
+    filled = []
+    for _ in range(fills):
+        offset, n, value = struct.unpack_from('>IIB', data, at)
+        if not n or offset + n > len(code) or not value or any(data[at + 9:at + 12]) or any(code[offset:offset + n]):
+            raise ValueError('Malformed constant fill.')
+        filled.append((offset, n, value))
+        at += 12
     if at + 4 * dsp_words + 2 * dsp_relocations != len(data):
         raise ValueError('Trailing bytes in the package.')
-    return code, offsets, records, copied
+    return code, offsets, records, copied, filled
 
 
 def placed(data, offsets, base):

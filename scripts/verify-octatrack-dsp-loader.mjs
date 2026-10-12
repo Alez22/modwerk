@@ -28,7 +28,7 @@
 // CARD by keys, on a development base; the project file's map lines go out through the writer's seam; ot_emu needs
 // --mkii, whose panel has PROJ, and --card-rw to keep the file).
 // parts (no module: Parts 2, 3, 4 and 1 in turn, so every effect the bank's Parts name runs; for memory censuses).
-// sites (a package with stock-code sites, ABI 7 or earlier, any module: installed, then removed; RAM, read a long at a
+// sites (a package with stock-code sites, ABI 8 or earlier, any module: installed, then removed; RAM, read a long at a
 // time, must hold each site's new bytes while it is live (kept bytes as stock, relocated words at one base) and its
 // image's first 64 bytes and every stock copy there, and every site the bytes from before once it is removed).
 // Additional sites packages can be passed in SECOND, comma-separated; each is installed then removed in turn.
@@ -63,21 +63,23 @@ const place = (proofs, fx1First) => {
   return [slot, (slot ? proofs.configuration.fx2 : proofs.configuration.fx1).length]
 }
 
-/** A runtime package's image, relocations, stock-code sites and ABI 7 stock copies (sdk/runtime/loader/README.md). */
+/** Runtime image, relocations, hashed sites, stock copies and authored initializers. */
 function unpack(data) {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength), abi = view.getUint16(4), u32 = at => view.getUint32(at)
-  let at = { 3: 28, 4: 32, 5: 50, 6: 68, 7: 72 }[abi] + 4 * u32(20)
+  let at = { 3: 28, 4: 32, 5: 50, 6: 68, 7: 72, 8: 76 }[abi] + 4 * u32(20)
   const image = data.subarray(at, at += u32(8)), relocations = Array.from({ length: u32(16) }, (_, i) => u32(at + 4 * i)), sites = []
   at += 4 * relocations.length
   for (let i = 0; i < u32(24); i++) {
-    const hashed = abi === 7, n = hashed ? data[at + 4] : view.getUint16(at + 4), r = hashed ? data[at + 7] : view.getUint16(at + 6)
+    const hashed = abi >= 7, n = hashed ? data[at + 4] : view.getUint16(at + 4), r = hashed ? data[at + 7] : view.getUint16(at + 6)
     const code = at + 8 + (hashed ? 32 : n)
     sites.push({ address: u32(at), length: n, keep: hashed ? data[at + 5] : 0, code: data.subarray(code, code + n),
       relocations: Array.from({ length: r }, (_, k) => view.getUint16(code + n + 2 * k)) })
     at = code + n + 2 * r
   }
-  const copies = Array.from({ length: abi === 7 ? u32(68) : 0 }, (_, i) => ({ offset: u32(at + 44 * i), address: u32(at + 44 * i + 4), length: view.getUint16(at + 44 * i + 8) }))
-  return { image, relocations, sites, copies }
+  const copies = Array.from({ length: abi >= 7 ? u32(68) : 0 }, (_, i) => ({ offset: u32(at + 44 * i), address: u32(at + 44 * i + 4), length: view.getUint16(at + 44 * i + 8) }))
+  at += 44 * copies.length
+  const fills = Array.from({ length: abi >= 8 ? u32(72) : 0 }, (_, i) => ({ offset: u32(at + 12 * i), length: u32(at + 12 * i + 4), value: data[at + 12 * i + 8] }))
+  return { image, relocations, sites, copies, fills }
 }
 
 /** Where the dispatch tables are (init[ids], then proc[ids]): the receiver's since step 4, stock's X:$215 before. */
@@ -179,7 +181,16 @@ if (mode === 'dumps') {
     }
     for (const path of [file, ...(second ? second.split(',') : [])]) {
       const data = new Uint8Array(readFileSync(path)), id = new DataView(data.buffer).getUint32(28)
-      const { image, relocations, sites, copies } = unpack(data), before = []
+      const { image, relocations, sites, copies, fills } = unpack(data), before = []
+      if (new DataView(data.buffer).getUint16(4) >= 8) {
+        const caps = await bench.controlIn(0xc1, 29, 0, index, 12)
+        assert(caps && caps.length === 12, 'ABI 8 capabilities are readable')
+        assert.equal(caps.toString('ascii', 0, 4), 'MWCP')
+        assert.equal(caps[4], 1); assert.equal(caps[5], 8)
+        assert.equal(caps.readUInt16BE(6), 7, 'only CF, copies and fills are supported')
+        assert.equal(caps.readUInt16BE(8), 128); assert.equal(caps.readUInt16BE(10), 128)
+        console.log(`capabilities: ${caps.toString('hex')}`)
+      }
       for (const site of sites) before.push(await peek(site.address, site.length))
       await keep(data).catch(async error => { // loader.h runtime_refusal: 8, the stock bytes under a site are not the ones it names
         throw new Error(`${error.message} (loader refusal ${(await transport.selftest(false))?.refusal})`)
@@ -202,6 +213,10 @@ if (mode === 'dumps') {
           (await peek(c.address, c.length)).copy(code, c.offset)
           assert.deepEqual(await peek(at + c.offset, c.length), code.subarray(c.offset, c.offset + c.length), `stock copy of 0x${hex(c.address)}`)
         }
+        for (const f of fills) {
+          code.fill(f.value, f.offset, f.offset + f.length)
+          assert.deepEqual(await peek(at + f.offset, f.length), code.subarray(f.offset, f.offset + f.length), `authored initializer at ${f.offset}`)
+        }
         if (new DataView(data.buffer).getUint16(6) & 1) { // fxpage_build records its destination descriptor in MWPG+48
           assert.equal(code.toString('ascii', 0, 4), 'MWPG')
           const item = (await transport.inventory())?.find(item => item.module === id.toString(16).padStart(8, '0'))
@@ -210,7 +225,7 @@ if (mode === 'dumps') {
         }
         assert.deepEqual(await peek(at, Math.min(64, code.length)), code.subarray(0, 64), `code at 0x${hex(at)}`)
       }
-      console.log(`installed: ${sites.length} sites hold, code and ${copies.length} stock copies at 0x${hex(at ?? 0)}`)
+      console.log(`installed: ${sites.length} sites hold, code and ${copies.length} stock copies at 0x${hex(at ?? 0)}; ${fills.length} authored initializers`)
       await keep(removal(base, id).data)
       for (const [i, site] of sites.entries()) assert.deepEqual(await peek(site.address, site.length), before[i], `site 0x${hex(site.address)} after removal`)
       console.log(`removed: every site holds what it held before`)

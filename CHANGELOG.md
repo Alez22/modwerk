@@ -2,7 +2,10 @@
 
 ## 12 October 2026
 
+- Prepared ABI 8 USB package bounds, hash-backed stock reconstruction and explicit authored constant fills, with a read-only base capability request. Added private shared-machine packaging and working/saved-Part lifetime fixtures; machine-group admission, table composition and Sidechain remain disabled pending their separate retirement and qualification gates. The regenerated candidate is emulator/staging evidence only and does not replace the qualified tester image.
+
 - Prepared ABI 7 USB packages for Preview Vol and Repitch using stock hashes; six further ColdFire or hybrid packages remain private pending stock-overlap review, with a private emulator adapter that executes the displaced task initialization before recognizing the idle loop. Busy USB commits now restage and retry their discarded candidate. This side-branch base and its packages await owner hardware requalification.
+- Added a guarded private VECTOR/FM machine composition adapter for all VECTOR/FM subsets without POLY8, including either machine alone. It gives shared chooser and parameter-page hooks one owner, retains each selected engine, and keeps runtime descriptor pointers inside the group. Added a bounded known-UI-root scanner that refuses retained, malformed or unreadable layer/key/encoder state before dereferencing retired code, including cached/uncached aliases; FM widget roots still need their own audit. Source, host controller and fresh two-origin link checks are preparation only: ABI8 packaging, active-Part removal/quiescence, browser inventory, hardware timing and Keep/Undo still require their own qualification; no public base or module release changes.
 
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.

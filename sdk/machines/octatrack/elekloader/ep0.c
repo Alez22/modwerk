@@ -164,6 +164,14 @@ uint32_t modwerk_ep0_dispatch(void)
         modwerk_ep0_reply = out;
         return 68;
     }
+    /* CAPABILITIES (0xC1, bRequest 29, wValue 0, wLength 12): MWCP v1,
+     * loader ABI, feature bits, site/copy bounds. Older bases stall; canSubmit
+     * alone does not imply that a package's runtime ABI is supported. */
+    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 29 && !SETUP[2] && !SETUP[3] &&
+        SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && SETUP[6] == 12u && !SETUP[7]) {
+        modwerk_ep0_reply = out;
+        return modwerk_runtime_capabilities(out);
+    }
     /* INVENTORY (0xC1, bRequest 27, wValue the first entry, wLength 316): the installed modules (loader.c
      * modwerk_runtime_list), so the site can make the unit match a module set; 13 a page, so a host asks on from
      * wValue 13 while a page comes back full. Read-only. */

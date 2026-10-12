@@ -92,6 +92,53 @@ gives it that id or refuses it, and never moves it to another. A package may
 carry ColdFire code, stock-code sites and DSP code together (`build.py
 --octabam MODULE --dsp …`); they change together.
 
+## Hashed stock reconstruction (ABI 7 and 8)
+
+ABI 7 extends the ABI 6 header to 72 bytes: stock-copy count u32 at
+68. Its sites hold address u32, patch length u8, kept leading bytes u8,
+guard length u8, relocation count u8, SHA-256 of the guarded original
+bytes, replacement bytes, then u16 relocation offsets. The guard is
+checked against the original stock view, including sites owned by the
+module being replaced. Kept bytes are reconstructed from that view.
+
+After sites, each stock copy holds image offset u32, stock address u32,
+length u16, reserved-zero u16 and SHA-256 (44 bytes). The base captures
+and verifies these stock spans before publishing any site. Packages carry
+zero placeholders; replay instructions and table entries come from the
+owner's local OS. ABI 7 builders retain their original 64-site/16-copy
+limit; the ABI 8 base also accepts older packages.
+
+ABI 8 adds fill count u32 at 72 (76-byte header), with up to 128 sites,
+128 stock copies and 64 fills. After stock copies, each fill holds image
+offset u32, length u32, nonzero byte u8 and three reserved-zero bytes.
+These represent reviewed authored constant initializers, such as an
+explicit `.fill` array. Every copy/fill destination must be a bounded
+zero placeholder, disjoint from other destinations and relocation words.
+The base reconstructs copies and fills without changing the stock-overlap
+scanner or exempting encoded payloads from it. Image/BSS and relocation
+limits remain 128 KiB and 2,048.
+
+Package flags remain u16 at 6, module ID u32 at 28 and layout u16 at 66.
+The Octatrack's read-only vendor request 29 (`C1`, value 0, vendor-interface
+index, exact length 12) returns `MWCP`, version u8 = 1, maximum ABI u8 = 8,
+features u16, maximum sites u16 and maximum copies u16, all big-endian.
+Features currently equal 7: ColdFire sites (1), hash-backed copies (2)
+and authored fills (4). Table composition (8), machine groups (16) and
+resident Sidechain support (32) are disabled. A client must check the
+current base before submitting a newer package, including Undo.
+
+ABI 8 flag 4 identifies a pure ColdFire group with an `MWMG` v1 image
+prefix: magic, version u8, member mask u8 (POLY8=1, VECTOR=2, FM=4), two
+reserved-zero bytes and eight padding bytes before code. It cannot carry
+DSP code, BSS or hook-bus entries. This is preparation only: the default
+machine admission refuses groups. Enabling them requires a reviewed
+board owner for shared sites, dropped-member Part checks and retirement
+of all surviving data/UI/task references. The standalone package ID is
+stable across subsets; its inventory layout must identify the exact
+package and member versions, and old variants must remain available for
+Undo. The private `--octabam-group` builder and source-pinned stock recipes
+produce candidates, not qualified public modules.
+
 ## Several modules at once
 
 - **Admission before anything changes.** A package is refused, with the

@@ -54,6 +54,33 @@ class LoaderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'bounds'):
             build.package(b'', 0, [], [], [(0x40000400, b'\0' * 34, b'\0' * 34, [])])
 
+    def test_abi8_constant_initializers_are_explicit_and_bounded(self):
+        image = bytes(544)
+        digest = hashlib.sha256(b'authored fixture').digest()
+        data = build.package(image, 0, [], [], name='group', hashed=True, title='Machines', layout=37,
+                             copies=[(8, 0x40001000, 6, digest)], fills=[(32, 512, 255)])
+        self.assertEqual(data[:8], b'MWRM\0\10\0\0')
+        self.assertEqual(struct.unpack_from('>II', data, 68), (1, 1))
+        raw, offsets, sites, copies, fills = verify_static.unpack_recipe(data)
+        self.assertEqual((raw, offsets, sites, fills), (image, (), [], [(32, 512, 255)]))
+        self.assertEqual(copies, [(8, 0x40001000, 6, digest)])
+        self.assertEqual(verify_static.unpack_all(data)[0], bytes(32) + bytes([255]) * 512)
+        for kwargs in ({'fills': [(8, 8, 255)]}, {'fills': [(32, 512, 0)]},
+                       {'fills': [(32, 513, 255)]}, {'fills': [(32, 32, 1), (40, 8, 2)]},
+                       {'offsets': [32]}, {'image': bytes([1]) * 544}):
+            args = dict(image=image, bss=0, hooks=[], offsets=[], name='group', hashed=True, title='Machines',
+                        copies=[(8, 0x40001000, 6, digest)], fills=[(32, 512, 255)], abi=8)
+            args.update(kwargs)
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                build.package(**args)
+        # Explicit ABI8 selection supports larger composed-site sets, while an
+        # ABI7 build cannot silently claim more than its original base accepts.
+        site = (0x40001000, digest, bytes(2), [], 0, 2)
+        self.assertEqual(build.package(bytes(4), 0, [], [], [site] * 65, name='group', hashed=True,
+                                       title='Machines')[5], 8)
+        with self.assertRaises(ValueError):
+            build.package(bytes(4), 0, [], [], [site] * 65, name='group', hashed=True, title='Machines', abi=7)
+
     def test_dsp_effect_package(self):
         import json
         pkg = next(p for p in json.loads((ROOT / 'src/engine/assets/dsp-packages.json').read_text())['packages'] if p['id'] == 'everb')

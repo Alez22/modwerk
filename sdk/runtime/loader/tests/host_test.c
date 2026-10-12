@@ -2,6 +2,8 @@
  * Host check of the loader with stub machine glue: a fake stock-code region
  * at 0x1000, fake paused-task memory, and a mask the code accesses must hold.
  * Module code never runs. */
+#define MODWERK_RUNTIME_REFERENCE_EXTERNAL
+#define MODWERK_RUNTIME_METADATA_EXTERNAL
 #include "../loader.c"
 #include "../../upload/sha256.c"
 #include <stdio.h>
@@ -43,6 +45,14 @@ int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to)
 {
     CHECK(locked && !masked); dsp_from = *from; dsp_to = *to; ++dsp_switches; /* no task runs; frames may */
+}
+
+uint32_t modwerk_machine_reference(uint32_t value)
+{ return value >= 0x40010000u && value < 0x40010040u ? value + 0x08000000u : value; }
+static int metadata_allow, metadata_why;
+int modwerk_machine_metadata_admit(const struct runtime_dsp *from, const struct runtime_dsp *to)
+{
+    return (from->flags | to->flags) & RUNTIME_GROUP_METADATA ? (metadata_allow ? metadata_why : RUNTIME_MALFORMED) : RUNTIME_OK;
 }
 
 static const struct mu_backend *b = &modwerk_runtime_backend;
@@ -94,6 +104,17 @@ static void begin7(uint32_t image, uint32_t tick, uint32_t sites, uint8_t fill)
     memmove(p + 72, p + 32, n - 32); n += 40; p[5] = 7;
     memset(p + 32, 0, 40); memcpy(p + 50, "Tape Echo", 9); p[67] = 1;
 }
+/* ABI 8 adds the explicit fill count, without changing legacy header 7. */
+static void begin8(uint32_t image, uint32_t tick, uint32_t sites)
+{
+    begin7(image, tick, sites, 0);
+    memmove(p + 76, p + 72, n - 72); n += 4; p[5] = 8; memset(p + 72, 0, 4);
+}
+static void fill8(uint32_t offset, uint32_t length, uint8_t value)
+{
+    put32(p + 72, be32(p + 72) + 1u);
+    emit(offset); emit(length); p[n++] = value; p[n++] = 0; p[n++] = 0; p[n++] = 0;
+}
 /* An ABI 7 stock copy (after the sites): `length` stock bytes from `address` into the image at `offset`. */
 static void copy7(uint32_t offset, uint32_t address, uint32_t length)
 {
@@ -120,6 +141,18 @@ int main(void)
     for (unsigned i = 0; i < sizeof stock; ++i) stock[i] = (uint8_t)(0x40 + i);
     memcpy(original, stock, sizeof stock);
 
+    uint8_t capabilities[14]; memset(capabilities, 0xa5, sizeof capabilities);
+    CHECK(modwerk_runtime_capabilities(capabilities) == 12u);
+    CHECK(!memcmp(capabilities, "MWCP", 4) && capabilities[4] == 1 && capabilities[5] == 8);
+    CHECK(be16(capabilities + 6) == 7 && be16(capabilities + 8) == 128 && be16(capabilities + 10) == 128);
+    CHECK(capabilities[12] == 0xa5 && capabilities[13] == 0xa5);
+
+    struct runtime_module alias_group; memset(&alias_group, 0, sizeof alias_group);
+    alias_group.dsp.flags = RUNTIME_GROUP_METADATA; alias_group.dsp.image = (const uint8_t *)(uintptr_t)0x48010000u;
+    alias_group.dsp.image_bytes = 64;
+    CHECK(retiring(&alias_group, 0x48010020u) && retiring(&alias_group, 0x40010020u));
+    CHECK(!retiring(&alias_group, 0x40010008u) && !retiring(&alias_group, 0x48010040u));
+
     /* Refusals before any memory is taken. */
     for (uint32_t bad = 0; bad < 14; ++bad) {
         begin(8, 4, 2, &four, 1, 1, 0xa1); site(STOCK + 32, 6);
@@ -136,7 +169,7 @@ int main(void)
         if (bad == 10) { begin(8, 4, 2, 0, 0, 1, 0); site(STOCK + 32, 6); p[n - 1] = 4; }  /* site relocation past its bytes */
         if (bad == 11) { begin(8, 4, 2, twice, 2, 0, 0); }              /* the same word twice */
         if (bad == 12) { begin(8, 4, 2, 0, 0, 1, 0); site(STOCK + 32, 6); emit(0); } /* trailing bytes */
-        if (bad == 13) n = RUNTIME_HEADER_BYTES - 1;
+        if (bad == 13) n = 71u;
         CHECK(!b->prepare(0, p, n) && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
     }
     CHECK(!masked && !locked && memcmp(stock, original, sizeof stock) == 0);
@@ -435,6 +468,65 @@ int main(void)
     id = 70; begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
     CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && !modwerk_runtime_active());
     CHECK(memcmp(stock, original, sizeof stock) == 0 && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
+
+    /* Explicit authored initializers reconstruct exactly; malformed or
+     * intersecting copies/fills/relocations leave memory and stock unchanged. */
+    id = 80; begin8(544, 0, 0); copy7(8, STOCK + 100, 6); fill8(32, 512, 255);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    const struct runtime_module *filled = modwerk_runtime_module(0);
+    const uint8_t *filled_code = (const uint8_t *)(uintptr_t)filled->hook[RUNTIME_TICK];
+    CHECK(filled->dsp.module == 80 && !memcmp(filled_code + 8, original + 100, 6));
+    for (unsigned i = 32; i < 544; ++i) CHECK(filled_code[i] == 255);
+    free = modwerk_runtime_free(0);
+    for (unsigned bad = 0; bad < 12; ++bad) {
+        begin8(64, 0, 0); copy7(8, STOCK + 100, 6); fill8(32, 32, 255);
+        if (bad == 0) n--;                          /* truncated descriptor */
+        if (bad == 1) put32(p + n - 12, 40);         /* outside image */
+        if (bad == 2) p[n - 4] = 0;                 /* zero value */
+        if (bad == 3) p[n - 1] = 1;                 /* reserved bits */
+        if (bad == 4) p[76 + 16 + 32] = 1;          /* nonzero placeholder */
+        if (bad == 5) put32(p + n - 12, 8);         /* intersects stock copy */
+        if (bad == 6) fill8(40, 8, 1);              /* overlapping fills */
+        if (bad == 7) put32(p + 72, RUNTIME_FILLS + 1u);
+        if (bad == 8) p[n - 12 - 34] = 1;           /* copy reserved field */
+        if (bad == 9) p[76 + 16 + 8] = 1;           /* nonzero copy placeholder */
+        if (bad == 10) {
+            memmove(p + 76 + 16 + 64 + 4, p + 76 + 16 + 64, n - (76 + 16 + 64)); n += 4;
+            put32(p + 16, 1); put32(p + 76 + 16 + 64, 32); /* fill/relocation overlap */
+        }
+        if (bad == 11) {
+            memmove(p + 76 + 16 + 64 + 4, p + 76 + 16 + 64, n - (76 + 16 + 64)); n += 4;
+            put32(p + 16, 1); put32(p + 76 + 16 + 64, 8); /* copy/relocation overlap */
+        }
+        CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
+        CHECK(modwerk_runtime_free(0) == free && modwerk_runtime_module(0) == filled);
+    }
+    begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    CHECK(dsp_from.module == 80 && dsp_to.module == 0 && !modwerk_runtime_active());
+    CHECK(modwerk_runtime_free(0) == RUNTIME_POOL_BYTES && !memcmp(stock, original, sizeof stock));
+
+    /* Machine metadata needs explicit board admission. An old group cannot
+     * resume and rewrite persistent data after replacement, even without sites. */
+    id = 81; begin8(32, RUNTIME_NONE, 0); p[7] = RUNTIME_GROUP_METADATA;
+    memmove(p + 76, p + 92, n - 92); n -= 16; put32(p + 20, 0);
+    memcpy(p + 76, "MWMG\1\2\0\0", 8);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
+    metadata_allow = 1;
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    const struct runtime_module *group = modwerk_runtime_module(0);
+    CHECK(group && group->dsp.flags == RUNTIME_GROUP_METADATA && group->dsp.present && group->dsp.image_bytes == 32);
+    free = modwerk_runtime_free(0); metadata_why = RUNTIME_IN_USE;
+    begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_IN_USE && modwerk_runtime_module(0) == group);
+    metadata_why = 0;
+    CHECK(b->prepare(0, p, n));
+    put32(paused, (uint32_t)(uintptr_t)group->dsp.image + 20u);
+    CHECK(b->publish(0) == MU_UNCHANGED && modwerk_runtime_module(0) == group && modwerk_runtime_free(0) == free);
+    CHECK(b->discard(0)); memset(paused, 0, sizeof paused);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    CHECK(!modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
+    metadata_allow = 0;
 
     /* Activation only while nothing plays or records. */
     stopped = 0;

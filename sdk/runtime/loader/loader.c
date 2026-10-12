@@ -24,6 +24,15 @@ static struct runtime_module *candidate, *previous;
 static int prepared, held;
 static enum runtime_refusal refusal;
 
+#ifndef MODWERK_RUNTIME_REFERENCE_EXTERNAL
+__attribute__((weak)) uint32_t modwerk_machine_reference(uint32_t value) { return value; }
+#endif
+
+#ifndef MODWERK_RUNTIME_METADATA_EXTERNAL
+__attribute__((weak)) int modwerk_machine_metadata_admit(const struct runtime_dsp *from, const struct runtime_dsp *to)
+{ return (from->flags | to->flags) & RUNTIME_GROUP_METADATA ? RUNTIME_MALFORMED : RUNTIME_OK; }
+#endif
+
 const struct runtime_module *modwerk_runtime_module(unsigned i) { return i < RUNTIME_MODULES ? live[i] : 0; }
 unsigned modwerk_runtime_active(void)
 {
@@ -38,6 +47,17 @@ uint32_t modwerk_runtime_calls(void) { return modwerk_runtime_ticks; }
 static uint32_t be16(const volatile uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
 static uint32_t be32(const volatile uint8_t *p) { return be16(p) << 16 | be16(p + 2); }
 static void put32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)(v >> 24); p[1] = (uint8_t)(v >> 16); p[2] = (uint8_t)(v >> 8); p[3] = (uint8_t)v; }
+/* Vendor capability record, independent of identity/canSubmit. A host must
+ * check the package ABI/features/counts before staging a transaction. */
+unsigned modwerk_runtime_capabilities(uint8_t *out)
+{
+    out[0] = 'M'; out[1] = 'W'; out[2] = 'C'; out[3] = 'P';
+    out[4] = 1; out[5] = RUNTIME_ABI;
+    out[6] = (uint8_t)(RUNTIME_CAPABILITY_FLAGS >> 8); out[7] = (uint8_t)RUNTIME_CAPABILITY_FLAGS;
+    out[8] = (uint8_t)(RUNTIME_SITES >> 8); out[9] = (uint8_t)RUNTIME_SITES;
+    out[10] = (uint8_t)(RUNTIME_COPIES >> 8); out[11] = (uint8_t)RUNTIME_COPIES;
+    return 12u;
+}
 static int refuse(enum runtime_refusal why) { refusal = why; return 0; }
 
 /* The ledger. Extents are whole 16-byte lines, written and read only through
@@ -92,8 +112,11 @@ static void reclaim(void)
         uint32_t lo = (uint32_t)(uintptr_t)owned[i], hi = lo + owned[i]->size;
         int reached = reachable(owned[i]);
         for (unsigned k = 0; k < n && !reached; ++k)
-            for (const uint8_t *p = span[k].from; p + 4 <= span[k].to && !reached; p += 2)
-                reached = be32(p) >= lo && be32(p) < hi;
+            for (const uint8_t *p = span[k].from; p + 4 <= span[k].to && !reached; p += 2) {
+                uint32_t v = be32(p);
+                if (owned[i]->dsp.flags & RUNTIME_GROUP_METADATA) v = modwerk_machine_reference(v);
+                reached = v >= lo && v < hi;
+            }
         if (!reached) owned[i] = owned[--owners];
     }
     modwerk_machine_unlock(lock);
@@ -107,6 +130,16 @@ static int relocate(uint8_t *word, uint32_t end, uint32_t base)
     return 1;
 }
 
+/* Group controllers may write foreign mutable pointers when old code resumes.
+ * Retirement therefore waits for every old executable/data reference, not
+ * just site interiors. The first eight bytes are nonexecutable metadata. */
+static int retiring(const struct runtime_module *m, uint32_t v)
+{
+    if (!m || !(m->dsp.flags & RUNTIME_GROUP_METADATA)) return 0;
+    uint32_t base = modwerk_machine_reference((uint32_t)(uintptr_t)m->dsp.image);
+    v = modwerk_machine_reference(v);
+    return v > base + 8u && v < base + m->dsp.image_bytes;
+}
 static int inside(const struct runtime_module *m, uint32_t v)
 {
     for (uint32_t i = 0; m && i < m->sites; ++i)
@@ -125,6 +158,11 @@ static int in_flight(const struct runtime_module *a, const struct runtime_module
             if (s->address < lo) lo = s->address;
             if (s->address + s->length > hi) hi = s->address + s->length;
         }
+    if (a && (a->dsp.flags & RUNTIME_GROUP_METADATA)) {
+        uint32_t base = (uint32_t)(uintptr_t)a->dsp.image;
+        if (base + 8u < lo) lo = base + 8u;
+        if (base + a->dsp.image_bytes > hi) hi = base + a->dsp.image_bytes;
+    }
     if (lo >= hi) return 0;
     struct runtime_span span[RUNTIME_PAUSED];
     unsigned n = modwerk_machine_paused(span, RUNTIME_PAUSED);
@@ -132,7 +170,7 @@ static int in_flight(const struct runtime_module *a, const struct runtime_module
     for (unsigned i = 0; i < n; ++i)
         for (const uint8_t *p = span[i].from; p + 4 <= span[i].to; p += 2) {
             uint32_t v = be32(p);
-            if (v > lo && v < hi && (inside(a, v) || inside(b, v))) return 1;
+            if (retiring(a, v) || (v > lo && v < hi && (inside(a, v) || inside(b, v)))) return 1;
         }
     return 0;
 }
@@ -204,10 +242,11 @@ static const struct runtime_dsp *dsp_of(const struct runtime_module *m) { return
  * stock-code bytes written masked. On any mismatch its module's sites are put back and nothing changes. */
 static int switch_to(unsigned position, struct runtime_module *to)
 {
+    if (!modwerk_machine_stopped()) return 0;
     const struct runtime_module *from = live[position];
     uint32_t lock = modwerk_machine_lock();
     struct runtime_dsp want = *dsp_of(to); /* the machine keeps the effect id it gave at admission */
-    int ok = !in_flight(from, to) && !modwerk_machine_dsp_admit(dsp_of(from), &want) && want.id == dsp_of(to)->id;
+    int ok = !in_flight(from, to) && !modwerk_machine_metadata_admit(dsp_of(from), dsp_of(to)) && !modwerk_machine_dsp_admit(dsp_of(from), &want) && want.id == dsp_of(to)->id;
     if (ok) {
         uint32_t mask = modwerk_machine_mask(); /* the machine's real-time interrupts may run these bytes */
         ok = holds(from, 1);
@@ -269,7 +308,7 @@ static int stock_of(unsigned position, uint32_t address, uint32_t n, uint32_t ch
     return 1;
 }
 /* A site record's bytes: ABI 7 holds a SHA-256 of the stock bytes where earlier ABIs hold the bytes. */
-static uint32_t site_bytes(uint32_t abi, uint32_t n, uint32_t r) { return 8u + (abi == 7u ? MU_DIGEST_BYTES : n) + n + 2u * r; }
+static uint32_t site_bytes(uint32_t abi, uint32_t n, uint32_t r) { return 8u + (abi >= 7u ? MU_DIGEST_BYTES : n) + n + 2u * r; }
 
 static int enter(void *u) { (void)u; if (!modwerk_machine_stopped()) return 0; held = 1; return 1; }
 static int safe(void *u) { (void)u; return held && modwerk_machine_stopped(); }
@@ -280,13 +319,15 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
     (void)u;
     candidate = 0; prepared = 0; refusal = RUNTIME_OK;
     if (length < 28u || data[0] != 'M' || data[1] != 'W' || data[2] != 'R' || data[3] != 'M' || be16(data + 4) < 3u ||
-        be16(data + 4) > 7u || be16(data + 6) & ~(be16(data + 4) >= 6u ? 3u : 0u)) return refuse(RUNTIME_MALFORMED);
-    uint32_t abi = be16(data + 4), header = abi == 7 ? RUNTIME_HEADER_BYTES : abi == 6 ? 68u : abi == 5 ? 50u : abi == 4 ? 32u : 28u;
+        be16(data + 4) > 8u || be16(data + 6) & ~(be16(data + 4) == 8u ? 7u : be16(data + 4) >= 6u ? 3u : 0u)) return refuse(RUNTIME_MALFORMED);
+    uint32_t abi = be16(data + 4), header = abi == 8 ? RUNTIME_HEADER_BYTES : abi == 7 ? 72u : abi == 6 ? 68u : abi == 5 ? 50u : abi == 4 ? 32u : 28u;
     if (length < header) return refuse(RUNTIME_MALFORMED);
     uint32_t image = be32(data + 8), bss = be32(data + 12), count = be32(data + 16), hooks = be32(data + 20),
              sites = be32(data + 24), id = abi > 3 ? be32(data + 28) : 0, end = image + bss, at = header + 4u * hooks,
-             copies = abi == 7 ? be32(data + 68) : 0;
+             copies = abi >= 7 ? be32(data + 68) : 0, fills = abi == 8 ? be32(data + 72) : 0;
     struct runtime_dsp dsp = no_dsp;
+    dsp.flags = (uint8_t)be16(data + 6); dsp.module = id; dsp.image = data + at; dsp.image_bytes = image;
+    dsp.present = (uint8_t)!!(image || sites);
     if (abi >= 5) {
         dsp.count = be32(data + 32); dsp.relocation_count = (uint16_t)be16(data + 36); dsp.id = data[38]; dsp.slots = data[39];
         dsp.init = (uint16_t)be16(data + 40); dsp.proc = (uint16_t)be16(data + 42); dsp.cycles = (uint16_t)be16(data + 44);
@@ -298,8 +339,11 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
         }
     }
     if (image > RUNTIME_IMAGE_BYTES || bss > RUNTIME_IMAGE_BYTES - image || hooks > RUNTIME_EVENTS ||
-        count > RUNTIME_RELOCATIONS || sites > RUNTIME_SITES || copies > RUNTIME_COPIES || length < at + image + 4u * count)
+        count > RUNTIME_RELOCATIONS || sites > RUNTIME_SITES || copies > RUNTIME_COPIES || fills > RUNTIME_FILLS || length < at + image + 4u * count)
         return refuse(RUNTIME_MALFORMED);
+    if ((dsp.flags & RUNTIME_GROUP_METADATA) && (dsp.flags != RUNTIME_GROUP_METADATA || dsp.count || bss || hooks || image < 16u || data[at] != 'M' || data[at + 1] != 'W' ||
+        data[at + 2] != 'M' || data[at + 3] != 'G' || data[at + 4] != 1u || !data[at + 5] || (data[at + 5] & ~7u) ||
+        data[at + 6] || data[at + 7])) return refuse(RUNTIME_MALFORMED);
     const uint8_t *from = data + at, *relocation = from + image, *record = relocation + 4u * count, *p = record;
     uint32_t hook[RUNTIME_EVENTS], left = length - (at + image + 4u * count), address[RUNTIME_SITES], size[RUNTIME_SITES];
     for (uint32_t i = 0; i < RUNTIME_EVENTS; ++i) {
@@ -312,8 +356,8 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
      * may reach past the site, over an instruction the module returns to); relocations u8; the SHA-256. */
     for (uint32_t i = 0; i < sites; ++i) {
         if (left < 8u) return refuse(RUNTIME_MALFORMED);
-        uint32_t n = abi == 7u ? p[4] : be16(p + 4), keep = abi == 7u ? p[5] : 0u, checked = abi == 7u ? p[6] : n,
-                 r = abi == 7u ? p[7] : be16(p + 6);
+        uint32_t n = abi >= 7u ? p[4] : be16(p + 4), keep = abi >= 7u ? p[5] : 0u, checked = abi >= 7u ? p[6] : n,
+                 r = abi >= 7u ? p[7] : be16(p + 6);
         address[i] = be32(p); size[i] = n;
         if (!n || n > RUNTIME_SITE_BYTES || (address[i] | n) & 1u || !checked || checked > RUNTIME_SITE_BYTES || keep > n || keep > checked ||
             r > RUNTIME_SITE_RELOCATIONS || left < site_bytes(abi, n, r) || !modwerk_machine_patchable(address[i], n > checked ? n : checked))
@@ -326,9 +370,44 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
      * them from its running stock code (a displaced instruction a module replays) and checks the hash. */
     const uint8_t *copy = p;
     for (uint32_t i = 0; i < copies; ++i, p += 12u + MU_DIGEST_BYTES, left -= 12u + MU_DIGEST_BYTES) {
+        if (left < 12u + MU_DIGEST_BYTES) return refuse(RUNTIME_MALFORMED);
         uint32_t offset = be32(p), n = be16(p + 8);
-        if (left < 12u + MU_DIGEST_BYTES || !n || n > RUNTIME_SITE_BYTES || offset > image || n > image - offset ||
+        if (!n || n > RUNTIME_SITE_BYTES || offset > image || n > image - offset || be16(p + 10) ||
             !modwerk_machine_patchable(be32(p + 4), n)) return refuse(RUNTIME_MALFORMED);
+        if (abi == 8u) {
+            for (uint32_t j = 0; j < n; ++j) if (from[offset + j]) return refuse(RUNTIME_MALFORMED);
+            for (uint32_t j = 0; j < i; ++j) {
+                const uint8_t *c = copy + j * (12u + MU_DIGEST_BYTES);
+                if (offset < be32(c) + be16(c + 8) && be32(c) < offset + n) return refuse(RUNTIME_MALFORMED);
+            }
+            for (uint32_t j = 0; j < count; ++j) {
+                uint32_t r = be32(relocation + 4u * j);
+                if (offset < r + 4u && r < offset + n) return refuse(RUNTIME_MALFORMED);
+            }
+        }
+    }
+    /* ABI 8 fills: offset u32, length u32, nonzero byte, three zero bytes.
+     * Only zero placeholders may be reconstructed, disjoint from copies and
+     * relocation words. This represents declared authored initializers; it
+     * does not encode a stock span or waive the package's stock-free scan. */
+    const uint8_t *fill = p;
+    for (uint32_t i = 0; i < fills; ++i, p += 12u, left -= 12u) {
+        if (left < 12u) return refuse(RUNTIME_MALFORMED);
+        uint32_t offset = be32(p), n = be32(p + 4);
+        if (!n || offset > image || n > image - offset || !p[8] || p[9] || p[10] || p[11]) return refuse(RUNTIME_MALFORMED);
+        for (uint32_t j = 0; j < n; ++j) if (from[offset + j]) return refuse(RUNTIME_MALFORMED);
+        for (uint32_t j = 0; j < i; ++j) {
+            const uint8_t *f = fill + j * 12u;
+            if (offset < be32(f) + be32(f + 4) && be32(f) < offset + n) return refuse(RUNTIME_MALFORMED);
+        }
+        for (uint32_t j = 0; j < copies; ++j) {
+            const uint8_t *c = copy + j * (12u + MU_DIGEST_BYTES);
+            if (offset < be32(c) + be16(c + 8) && be32(c) < offset + n) return refuse(RUNTIME_MALFORMED);
+        }
+        for (uint32_t j = 0; j < count; ++j) {
+            uint32_t r = be32(relocation + 4u * j);
+            if (offset < r + 4u && r < offset + n) return refuse(RUNTIME_MALFORMED);
+        }
     }
     /* DSP code: 24-bit words; each relocation names a word holding an offset into them, in rising order. */
     const uint8_t *words = p, *dsp_relocation = p + 4u * dsp.count;
@@ -342,11 +421,13 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
         if (r >= dsp.count || be32(words + 4u * r) >= dsp.count || (i && r <= be16(dsp_relocation + 2u * i - 2u)))
             return refuse(RUNTIME_MALFORMED);
     }
+    dsp.present = (uint8_t)!!(image || sites || dsp.count);
     /* Admission: a position, bytes no other live module owns, an effect id and what the machine's DSPs take, memory. */
     slot = position_of(id);
     if (slot == RUNTIME_MODULES) return refuse(RUNTIME_FULL);
     for (uint32_t i = 0; i < sites; ++i) if (claimed(slot, address[i], size[i])) return refuse(RUNTIME_CONFLICT);
-    int why = modwerk_machine_dsp_admit(dsp_of(live[slot]), &dsp);
+    int why = modwerk_machine_metadata_admit(dsp_of(live[slot]), &dsp);
+    if (!why) why = modwerk_machine_dsp_admit(dsp_of(live[slot]), &dsp);
     if (why) return refuse((enum runtime_refusal)why);
     if (image || sites || dsp.count) {
         reclaim();
@@ -363,20 +444,24 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
          * may hold any offset (address arithmetic, such as a label less a constant). */
         for (uint32_t i = 0; i < count; ++i) {
             uint32_t r = be32(relocation + 4u * i);
-            if (r & 1u || image < 4u || r > image - 4u || (abi == 7u ? i && r < be32(relocation + 4u * i - 4u) + 4u : !relocate(to + r, end, base)))
+            if (r & 1u || image < 4u || r > image - 4u || (abi >= 7u ? i && r < be32(relocation + 4u * i - 4u) + 4u : !relocate(to + r, end, base)))
                 return refuse(RUNTIME_MALFORMED);
-            if (abi == 7u) put32(to + r, be32(to + r) + base);
+            if (abi >= 7u) put32(to + r, be32(to + r) + base);
         }
         for (uint32_t i = 0; i < copies; ++i) {
             const uint8_t *c = copy + i * (12u + MU_DIGEST_BYTES);
             if (!stock_of(slot, be32(c + 4), be16(c + 8), be16(c + 8), to + be32(c), c + 12)) return refuse(RUNTIME_STOCK);
         }
+        for (uint32_t i = 0; i < fills; ++i) {
+            const uint8_t *f = fill + i * 12u;
+            for (uint32_t j = 0; j < be32(f + 4); ++j) to[be32(f) + j] = f[8];
+        }
         p = record;
         for (uint32_t i = 0; i < sites; ++i) {
-            uint32_t n = size[i], r = abi == 7u ? p[7] : be16(p + 6), held = abi == 7u ? MU_DIGEST_BYTES : n, keep = abi == 7u ? p[5] : 0u;
+            uint32_t n = size[i], r = abi >= 7u ? p[7] : be16(p + 6), held = abi >= 7u ? MU_DIGEST_BYTES : n, keep = abi >= 7u ? p[5] : 0u;
             site[i].address = address[i]; site[i].length = n;
             for (uint32_t j = 0; j < n; ++j) site[i].code[j] = p[8 + held + j];
-            if (abi != 7u) for (uint32_t j = 0; j < n; ++j) site[i].stock[j] = p[8 + j];
+            if (abi < 7u) for (uint32_t j = 0; j < n; ++j) site[i].stock[j] = p[8 + j];
             else if (!stock_of(slot, address[i], n, p[6], site[i].stock, p + 8)) return refuse(RUNTIME_STOCK);
             for (uint32_t j = 0; j < keep; ++j) site[i].code[j] = site[i].stock[j];
             for (uint32_t j = 0; j < r; ++j) {
@@ -391,6 +476,7 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
         for (uint32_t i = 0; i < dsp.count; ++i) dsp_words[i] = be32(words + 4u * i);
         for (uint32_t i = 0; i < dsp.relocation_count; ++i) dsp_relocations[i] = (uint16_t)be16(dsp_relocation + 2u * i);
         dsp.words = dsp_words; dsp.relocations = dsp_relocations;
+        dsp.image = to;
         if (be16(data + 6) & 1u) dsp.page = to, dsp.page_bytes = image; /* a page recipe heads the image; the machine checks it */
         m->id = id; m->size = head + code + tail; m->dsp = dsp;
         for (uint32_t i = 0; i < RUNTIME_EVENTS; ++i) m->hook[i] = hook[i] == RUNTIME_NONE ? 0 : (uintptr_t)to + hook[i];
