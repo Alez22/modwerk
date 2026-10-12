@@ -94,6 +94,8 @@ Documentation/media-only fixes do not need a version bump unless requesting auto
 
 Fixing a README, a tutorial, a caption or a screenshot of a module that already has its qualification record needs none of the heavy steps: no version bump, no rebuilt packages, no fresh approval, and no Docker compile in CI when only README, Markdown, `media/`, `presentation/` or `evidence/` files change. The packages and the owner's approval bind to the module's code fingerprint (`moduleSourceFingerprint` in `scripts/module-source.mjs`), which ignores those files and the manifest's prose. Open a normal pull request and run `npm run check -- --base origin/main`. The same classifier drives PR checks and deployment: prose and media on all three machines skip native compilation, while firmware source, linking/build inputs and compiler changes retain it. The site still bundles and publishes the documentation; unchanged Worker inputs skip its deploy. The frozen baseline modules, `cc-map`, `previewvol` and MIDI Scenes keep their older exact-folder rules (see [retained evidence](MODULE_QUALIFICATION.md#risk-based-update-checks--3-october-2026)).
 
+For imported modules, refresh the affected `vendoredSha256` records in `sdk/imports/` after documentation or media edits, and record the local documentation-only update while preserving upstream source fingerprints. Instrument capture checks must select `otUi` media; audio previews share the media list.
+
 ## What a finished module contains
 
 Its folder, `sdk/<platform>/modules/<id>/`, holds:
