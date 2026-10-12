@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { changeCount, inventoryChanges, loadStep, type Inventory, type InventoryTarget } from '../config/inventory'
+import { changeCount, inventoryChanges, loadStep, sameModules, type Inventory, type InventoryTarget } from '../config/inventory'
+import { lastSuccessfulSync, rememberSuccessfulSync } from '../config/octatrack-progress'
 import { LinkBusyError, type OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { ModuleSetError, USB_MODULE_IDS } from '../engine/elekloader/module-set'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
@@ -20,14 +21,16 @@ const list = (ids: string[]) => new Intl.ListFormat('en', { type: 'conjunction' 
  * A module with no package for USB shows as Card only in the review: Sync waits, and `onEdit` (take it out of the
  * set) or `onCard` (install the set from the card) lead on. A failed sync offers `onReport` (the set's problem report).
  */
-export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, onClose, onEdit, onCard, onReport }: {
+export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, stressTest, onClose, onEdit, onCard, onReport }: {
   link: OctatrackLink; set: InventoryTarget; inventory?: Inventory; prepareUpdate?: PrepareUpdate; stressTest?: StressTest; onClose: () => void
+  previousName?: string
   onEdit: () => void; onCard: () => void; onReport: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null), title = useRef<HTMLHeadingElement>(null)
   const state = useOctatrackLink(link), { status, progress = 0, tested, notice } = state
   const [stopped, setStopped] = useState(false), [started, setStarted] = useState(false), [preparing, setPreparing] = useState(false)
   const [error, setError] = useState(''), [leaving, setLeaving] = useState(false)
+  const [undoName, setUndoName] = useState<string>()
   const step = loadStep(status, started, preparing)
   const connected = !!state.identity?.canSubmit && status === 'ready'
   const changes = inventory && inventoryChanges(inventory, set), stays = inventory ? set.moduleIds.filter(id => inventory.moduleIds.includes(id)) : []
@@ -41,23 +44,33 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
   useEffect(() => { title.current?.focus() }, [step])
 
   async function load() {
+    const last = lastSuccessfulSync(state.identity?.base)
+    setUndoName(previousName ?? (last && inventory && sameModules(last.moduleIds, inventory.moduleIds) ? last.name : undefined))
     setStarted(true); setPreparing(true); setError('')
     try { const prepared = await prepareUpdate!(set); setPreparing(false); await link.update(prepared.name, prepared.changes, stressTest) }
     catch (failure) { console.error(failure); setPreparing(false); setError(failure instanceof ModuleSetError || failure instanceof LinkBusyError ? failure.message : 'This module set couldn’t be prepared, so nothing was sent.') }
+  }
+  async function keep() {
+    if (link.getState().status !== 'trial') return
+    await link.keep()
+    const kept = link.getState()
+    if (kept.status === 'ready' && kept.notice?.tone === 'success' && kept.identity && kept.active)
+      rememberSuccessfulSync({ ...set, moduleIds: [...set.moduleIds], base: kept.identity.base, active: kept.active, at: new Date().toISOString() })
   }
   const index = step === 'loading' ? 0 : step === 'testing' ? 1 : 2
   const closable = step === 'review' || step === 'done'
 
   return <dialog ref={dialog} className="base-install-dialog load-dialog" aria-labelledby="load-title" onCancel={event => { event.preventDefault(); if (closable) onClose(); else if (step === 'trial') setLeaving(true) }}>
     {closable && <button type="button" className="icon-button base-install-close" aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button>}
-    <header className="base-install-header"><div><span className="guide-eyebrow">Sync to your Octatrack</span><h2 id="load-title" ref={title} tabIndex={-1}>{set.name}</h2></div></header>
+    <header className="base-install-header"><div><span className="guide-eyebrow">Sync to Octatrack</span><h2 id="load-title" ref={title} tabIndex={-1}>{set.name}</h2></div></header>
     {step === 'review' ? <>
       {!connected ? <p className="base-install-intro">Connect your Octatrack with the Modwerk base first.</p>
         : !changes ? <p className="base-install-intro">Reading what’s on it…</p>
         : !changeCount(changes) ? <p className="base-install-intro">Your Octatrack already has exactly these modules.</p>
         : <>
+          <p className="load-summary">Adds {changes.add.length} · Removes {changes.remove.length}</p>
           <p className="base-install-intro">After syncing, the Octatrack tests itself, then you keep it or undo. Your project isn’t changed.</p>
-          <ul className="load-changes">{([['card', 'Card only', cardOnly], ['load', 'Adds', changes.add.filter(id => !cardOnly.includes(id))], ['leaving', 'Removes', changes.remove], ['on', 'Stays', stays]] as const).flatMap(([state, label, ids]) => ids.map(id => {
+          <ul className="load-changes">{([['card', 'Card only', cardOnly], ['load', 'Adds', changes.add.filter(id => !cardOnly.includes(id))], ['leaving', 'Removes', changes.remove]] as const).flatMap(([state, label, ids]) => ids.map(id => {
             const module = MODULES.find(item => item.id === id)
             return <li key={id} className={'load-change is-' + state}>
               {module ? <ModulePreview id={id} compact /> : <span className="compact-preview" />}
@@ -65,6 +78,7 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
               <StateChip state={state}>{label}</StateChip>
             </li>
           }))}</ul>
+          {!!stays.length && <details className="load-unchanged"><summary>Already on your Octatrack · {stays.length}</summary><ul>{stays.map(id => <li key={id}>{MODULES.find(module => module.id === id)?.name ?? id}</li>)}</ul></details>}
           {cardOnly.length > 0 && <div className="load-blocked" role="note">
             <p>{list(cardOnly)} still {cardOnly.length === 1 ? 'needs' : 'need'} the card. Take {cardOnly.length === 1 ? 'it' : 'them'} out of {set.name} to sync the rest now, or install {set.name} from the card.</p>
             <p><button type="button" className="text-button" onClick={onEdit}>Edit {set.name}</button><button type="button" className="text-button" onClick={onCard}>Install from the card</button></p>
@@ -86,10 +100,10 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
         ? <label className="load-check"><input type="checkbox" checked={stopped} onChange={event => setStopped(event.target.checked)} />Playback is stopped</label> : <span />}
       <div className="base-install-actions">
         {step === 'review' && <><button type="button" className="button button-quiet" onClick={onClose}>Cancel</button>
-          <button type="button" className="button button-primary" disabled={!connected || !changes || !changeCount(changes) || cardOnly.length > 0 || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Sync</button></>}
+          <button type="button" className="button button-primary" disabled={!connected || !changes || !changeCount(changes) || cardOnly.length > 0 || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Sync to Octatrack</button></>}
         {step === 'loading' && !preparing && progress < 1 && <button type="button" className="button button-quiet" onClick={() => link.cancel()}>Cancel</button>}
-        {step === 'trial' && <><button type="button" className="button button-quiet" disabled={status === 'finishing'} onClick={() => void link.undo()}>Undo</button>
-          <button type="button" className="button button-primary" disabled={status === 'finishing'} onClick={() => void link.keep()}><Icon name="check" size={16} />Keep</button></>}
+        {step === 'trial' && <><button type="button" className="button button-quiet load-undo" disabled={status === 'finishing'} onClick={() => void link.undo()}>Undo → {undoName ?? 'Previous modules'}</button>
+          <button type="button" className="button button-primary" disabled={status === 'finishing'} onClick={() => void keep()}><Icon name="check" size={16} />Keep</button></>}
         {step === 'done' && (error || notice?.tone === 'error') && <button type="button" className="button button-quiet" aria-haspopup="dialog" onClick={onReport}><Icon name="message" size={16} />Report a problem</button>}
         {step === 'done' && <button type="button" className="button button-primary" onClick={onClose}>Done</button>}
       </div>

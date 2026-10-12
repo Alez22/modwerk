@@ -252,6 +252,14 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .octatrack-hub .configuration-heading-actions .button-primary { border-color: var(--line); background: var(--surface-raised); color: var(--text-secondary); font-weight: 500; box-shadow: none; }
 .octatrack-hub .configuration-heading-actions .button-primary:hover { border-color: var(--line-hover); background: var(--surface-hover); }
 .hub-unit > .link-hint, .hub-unit .usb-missing, .hub-save { margin: 0 0 12px; }
+.usb-missing { padding: 14px 16px; border: 1px solid var(--line); border-left: 3px solid #d4b663; border-radius: 8px; background: var(--surface-raised); }
+.usb-missing h3 { margin: 0; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.5; }
+.usb-missing ul { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 7px 0 0; padding: 0; list-style: none; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+.usb-missing li { min-width: 0; overflow-wrap: anywhere; }
+.usb-missing p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.usb-missing-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 10px; }
+.usb-missing-action p { margin: 0; }
+.usb-missing-action .button { min-height: 44px; }
 .hub-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
 .hub-footer p { flex: 1 1 260px; margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
 .hub-footer b, .hub-insync b { color: var(--text); font-weight: 600; }
@@ -274,6 +282,13 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .load-dialog .guide-eyebrow { display: block; margin-bottom: 6px; }
 .load-dialog .base-install-intro { margin: 8px 0 20px; }
 .load-changes { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.load-summary { margin: 10px 0 0; color: var(--text); font-size: 14px; font-weight: 600; }
+.load-unchanged { margin-top: 14px; color: var(--muted); font-size: 13px; }
+.load-unchanged summary { cursor: pointer; padding: 8px 0; }
+.load-unchanged ul { margin: 4px 0 0; padding-left: 20px; line-height: 1.7; }
+.load-undo { white-space: normal; overflow-wrap: anywhere; }
+.hub-last-sync { margin: -4px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.hub-last-sync b { color: var(--text-secondary); font-weight: 500; }
 .load-change { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); }
 .load-change-name { flex: 1; min-width: 0; }
 .load-change strong { display: block; font-size: 14px; font-weight: 500; }

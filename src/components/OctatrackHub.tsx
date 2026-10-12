@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { MODULES } from '../catalog/modules'
 import { inventoryChanges, lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
+import { lastSuccessfulSync } from '../config/octatrack-progress'
 import type { Configuration } from '../config/workspace'
 import { DeviceImage } from '../devices/DeviceImage'
 import { DEVICES_BY_ID } from '../devices/registry'
@@ -34,6 +35,8 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
   const selected = sets.find(set => set.id === selectedId) ?? sets[0]
   const same = (set: Configuration) => !!unitIds && sameModules(set.moduleIds, unitIds)
   const onUnit = sets.find(same)
+  const lastSync = lastSuccessfulSync(identity?.base ?? last?.base)
+  const lastName = onUnit?.name ?? (last && lastSync && sameModules(last.moduleIds, lastSync.moduleIds) ? lastSync.name : undefined)
   const options = useRef<(HTMLLIElement | null)[]>([])
   function move(event: KeyboardEvent, index: number) {
     const next = listboxMove(event.key, index, sets.length)
@@ -48,7 +51,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
     : status === 'connecting' ? ['Looking for your Octatrack…', null]
     : status === 'busy' ? ['Another tab or app is using your Octatrack.', <button key="retry" className="button button-quiet" onClick={() => void link?.retry()}>Try again</button>]
     : status === 'stock' || status === 'ready' ? [status === 'stock' ? 'Connected · original OS' : 'Connected · a Modwerk base this site can’t talk to', <button key="install" className="button button-primary" onClick={onInstall}>Install the base</button>]
-    : [<>Not connected{last ? <> · last seen {when} with {modules(last.moduleIds.length)}</> : null}</>, <button key="connect" className="button button-quiet" onClick={() => void link?.connect()}>Connect</button>]
+    : [<>Not connected{last ? <> · Last seen: {lastName ? <b>{lastName}</b> : modules(last.moduleIds.length)} · {when}</> : null}</>, <button key="connect" className="button button-quiet" onClick={() => void link?.connect()}>Connect</button>]
   return <div className="configuration-page octatrack-hub">
     {header}
     <div className="hub-split">
@@ -72,7 +75,8 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
             <p role="status"><span className={'unit-led is-' + (connected ? 'on' : busy ? 'load' : 'off')} aria-hidden="true" />{line}</p></div>
           {action}
         </div>
-        {connected && <MissingNote needs={needs} />}
+        {lastSync && <p className="hub-last-sync">Last sync from this browser: <b>{lastSync.name}</b> · <time dateTime={lastSync.at}>{new Date(lastSync.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></p>}
+        {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
         {grid}
         {selected && usb && <div className="hub-footer">
           {changes && !changes.add.length && !changes.remove.length ? <p className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Your Octatrack has exactly <b>{selected.name}</b>.</p>

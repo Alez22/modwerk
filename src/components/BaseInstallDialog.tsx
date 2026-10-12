@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { saveFirmware } from '../config/firmware-filename'
+import { finishBaseInstall, pendingBaseInstall, waitForBaseInstall } from '../config/octatrack-progress'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
 import { RiskAcceptance } from './ConfigurationLayout'
@@ -86,7 +87,7 @@ function LinkHero() {
  * seconds. Step 4 completes by itself when the unit comes back with the base.
  * `buildBase` is the builder's seam, absent until the browser can build the base.
  */
-export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwareError, onChooseFirmware, buildBase, onClose }: {
+export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwareError, onChooseFirmware, buildBase, onClose, onReady }: {
   link: OctatrackLink
   launch?: boolean
   firmwareReady: boolean
@@ -96,15 +97,25 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   buildBase?: () => Promise<BaseImage>
   /** `done` is false when the browser closed it early (Escape before the page was clicked), which must not count as seen. */
   onClose: (done: boolean) => void
+  onReady: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null), fileRef = useRef<HTMLInputElement>(null), finished = useRef(false)
   const state = useOctatrackLink(link)
   const [hold, setHold] = useState(launch ? LAUNCH_HOLD_SECONDS : 0)
   const [accepted, setAccepted] = useState(false)
-  const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>('idle'), [failure, setFailure] = useState('')
-  const [view, setView] = useState<'intro' | 'steps'>(launch ? 'intro' : 'steps')
+  const [pending, setPending] = useState(pendingBaseInstall)
+  const disconnected = useRef(false)
+  const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>(pending ? 'done' : 'idle'), [failure, setFailure] = useState('')
+  const [view, setView] = useState<'intro' | 'steps'>(launch && !pending ? 'intro' : 'steps')
   const found = state.status === 'ready' && !!state.identity?.canSubmit
   const canClose = hold === 0 || found
+  useEffect(() => {
+    if (!pending || finished.current) return
+    if (!found) { disconnected.current = true; return }
+    if (!pending.previousBase || pending.previousBase !== state.identity?.base || disconnected.current) {
+      finished.current = true; finishBaseInstall(); onReady()
+    }
+  }, [found, pending, state.identity?.base, onReady])
   useEffect(() => {
     const element = dialog.current, previousFocus = document.activeElement
     element?.showModal(); element?.querySelector('h2')?.focus()
@@ -119,7 +130,12 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   function finish() { finished.current = true; onClose(true) }
   async function downloadBase() {
     setDownload('building')
-    try { const image = await buildBase!(); saveFirmware(image.buffer, 'base', image.sha256); setDownload('done') }
+    try {
+      const image = await buildBase!(); saveFirmware(image.buffer, 'base', image.sha256)
+      const previousBase = link.getState().identity?.base
+      waitForBaseInstall(image.sha256, previousBase); disconnected.current = false
+      setPending({ sha256: image.sha256, previousBase }); setDownload('done')
+    }
     catch (error) { console.error(error); setFailure(error instanceof Error ? error.message : ''); setDownload('failed') }
   }
   const step = (done: boolean, number: number) => <span className="link-step-marker" aria-hidden="true">{done ? <Icon name="check" size={14} /> : number}</span>
@@ -159,14 +175,15 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
         <p>Open <b>PROJECT → SYSTEM → OS UPGRADE</b>, press <b>YES</b> and confirm. Keep the power on until the Octatrack has restarted.</p>
       </div></li>
       <li className={found ? 'is-complete' : undefined}>{step(found, 4)}<div className="link-step-body">
-        <strong>Check it</strong>
+        <strong>{pending ? 'Waiting for your Octatrack' : 'Check it'}</strong>
         {found ? <p role="status">Found the Modwerk base on your {state.identity!.model}. You can sync modules now.</p>
           : state.status === 'unsupported' ? <p>Checking needs Chrome or Edge on a computer.</p>
-          : <><p>Leave the USB cable in. This page finds the base by itself once the Octatrack has restarted.</p>{state.status === 'idle' && <button type="button" className="button button-quiet" onClick={() => void link.connect()}>Connect</button>}</>}
+          : <><p role="status">Leave the USB cable in. Once the installed base reconnects, I’ll take you back to your module set.</p>{(state.status === 'idle' || state.status === 'stock') && <button type="button" className="button button-quiet" onClick={() => void link.connect()}>Connect Octatrack</button>}</>}
       </div></li>
     </ol>
     <p className="link-hint">The original OS goes back on the same way. If the Octatrack doesn’t start, follow <a className="text-button" href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>.</p>
     </>}
+    <p className="link-hint">Please keep this page open and your Octatrack connected while you try the beta. If something goes wrong, use <b>Report a problem</b> to tell me. Device logs are only sent when you choose to share them.</p>
     <footer className="base-install-footer">
       <p className="link-hint">{found ? 'All set.' : 'You’ll find it again under Octatrack in the sidebar.'}</p>
       <div className="base-install-actions">

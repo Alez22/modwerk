@@ -2,6 +2,9 @@
 
 ## 12 October 2026
 
+- Beta base installation remembers a downloaded base in the current tab, shows “Waiting for your Octatrack”, and returns to the module set when a compatible base reconnects. Sync reviews lead with add/remove counts and tuck unchanged modules into a disclosure. Undo names the previous set when known; an acknowledged, saved Keep records the set and time in this browser, with disconnected inventory labelled “Last seen”.
+- Missing-module notices in the beta hub separate the count, module names and next action. Add to set leads to the existing Sync to Octatrack review; modules absent from the library remain explicitly named.
+- Editing or switching a beta Octatrack set keeps the page and USB connection open. The installation guide asks testers to stay connected and use Report a problem; automatic device-log sharing is not enabled by this change.
 - Beta Octatrack module tiles keep their artwork at full colour before syncing and when removing a module. State labels and Keep/remove controls sit below the artwork so they no longer cover thumbnail text; touch controls have 44px targets. The existing base-install introduction uses “Sync to Octatrack”, and the development preview can start with an empty base for the first-install walkthrough. Public library views are unchanged.
 - The beta sidebar prompts disconnected users to connect their Octatrack and original-OS users to install the base. Remembered modules are labelled “Last seen” rather than presented as currently connected.
 - On narrow screens the beta hub keeps the Octatrack connection status and install button below its photo, preventing horizontal overflow.

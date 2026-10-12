@@ -46,10 +46,11 @@ import { issueRepository, setWorkspaceReportContext } from './community/report-c
 import { FirmwareBuildPanel } from './components/FirmwareBuildPanel'
 import type { PrepareUpdate, ReadInventory, StressTest } from './components/OctatrackUpdate'
 import type { OctatrackLink } from './engine/elekloader/octatrack-link'
-import { missingFromProject, UNIT_STATE, unitState } from './config/inventory'
+import { missingFromProject, sameModules, UNIT_STATE, unitState } from './config/inventory'
 import { ShareModuleButton } from './community/ShareModuleButton'
 import { useBaseInstallPrompt } from './hooks/useBaseInstallPrompt'
 import { OctatrackLinkContext, useInventory, useMissing, useOctatrackBase } from './hooks/useOctatrackLink'
+import { pendingBaseInstall } from './config/octatrack-progress'
 import { digiDownloadsEnabled } from './engine/elekloader/protocol'
 import { USB_AUDIO_MODULE, usbAudioLayout, type UsbAudioConfiguration } from './config/usb-audio'
 import { downloadSelection, parseSelection } from './config/selection'
@@ -157,7 +158,7 @@ export default function App() {
   const inventory = useInventory(usbLink, usbKit?.readInventory), missingOnUnit = useMissing(usbLink)
   const unitNeeds = useMemo(() => missingFromProject(missingOnUnit, MODULES.map(module => module.id)), [missingOnUnit])
   const [openModule, setOpenModule] = useState<string>()
-  const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(usbPreview === 'base-install' ? 'preview' : null)
+  const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(() => usbPreview === 'base-install' ? 'preview' : pendingBaseInstall() ? 'manual' : null)
   // The module set the guided load dialog is open for: the only way anything goes onto the unit.
   const [loadingSet, setLoadingSet] = useState<string>()
   // The guided load's Install from the card: the set page with the card install open.
@@ -343,14 +344,15 @@ export default function App() {
       setSaved(false);setRiskAccepted({key:'',accepted:false});window.location.assign('#configuration')
     }catch(error){setImportError(error instanceof Error?error.message:'Could not import this '+w.set+'.')}
   }
-  function changeConfiguration(id: string) { const item = workspace.configurations.find(value => value.id === id); workspace.selectConfiguration(id); setSaved(false); setRiskAccepted({key:'',accepted:false}); window.location.assign(deviceHref(item ? configurationDevice(item) : currentDevice.id, 'configuration')) }
+  function openEditedSet(device: string) { if (betaUi && device === 'octatrack') window.location.hash = 'octatrack'; else window.location.assign(deviceHref(device, 'configuration')) }
+  function changeConfiguration(id: string) { const item = workspace.configurations.find(value => value.id === id); workspace.selectConfiguration(id); setSaved(false); setRiskAccepted({key:'',accepted:false}); openEditedSet(item ? configurationDevice(item) : currentDevice.id) }
   function submitConfigurationDialog(name: string) {
     const targetDevice = configDialog === 'create' ? createDevice ?? currentDevice.id : currentDevice.id
     ensureActive(activeFor(targetDevice))
     if (configDialog === 'delete') workspace.deleteConfiguration()
     else if (configDialog === 'rename') workspace.renameConfiguration(name)
     else workspace.createConfiguration(name, configDialog === 'duplicate', targetDevice)
-    setSaved(false); setRiskAccepted({key:'',accepted:false}); window.location.assign(deviceHref(targetDevice, 'configuration'))
+    setSaved(false); setRiskAccepted({key:'',accepted:false}); openEditedSet(targetDevice)
   }
 
   // Routes that browse a library: they get the search field and, on phones, the category chips under the app bar.
@@ -440,8 +442,8 @@ export default function App() {
         const step = (at: number) => { const id = index >= 0 ? order[at] : undefined; return id ? { title: MODULES.find(item => item.id === id)!.name, go: () => setOpenModule(id) } : undefined }
         const state = unitState(openModule, selectedIds, inventory)
         return module && <ModuleDialog title={module.name} index={index >= 0 ? index : undefined} total={order.length} prev={step(index - 1)} next={step(index + 1)} status={state && <StateChip state={state}>{UNIT_STATE[state]}</StateChip>} actions={<ShareModuleButton id={module.id} title={module.name} />} onClose={() => setOpenModule(undefined)}><ModuleDetail key={module.id} modal module={module} selected={selectedIds.includes(module.id)} addBlock={addBlockMap[module.id]} onSwap={removeIds => swapModule(module.id, removeIds)} usbAudio={active?.usbAudio} configurationName={active?.name} configurationId={active?.id} onConfigureUsbAudio={configureUsbAudio} onToggle={() => toggleModule(module.id)} /></ModuleDialog> })()}
-      {usbKit && loadingTarget && <LoadDialog key={loadingTarget.id} link={usbKit.link} set={{ name: loadingTarget.name, moduleIds: loadingTarget.moduleIds }} inventory={inventory} prepareUpdate={usbKit.prepareUpdate} stressTest={usbKit.stressTest} onClose={() => setLoadingSet(undefined)} onEdit={() => { setLoadingSet(undefined); changeConfiguration(loadingTarget.id) }} onCard={() => { setLoadingSet(undefined); setCardOpen(true); changeConfiguration(loadingTarget.id) }} onReport={() => { setLoadingSet(undefined); setReportingConfiguration({ machine: 'octatrack', id: loadingTarget.id }) }} />}
-      {usbLink && (baseInstall || baseInstallPrompt.open) && <BaseInstallDialog link={usbLink} launch={baseInstall !== 'manual'} firmwareReady={!!firmware} firmwareError={fileError} onChooseFirmware={file => void readFile(file)} buildBase={() => workspace.firmwareClient.current?.buildBase() ?? Promise.reject(new Error('Reload the page.'))} onClose={done => { if (baseInstall) setBaseInstall(null); else if (done) baseInstallPrompt.close(); else baseInstallPrompt.later() }}/>}
+      {usbKit && loadingTarget && <LoadDialog key={loadingTarget.id} link={usbKit.link} set={{ name: loadingTarget.name, moduleIds: loadingTarget.moduleIds }} inventory={inventory} previousName={inventory && configurationsFor('octatrack').find(set => sameModules(set.moduleIds, inventory.moduleIds))?.name} prepareUpdate={usbKit.prepareUpdate} stressTest={usbKit.stressTest} onClose={() => setLoadingSet(undefined)} onEdit={() => { setLoadingSet(undefined); changeConfiguration(loadingTarget.id) }} onCard={() => { setLoadingSet(undefined); setCardOpen(true); changeConfiguration(loadingTarget.id) }} onReport={() => { setLoadingSet(undefined); setReportingConfiguration({ machine: 'octatrack', id: loadingTarget.id }) }} />}
+      {usbLink && (baseInstall || baseInstallPrompt.open) && <BaseInstallDialog link={usbLink} launch={baseInstall !== 'manual'} firmwareReady={!!firmware} firmwareError={fileError} onChooseFirmware={file => void readFile(file)} buildBase={() => workspace.firmwareClient.current?.buildBase() ?? Promise.reject(new Error('Reload the page.'))} onClose={done => { if (baseInstall) setBaseInstall(null); else if (done) baseInstallPrompt.close(); else baseInstallPrompt.later() }} onReady={() => { setBaseInstall(null); baseInstallPrompt.close(); window.location.hash = 'octatrack' }}/>}
       </Suspense>
       {supportOpen && <SupportDialog url={SUPPORT_URL} onClose={() => setSupportOpen(false)} />}
       <HardwareFeedbackCheckIn enabled={!accountRoute && !developerRoute && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content', 'submit'].includes(route.split('/')[0]) && !firmwareFeedbackPreview}/>
