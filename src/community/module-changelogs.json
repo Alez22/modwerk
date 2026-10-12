@@ -939,7 +939,7 @@
           "Measured on the ColdFire emulator only: 0.1.1 has not run on hardware. The owner's MKII report (two simultaneous instances, Part/project reload, physical reboot) covers 0.1.0; MKI, full-load chip timing and broader hardware coverage remain unverified.",
           "Documentation/media-only: add an offline audio preview rendered through 0.1.0-experimental, with sample credits, settings and provenance; firmware is unchanged.",
           "Documentation/media-only (12 October 2026): replace the old preview with an original chord stab at dry, hall and shimmer settings, give shimmer a 7.5-second pass, match first-hit RMS and retain exact 0.1.1 DSP/source provenance. Firmware and its version are unchanged; these offline previews add no physical-hardware or performance qualification.",
-          "Documentation/media-only (12 October 2026): use Legowelt’s `106 Synth Chord Dark No Attack.wav` from the Juno 106 kit as the dry input for the isolated comparison, with pack permission, credit and exact source/excerpt provenance. Firmware behavior and hardware/performance status are unchanged."
+          "Documentation/media-only (12 October 2026): use Legowelt’s bright Juno 106 chord for an 11.4-second dry/long-hall/sustaining-shimmer comparison, with audible extended tails, stronger settings, 80 ms first-hit matching and no added gaps. Include pack permission, credit, excerpt/settings hashes and decoded peak validation. Firmware and hardware/performance qualification are unchanged."
         ]
       },
       {

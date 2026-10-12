@@ -295,9 +295,9 @@
     {
       "path": "media/audio-preview.mp3",
       "captureType": "audio",
-      "caption": "Legowelt Juno 106 chord: dry at 0 s, hall at 1.6 s (SIZE 110, DCY 85, ABSB 45, MIX 70), shimmer at 7.9 s (SIZE 100, DCY 95, ABSB 60, DPTH +56, SPD 80, MIX 100). First-hit RMS matched over 250 ms; tails retain the response. Offline render through E-Verb 0.1.1, not an Octatrack recording.",
-      "alt": "The same Legowelt chord dry, in a hall, and with a shimmer tail.",
-      "credit": "Legowelt — 106 Synth Chord Dark No Attack.wav. Modwerk contributors (offline processing).",
+      "caption": "Legowelt Juno 106 chord: dry (0 s), long bright hall (0.9 s; SIZE 110, DCY 100, ABSB 20, MIX 95), sustaining shimmer (5.4 s; DCY 127, ABSB 5, DPTH +52, MIX 110). 11.4 s, no added gaps; tails edited short. First-hit RMS matched (80 ms). Rendered offline on a computer through E-Verb 0.1.1, not recorded on an Octatrack.",
+      "alt": "A bright Legowelt chord opens into a long hall and a sustaining shimmer.",
+      "credit": "Legowelt — 106 Synth Chord Blue Synth 2.wav. Modwerk contributors (offline processing).",
       "license": "LicenseRef-Legowelt-Juno106-Sample-Permission",
       "source": "https://legowelt.org/samples/"
     }
