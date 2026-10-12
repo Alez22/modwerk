@@ -196,16 +196,17 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
 .card-stat { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .card-stat.is-downloads { color: var(--muted); }
 .card-stats .module-works-count { font-size: 12px; }
-.card-proof { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; border-top: 1px solid #ffffff1c; color: #b9b5c8; font-size: 11px; }
-.card-proof-status { display: grid; gap: 4px; }
-.card-proof-status > span { display: inline-flex; align-items: center; gap: 7px; }
-.card-proof-status small { color: var(--muted); font-size: 11px; }
+.card-proof { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; white-space: nowrap; }
+.card-proof-grade { display: inline-flex; flex: 1 1 0; align-items: center; gap: 6px; min-width: 0; }
+.card-proof-grade-label { overflow: hidden; text-overflow: ellipsis; }
+.card-proof-reports { display: inline-flex; flex: none; align-items: center; gap: 8px; }
+.card-proof-count { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
 .evidence-dot { width: 7px; height: 7px; border-radius: 50%; background: #8f8fa3; flex-shrink: 0; }
 .evidence-dot.is-proven { background: #7ed3a0; box-shadow: 0 0 6px #7ed3a066; }
 .evidence-dot.is-in-use { background: #7ed3a0; }
 .evidence-dot.is-reported { background: #d8b56f; }
 .evidence-dot.is-pending { background: transparent; border: 1px dashed #8f8fa3; }
-.card-proof label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; margin-right: -8px; padding: 4px 8px; border: 1px solid transparent; border-radius: 5px; }
+.card-proof label { display: inline-flex; flex: none; gap: 6px; align-items: center; cursor: pointer; margin-right: -8px; padding: 6px 8px; border: 1px solid transparent; border-radius: 5px; }
 .card-proof label:hover { background: var(--surface-hover); }
 .card-proof label:has(input:checked) { background: var(--accent-soft); color: #c1c7ff; }
 .card-proof label:has(input:disabled) { cursor: not-allowed; opacity: .5; }
