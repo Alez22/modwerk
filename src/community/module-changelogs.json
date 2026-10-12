@@ -916,6 +916,15 @@
     ],
     "everb": [
       {
+        "version": "0.1.1-experimental",
+        "date": "2026-10-11",
+        "changes": [
+          "Holding FUNC while turning SIZE, DCY, ABSB or SPD now steps through 0, the centre (64) and 127, as MIX and DPTH already did and as on the stock reverbs' MIX. In 0.1.0 those four knobs jumped only between 0 and 127, an editor inherited from the stock reverb that E-Verb's page is cloned from (#438).",
+          "Plain turns and every stored value are unchanged: only four editor words in E-Verb's FX2 descriptor change. The DSP code and memory are byte-identical to 0.1.0, so the sound and cycle cost are unchanged, and the knob values a project stores mean the same.",
+          "Measured on the ColdFire emulator only: 0.1.1 has not run on hardware. The owner's MKII report (two simultaneous instances, Part/project reload, physical reboot) covers 0.1.0; MKI, full-load chip timing and broader hardware coverage remain unverified."
+        ]
+      },
+      {
         "version": "0.1.0-experimental",
         "date": "2026-10-09",
         "changes": [

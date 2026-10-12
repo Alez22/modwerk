@@ -6,10 +6,104 @@ functional audition on EVRB01T01; [the exact-build report](evidence/owner-hardwa
 No emulator result below is relabelled as hardware evidence. Firmware, images, memory dumps and renders stayed outside the
 repository and were deleted.
 
+## 0.1.1: FUNC + turn stops (issue #438)
+
+**Report.** [#438](https://github.com/repeat98/modwerk/issues/438) (MKII, OS 1.40C, 0.1.0): on the main page, holding
+FUNC and turning SIZE, DCY, ABSB or SPD jumped between 0 and 127 only, while MIX stepped through 0, 64 and 127.
+
+**Cause.** A knob's edit handler is the word at P+0x12a of its FX2 page descriptor, one per slot (0 means the plain
+editor). Without FUNC every handler calls the same plain editor; with FUNC held, stock's 0x400328e4 steps through 0, 64
+and 127, its 0x40032814 jumps between 0 and 127 only, and the plain editor does not jump. Stock gives 0x400328e4 to the
+reverbs' MIX and BAL, most bipolar knobs and a few others (SPRING REV's TIME among them), 0x40032814 to knobs such as DARK
+REV's TIME, SHVG, SHVF, HP and LP and the MIX of PHASER, FLANGER, CHORUS and COMB FILTER, and 0 to others (PHASER's CNTR
+among them). E-Verb's descriptor is cloned from DARK REV's, and the builder writes this word only for BIPOLAR and stepped
+slots, so SIZE, DCY, ABSB and SPD inherited the two-stop handler of TIME..LP, MIX and PRE inherited the three-stop one of
+DARK REV's MIX and BAL, and DPTH, TILT, EDCY and ESIZ got the three-stop one with the BIPOLAR triple. The SDK's comments
+call this word a number renderer; the firmware uses it as the editor (read in both handlers and in the nine places found
+that call a slot's handler on the local OS, and measured below).
+
+**Fix.** `manifest.py` writes the word on all six plain knobs (`word_12a=0x400328e4`, both formatter words 0), so none
+depends on the donor's slot any more. The 0.1.1 private image (SHA-256 b525e4a42fdddaf6c6f381478bc54e56206e3d5df9be1c76272d8c36d84cdc7a,
+1,112,560 bytes, built as below) differs from 0.1.0's (b776efe2…) in exactly four bytes: the low byte of the word for
+SIZE, DCY, ABSB and SPD, 0x14 to 0xe4 at P+0x12d, +0x131, +0x135 and +0x13d (clone P = 0x400D6B20). The DSP memory
+images `send_probe.dump_mem` takes from both images are byte-identical (payload A a525b9af…, B da6e7392…). Values,
+defaults, counts, drawing, plain turns and the knob bytes a project stores are unchanged.
+
+**Source.** The files of this folder at the commit named by `tests.evidenceRevision`, on top of `31519756` (main,
+11 October 2026). Changed or added in 0.1.1, SHA-256:
+
+| File | SHA-256 |
+|---|---|
+| manifest.py | 75e05aa32e0160f76b81f4d60ad1ed2cdd89148691129e9dee1118d77a528363 |
+| verify.py | f5c3b6ae39027426bb13aa37d19cc172b56e928384fa078c52005935b79253b8 |
+| func_stops.py | ebde489098755ee64cd7f61e78ff1dddca578c47affbea4c3c9888c74a555b69 |
+| evidence/performance.json | aa32bb32074264105665582522af55086e41e5d5f86113a864ebb0a32d79763e |
+
+`everb.asm`, `generate.py` and `perf.py` are unchanged from 0.1.0 (hashes under the next heading). The module's
+native source SHA-256 (`scripts/module-qualification.mjs`) is c06251e3744d0d9f66bc0d9622bf5ca3d00c8a69a52aedffdb49577d5bf2990a. Commands, from `sdk/octabam`:
+
+```sh
+python3 modules/everb/verify.py                              # the 27 gates (about 40 s)
+python3 modules/everb/func_stops.py                          # FUNC + turn on ot_emu (about 5 min); --image <file> for another build
+python3 modules/everb/perf.py bench  <out>                   # matched benchmark with stock (about 1 min)
+```
+
+**Results**, local and emulator only (same tools as below; `ot_emu` 9af97ff3…):
+
+| Check | 0.1.0 image | 0.1.1 image |
+|---|---|---|
+| `verify.py` func stops: the editor word of every knob in the built descriptor | FAIL: SIZE, DCY, ABSB, SPD carry 0x40032814 | PASS: all ten 0..127 knobs 0x400328e4, REV 0; the editor's code and stop table equal stock |
+| `func_stops.py` A SIZE | 64 → 0 → 127 → 127 → 127 → 0 → 0 → 0 | 64 → 0 → 64 → 127 → 127 → 64 → 0 → 0 |
+| B DCY | 64 → 0 → 127 → 127 → 127 → 0 → 0 → 0 | 64 → 0 → 64 → 127 → 127 → 64 → 0 → 0 |
+| C ABSB | 60 → 0 → 127 → 127 → 127 → 0 → 0 → 0 | 60 → 0 → 64 → 127 → 127 → 64 → 0 → 0 |
+| D DPTH | 64 → 0 → 64 → 127 → 127 → 64 → 0 → 0 | 64 → 0 → 64 → 127 → 127 → 64 → 0 → 0 |
+| E SPD | 64 → 0 → 127 → 127 → 127 → 0 → 0 → 0 | 64 → 0 → 64 → 127 → 127 → 64 → 0 → 0 |
+| F MIX | 51 → 0 → 64 → 127 → 127 → 64 → 0 → 0 | 51 → 0 → 64 → 127 → 127 → 64 → 0 → 0 |
+| plain turn, two detents | 0 → 2 | 0 → 2 |
+
+`func_stops.py` (`--image` for a given image) boots the image on the ColdFire port with an empty card, chooses E-Verb on
+track 1's FX2 through the panel and opens its main page; the firmware's own panel code handles every key and detent.
+With FUNC held it turns each knob left once, right three times and left three times, each turn six one-detent packets
+20 ms apart and then 1 s of rest, and reads the knob's stored byte after each turn (track 1's FX2 main-page bytes at
+0x80000828 + slot, located by diffing RAM around one plain detent and checked against the defaults). Turns have to be
+quick: the first FUNC detent jumps at once, then the editor accumulates the turn (the next stop takes three or four
+quick detents in one direction) and after each step ignores further turning in that direction for a moment, so one long
+continuous turn needs more detents per stop (a reviewer's probe on 0.1.1: 4 detents to 64, then 14 more to 127, at 30 ms
+per detent). A first run with single detents 1 s apart left every knob, the three-stop ones included, at its first stop.
+The plain-turn row is A's, long after its FUNC turns: right after a FUNC turn the leftover accumulation can absorb the
+first plain detent, in 0.1.0 and 0.1.1 alike. The 0.1.0 column reproduces the report; the 0.1.1 column is the fix.
+
+Also on the 0.1.1 source: `verify.py` passes all 27 gates (the 26 under the next headings, with identical output, and
+func stops). `perf.py bench` on the 0.1.1 image reproduces every E-Verb and stock figure in the Performance tables. The
+stress run, the sound audit and the 0.1.0 render evidence were not repeated: the DSP memory is byte-identical. The five
+LCD captures were re-taken on the 0.1.1 image with the same plan and are byte-identical to 0.1.0's; they do not show
+FUNC + turn.
+
+**Not tested**: any hardware; the MKI panel; FUNC + turn on the SETUP page (its words did not change: TILT, EDCY and ESIZ
+carried the three-stop editor in 0.1.0, PRE inherited it and REV is a select); FUNC + turn while holding a trig (lock
+editing) or a scene button; FUNC + turn with the encoder pressed (the three-stop editor hands that case to the two-stop
+one, as on stock's reverb MIX); MIDI CC, LFOs and scenes driving the four knobs (expected unaffected, since they are not
+panel edits, but not run).
+
+**Hardware steps for 0.1.1**, on a build carrying this exact source (the private image above, or the site's download once
+published), with model, OS, image SHA-256, date and duration:
+
+1. Choose E-Verb on FX2 of an audio track and open the main page. Hold FUNC and turn each of the six knobs quickly, left
+   and right: every knob should land on 0, 64 and 127 in turn. In 0.1.0, SIZE, DCY, ABSB and SPD jumped between 0 and
+   127 only.
+2. Release FUNC and wait a moment: one detent still moves a knob by one. The first detent right after a FUNC turn can be
+   absorbed, as in 0.1.0 and on stock knobs.
+3. Load a project saved with 0.1.0 that uses E-Verb: its knob values come back unchanged, and it plays as before.
+4. Two instances with different settings on tracks of both cores; save and reload the Part and the project; power-cycle.
+   0.1.1 changes nothing these touch, but they are the standard checks for a new build.
+
 ## Commands and exact revision
 
-Source tested: the files of this folder at the commit named by `tests.evidenceRevision` in
-`octamod.module.json`, on top of `306e3dc` (main, 9 October 2026). The renders were made on `a5dee01`; on the
+The headings from here down are 0.1.0's measurements. 0.1.1's DSP code is byte-identical, so they hold for it unchanged;
+the section above has what 0.1.1 changed and re-measured.
+
+Source tested for 0.1.0: the files of `sdk/drafts/everb` at `e3047c0d9eb7bb150c003a86414886b22d8992f2` (0.1.0's
+`tests.evidenceRevision`), on top of `306e3dc` (main, 9 October 2026). The renders were made on `a5dee01`; on the
 new base the private image rebuilds byte-identical (same SHA-256 below) and the gates print identical
 output. File SHA-256:
 
@@ -388,9 +482,10 @@ a local native build) and report, with model, OS, image SHA-256, date and durati
 
 ## OT UI capture evidence
 
-`scripts/capture-module-ui.py` on the private image (b776efe2…) with `ot_emu` (9af97ff3…), MKII panel,
-empty scratch card, stopped transport, key interval 150 ms. Plan, per-image hashes, the module's native
-source hash and limitations: [media/capture.json](media/capture.json). The five captures are the FX2
+`scripts/capture-module-ui.py` on the private image (0.1.0: b776efe2…; re-taken for 0.1.1 on b525e4a4… with the
+same plan, byte-identical PNGs) with `ot_emu` (9af97ff3…), MKII panel, empty scratch card, stopped transport, key
+interval 150 ms. Plan, per-image hashes, the module's native source hash and limitations:
+[media/capture.json](media/capture.json). The five captures are the FX2
 SETUP page after choosing E-Verb, the main page at the defaults, MIX turned to 100, DPTH turned to +56
 and the SETUP page with REV ON. Each was opened and checked against the declared controls. They show the
 interface only, not sound.
