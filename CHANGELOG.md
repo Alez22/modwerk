@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Prepared a fresh Discord invitation round with the existing announcement wording and link. Previous account and browser invitations no longer block this resend; each account or visitor browser receives the new round once. New signups still receive Discord inline in their welcome. Publication follows deployment through the admin announcement form.
 - Bundled followed module releases into a daily digest, showing only the latest pending version and its changelog for each module. Replies and messages keep their chosen activity interval; existing follows, opt-outs and bell history are retained.
 
