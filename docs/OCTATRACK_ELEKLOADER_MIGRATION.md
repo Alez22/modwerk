@@ -1943,6 +1943,29 @@ Tape Echo. It passed with no failures; all at once peaked at T1-4 64.7 % and T5-
 the unit was back on the flashed `usbtest9` without a power cycle. The record (crash 3) can be read on the next
 development boot, after the owner's power cycle.
 
+**The tester image on the unit:** after the owner's power cycle (on the flashed `usbtest9`, idle, DIAG clean), one RAM
+boot of `beta-9a86d7e1` with `--chunk 4096` came back in 14 s (17:50:20-17:50:34). Then only vendor requests, on bank C
+pattern 1 (the owner selected it and checked the screen):
+- **IDENTIFY and HELLO:** base `dc1d7a39…`, upload state normal.
+- **DIAG:** ticks advanced 180 in 3 s (60 Hz), no refusals, no abandoned stages.
+- **INVENTORY:** empty. The card's set was the twin's, so this base refused it as another base's (self-test record:
+  saved 4).
+- **MISSING:** E-Verb, Euclid, Air Chorus and TapeHead, which banks A and B name. The MISSING MODULES page was open;
+  one NO closed it and it stayed closed (the owner, at the unit): the fix, on the unit.
+- **`scripts/verify-octatrack-module-sets.mjs --hardware --selftest`** (the site's OctatrackLink with
+  `public/octatrack-modules`), 18:08:30-18:08:39, passed:
+  - load and keep everb + miniverb with the self-test as the stress test: 2 changes, 7.2 s;
+  - undo miniverb + tapehead + airwindows-chorus: 3 changes, 1.0 s, back to everb + miniverb;
+  - load and keep the same set: 3 changes, 0.2 s;
+  - load and keep the empty set: 3 changes, 0.4 s.
+  INVENTORY matched after every step.
+- **The self-test record afterwards:** passed, 2/2 modules intact and ran, peaks T1-4 41.0 %, T5-8 55.9 %, CPU 44.3 %,
+  longest frame 433 us, card set saved and read back (the empty set). DIAG: 100 vendor frames, 5 refused as busy and
+  retried, no abandoned stages. INVENTORY empty at the end.
+
+The unit was left RAM-booted on the tester image, with nothing installed, on bank C. It has no development requests, so
+the crash record of the crash test stays unread until a development base runs; a power cycle returns to `usbtest9`.
+
 ## Work required before public cutover
 
 | Area | Observed gap / next implementation |
