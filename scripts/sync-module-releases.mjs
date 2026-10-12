@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { setTimeout } from 'node:timers/promises'
 
-const ATTEMPTS = 12, RETRY_MS = 5000, TIMEOUT_MS = 10000
+const ATTEMPTS = 12, RETRY_MS = 5000, IDENTITY_TIMEOUT_MS = 10000, SYNC_TIMEOUT_MS = 30000
 
 /** Called only after deploy-pages succeeds. The API re-reads the live site before fanout. */
 export async function syncPublishedReleases({ inventoryPath, apiUrl, requestUrl, requestToken }, { fetch = globalThis.fetch, wait = setTimeout, log = console.log } = {}) {
@@ -13,7 +13,7 @@ export async function syncPublishedReleases({ inventoryPath, apiUrl, requestUrl,
   const target = new URL(api.href.replace(/\/?$/, '/') + 'module-releases/sync')
   const inventorySha256 = createHash('sha256').update(await readFile(inventoryPath)).digest('hex')
   oidc.searchParams.set('audience', target.href)
-  const identity = await fetch(oidc, { headers: { Authorization: 'Bearer ' + requestToken }, redirect: 'error', signal: AbortSignal.timeout(TIMEOUT_MS) })
+  const identity = await fetch(oidc, { headers: { Authorization: 'Bearer ' + requestToken }, redirect: 'error', signal: AbortSignal.timeout(IDENTITY_TIMEOUT_MS) })
   if (!identity.ok) throw new Error('GitHub could not provide the deployment identity.')
   const { value: token } = await identity.json()
   if (typeof token !== 'string' || !token || /[\r\n]/.test(token)) throw new Error('GitHub returned an invalid deployment identity.')
@@ -23,7 +23,7 @@ export async function syncPublishedReleases({ inventoryPath, apiUrl, requestUrl,
     try {
       result = await fetch(target, {
         method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inventorySha256 }), redirect: 'error', signal: AbortSignal.timeout(TIMEOUT_MS),
+        body: JSON.stringify({ inventorySha256 }), redirect: 'error', signal: AbortSignal.timeout(SYNC_TIMEOUT_MS),
       })
     } catch { /* A rollout/network delay is retried with the same inventory and idempotent fanout. */ }
     if (result?.ok) {

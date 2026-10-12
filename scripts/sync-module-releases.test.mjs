@@ -6,7 +6,10 @@ import { createHash } from 'node:crypto'
 import { syncPublishedReleases } from './sync-module-releases.mjs'
 
 const directories = []
-afterEach(async () => { for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true }) })
+afterEach(async () => {
+  vi.restoreAllMocks(); vi.useRealTimers()
+  for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true })
+})
 async function fixture(responses) {
   const directory = await mkdtemp(join(tmpdir(), 'release-sync-')); directories.push(directory)
   const inventoryPath = join(directory, 'module-releases.json'), inventory = '{"format":"modwerk-module-releases-v1","modules":[]}'
@@ -40,6 +43,31 @@ it('retries rollout delays with the same inventory and a bounded wait', async ()
   expect(f.wait).toHaveBeenCalledTimes(3)
   expect(f.wait.mock.calls.every(([delay]) => delay === 5000)).toBe(true)
   expect(new Set(f.fetch.mock.calls.slice(1).map(([, options]) => options.body)).size).toBe(1)
+})
+
+it('accepts a slow successful inventory fanout without retrying it', async () => {
+  const f = await fixture([])
+  vi.useFakeTimers()
+  // Node's native AbortSignal timer is outside Vitest's clock; retain its
+  // abort behavior while advancing the simulated network delay deterministically.
+  vi.spyOn(AbortSignal, 'timeout').mockImplementation(delay => {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), delay)
+    return controller.signal
+  })
+  let started
+  const ready = new Promise(resolve => { started = resolve })
+  f.fetch.mockImplementationOnce((_, { signal }) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(Response.json({ checked: 36, notified: 4 })), 20000)
+    signal.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason) }, { once: true })
+    started()
+  }))
+  const outcome = syncPublishedReleases(f.config, f).then(value => ({ value }), error => ({ error }))
+  await ready
+  await vi.advanceTimersByTimeAsync(20000)
+  expect(await outcome).toEqual({ value: { checked: 36, notified: 4 } })
+  expect(f.fetch).toHaveBeenCalledTimes(2)
+  expect(f.wait).not.toHaveBeenCalled()
 })
 
 it('leaves the hourly fallback in place after the bounded retry limit', async () => {
