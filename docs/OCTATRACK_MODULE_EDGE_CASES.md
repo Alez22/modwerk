@@ -79,8 +79,8 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
   state lives in X and Y and stock reruns init only when the id changes, so the effect never goes dry. One move at
   a time, when the manager is idle and two seconds after the last key, playing or not. On the unit: a 532-word hole
   closed in 4 moves and 507 ms (about 125 ms a move); playing, a 422-word hole closed by itself within 5 s with
-  Euclid running on T3 throughout; frame gaps 408-415 us, no errors, stalls or rollbacks. Not listened to: an audio
-  check (a sample through a moving module, MAIN recorded) is still to do. A first version silenced every module
+  Euclid running on T3 throughout; frame gaps 408-415 us, no errors, stalls or rollbacks. MAIN through a moving
+  module stays identical (below). A first version silenced every module
   slot and reloaded (373-425 ms, stopped only); it is gone.
 - **Testing the moves (state frozen 11 October 2026).**
   - Churn while playing, S51: 60 random picks, 8 holes closed, frame gaps 404-421 us, no errors, stalls or
@@ -91,11 +91,29 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
     largest block) pack, in at most 15 moves; 49 % of tight ones. A copy needs one free run as big as its block, so
     a large module (E-Verb, 1,588 words) above a hole on a busy core cannot move at all; that hole stays until the
     layout changes. So far the cycle ledger always refused before such a hole mattered.
-  - Built in S53, **not yet run on the unit**: the new planner, no moves while a USB host session is open or a
-    pattern change is queued, and knob turns counting as activity like keys.
-  - Not run yet: `scripts/octatrack-movecollide.py` (a pick, a Part switch, a USB install just as moves start),
-    the listening test (a sample through a moving module, MAIN recorded, `scripts/octatrack-clicks.py`), and a
-    project reload and RAM boot after heavy churn.
+  - S53 on the unit (the new planner, no moves while a USB host session is open or a pattern change is queued, knob
+    turns counting as keys), 12 October 2026:
+    - **Heard nothing, measured nothing** (`scripts/octatrack-movelisten.py`). A sustained bass sample retriggered
+      every half second on T2 makes MAIN repeat, so each half second can be compared with the one before it. Through
+      TapeHead (T2 FX1), moving twice a round (up past the hole Euclid left, then down into it), MAIN stayed
+      identical sample for sample across every move: 10 takes, 19 moves, not one 24-bit step different. TapeHead
+      changes 24 % of MAIN, so it is heard. E-Verb (T2 FX2, 1,588 words, 74 % of MAIN), moving twice a round over
+      Mini Verb's hole: its tail leaves 12-15 steps (-115 dBFS) of difference anyway, and around its 18 moves in 9
+      takes the difference stayed there (2.9 steps RMS per 10 ms, near the moves and elsewhere). A frame of the wrong code or a lost
+      state would show as some 10^5 steps. The only other difference: one 12-sample step of 15 at a pick on T3.
+    - Churn while playing (`octatrack-movestress.py --steps 40 --seed 7`): 32 picks, 8 refused by the cycle ledger,
+      5 holes closed, longest frame gap 408 us, no error, stall or rollback. Then the Part reload, and the self-test
+      read every module's code back: 6/6 intact, all ran, longest frame 401 us.
+    - Collisions (`octatrack-movecollide.py --playing`): a Part switch 12/12 and a pick 12/12 (stock COMPRESSOR on
+      T6; Air Chorus there is refused by the cycle ledger before any move matters) just as moves start. USB installs
+      22/24: twice the remove, 1.8 s after the last key, met a move and the loader said busy (refusal 5). The site
+      now waits and tries again, as it does while the transport plays (octatrack-link.ts).
+  - **A hole that cannot close**: E-Verb above a hole on a core whose free words, all together, are fewer than its
+    1,588. A copy needs a free run as big as the block, so no sequence of moves reaches it; the hole stays until a
+    module comes off. Seen twice on core 1 at 64-72 % used: after Euclid came off below E-Verb (395 words), and
+    after the self-test put the set back (774). Nothing is heard; a module bigger than the largest run is then
+    refused as memory though the words are free. A fix would keep the biggest block at the arena's top.
+  - Not run yet: a RAM boot after heavy churn.
 - **The module pool** (256 KB) held six modules in 26 KB with no hole; removing Euclid from the middle and
   installing it again left none (first fit at the lowest address; nothing moves).
 

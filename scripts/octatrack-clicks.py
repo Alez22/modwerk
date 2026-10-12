@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Clicks and dropouts in a recording of the Octatrack's MAIN (the `rec` tool's WAV: MAIN L/R, CUE L/R).
 
-  scripts/octatrack-clicks.py TAKE.wav [--channels 0,1]
+  scripts/octatrack-clicks.py TAKE.wav [--channels 0,1] [--grid 0.5]
 
 A click is a jump in the signal's second difference far above its typical size (a sustained sound has a small,
-steady one); a dropout is 5 ms near silence between louder stretches. Prints each with its time and a summary
+steady one); a dropout is 5 ms near silence between louder stretches. With --grid, clicks within 3 ms of a
+period's beat (the first click's phase) are the pattern's own onsets (trigs restarting a sample), and only the
+others count. Prints each with its time and a summary
 line; a sustained, looped sample shows clicks that a drum would hide."""
 import argparse, struct, sys
 import numpy as np
@@ -38,6 +40,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('take')
     ap.add_argument('--channels', default='0,1')
+    ap.add_argument('--grid', type=float, default=0.0, help='seconds between the pattern\'s own onsets')
     args = ap.parse_args()
     x, rate = read(args.take)
     total = 0
@@ -55,6 +58,11 @@ def main():
         n = len(s) // win
         level = np.sqrt(np.mean(s[:n * win].reshape(n, win) ** 2, axis=1))
         drops = [i for i in range(1, n - 1) if level[i] < 0.01 * rms and level[i - 1] > 0.2 * rms and level[i + 1] > 0.2 * rms]
+        if args.grid and clicks:
+            period, phase, slack = args.grid * rate, clicks[0], 0.003 * rate
+            onsets = [c for c in clicks if min((c - phase) % period, period - (c - phase) % period) <= slack]
+            clicks = [c for c in clicks if c not in onsets]
+            print('channel %d: %d onsets on the %.3f s grid' % (ch, len(onsets), args.grid))
         print('channel %d: rms %.4f, %d clicks, %d dropouts' % (ch, rms, len(clicks), len(drops)))
         for c in clicks[:20]: print('  click at %.3f s (x%.0f the typical step)' % (c / rate, d2[c] / typical))
         for d in drops[:20]: print('  dropout at %.3f s' % (d * win / rate))

@@ -107,6 +107,13 @@ describe('sending a module', () => {
     await link.update('PREVIEW VOL', data)
     expect(link.getState().notice?.text).toBe('The Octatrack can’t run this module file.')
   })
+  it('stages again when the loader was busy for a moment', async () => {
+    const { unit, link } = await linked()
+    unit.refusal = 5 // DSP code moving: busy now, free a moment later
+    setTimeout(() => { unit.refusal = undefined }, 50)
+    await link.update('PREVIEW VOL', data)
+    expect(link.getState().status).toBe('trial')
+  })
   it('recovers from a missing reply without asking to unplug', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)
     let calls = 0

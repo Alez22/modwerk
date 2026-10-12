@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Things a user does just as the base starts moving code (dsp.c's compaction), over `npm run device -- serve`.
 
-  scripts/octatrack-movecollide.py [--rounds 3] [--playing]
+  scripts/octatrack-movecollide.py [--rounds 3] [--playing] [--kinds pick,part,install]
 
 Each trial opens a hole on core 1 (E-Verb on T1, Mini Verb above it on T4, E-Verb off again), waits 1.8-2.3 s
-(the base moves code two seconds after the last key or knob), then does one thing: a pick on core 0, a Part
+(the base moves code two seconds after the last key or knob), then does one thing: a pick on core 0 (stock COMPRESSOR, loaded on demand), a Part
 switch there and back, or a USB install. Checks that the thing succeeded, that the hole closed afterwards and that
 the loader counted no error, stall, rollback or rejected packet. Use a scratch project; it ends stopped with the
 Part reloaded. Prints one JSON line; exit status 1 on a failure."""
@@ -28,8 +28,8 @@ def open_hole():
 
 
 def action(kind):
-    if kind == 'pick':
-        send('pick:T6:FX2:AIR_CHORUS'); send('pick:T6:FX2:DELAY')
+    if kind == 'pick':  # a stock effect loaded on demand: the same loader transaction, and core 0 can afford it
+        send('pick:T6:FX1:COMPRESSOR'); send('pick:T6:FX1:FILTER')
     elif kind == 'part':
         send('part2'); send('part1')
     elif kind == 'install':
@@ -40,19 +40,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--rounds', type=int, default=3)
     ap.add_argument('--playing', action='store_true')
+    ap.add_argument('--kinds', default='pick,part,install')
     args = ap.parse_args()
     before, failures, trials = counters(), [], []
     send('pick:T2:FX1:FILTER'); send('pick:T6:FX2:DELAY')  # TapeHead free for the install, T6 free for the pick
     if args.playing: send('PLAY w500')
     try:
         for r in range(args.rounds):
-            for kind in ('pick', 'part', 'install'):
+            for kind in args.kinds.split(','):
                 for delay in (1.8, 2.0, 2.1, 2.3):
                     hole = open_hole()
                     time.sleep(delay)
                     ok, error = True, ''
                     try: action(kind)
-                    except RuntimeError as e: ok, error = False, str(e)[:120]
+                    except RuntimeError as e: ok, error = False, ' '.join(str(e).split())
                     start = time.time()
                     while any(holes()) and time.time() - start < 10: time.sleep(0.5)
                     left, now = holes(), counters()

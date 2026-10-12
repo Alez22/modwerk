@@ -284,11 +284,18 @@ export class OctatrackLink {
     else if (phase === 'ready') await session.leaveUploadMode()
     return session.status.phase === 'normal'
   }
-  /** Repeat a step the base refused only because the unit plays or records, for `stopWaitMs`. */
+  /** Repeat a step the base refused only because the unit plays or records, or because its loader was busy for a
+   * moment (refusal 5: DSP code loading or moving), for `stopWaitMs`. */
   private async whenStopped<T>(step: () => Promise<T>): Promise<T> {
     for (const start = Date.now(); ; await wait(STOP_RETRY_MS)) {
-      try { return await step() } catch (error) { if (!unsafe(error) || Date.now() - start >= this.stopWaitMs) throw error }
+      try { return await step() } catch (error) {
+        if (Date.now() - start >= this.stopWaitMs || !(unsafe(error) || await this.loaderBusy(error))) throw error
+      }
     }
+  }
+  private async loaderBusy(error: unknown) {
+    return error instanceof UploadDeviceError && error.status.result === 'rejected' &&
+      (await this.transport?.selftest(false).catch(() => undefined))?.refusal === 5
   }
   private startKeepalive() {
     this.stopKeepalive()
