@@ -32,7 +32,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
   const last = connected || busy ? undefined : lastInventory()
   const unitIds = connected ? inventory?.moduleIds : last?.moduleIds
   const selected = sets.find(set => set.id === selectedId) ?? sets[0]
-  const same = (set: Configuration) => !!unitIds && sameModules(set.moduleIds, unitIds)
+  const same = (set: Configuration) => set.moduleIds.length > 0 && !!unitIds && sameModules(set.moduleIds, unitIds)
   const onUnit = sets.find(same)
   const lastSync = lastSuccessfulSync(identity?.base ?? last?.base)
   const lastName = onUnit?.name ?? (last && lastSync && sameModules(last.moduleIds, lastSync.moduleIds) ? lastSync.name : undefined)
@@ -78,7 +78,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
         {selected && usb && <div className="hub-sync-bar" aria-label="Module set sync">
           <div><strong>{selected.name}</strong>
             <p>{changes ? changeCount(changes) ? <>Adds {changes.add.length} · Removes {changes.remove.length}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
-                : <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span>
+                : selected.moduleIds.length ? <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span> : 'No modules in this set.'
               : busy ? 'A sync is running.' : status === 'stock' ? 'Install the base to sync this set.' : connected ? 'Reading what’s on your Octatrack…' : 'Connect your Octatrack to sync this set.'}</p>
           </div>
           <button type="button" className="button button-primary" disabled={!changes || !changeCount(changes)} onClick={() => onSync(selected.id)}><Icon name="download" size={16} />Sync to Octatrack</button>

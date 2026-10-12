@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Empty beta module sets no longer show a green installed marker or “On your Octatrack” when the connected or remembered inventory is also empty. The sync row and sidebar keep the empty-set state separate from the device connection.
 - The beta hub keeps Sync to Octatrack above the modules in a compact sticky row with the set name and add/remove counts. Long sets no longer push the primary action below the module grid; phones use a full-width button.
 - Beta base installation remembers a downloaded base in the current tab, shows “Waiting for your Octatrack”, and returns to the module set when a compatible base reconnects. Sync reviews lead with add/remove counts and tuck unchanged modules into a disclosure. Undo names the previous set when known; an acknowledged, saved Keep records the set and time in this browser, with disconnected inventory labelled “Last seen”.
 - Missing-module notices in the beta hub separate the count, module names and next action. Add to set leads to the existing Sync to Octatrack review; modules absent from the library remain explicitly named.

@@ -32,8 +32,8 @@ export function InstrumentItem({ device, set, href, link, current, inventory }: 
     <Icon name="arrow" size={14} />
   </a>
   const known = status === 'connected' ? inventory?.moduleIds : last?.moduleIds
-  const on = status === 'connected' && !!set && !!known && sameModules(set.moduleIds, known)
-  const editing = on ? 'On your Octatrack' : status === 'connected' && known ? 'Not on your Octatrack yet' : last ? 'Last seen with ' + modules(last.moduleIds.length) : ''
+  const on = status === 'connected' && !!set?.moduleIds.length && !!known && sameModules(set.moduleIds, known)
+  const editing = !set?.moduleIds.length ? '' : on ? 'On your Octatrack' : status === 'connected' && known ? 'Not on your Octatrack yet' : last ? 'Last seen with ' + modules(last.moduleIds.length) : ''
   return <a className="sidebar-device instrument-item is-unit" href={href} aria-current={current ? 'page' : undefined}
     aria-label={device.name + ', ' + unit + (set ? '. Editing ' + set.name + ', ' + modules(set.moduleIds.length) + (editing ? ', ' + editing.toLowerCase() : '') : '')}>
     <span className="instrument-head">
