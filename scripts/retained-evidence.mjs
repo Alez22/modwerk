@@ -108,6 +108,11 @@ function engineAsset(bytes, path, document, previousVersion, addedIds = [], othe
     // provenance changes on every release, without changing runtime inputs.
     delete value.approval
   }
+  if (path === 'src/engine/assets/analog-bd-composition-proofs.json') {
+    // Derived inventory identity changes with an editorial version label. The
+    // native image hashes, placements and verdicts below remain protected.
+    delete value.moduleSourceTreeSha256
+  }
   function visit(item) {
     if (!item || typeof item !== 'object') return
     if ((item.id === document.id || item.moduleId === document.id) && item.version === document.version) item.version = previousVersion
@@ -165,8 +170,14 @@ export async function requireRetainedEvidence(root, folder, document, baseline, 
   if (compareModuleVersions(document.version, previous.version) <= 0) throw new Error(label + ': update requires a greater module version than the tested version')
   if (!isDeepStrictEqual(runtimeFields(previous), runtimeFields(document))) throw new Error(label + ': native declarations, control values, resource claims, compatibility, provenance or test evidence changed; full qualification is required')
   const relative = new Map([...files].map(([path, bytes]) => [path.slice(prefix.length), bytes]))
-  sameFiles(relative, await currentFiles(folder), path => editorial(path, previous) && editorial(path, document), label)
-  const preservation = await loadBuilderPreservation(root, approvedRef, document.id)
+  sameFiles(relative, await currentFiles(folder), path => editorial(path, previous) && editorial(path, document), label,
+    (before, after, path) => before.equals(after) || path === 'README.md'
+      // Some original modules use their README as the resource report. Keep
+      // that entire approved record exact, while allowing new documentation
+      // after it. TESTING and every other measured report remain immutable.
+      && previous.tests.report !== path
+      && after.length > before.length && after.subarray(0, before.length).equals(before))
+  let preservation, triedPreservation = false
   const otherIds = await otherModuleIds(root, document, record.commit)
   let changedInfrastructure
   for (const path of infrastructure) {
@@ -179,10 +190,19 @@ export async function requireRetainedEvidence(root, folder, document, baseline, 
       if (info.isDirectory()) for (const [rel, bytes] of await currentFiles(resolve(root, path))) after.set(path + '/' + rel, bytes)
       else after.set(path, await readFile(resolve(root, path)))
     } catch (error) { if (error.code !== 'ENOENT') throw error }
-    try { sameFiles(before, after, file => path === 'src/engine' && (file.endsWith('.test.ts') || file.startsWith('src/engine/test-fixtures/')), label,
+    const compare = () => sameFiles(before, after, file => path === 'src/engine' && (file.endsWith('.test.ts') || file.startsWith('src/engine/test-fixtures/')), label,
       (a, b, file) => path === 'src/engine' && file.endsWith('.json')
         ? isDeepStrictEqual(engineAsset(a, file, document, previous.version, preservation?.addedModuleIds, otherIds), engineAsset(b, file, document, previous.version, preservation?.addedModuleIds, otherIds))
-        : a.equals(b), preservation?.matchesFile) } catch(error) { changedInfrastructure ??= error }
+        : a.equals(b), preservation?.matchesFile)
+    try { compare() } catch(error) {
+      // Exact approved inputs need no older builder-extension exception. Read
+      // and validate that binding only when a changed input requires it.
+      if (!triedPreservation) {
+        triedPreservation = true
+        preservation = await loadBuilderPreservation(root, approvedRef, document.id)
+      }
+      try { compare() } catch { changedInfrastructure ??= error }
+    }
 
   }
   if (changedInfrastructure) {

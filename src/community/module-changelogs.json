@@ -392,6 +392,14 @@
     ],
     "tapeecho": [
       {
+        "version": "0.1.3-experimental",
+        "date": "2026-10-12",
+        "changes": [
+          "Documentation/media-only: add an original woodblock dry/clean/worn comparison with tempo-synced eighth and dotted-eighth repeats through the unchanged fixed-point CPU engine, onset matching and documented source/settings. Complete the tutorial while preserving the historical resource and testing records verbatim.",
+          "Retain the approved 0.1.2-experimental runtime and evidence. No DSP behavior, hardware freeze mitigation, timing headroom or new physical-hardware qualification is claimed."
+        ]
+      },
+      {
         "version": "0.1.2-experimental",
         "date": "2026-10-01",
         "changes": [
