@@ -28,12 +28,12 @@ export function NotificationPreferences({ focus = false }: { focus?: boolean }) 
     finally { setBusy(false) }
   }
   return <><PushSettings/><section className="configuration-section" id="notification-settings"><h2 ref={heading} tabIndex={-1}>Activity email</h2>
-    <p className="service-note">The bell shows everything. Email sends a digest of what you have not read yet, at most once per chosen interval. Every email has an unsubscribe link.</p>
+    <p className="service-note">The bell shows everything. Email sends a digest of what you have not read yet, at most once per chosen interval. Module releases are bundled once a day, with only the latest update for each module. Every email has an unsubscribe link.</p>
     {value && <>
       <label className="risk-accept"><input type="checkbox" checked={value.emailEnabled} disabled={busy} onChange={event => void change({ emailEnabled: event.target.checked })} />Email me about activity I have not seen</label>
       <fieldset className="notification-topics" disabled={busy || !value.emailEnabled}><legend className="sr-only">Include</legend>
         {TOPICS.map(([key, label]) => <label className="risk-accept" key={key}><input type="checkbox" checked={value[key]} onChange={event => void change({ [key]: event.target.checked })} />{label}</label>)}
-        <label className="notification-frequency">How often<select value={value.frequency} onChange={event => void change({ frequency: event.target.value as Preferences['frequency'] })}><option value="hours">At most every 6 hours</option><option value="daily">At most once a day</option></select></label>
+        <label className="notification-frequency">Other activity<select value={value.frequency} onChange={event => void change({ frequency: event.target.value as Preferences['frequency'] })}><option value="hours">At most every 6 hours</option><option value="daily">At most once a day</option></select></label>
       </fieldset>
       {!value.emailAvailable && <p className="service-note">Email delivery is not connected yet. Your choices are saved for when it is.</p>}
     </>}

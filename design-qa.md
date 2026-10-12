@@ -1,68 +1,56 @@
-# Post-download module overview — design QA
+# Audio preview release QA
 
-final result: passed
+Final result: passed
 
-**Comparison target**
+The selected direction is now a slim waveform overlay, refined to preserve Modwerk's current cards and original thumbnail size, support optional recordings, and add a detail-page carousel and submission form. It appears on thumbnail hover or keyboard focus, rather than whole-card hover, and remains visible during playback after pointer exit. Existing cards and artwork take precedence over the generated concept's larger cards, typography, invented counts and illustrations, as requested by the owner.
 
-The selected “Inside your .bin” reference, refined for the repository’s real module content, then compacted after the owner found the first release too large. This is a production UI adaptation, with existing catalogue artwork, real version-matched captures and source-authored instructions.
+## Evidence and normalization
 
-- Source visual truth: `/var/folders/pq/8kctb9dj5yzfncd2xl2wkw1w0000gn/T/TemporaryItems/NSIRD_screencaptureui_tr9270/Bildschirmfoto 2026-10-09 um 07.40.01.png` (1684 × 1378 pixels; the generated mockup does not declare a CSS viewport or device scale).
-- Implementation: `http://127.0.0.1:5173/?preview=firmware-feedback`.
-- Current implementation screenshot: `/Users/jannikassfalg/coding/modwerk/artifacts/module-feedback/post-download/compact-desktop.png` (1440 × 1024 pixels, 1440 × 1024 CSS viewport, devicePixelRatio 1).
-- State: dark theme, Mini Verb selected, four downloaded modules with the same versions as the reference, controls capture, quick test, no saved feedback. The development fixture uses production components with disposable local report actions.
-- Full comparison: `/Users/jannikassfalg/coding/modwerk/artifacts/module-feedback/post-download/comparison-final.png`. Both modal regions cropped and normalized to 800 pixels wide without changing their aspect ratios. Source crop: 1572 × 1290; implementation crop: 1392 × 976. The source is an enlarged mockup; typography was also checked at native browser size, avoiding a claim of pixel identity.
-- Focused readable comparison: `/Users/jannikassfalg/coding/modwerk/artifacts/module-feedback/post-download/detail-comparison-final.png`, quick-test instructions and feedback controls from both artifacts in the same image.
-- Additional evidence: `/Users/jannikassfalg/coding/modwerk/artifacts/module-feedback/post-download/mobile.png` (390 × 844 CSS/pixels, DPR 1), `/Users/jannikassfalg/coding/modwerk/artifacts/module-feedback/post-download/laptop-scrolled.png` (1280 × 720 CSS/pixels, DPR 1).
+- Source visual truth: `artifacts/audio-design-qa/source-refined.png` (1487 × 1058 pixels; desktop, mobile and dialog concepts share a composite canvas), supplemented by the original thumbnail captures `overlay-audio-idle-card.png` and `overlay-audio-native-detail-region.png`. The owner's later instructions require an overlay, no image resizing, thumbnail-only hover and less artwork coverage.
+- Implementation: `http://127.0.0.1:5177/?preview=audio`, rendered with Playwright in Edge. Desktop 1440 × 1024, mobile 390 × 844, tablet 820 × 1180 CSS pixels; device scale factor 1. Screenshots match those pixel dimensions.
+- Full-view comparisons: `artifacts/audio-design-qa/overlay-comparison-full.png` and `overlay-comparison-mobile.png`. Each comparison contains the actual source and browser capture together. Composite panels are proportionally reduced for inspection, without stretching. The existing application uses 90% CSS zoom on desktop, retained in both native and prototype captures; screenshot density remains 1.
+- Focused comparisons: `overlay-comparison-card.png` and `overlay-comparison-player.png` in the same evidence directory. These retain original crop density and compare original and overlay thumbnails side by side, including idle, hover, persistent playback after pointer exit and hidden paused states. Submission evidence remains in `audio-focused-submission.png`.
+- States captured: idle library, hover/playing card, idle detail carousel, empty detail, selected-file dialog, invalid file, mobile library/detail/playing/carousel/dialog and tablet detail. Public upload additions are captured in `public-upload-dialog.png`, `public-upload-mobile.png`, `public-previews-desktop.png` and `public-previews-mobile.png`; gallery entries show contributor usernames, credits and captions.
+- Local screenshots and recordings remain in ignored `artifacts/`; none are committed.
 
-**Findings and comparison history**
+The concept is a direction, rather than a specification for replacing the established application layout. Its mobile title-before-art order, larger artwork and decorative active-card border were intentionally not introduced. Native card structure, author/version metadata, Add/Compare controls, navigation, detail hierarchy and illustrations remain in place. The prototype toolbar is development-only review chrome.
 
-1. Initial browser inspection found catalogue artwork constrained by the existing 62 × 47 compact-preview rule, plus excessive caption height on a short screen. Fixed the scoped artwork dimensions, moved detailed captions to an accessible disclosure, and added height-sensitive spacing. Captures confirm correct image proportions, independent scrolling and a persistent footer.
-2. First combined comparison (`comparison.png`, `detail-comparison.png` in the same evidence directory): [P2] instruction and module text was too small relative to the reference’s hierarchy. Increased instruction titles to 16px, body to 15px, names to 16px and summaries to 14–16px; adjusted the normal capture height so the quick test and feedback remain visible at 1440 × 1024. Increased signal visibility while retaining existing artwork.
-3. Post-fix combined comparison (`comparison-final.png`, `detail-comparison-final.png`): no remaining actionable P0/P1/P2 findings. The three-step quick test and both feedback actions fit above the fixed footer. A native DOM measurement places the feedback controls at y=813–859, inside the guide pane ending at y=922. Longer instructions remain available by scrolling inside the modal.
-4. Mobile inspection found the selected card could sit partly outside the horizontal module list. Added selection scrolling and reset guide/body scroll on module changes. Verified the selected Tape Echo card is fully visible, with body scroll reset to zero and no document overflow at 390px.
+## Comparison history and findings
 
-**Required fidelity surfaces**
+The first comparison was blocked by two P2 findings, retained in `audio-comparison-iteration1-full.png`, `audio-comparison-iteration1-mobile.png` and `audio-comparison-iteration1-controls.png`:
 
-- Fonts/typography: existing system font stack (`-apple-system, system-ui, Segoe UI, sans-serif`), weight 600 headings and step titles, 13px instruction body and 1.5 body line height. Clear display/body hierarchy; exact versions wrap safely. The mockup’s enlarged display scale is intentionally adapted to readable native CSS text rather than reproduced as screenshot pixels. Focused comparison verifies spacing and readable wrapping.
-- Spacing/layout: compact desktop modal up to 1160px wide and 820px tall, viewport-bounded with fixed header/footer. Header, artwork, module cards and quick-test spacing are reduced. Short desktop viewports omit duplicate list summaries while preserving the selected module’s summary and usage instructions. Independent desktop panes and a horizontal mobile module list prevent content loss. Dividers, padding, rounded selection state and lavender rail preserve the chosen composition.
-- Colors/tokens: dark charcoal surface and borders, muted secondary copy, existing lavender primary/selected token, neutral working action and amber issue action. Feedback states use existing green/amber semantics. Visible focus ring verified.
-- Image quality/assets: real module control/location captures, aspect ratios preserved, pixel rendering for LCD captures, paging and enlargement inside the same modal. Reused the repository’s approved catalogue artwork and icon components; no new imitation captures or generated placeholder media. Artwork differs from the conceptual mockup intentionally because the user requested the design work with actual content. Captures are labelled with their actual provenance in credits.
-- Copy/content: “Inside your .bin” describes the download without claiming it has already been flashed. Machine, OS, all downloaded versions and actual summaries stay visible. Quick tests are bound to exact versions; other modules use their authored usage steps. Historical versions explicitly explain unavailable guidance instead of silently showing newer controls. Flashing help stays in the overlay.
+1. **Artwork overlapped the first large player.** The original signal illustration extended behind the dock and its lower portion disappeared. The second iteration reserved space for the player. The owner subsequently requested the original image size and an overlay, superseding that treatment; the final slim overlay covers only the thumbnail's bottom edge and leaves the illustration at its native scale.
+2. **Submission labels inherited column layout.** The generic dialog style stacked the file icon and permission checkbox above their labels. Scoped row styles now align them, provide a 44px permission-label target, and reset the heading margin. Revised focused-dialog and mobile captures show the compact form without collisions.
 
-**Interaction and responsive checks**
+The second comparison passed. The third iteration implements the later overlay and refinement requests: a single row with play, centered waveform and duration; quieter glass surface and active state; grouped carousel controls; and a clear Add preview action. Thumbnail hover exclusively prepares and initially reveals the card player. As requested in the final interaction refinement, playback keeps the strip visible on pointer exit. Pausing or finishing playback returns it to hover/focus visibility. Keyboard focus in the thumbnail remains supported; focus in the card body does not reveal an idle player.
 
-- Delayed opening: simulated download initially has no dialog, then opens via the production two-second scheduler; scheduler tests cover deadline and cross-tab claims.
-- All four module choices and Next navigation; selected card visibility and scroll reset.
-- Control/location screenshot paging and successful actual asset loading.
-- Enlarging, returning, and Escape returning to the quick test with focus restored to the screenshot control.
-- Full setup steps and flashing help open in the same overlay.
-- Local per-module working confirmation and issue submission; issue dialog returns to the overview with both statuses preserved and other modules available.
-- Dismiss and reopen via the development fixture; production panels retain Open module guide for the same build.
-- 1440 × 1024 desktop, 1280 × 720 laptop scrolling, and 390 × 844 mobile: no horizontal document overflow, footer remains accessible, long content scrolls inside the overlay.
-- Browser console error/warning check returned an empty list. A transient asset load failure during catalogue regeneration was retried after generation and the actual location screenshot loaded successfully; the user-facing missing-image fallback was also exercised.
+The final full-view and focused comparisons passed. No actionable P0/P1/P2 findings remain. Overlaying the bottom artwork labels is intentional under the updated request; the image itself is neither resized nor repositioned.
 
-**Implementation checklist**
+## Required fidelity surfaces
 
-- [x] Compact responsive modal with persistent downloaded module overview.
-- [x] Real version-matched screenshots, inline enlargement and usage documentation.
-- [x] Per-module feedback with exact build context.
-- [x] Short-delay scheduler and guide reopen action.
-- [x] Native browser comparison, keyboard and responsive verification.
+- **Fonts and typography:** existing system/Segoe UI and Consolas stacks are retained. Module title, author, version and footer weights remain native. Time labels use the established monospace treatment. Form labels and errors wrap legibly at 390px. The generated concept's larger text is an accepted deviation to preserve current cards.
+- **Spacing and layout:** card dimensions and artwork dimensions are identical idle, hovered and playing. The slim card strip measures approximately 38px after the existing desktop zoom, versus a 151px thumbnail (about 25% coverage). Native and overlay detail thumbnails and illustrations match exactly on desktop and mobile; mobile thumbnail height is 180px. Add/Compare and footer positioning remain unchanged. Touch detail controls and carousel controls retain 44px targets; the desktop-only card play control is 32px. Desktop, tablet and mobile captures show no horizontal overflow or collisions.
+- **Colors and tokens:** existing charcoal surfaces, muted text and lavender action tokens are retained. Tape Echo uses its warm signal color and Mini Verb its teal signal color. Playing progress and pause state are visible; focus uses the existing accent outline.
+- **Images and icons:** existing `ModulePreview` artwork and `Icon` components are reused as explicitly requested. No generated artwork replaces existing assets. Waveforms come from decoded recordings or actual synthetic PCM, rather than decorative shapes. The artwork stays at its native size underneath the slim overlay.
+- **Copy and content:** thumbnail players omit descriptions. The owner subsequently requested optional captions and usernames in the Previews tab, so the public form includes a caption and the gallery lists it alongside the contributor's username and credit. Community previews precede documentation captures. Module information remains native. Carousel counts describe actual clips. Public submission explains publication and removal; the development prototype identifies its synthetic clips and local-only submission.
 
-Residual limits: real firmware flashing and hardware sound behavior were not exercised; this change concerns the website’s guide and reporting UI. Backend report delivery is covered by existing automated tests; the browser preview deliberately submits locally.
+## Functional verification
 
-Automated validation on the current-main base passed: `VITEST_MAX_WORKERS=1 npm run check -- --base origin/main`, 198 test files / 1,382 tests, licence/catalogue/SDK checks, lint, type checks and production bundle. The default parallel runs hit variable five-second timeouts in existing module-doctor/backend tests under local CPU load; the supported single-worker override preserved all assertions and timeouts. Full log: `artifacts/module-feedback/post-download/check-single-worker.log`. No native firmware build was required.
+Playwright verified desktop click-to-seek/play without navigation; thumbnail-only reveal and preparation without autoplay or hidden-audio requests; persistent visibility during playback and hiding after pausing outside the thumbnail; unchanged artwork/card dimensions; exact native detail thumbnail dimensions on desktop/mobile; one playback owner across players; carousel wrap and stopping the old clip; keyboard seeking/play/pause and thumbnail focus access; mobile module navigation without autoplay and waveform tap-to-play; single-clip and empty states; invalid-file feedback; required credit/permission; decoded upload preview; local submission increasing the carousel count; and responsive layout at all three viewports. Runtime page errors and console errors: none. Latest results: `artifacts/audio-design-qa/overlay-verification.json`.
 
-CI follow-up: two runs of the original parallel check passed 1,381 tests but exceeded Vitest’s default five seconds in the catalogue-wide module-doctor integration test. That test now allows the complete catalogue check to finish, with a 30-second child-process deadline and a 35-second test deadline. Every result and catalogue assertion remains intact; a hung CLI is now bounded. The final unmodified-parallelism `npm run check -- --base origin/main` passed all 1,382 tests and all other required stages. Log: `artifacts/module-feedback/post-download/check-final.log`.
+Public uploads were additionally verified through a real local Cloudflare Worker, D1 and R2 binding: upload, lost-response retry without duplication, refresh persistence, username/caption listing, card playback of stored bytes, Digitakt detail upload, mobile form/gallery layout, visitor sign-in gating and owner removal after refresh. No runtime page errors occurred. Backend tests cover verified membership, permission, captions, audio signatures, byte/request limits, byte ranges, owner/admin removal, storage failures, pending cleanup and deleted/suspended contributors. Evidence is in `public-upload-verification.json`.
 
-**Owner-requested release refinement — 9 October 2026**
+`npm run check -- --base origin/main` passed after integrating the latest main changes: 235 test files, 1775 tests, lint, TypeScript, SDK/contract checks and production build. The production bundle excludes the synthetic fixtures and local submission prototype; public submission uses the persisted API.
 
-The original release (#345) opened only for a newly downloaded build; persisted dismissal, completed feedback or an earlier download suppressed later downloads of the same build. Every download now schedules a guide after two seconds, including repeat downloads of fully tested or dismissed builds. Working confirmations and later-reminder preferences remain intact. A new download resets only the guide deadline and claim; browser locking still permits one opening per download across tabs.
+## Implementation checklist and limits
 
-The desktop window is capped at 1160 × 820 with 32px viewport margins. At 1280 × 720 the native dialog measures 1160 × 656, with all four module choices, all three Mini Verb quick-test steps and feedback controls visible initially. Feedback controls occupy y=557–597 inside the guide ending at y=622. Detailed guidance scrolls inside the window. Screenshot enlargement still offers the full capture and Escape returns with focus restored.
+- [x] Slim thumbnail-only hover/focus overlay; waveform gesture starts playback immediately and controls remain visible while playing.
+- [x] Original thumbnail and illustration sizing; no extra card height.
+- [x] Mobile detail player starts only after a tap.
+- [x] Optional recordings; unchanged cards when absent.
+- [x] Detail carousel for multiple clips and public Add preview, including empty modules and Digi module pages.
+- [x] Persistent public file submission, validation, retry protection, review playback and removal.
+- [x] Previews tab lists submitted recordings with username, credit and optional caption.
+- [x] Repeat visual comparison after fixing P2 findings.
 
-Current evidence in `artifacts/module-feedback/post-download/`: `compact-laptop.png` (1280 × 720), `compact-desktop.png` (1440 × 1024), and `compact-mobile.png` (390 × 844), all native browser captures at DPR 1. Mobile has no horizontal document overflow and retains its fixed footer and horizontal module selector. The viewport override was reset after verification.
-
-The preview was dismissed, then the same download was simulated without clearing its persisted record. There was no immediate modal; it opened automatically after the two-second deadline, with no guide-button click. Scheduler regressions cover repeat downloads, preserved confirmations/dismissal/snooze preferences, hidden tabs, legacy records and cross-tab claims.
-
-Final refinement validation: `npm run check -- --base origin/main` passed with standard parallelism: 198 test files / 1,384 tests, catalogue/licence/SDK checks, lint, type checks and production bundle. Log: `artifacts/module-feedback/post-download/check-auto-open.log`. A sandboxed attempt could not bind the existing push-runtime test’s loopback listener; the final run used the required loopback access and passed. No native firmware source or versions changed.
+Production uses declared module recordings and persistent community uploads in the existing media bucket. The synthetic development fixtures still reset on reload. Contributors and administrators can remove community audio; account deletion queues files for cleanup. The browser validates decoded duration and the server bounds supplied duration/signatures/bytes without independently decoding it. Browser validation covers Chromium/Edge; Safari and hardware-generated recordings have not been exercised. No blocking visual gaps remain.

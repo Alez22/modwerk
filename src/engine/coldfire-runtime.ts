@@ -1,5 +1,6 @@
 import { selectedDramRegions, placeDramRegions } from './runtime-memory.ts'
 import { readCoreLogger, loggerExternals, LOGGER_RESERVE_BYTES, LOGGER_RETAINED_BYTES } from './core-logger.ts'
+import { readBetaStartup, BETA_STARTUP_ACTIVE_ADDRESS } from './beta-startup.ts'
 import { readRequestedObject, requestedFacts, selectedRequestedGroups, requestedObjectSelected, requestedObjectDram } from './requested-modules.ts'
 import { resolveSelection } from '../catalog/modules.ts'
 import { readColdFirePackage, PLATFORM_UNITS } from './coldfire-package.ts'
@@ -11,7 +12,7 @@ import { USB_AUDIO_MODULE, type UsbAudioConfiguration } from '../config/usb-audi
 // Native arena.BASE. All accepted selections reserve the platform at its bottom.
 export const PLATFORM_RUNTIME_BASE = 0x40a955e0
 /** Loader-free runtime with the core logger in every configuration. */
-export async function createStaticColdFireRuntime(ids: readonly string[], original?: Uint8Array, base = PLATFORM_RUNTIME_BASE, usbAudio?: UsbAudioConfiguration) {
+export async function createStaticColdFireRuntime(ids: readonly string[], original?: Uint8Array, base = PLATFORM_RUNTIME_BASE, usbAudio?: UsbAudioConfiguration, betaAccess = false, startupRomAddress = BETA_STARTUP_ACTIVE_ADDRESS - 76) {
   const units = []
   const selected = selectedRequestedGroups(ids)
   for (const module of resolveSelection(ids)) {
@@ -27,7 +28,9 @@ export async function createStaticColdFireRuntime(ids: readonly string[], origin
   const reserveBytes = (units.length ? 1707 * 6144 : 0) + LOGGER_RESERVE_BYTES
   const regions = placeDramRegions(selectedDramRegions(ids), base, base + reserveBytes - LOGGER_RETAINED_BYTES)
   units.push(await readCoreLogger())
+  if (betaAccess) units.push(await readBetaStartup())
   const externals = new Map(loggerExternals(reserveBytes, base))
+  if (betaAccess) externals.set('modwerk_boot_active', startupRomAddress + 76)
   for (const region of regions) {
     if (externals.has(region.symbol)) throw new Error('A DRAM region shadows a platform symbol.')
     externals.set(region.symbol, region.address)
@@ -46,7 +49,7 @@ export async function createStaticColdFireRuntime(ids: readonly string[], origin
   }
   return { ...link, base, reserveBytes, regions, units: units.map(unit => unit.label) }
 }
-export async function createColdFireRuntime(cores: readonly StockDspCore[], ids: readonly string[]) {
+export async function createColdFireRuntime(cores: readonly StockDspCore[], ids: readonly string[], betaAccess = false) {
   const selection = resolveSelection(ids), catalog = await createDynamicRuntimeCatalog(cores, ids, 0)
   const units = []
   // with_platform appends the loader after the remix's declared modules.
@@ -55,8 +58,10 @@ export async function createColdFireRuntime(cores: readonly StockDspCore[], ids:
   units.push({ label: 'dlcatalog', object: runtimeCatalogObject(catalog, units[0].object.flags) })
   const reserveBytes = 1707 * 6144 + LOGGER_RESERVE_BYTES
   units.push(await readCoreLogger())
+  if (betaAccess) units.push(await readBetaStartup())
   const regions = placeDramRegions(selectedDramRegions(ids), PLATFORM_RUNTIME_BASE, PLATFORM_RUNTIME_BASE + reserveBytes - LOGGER_RETAINED_BYTES)
   const externals = new Map(loggerExternals(reserveBytes))
+  if (betaAccess) externals.set('modwerk_boot_active', BETA_STARTUP_ACTIVE_ADDRESS)
   for (const region of regions) {
     if (externals.has(region.symbol)) throw new Error('A DRAM region shadows a platform symbol.')
     externals.set(region.symbol, region.address)

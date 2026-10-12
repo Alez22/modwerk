@@ -2363,8 +2363,8 @@ removedStockFx }`).
   part way rolls the trial back, then sends the undo packages of the kept changes, newest first (a removed module
   the site does not publish cannot be put back, and the notice says so). An unplug part way leaves the unit
   between the two sets; loading either again finishes it, since a load only sends the differences.
-- **Not built:** stock effects out of the menus (the base keeps no such state; a set that changes them is refused
-  before anything is sent), one Keep or Undo held by the base for a whole set, and versions other than the latest.
+- **Not built:** stock effects out of the menus (the base keeps no such state; the site hides the stock effect
+  tiles while a base is connected and sends no removals, and `prepareUpdate` refuses a set that changes them), one Keep or Undo held by the base for a whole set, and versions other than the latest.
 
 Later, not now (owner): people may own several units of the same machine. The site connects to
 the first allowed unit today. Telling units apart needs a unit identity from the base, since every

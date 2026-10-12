@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""The base's startup art as C data for boot_anim.c (sdk/machines/octatrack/elekloader).
+"""The beta startup art ported from the Elekloader migration, as C data for boot_anim.c.
 
 Reads the base's own art (base.json: a compact mark with its tile grid and detached tile, a compact
-wordmark, a small font, NEW and the version line, and where each sits) and writes boot_art.h.
+wordmark, a small font, NEW and BETA, and where each sits) and writes boot_art.h.
 final_pixels() is the frame the animation ends on, for the host test and the emulator check. Public
 builds keep artwork.json and build.py. Authored data only.
 """

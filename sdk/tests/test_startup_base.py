@@ -35,19 +35,19 @@ class BaseArtTests(unittest.TestCase):
         pixels = base_art.final_pixels('0.3.1')
         base, (mx, my), tiles, disc, frame, cell, cells = base_art.layers('0.3.1')
         size = len(base['mark']['rows'])
-        self.assertEqual(len(pixels), 887)
+        self.assertEqual(len(pixels), 912)
         self.assertGreaterEqual(min(y for _, y in pixels), 8)            # room at the top edge
         self.assertGreaterEqual(63 - max(y for _, y in pixels), 8)       # and at the bottom
         text = {p for c in cells for p in c[5]}
-        self.assertTrue(all(x <= mx - 11 or x >= mx + size + 10 for x, _ in text), 'NEW and the version keep clear of the mark')
-        self.assertEqual(''.join('N' if c[0] == 0 else 'v' for c in cells), 'NNN' + 'v' * 5)
+        self.assertTrue(all(x <= mx - 11 or x >= mx + size + 10 for x, _ in text), 'NEW and BETA keep clear of the mark')
+        self.assertEqual(''.join('N' if c[0] == 0 else 'B' for c in cells), 'NNN' + 'B' * 4)  # NEW, then BETA (owner, 12 October 2026)
         self.assertEqual(len(tiles), 8 * 21)                               # eight 5 x 5 tiles with rounded corners
         self.assertEqual(max(c[4] for c in cells), 7)                      # the small 7-pixel type
 
     def test_versions(self):
-        for good in ('0.3.1', '0.4.0', '0.10.1', '9.9.9'):
-            base_art.final_pixels(good)
-        for bad in ('0.3', '0.3.1-dev', 'x', '10.10.100'):   # the last runs off the screen
+        for good in ('0.3.1', '0.4.0', '0.10.1', '9.9.9', '10.10.100'):
+            self.assertEqual(base_art.final_pixels(good), base_art.final_pixels('0.3.1'))  # the screen says BETA, not the version
+        for bad in ('0.3', '0.3.1-dev', 'x'):
             with self.assertRaises(ValueError):
                 base_art.final_pixels(bad)
 
@@ -55,7 +55,7 @@ class BaseArtTests(unittest.TestCase):
         text = base_art.header('0.3.1')
         self.assertIn('#define BOOT_VERSION "0.3.1"', text)
         self.assertIn('static const uint8_t boot_disc[6]', text)
-        self.assertIn('#define BOOT_GLYPHS 8', text)
+        self.assertIn('#define BOOT_GLYPHS 7', text)
 
 
 if __name__ == '__main__':
