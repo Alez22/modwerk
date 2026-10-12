@@ -406,8 +406,8 @@
     {
       "path": "media/audio-preview.mp3",
       "captureType": "audio",
-      "caption": "Four isolated FM Synth notes: clean C4 carrier, C5 bell (RATO 3, INDX 80), C2 feedback bass (INDX 52, FDBK 48), and a four-voice M7S2 chord (INDX 24). FX1/FX2 NONE, no samples; one common gain. Recorded from FM Synth 0.1.2 running in Octemu on a computer, not physical hardware.",
-      "alt": "A clean sine note, bright FM bell, feedback bass and four-voice chord.",
+      "caption": "A Vector-generated minor synth phrase at 128 BPM, entered as FM note locks. INDX sweeps 44→92 and FDBK 0→28, with Mini Verb in FX2 (DECAY 96, DAMP 58, MIX 36). One common gain, no added gaps or external samples. Captured from FM Synth 0.1.2 and Mini Verb 0.2.1 running in Octemu on a computer; no physical-hardware recording.",
+      "alt": "A melodic FM phrase grows brighter and grittier through index and feedback sweeps, with Mini Verb tails.",
       "credit": "Modwerk contributors (module-generated sound; no samples).",
       "license": "MIT (original audio; see media/LICENSE.md)",
       "source": "original"

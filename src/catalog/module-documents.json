@@ -2761,10 +2761,10 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "Four single hits from the 808 and 909 engines, 2.4 s apart: 808 at the defaults, 808 low and long (PITCH 40, DECAY 110, TONE 60, SWEEP 100), 909 at the defaults, and 909 with a hard attack and drive (DECAY 20, ATK 100, TDEP 100, SAT 50). No samples are used. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
-          "alt": "Four bass drum hits: a default 808, a low long 808, a default 909 and a hard, driven 909.",
-          "credit": "Modwerk contributors (offline render of the module's 808/909 engines; no samples).",
-          "license": "MIT",
+          "caption": "Five isolated hits: default 808, low/long 808, clean 909, 909 with attack/drive, and a long 909 body. Gaps follow each tail; one common gain preserves level differences. No external samples. Offline render through Analog BD 0.1.5's own 808/909 DSP, not an Octatrack recording.",
+          "alt": "Two contrasting 808 hits followed by three 909 hits, with clear gaps and audible tails.",
+          "credit": "Modwerk contributors (module-generated sound; no samples).",
+          "license": "MIT (original audio; see media/LICENSE.md)",
           "source": "original"
         }
       ]
@@ -3911,8 +3911,8 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "Four isolated FM Synth notes: clean C4 carrier, C5 bell (RATO 3, INDX 80), C2 feedback bass (INDX 52, FDBK 48), and a four-voice M7S2 chord (INDX 24). FX1/FX2 NONE, no samples; one common gain. Recorded from FM Synth 0.1.2 running in Octemu on a computer, not physical hardware.",
-          "alt": "A clean sine note, bright FM bell, feedback bass and four-voice chord.",
+          "caption": "A Vector-generated minor synth phrase at 128 BPM, entered as FM note locks. INDX sweeps 44→92 and FDBK 0→28, with Mini Verb in FX2 (DECAY 96, DAMP 58, MIX 36). One common gain, no added gaps or external samples. Captured from FM Synth 0.1.2 and Mini Verb 0.2.1 running in Octemu on a computer; no physical-hardware recording.",
+          "alt": "A melodic FM phrase grows brighter and grittier through index and feedback sweeps, with Mini Verb tails.",
           "credit": "Modwerk contributors (module-generated sound; no samples).",
           "license": "MIT (original audio; see media/LICENSE.md)",
           "source": "original"
