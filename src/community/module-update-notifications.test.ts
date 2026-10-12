@@ -24,7 +24,7 @@ beforeEach(() => {
   }))
 })
 afterEach(() => { vi.unstubAllGlobals(); for (const db of databases.splice(0)) db.close() })
-const release = (id = 'miniverb', version = '10.0.0'): ModuleRelease => ({ id, version, name: communityModule(id)!.name, href: communityModule(id)!.href, notes: { version, date: '2026-10-08', changes: ['Correct playback behavior for ' + id + ' v' + version + '.'] } })
+const release = (id = 'miniverb', version = '10.0.0'): ModuleRelease => ({ id, version, name: communityModule(id)!.name, href: communityModule(id)!.href, notes: { announce: true, version, date: '2026-10-08', changes: ['Correct playback behavior for ' + id + ' v' + version + '.'] } })
 const manifest = (modules: ModuleRelease[]) => ({ format: 'modwerk-module-releases-v1', modules })
 const report = { title: 'A control freezes', steps: 'Turn the control.', expected: 'A new value.', actual: 'It freezes.', context: { model: 'mk2', flash: 'flashed', os: '1.40C', modules: [{ id: 'miniverb', version: communityModule('miniverb')!.version }], keepStockFx2: true, build: '' }, logMissing: { reason: 'logger-not-in-build' } }
 
@@ -47,6 +47,32 @@ async function fixture() {
 }
 
 describe('module update subscriptions', () => {
+  it('records quiet releases and media edits until that exact version is explicitly announced', async () => {
+    const f = await fixture(), follower = await f.member('quietfan')
+    await f.publish(release('miniverb', '9.0.0'))
+    await f.call('/modules/miniverb/updates', 'PATCH', { enabled: true }, follower.session)
+    const quiet = release('miniverb', '10.0.0'); delete quiet.notes!.announce
+    expect(await f.publish(quiet)).toEqual({ checked: 1, notified: 0 })
+    const next = release('miniverb', '11.0.0'); next.notes!.announce = false
+    expect(await f.publish(next)).toEqual({ checked: 1, notified: 0 })
+    expect(f.db.prepare('SELECT version FROM module_release_state').get()!.version).toBe('11.0.0')
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM module_releases').get()!.count).toBe(3)
+    expect(f.db.prepare('SELECT after_version FROM module_update_subscriptions').get()!.after_version).toBe('9.0.0')
+    expect(await f.items(follower.session)).toHaveLength(0)
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM announcements').get()!.count).toBe(0)
+    // An old inventory cannot announce a superseded release; the current version can opt in later.
+    expect(await f.publish(release('miniverb', '10.0.0'))).toEqual({ checked: 1, notified: 0 })
+    next.notes!.announce = true
+    expect(await f.publish(next)).toEqual({ checked: 1, notified: 1 })
+    expect(await f.publish(next)).toEqual({ checked: 1, notified: 0 })
+    next.notes!.changes.push('Media-only: replace the thumbnail with shared signal artwork.')
+    expect(await f.publish(next)).toEqual({ checked: 1, notified: 0 })
+    expect((await f.items(follower.session)).filter(item => item.kind === 'module_update')).toHaveLength(1)
+    // Opt-in belongs to one version and does not carry forward to the next release.
+    const later = release('miniverb', '12.0.0'); delete later.notes!.announce
+    expect(await f.publish(later)).toEqual({ checked: 1, notified: 0 })
+  })
+
   it('queues beta releases only for eligible beta followers and stays quiet publicly', async () => {
     const f = await fixture(), tester = await f.member('betafan'), ordinary = await f.member('publicfan')
     f.db.prepare('UPDATE users SET beta_tester=1 WHERE id=?').run(tester.id)
