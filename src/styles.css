@@ -779,7 +779,7 @@ h1 { font-size: 28px; }
   .button { min-height: 42px; }
 }
 .community-label { padding-top: 18px; }
-.community-nav a > span:not(.sidebar-online):not(.sidebar-feature-new) { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.community-nav a > span:not(.sidebar-online) { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .community-page { max-width: 980px; margin: 0 auto; }
 .community-form { display: flex; flex-direction: column; gap: 20px; }
 .community-form label, .review-notes { display: flex; flex-direction: column; gap: 9px; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
@@ -1096,27 +1096,40 @@ h1 { font-size: 28px; }
 .install-guide li {margin:10px 0}
 .install-guide details {margin-top:16px}
 .build-follow-up, .hardware-feedback-reminder, .hardware-feedback-confirmation {max-width:680px}
-.build-follow-up > .service-note {margin:0 0 14px}
-.build-follow-up-list {display:grid;gap:10px;list-style:none;margin:0;padding:0}
-.build-follow-up-module {padding:16px;border-radius:8px;background:var(--surface)}
-.build-follow-up-row {display:grid;grid-template-columns:minmax(0,1fr) 205px;align-items:center;gap:16px}
-.build-follow-up-name {display:grid;gap:4px;overflow-wrap:anywhere;font-size:14px}
-.build-follow-up-name .subtle {font-size:11px}
+.build-follow-up {container:build-feedback / inline-size}
+.build-follow-up > .service-note {margin:0 0 12px;color:var(--muted);font-size:12px;line-height:1.6}
+.build-follow-up-list {list-style:none;margin:0;padding:0}
+.build-follow-up-module {padding:12px 0;border-bottom:1px solid var(--line)}
+.build-follow-up-module:first-child {padding-top:0}
+.build-follow-up-module:last-child {border-bottom:0;padding-bottom:0}
+.build-follow-up-row {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px}
+.build-follow-up-identity {display:flex;align-items:center;gap:12px;min-width:0}
+.build-follow-up-thumbnail {display:grid;place-items:center;width:64px;height:44px;flex:0 0 64px;border-radius:5px;background:var(--preview);color:var(--muted);overflow:hidden}
+.build-follow-up-thumbnail .compact-preview {width:100%;height:100%;border:0}
+.build-follow-up-name {display:grid;gap:3px;min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:1.4}
+.build-follow-up-name .subtle {font-size:12px}
 .reporting-actions { display: grid; gap: 8px; }
 .reporting-actions .button { min-height: 44px; font-size: 12px; }
-.build-follow-up-bulk { margin-top: 16px; color: var(--muted); font-size: 12px; }
+.build-follow-up .reporting-actions {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.build-follow-up .reporting-actions .button {padding:8px 10px;min-height:44px}
+.build-follow-up-bulk { margin-top: 8px; color: var(--muted); font-size: 12px; }
 .build-follow-up-bulk > summary { cursor: pointer; min-height: 44px; padding-block: 12px; }
+.build-follow-up-bulk > summary:focus-visible {outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
 .build-follow-up-selection { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .build-follow-up-selection label, .build-follow-up-select { display: flex; align-items: center; gap: 10px; }
 .build-follow-up-selection label { min-height: 44px; font-size: 13px; }
 .build-follow-up-select input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
 .build-follow-up-selection input { width: 18px; height: 18px; accent-color: var(--accent); }
 .build-follow-up-posted {min-height:42px;color:#bcd7c5}
-.hardware-feedback-reminder {margin-bottom:24px}
-.hardware-feedback-later {min-height:42px;margin-top:16px}
+.hardware-feedback-reminder {margin-bottom:24px;padding:18px 20px}
+.hardware-feedback-reminder > .section-title {margin-bottom:10px;flex-wrap:nowrap}
+.hardware-feedback-reminder > .section-title h2 {font-size:15px;line-height:1.4}
+.hardware-feedback-reminder > .section-title .icon-button {width:32px;height:32px;flex-shrink:0}
+.hardware-feedback-later {min-height:44px;margin-top:0;color:var(--muted)}
 .hardware-feedback-confirmation {display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:16px 0;color:#bcd7c5;font-size:13px;line-height:1.6}
 .hardware-feedback-confirmation .icon-button {margin-left:auto}
-@media (max-width:650px) {.build-follow-up-row {grid-template-columns:minmax(0,1fr);gap:14px}.reporting-actions {grid-template-columns:1fr 1fr}.reporting-actions .button {font-size:11px;padding-inline:7px}}
+@container build-feedback (max-width:500px) {.build-follow-up-row {grid-template-columns:minmax(0,1fr);gap:10px}.build-follow-up .reporting-actions .button {white-space:normal}}
+@media (max-width:650px) {.reporting-actions {grid-template-columns:1fr 1fr}.reporting-actions .button {font-size:12px;padding-inline:7px}.hardware-feedback-reminder {padding:16px}.hardware-feedback-reminder > .section-title .icon-button {width:44px;height:44px}}
 .build-identity {font-size:12px;line-height:1.6}
 .build-identity dd {margin:2px 0 12px;overflow-wrap:anywhere;font-family:monospace}
 .build-log {margin:10px 0 14px;padding:0;list-style:none;font:12px/1.6 var(--mono);color:#b0b0c0;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -1591,7 +1604,6 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
 .sidebar-nav .sidebar-nav-row > a, .sidebar-nav .sidebar-nav-row > a:hover, .sidebar-nav .sidebar-nav-row > a.active { background: transparent; box-shadow: none; }
 .sidebar-nav .sidebar-online { margin-left: auto; flex: 0 0 auto; display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; border: 1px solid #456354; color: #bcd7c5; font-size: 11px; line-height: 1.4; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mobile-menu-panel small.menu-online { display: inline-flex; align-items: center; border-color: #456354; color: #bcd7c5; }
-.sidebar-nav .sidebar-feature-new { margin-left: auto; flex: 0 0 auto; padding: 2px 6px; border-radius: 4px; border: 1px solid #9788de; color: #d5c9ff; font-size: 10px; line-height: 1.4; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .member-gate { align-items: center; }
 .member-gate h2 { margin-bottom: 8px; }
 .member-gate > div > p { max-width: 48ch; margin-bottom: 0; line-height: 1.6; }

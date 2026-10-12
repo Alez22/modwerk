@@ -88,16 +88,20 @@ export async function recordModuleReleases(db: Database, releases: ModuleRelease
     if (previous && compareModuleVersions(release.version, previous) <= 0) {
       // Fill a legacy pending notification's notes without replacing an existing release snapshot.
       if (release.notes) await db.prepare('UPDATE module_releases SET notes=? WHERE module_id=? AND version=? AND notes IS NULL').bind(JSON.stringify(release.notes), release.id, release.version).run()
-      continue
+      // An explicitly chosen announcement may follow a quiet deployment of this version.
+      // Older inventories must never announce a superseded release.
+      if (compareModuleVersions(release.version, previous) < 0 || release.notes?.announce !== true) continue
     }
     const followers = (await db.prepare('SELECT s.user_id,s.after_version FROM module_update_subscriptions s JOIN users u ON u.id=s.user_id JOIN auth_users a ON a.id=u.id WHERE s.module_id=? AND (?=0 OR u.beta_tester=1 OR u.is_admin=1) AND u.email_verified=1 AND a.emailVerified=1 AND u.suspended=0 AND u.username IS NOT NULL AND NOT EXISTS(SELECT 1 FROM social_pending_accounts p WHERE p.user_id=u.id)').bind(release.id,Number(release.beta || isBetaModule(release.id))).all<{ user_id: string; after_version: string | null }>()).results
-    const recipients = followers.filter(member => member.after_version !== null && compareModuleVersions(release.version, member.after_version) > 0)
+    const announce = release.notes?.announce === true
+    const recipients = announce ? followers.filter(member => member.after_version !== null && compareModuleVersions(release.version, member.after_version) > 0) : []
     const statements = [
       db.prepare('INSERT INTO module_releases(module_id,version,name,href,notes) VALUES(?,?,?,?,?) ON CONFLICT(module_id,version) DO UPDATE SET notes=COALESCE(module_releases.notes,excluded.notes)').bind(release.id, release.version, release.name, release.href, JSON.stringify(release.notes)),
-      ...(!previous && initialized && !release.beta && !isBetaModule(release.id) ? [await moduleReleaseAnnouncement(db, release)] : []),
+      ...(announce && !previous && initialized && !release.beta && !isBetaModule(release.id) ? [await moduleReleaseAnnouncement(db, release)] : []),
       ...recipients.map(member => db.prepare(`INSERT INTO notifications(id,user_id,kind,module_id,module_version,delivery_id) SELECT lower(hex(randomblob(16))),?,'module_update',?,?,? WHERE EXISTS(SELECT 1 FROM module_update_subscriptions WHERE user_id=? AND module_id=? AND after_version=?) ON CONFLICT DO NOTHING`).bind(member.user_id, release.id, release.version, 'module-release:' + release.id + ':' + release.version, member.user_id, release.id, member.after_version)),
-      // Do not move a subscriber back from a newer version if an old cached site is served.
-      ...followers.filter(member => member.after_version === null || compareModuleVersions(release.version, member.after_version) > 0).map(member => db.prepare('UPDATE module_update_subscriptions SET after_version=? WHERE user_id=? AND module_id=? AND after_version IS ?').bind(release.version, member.user_id, release.id, member.after_version)),
+      // Quiet versions leave the notification watermark available for a later explicit opt-in.
+      // Historical subscriptions still establish a quiet baseline, and never move backwards.
+      ...followers.filter(member => member.after_version === null || (announce && compareModuleVersions(release.version, member.after_version) > 0)).map(member => db.prepare('UPDATE module_update_subscriptions SET after_version=? WHERE user_id=? AND module_id=? AND after_version IS ?').bind(release.version, member.user_id, release.id, member.after_version)),
       db.prepare('INSERT INTO module_release_state(module_id,version) VALUES(?,?) ON CONFLICT(module_id) DO UPDATE SET version=excluded.version WHERE module_release_state.version IS ?').bind(release.id, release.version, previous ?? null),
     ]
     // Bound D1 batches while retaining retry-safe fanout.

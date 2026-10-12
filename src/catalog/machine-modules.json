@@ -126,7 +126,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "digichain thumbnail",
-          "alt": "Abstract framework illustration for digichain: two chain links route several inputs to several machines",
+          "alt": "Four connected blocks representing shared source-page integration.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -490,7 +490,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "Digi EQ thumbnail",
-          "alt": "Abstract mixing illustration for Digi EQ: a four-band EQ response curve with its band points",
+          "alt": "An equalizer response curve with four band positions.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -724,7 +724,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "digihealth thumbnail",
-          "alt": "Abstract performance illustration for digihealth",
+          "alt": "Four conceptual diagnostic meters over reference tracks.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -1128,7 +1128,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "Digi Matrix thumbnail",
-          "alt": "Abstract modulation illustration for Digi Matrix: one LFO wave fanning out across a grid to several destinations at different depths",
+          "alt": "A modulation waveform over its reference signal.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -1409,7 +1409,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "Digi Mono thumbnail",
-          "alt": "Abstract synthesis illustration for Digi Mono: seven small waveforms in a row",
+          "alt": "A source waveform and a decaying synthesized waveform.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -1800,7 +1800,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "NEIGHBOR thumbnail",
-          "alt": "Abstract sampling illustration for NEIGHBOR",
+          "alt": "A sample waveform divided by slice boundaries.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -2141,7 +2141,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "Digi Poly thumbnail",
-          "alt": "Abstract illustration for Digi Poly: chords on a piano roll, their notes routed to a column of voices",
+          "alt": "Layered note bars representing chords and voices.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -2534,7 +2534,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "DIGISLICER thumbnail",
-          "alt": "Abstract sampling illustration for DIGISLICER",
+          "alt": "A sample waveform divided by slice boundaries.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -2953,7 +2953,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "SOPHIE thumbnail",
-          "alt": "Abstract synthesis illustration for SOPHIE",
+          "alt": "A source waveform and a decaying synthesized waveform.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -3268,7 +3268,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "Digi utilities thumbnail",
-          "alt": "Abstract utility illustration for Digi utilities: a waveform, a stereo X-Y trace, spectrum bars and eight activity boxes",
+          "alt": "A scope waveform beside a spectrum display.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -3525,7 +3525,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "digihealth thumbnail",
-          "alt": "Abstract performance illustration for digihealth",
+          "alt": "Four conceptual diagnostic meters over reference tracks.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"
@@ -3809,7 +3809,7 @@
           "path": "media/thumbnail.svg",
           "kind": "thumbnail",
           "caption": "digitables thumbnail",
-          "alt": "Abstract pitch-table illustration for digitables: step bars around a zero line, some drawn hollow",
+          "alt": "Sixteen pitched steps over a shared sequence baseline.",
           "credit": "Modwerk",
           "license": "GPL-3.0-or-later",
           "source": "Original Modwerk illustration"

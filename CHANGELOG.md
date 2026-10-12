@@ -19,6 +19,16 @@
 - The beta sidebar prompts disconnected users to connect their Octatrack and original-OS users to install the base. Remembered modules are labelled “Last seen” rather than presented as currently connected.
 - On narrow screens the beta hub keeps the Octatrack connection status and install button below its photo, preventing horizontal overflow.
 
+- Made hardware feedback reminders and download follow-ups more compact, with module thumbnails, divided rows and side-by-side actions. Narrow panels keep full-sized touch controls, and reports retain the exact downloaded versions.
+- Removed the New badges from Forum and Other projects in the sidebar and mobile menu.
+- Made module-release announcements opt-in for each version. Deployments and media edits record release history quietly unless that version's authored notes explicitly set `announce: true`; existing subscriptions and delivery preferences remain intact.
+- Limited FM Synth's Node and Python screenshot regressions to instrument captures so bundled audio previews are not decoded as PNGs or counted as screenshots; capture hashes and version/source checks remain required.
+- Required the shared signal-art style for module thumbnails, documented the grid, palette and typography, and explained how to replace artwork whose original asset is bound by older release evidence.
+- Documented explicit per-version announcement consent across the agent, module-author, publication and notification guides; publishing or editing media leaves announcements off by default.
+- Documented focused comparisons and musical phrases without quiet padding, full Euclid clock/envelope capture, FM + Mini Verb capture through Octemu with offline VECTOR note generation, reliable parameter-lock editing, decoded MP3 checks and the retained-evidence editorial media path.
+
+- Allow editorial documentation to be appended to a retained module's README when it also holds historical resource measurements. The entire approved record, other reports and runtime inputs remain immutable.
+- Retained evidence compares exact approved infrastructure before consulting a historical builder-extension exception, so an obsolete exception cannot block an unchanged runtime.
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.
 - Verified members can upload public audio previews with credits and optional captions. The renamed Previews tab lists submitted recordings with usernames and captions; contributors and administrators can remove them. Uploads use the existing media bucket with file/request limits, retry protection and account-deletion cleanup. Synthetic recordings remain development-only.
