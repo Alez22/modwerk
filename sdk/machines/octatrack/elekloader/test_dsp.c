@@ -99,7 +99,6 @@ static void planner(void)
            "(at most %u outside the largest run), at most %u moves\n", steps, adds, refused, split, left_over, most);
     CHECK(most <= 32u);
 }
-const uint32_t dl_stub_at_boot = 1u << 21 | 1u << 26 | 1u << 27, modwerk_dsp_modules = 1u << 26 | 1u << 27;
 #if MODWERK_FX_IDS > 32
 const fx_set modwerk_fx_modules = {{1u << 26 | 1u << 27, 1u << (40 - 32)}}; /* a handle past 32 too */
 #else
@@ -113,7 +112,7 @@ const uint16_t modwerk_dsp_arena[2] = {2320, 2300};
 static int idle = 1;
 int dl_publication_idle(void) { return idle; }
 
-/* All handles held: FULL; with 64 ids the fixture's third handle, 40, is still free and goes to the newcomer. */
+/* All handles held: FULL; past 32 ids the fixture's third handle, 40, is still free and goes to the newcomer. */
 static int full_or_40(const struct runtime_dsp *none, struct runtime_dsp t) /* a copy: admission writes the id it gives */
 {
     int r = modwerk_machine_dsp_admit(none, &t);

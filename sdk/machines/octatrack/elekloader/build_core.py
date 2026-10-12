@@ -100,7 +100,7 @@ DSP_ALLOWANCE = (3120, 3565)
 # The dearest stock effect per slot, chip cycles: DJ EQUALIZER, 342 a sample on the same unit (its 331 executed
 # instructions in the emulator, stock_dsp_worst.py, run at about one a cycle). Every slot without a module is charged it.
 DSP_RESERVE = 342
-# Effect ids the base handles (fxids.h MODWERK_FX_IDS; 64 is the plan, docs/OCTATRACK_MORE_EFFECT_IDS.md).
+# Effect ids the base handles (fxids.h MODWERK_FX_IDS; 160 is the plan, docs/OCTATRACK_MORE_EFFECT_IDS.md).
 FX_IDS = 32
 FX_WORDS = (FX_IDS + 31) // 32
 DSP_EDITS = {
@@ -495,6 +495,94 @@ GUARD_ENTRY = ((STATE7_ENTRY,
 # Hardware bisect of the probe-A freeze (10 October 2026), each guard plus one change:
 # pretend: the packet is built and its job runs, but nothing touches eDMA or the host port;
 # noflags: real delivery, the host flags never read; long: 96 halfwords, USB AUDIO IN AB's length.
+# The effect id width (docs/OCTATRACK_MORE_EFFECT_IDS.md, step 3): Octabam's transport sized and bounded by the base's
+# MODWERK_FX_IDS (fxids.h) instead of 32, its id masks as id sets. Applied after DSP_EDITS, to the text they leave.
+WIDTH_EDITS = {
+    'allocator.h': (('#include <stdint.h>\n#define DL_PACKAGES 32\n',
+                     '#include <stdint.h>\n#include "fxids.h"\n#define DL_PACKAGES MODWERK_FX_IDS /* Modwerk: the base\'s effect ids */\n'),
+                    ('    uint32_t keep[2]; /* Modwerk: more ids to place per core, beside the target\'s own */',
+                     '    fx_set keep[2]; /* Modwerk: more ids to place per core, beside the target\'s own */')),
+    'allocator.c': (('(a->keep[c]>>(i-16)&1u ? i-16 : DL_NONE)', '(fx_in(a->keep[c],i-16) ? i-16 : DL_NONE)'),),
+    'transfer.h': (('#include <stdint.h>\n#define DL_WORDS 64\n', '#include <stdint.h>\n#include "fxids.h"\n#define DL_WORDS 64\n'),),
+    'transfer.c': (('    if(c>1 || jobs[c].state || id>=32 ||', '    if(c>1 || jobs[c].state || id>=MODWERK_FX_IDS ||'),),
+    'selection.c': (('s->track>7 || s->row>=32 || !s->bank) return 0;', 's->track>7 || s->row>=MODWERK_LIST_ROWS || !s->bank) return 0;'),
+                    ('        if(id>31) return 0;', '        if(id>=MODWERK_FX_IDS) return 0;')),
+    'buffers.h': (('#include <stdint.h>\n', '#include <stdint.h>\n#include "fxids.h"\n'),
+                  ('                       const uint8_t reads[32]);', '                       const uint8_t reads[MODWERK_FX_IDS]);')),
+    'buffers.c': (('                       const uint8_t reads[32]) {', '                       const uint8_t reads[MODWERK_FX_IDS]) {'),
+                  ('!(running[i]<32 && reads[running[i]])', '!(running[i]<MODWERK_FX_IDS && reads[running[i]])'),
+                  ('        unsigned reader=ids[i]<32 && reads[ids[i]];\n        unsigned same=',
+                   '        unsigned reader=ids[i]<MODWERK_FX_IDS && reads[ids[i]];\n        unsigned same='),
+                  ('        unsigned reader=ids[i]<32 && reads[ids[i]];\n        if(!reader',
+                   '        unsigned reader=ids[i]<MODWERK_FX_IDS && reads[ids[i]];\n        if(!reader')),
+    'manager.c': (
+        ('extern struct dl_package dl_catalog[32];', 'extern struct dl_package dl_catalog[DL_PACKAGES];'),
+        ('extern struct code dl_codes[2][32];', 'extern struct code dl_codes[2][DL_PACKAGES];'),
+        ('static uint32_t observed_held[2]={0,0};', 'static fx_set observed_held[2];'),
+        ('static uint32_t stubbed[2]={0,0};', 'static fx_set stubbed[2];'),
+        ('extern const uint32_t dl_stub_at_boot;', 'extern const fx_set dl_stub_at_boot;'),
+        ('        for(unsigned p=0;p<32;++p) if(allocator.live[c][p].present) words+=allocator.live[c][p].words;',
+         '        for(unsigned p=0;p<DL_PACKAGES;++p) if(allocator.live[c][p].present) words+=allocator.live[c][p].words;'),
+        ('extern const uint32_t modwerk_dsp_modules;\nstatic void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2],uint32_t soft[2]) {',
+         'static void parts(const uint8_t ids[16],fx_set keep[2],fx_set named[2],fx_set soft[2]) {'),
+        ('    keep[0]=keep[1]=named[0]=named[1]=soft[0]=soft[1]=0;',
+         '    for(unsigned c=0;c<2;++c) keep[c]=named[c]=soft[c]=(fx_set){{0}};'),
+        ('        if(p>=32 || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
+         '        if(!(modwerk_dsp_modules>>p&1u)) { if(n!=4) soft[(i&7)<4 ? 1:0]|=1u<<p; continue; }\n'
+         '        (n==4 ? named : keep)[(i&7)<4 ? 1:0]|=1u<<p;',
+         '        if(p>=DL_PACKAGES || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
+         '        unsigned k=(i&7)<4 ? 1:0;\n'
+         '        if(!fx_in(modwerk_fx_modules,p)) { if(n!=4) soft[k]=fx_with(soft[k],p); continue; }\n'
+         '        if(n==4) named[k]=fx_with(named[k],p); else keep[k]=fx_with(keep[k],p);'),
+        ('    unsigned c=index/32,p=index%32;\n    if(mode==6)', '    unsigned c=index/DL_PACKAGES,p=index%DL_PACKAGES;\n    if(mode==6)'),
+        ('!allocator.live[c][p].present && !((stubbed[c]>>p)&1u);', '!allocator.live[c][p].present && !fx_in(stubbed[c],p);'),
+        ('            if(desired[i]<32 && !dl_catalog[desired[i]].resident) probe=1;',
+         '            if(desired[i]<DL_PACKAGES && !dl_catalog[desired[i]].resident) probe=1;'),
+        ('        uint32_t named[2],soft[2];\n        parts(desired,allocator.keep,named,soft);\n'
+         '        uint32_t firm[2]={allocator.keep[0],allocator.keep[1]};\n'
+         '        allocator.keep[0]|=soft[0]; allocator.keep[1]|=soft[1];',
+         '        fx_set named[2],soft[2];\n        parts(desired,allocator.keep,named,soft);\n'
+         '        fx_set firm[2]={allocator.keep[0],allocator.keep[1]};\n'
+         '        allocator.keep[0]=fx_or(allocator.keep[0],soft[0]); allocator.keep[1]=fx_or(allocator.keep[1],soft[1]);'),
+        ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (soft[0]|soft[1])) {',
+         '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(soft[0]) || fx_any(soft[1]))) {'),
+        ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (allocator.keep[0]|allocator.keep[1]) &&\n'
+         '           (automatic || !((named[0]&~allocator.keep[0])|(named[1]&~allocator.keep[1])))) {\n'
+         '            allocator.keep[0]=allocator.keep[1]=0;',
+         '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(allocator.keep[0]) || fx_any(allocator.keep[1])) &&\n'
+         '           (automatic || !(fx_any(fx_less(named[0],allocator.keep[0])) || fx_any(fx_less(named[1],allocator.keep[1]))))) {\n'
+         '            allocator.keep[0]=allocator.keep[1]=(fx_set){{0}};'),
+        ('            uint8_t reads[32], now[16];\n            for(unsigned p=0;p<32;++p) reads[p]=dl_catalog[p].buffer;',
+         '            uint8_t reads[DL_PACKAGES], now[16];\n            for(unsigned p=0;p<DL_PACKAGES;++p) reads[p]=dl_catalog[p].buffer;'),
+        ('        unsigned c=cursor/32;\n        int s=dl_job_status(c);', '        unsigned c=cursor/DL_PACKAGES;\n        int s=dl_job_status(c);'),
+        ('            unsigned bit=1u<<(cursor%32);\n            if(phase==3) stubbed[c]&=~bit;\n'
+         '            else if(phase==4 || phase==6 || phase==7) {\n'
+         '                if(phase==4 || dl_bypass_unbound) stubbed[c]|=bit; else stubbed[c]&=~bit;',
+         '            unsigned id=cursor%DL_PACKAGES;\n            if(phase==3) stubbed[c]=fx_without(stubbed[c],id);\n'
+         '            else if(phase==4 || phase==6 || phase==7) {\n'
+         '                stubbed[c]=phase==4 || dl_bypass_unbound ? fx_with(stubbed[c],id) : fx_without(stubbed[c],id);'),
+        ('    while(cursor<64 && !needed(cursor,mode)) ++cursor;\n    if(cursor<64) {\n        unsigned c=cursor/32,p=cursor%32;',
+         '    while(cursor<2u*DL_PACKAGES && !needed(cursor,mode)) ++cursor;\n    if(cursor<2u*DL_PACKAGES) {\n'
+         '        unsigned c=cursor/DL_PACKAGES,p=cursor%DL_PACKAGES;'),
+        ('        if(p>=32 || dl_catalog[p].resident || slot_bound(c,p)) continue;',
+         '        if(p>=DL_PACKAGES || dl_catalog[p].resident || slot_bound(c,p)) continue;'),
+        ('        if(p!=last[i] && p<32 && !dl_catalog[p].resident && !slot_bound(c,p) &&\n'
+         '           (((stubbed[c]|dl_stub_at_boot)>>p)&1u)) {',
+         '        if(p!=last[i] && p<DL_PACKAGES && !dl_catalog[p].resident && !slot_bound(c,p) &&\n'
+         '           (fx_in(stubbed[c],p) || fx_in(dl_stub_at_boot,p))) {'),
+        ('    uint32_t held[2],named[2],soft[2];\n    parts(ids,held,named,soft);\n'
+         '    held[0]|=soft[0]; held[1]|=soft[1];\n'
+         '    if(held[0]!=observed_held[0] || held[1]!=observed_held[1]) changed=1;',
+         '    fx_set held[2],named[2],soft[2];\n    parts(ids,held,named,soft);\n'
+         '    held[0]=fx_or(held[0],soft[0]); held[1]=fx_or(held[1],soft[1]);\n'
+         '    if(!fx_same(held[0],observed_held[0]) || !fx_same(held[1],observed_held[1])) changed=1;'),
+        ('        if(p>=32 || !dl_catalog[p].qualified', '        if(p>=DL_PACKAGES || !dl_catalog[p].qualified'),
+        ('int dl_bound(unsigned c,unsigned p) { return c<2 && p<32 && slot_bound(c,p); }',
+         'int dl_bound(unsigned c,unsigned p) { return c<2 && p<DL_PACKAGES && slot_bound(c,p); }'),
+        ('int dl_placed(unsigned c,unsigned p) { return c<2 && p<32 && allocator.live',
+         'int dl_placed(unsigned c,unsigned p) { return c<2 && p<DL_PACKAGES && allocator.live'),
+    ),
+}
 DSP_HOOK_EDITS = {
     'guard': {'hooks.s': GUARD_ENTRY},
     'pretend': {'hooks.s': GUARD_ENTRY + (('        moveq #1,%d2\n        move.l %d2,dl_phase\n        bra dl_write\n',
@@ -598,7 +686,13 @@ def main():
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
                         help='with --dsp-loader, calibration only: core 0\'s receiver spends this many more cycles (2-4094, even) every frame; negative, core 1\'s.')
+    parser.add_argument('--fx-ids', type=int, choices=(32, 160), default=32,
+                        help='with --dsp-loader, development only: the base\'s effect ids (fxids.h). 160 compiles and links the '
+                             'base and transport to check them; the image is not kept, since the DSP and ColdFire tables are '
+                             'still 32 wide (docs/OCTATRACK_MORE_EFFECT_IDS.md steps 4-5).')
     args = parser.parse_args()
+    global FX_IDS, FX_WORDS
+    FX_IDS, FX_WORDS = args.fx_ids, (args.fx_ids + 31) // 32
     os.environ['ELEKLOADER_CROSS'] = args.cross
     upstream = args.upstream.resolve()
     pin = json.loads((APP / 'vendor/elekloader/kit/kit.json').read_text())['commit']
@@ -679,7 +773,7 @@ def main():
         loader_dsp = importlib.util.module_from_spec(spec); spec.loader.exec_module(loader_dsp)
         for name in DYNLOAD_SOURCES + ('hooks.s',):
             text = (DYNLOAD / name).read_text()
-            edits = DSP_EDITS.get(name, ()) + DSP_HOOK_EDITS[args.dsp_hook].get(name, ())
+            edits = DSP_EDITS.get(name, ()) + WIDTH_EDITS.get(name, ()) + DSP_HOOK_EDITS[args.dsp_hook].get(name, ())
             if name == 'transfer.c' and args.dsp_probe == 'W':
                 # One word per upload packet: the count of accepted packets before a reject is the exact
                 # index of the first word the DSP read back wrong (device report rejected0/accepted0).
@@ -753,12 +847,10 @@ def main():
     definitions += 'typedef char retained_fits[(sizeof(struct octamod_log_retained_state)<=6144)?1:-1];\n'
     if args.dsp_loader:  # dsp.c and manager.c: stock and module effect ids (the null stub until bound), the catalog, each core's arena
         stock = sum(1 << fx for fx in dsp_layout['A']['stock'])
-        definitions += '#include "allocator.h"\nconst uint32_t dl_stub_at_boot = %#xu;\nconst uint32_t dl_pmap16 = 0;\n' % (
+        words = lambda ids: ', '.join('%#xu' % (ids >> 32 * w & 0xffffffff) for w in range(FX_WORDS))  # an fx_set (fxids.h)
+        definitions += '#include "allocator.h"\nconst fx_set dl_stub_at_boot = {{%s}};\nconst uint32_t dl_pmap16 = 0;\n' % words(
             dsp_layout['A']['free'] | stock)
-        # The module ids twice: one word for the transport's edits (manager.c), the set the base reads (fxids.h).
-        definitions += 'const uint32_t modwerk_dsp_modules = %#xu;\n' % dsp_layout['A']['free']
-        definitions += '#include "fxids.h"\nconst fx_set modwerk_fx_modules = {{%s}};\n' % ', '.join(
-            '%#xu' % (dsp_layout['A']['free'] >> 32 * w & 0xffffffff) for w in range(FX_WORDS))
+        definitions += 'const fx_set modwerk_fx_modules = {{%s}};\n' % words(dsp_layout['A']['free'])
         # fxmap.c: today's catalogue assignments, what a project without '#MODWERK_FX=' lines names.
         names = {m['id']: m['name'] for m in json.loads((APP / 'src/catalog/module-documents.json').read_text())['modules']}
         legacy = [(m['fxId'], m['id']) for m in chooser['modules'] if dsp_layout['A']['free'] >> (m.get('fxId') or 0) & 1]
@@ -766,7 +858,7 @@ def main():
         definitions += 'const struct fx_legacy modwerk_fx_legacy[] = {%s};\nconst uint32_t modwerk_fx_legacy_count = %d;\n' % (
             ', '.join('{%#xu, %d, %s}' % (int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], 'big'), fx,
                                            ctext(names.get(key, key)[:15])) for fx, key in legacy), len(legacy))
-        definitions += loader_dsp.catalog_c(dsp_layout, DSP_RESERVE) + chooser_lists
+        definitions += loader_dsp.catalog_c(dsp_layout, DSP_RESERVE, FX_IDS) + chooser_lists
         # PROJ > MODWERK (status.c's pages): the four stock root rows, copied, then MODWERK with its icon and list. The
         # list descriptor ships initialised (7 visible rows): stock's boot init does not know it (MAINMENU.md section 1).
         if int.from_bytes(image[ROOT_MENU - device.main_load:][:4], 'big') != 4 or \
@@ -935,6 +1027,11 @@ modwerk_retained_end:
     (out/'proofs.json').write_text(json.dumps(report, indent=2)+'\n')
     if sha(args.stock.read_bytes()) != stock_sha:
         raise ValueError('Input stock file changed.')
+    if FX_IDS != 32:  # a width check only: the tables it needs do not exist yet
+        for name in ('MAIN.raw', 'NOT_FLASH_CANDIDATE.bin', 'NOT_FLASH_CANDIDATE.syx'):
+            (out / name).unlink(missing_ok=True)
+        print('Built and linked at %d effect ids; no image kept: it must not boot until the DSP and ColdFire tables move.' % FX_IDS)
+        return
     print('Private source-linked core prototype saved. Do not flash; qualification is pending.')
 
 

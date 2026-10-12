@@ -71,12 +71,15 @@ if (mode === 'dumps') {
   const index = findVendorInterface(await enumerate(bench, false))
   const transport = new UsbVendorTransport(device(bench), index, { pollMs: 5 })
   const base = (await transport.identify()).base
-  const session = await UploadSession.connect(transport, base, { timeoutMs: 60000 }) // the most it allows: a 110 KB package commits slowly under --dsp
   // The unit's own time: the emulator runs far slower than the wall clock under --dsp.
   const settle = async ticks => {
     const start = (await diagnostics(device(bench), index)).ticks
     while ((await diagnostics(device(bench), index)).ticks - start < ticks) await wait(200)
   }
+  // The base holds host frames until its boot restore is over (ep0.c, at most 10 s of the unit's time): on a slow
+  // host the hello would wait that out in wall time and time out. Let the unit's own time pass first.
+  while ((await diagnostics(device(bench), index)).ticks < 900) await wait(500)
+  const session = await UploadSession.connect(transport, base, { timeoutMs: 60000 }) // the most it allows: a 110 KB package commits slowly under --dsp
   const call = async (address, ...values) => Number((await bench.command(`call 0x${address.toString(16)} ${values.join(' ')}`.trim()))[1])
   const keep = async data => {
     await session.stage({ base, data, sha256: sha(data) }); await session.activate(); await session.startTrial()

@@ -15,7 +15,7 @@ const uint32_t modwerk_fx_rows[2] = {3, 4};
 static unsigned invalidations;
 void modwerk_machine_invalidate_code(void) { ++invalidations; }
 
-uint8_t modwerk_test_memory[0x20000] __attribute__((aligned(4)));
+uint8_t modwerk_test_memory[0x40000] __attribute__((aligned(4))); /* pages from 0x10000: 160 ids need 0x10400 */
 #define donor (modwerk_test_memory + 0x100)
 #define image (modwerk_test_memory + 0x1000)
 static unsigned recipe(void) /* 1 integer, 1 string, slot 2 inherited, one formatter with one fixup at 8 */

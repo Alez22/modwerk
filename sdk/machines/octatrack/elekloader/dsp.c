@@ -34,7 +34,6 @@ static uint32_t chip_cycles(const struct runtime_dsp *d)
  * a module registers into its own id. */
 extern struct dl_package dl_catalog[MODWERK_FX_IDS];
 extern struct code dl_codes[2][MODWERK_FX_IDS];
-extern const uint32_t dl_stub_at_boot;     /* stock and module effect ids (identity.c): the null stub until bound */
 extern const uint16_t modwerk_dsp_arena[2]; /* each core's code arena past the saved entries, words (identity.c) */
 int dl_publication_idle(void);
 void dl_residency_nudge(void);

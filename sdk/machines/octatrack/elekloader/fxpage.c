@@ -16,7 +16,7 @@ extern const uint32_t modwerk_fx_rows[2];                   /* the stock rows, N
 void modwerk_machine_invalidate_code(void);
 #ifdef MODWERK_HOST
 /* The host test's address space: a 32-bit address is an offset into it, as the unit's addresses are. */
-extern uint8_t modwerk_test_memory[0x20000];
+extern uint8_t modwerk_test_memory[0x40000];
 uint32_t modwerk_test_tables[4][MODWERK_FX_IDS];
 #define TABLE(which) (modwerk_test_tables[which])
 #define DONOR_LOW 0u

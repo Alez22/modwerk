@@ -71,28 +71,42 @@ then the ColdFire tables, then widen the base. The dispatch reads are a few per 
 
 ## Decision and plan (owner, 12 October 2026)
 
-**A, with 64 ids** (45 module ids beside stock's 19). Everything per id goes behind one constant, so 128 later is
-a rebuild, not a redesign. The chooser lists grow with it: the owner's "a longer list than 32 entries" is the
-lists' row capacity (`modwerk_fx*_list[32]`, `selection.c`'s `row>=32`, `dsp.c`'s pick `row > 31`), separate from
-the ids but done in the same step.
+**A, with 160 ids: every installed module effect has its own id, up to 128 modules installed** (owner, 12
+October 2026: "all the installed modules available on demand, only limited by load"). First decided as 64; then
+the owner asked whether 32 would do, since at most 16 effects run at once (8 tracks, two slots; machines take no
+effect id). Running effects are not the limit: an id is per effect type, stock keeps 19 of the 32, and each
+installed module effect holds one, so today a 14th is refused as FULL whatever runs. Handing ids out only when a
+project names a module would still cap a project at 13 different module effects; the owner wants none but load.
+So 160: 19 stock, 141 for modules, every installed one with its id at install, as today. The Part stores an id in
+one byte, so 255 is the hard limit (and 255 is the transport's DL_NONE); 160 leaves room past 128 modules.
+
+Past 127, stock's reads of the Part's id matter: it loads the byte sign-extended (`mvs.b`), so ids 128-255 would
+index before its tables. Those reads become zero-extended (`mvz.b`, the same length, one bit different), a patch
+per site. Everything per id goes behind one constant (`fxids.h`), so the width is a rebuild, not a redesign. The
+chooser lists grow with it: the owner's "a longer list than 32 entries" is the lists' row capacity
+(`modwerk_fx*_list[32]`, `selection.c`'s `row>=32`, `dsp.c`'s pick `row > 31`), separate from the ids but done in
+the same step. 128 installed modules also needs the loader's live-module cap (`RUNTIME_MODULES`, 32) at 128 and a
+larger module pool: about 5 KB a module today, so about 768 KiB instead of 256 KiB, taken from sample memory at
+boot (about 1 %), and the saved set's buffer (`modset.c`) to match.
 
 An inventory of every 32-wide site (12 October 2026, about 120 sites) found these traps beyond the list above:
 
 - **Masks that alias.** `LIVE_FX[i] & 31u` and `& 31u` on handles (dsp.c, status.c, fxmap.c) would map ids 32-63
   onto 0-31 without a warning. Every id mask (`modwerk_dsp_modules`, `dl_stub_at_boot`, used, dry, keep, held,
-  stubbed, the MISSING handles) needs 64 bits, and every `& 31` a bound check instead.
+  stubbed, the MISSING handles) becomes an id set, and every `& 31` a bound check instead.
 - **32 as "no id".** `choose(..., 32u, ...)` for a pinned module and `blame(32u, ...)` for a module without an
   effect: both become the new constant.
-- **Wire and reply sizes.** MISSING (request 14) is fixed at 316 bytes, 13 entries; MEMORY MAP (24) at 276. At 64
-  ids both pass the base's 512-byte reply: they need paging (and lengths that are not whole 64-byte packets).
-  The loader report's used and dry masks become two words each (78 to 82 words, still not a multiple of 16).
+- **Wire and reply sizes.** MISSING (request 14) is fixed at 316 bytes, 13 entries; MEMORY MAP (24) at 276. Wider,
+  both pass the base's 512-byte reply: they need paging (and lengths that are not whole 64-byte packets).
+  The loader report's used and dry masks gain words (78 words at 32 ids, 87 at 160, never a multiple of 16).
   Parsers: `scripts/device.mjs`, `src/engine/elekloader/upload-usb.ts`. The DSP packet's id field is already
   16 bits; a package carries its preferred id in one byte.
-- **Battery RAM.** The handle map (`fxmap.c`, 0x100fe000) grows from 780 to 1,548 bytes, still below the crash
-  and stall records; give it a new magic so an old map is dropped on purpose, not by a checksum miss. The
+- **Battery RAM.** The handle map (`fxmap.c`, 0x100fe000) grows from 780 to 3,852 bytes at 160 ids, still below
+  the crash record at 0x100ff800 (checked at compile time); give it a new magic so an old map is dropped on purpose, not by a checksum miss. The
   `#MODWERK_FX=` lines keep their format (two-digit ids); an older base ignores lines with ids of 32 and up.
-- **The DSP's saved region** is two words per id at the arena's head: `DL_CODE_START`, `SAVED` and the receiver's
-  `#>64` bounds become 128, and its `r1+32` (proc = init + 32) the table width.
+- **The DSP's saved region** is two words per id at the arena's head (`DL_CODE_START`, `SAVED`, the receiver's
+  `#>64`). Only stock's 32 ids have originals to keep: ids from 32 up go back to the null stub, so the region stays
+  64 words and the code arena keeps its size. The receiver's `r1+32` (proc = init + 32) becomes the table width.
 - **Transport copies.** `allocator`, `manager`, `transfer`, `selection` and `buffers` are Octabam's files, changed
   only by `build_core.py`'s exact-match `DSP_EDITS`; the widening goes there (and `manager.c`'s `[32]`
   declarations are matched by those edits, so both sides change together).
@@ -109,18 +123,29 @@ Order, each step host-tested before the next:
    `FX_IDS` and emits `modwerk_fx_modules` beside the transport's one-word `modwerk_dsp_modules` (step 3 retires it).
    The handle map keeps 'MWFX' at 32 and takes 'MWF' + the count otherwise. MISSING pages by its first entry (13 a
    page), MEMORY MAP by 32 packages (a stall past the last), the report appends the masks' other words and a pad
-   (78 words at 32, 81 at 64, version 12); `device.mjs` and the site's `upload-usb.ts` read all of them. The host
-   tests run at 32 and at 64 ids (`test_recipe.py`: a module at handle 40 counts as 40, never as 8). S56 builds
+   (78 words at 32, 87 at 160, version 12); `device.mjs` and the site's `upload-usb.ts` read all of them. The host
+   tests run at 32 and at 160 ids (`test_recipe.py`: a module at handle 40 counts as 40, never as 8). S56 builds
    and draws PROJ > MODWERK in `ot_emu`.
-3. **The transport** through `DSP_EDITS` at N: `DL_PACKAGES`, `DL_CODE_START`, the manager's per-id loops and
-   masks, `transfer.c`'s and `selection.c`'s id bounds.
+3. **The transport** at N: `DL_PACKAGES`, the manager's per-id loops and masks, `transfer.c`'s and `selection.c`'s
+   id bounds. **Done (12 October 2026, S57):** `build_core.py`'s `WIDTH_EDITS`, applied after `DSP_EDITS`: allocator,
+   manager, transfer, selection and buffers sized by `MODWERK_FX_IDS`, their masks (keep, named, soft, held,
+   stubbed, `dl_stub_at_boot`) id sets; the one-word `modwerk_dsp_modules` is gone. `DL_CODE_START` stays 64 (the
+   saved region keeps stock's 32, step 4). At 32 the ColdFire code of selection, buffers and transfer is identical;
+   place, parts, advance and dl_residency_tick compile differently, so S57 ran
+   `scripts/verify-octatrack-dsp-loader.mjs` under `ot_emu --frame --dsp` (a drum template project staged with
+   Octabam's `stage_card.py`): pick, remove, queue, beside and union (Modulation, Spectrum and TapeHead named by an
+   inactive Part) all passed. `build_core.py --fx-ids 160` compiles and links the whole base and transport (no image
+   kept).
 4. **The DSP**: the receiver's id bound and saved region, init and proc tables at the new home (`dsp_loader.py`
    writes them and rewrites the six operand words per payload), ids 32 and up free from the start.
-5. **The ColdFire tables and N = 64**: FX1_IDS, FX2_IDS, FX1_ID2POS and ID2POS copied to 64 entries with their 18
-   `lea` sites patched, the Part validator's clamp raised to 63 (three sites), the lists' row capacity raised.
-6. **Compatibility:** id 31 stays dry from step 5 on, so a project opened on an older base or stock (which clamp
+5. **The ColdFire tables and N = 160**: FX1_IDS, FX2_IDS, FX1_ID2POS and ID2POS copied to 160 entries with their
+   18 `lea` sites patched, stock's sign-extended id reads made zero-extended, the Part validator's clamp raised to
+   159 (three sites), the lists' row capacity raised.
+6. **128 installed modules**: `RUNTIME_MODULES` 128, the module pool about 768 KiB, the saved set's buffer with it;
+   the hook events' cost with many modules measured on the unit.
+7. **Compatibility:** id 31 stays dry from step 5 on, so a project opened on an older base or stock (which clamp
    to 31) plays dry there instead of running another module. TapeHead's preferred handle moves off 31; the
    project map keeps existing projects on their handles until they are opened on the new base.
-7. **On the unit:** more than 13 module effects at once on both cores, a project saved with ids above 31 opened
+8. **On the unit:** more than 13 module effects at once on both cores, a project saved with ids above 31 opened
    on the old flashed base (dry, nothing else running), the edge-case runs again.
 

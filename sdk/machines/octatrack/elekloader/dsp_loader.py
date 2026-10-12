@@ -242,10 +242,11 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
 
 
 
-def catalog_c(layout, reserve):
+def catalog_c(layout, reserve, ids=32):
     """dl_catalog and dl_codes (manager.c) as C: each stock DSP effect's package per core, and every
     other id what stock runs there (resident; a module's id until the module registers). Each id is
-    charged `reserve` cycles, the dearest stock effect, as stock-first admission does (dsp.c)."""
+    charged `reserve` cycles, the dearest stock effect, as stock-first admission does (dsp.c). `ids` entries (the base's
+    MODWERK_FX_IDS): past stock's 32, the null stub, resident, until step 4 of docs/OCTATRACK_MORE_EFFECT_IDS.md."""
     a, b = layout['A'], layout['B']
     if {fx: (len(w), a['stock'][fx]['slots']) for fx, w in a['words'].items()} != \
             {fx: (len(w), b['stock'][fx]['slots']) for fx, w in b['words'].items()} or a['reads'] != b['reads']:
@@ -266,16 +267,16 @@ def catalog_c(layout, reserve):
     lines.append('    for (unsigned i = 0; i < sizeof all / sizeof *all; ++i) for (uint32_t w = 0; w < all[i].count; ++w)')
     lines.append('        all[i].to[w] = (uint32_t)all[i].from[3 * w] << 16 | (uint32_t)all[i].from[3 * w + 1] << 8 | all[i].from[3 * w + 2];')
     lines.append('}')
-    lines.append('struct dl_package dl_catalog[32] = {%s};' % ', '.join(
+    lines.append('struct dl_package dl_catalog[%d] = {%s};' % (ids, ', '.join(
         '{%d, 1, %d, %d, %d, 1, %d}' % ((len(a['words'][fx]), reserve, a['stock'][fx]['slots'], 0, a['reads'][fx]) if fx in a['stock']
-                                        else (0, reserve, 3, 1, a['reads'][fx])) for fx in range(32)))
+                                        else (0, reserve, 3, 1, a['reads'][fx] if fx < 32 else 0)) for fx in range(ids))))
     rows = []
     for n, tag in enumerate('AB'):
         s, w = layout[tag]['stock'], layout[tag]['words']
         rows.append('{%s}' % ', '.join('{stock%d_%d, stock%d_%d_relocations, %d, %d, %d, %d}' % (
             n, fx, n, fx, len(w[fx]), s[fx]['init'], s[fx]['proc'], len(s[fx]['relocations'])) if fx in s else '{0, 0, 0, 0, 0, 0}'
-            for fx in range(32)))
-    lines.append('struct code dl_codes[2][32] = {%s};' % ', '.join(rows))
+            for fx in range(ids)))
+    lines.append('struct code dl_codes[2][%d] = {%s};' % (ids, ', '.join(rows)))
     return '\n'.join(lines) + '\n'
 
 

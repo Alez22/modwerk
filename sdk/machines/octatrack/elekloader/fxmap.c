@@ -33,6 +33,8 @@ int (*modwerk_test_write)(uint32_t file, const void *data, unsigned length);
 /* Battery RAM nothing else uses: stock references nothing in 0x100f859c-0x100fff00 (Octabam's
  * STEP_LOCKS.md), PLAY MODES and PLOCKS P2 hold 0x100f8600-0x100f8f06. */
 #define MAP ((volatile struct fx_map *)0x100fe000u)
+/* It ends below crash.c's record at 0x100ff800 (160 ids: 3,852 bytes). */
+typedef char map_fits[sizeof(struct fx_map) <= 0x1800u ? 1 : -1];
 #define RUNNING(i) (((const volatile uint8_t *)0x80000ec4u)[i]) /* what each track runs: FX1 T1-T8, then FX2 */
 /* All 16 banks stay in RAM; each holds four working Parts and four saved ones (dsp.c's PART). */
 #define PART_FX(bank, part, i) (((const volatile uint8_t *)(0x400e21e0u + (bank) * 0x9b340u + \
