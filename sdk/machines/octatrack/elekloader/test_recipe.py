@@ -241,7 +241,7 @@ class RuntimeSlotTests(unittest.TestCase):
         self.host_test('test_runtime.c')
 
     def test_ram_boot_backend_on_the_host(self):
-        self.host_test('test_boot.c', 'loader.c', 'runtime.c')
+        self.host_test('test_boot.c', 'loader.c', 'runtime.c', defines=('-DMODWERK_DSP_LOADER',))
 
     def test_dsp_effect_glue_on_the_host(self):
         self.host_test('test_dsp.c')
@@ -250,7 +250,7 @@ class RuntimeSlotTests(unittest.TestCase):
         self.host_test('test_fxpage.c')
 
     def test_module_set_on_the_host(self):
-        self.host_test('test_modset.c')
+        self.host_test('test_modset.c', defines=('-DMODWERK_DSP_LOADER',))
 
     def test_status_keys_on_the_host(self):
         self.host_test('test_status.c')

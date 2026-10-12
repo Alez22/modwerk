@@ -182,6 +182,17 @@ uint32_t modwerk_ep0_dispatch(void)
         modwerk_ep0_reply = out;
         return modwerk_dsp_missing_list(out, SETUP[2], MODWERK_MISSING_PAGE);
     }
+    /* STOCKFX (0xC1, bRequest 28, wValue 0, wLength 8): "MWSF" and the stock effects out of the FX menus now (fxpage.c;
+     * bit n: effect id n, big-endian), which a module set's stock package sets (boot.c). INVENTORY's sibling. Read-only. */
+    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 28 && !SETUP[2] && !SETUP[3] &&
+        SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && SETUP[6] == 8u && !SETUP[7]) {
+        extern uint32_t modwerk_stock_off;
+        uint32_t off = modwerk_stock_off;
+        out[0] = 'M', out[1] = 'W', out[2] = 'S', out[3] = 'F';
+        for (unsigned i = 0; i < 4u; ++i) out[4 + i] = (uint8_t)(off >> (24u - 8u * i));
+        modwerk_ep0_reply = out;
+        return 8;
+    }
     /* SELFTEST (0xC1, bRequest 21, wValue 1 start or 0 read, wLength 96): dsp.c's self-test (PROJ > MODWERK > SELF
      * TEST), which the site runs on a trial before it is kept; the record either way (selftest.h). */
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 1u && !SETUP[3] &&

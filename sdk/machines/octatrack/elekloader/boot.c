@@ -75,10 +75,30 @@ static uint32_t be32(const uint8_t *p) { return (uint32_t)p[0] << 24 | (uint32_t
 void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes); /* modset.c: kept across power cycles */
 void modwerk_modset_accepted(void);
 volatile uint32_t modwerk_boot_accepted; /* modules accepted over USB: status.c shows the memory then */
+#ifdef MODWERK_DSP_LOADER
+/* A module set's stock effects out of the FX menus (fxpage.c; owner, 11 October 2026): "MWSF", then the mask of their
+ * effect ids, big-endian. It runs the transaction as a module does: a trial, rolled back to the menus before it, or
+ * kept with the set (modset.c). */
+#define STOCK_MAGIC 0x4d575346u
+uint32_t modwerk_fxpage_stock_ids(void);
+void modwerk_fxpage_stock(uint32_t off);
+extern uint32_t modwerk_stock_off;
+static int stock;
+static uint32_t stock_new, stock_was;
+#endif
 static int prepare(void *u, const uint8_t *d, uint32_t n)
 {
     candidate = 0;
     modwerk_modset_candidate(0, 0);
+#ifdef MODWERK_DSP_LOADER
+    stock = 0;
+    if (n == 8u && be32(d) == STOCK_MAGIC) {
+        if (be32(d + 4) & ~modwerk_fxpage_stock_ids()) return 0; /* NONE, a module's id, or no stock effect at all */
+        stock = 1, stock_new = be32(d + 4);
+        modwerk_modset_candidate(d, n);
+        return 1;
+    }
+#endif
     if (n < 4u || be32(d) != OS_FIRST) {
         int ok = modwerk_runtime_backend.prepare(u, d, n);
         if (ok) modwerk_modset_candidate(d, n);
@@ -89,9 +109,18 @@ static int prepare(void *u, const uint8_t *d, uint32_t n)
     length = n; candidate = 1;
     return 1;
 }
-static int discard(void *u) { candidate = 0; modwerk_modset_candidate(0, 0); return modwerk_runtime_backend.discard(u); }
+static int discard(void *u)
+{
+#ifdef MODWERK_DSP_LOADER
+    stock = 0;
+#endif
+    candidate = 0; modwerk_modset_candidate(0, 0); return modwerk_runtime_backend.discard(u);
+}
 static enum mu_publication publish(void *u)
 {
+#ifdef MODWERK_DSP_LOADER
+    if (stock) { stock_was = modwerk_stock_off; modwerk_fxpage_stock(stock_new); return MU_APPLIED; }
+#endif
     if (!candidate) return modwerk_runtime_backend.publish(u);
     volatile uint32_t *mb = stage()->mailbox;
     const uint8_t *p = stage()->image;
@@ -107,6 +136,9 @@ static enum mu_publication publish(void *u)
 static int restore(void *u)
 {
     modwerk_modset_candidate(0, 0); /* rolled back: the set stays as it was */
+#ifdef MODWERK_DSP_LOADER
+    if (stock) { stock = 0; modwerk_fxpage_stock(stock_was); return 1; }
+#endif
     if (!armed) return modwerk_runtime_backend.restore(u);
     stage()->mailbox[0] = 0;
     armed = 0; countdown = 0; due = 0;
@@ -115,6 +147,9 @@ static int restore(void *u)
 static int retire(void *u)
 {
     if (armed) return 1;
+#ifdef MODWERK_DSP_LOADER
+    if (stock) { stock = 0; modwerk_modset_accepted(); return 1; }
+#endif
     int ok = modwerk_runtime_backend.retire(u);
     if (ok == 1) modwerk_modset_accepted(), modwerk_boot_accepted = modwerk_boot_accepted + 1; /* it stays after a power cycle */
     return ok;

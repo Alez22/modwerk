@@ -38,7 +38,7 @@ unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most)
 }
 static int restored;
 int modwerk_modset_restored(void) { return restored; }
-volatile uint32_t modwerk_modset_result;
+volatile uint32_t modwerk_modset_result, modwerk_modset_said;
 /* The memory box: picks (the guard's completed count) and USB accepts. */
 uint8_t modwerk_test_live_fx[16];
 volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
@@ -72,7 +72,11 @@ int main(void)
     /* The missing modules' page: not before the boot's restore is over, then once the list holds still. */
     listed = 5; missing_check(); missing_check();
     CHECK(open == CLOSED);                                             /* the restore is not over: all still missing */
+    modwerk_runtime_ticks = 1000, modwerk_modset_said = 1000;           /* the restore said MODULES LOADED just now */
     restored = 1, modwerk_modset_result = 1; missing_check();
+    CHECK(open == CLOSED);                                             /* its message stays readable */
+    modwerk_runtime_ticks += SAID_TICKS - 1; missing_check(); CHECK(open == CLOSED);
+    modwerk_runtime_ticks += 1; missing_check();                       /* three seconds on */
     CHECK(open == MISSING && missing_top == 0);
     CHECK(modwerk_status_key(DOWN, 1) && modwerk_status_key(DOWN, 0) && missing_top == 1);
     modwerk_status_key(DOWN, 1); modwerk_status_key(DOWN, 0);

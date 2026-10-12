@@ -173,4 +173,14 @@ describe('the modules a project names that are not installed', () => {
     expect(await new UsbVendorTransport(unit(false), 6).inventory()).toEqual([{ handle: 0xff, layout: 0, module: '0000002a', name: '' }])
     expect(await new UsbVendorTransport(unit(true), 6).inventory()).toBeUndefined() // a base from before INVENTORY
   })
+  it('reads STOCKFX, the stock effects out of the menus ("MWSF" and the mask by effect id)', async () => {
+    const reply = (bytes: number[]) => ({ status: 'ok', data: new DataView(Uint8Array.from(bytes).buffer) })
+    const unit = (answer: { status: string; data?: DataView }): ControlDevice => ({
+      async controlTransferOut() { throw new Error('read-only') },
+      async controlTransferIn(setup, length) { expect(setup).toMatchObject({ request: 28, value: 0 }); expect(length).toBe(8); return answer },
+    })
+    expect(await new UsbVendorTransport(unit(reply([0x4d, 0x57, 0x53, 0x46, 0, 0x70, 0, 0x10])), 6).stockFx()).toBe(0x700010) // the reverbs and FILTER
+    expect(await new UsbVendorTransport(unit({ status: 'stall' }), 6).stockFx()).toBeUndefined() // a base from before STOCKFX
+    await expect(new UsbVendorTransport(unit(reply([0x4d, 0x57, 0x49, 0, 0, 0, 0, 0])), 6).stockFx()).rejects.toThrow(VendorTransportError)
+  })
 })

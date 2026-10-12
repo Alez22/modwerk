@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Host check of the RAM boot's backend (cc -DMODWERK_HOST): what it accepts,
- * the mailbox it arms, the delayed reset and the disarm. boot.s (the gate,
+ * the mailbox it arms, the delayed reset and the disarm, and a module set's
+ * stock effects (cc -DMODWERK_DSP_LOADER, as the base). boot.s (the gate,
  * the park, the reset) is checked in the emulator and on the unit.
  * Built with loader.c and runtime.c as separate units, as in the base. */
 #include "boot.c"
@@ -20,8 +21,16 @@ static uint32_t image(uint32_t n, uint32_t version)
     return n;
 }
 
-void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes) { (void)package; (void)bytes; }
-void modwerk_modset_accepted(void) {}
+static const uint8_t *kept_package;
+static unsigned kept;
+void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes) { kept_package = bytes ? package : 0; }
+void modwerk_modset_accepted(void) { kept += kept_package != 0; }
+/* fxpage.c's stock effects (FILTER 4, DELAY 8, the reverbs 20-22), and the DSP glue runtime.c leaves to dsp.c. */
+uint32_t modwerk_stock_off;
+uint32_t modwerk_fxpage_stock_ids(void) { return 1u << 4 | 1u << 8 | 7u << 20; }
+void modwerk_fxpage_stock(uint32_t off) { modwerk_stock_off = off; }
+int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to) { (void)from; return to->count ? RUNTIME_MALFORMED : RUNTIME_OK; }
+void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to) { (void)from; (void)to; }
 int main(void)
 {
     uint8_t *stage_image = modwerk_boot_staging();
@@ -66,7 +75,16 @@ int main(void)
     modwerk_test_recording = 0; mu_disconnecting = 1; modwerk_runtime_ticks += 120; CHECK(b->enter(0) == 0 && modwerk_test_stops == 2);
     mu_disconnecting = 0; modwerk_test_stopped = 1; CHECK(b->enter(0) == 1 && modwerk_test_stops == 2);
     CHECK(b->leave(0) == 1);
+    /* A module set's stock effects (dsp-loader bases): the reverbs out as a trial, rolled back to the menus before it,
+     * then kept with the set; NONE (id 0) or a module's id is refused before anything changes. */
+    memcpy(stage_image, "MWSF\0\x70\0\0", 8);
+    CHECK(b->prepare(0, stage_image, 8) && b->publish(0) == MU_APPLIED && modwerk_stock_off == 7u << 20 && mb[0] == 0);
+    CHECK(b->restore(0) && !modwerk_stock_off && !kept);
+    CHECK(b->prepare(0, stage_image, 8) && b->publish(0) == MU_APPLIED && b->retire(0) == 1 && kept == 1 && modwerk_stock_off == 7u << 20);
+    stage_image[7] = 1; CHECK(!b->prepare(0, stage_image, 8));
+    stage_image[7] = 0, stage_image[4] = 0x08; CHECK(!b->prepare(0, stage_image, 8) && modwerk_stock_off == 7u << 20); /* id 27 */
+    CHECK(!b->prepare(0, stage_image, 7));                                       /* too short: not a package of any kind */
     if (failures) { fprintf(stderr, "%u boot checks failed\n", failures); return 1; }
-    puts("RAM boot backend: refusals, module pass-through, mailbox, delayed reset, disarm and auto-stop passed.");
+    puts("RAM boot backend: refusals, module pass-through, mailbox, delayed reset, disarm, auto-stop and the stock effects passed.");
     return 0;
 }

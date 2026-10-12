@@ -37,6 +37,9 @@ export interface FakeUnit {
    * package in order: + installed, - removed. */
   modules: string[]
   kept: string[]
+  /** The stock effects out of the FX menus as STOCKFX reports them (bit n: effect id n); undefined for a base before it,
+   * which stalls the request. A kept stock package ("MWSF") sets it and is listed in `kept` as `=` and the mask in hex. */
+  stockOff?: number
 }
 
 export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
@@ -61,6 +64,10 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
           page.forEach((id, i) => { list.setUint8(4 + 24 * i, 0xff); list.setUint32(8 + 24 * i, Number.parseInt(id, 16)) })
           return { status: 'ok', data: list }
         }
+        if (setup.request === 28 && unit.stockOff !== undefined) { // STOCKFX: "MWSF" and the mask
+          const reply = new DataView(new ArrayBuffer(8)); reply.setUint32(0, 0x4d575346); reply.setUint32(4, unit.stockOff)
+          return { status: 'ok', data: reply }
+        }
         if (setup.request !== 21 || unit.refusal === undefined) return { status: 'stall' }
         const record = new DataView(new ArrayBuffer(SELFTEST_BYTES)) // the base's record, idle, with its last refusal
         record.setUint32(92, unit.refusal)
@@ -71,7 +78,7 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
   }
   let device: LinkDevice | undefined = kind === 'none' ? undefined : make(kind === 'base')
   const unit: FakeUnit = {
-    taken: false, playing: false, installed: { moduleIds: [], removedStockFx: [] }, active: FAKE_BASE, modules: [], kept: [],
+    taken: false, playing: false, installed: { moduleIds: [], removedStockFx: [] }, active: FAKE_BASE, modules: [], kept: [], stockOff: 0,
     usb: {
       async requestDevice() { if (!device) throw new DOMException('No device selected.', 'NotFoundError'); return device },
       async getDevices() { return device ? [device] : [] },
@@ -120,6 +127,8 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
           const view = new DataView(data.buffer, data.byteOffset), id = view.getUint32(28).toString(16).padStart(8, '0')
           const removes = !view.getUint32(8) && !view.getUint32(20) && !view.getUint32(24) && (view.getUint16(4) < 5 || !view.getUint32(32))
           unit.modules = unit.modules.filter(item => item !== id).concat(removes ? [] : [id]); unit.kept.push((removes ? '-' : '+') + id)
+        } else if (data?.length === 8 && String.fromCharCode(...data.subarray(0, 4)) === 'MWSF') { // the stock effects out of the menus
+          unit.stockOff = new DataView(data.buffer, data.byteOffset).getUint32(4); unit.kept.push('=' + unit.stockOff.toString(16))
         }
         return status
       },

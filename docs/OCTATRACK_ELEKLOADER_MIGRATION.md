@@ -1697,7 +1697,8 @@ exactly as the host staged it (`boot.c` hands it over at prepare and at
 ACCEPT; a removal drops the module). The engine task writes it, behind the
 logger's gate and with the logger's stock file calls, to `/MODWERK0.SET` and
 `/MODWERK1.SET` in turn ("MWST", version, generation, count, length, the
-base's configuration hash, a SHA-256 over the packages), reading each write
+base's configuration hash, a SHA-256 over the packages and, from version 2,
+the stock effects out of the menus before them), reading each write
 back whole; a failed save is retried ten seconds later. Three seconds after a
 boot, once the gate is open, the newest whole set this base wrote is installed
 through the runtime loader as a USB install would be. Holding FUNC skips it;
@@ -2451,8 +2452,36 @@ removedStockFx }`).
   part way rolls the trial back, then sends the undo packages of the kept changes, newest first (a removed module
   the site does not publish cannot be put back, and the notice says so). An unplug part way leaves the unit
   between the two sets; loading either again finishes it, since a load only sends the differences.
-- **Not built:** stock effects out of the menus (the base keeps no such state; the site hides the stock effect
-  tiles while a base is connected and sends no removals, and `prepareUpdate` refuses a set that changes them), one Keep or Undo held by the base for a whole set, and versions other than the latest.
+- **Stock effects out of the menus** (built on `claude/octatrack-base-stockfx`, 12 October 2026; host tests and the
+  emulator, not yet on the unit; the loader branch's qualified base does not have it):
+  - **The change** is one more package in the set's transaction: "MWSF", then the mask of the effect ids out of both
+    menus, big-endian (8 bytes; `boot.c`). It is a trial like a module, rolled back to the menus before it, and kept
+    with the set: the card's set (version 2) carries the mask beside the packages, under their SHA-256, and the boot's
+    restore puts it back (`modset.c`). An id no chooser lists (NONE, a module's) is refused before anything changes.
+  - **Reading it:** STOCKFX, vendor request 28 (0xC1, wValue 0, wLength 8): "MWSF" and the mask in force, INVENTORY's
+    sibling (`ep0.c`). A base without it stalls the request; the site then refuses a set that changes the stock
+    effects, as before.
+  - **The menus** (`fxpage.c`): the effect's row leaves FX1 and FX2 and its cursor row becomes 0, as for a module a
+    slot does not list. Its descriptor, id and DSP code stay, so a project that uses it keeps it, its page and its
+    sound; its chooser opens on NONE. A list shorter than the chooser's seven rows would draw past its end, so each
+    chooser's row-count literal (stock's `pea (7).w`, Octabam's ROWCOUNT) is set to the list's length while it is
+    shorter: the only stock code `fxpage.c` writes, two bytes, through the uncached alias, only while it still reads
+    `pea (1..7).w`. No catalogue module patches those words.
+  - **The site** (`module-set.ts`): `inventoryFrom` names the effects out from STOCKFX, `prepareModuleSet` sends the
+    stock package first with the menus before it as its undo, and the pretend unit answers both
+    (`octatrack-link-fake.ts`). The stock effect tiles stay hidden while a base is connected (that page is being
+    redesigned).
+  - **Limit:** a list that shrinks while its chooser is open (a load from the site with the chooser on screen) draws
+    past its end until the chooser is closed, as a module removal already can.
+  - **In the emulator** (`ot_emu --mkii --card-rw`, a dev base from the branch, the old-projects card whose Part 1 runs
+    SPRING REV, DELAY and DARK REV on T1, T3 and T5's FX2 and names the absent E-Verb): DELAY and the three reverbs out
+    as a trial left FX2 with 11 rows and T1's chooser on NONE beside SPRING REV's setup knobs; the rollback put all 15
+    back. Nine out, kept: both choosers six rows, no row past the end (row counts 6 and 6), T5's FX2 page still DARK
+    REV, every effect the tracks run still bound in its core's arena (the removed ones included), the card's set
+    `MWST` version 2 with the mask and no module. NONE (id 0) and E-Verb's id were refused. A fresh boot from that
+    card restored the mask before anything was picked (MODULES LOADED, STOCKFX `0x107b0120`, the same six rows). The
+    emulator does not RAM-boot; the fresh boot stands in for the card side of a power cycle.
+- **Not built:** one Keep or Undo held by the base for a whole set, and versions other than the latest.
 
 Later, not now (owner): people may own several units of the same machine. The site connects to
 the first allowed unit today. Telling units apart needs a unit identity from the base, since every

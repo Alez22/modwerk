@@ -56,6 +56,7 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 | # | Case | Today | Status |
 |---|---|---|---|
 | 21 | More module effects than the list holds (owner, 11 October 2026: "I just want a longer list than 32 entries"; categories in the choosers: not now) | The chooser itself scrolls any length (stock's 7 is only its viewport, build_bus.py CHOOSER_ROWS); the 32 is the base's lists and the 32 effect ids, of which stock keeps 19. Owner: more than 13 different module effects at once are needed, so ids handed out on pick are not enough; the DSP dispatch and stock's per-id tables have to grow, or one id has to dispatch to a second-level table. Research under way | done: 128 effect ids, the default from `d3f13a60` ([OCTATRACK_MORE_EFFECT_IDS.md](OCTATRACK_MORE_EFFECT_IDS.md)); 14 module effects at once on the unit (S63) |
+| 22 | Stock effects out of the menus while a project uses one (owner, 11 October 2026: a module set says which stock effects stay in the FX menus) | Their rows leave both choosers; their descriptor, id and DSP code stay, so the track keeps the effect, its page and its knobs and still plays it; its chooser opens on NONE. Kept with the card's set and put back at boot (`fxpage.c`, `boot.c`, `modset.c`) | built on `claude/octatrack-base-stockfx`: host tests and emulator; not on the unit |
 
 ## Loading and memory, measured (11 October 2026, S47/S48, `scripts/octatrack-loadbench.py`, `memory`)
 
@@ -208,7 +209,11 @@ The owner flashed `Modwerk-octatrack-beta3.bin`. The agent then read the unit wi
 - **The next normal power cycle:** MODULES LOADED again; RESTORED, 2 of 2; INVENTORY E-Verb and Mini Verb; MISSING
   Euclid, Air Chorus and TapeHead. The skip had left the card's set alone.
 
-**Open, deferred past the beta** (so the qualified image stays as tested): MODULES SKIPPED and MODULES LOADED show only
-for a moment. They are stock popups (`modset.c`, `SAY`), and the MISSING MODULES page covers them half a second after
-its list stops changing, so the owner could hardly read MODULES SKIPPED. Either keep MISSING back for a few seconds
-after the restore's message, or put the restore's result on the MISSING page.
+**Deferred past the beta, built on `claude/octatrack-base-stockfx`** (so the qualified image stays as tested; host test
+and emulator only): MODULES SKIPPED and MODULES LOADED showed only for a moment. They are stock popups (`modset.c`,
+`say`), and the MISSING MODULES page covered them half a second after its list stopped changing, so the owner could
+hardly read MODULES SKIPPED. MISSING now waits three seconds after the restore's message (`status.c` `SAID_TICKS`,
+`test_status.c`). A set with no module in it (all removed, or only stock effects out of the menus) now says MODULES
+LOADED; MODULES NOT LOADED means a module failed. In the emulator (a card whose project names the absent E-Verb, a
+saved set), MODULES LOADED showed for its whole time (0xa0, about 160 ticks) and MISSING opened 3.1 to 3.6 s after it
+(the check runs twice a second).

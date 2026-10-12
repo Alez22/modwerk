@@ -7,14 +7,16 @@
  * recording, not in USB disk mode). Holding FUNC at boot skips the restore, so a module that breaks the unit
  * cannot lock it out; so does another base's set (its configuration hash differs) or a damaged file.
  *
- * Set (big-endian): "MWST", version 1, generation, count, bytes used (header included), the base's
- * configuration hash, the SHA-256 of what follows, then per module its id, its length and its package,
+ * Set (big-endian): "MWST", version 2, generation, count, bytes used (header included), the base's
+ * configuration hash, the SHA-256 of what follows, the stock effects out of the FX menus (fxpage.c: a mask of
+ * their effect ids, which boot.c's stock package sets), then per module its id, its length and its package,
  * padded to 4. Design: docs/OCTATRACK_ELEKLOADER_MIGRATION.md, "Keeping the module set across power cycles". */
 #include <stdint.h>
 #include "upload.h"
 #include "loader.h"
 
-#define HEADER 84u
+#define STOCK 84u  /* the stock effect mask, the first word the SHA-256 covers */
+#define HEADER 88u
 #define SET_BYTES (RUNTIME_POOL_BYTES + 0x1000u) /* the pool's worth of packages, and the header */
 extern const uint8_t modwerk_base_digest[32];
 extern const struct mu_backend modwerk_runtime_backend;
@@ -44,6 +46,9 @@ extern volatile uint32_t modwerk_runtime_ticks;
 #define TICKS modwerk_runtime_ticks
 #define SAY(text) ((void (*)(const char *, unsigned))0x4005a2b8u)(text, 0xa0)
 #endif
+#ifdef MODWERK_DSP_LOADER
+void modwerk_fxpage_stock(uint32_t off);
+#endif
 
 static uint8_t set[SET_BYTES] __attribute__((aligned(4)));
 static const uint8_t *candidate; /* the package the host staged, until it is accepted or dropped */
@@ -51,6 +56,8 @@ static uint32_t candidate_bytes;
 static unsigned pending, restored, slot;
 static uint32_t retry_at;
 volatile uint32_t modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result; /* for the report */
+volatile uint32_t modwerk_modset_said; /* when the restore's message showed: status.c keeps MISSING back so it stays readable */
+static void say(const char *text) { modwerk_modset_said = TICKS; SAY(text); }
 enum { RESTORED = 1, NONE_SAVED, SKIPPED, FOREIGN, DAMAGED, REFUSED, SAVED, SAVE_FAILED, TOO_BIG };
 
 static uint32_t be32(const uint8_t *p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
@@ -65,9 +72,9 @@ static int removes(const uint8_t *p, uint32_t n)
 static void seal(uint32_t count, uint32_t bytes)
 {
     set[0] = 'M', set[1] = 'W', set[2] = 'S', set[3] = 'T';
-    put32(set + 4, 1), put32(set + 8, be32(set + 8) + 1u), put32(set + 12, count), put32(set + 16, bytes);
+    put32(set + 4, 2), put32(set + 8, be32(set + 8) + 1u), put32(set + 12, count), put32(set + 16, bytes);
     for (unsigned i = 0; i < 32u; ++i) set[20 + i] = modwerk_base_digest[i];
-    mu_sha256(set + HEADER, bytes - HEADER, set + 52);
+    mu_sha256(set + STOCK, bytes - STOCK, set + 52);
     modwerk_modset_generation = be32(set + 8), modwerk_modset_count = count;
 }
 
@@ -77,14 +84,16 @@ void modwerk_modset_accepted(void)
 {
     if (!candidate) return;
     uint32_t id = module_of(candidate, candidate_bytes), n = used(), count = be32(set) == 0x4d575354u ? be32(set + 12) : 0;
-    /* Drop the module's earlier package, then append the new one unless it removes the module. */
-    for (uint32_t at = HEADER; at < n;) {
+    int menus = candidate_bytes == 8u && be32(candidate) == 0x4d575346u; /* boot.c's stock package: the FX menus */
+    if (menus) put32(set + STOCK, be32(candidate + 4));
+    /* Otherwise drop the module's earlier package, then append the new one unless it removes the module. */
+    else for (uint32_t at = HEADER; at < n;) {
         uint32_t length = be32(set + at + 4), step = 8u + ((length + 3u) & ~3u);
         if (be32(set + at) != id) { at += step; continue; }
         for (uint32_t i = at; i + step < n; ++i) set[i] = set[i + step];
         n -= step, --count;
     }
-    if (!removes(candidate, candidate_bytes)) {
+    if (!menus && !removes(candidate, candidate_bytes)) {
         uint32_t step = 8u + ((candidate_bytes + 3u) & ~3u);
         if (n + step > SET_BYTES) { modwerk_modset_result = TOO_BIG; candidate = 0; return; }
         put32(set + n, id), put32(set + n + 4, candidate_bytes);
@@ -136,9 +145,9 @@ static int store(unsigned which)
 static int whole(int n)
 {
     uint8_t digest[MU_DIGEST_BYTES];
-    if (n < (int)HEADER || be32(set + 4) != 1u || be32(set + 16) != (uint32_t)n) return 0;
+    if (n < (int)HEADER || be32(set + 4) != 2u || be32(set + 16) != (uint32_t)n) return 0;
     for (unsigned i = 0; i < 32u; ++i) if (set[20 + i] != modwerk_base_digest[i]) { modwerk_modset_result = FOREIGN; return 0; }
-    mu_sha256(set + HEADER, (uint32_t)n - HEADER, digest);
+    mu_sha256(set + STOCK, (uint32_t)n - STOCK, digest);
     for (unsigned i = 0; i < MU_DIGEST_BYTES; ++i) if (digest[i] != set[52 + i]) return 0;
     return 1;
 }
@@ -146,7 +155,7 @@ static int whole(int n)
 static void restore(void)
 {
     restored = 1;
-    if (HELD_FUNC) { modwerk_modset_result = SKIPPED; SAY("MODULES SKIPPED"); return; }
+    if (HELD_FUNC) { modwerk_modset_result = SKIPPED; say("MODULES SKIPPED"); return; }
     int a = load(0), wa = whole(a);
     uint32_t ga = wa ? be32(set + 8) : 0;
     int b = load(1), wb = whole(b);
@@ -158,6 +167,9 @@ static void restore(void)
     }
     slot = wb && (!wa || gb > ga) ? 1u : 0u; /* the newer one; the next save goes to the other */
     if (!slot && (int)load(0) != a) { modwerk_modset_result = DAMAGED; return; }
+#ifdef MODWERK_DSP_LOADER
+    modwerk_fxpage_stock(be32(set + STOCK)); /* the FX menus as the set left them */
+#endif
     const struct mu_backend *b6 = &modwerk_runtime_backend;
     uint32_t n = used(), count = 0, installed = 0;
     if (!b6->enter(b6->user)) { modwerk_modset_result = REFUSED; return; }
@@ -170,8 +182,8 @@ static void restore(void)
     (void)b6->leave(b6->user);
     modwerk_modset_generation = be32(set + 8), modwerk_modset_count = installed;
     modwerk_modset_result = installed == count ? RESTORED : REFUSED;
-    if (installed) SAY(installed == count ? "MODULES LOADED" : "SOME MODULES FAILED");
-    else SAY("MODULES NOT LOADED");
+    /* A set with no module (only stock effects out, or all removed) loaded whole too: NOT LOADED only for a failure. */
+    say(installed == count ? "MODULES LOADED" : installed ? "SOME MODULES FAILED" : "MODULES NOT LOADED");
 }
 /* ep0.c holds host frames until the restore has run: an install before it would race it, and the restore would undo it. */
 int modwerk_modset_restored(void) { return (int)restored; }

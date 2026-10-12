@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
-import { removalPackage } from './module-set'
+import { moduleSetKit, removalPackage, stockPackage } from './module-set'
 import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
 import { UploadUnconfirmedError } from './upload-session'
 
@@ -167,6 +167,19 @@ describe('loading a module set', () => {
     expect(unit.kept).toEqual(['-0000000a', '+0000000b', '+0000000c'])
     expect(link.getState().notice).toMatchObject({ tone: 'success', text: 'Kept. Live stays on your Octatrack, also after a restart.' })
     expect((await link.inventory())!.map(item => item.module)).toEqual(['0000000b', '0000000c'])
+  })
+  it('takes stock effects out of the menus with the set, reads them back, and puts them back on Undo', async () => {
+    const { unit, link } = await linked(), stock = { module: 'Stock effects', data: stockPackage(['DARK REV']), undo: stockPackage([]) }
+    await link.update('Live', [stock, change('0000000b')]); await link.keep()
+    expect(unit.kept).toEqual(['=400000', '+0000000b'])
+    expect(await link.stockFx()).toBe(1 << 22)
+    expect(await moduleSetKit(link).readInventory()).toEqual({ moduleIds: ['0000000b'], removedStockFx: ['DARK REV'] })
+    await link.update('Live', [stock, change('0000000c')]); await link.undo()
+    expect(unit.kept.slice(2)).toEqual(['=400000', '=0']) // the trial (0000000c) rolled back, then the menus as before
+    expect([unit.stockOff, unit.modules]).toEqual([0, ['0000000b']])
+    unit.stockOff = undefined // a base from before STOCKFX: every stock effect stays, and a set that changes them is refused
+    expect(await link.stockFx()).toBeUndefined()
+    await expect(moduleSetKit(link).prepareUpdate({ name: 'Live', moduleIds: ['0000000b'], removedStockFx: ['DARK REV'] })).rejects.toThrow(/stock effect/)
   })
   it('undoes the whole set: the trial rolled back, then the kept changes put back newest first', async () => {
     const { unit, link } = await loaded()

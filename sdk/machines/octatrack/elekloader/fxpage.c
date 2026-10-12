@@ -5,7 +5,14 @@
  * patches, and its formatters' code. The base builds the 0x192-byte descriptor here, gives it the module's
  * handle as its effect id, and lists it in the choosers, which read the base's own lists (the build points
  * stock's references at them). Stock's own tables say which descriptor and row each id has: FX1_IDS and
- * FX2_IDS (id -> descriptor), FX1_ID2POS and ID2POS (id -> row). Nothing here writes stock code. */
+ * FX2_IDS (id -> descriptor), FX1_ID2POS and ID2POS (id -> row).
+ *
+ * Stock effects out of the menus (owner, 11 October 2026: a module set says which stock effects stay): their rows
+ * leave both choosers and their row becomes 0, as a module's unlisted slot; their descriptor, id and DSP code stay,
+ * so a project that uses one keeps it, its page and its sound (Octabam's remixes leave stock effects out the same
+ * way). A list shorter than the chooser's seven rows would draw past its end, so each chooser's own row-count
+ * literal (stock's `pea (7).w`) is set to the list's length while it is shorter, as Octabam's builds patch it; that
+ * literal is the only stock code written here. */
 #include <stdint.h>
 #include "upload.h"
 #include "fxids.h"
@@ -13,6 +20,7 @@
 #define PAGE 0x192u
 extern uint32_t modwerk_fx1_list[MODWERK_LIST_ROWS], modwerk_fx2_list[MODWERK_LIST_ROWS]; /* identity.c: NONE and the stock rows, then 0 */
 extern const uint32_t modwerk_fx_rows[2];                   /* the stock rows, NONE included: FX1, FX2 */
+extern const uint32_t modwerk_fx_viewport[2];               /* dsp_loader.py choosers: each chooser's `pea (7).w` */
 void modwerk_machine_invalidate_code(void);
 #ifdef MODWERK_HOST
 /* The host test's address space: a 32-bit address is an offset into it, as the unit's addresses are. */
@@ -23,6 +31,7 @@ uint32_t modwerk_test_tables[4][MODWERK_FX_IDS];
 #define DONOR_HIGH 0x20000u
 #define AT(address) (modwerk_test_memory + (address))
 #define ADDR(pointer) ((uint32_t)((const uint8_t *)(pointer) - modwerk_test_memory))
+#define CODE(address) ((volatile uint16_t *)AT(address))
 static uint8_t (*const pages)[0x1a0] = (uint8_t (*)[0x1a0])(modwerk_test_memory + 0x10000);
 #else
 /* The base's copies of FX1_IDS, FX2_IDS, FX1_ID2POS and ID2POS, MODWERK_FX_IDS long (dsp_loader.py choosers: stock's
@@ -34,6 +43,7 @@ static volatile uint32_t *const tables[4] = {modwerk_fx1_ids, modwerk_fx2_ids, m
 #define DONOR_HIGH 0x400de1e0u
 #define AT(address) ((uint8_t *)(uintptr_t)(address))
 #define ADDR(pointer) ((uint32_t)(uintptr_t)(pointer))
+#define CODE(address) ((volatile uint16_t *)(uintptr_t)((address) + 0x08000000u)) /* uncached: the fetch sees the write */
 static uint8_t pages[MODWERK_FX_IDS][0x1a0] __attribute__((aligned(4)));
 #endif
 static uint8_t serves[MODWERK_FX_IDS]; /* the slots each id's page is listed in: 1 FX1, 2 FX2 */
@@ -45,11 +55,58 @@ static uint32_t be16(const uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
 static uint32_t be32(const uint8_t *p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
 static void put32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)(v >> 24), p[1] = (uint8_t)(v >> 16), p[2] = (uint8_t)(v >> 8), p[3] = (uint8_t)v; }
 
-/* Both choosers: the stock rows, then each listed module page in id order; each id's descriptor and row. */
+/* The stock rows as the build left them (dsp_loader.py choosers reads at most 32), and each row's effect id (0: NONE),
+ * taken before rows() first changes a list. */
+#define STOCK_ROWS 32u
+static uint32_t stock_rows[2][STOCK_ROWS];
+static uint8_t stock_ids[2][STOCK_ROWS], snapped;
+uint32_t modwerk_stock_off; /* the stock effect ids out of both menus (bit n: id n) */
+static void snapshot(void)
+{
+    if (snapped) return;
+    snapped = 1;
+    for (unsigned slot = 0; slot < 2u; ++slot) {
+        const uint32_t *list = slot ? modwerk_fx2_list : modwerk_fx1_list;
+        for (unsigned r = 0; r < modwerk_fx_rows[slot] && r < STOCK_ROWS; ++r) stock_rows[slot][r] = list[r];
+        for (unsigned k = 1; k < 32u; ++k) { /* a stock id's row names its descriptor */
+            uint32_t r = TABLE(2 + slot)[k];
+            if (!fx_in(modwerk_fx_modules, k) && r && r < modwerk_fx_rows[slot] && r < STOCK_ROWS && TABLE(slot)[k] == list[r])
+                stock_ids[slot][r] = (uint8_t)k;
+        }
+    }
+}
+/* The stock effect ids either chooser lists, NONE excepted: the ones a module set may take out. */
+uint32_t modwerk_fxpage_stock_ids(void)
+{
+    uint32_t ids = 0;
+    snapshot();
+    for (unsigned slot = 0; slot < 2u; ++slot)
+        for (unsigned r = 1; r < modwerk_fx_rows[slot] && r < STOCK_ROWS; ++r) ids |= stock_ids[slot][r] ? 1u << stock_ids[slot][r] : 0;
+    return ids;
+}
+/* A chooser draws its row-count literal's rows whatever the list holds: never more than the list has, never past 7. */
+static void viewport(unsigned slot, uint32_t n)
+{
+    volatile uint16_t *insn = CODE(modwerk_fx_viewport[slot]);
+    uint16_t want = (uint16_t)(n < 7u ? n : 7u);
+    if (insn[0] != 0x4878u || !insn[1] || insn[1] > 7u || insn[1] == want) return; /* `pea (1..7).w`, ours or stock's */
+    insn[1] = want;
+    modwerk_machine_invalidate_code();
+}
+
+/* Both choosers: the stock rows a module set keeps, then each listed module page in id order; each id's descriptor
+ * and row. */
 static void rows(void)
 {
+    snapshot();
     for (unsigned slot = 0; slot < 2u; ++slot) {
-        uint32_t *list = slot ? modwerk_fx2_list : modwerk_fx1_list, none = modwerk_fx1_list[0], n = modwerk_fx_rows[slot];
+        uint32_t *list = slot ? modwerk_fx2_list : modwerk_fx1_list, none = stock_rows[0][0], n = 0;
+        for (unsigned r = 0; r < modwerk_fx_rows[slot] && r < STOCK_ROWS; ++r) {
+            unsigned k = stock_ids[slot][r];
+            if (k && modwerk_stock_off >> k & 1u) { TABLE(2 + slot)[k] = 0; continue; } /* its descriptor stays */
+            if (k) TABLE(2 + slot)[k] = n;
+            list[n++] = stock_rows[slot][r];
+        }
         for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) {
             if (!fx_in(modwerk_fx_modules, k)) continue;
             int listed = serves[k] >> slot & 1u && n + 1u < MODWERK_LIST_ROWS; /* the list keeps its closing 0 */
@@ -57,6 +114,7 @@ static void rows(void)
             TABLE(2 + slot)[k] = listed ? n : 0;
             if (listed) list[n++] = ADDR(pages[k]);
         }
+        viewport(slot, n);
         while (n < MODWERK_LIST_ROWS) list[n++] = 0;
     }
     unsigned n = 0;
@@ -135,5 +193,11 @@ void modwerk_fxpage_drop(unsigned id)
 {
     if (id >= MODWERK_FX_IDS || !serves[id]) return;
     serves[id] = 0;
+    rows();
+}
+/* Takes the stock effects `off` names out of both menus and puts the others back (ids no chooser lists are ignored). */
+void modwerk_fxpage_stock(uint32_t off)
+{
+    modwerk_stock_off = off & modwerk_fxpage_stock_ids();
     rows();
 }

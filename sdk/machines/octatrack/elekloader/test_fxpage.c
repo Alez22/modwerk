@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Host check of fxpage.c: a page recipe as build.py writes it becomes the module's descriptor (donor,
  * patches, inherited enable bits, the handle as its id, formatters with their fixups), the choosers list it
- * after the stock rows, and a recipe that names the wrong donor or reaches past its image is refused. */
+ * after the stock rows, and a recipe that names the wrong donor or reaches past its image is refused. Stock effects
+ * leave both choosers and come back, keeping their descriptors, with each chooser's row count never past its list. */
 #include "sha256.c"
 #include "fxpage.c"
 #include <stdio.h>
@@ -12,6 +13,7 @@ static unsigned failures;
 const fx_set modwerk_fx_modules = {{1u << 26 | 1u << 27}};
 uint32_t modwerk_fx1_list[MODWERK_LIST_ROWS] = {0x1000, 0x1100, 0x1200}, modwerk_fx2_list[MODWERK_LIST_ROWS] = {0x1000, 0x2100, 0x2200, 0x2300};
 const uint32_t modwerk_fx_rows[2] = {3, 4};
+const uint32_t modwerk_fx_viewport[2] = {0x3000, 0x3010}; /* each holds `pea (7).w` (main) */
 static unsigned invalidations;
 void modwerk_machine_invalidate_code(void) { ++invalidations; }
 
@@ -37,6 +39,10 @@ static unsigned recipe(void) /* 1 integer, 1 string, slot 2 inherited, one forma
 
 int main(void)
 {
+    /* Stock's tables: FILTER (4) and EQUALIZER (12) on both choosers, DELAY (8) on FX2 only. */
+    TABLE(0)[4] = 0x1100, TABLE(0)[12] = 0x1200, TABLE(0)[8] = 0x1000, TABLE(2)[4] = 1, TABLE(2)[12] = 2;
+    TABLE(1)[4] = 0x2100, TABLE(1)[12] = 0x2200, TABLE(1)[8] = 0x2300, TABLE(3)[4] = 1, TABLE(3)[12] = 2, TABLE(3)[8] = 3;
+    for (unsigned slot = 0; slot < 2u; ++slot) CODE(modwerk_fx_viewport[slot])[0] = 0x4878u, CODE(modwerk_fx_viewport[slot])[1] = 7;
     for (unsigned i = 0; i < PAGE; ++i) donor[i] = (uint8_t)(i * 7);
     put32(donor + 0x18e, 0x12345678u);          /* enable bits; slot 2 is the nibble at bits 8-11 */
     uint32_t bytes = recipe();
@@ -45,7 +51,8 @@ int main(void)
     CHECK(d[3] == 27 && d[0x5e] == 77 && !memcmp(d + 22, "SIZE\0\0", 6) && d[100] == (uint8_t)(100 * 7));
     CHECK((be32(d + 0x18e) & 0xf00u) == 0x600u);                              /* inherited from the donor */
     CHECK(be32(d + 0xca + 32) == ADDR(image + 128) && be32(d + 0xfa + 32) == 0);
-    CHECK(be32(image + 128 + 8) == ADDR(d) + 0x16 && be32(image + 48) == ADDR(d) && invalidations == 1);
+    CHECK(be32(image + 128 + 8) == ADDR(d) + 0x16 && be32(image + 48) == ADDR(d));
+    CHECK(invalidations == 3 && CODE(0x3000)[1] == 3 && CODE(0x3010)[1] == 5); /* the fixups, then two short lists */
     /* FX2 lists it after the stock rows; FX1 does not; the tables name its descriptor and row. */
     CHECK(modwerk_fx2_list[4] == ADDR(d) && !modwerk_fx2_list[5] && modwerk_fx2_list[3] == 0x2300 && !modwerk_fx1_list[3]);
     CHECK(TABLE(1)[27] == ADDR(d) && TABLE(3)[27] == 4 && TABLE(0)[27] == 0x1000 && !TABLE(2)[27] && TABLE(1)[26] == 0x1000);
@@ -66,6 +73,23 @@ int main(void)
     CHECK(modwerk_wide_table[0] == ADDR(image + 128) && modwerk_wide_table[1] == 64 && !modwerk_wide_table[2]);
     modwerk_fxpage_drop(26); CHECK(!modwerk_wide_table[0]);
     bytes = recipe(); image[52 + 16 + 3] = 4; CHECK(!modwerk_fxpage_build(26, image, bytes, 2)); /* 5 labels or fewer: no */
+    /* Stock effects out (owner, 11 October 2026): their rows leave both lists; their descriptors stay, so a project
+     * that names one keeps its page; an id no chooser lists is ignored. Each row count follows its list. */
+    CHECK(modwerk_fxpage_stock_ids() == (1u << 4 | 1u << 8 | 1u << 12));
+    modwerk_fxpage_stock(1u << 4 | 1u << 8 | 1u << 3);
+    CHECK(modwerk_stock_off == (1u << 4 | 1u << 8));
+    CHECK(modwerk_fx1_list[0] == 0x1000 && modwerk_fx1_list[1] == 0x1200 && !modwerk_fx1_list[2]);
+    CHECK(modwerk_fx2_list[1] == 0x2200 && modwerk_fx2_list[2] == ADDR(d) && !modwerk_fx2_list[3]);
+    CHECK(!TABLE(2)[4] && TABLE(2)[12] == 1 && !TABLE(3)[4] && !TABLE(3)[8] && TABLE(3)[12] == 1 && TABLE(3)[27] == 2);
+    CHECK(TABLE(0)[4] == 0x1100 && TABLE(1)[4] == 0x2100 && TABLE(1)[8] == 0x2300);
+    CHECK(CODE(0x3000)[1] == 2 && CODE(0x3010)[1] == 3);
+    /* Back in: every list and row as before. */
+    modwerk_fxpage_stock(0);
+    CHECK(modwerk_fx1_list[1] == 0x1100 && modwerk_fx1_list[2] == 0x1200 && modwerk_fx2_list[3] == 0x2300 && modwerk_fx2_list[4] == ADDR(d));
+    CHECK(TABLE(2)[4] == 1 && TABLE(3)[8] == 3 && TABLE(3)[27] == 4 && CODE(0x3000)[1] == 3 && CODE(0x3010)[1] == 5);
+    /* A literal that is not the chooser's own (a module changed it) is left alone. */
+    CODE(0x3000)[0] = 0x4e71u; modwerk_fxpage_stock(1u << 12);
+    CHECK(CODE(0x3000)[1] == 3 && modwerk_fx1_list[1] == 0x1100 && !modwerk_fx1_list[2]);
     if (failures) { fprintf(stderr, "%u FX page checks failed\n", failures); return 1; }
     puts("Octatrack FX pages: a recipe becomes its descriptor and chooser rows, follows its handle, and is refused when it is wrong.");
     return 0;

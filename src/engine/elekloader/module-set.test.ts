@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
-import { fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, USB_MODULE_IDS } from './module-set'
+import { fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, stockPackage, USB_MODULE_IDS } from './module-set'
 
 const file = (path: string) => new Uint8Array(readFileSync(new URL('../../../public/' + path, import.meta.url)))
 const load = async (entry: { path: string }) => file(entry.path)
@@ -39,7 +39,20 @@ describe('preparing a module set', () => {
   })
   it('refuses what the base cannot do yet, before anything is sent', async () => {
     await expect(prepareModuleSet({ name: 'Set', moduleIds: ['everb', 'tapeecho'] }, empty, load)).rejects.toThrow(ModuleSetError)
-    await expect(prepareModuleSet({ name: 'Set', moduleIds: [], removedStockFx: ['DARK REV'] }, empty, load)).rejects.toThrow(/stock effects/)
+    // A base from before STOCKFX keeps every stock effect in its menus.
+    await expect(prepareModuleSet({ name: 'Set', moduleIds: [], removedStockFx: ['DARK REV'] }, empty, load, false)).rejects.toThrow(/stock effect/)
+    expect((await prepareModuleSet({ name: 'Set', moduleIds: [] }, empty, load, false)).changes).toEqual([])
+  })
+  it('takes stock effects out of the menus first, as one package by effect id, which the menus before it undo', async () => {
+    // "MWSF", then bit n for effect id n (chooser-metadata.json): FILTER 4, DELAY 8, PLATE, SPRING and DARK REV 20-22.
+    expect(stockPackage(['DARK REV', 'FILTER', 'NOT AN EFFECT'])).toEqual(Uint8Array.from([0x4d, 0x57, 0x53, 0x46, 0, 0x40, 0, 0x10]))
+    const current = inventoryFrom([], 1 << 8 | 1 << 22)
+    expect(current).toEqual({ moduleIds: [], removedStockFx: ['DELAY', 'DARK REV'] })
+    const { changes } = await prepareModuleSet({ name: 'Live', moduleIds: ['miniverb'], removedStockFx: ['PLATE REV', 'SPRING REV', 'DARK REV'] }, current, load)
+    expect(changes.map(change => change.module)).toEqual(['Stock effects', 'Mini Verb'])
+    expect(changes[0]).toEqual({ module: 'Stock effects', data: stockPackage(['PLATE REV', 'SPRING REV', 'DARK REV']), undo: stockPackage(['DELAY', 'DARK REV']) })
+    // Every stock effect back: an empty mask.
+    expect((await prepareModuleSet({ name: 'All', moduleIds: [] }, current, load)).changes).toEqual([{ module: 'Stock effects', data: stockPackage([]), undo: stockPackage(['DELAY', 'DARK REV']) }])
   })
   it('fetches the site’s copy and refuses one that did not arrive intact', async () => {
     const entry = manifest.packages[0], data = file(entry.path)

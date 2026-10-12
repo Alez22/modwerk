@@ -141,13 +141,16 @@ void modwerk_test_menu(int unused)
 /* Missing modules (owner, 11 October 2026: a list to close, not a popup): every module the project names, in any
  * bank or Part, that is not installed (dsp.c's MISSING list). It opens when the list gains one and has held still
  * for half a second (a project load's rebind passes through), once the boot's restore is over (until then every
- * module is missing). UP and DOWN scroll, YES or NO closes it; it closes itself once nothing is missing. */
+ * module is missing) and its message has shown for three seconds. UP and DOWN scroll, YES or NO closes it; it closes itself once nothing is missing. */
 #define UP 0x33
 #define DOWN 0x20
 #define ROWS 4u
 unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most);
 int modwerk_modset_restored(void);
-extern volatile uint32_t modwerk_modset_result;
+extern volatile uint32_t modwerk_modset_result, modwerk_modset_said;
+/* The restore's message (MODULES LOADED, SOME MODULES FAILED, MODULES NOT LOADED, MODULES SKIPPED) is a stock popup the
+ * page would cover half a second later (owner, 12 October 2026: hardly readable): the page waits this long after it. */
+#define SAID_TICKS 180u
 static uint8_t missing[4 + 24 * MODWERK_FX_IDS];
 static fx_set missing_told, missing_last; /* the handles the page told about; the list at the last check */
 static void missing_check(void)
@@ -158,7 +161,7 @@ static void missing_check(void)
     if (open == MISSING && !n && !missing_asked) open = CLOSED;
     if (missing_top + ROWS > n) missing_top = n > ROWS ? n - ROWS : 0;
     if (fx_any(fx_less(handles, missing_told)) && fx_same(handles, missing_last) && open == CLOSED && modwerk_modset_restored() &&
-        modwerk_modset_result)
+        modwerk_modset_result && modwerk_runtime_ticks - modwerk_modset_said >= SAID_TICKS)
         open = MISSING, missing_top = 0, missing_asked = 0, missing_told = handles;
     /* What the open page shows is told; one that comes back and goes missing again is told again. (Told only at the
      * opening, ones added while it showed reopened it at once after NO, 12 October 2026.) */

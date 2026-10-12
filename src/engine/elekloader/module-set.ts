@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The builder for USB module sets: what loading a set onto an Octatrack with the Modwerk base sends. Modules the site
 // publishes as runtime packages (public/octatrack-modules, made from source by `npm run octatrack:module-packages`)
-// are installed from them; anything the set leaves out is removed with an empty package naming its module.
+// are installed from them; anything the set leaves out is removed with an empty package naming its module. The stock
+// effects the set leaves out of the FX menus go as one more package, kept with the set (elekloader/boot.c, fxpage.c).
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
+import chooser from '../assets/chooser-metadata.json' with { type: 'json' }
+import { STOCK_EFFECTS } from '../../catalog/stock-effects.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { MODULES } from '../../catalog/modules.ts'
 import { inventoryChanges, type Inventory, type InventoryTarget } from '../../config/inventory.ts'
@@ -38,24 +41,37 @@ export async function fetchPackage(entry: Published): Promise<Uint8Array> {
   return data
 }
 
-/** What the INVENTORY request lists, as the site names it: catalogue ids, or the runtime id of a module the
- * catalogue does not know. shortcut: the base keeps no stock-effect state yet, so none are listed as removed. */
-export const inventoryFrom = (modules: MissingModule[]): Inventory =>
-  ({ moduleIds: modules.map(item => BY_RUNTIME_ID.get(item.module) ?? item.module), removedStockFx: [] })
+/** Each stock effect's id: its bit in the base's mask of stock effects out of the FX menus. */
+const STOCK_ID = new Map(chooser.stockEffects.map(effect => [effect.key, effect.fxId]))
+/** The package that takes `keys` out of both FX menus and puts every other stock effect back: "MWSF", then the mask of
+ * their effect ids, big-endian (elekloader/boot.c). A project that uses one keeps it; it only leaves the menus. */
+export function stockPackage(keys: readonly string[]) {
+  const data = Uint8Array.from([0x4d, 0x57, 0x53, 0x46, 0, 0, 0, 0])
+  new DataView(data.buffer).setUint32(4, STOCK_EFFECTS.filter(key => keys.includes(key)).reduce((mask, key) => (mask | 1 << STOCK_ID.get(key)!) >>> 0, 0))
+  return data
+}
 
-/** The changes that make the unit (`current`) match `target`: removals first (they free memory and stock code for
- * what follows), then installs, each with the package that undoes it. shortcut: a module installs at the version the
- * site publishes now, not the set's pinned one; carry versions once the site publishes more than the latest. */
-export async function prepareModuleSet(target: InventoryTarget, current: Inventory, load = fetchPackage): Promise<{ name: string; changes: SetChange[] }> {
-  const changes = inventoryChanges(current, target)
-  if (changes.stockOff.length || changes.stockOn.length)
-    throw new ModuleSetError('The Octatrack can’t take stock effects out of its menus over USB yet. Keep every stock effect in this module set to load it.')
+/** What the INVENTORY and STOCKFX requests list, as the site names it: catalogue ids, or the runtime id of a module the
+ * catalogue does not know, and the stock effects out of the menus (`stockOff`, bit n for effect id n). */
+export const inventoryFrom = (modules: MissingModule[], stockOff = 0): Inventory =>
+  ({ moduleIds: modules.map(item => BY_RUNTIME_ID.get(item.module) ?? item.module),
+    removedStockFx: STOCK_EFFECTS.filter(key => stockOff >>> STOCK_ID.get(key)! & 1) })
+
+/** The changes that make the unit (`current`) match `target`: the stock effects in the menus, removals (they free
+ * memory and stock code for what follows), then installs, each with the package that undoes it. `stockMenus` is false
+ * for a base that keeps every stock effect in its menus. shortcut: a module installs at the version the site publishes
+ * now, not the set's pinned one; carry versions once the site publishes more than the latest. */
+export async function prepareModuleSet(target: InventoryTarget, current: Inventory, load = fetchPackage, stockMenus = true): Promise<{ name: string; changes: SetChange[] }> {
+  const changes = inventoryChanges(current, target), stock = changes.stockOff.length + changes.stockOn.length > 0
+  if (stock && !stockMenus)
+    throw new ModuleSetError('This Octatrack’s base keeps every stock effect in its menus. Install the latest Modwerk base, or keep every stock effect in this module set.')
   const unpublished = changes.add.filter(id => !PUBLISHED.has(id))
   if (unpublished.length)
     throw new ModuleSetError(`${list(unpublished.map(moduleName))} can’t be loaded over USB yet. Download the .bin for the card instead.`)
   const published = [...changes.add, ...changes.remove].filter(id => PUBLISHED.has(id))
   const packages = new Map(await Promise.all(published.map(async id => [id, await load(PUBLISHED.get(id)!)] as const)))
   return { name: target.name, changes: [
+    ...stock ? [{ module: 'Stock effects', data: stockPackage(target.removedStockFx ?? []), undo: stockPackage(current.removedStockFx) }] : [],
     ...changes.remove.map(id => ({ module: moduleName(id), data: removalPackage(id), undo: packages.get(id) })),
     ...changes.add.map(id => ({ module: moduleName(id), data: packages.get(id)!, undo: removalPackage(id) })),
   ] }
@@ -63,11 +79,15 @@ export async function prepareModuleSet(target: InventoryTarget, current: Invento
 
 /** The link's builder and inventory for the site's checkout card. */
 export function moduleSetKit(link: OctatrackLink) {
-  const readInventory = async () => {
+  const read = async () => {
     const modules = await link.inventory()
     // Only a base that doesn't know INVENTORY lands here; couldn't-ask-now rejects with LinkBusyError, which callers retry.
     if (!modules) throw new ModuleSetError('This Octatrack’s base doesn’t list its modules. Install the latest Modwerk base, then try again.')
-    return inventoryFrom(modules)
+    return { modules, stockOff: await link.stockFx() }
   }
-  return { readInventory, prepareUpdate: async (target: InventoryTarget) => prepareModuleSet(target, await readInventory()) }
+  const readInventory = async () => { const { modules, stockOff } = await read(); return inventoryFrom(modules, stockOff) }
+  return { readInventory, prepareUpdate: async (target: InventoryTarget) => {
+    const { modules, stockOff } = await read()
+    return prepareModuleSet(target, inventoryFrom(modules, stockOff), fetchPackage, stockOff !== undefined)
+  } }
 }

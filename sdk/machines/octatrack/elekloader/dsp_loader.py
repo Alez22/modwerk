@@ -444,4 +444,10 @@ def choosers(image, ids=32):
         sites += [dict(addr=hex(a), stock=needle.hex(), op='ptr', target=symbol) for a in found]
     c += ''.join('uint32_t modwerk_%s_list[%d] = {%s};\n' % (slot, ids, ', '.join('%#xu' % row for row in rows)) for slot, rows in lists.items())
     c += 'const uint32_t modwerk_fx_rows[2] = {%d, %d};\n' % (len(lists['fx1']), len(lists['fx2']))
+    # Each chooser's row count, `pea (7).w` (Octabam's build_bus.py ROWCOUNT_INSN): fxpage.c lowers it while stock
+    # effects out of the menus leave a list shorter than seven rows. No catalogue module patches either word.
+    for at in (layout['FX1_ROWCOUNT_INSN'], layout['ROWCOUNT_INSN']):
+        if read(at) != 0x48780007:
+            raise ValueError('The chooser\'s row count at %#x is not `pea (7).w`.' % at)
+    c += 'const uint32_t modwerk_fx_viewport[2] = {%#xu, %#xu};\n' % (layout['FX1_ROWCOUNT_INSN'], layout['ROWCOUNT_INSN'])
     return sites, c

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  * Host check of modset.c with a pretend card: accepted packages are saved to the two files in turn, a
  * removal drops its module, the newest whole set is installed after a boot, a damaged newer file leaves the
- * older one, and another base's set or a held FUNC installs nothing. */
+ * older one, and another base's set or a held FUNC installs nothing. The stock effects out of the FX menus are kept
+ * with the set and put back after a boot. */
 #include "sha256.c"
 #include "modset.c"
 #include <stdio.h>
@@ -31,6 +32,8 @@ static enum mu_publication publish(void *u) { (void)u; return MU_APPLIED; }
 static int restore_backend(void *u) { (void)u; return 1; }
 static int retire(void *u) { (void)u; ++installed; return 1; }
 const struct mu_backend modwerk_runtime_backend = {0, enter, safe, leave, prepare, discard, publish, restore_backend, retire};
+static uint32_t menus = 0xffffffffu; /* fxpage.c's stock effects out of the menus, as the restore set them */
+void modwerk_fxpage_stock(uint32_t off) { menus = off; }
 
 static uint8_t package[3][48];
 static void make(unsigned k, uint32_t id, int removal)
@@ -42,7 +45,7 @@ static void make(unsigned k, uint32_t id, int removal)
 static void accept(unsigned k, uint32_t n) { modwerk_modset_candidate(package[k], n); modwerk_modset_accepted(); }
 static void boot(void) /* RAM gone, the card kept */
 {
-    memset(set, 0, sizeof set); restored = 0; pending = 0; slot = 0; prepared = installed = entered = 0;
+    memset(set, 0, sizeof set); restored = 0; pending = 0; slot = 0; prepared = installed = entered = 0; menus = 0xffffffffu;
     modwerk_modset_result = 0; modwerk_test_ticks = 200;
 }
 
@@ -50,8 +53,11 @@ int main(void)
 {
     make(0, 0x873d83ccu, 0); make(1, 0x3cbedc9cu, 0); make(2, 0x873d83ccu, 1);
     modwerk_test_ticks = 200; restored = 1; /* a running unit */
+    static const uint8_t reverbs_out[8] = {'M', 'W', 'S', 'F', 0, 0x70, 0, 0}; /* boot.c's stock package */
+    modwerk_modset_candidate(reverbs_out, 8); modwerk_modset_accepted();
+    CHECK(modwerk_modset_count == 0 && pending && be32(set + STOCK) == 7u << 20 && used() == HEADER);
     accept(0, 48); accept(1, 40);
-    CHECK(modwerk_modset_count == 2 && pending);
+    CHECK(modwerk_modset_count == 2 && pending && be32(set + STOCK) == 7u << 20);
     modwerk_modset_service();
     CHECK(!pending && card_bytes[1] && !card_bytes[0] && modwerk_modset_result == SAVED);   /* slot 1 first */
     accept(0, 48);                                                                           /* a replacement */
@@ -63,20 +69,31 @@ int main(void)
     /* After a boot: the newest set, installed through the loader. */
     boot(); modwerk_modset_service();
     CHECK(modwerk_modset_result == RESTORED && installed == 1 && ids[0] == 0x3cbedc9cu && entered == 1);
+    CHECK(menus == 7u << 20 && modwerk_modset_count == 1 && modwerk_modset_said == 200);    /* the menus too; it said so */
     /* The newer file damaged: the older one, with both modules. */
     card[0][HEADER + 9] ^= 1; boot(); modwerk_modset_service();
     CHECK(modwerk_modset_result == RESTORED && installed == 2);
     /* Nothing installed: FUNC held, or a set another base wrote. */
     card[0][HEADER + 9] ^= 1; modwerk_test_held = 1; boot(); modwerk_modset_service();
     CHECK(modwerk_modset_result == SKIPPED && !installed);
+    CHECK(menus == 0xffffffffu);                                                             /* skipped: menus untouched */
     modwerk_test_held = 0; card[0][20] ^= 1; card[1][20] ^= 1; boot(); modwerk_modset_service();
-    CHECK(modwerk_modset_result == FOREIGN && !installed);
+    CHECK(modwerk_modset_result == FOREIGN && !installed && menus == 0xffffffffu);
+    /* The stock mask is hashed with the packages: a changed mask is a damaged file. */
+    card[0][20] ^= 1; card[1][20] ^= 1; card[0][STOCK] ^= 1; boot(); modwerk_modset_service();
+    CHECK(modwerk_modset_result == RESTORED && installed == 2 && menus == 7u << 20);          /* the older file */
+    card[0][STOCK] ^= 1;
+    /* All stock effects back in: the next save has none out. */
+    static const uint8_t all_in[8] = {'M', 'W', 'S', 'F', 0, 0, 0, 0};
+    boot(); modwerk_modset_service(); modwerk_modset_candidate(all_in, 8); modwerk_modset_accepted(); modwerk_modset_service();
+    boot(); modwerk_modset_service();
+    CHECK(modwerk_modset_result == RESTORED && installed == 1 && !menus);
     /* A closed gate waits: no restore, no save. */
-    card[0][20] ^= 1; card[1][20] ^= 1; boot(); modwerk_test_gate = 0; modwerk_modset_service();
+    boot(); modwerk_test_gate = 0; modwerk_modset_service();
     CHECK(!restored && !installed);
     modwerk_test_gate = 1; modwerk_modset_service();
     CHECK(restored && installed == 1);
     if (failures) { fprintf(stderr, "%u module set checks failed\n", failures); return 1; }
-    puts("Octatrack module set: saved in turn, removals dropped, the newest whole set restored, damaged and foreign sets and a held FUNC refused.");
+    puts("Octatrack module set: saved in turn, removals dropped, the newest whole set restored with its stock menus, damaged and foreign sets and a held FUNC refused.");
     return 0;
 }

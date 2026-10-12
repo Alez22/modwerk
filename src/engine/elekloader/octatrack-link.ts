@@ -304,6 +304,9 @@ export class OctatrackLink {
   /** The modules installed on the unit, while it is idle; undefined from a base before INVENTORY (it stalls the request).
    * Rejects with LinkBusyError when it couldn't ask just now. */
   inventory(): Promise<MissingModule[] | undefined> { return this.read('modules', transport => transport.inventory()) }
+  /** The stock effects out of the unit's FX menus (bit n: effect id n), while it is idle; undefined from a base before
+   * them. Rejects with LinkBusyError when it couldn't ask just now. */
+  stockFx(): Promise<number | undefined> { return this.read('stock effects', transport => transport.stockFx()) }
   /** A read-only request while the unit is idle: WebUSB sends an interface's requests only while it is claimed. It
    * skips the round (LinkBusyError) rather than wait long when another tab or a load holds the unit. */
   private read<T>(what: string, request: (transport: UsbVendorTransport) => Promise<T>): Promise<T | undefined> {

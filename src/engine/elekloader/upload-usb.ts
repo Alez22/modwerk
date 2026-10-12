@@ -17,6 +17,8 @@ export const VENDOR_MISSING = 14 // the modules the unit's project names that ar
 export const MISSING_BYTES = 316
 export const MISSING_PAGE = 13 // entries a MISSING reply holds; wValue is the first (elekloader/fxids.h)
 export const VENDOR_INVENTORY = 27 // the modules installed on the unit, in MISSING's form (sdk/runtime/loader/loader.c)
+export const VENDOR_STOCKFX = 28 // the stock effects out of the FX menus (elekloader/ep0.c, fxpage.c)
+export const STOCKFX_BYTES = 8
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -170,6 +172,16 @@ export class UsbVendorTransport implements UploadTransport {
   missing(signal?: AbortSignal) { return this.modules(VENDOR_MISSING, parseMissing, signal) }
   /** The modules installed on the unit, the same way; undefined from a base built before INVENTORY. */
   inventory(signal?: AbortSignal) { return this.modules(VENDOR_INVENTORY, parseInventory, signal) }
+  /** The stock effects out of the unit's FX menus: bit n for effect id n ("MWSF" and the mask, big-endian), answered by
+   * the USB interrupt; undefined when the base stalls the request (one built before it, which keeps every stock effect). */
+  async stockFx(signal?: AbortSignal): Promise<number | undefined> {
+    signal?.throwIfAborted()
+    const reply = await this.device.controlTransferIn(this.setup(VENDOR_STOCKFX, 0), STOCKFX_BYTES)
+    if (reply.status === 'stall') return undefined
+    if (reply.status !== 'ok' || !reply.data || reply.data.byteLength !== STOCKFX_BYTES || reply.data.getUint32(0) !== 0x4d575346)
+      throw new VendorTransportError('The device did not answer the stock effects request.')
+    return reply.data.getUint32(4)
+  }
   private async modules(request: number, parse: (view: DataView) => MissingModule[], signal?: AbortSignal): Promise<MissingModule[] | undefined> {
     const all: MissingModule[] = []
     for (let first = 0; ; first += MISSING_PAGE) {
