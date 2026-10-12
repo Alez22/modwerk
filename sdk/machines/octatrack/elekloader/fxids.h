@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
- * How many effect ids the base handles, and sets of them (docs/OCTATRACK_MORE_EFFECT_IDS.md: 128 is the plan, owner
- * 12 October 2026: every installed effect module its own id; 32 until the DSP tables move). At most 128: stock
+ * How many effect ids the base handles, and sets of them (docs/OCTATRACK_MORE_EFFECT_IDS.md; owner, 12 October 2026:
+ * every installed effect module its own id). build_core.py builds 128; 32 is the host tests' default. At most 128: stock
  * reads the Part's id as a signed byte. Every per-id array and mask in the base is sized by
  * MODWERK_FX_IDS, and an id is checked against it, never masked: `id & 31` would run id 33 as id 1.
  * A set is words of 32 bits, so nothing needs 64-bit shifts (no libgcc on the unit). */

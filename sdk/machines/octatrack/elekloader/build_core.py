@@ -100,8 +100,8 @@ DSP_ALLOWANCE = (3120, 3565)
 # The dearest stock effect per slot, chip cycles: DJ EQUALIZER, 342 a sample on the same unit (its 331 executed
 # instructions in the emulator, stock_dsp_worst.py, run at about one a cycle). Every slot without a module is charged it.
 DSP_RESERVE = 342
-# Effect ids the base handles (fxids.h MODWERK_FX_IDS; 128 is the plan, docs/OCTATRACK_MORE_EFFECT_IDS.md).
-FX_IDS = 32
+# Effect ids the base handles (fxids.h MODWERK_FX_IDS; docs/OCTATRACK_MORE_EFFECT_IDS.md). 32 only to bisect.
+FX_IDS = 128
 VALIDATOR_CLAMPS = (0x400023b6, 0x400023bc, 0x400023de, 0x400023e4)  # the Part validator's moveq #31, FX1 then FX2
 FX_WORDS = (FX_IDS + 31) // 32
 # Modules installed at once and their memory (loader.h; owner, 12 October 2026: up to 128 modules). About 5 KB a
@@ -693,9 +693,9 @@ def main():
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
                         help='with --dsp-loader, calibration only: core 0\'s receiver spends this many more cycles (2-4094, even) every frame; negative, core 1\'s.')
-    parser.add_argument('--fx-ids', type=int, choices=(32, 128), default=32,
-                        help='with --dsp-loader, development only: the base\'s effect ids (fxids.h, the dispatch and chooser tables). '
-                             '128 is the plan (docs/OCTATRACK_MORE_EFFECT_IDS.md), not yet qualified on the unit.')
+    parser.add_argument('--fx-ids', type=int, choices=(32, 128), default=128,
+                        help='with --dsp-loader: the base\'s effect ids (fxids.h, the dispatch and chooser tables; '
+                             'docs/OCTATRACK_MORE_EFFECT_IDS.md). 32, the old width, only to bisect a fault.')
     args = parser.parse_args()
     global FX_IDS, FX_WORDS
     FX_IDS, FX_WORDS = args.fx_ids, (args.fx_ids + 31) // 32
