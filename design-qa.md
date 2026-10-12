@@ -40,7 +40,7 @@ Playwright verified desktop click-to-seek/play without navigation; thumbnail-onl
 
 Public uploads were additionally verified through a real local Cloudflare Worker, D1 and R2 binding: upload, lost-response retry without duplication, refresh persistence, username/caption listing, card playback of stored bytes, Digitakt detail upload, mobile form/gallery layout, visitor sign-in gating and owner removal after refresh. No runtime page errors occurred. Backend tests cover verified membership, permission, captions, audio signatures, byte/request limits, byte ranges, owner/admin removal, storage failures, pending cleanup and deleted/suspended contributors. Evidence is in `public-upload-verification.json`.
 
-`npm run check -- --base origin/main` passed with the upload backend: 235 test files, 1767 tests, lint, TypeScript, SDK/contract checks and production build. The production bundle excludes the synthetic fixtures and local submission prototype; public submission uses the persisted API.
+`npm run check -- --base origin/main` passed after integrating the latest main changes: 235 test files, 1775 tests, lint, TypeScript, SDK/contract checks and production build. The production bundle excludes the synthetic fixtures and local submission prototype; public submission uses the persisted API.
 
 ## Implementation checklist and limits
 

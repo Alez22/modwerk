@@ -5,6 +5,7 @@
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.
 - Verified members can upload public audio previews with credits and optional captions. The renamed Previews tab lists submitted recordings with usernames and captions; contributors and administrators can remove them. Uploads use the existing media bucket with file/request limits, retry protection and account-deletion cleanup. Synthetic recordings remain development-only.
 
+- Prepared a fresh Discord invitation round with the existing announcement wording and link. Previous account and browser invitations no longer block this resend; each account or visitor browser receives the new round once. New signups still receive Discord inline in their welcome. Publication follows deployment through the admin announcement form.
 - Bundled followed module releases into a daily digest, showing only the latest pending version and its changelog for each module. Replies and messages keep their chosen activity interval; existing follows, opt-outs and bell history are retained.
 
 - Allowed up to 30 seconds for deployment release synchronization so a successful inventory fanout is not mistaken for a ten-second timeout. Existing idempotent retries, recipient preferences and digest processing remain in place.
