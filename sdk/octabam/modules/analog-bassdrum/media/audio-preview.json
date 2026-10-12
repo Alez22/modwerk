@@ -1,13 +1,22 @@
 {
   "file": "media/audio-preview.mp3",
-  "sha256": "5d7fd5b3e52cbec420f003afef317081c6cbb241407fc36bbc7e97a17931b4bb",
-  "seconds": 10.2,
-  "moduleVersion": "0.1.5-experimental",
-  "method": "Offline render on a computer: the module's DSP built into a private OS 1.40C image and run in dsp_host (Mini Verb, E-Verb, Air Chorus, TapeHead), its fixed-point C engine built natively (Tape Echo), or its 808/909 DSP engines in bd909_host (Analog BD). Not recorded on an Octatrack; no firmware or image is included.",
-  "sample": null,
+  "sha256": "1760bf3103b7a99f3bc929923345c76555f036268e5424c9567d5a7d5bb78773",
+  "seconds": 13.799274,
+  "encoding": {
+    "format": "MP3",
+    "sampleRateHz": 44100,
+    "channels": 2,
+    "bitrateKbps": 192,
+    "decodedPeakDbfs": -1.522,
+    "fadeInMs": 5,
+    "passFadeOutMs": 200,
+    "gapSeconds": 0.25,
+    "loudnessMatch": "common gain",
+    "matchWindowSeconds": null,
+    "limiter": false
+  },
   "passes": [
     {
-      "start": 0.0,
       "engine": "808",
       "label": "808 default",
       "knobs": [
@@ -23,10 +32,16 @@
         64,
         64,
         0
-      ]
+      ],
+      "seconds": 2.0,
+      "pcmSha256": "e634997e30a630a53839df6696872e1c46c4757761122128c0ff7c7ffed05434",
+      "generatedCodeSha256": "e3cdd2fda34404df63002c452c6a0c662877bc1eeb7a3ec6cfca25ce79e3218e",
+      "start": 0.0,
+      "duration": 1.999819,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -3.666
     },
     {
-      "start": 2.4,
       "engine": "808",
       "label": "808 low and long",
       "knobs": [
@@ -42,12 +57,18 @@
         64,
         64,
         0
-      ]
+      ],
+      "seconds": 3.8,
+      "pcmSha256": "7ba4744402fa7bad396b4bf440013f779f793ea022704f78c0d1eccbd1cd81c2",
+      "generatedCodeSha256": "e3cdd2fda34404df63002c452c6a0c662877bc1eeb7a3ec6cfca25ce79e3218e",
+      "start": 2.249819,
+      "duration": 3.799728,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -3.666
     },
     {
-      "start": 4.8,
       "engine": "909",
-      "label": "909 default",
+      "label": "909 direct and clean",
       "knobs": [
         64,
         32,
@@ -57,30 +78,120 @@
         0,
         1,
         100,
-        127,
+        0,
         64,
         64,
         0
-      ]
+      ],
+      "seconds": 1.8,
+      "pcmSha256": "766b250635aa7ca67b2bd729f665c1b9024b5ef437a743ba5dee170e08da796e",
+      "generatedCodeSha256": "6f082854aba7e215a5dee050fcd74173f22d8b1e8b7ba55e1dd23118ea4eded1",
+      "start": 6.299546,
+      "duration": 1.799909,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -0.539
     },
     {
-      "start": 7.2,
       "engine": "909",
-      "label": "909 hard attack, drive",
+      "label": "909 attack and drive",
       "knobs": [
         64,
-        20,
+        28,
         64,
         100,
         100,
-        50,
+        55,
         1,
         100,
-        127,
+        0,
         64,
         64,
         0
-      ]
+      ],
+      "seconds": 1.8,
+      "pcmSha256": "d1a58890c542542d54a68ff834c8f3e9c8067544114114f0543755c217d00732",
+      "generatedCodeSha256": "6f082854aba7e215a5dee050fcd74173f22d8b1e8b7ba55e1dd23118ea4eded1",
+      "start": 8.349456,
+      "duration": 1.799909,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -0.546
+    },
+    {
+      "engine": "909",
+      "label": "909 long body",
+      "knobs": [
+        52,
+        100,
+        64,
+        24,
+        32,
+        0,
+        1,
+        100,
+        0,
+        64,
+        64,
+        0
+      ],
+      "seconds": 3.4,
+      "pcmSha256": "82a8465581962ba6956b0dd3ba7cd8dd14f2cb41d4d3f1ea4999bffcb2f40748",
+      "generatedCodeSha256": "6f082854aba7e215a5dee050fcd74173f22d8b1e8b7ba55e1dd23118ea4eded1",
+      "start": 10.399365,
+      "duration": 3.399909,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -0.944
     }
-  ]
+  ],
+  "validation": {
+    "nonzeroAudio": true,
+    "decodedPeakBelowMinus1Dbfs": true,
+    "final50msPeakDbfs": -240.0,
+    "clippedSamples": 0
+  },
+  "schemaVersion": 2,
+  "moduleId": "analog-bassdrum",
+  "moduleVersion": "0.1.5-experimental",
+  "rendered": "2026-10-12",
+  "sourceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
+  "limitations": [
+    "Offline emulator/native render, not a physical Octatrack recording or new hardware/performance qualification."
+  ],
+  "sourceFilesSha256": {
+    "ab_glue.asm": "c78dc31dfcfc7a0c6f10ae24b39744a88bed5211346bcae4f6931e2e6489223c",
+    "bd808.asm": "e7306bd284e9bca067cffc54dcbfb18ae7a0fc7b3a27253a246e58898ae9ee92",
+    "bd909.asm": "9c86c3bd06e95a998fbe4e0db5a05b9ff65e988686c81f98f6d6c9f4c3b8ee2f",
+    "control.c": "29f392c7e007aaa695076eff0c897729a941676ff582e4bb17957074d56ceac5",
+    "control.s": "644f10fbc534d8351424e55ee96c2d0ff2f39a1b691ad8a695422d1c05e37a3f",
+    "dsp808.py": "3d61ba9c258c319d90d7beb47f6cbc7dafb7336c49d8386912478d284cef603d",
+    "dsp909.py": "d31d2fd1340e9c5055389a37f20959ebccd78d45636daec824ae3e1e84f4d67d",
+    "engine.c": "9ed63ee4348aa470eb592506d7bda1e36a48e4fa56d39b4ccad2223bd2e5fda0",
+    "engine.h": "61bc45ef955db23b8f25eb5b0c6bd3dd01d9f71df7933d466845bb30e7c67a2b",
+    "engine.s": "c86a6ac24326fb52f71dd766b1ccc25e5dfd8511028b162459447c279da48425",
+    "generate.py": "62c5e6eca1df9179229c1b1de419114e3162813f99724dc9b40fa29c84191b88",
+    "machine.s": "90f9ddb5c2a4cee47e0334c3cd35a7e92d42b0ee37eb3bbc8062cc7821e6aeb4",
+    "manifest.py": "20fa1f744630354b3986a3ad82ac6a41744345796dc783891a4c9f0bd81c787e",
+    "tables.inc": "baec565139910e89e12563272f9f8ef934845ddd98f90d8234be15873571e01d",
+    "fit909.json": "6917d613b5033069f226b9f6a440f6eefd935e596452546d5bc27b73c5e3dd08"
+  },
+  "method": "Offline render of the released 808/909 DSP engines in bd909_host, assembled by the existing bd808.build()/bd909.build() harnesses from the current module source. One trig per fresh engine, at sample 32. A single common gain preserves patch-level differences. Not a hardware recording; no external drum samples or reference recordings are included.",
+  "sample": null,
+  "harness": {
+    "name": "bd909_host",
+    "sourceSha256": "1c25ff9be510d6941efe504a6eae7ebbcd9028a555a2b8c160290fcf02ad3195",
+    "framesPerBlock": 16,
+    "knobOrder": [
+      "PITCH",
+      "DECAY",
+      "TONE/TUNE",
+      "ATK",
+      "SWEEP/TDEP",
+      "SAT",
+      "MODEL",
+      "ACCNT",
+      "LPF",
+      "LOW",
+      "HIGH",
+      "unused"
+    ]
+  }
 }
