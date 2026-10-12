@@ -15,6 +15,7 @@ static void put(unsigned char *p,uint32_t value)
 static int read_target(void *ctx,uint32_t at,void *out,uint32_t bytes)
 {
  (void)ctx;reads++;
+ if(at>=0x48000400u&&at<0x4ff00000u)at-=0x08000000u;
  if(at>=OLD&&at<OLD+4096) {old_reads++;return 0;}
  if(at==fail_at)return 0;
  if(at>=CACHE&&at-CACHE<=sizeof(cache)&&bytes<=sizeof(cache)-(at-CACHE))memcpy(out,cache+at-CACHE,bytes);
@@ -33,6 +34,10 @@ int main(void)
  /* Every cache halfword and chunk boundary is tested, including the end. */
  for(unsigned at=0;at+4<=sizeof(cache);at+=2){reset();put(cache+at,OLD+12);assert(scan()==MACHINE_RETAINED);}
  reset();put(root,OLD+12);assert(scan()==MACHINE_RETAINED);
+ reset();put(root,OLD+0x08000000u+12);assert(scan()==MACHINE_RETAINED);
+ reset();put(root,DATA+0x08000000u);assert(scan()==MACHINE_CLEAR);
+ reset();put(root,DATA+0x08000000u);put(data,DATA);assert(scan()==MACHINE_UNKNOWN);
+ reset();put(root,OLD+12);assert(machine_ui_lifetime(read_target,0,OLD+0x08000000u,OLD+0x08000000u+4096)==MACHINE_RETAINED);assert(old_reads==0);
  reset();put(root,DATA);put(data,OLD+4);assert(scan()==MACHINE_RETAINED);
  reset();put(root,DATA);put(data+12,OLD+4);assert(scan()==MACHINE_RETAINED);
  reset();put(cache+12,DATA);put(data+12,OLD+4);assert(scan()==MACHINE_RETAINED);

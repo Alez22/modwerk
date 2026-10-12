@@ -24,20 +24,24 @@ struct scanner {
 };
 static uint32_t be32(const uint8_t *p)
 { return (uint32_t)p[0]<<24 | (uint32_t)p[1]<<16 | (uint32_t)p[2]<<8 | p[3]; }
+static uint32_t physical(uint32_t p)
+{ return p>=READ_LO+0x08000000u && p<READ_HI+0x08000000u?p-0x08000000u:p; }
 static int owns(const struct scanner *s, uint32_t p)
-{ return p>=s->lo && p<s->hi; }
+{ p=physical(p);return p>=s->lo && p<s->hi; }
 static int bytes(struct scanner *s, uint32_t at, uint8_t *out, uint32_t n)
 {
-    if (at<s->hi && (uint64_t)at+n>s->lo) return MACHINE_RETAINED;
-    if ((at&1u) || at<READ_LO || n>READ_HI-at || at>=READ_HI) return MACHINE_UNKNOWN;
+    uint32_t p=physical(at);
+    if (p<s->hi && (uint64_t)p+n>s->lo) return MACHINE_RETAINED;
+    if ((at&1u) || p<READ_LO || p>=READ_HI || n>READ_HI-p) return MACHINE_UNKNOWN;
     return s->read(s->context,at,out,n)?MACHINE_CLEAR:MACHINE_UNKNOWN;
 }
 static int enqueue(struct scanner *s, uint32_t at)
 {
     if (!at) return MACHINE_CLEAR;
     if (owns(s,at)) return MACHINE_RETAINED; /* before every possible dereference */
-    if ((at&1u) || at<READ_LO || at>READ_HI-NODE_BYTES) return MACHINE_UNKNOWN;
-    for (uint32_t i=0;i<s->count;i++) if (s->nodes[i].address==at) return MACHINE_CLEAR;
+    uint32_t p=physical(at);
+    if ((at&1u) || p<READ_LO || p>READ_HI-NODE_BYTES) return MACHINE_UNKNOWN;
+    for (uint32_t i=0;i<s->count;i++) if (physical(s->nodes[i].address)==p) return MACHINE_CLEAR;
     if (s->count==NODE_LIMIT) return MACHINE_UNKNOWN;
     s->nodes[s->count++]=(struct node){at,{0,0}};
     return MACHINE_CLEAR;
@@ -71,7 +75,7 @@ static int cycles(const struct scanner *s, unsigned edge)
         for (uint32_t steps=0;at;steps++) {
             if (steps>=s->count) return MACHINE_UNKNOWN;
             uint32_t k=0;
-            while (k<s->count && s->nodes[k].address!=at) k++;
+            while (k<s->count && physical(s->nodes[k].address)!=physical(at)) k++;
             if (k==s->count) return MACHINE_UNKNOWN;
             at=s->nodes[k].next[edge];
         }
@@ -82,6 +86,9 @@ int machine_ui_lifetime(machine_memory_read read, void *context, uint32_t old_lo
 {
     if (!read || old_hi<old_lo) return MACHINE_UNKNOWN;
     if (old_hi==old_lo) return MACHINE_CLEAR;
+    uint32_t length=old_hi-old_lo,lo=physical(old_lo);
+    if (lo<READ_LO || lo>=READ_HI || length>READ_HI-lo) return MACHINE_UNKNOWN;
+    old_lo=lo;old_hi=lo+length;
     struct scanner s;
     s.read=read;s.context=context;s.lo=old_lo;s.hi=old_hi;s.count=0;s.definitions=0;
     uint8_t block[32];
