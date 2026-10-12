@@ -127,11 +127,6 @@ export async function closeGithubReport(config: GithubConfig, number: number, re
   await setGithubIssueState(config, number, 'closed', 'not_planned')
 }
 
-/** Everyone GitHub should notify: the module author and its declared maintainers. */
-function moduleOwners(moduleId: string, author: string) {
-  return [author, ...(communityModule(moduleId)?.maintainers ?? [])]
-}
-
 type IssueRow = { id: string; module_id: string; scope: 'module' | 'configuration'; author_login: string; title: string; reporter: string | null; github_state: string; public_json: string | null }
 
 /**
@@ -150,7 +145,7 @@ export async function mirrorIssue(db: Database, env: Env, id: string, stale = fa
   if (!await db.prepare("UPDATE issues SET github_state='syncing',github_error='' WHERE id=? AND github_state IN " + claimable + " RETURNING id").bind(id).first()) return { state: row.github_state as 'synced' | 'syncing' }
   try {
     const moduleIds = row.scope === 'configuration' ? (await db.prepare('SELECT module_id FROM issue_modules WHERE issue_id=? ORDER BY rowid').bind(id).all<{ module_id: string }>()).results.map(item => item.module_id) : undefined
-    const owners = moduleIds ? configurationOwners(moduleIds.map(moduleId => ({ id: moduleId }))) : moduleOwners(row.module_id, row.author_login)
+    const owners = moduleIds ? configurationOwners(moduleIds.map(moduleId => ({ id: moduleId }))) : (communityModule(row.module_id)?.maintainers ?? [])
     const created = await createGithubIssue(config, { id: row.id, module_id: row.module_id, scope: row.scope, moduleIds, title: row.title, reporter: row.reporter, owners, details: JSON.parse(row.public_json) as PublicBugDetails }, env.APP_URL)
     await db.prepare("UPDATE issues SET github_state='synced',github_number=?,github_url=?,github_error='' WHERE id=?").bind(created.number, created.url, id).run()
     return { state: 'synced' as const, url: created.url }
