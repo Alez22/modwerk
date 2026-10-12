@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { saveFirmware } from '../config/firmware-filename'
-import { OctatrackDiagnosticsSettings } from './OctatrackDiagnostics'
 import { finishBaseInstall, pendingBaseInstall, waitForBaseInstall } from '../config/octatrack-progress'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
@@ -109,6 +108,9 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   const [pending, setPending] = useState(pendingBaseInstall)
   const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>(pending ? 'done' : 'idle'), [failure, setFailure] = useState('')
   const [view, setView] = useState<'intro' | 'steps'>(launch && !pending ? 'intro' : 'steps')
+  const [stage, setStage] = useState<'download' | 'copy' | 'install' | 'connect'>(pending ? 'connect' : 'download')
+  const stages = ['download', 'copy', 'install', 'connect'] as const
+  const stageIndex = stages.indexOf(stage)
   const found = !!pending && state.status === 'ready' && !!state.identity?.canSubmit && state.identity.base === pending.expectedBase
   const canClose = hold === 0 || found
   useEffect(() => {
@@ -120,7 +122,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     element?.showModal(); element?.querySelector('h2')?.focus()
     return () => { element?.close(); if (previousFocus instanceof HTMLElement) previousFocus.focus() }
   }, [])
-  useEffect(() => { dialog.current?.querySelector('h2')?.focus(); dialog.current?.scrollTo(0, 0) }, [view])
+  useEffect(() => { (dialog.current?.querySelector<HTMLElement>('[data-stage-title]') ?? dialog.current?.querySelector('h2'))?.focus(); dialog.current?.scrollTo(0, 0) }, [view, stage])
   useEffect(() => {
     if (!hold) return
     const timer = window.setTimeout(() => setHold(hold - 1), 1000)
@@ -133,11 +135,10 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       const image = await buildBase!(); saveFirmware(image.buffer, 'base', image.sha256)
       const previousBase = link.getState().identity?.base
       waitForBaseInstall(image.sha256, image.base, previousBase, returnSetId)
-      setPending({ sha256: image.sha256, expectedBase: image.base, previousBase, returnSetId }); setDownload('done')
+      setPending({ sha256: image.sha256, expectedBase: image.base, previousBase, returnSetId }); setDownload('done'); setStage('copy')
     }
     catch (error) { console.error(error); setFailure(error instanceof Error ? error.message : ''); setDownload('failed') }
   }
-  const step = (done: boolean, number: number) => <span className="link-step-marker" aria-hidden="true">{done ? <Icon name="check" size={14} /> : number}</span>
 
   return <dialog ref={dialog} className="base-install-dialog" aria-labelledby="base-install-title" aria-describedby="base-install-intro" onCancel={event => { event.preventDefault(); if (canClose) finish() }} onClose={() => { if (!finished.current && !dialog.current?.open) onClose(false) }}>
     {canClose && <button type="button" className="icon-button base-install-close" aria-label="Close" onClick={finish}><Icon name="close" size={18} /></button>}
@@ -150,45 +151,55 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       {state.status === 'unsupported' && <p className="file-error" role="alert">This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.</p>}
     </> : <>
     <header className="base-install-header"><h2 id="base-install-title" tabIndex={-1}>Install the Modwerk base <span className="module-beta-badge">Beta</span></h2></header>
-    <p id="base-install-intro" className="base-install-intro">Install it once from the card, like an OS update. {launch && <button type="button" className="text-button" onClick={() => setView('intro')}>What’s new?</button>}</p>
-    <ol className="link-steps">
-      <li className={download === 'done' ? 'is-complete' : undefined}>{step(download === 'done', 1)}<div className="link-step-body">
-        <strong>Download the base</strong>
-        <p>Built in your browser from your original OS 1.40C file. Nothing is uploaded.</p>
-        {!firmwareReady && <><button type="button" className="button button-quiet" onClick={() => fileRef.current?.click()}><Icon name="file" size={16} />Choose your OS 1.40C file</button>
-          <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }} />
-          <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get it? <Icon name="arrow" size={14} /></a>
-          {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}</>}
-        <RiskAcceptance checked={accepted} onChange={setAccepted} />
-        <button type="button" className="button button-primary" disabled={!buildBase || !firmwareReady || !accepted || download === 'building'} onClick={() => void downloadBase()}><Icon name="download" size={16} />{download === 'building' ? 'Building the base…' : 'Download base .bin'}</button>
-        {!buildBase && <p className="link-hint">The browser can’t build the base yet.</p>}
-        {download === 'failed' && <p className="file-error" role="alert">The base could not be built. {failure || 'Check your OS file and try again.'}</p>}
-        {download === 'done' && <p className="link-hint" role="status">Download requested. Check your browser’s downloads folder.</p>}
-      </div></li>
-      <li>{step(false, 2)}<div className="link-step-body">
-        <strong>Copy it to the card</strong>
-        <p>Connect USB, open <b>PROJECT → SYSTEM → USB DISK MODE</b> and press <b>YES</b>. Copy the .bin to the top level of the card. Eject the drive on your computer before you leave USB DISK MODE.</p>
-      </div></li>
-      <li>{step(false, 3)}<div className="link-step-body">
-        <strong>Install it</strong>
-        <p>Open <b>PROJECT → SYSTEM → OS UPGRADE</b>, press <b>YES</b> and confirm. Keep the power on until the Octatrack has restarted.</p>
-      </div></li>
-      <li className={found ? 'is-complete' : undefined}>{step(found, 4)}<div className="link-step-body">
-        <strong>{pending ? 'Waiting for your Octatrack' : 'Check it'}</strong>
-        {found ? <p role="status">Confirmed the downloaded Modwerk base on your {state.identity!.model}. You can review your module set now.</p>
-          : state.status === 'unsupported' ? <p>Checking needs Chrome or Edge on a computer.</p>
-          : <><p role="status">Leave the USB cable in. Once the installed base reconnects, I’ll take you back to your module set.</p>{(state.status === 'idle' || state.status === 'stock') && <button type="button" className="button button-quiet" onClick={() => void link.connect()}>Connect Octatrack</button>}</>}
-      </div></li>
-    </ol>
-    <p className="link-hint">The original OS goes back on the same way. If the Octatrack doesn’t start, follow <a className="text-button" href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>.</p>
+    <p id="base-install-intro" className="base-install-intro">A one-time install from your Octatrack’s card.</p>
+    <ol className="base-install-progress" aria-label="Installation progress">{stages.map((item, index) => <li key={item} aria-current={stage === item ? 'step' : undefined} className={index < stageIndex ? 'is-past' : undefined}><span aria-hidden="true">{index < stageIndex ? <Icon name="check" size={13}/> : index + 1}</span>{['Download', 'Copy', 'Install', 'Connect'][index]}</li>)}</ol>
+    <section className="base-install-stage" aria-labelledby="base-stage-title">
+    {stage === 'download' && <>
+      <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Download the base</h3>
+      <p>I’ll build it in your browser from your original OS 1.40C file. Your firmware stays on your computer.</p>
+      <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }}/>
+      {firmwareReady ? <><p className="base-file-ready"><Icon name="check" size={18}/>Your OS 1.40C file is ready.</p><RiskAcceptance checked={accepted} onChange={setAccepted}/></> : <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get the original OS file? <Icon name="arrow" size={14}/></a>}
+      {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}
+      {download === 'failed' && <p className="file-error" role="alert">The base could not be built. {failure || 'Check your OS file and try again.'}</p>}
+      {state.status === 'unsupported' && <p className="base-install-note">You can prepare the base here. To connect and sync modules over USB afterwards, open Modwerk in Chrome or Edge on a computer.</p>}
     </>}
-    <OctatrackDiagnosticsSettings/>
+    {stage === 'copy' && <>
+      <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Copy the file to your card</h3>
+      <p>The download was requested. Find the Modwerk base .bin in your browser’s downloads.</p>
+      <ol className="base-instructions">
+        <li><strong>Open the Octatrack’s card on your computer</strong><p>Connect the USB cable. On the Octatrack, open <b>PROJECT → SYSTEM → USB DISK MODE</b> and press <b>YES</b>.</p></li>
+        <li><strong>Copy the downloaded .bin onto the card</strong><p>Put it at the top level, outside any folder.</p></li>
+        <li><strong>Eject the drive on your computer</strong><p>Then leave USB DISK MODE on the Octatrack.</p></li>
+      </ol>
+    </>}
+    {stage === 'install' && <>
+      <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Install it on your Octatrack</h3>
+      <ol className="base-instructions">
+        <li><strong>Open OS UPGRADE</strong><p>Go to <b>PROJECT → SYSTEM → OS UPGRADE</b>. Press <b>YES</b> and confirm.</p></li>
+        <li><strong>Keep the power on while it updates</strong><p>Wait until startup finishes, or the Octatrack explicitly asks you to restart.</p></li>
+        <li><strong>Follow the restart prompt, if shown</strong><p>Only then switch the Octatrack off and on again. Leave the USB cable connected.</p></li>
+      </ol>
+      <details className="base-install-recovery"><summary>If the Octatrack doesn’t start</summary><p>The original OS can be installed again. Follow <a href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>.</p></details>
+    </>}
+    {stage === 'connect' && <>
+      <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Waiting for your Octatrack</h3>
+      {state.status === 'unsupported' ? <><p>This browser can’t connect to USB devices.</p><p>Open Modwerk in <strong>Chrome or Edge on a computer</strong>, sign in and connect your Octatrack. The base you just installed stays on it.</p></> : <>
+        <p>Keep the USB cable connected. Choose your Octatrack in the browser’s device list.</p>
+        <p className="base-install-note" role="status">{found ? 'The downloaded base is confirmed. Returning to your module set…' : state.status === 'connecting' ? 'Connecting to your Octatrack…' : state.status === 'stock' || state.status === 'ready' ? 'The downloaded base hasn’t been confirmed yet. Finish the installation, then connect again.' : 'Once I recognise the installed base, I’ll take you back to your module set automatically.'}</p>
+        {state.notice && <p className="file-error" role="status">{state.notice.text}</p>}
+      </>}
+    </>}
+    </section>
+    </>}
     <footer className="base-install-footer">
-      <p className="link-hint">{found ? 'All set.' : 'You’ll find it again under Octatrack in the sidebar.'}</p>
-      <div className="base-install-actions">
-        <button type="button" className={'button ' + (found ? 'button-primary' : 'button-quiet')} disabled={!canClose} onClick={finish}>{found ? 'Done' : !launch ? 'Close' : hold ? `Later (${hold})` : 'Later'}</button>
-        {view === 'intro' && !found && <button type="button" className="button button-primary" onClick={() => setView('steps')}>Show me how<Icon name="arrow" size={16} /></button>}
-      </div>
+      {view === 'intro' ? <><p className="link-hint">You’ll find this guide under Octatrack.</p><div className="base-install-actions"><button type="button" className="button button-quiet" disabled={!canClose} onClick={finish}>{hold ? `Later (${hold})` : 'Later'}</button><button type="button" className="button button-primary" onClick={() => setView('steps')}>Show me how<Icon name="arrow" size={16}/></button></div></> : <>
+        <button type="button" className="button button-quiet" disabled={stageIndex === 0 && !canClose || download === 'building'} onClick={() => stageIndex ? setStage(stages[stageIndex - 1]) : finish()}>{stageIndex ? 'Back' : 'Close'}</button>
+        {stage === 'download' && (firmwareReady ? <button type="button" className="button button-primary" disabled={!buildBase || !accepted || download === 'building'} onClick={() => void downloadBase()}><Icon name="download" size={16}/>{download === 'building' ? 'Building the base…' : 'Download base .bin'}</button> : <button type="button" className="button button-primary" onClick={() => fileRef.current?.click()}><Icon name="file" size={16}/>Choose OS 1.40C file</button>)}
+        {stage === 'copy' && <button type="button" className="button button-primary" onClick={() => setStage('install')}>File copied <Icon name="arrow" size={16}/></button>}
+        {stage === 'install' && <button type="button" className="button button-primary" onClick={() => setStage('connect')}>Octatrack has started <Icon name="arrow" size={16}/></button>}
+        {stage === 'connect' && state.status !== 'unsupported' && <button type="button" className={'button ' + (pending ? 'button-primary' : 'button-quiet')} disabled={state.status === 'connecting' || found} onClick={() => void link.retry()}>{state.status === 'connecting' ? 'Connecting…' : 'Connect Octatrack'}</button>}
+        {stage === 'connect' && state.status === 'unsupported' && <button type="button" className="button button-quiet" disabled={!canClose} onClick={finish}>Close guide</button>}
+      </>}
     </footer>
   </dialog>
 }

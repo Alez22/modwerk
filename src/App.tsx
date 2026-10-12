@@ -97,7 +97,8 @@ const OctatrackStatus = lazy(() => beta().then(module => ({ default: module.Octa
 const OctatrackSidebarStatus = lazy(() => beta().then(module => ({ default: module.OctatrackSidebarStatus })))
 const OctatrackActivity = lazy(() => beta().then(module => ({ default: module.OctatrackActivity })))
 const BaseInstallDialog = lazy(() => beta().then(module => ({ default: module.BaseInstallDialog })))
-const OctatrackDiagnosticsCollector = lazy(() => beta().then(module => ({ default: module.OctatrackDiagnosticsCollector })))
+const OctatrackDiagnosticsCollector = lazy(() => import('./components/OctatrackDiagnostics').then(module => ({ default: module.OctatrackDiagnosticsCollector })))
+const DiagnosticsInvitationGate = lazy(() => import('./components/DiagnosticsInvitation').then(module => ({ default: module.DiagnosticsInvitationGate })))
 const BetaModuleSets = lazy(() => beta().then(module => ({ default: module.BetaModuleSets })))
 const FirmwareFeedbackPreview = import.meta.env.DEV ? lazy(() => import('./components/FirmwareFeedbackPreview')) : () => null
 const firmwareFeedbackPreview = import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'firmware-feedback'
@@ -148,7 +149,7 @@ export default function App() {
   // Loading a module set sends the site's packages (module-set.ts); the stress test is the base's own self-test.
   // Beta testers, verified administrators and dev builds get the migration's interface; everyone else gets main's.
   const betaUi = hasBetaUi(session), w = setWords(betaUi)
-  const usbAllowed = hasUsbLinkAccess(session, touchOnly) && !usbLinkPreview
+  const usbAllowed = hasUsbLinkAccess(session, touchOnly) && !usbLinkPreview && usbPreview !== 'diagnostics'
   const [unitKit, setUsbKit] = useState<{ link: OctatrackLink; prepareUpdate?: PrepareUpdate; readInventory?: ReadInventory; stressTest?: StressTest } | null>(null)
   useEffect(() => { if (import.meta.env.DEV && usbLinkPreview) void import('./dev/octatrack-link-fake').then(fake => setUsbKit(fake.previewKit())) }, [])
   useEffect(() => { if (usbAllowed && !unitKit) void beta().then(module => setUsbKit(kit => kit ?? module.createUsbKit())) }, [usbAllowed, unitKit])
@@ -159,7 +160,7 @@ export default function App() {
   const inventory = useInventory(usbLink, usbKit?.readInventory), missingOnUnit = useMissing(usbLink)
   const unitNeeds = useMemo(() => missingFromProject(missingOnUnit, MODULES.map(module => module.id)), [missingOnUnit])
   const [openModule, setOpenModule] = useState<string>()
-  const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(() => usbPreview === 'base-install' ? 'preview' : pendingBaseInstall() ? 'manual' : null)
+  const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(() => usbPreview === 'diagnostics' ? null : usbPreview === 'base-install' ? 'preview' : pendingBaseInstall() ? 'manual' : null)
   // The module set the guided load dialog is open for: the only way anything goes onto the unit.
   const [loadingSet, setLoadingSet] = useState<string | undefined>(() => pendingBaseInstall()?.returnSetId)
   // The guided load's Install from the card: the set page with the card install open.
@@ -396,7 +397,8 @@ export default function App() {
     </div><div className="configuration-checkout">{compatibilityPanel}<div className="checkout-card">{riskAcceptance}<MemberGate action="build firmware" next={route}>{firmwareBuildPanel}</MemberGate></div></div></div></CardInstall>} /></Suspense>
   return (
     <BetaUi.Provider value={betaUi}><OctatrackLinkContext.Provider value={usbLink ?? null}>
-      {betaUi && session.user?.verified && !usbLinkPreview && <Suspense fallback={null}><OctatrackDiagnosticsCollector memberId={session.user.id} link={usbLink ?? null} inventory={inventory}/></Suspense>}
+      {session.user?.verified && !usbLinkPreview && usbPreview !== 'diagnostics' && <Suspense fallback={null}><OctatrackDiagnosticsCollector memberId={session.user.id} link={usbLink ?? null} inventory={inventory}/></Suspense>}
+      {session.user?.verified && !usbLinkPreview && <Suspense fallback={null}><DiagnosticsInvitationGate key={session.user.id} memberId={session.user.id} eligible={hubRoute || configuration || machineView === 'configuration'} blocked={!!baseInstall || baseInstallPrompt.open || !!loadingTarget || !!openModule || !!configDialog || configurationsOpen || compareOpen || !!reportingConfiguration} preview={import.meta.env.DEV && usbPreview === 'diagnostics'}/></Suspense>}
     <div className={'app-shell' + (phoneLayout ? (libraryNav ? ' has-library-nav' : '') + (toolbarHidden ? ' is-toolbar-hidden' : '') + (libraryDock ? ' has-library-dock' : '') : '')}>
       <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus() }}>Skip to content</a>
       <aside className="sidebar" aria-label="App sidebar">

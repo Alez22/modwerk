@@ -90,7 +90,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
         {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
         {grid}
         {card}
-        <details className="hub-diagnostics"><summary>Beta diagnostics</summary><OctatrackDiagnosticsSettings/></details>
+        <details className="hub-diagnostics"><summary>Diagnostics</summary><OctatrackDiagnosticsSettings/></details>
       </section>
     </div>
   </div>
