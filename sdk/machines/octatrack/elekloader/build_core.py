@@ -683,11 +683,12 @@ def main():
                         help='Development base: drive and watch the unit over USB (dev.c) and stream MAIN/CUE as USB audio. Never for users.')
     parser.add_argument('--dsp-hook', choices=tuple(DSP_HOOK_EDITS), default='guard',
                         help="with --dsp-loader: the state-7 entry, guard (default); usbin, pretend, noflags, long: hardware bisect variants")
-    parser.add_argument('--dsp-probe', choices=('A', 'B', 'S', 'W', 'M'),
+    parser.add_argument('--dsp-probe', choices=('A', 'B', 'S', 'W', 'M', 'X'),
                         help='Hardware probe of the DSP loader (dsp_loader.PROBES): A delivery only, B answer only, '
                              'S stock DSP payloads (the ColdFire transport alone; nothing answers); '
                              'W full loader, but one word per upload packet to pinpoint a rejected word; '
-                             'M (emulator check) a wrong sum on the upload chunk at word 48, so the receiver keeps a record and the tick reads it.')
+                             'M (emulator check) a wrong sum on the upload chunk at word 48, so the receiver keeps a record and the tick reads it; '
+                             'X the full loader, and the receivers watch X:$7a92-$7fff for anything that writes it (dev request 26).')
     parser.add_argument('--dsp-loader', action='store_true',
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
@@ -802,7 +803,7 @@ def main():
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
                 raise ValueError('An FX selector no longer reads its chooser list at %#x.' % lea)
         dsp_sites, dsp_layout = loader_dsp.recipe(image, device, dsp, lambda path: sdk.dsp_assemble(path, str(source)), str(source),
-                                                  args.dsp_probe if args.dsp_probe in ('A', 'B') else None, args.dsp_burn)
+                                                  args.dsp_probe if args.dsp_probe in ('A', 'B', 'X') else None, args.dsp_burn)
         chooser_sites, chooser_lists = loader_dsp.choosers(image, FX_IDS)
         # The Part validator (0x40002318; bank load, battery restore) clears an id that reads negative and clamps one
         # above 31 to 31: four `moveq #31` (docs/OCTATRACK_MORE_EFFECT_IDS.md). Past 32 ids they clamp to the last.
@@ -919,7 +920,7 @@ modwerk_retained_end:
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
-                        '-Wall', '-Wextra', '-Werror', '-DMODWERK_FX_IDS=%du' % FX_IDS,
+                        '-Wall', '-Wextra', '-Werror', '-DMODWERK_FX_IDS=%du' % FX_IDS] + (['-DMODWERK_DSP_XWATCH'] if args.dsp_probe == 'X' else []) + [
                         '-DRUNTIME_MODULES=%du' % RUNTIME_MODULES, '-DRUNTIME_POOL_BYTES=%du' % RUNTIME_POOL_BYTES] + (['-DMODWERK_DEV'] if args.dev else []) + (
         ['-DMODWERK_DSP_LOADER', '-DMODWERK_DSP_ALLOWANCE0=%d' % DSP_ALLOWANCE[0], '-DMODWERK_DSP_ALLOWANCE1=%d' % DSP_ALLOWANCE[1],
          '-DMODWERK_DSP_RESERVE=%d' % DSP_RESERVE] +

@@ -422,6 +422,19 @@ volatile uint32_t modwerk_dsp_miss_bits, modwerk_dsp_miss[MISS_WORDS]; /* bits r
  * Read the same way, on request (the development METER request). */
 volatile int32_t modwerk_dsp_meter_core = -1;
 volatile uint32_t modwerk_dsp_meter_bits, modwerk_dsp_meter[MISS_WORDS];
+#ifdef MODWERK_DSP_XWATCH
+/* Probe X (dsp_loader.py PROBES['X']): the watch's four P words after the meter's window (changed, the first's address
+ * and value, passes), read on request (dev.c 26) ahead of the status page's meter reads, which never pause. */
+volatile int32_t modwerk_dsp_xwatch_core = -1;
+volatile uint32_t modwerk_dsp_xwatch_bits, modwerk_dsp_xwatch[4];
+static volatile int xwatch_wanted = -1;
+int modwerk_dsp_xwatch_read(unsigned core)
+{
+    if (core > 1 || xwatch_wanted >= 0) return 0;
+    xwatch_wanted = (int)core;
+    return 1;
+}
+#endif
 #ifndef MODWERK_HOST
 extern volatile uint32_t dl_rejected[2];
 static volatile int meter_wanted = -1;
@@ -451,12 +464,22 @@ static void peek_tick(void)
                 for (unsigned i = 0; i < MISS_WORDS; ++i) modwerk_dsp_miss[i] = 0;
                 peek_from = record[c] - 2u, peek_into = modwerk_dsp_miss, peek_bits = &modwerk_dsp_miss_bits, peek_words = MISS_WORDS;
             }
+#ifdef MODWERK_DSP_XWATCH
+        if (peeking < 0 && xwatch_wanted >= 0 && probing < 0 && dl_publication_idle() && dl_job_status((unsigned)xwatch_wanted) == -2) {
+            peeking = xwatch_wanted;
+            xwatch_wanted = -1;
+            modwerk_dsp_xwatch_core = peeking;
+            modwerk_dsp_xwatch_bits = 0;
+            for (unsigned i = 0; i < 4u; ++i) modwerk_dsp_xwatch[i] = 0;
+            peek_from = meter[peeking] + 7u, peek_into = modwerk_dsp_xwatch, peek_bits = &modwerk_dsp_xwatch_bits, peek_words = 4;
+        }
+#endif
         if (peeking < 0 && meter_wanted >= 0 && probing < 0 && dl_publication_idle() && dl_job_status((unsigned)meter_wanted) == -2) {
             peeking = meter_wanted;
             meter_wanted = -1;
             modwerk_dsp_meter_core = peeking;
             modwerk_dsp_meter_bits = 0;
-            for (unsigned i = 0; i < MISS_WORDS; ++i) modwerk_dsp_meter[i] = 0;
+            for (unsigned i = meter_first; i < meter_first + meter_words; ++i) modwerk_dsp_meter[i] = 0; /* only these: another read's stay */
             peek_from = meter[peeking] + meter_first, peek_into = modwerk_dsp_meter + meter_first;
             peek_bits = &modwerk_dsp_meter_bits, peek_words = meter_words;
         }

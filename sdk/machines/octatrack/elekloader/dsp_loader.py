@@ -49,6 +49,89 @@ PROBES = {
           '        move    r6,x:>$207              ; the instruction the hook displaced\n        rts\n'),
     'B': ('        move    r3,x:(r0+63)\n        move    x:(r0+2),a\n',
           '        move    #>0,x0\n        bra     reply\n        move    x:(r0+2),a\n'),
+    # X (docs/OCTATRACK_MORE_EFFECT_IDS.md step 1): is X:$7a92-$7fff, the planned home of the 128-id init and proc
+    # tables, free on the unit with every effect running? The full loader, and in each frame hook: first fill the
+    # region with its address xor $a5a5a5, 139 words a frame (10 frames, ending at $8000 exactly: the ESAI block is
+    # not touched), then check 8 words a frame in turn. P words after the meter's window count what differs, keep
+    # the first address and value that did, and the passes over the whole region (dsp.c reads them, dev.c 26).
+    'X': (('tallied:\n', '''tallied:
+        move    #>xwfillpos,r1             ; probe X: fill, then watch X:$7a92-$7fff
+        move    p:(r1),a
+        tst     a
+        bne     xwfrom
+        move    #>$7a92,a
+xwfrom:
+        cmp     #>$8000,a
+        bge     xwwatch
+        move    a1,r0
+        do      #139,xwfillend
+        move    r0,a
+        eor     #>$a5a5a5,a
+        move    a1,x:(r0)+
+xwfillend:
+        move    r0,p:(r1)
+        bra     xwdone
+xwwatch:
+        move    #>xwcursor,r1
+        move    p:(r1),a
+        tst     a
+        bne     xwat
+        move    #>$7a92,a
+xwat:
+        move    a1,r0
+        do      #<8,xwlooped
+        move    r0,a
+        eor     #>$a5a5a5,a
+        move    a1,x1
+        move    x:(r0),a
+        eor     x1,a                    ; Z from A1 only: zero when the word holds its pattern
+        beq     xwok
+        move    #>xwcount,r1
+        move    p:(r1),a
+        add     #>1,a
+        move    a1,p:(r1)+
+        move    p:(r1),a
+        tst     a
+        bne     xwok
+        move    r0,p:(r1)+              ; the first address that differed
+        move    x:(r0),x1
+        move    x1,p:(r1)               ; and what it held
+xwok:
+        move    (r0)+
+        move    r0,a
+        cmp     #>$8000,a
+        blt     xwnext
+        move    #>$7a92,r0
+        move    #>xwpasses,r1
+        move    p:(r1),a
+        add     #>1,a
+        move    a1,p:(r1)
+xwnext:
+        nop
+xwlooped:
+        move    #>xwcursor,r1
+        move    r0,p:(r1)
+xwdone:
+'''), ('idlepub:                            ; then the published window: serial, least, most, sum, missed\n        nop\n        nop\n        nop\n        nop\n        nop\n',
+       '''idlepub:                            ; then the published window: serial, least, most, sum, missed
+        nop
+        nop
+        nop
+        nop
+        nop
+xwfillpos:                                 ; probe X: the fill's next address (0 not started, $8000 done)
+        nop
+xwcursor:                               ; the watch's next address (0 not started)
+        nop
+xwcount:                                ; window words 7-10: words found changed, the first's address and value,
+        nop                             ; passes over the region
+xwfirst:
+        nop
+xwvalue:
+        nop
+xwpasses:
+        nop
+''')),
 }
 
 
@@ -64,8 +147,7 @@ def receiver_source(text, null, table_words, probe=None, burn=0, tag='A'):
         if text.count(CORE1_METER[0]) != 1:
             raise ValueError('The DSP receiver changed; review core 1\'s idle count.')
         text = text.replace(*CORE1_METER)
-    if probe:
-        old, new = PROBES[probe]
+    for old, new in ((PROBES[probe],) if probe and isinstance(PROBES[probe][0], str) else PROBES.get(probe) or ()):
         if text.count(old) != 1:
             raise ValueError('The DSP receiver changed; review probe %s.' % probe)
         text = text.replace(old, new)

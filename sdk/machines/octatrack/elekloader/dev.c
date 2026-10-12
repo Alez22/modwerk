@@ -192,6 +192,23 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 4;
     }
+#ifdef MODWERK_DSP_XWATCH
+    /* XWATCH (probe X bases): wValue core | 0x100 starts reading the X watch's words on that core (1 started, 0 busy:
+     * ask again); wValue core reads them back: the core read, bits read (96 done), changed, first, its value, passes. */
+    if (s[1] == 26 && s[2] <= 1u && s[3] <= 1u && want == (s[3] ? 1u : 24u)) {
+        extern volatile int32_t modwerk_dsp_xwatch_core;
+        extern volatile uint32_t modwerk_dsp_xwatch_bits, modwerk_dsp_xwatch[4];
+        int modwerk_dsp_xwatch_read(unsigned core);
+        if (s[3]) out[0] = (uint8_t)modwerk_dsp_xwatch_read(s[2]);
+        else {
+            uint32_t w[6] = {(uint32_t)modwerk_dsp_xwatch_core, modwerk_dsp_xwatch_bits, modwerk_dsp_xwatch[0], modwerk_dsp_xwatch[1],
+                             modwerk_dsp_xwatch[2], modwerk_dsp_xwatch[3]};
+            for (unsigned i = 0; i < 24u; ++i) out[i] = (uint8_t)(w[i / 4] >> (24 - 8 * (i % 4)));
+        }
+        *reply = out;
+        return s[3] ? 1 : 24;
+    }
+#endif
     if (s[1] == 13 && want == 1 && s[2] <= 1u && !s[3]) {
         out[0] = (uint8_t)modwerk_dsp_meter_read(s[2], 0, 5);
         *reply = out;

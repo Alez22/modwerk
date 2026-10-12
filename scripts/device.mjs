@@ -113,6 +113,11 @@ async function screen(png = values.png) {
 }
 /** RAM, read-only (dev.c MEM): at most 511 bytes, never a whole number of 64-byte packets. */
 async function mem(at, length) {
+  if (length > 448) { // one reply holds at most 511 bytes: read in pieces
+    const out = new Uint8Array(length)
+    for (let done = 0; done < length; done += 448) out.set(await mem(at + done, Math.min(448, length - done)), done)
+    return out
+  }
   const n = length % 64 ? length : length + 1
   await devIn(15, at >>> 16, 1)
   return (await devIn(16, at & 0xffff, n)).subarray(0, length)
@@ -121,7 +126,7 @@ async function mem(at, length) {
  * repoints at its own copies (dsp_loader.py choosers): FX1_IDS and FX2_IDS (id -> descriptor, its name at +9, then
  * a 0, which gives the id count) and FX1_ID2POS and ID2POS (id -> chooser row). */
 async function effectTables() {
-  const operand = async at => new DataView((await mem(at, 4)).buffer).getUint32(0)
+  const operand = async at => { const b = await mem(at, 4); return new DataView(b.buffer, b.byteOffset, 4).getUint32(0) }
   const [fx1, fx2, row1, row2] = [await operand(0x40052798), await operand(0x4005252a), await operand(0x40037aa8), await operand(0x4003770c)]
   const words = async (at, n) => { const b = await mem(at, 4 * n), v = new DataView(b.buffer, b.byteOffset, 4 * n); return Array.from({ length: n }, (_, i) => v.getUint32(4 * i)) }
   const first = await words(fx1, 129), count = first.indexOf(0) < 0 ? 128 : first.indexOf(0)
@@ -160,7 +165,8 @@ async function pick(track, slot, wanted) {
     if (ids[i] && Buffer.from(await mem(ids[i] + 9, 13)).toString('latin1').replace(/\0.*$/s, '').toLowerCase() === wanted.toLowerCase()) id = i
   if (id < 0) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
   await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
-  const move = rows[id] - new DataView((await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4)).buffer).getUint32(0) // the chooser's cursor (dsp.c)
+  const cursor = await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4)
+  const move = rows[id] - new DataView(cursor.buffer, cursor.byteOffset, 4).getUint32(0) // the chooser's cursor (dsp.c)
   if (move) await run(`encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100`) // LEVEL scrolls the chooser, a row a detent
   const refused = (await statusWords())(21), start = Date.now()
   await keys('YES')
@@ -243,6 +249,20 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
     else if (step === 'missing') console.log(await missing())
+    else if (step === 'xwatch') { // probe X bases (dev request 26): does anything write X:$7a92-$7fff? per core
+      for (const core of [1, 0]) {
+        for (const until = Date.now() + 10000; !(await devIn(26, 0x100 | core, 1))[0]; await wait(100))
+          if (Date.now() > until) throw new Error('An X watch read stayed queued for 10 s.')
+        let v
+        for (const until = Date.now() + 15000; ; await wait(200)) { // 96 PEEKs, a few seconds
+          const b = Buffer.from(await devIn(26, core, 24)); v = [0, 1, 2, 3, 4, 5].map(i => b.readUInt32BE(4 * i))
+          if (v[0] === core && v[1] >= 96) break
+          if (Date.now() > until) throw new Error('The X watch was not read within 15 s.')
+        }
+        console.log(`core ${core} (${core ? 'T1-4' : 'T5-8'}): ${v[5]} passes over X:$7a92-$7fff, ${v[2]} words found changed` +
+          (v[2] ? `, the first at X:$${v[3].toString(16)} holding $${v[4].toString(16).padStart(6, '0')} (expected $${(v[3] ^ 0xa5a5a5).toString(16).padStart(6, '0')})` : ''))
+      }
+    }
     else if (step === 'memory') { // MEMORY MAP (dev request 24): how full and how fragmented each memory is
       const pages = [Buffer.from(await devIn(24, 0, 276))] // then 32 packages a page until the base stalls (fxids.h)
       for (;;) { try { pages.push(Buffer.from(await devIn(24, pages.length, 276))) } catch { break } }

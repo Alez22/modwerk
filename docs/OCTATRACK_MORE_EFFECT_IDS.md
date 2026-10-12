@@ -115,7 +115,14 @@ Order, each step host-tested before the next:
 
 1. **On the unit:** prove the tables' new home in X (stock's unreferenced $7a92-$7fff in the $6000 block, not the
    ESAI block) free with every stock effect and module running: a probe base that fills it with a pattern and
-   reads it back over USB while effects change. The one step that needs the unit before the rest.
+   reads it back over USB while effects change. The one step that needs the unit before the rest. **Proven on the
+   owner's MKII (12 October 2026):** `build_core.py --dsp-probe X` makes each receiver fill X:$7a92-$7fff with its
+   address xor $a5a5a5 (139 words a frame, ending at $8000) and then check 8 words a frame, counting what changed
+   (dev request 26, `npm run device -- do xwatch`). With playback, `scripts/octatrack-xwatch.py` picked every
+   effect both choosers list on T1 (core 1) and T5 (core 0): 19 stock effects and seven modules (E-Verb, Euclid,
+   Air Chorus, TapeHead, Mini Verb, Spectrum, Modulation), 63 picks, 3 refused by the cycle ledger; then the
+   self-test ran all seven together. About 11,700 passes over the region on each core: no word changed, no loader
+   error, no crash or stall.
 2. **The base at N ids** behind `MODWERK_FX_IDS` (32 until step 5): the masks, sentinels and arrays above in
    dsp.c, fxmap.c (new magic), fxpage.c, status.c; MISSING and MEMORY MAP paged; the report's masks widened.
    With N = 32 this changes no behaviour, so the unit's runs so far stay valid. **Done (12 October 2026, S56):**
