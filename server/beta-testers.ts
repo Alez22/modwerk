@@ -19,6 +19,7 @@ export async function adminBetaTesterRoutes(request: Request, db: Database, path
   if (!member) throw new HttpError(404, 'Verified member not found.')
   await db.batch([
     db.prepare('UPDATE users SET beta_tester=? WHERE id=?').bind(Number(body.betaTester), member.id),
+    ...(!body.betaTester ? [db.prepare('DELETE FROM octatrack_diagnostic_events WHERE user_id=?').bind(member.id),db.prepare('UPDATE octatrack_diagnostic_consent SET enabled=0 WHERE user_id=?').bind(member.id)] : []),
     db.prepare('INSERT INTO forum_moderation(id,actor_id,target,action,reason) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), actorId, member.id, body.betaTester ? 'beta-tester:grant' : 'beta-tester:remove', reason),
   ])
   return response({ ok: true })

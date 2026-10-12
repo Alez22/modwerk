@@ -11,6 +11,22 @@ beforeEach(async()=>{
 })
 afterEach(()=>{vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllEnvs();vi.unstubAllGlobals()})
 describe('community read recovery',()=>{
+ it('binds private background requests to the account that started them',async()=>{
+  let token='a'.repeat(64)
+  const setItem=vi.fn()
+  vi.stubGlobal('localStorage',{getItem:()=>token,setItem})
+  const {scopedApi}=await import('./api'),client=scopedApi()
+  let finish:(value:Response)=>void=()=>{}
+  const fetch=vi.fn(()=>new Promise<Response>(resolve=>{finish=resolve}))
+  vi.stubGlobal('fetch',fetch)
+  const pending=client.request('/octatrack/diagnostics',{method:'POST',body:'{}'})
+  const rejected=expect(pending).rejects.toMatchObject({name:'AbortError'})
+  token='b'.repeat(64)
+  finish(Response.json({ok:true},{headers:{'X-Octamod-Session':'a'.repeat(64)}}));await rejected
+  expect(setItem).not.toHaveBeenCalled();expect(client.current()).toBe(false)
+  await expect(client.request('/octatrack/diagnostics')).rejects.toMatchObject({name:'AbortError'})
+  expect(fetch).toHaveBeenCalledTimes(1)
+ })
  it('keeps public reads free of saved credentials and preserves protected reads',async()=>{
   vi.stubGlobal('localStorage',{getItem:()=>'a'.repeat(64)})
   vi.stubGlobal('sessionStorage',{getItem:()=>'b'.repeat(64)})

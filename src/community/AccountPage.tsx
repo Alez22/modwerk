@@ -19,8 +19,11 @@ import { SUPPORT_MAILTO } from '../support'
 import { DeveloperVerification } from './DeveloperVerification'
 import { profileHref } from '../routing'
 import { GetStarted } from './GetStarted'
+import { useBetaUi } from './beta-ui'
+import { OctatrackDiagnosticsSettings } from '../components/OctatrackDiagnostics'
 type DeviceSession = { id:string; current:boolean; expires:number }
 function AccountContent({route}:{route:string}) {
+  const betaUi = useBetaUi()
   const {session,refresh,loading}=useCommunity(), [busy,setBusy]=useState(false), [error,setError]=useState(route.startsWith('account/sso-error')?(new URLSearchParams(route.split('?')[1]).get('reason')==='exists'?'An account with this email address already exists. Sign in with the method you used to create it (your email and password, or the social provider you first used).':'Social sign-in was not completed. Use your original sign-in method, or create an account if you are new.'):''), [message,setMessage]=useState(''), [devices,setDevices]=useState<DeviceSession[]|null>(null)
   const [path,query='']=route.split('?'),params=new URLSearchParams(query),next=safeNext(params.get('next'))
   const [,action='login',linkToken='']=path.split('/'), mode=['login','register','resend','forgot','verify','reset'].includes(action)?action:'login'
@@ -75,7 +78,7 @@ function AccountContent({route}:{route:string}) {
             <button className="button button-quiet" disabled={busy||(devices?.length??0)<2} onClick={()=>void endSessions(true)}>Sign out other sessions</button>
             {message&&<p className="success-note" role="status">{message}</p>}{error&&<p className="file-error" role="alert">{error}</p>}
           </section>
-          <AccountExport/><AccountRemovalRequest key={'removal-'+session.user!.id}/><AccountSettings key={'security-'+session.user!.id} section="security"/>
+          {betaUi && <OctatrackDiagnosticsSettings/>}<AccountExport/><AccountRemovalRequest key={'removal-'+session.user!.id}/><AccountSettings key={'security-'+session.user!.id} section="security"/>
         </>}
         {section==='developer'&&<DeveloperVerification route={route}/>}
       </div>

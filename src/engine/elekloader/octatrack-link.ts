@@ -7,7 +7,15 @@ import { runSelftest, waitUntilSaved } from './selftest.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { UploadDeviceError, UploadSession, UploadUnconfirmedError } from './upload-session.ts'
 import type { UploadResultName } from './upload-wire.ts'
-import { findVendorInterface, UsbVendorTransport, type ControlDevice, type MissingModule, type VendorIdentity } from './upload-usb.ts'
+import { findVendorInterface, UsbVendorTransport, type ControlDevice, type MissingModule, type SelftestRecord, type VendorIdentity } from './upload-usb.ts'
+import type { OctatrackDiagnostic, DiagnosticReading } from '../../community/octatrack-diagnostics-contract'
+
+export type LinkDiagnostic = Omit<OctatrackDiagnostic, 'id' | 'modules'>
+/** Numeric status fields only; exclude the device's free-text culprit name. */
+export function diagnosticReading(record: SelftestRecord): DiagnosticReading {
+  const {state,failed,modules,dsp,intact,ran,frameGap,saved,savedCount,live,culprit,refusal,peaks} = record
+  return {state,failed,modules,dsp,intact,ran,frameGap,saved,savedCount,live,culprit,refusal,cpu:peaks.cpu,tracks1to4:peaks.tracks1to4,tracks5to8:peaks.tracks5to8}
+}
 
 export const ELEKTRON_VENDOR_ID = 0x1935
 /** Well inside the base's 10 s quiet limit (sdk/runtime/upload/vendor.c mv_tick); any vendor request counts. */
@@ -120,6 +128,7 @@ export function webUsb(): LinkUsb | undefined {
 export class OctatrackLink {
   private state: LinkState
   private readonly listeners = new Set<() => void>()
+  private readonly diagnosticListeners = new Set<(event: LinkDiagnostic) => void>()
   private readonly usb?: LinkUsb | null
   private readonly connectSession: Connect
   private readonly stopWaitMs: number
@@ -145,6 +154,13 @@ export class OctatrackLink {
   }
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   readonly getState = () => this.state
+  readonly subscribeDiagnostics = (listener: (event: LinkDiagnostic) => void) => { this.diagnosticListeners.add(listener); return () => { this.diagnosticListeners.delete(listener) } }
+  private diagnostic(event: LinkDiagnostic['event'], fields: Partial<LinkDiagnostic> = {}) {
+    if (!this.diagnosticListeners.size) return
+    const {identity,active,status} = this.state
+    const reading: LinkDiagnostic = {event,phase:status,...(identity ? {base:identity.base} : {}),...(active ? {active} : {}),...fields}
+    for (const listener of this.diagnosticListeners) { try { listener(reading) } catch { /* Diagnostics never affect USB work. */ } }
+  }
   private set(state: LinkState) { this.state = state; for (const listener of this.listeners) listener() }
   private ready(notice?: LinkState['notice'], active = this.state.active) { this.set({ status: 'ready', identity: this.state.identity, active, notice }) }
 
@@ -180,6 +196,7 @@ export class OctatrackLink {
   private readonly onDisconnect: DeviceListener = ({ device }) => {
     if (device !== this.device) return
     const { status, module } = this.state, between = this.kept.length > 0
+    this.diagnostic('disconnected')
     this.stopKeepalive(); this.abort?.abort()
     this.device = this.index = this.transport = this.session = undefined
     this.kept = []
@@ -206,6 +223,7 @@ export class OctatrackLink {
         // HELLO is read-only; a base that cannot answer it still counts as ready.
         const active = identity.canSubmit ? await this.connectSession(this.transport, identity.base).then(s => s.status.active, () => undefined) : undefined
         this.set({ status: 'ready', identity, active })
+        this.diagnostic('connected')
       }
       catch { this.set({ status: 'ready', identity: undefined }) } // a Modwerk base this page does not speak
       finally { await this.release() }
@@ -251,6 +269,7 @@ export class OctatrackLink {
     const abort = this.abort = new AbortController(), total = changes.reduce((sum, change) => sum + change.data.length, 0)
     this.kept = []
     this.set({ status: 'sending', identity: this.state.identity, active: this.state.active, module, progress: 0 })
+    this.diagnostic('sync_started', {packages: changes.map(change => ({sha256:sha(change.data),bytes:change.data.length}))})
     let session: LinkSession | undefined, sent = 0
     try {
       session = this.session = await this.connectSession(this.transport!, base)
@@ -296,8 +315,10 @@ export class OctatrackLink {
   /** The base's self-test, as an update's stress test: null when it passed, else why not; progress while it runs. */
   selftest(): Promise<string | null> {
     if (!this.transport) return Promise.resolve('the Octatrack isn’t connected')
-    return runSelftest(this.transport, { signal: this.abort?.signal, startMs: this.stopWaitMs, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }) })
+    return runSelftest(this.transport, { signal: this.abort?.signal, startMs: this.stopWaitMs, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }), record: record => this.diagnostic('selftest', {reading:diagnosticReading(record)}) })
   }
+  /** Existing read-only status record; background diagnostics call this only after explicit consent. */
+  health(signal?: AbortSignal, allowed: () => boolean = () => true) { return this.read('diagnostic status', transport => transport.selftest(false), signal, allowed).then(record => record ? diagnosticReading(record) : undefined) }
   /** The modules the unit's project names that are not installed, while it is idle ([] from a base without MISSING);
    * undefined when it couldn't ask this round, so a poll keeps what it had. */
   async missing(): Promise<MissingModule[] | undefined> { return this.read('missing modules', transport => transport.missing()).then(list => list ?? [], () => undefined) }
@@ -306,16 +327,18 @@ export class OctatrackLink {
   inventory(): Promise<MissingModule[] | undefined> { return this.read('modules', transport => transport.inventory()) }
   /** A read-only request while the unit is idle: WebUSB sends an interface's requests only while it is claimed. It
    * skips the round (LinkBusyError) rather than wait long when another tab or a load holds the unit. */
-  private read<T>(what: string, request: (transport: UsbVendorTransport) => Promise<T>): Promise<T | undefined> {
+  private read<T>(what: string, request: (transport: UsbVendorTransport) => Promise<T>, signal?: AbortSignal, allowed: () => boolean = () => true): Promise<T | undefined> {
     const busy = (why: string, cause?: unknown) => {
       const error = new LinkBusyError(`Couldn’t read the Octatrack’s ${what} just now: ${why}.`, { cause })
       if (cause) console.warn(error.message, cause); else console.debug(error.message)
       return error
     }
-    return this.locks.request(LOCK, { signal: AbortSignal.timeout(READ_WAIT_MS) }, async () => {
+    const permitted = () => { signal?.throwIfAborted(); if (!allowed()) throw new DOMException('The diagnostic read was cancelled.', 'AbortError') }
+    return this.locks.request(LOCK, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(READ_WAIT_MS)]) : AbortSignal.timeout(READ_WAIT_MS) }, async () => {
+      permitted()
       if (!this.transport || this.state.status !== 'ready') throw busy('it isn’t idle (' + this.state.status + ')')
       if (!await this.claim()) throw busy('another app holds it', 'claim failed')
-      try { return await request(this.transport) } catch (error) { throw busy('the transfer failed', error) } finally { await this.release() }
+      try { permitted(); return await request(this.transport) } catch (error) { throw busy('the transfer failed', error) } finally { await this.release() }
     }).catch(error => { throw error instanceof LinkBusyError ? error : busy('another tab of the site or a load is using it') })
   }
   keep() { return this.finish(true) }
@@ -337,6 +360,7 @@ export class OctatrackLink {
         : lost.length ? { tone: 'error', text: 'Undone, except: ' + notPutBack(lost) }
         : { tone: 'success', text: keep ? `Kept. ${module} stays on your Octatrack, also after a restart.` : 'Undone. Your Octatrack is back to how it was.' },
         session.status.active)
+      this.diagnostic(keep && !unsaved ? 'kept' : !keep && !lost.length ? 'undone' : 'sync_failed', {...(unsaved ? {error:'save' as const} : lost.length ? {error:'rollback' as const} : {})})
     } catch (error) {
       // Playing blocks the stop that keep and undo need; the trial carries on until the user stops.
       if (unsafe(error) && session.connectionTrusted && session.status.phase === 'trial') {
@@ -362,6 +386,7 @@ export class OctatrackLink {
     }
     const why = error instanceof UploadDeviceError && error.status.result === 'rejected' ?
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal : undefined
+    this.diagnostic('sync_failed', {error: error instanceof UploadDeviceError ? 'device' : error instanceof StressTestFailure ? 'selftest' : error instanceof UploadUnconfirmedError ? 'transport' : error instanceof StaleLoadError ? 'stale' : error instanceof DOMException && error.name === 'AbortError' ? 'cancelled' : 'unknown', ...(error instanceof UploadDeviceError ? {result:error.status.result} : {}), ...(why !== undefined ? {refusal:why} : {})})
     // A set's changes kept before the failure are undone too, once the base is back to normal.
     let lost: string[] = [], between = false
     if (this.kept.length) {

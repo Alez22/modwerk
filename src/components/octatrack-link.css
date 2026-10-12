@@ -292,6 +292,13 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .load-undo { white-space: normal; overflow-wrap: anywhere; }
 .hub-last-sync { margin: -4px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .hub-last-sync b { color: var(--text-secondary); font-weight: 500; }
+.octatrack-diagnostics { margin: 20px 0; padding: 16px 0; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.6; }
+.octatrack-diagnostics h3 { margin: 0 0 6px; font-size: 15px; }
+.octatrack-diagnostics p { margin: 8px 0; }
+.octatrack-diagnostics .load-check { min-height: 44px; }
+.octatrack-diagnostics summary, .hub-diagnostics > summary { cursor: pointer; min-height: 44px; align-content: center; color: var(--muted); }
+.octatrack-diagnostics .text-button { min-height: 44px; }
+.diagnostic-json { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .load-change { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); }
 .load-change-name { flex: 1; min-width: 0; }
 .load-change strong { display: block; font-size: 14px; font-weight: 500; }

@@ -8,6 +8,7 @@ import { DEVICES_BY_ID } from '../devices/registry'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
 import { Icon } from './Icon'
+import { OctatrackDiagnosticsSettings } from './OctatrackDiagnostics'
 import { MissingNote, type ProjectNeeds } from './OctatrackUpdate'
 import './octatrack-link.css'
 
@@ -86,6 +87,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
         {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
         {grid}
         {card}
+        <details className="hub-diagnostics"><summary>Beta diagnostics</summary><OctatrackDiagnosticsSettings/></details>
       </section>
     </div>
   </div>

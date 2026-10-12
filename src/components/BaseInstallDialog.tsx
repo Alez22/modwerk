@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { saveFirmware } from '../config/firmware-filename'
+import { OctatrackDiagnosticsSettings } from './OctatrackDiagnostics'
 import { finishBaseInstall, pendingBaseInstall, waitForBaseInstall } from '../config/octatrack-progress'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
@@ -183,7 +184,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     </ol>
     <p className="link-hint">The original OS goes back on the same way. If the Octatrack doesn’t start, follow <a className="text-button" href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>.</p>
     </>}
-    <p className="link-hint">Please keep this page open and your Octatrack connected while you try the beta. If something goes wrong, use <b>Report a problem</b> to tell me. Device logs are only sent when you choose to share them.</p>
+    <OctatrackDiagnosticsSettings/>
     <footer className="base-install-footer">
       <p className="link-hint">{found ? 'All set.' : 'You’ll find it again under Octatrack in the sidebar.'}</p>
       <div className="base-install-actions">

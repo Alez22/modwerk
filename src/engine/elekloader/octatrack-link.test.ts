@@ -16,6 +16,16 @@ beforeEach(() => { vi.stubGlobal('navigator', {}) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('finding the unit', () => {
+  it('does not read diagnostic status if consent is withdrawn while claiming the interface', async () => {
+    const {unit,link}=await linked(),device=(await unit.usb.getDevices())[0]
+    const transfer=vi.spyOn(device,'controlTransferIn'),release=vi.spyOn(device,'releaseInterface')
+    let complete:()=>void=()=>{},allowed=true
+    vi.spyOn(device,'claimInterface').mockImplementationOnce(()=>new Promise<void>(resolve=>{complete=resolve}))
+    const controller=new AbortController(),reading=link.health(controller.signal,()=>allowed)
+    const cancelled=expect(reading).rejects.toBeInstanceOf(LinkBusyError)
+    await settle();allowed=false;controller.abort();complete();await cancelled
+    expect(transfer).not.toHaveBeenCalled();expect(release).toHaveBeenCalledTimes(1)
+  })
   it('reports a browser without WebUSB instead of offering a dead button', () => {
     expect(new OctatrackLink(undefined).getState().status).toBe('unsupported')
   })
