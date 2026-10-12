@@ -41,17 +41,17 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
         const { default: WaveSurfer } = await import('wavesurfer.js')
         if (cancelled) return
         const colors = getComputedStyle(player)
-        const height = variant === 'compact' || variant === 'dock' ? 40 : variant === 'card' ? 64 : 48
+        const height = variant === 'dock' ? 32 : variant === 'compact' ? 40 : variant === 'card' ? 64 : 48
         const instance = WaveSurfer.create({
           container: host, media: element, height,
           ...(peaks?.length && duration > 0 ? { peaks: [Array.from(peaks)], duration } : {}),
           waveColor: colors.getPropertyValue('--audio-wave').trim() || '#a0a0ac',
           progressColor: colors.getPropertyValue('--audio-accent').trim() || '#929bff',
           cursorWidth: 1, cursorColor: colors.getPropertyValue('--audio-accent').trim() || '#929bff',
-          // A strong upper signal and a quiet reflection share one seek baseline.
+          // Dock previews use a balanced waveform; forum players retain their reflection.
           renderFunction: (channels, context) => {
             const { width, height: canvasHeight } = context.canvas
-            const ratio = canvasHeight / height, baseline = canvasHeight * .7
+            const ratio = canvasHeight / height, baseline = canvasHeight * (variant === 'dock' ? .5 : .7)
             const barWidth = 2 * ratio, spacing = 4 * ratio, length = channels[0]?.length || 0
             if (!length || !width) return
             let maximum = 0
@@ -65,7 +65,7 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
               const reflection = Math.max(ratio, amplitude * (canvasHeight - baseline - 2 * ratio))
               context.globalAlpha = 1
               context.fillRect(x, baseline - top, barWidth, top)
-              context.globalAlpha = .3
+              context.globalAlpha = variant === 'dock' ? 1 : .3
               context.fillRect(x, baseline + ratio, barWidth, reflection)
             }
             context.globalAlpha = .2

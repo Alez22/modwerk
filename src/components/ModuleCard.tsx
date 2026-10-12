@@ -79,8 +79,8 @@ export function ModuleCard({ module, selected, statistics, viewedVersion, baseli
   const pending = selected ? undefined : block
   const trigger = useRef<HTMLButtonElement>(null)
   const prompt = useAddBlockPrompt(pending, trigger)
-  return <article className={'module-card ' + (selected ? 'is-selected' : '')} onPointerEnter={event => { if (clips.length && event.pointerType !== 'touch') setAudioReady(true) }} onFocus={() => { if (clips.length) setAudioReady(true) }}>
-    {clips[0] ? <ModuleAudioCardCover id={module.id} name={module.name} href={moduleHref(module.id)} onBrowse={onBrowse} inert={prompt.open} prepare={audioReady} clip={clips[0]}><ModulePreview id={module.id}/></ModuleAudioCardCover> : <a href={moduleHref(module.id)} onClick={onBrowse} onAuxClick={onBrowse} className="module-cover" aria-label={'View ' + module.name} inert={prompt.open}>
+  return <article className={'module-card ' + (selected ? 'is-selected' : '')}>
+    {clips[0] ? <ModuleAudioCardCover id={module.id} name={module.name} href={moduleHref(module.id)} onBrowse={onBrowse} inert={prompt.open} prepare={audioReady} onPrepare={() => setAudioReady(true)} clip={clips[0]}><ModulePreview id={module.id}/></ModuleAudioCardCover> : <a href={moduleHref(module.id)} onClick={onBrowse} onAuxClick={onBrowse} className="module-cover" aria-label={'View ' + module.name} inert={prompt.open}>
       <ModulePreview id={module.id} />
       <div className="hover-info"><span>{module.description}</span><strong>Explore module <Icon name="arrow" size={15} /></strong></div>
     </a>}
