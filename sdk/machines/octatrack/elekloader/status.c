@@ -160,7 +160,9 @@ static void missing_check(void)
     if (fx_any(fx_less(handles, missing_told)) && fx_same(handles, missing_last) && open == CLOSED && modwerk_modset_restored() &&
         modwerk_modset_result)
         open = MISSING, missing_top = 0, missing_asked = 0, missing_told = handles;
-    missing_told = fx_and(missing_told, handles); /* one that comes back and goes missing again is told again */
+    /* What the open page shows is told; one that comes back and goes missing again is told again. (Told only at the
+     * opening, ones added while it showed reopened it at once after NO, 12 October 2026.) */
+    missing_told = open == MISSING ? handles : fx_and(missing_told, handles);
     missing_last = handles;
 }
 /* The memory after a module loads (owner, 11 October 2026): picked onto a track, or accepted over USB. A box with

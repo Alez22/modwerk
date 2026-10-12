@@ -83,6 +83,9 @@ int main(void)
     missing_check(); CHECK(open == CLOSED);                            /* told already: it stays closed */
     listed = 6; missing_check(); CHECK(open == CLOSED);                /* a new one: not until it holds still */
     missing_check(); CHECK(open == MISSING);
+    listed = 7; missing_check(); missing_check();                      /* one more while it shows: it is on the page */
+    CHECK(modwerk_status_key(NO, 1) && open == CLOSED && modwerk_status_key(NO, 0));
+    missing_check(); missing_check(); CHECK(open == CLOSED);           /* so NO closes it for good (12 October 2026) */
     listed = 0; missing_check(); CHECK(open == CLOSED);                /* all installed: it closes */
     /* The memory box: after a pick that puts a module on one slot, or an accept; not after a Part change. */
     memory_tick();
