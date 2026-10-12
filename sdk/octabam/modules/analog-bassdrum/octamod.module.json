@@ -74,7 +74,7 @@
     {
       "path": "media/audio-preview.mp3",
       "captureType": "audio",
-      "caption": "Four-on-the-floor at 128 BPM: two bars of default 808 (0 s), four bars of 909 with Tune 0→127 (3.75 s), then four bars with built-in Mackie SAT 0→95 (11.25 s). Tune Depth stays at its default 64; only Tune and SAT sweep. 18.75 s, no added gaps, one common gain. Offline render through Analog BD 0.1.5's own DSP, not a physical Octatrack recording.",
+      "caption": "At 128 BPM: default 808 (0 s), 909 TUNE 0 (3.75 s) and 127 (5.625 s), slow TUNE 0→127 (7.5 s), built-in Mackie SAT 0→95 (15 s). Tune Depth stays at default 64, PITCH at 49 and 909 ATK at 0; only TUNE and SAT sweep. 22.5 s, no added gaps, one common gain. Offline render through Analog BD 0.1.5's own DSP, not a physical Octatrack recording.",
       "alt": "A steady 808 groove followed by slow 909 Tune and built-in Mackie saturation sweeps.",
       "credit": "Modwerk contributors (module-generated sound; no samples).",
       "license": "MIT (original audio; see media/LICENSE.md)",
