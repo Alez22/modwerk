@@ -247,6 +247,30 @@ static int claimed(unsigned position, uint32_t address, uint32_t n)
     return 0;
 }
 
+/* ABI 7: the `n` stock bytes at `address`, read from the running code (where the module this one replaces patches
+ * them, the bytes that module would put back), and whether the first `checked` stock bytes there (its guard, which
+ * may end before or after the n) hash to `digest`. No other live module patches the n. */
+static int stock_of(unsigned position, uint32_t address, uint32_t n, uint32_t checked, uint8_t *stock, const uint8_t *digest)
+{
+    const struct runtime_module *was = live[position];
+    uint8_t view[RUNTIME_SITE_BYTES], got[MU_DIGEST_BYTES];
+    uint32_t span = n > checked ? n : checked, lock = modwerk_machine_lock(), mask = modwerk_machine_mask();
+    const volatile uint8_t *now = modwerk_machine_code(address);
+    for (uint32_t j = 0; j < span; ++j) view[j] = now[j];
+    modwerk_machine_unmask(mask);
+    modwerk_machine_unlock(lock);
+    for (uint32_t k = 0; was && k < was->sites; ++k)
+        for (uint32_t j = 0, a; j < span; ++j)
+            if ((a = address + j) >= was->site[k].address && a < was->site[k].address + was->site[k].length)
+                view[j] = was->site[k].stock[a - was->site[k].address];
+    mu_sha256(view, checked, got);
+    for (uint32_t j = 0; j < n; ++j) stock[j] = view[j];
+    for (unsigned j = 0; j < MU_DIGEST_BYTES; ++j) if (got[j] != digest[j]) return 0;
+    return 1;
+}
+/* A site record's bytes: ABI 7 holds a SHA-256 of the stock bytes where earlier ABIs hold the bytes. */
+static uint32_t site_bytes(uint32_t abi, uint32_t n, uint32_t r) { return 8u + (abi == 7u ? MU_DIGEST_BYTES : n) + n + 2u * r; }
+
 static int enter(void *u) { (void)u; if (!modwerk_machine_stopped()) return 0; held = 1; return 1; }
 static int safe(void *u) { (void)u; return held && modwerk_machine_stopped(); }
 static int leave(void *u) { (void)u; held = 0; return 1; }
@@ -256,40 +280,55 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
     (void)u;
     candidate = 0; prepared = 0; refusal = RUNTIME_OK;
     if (length < 28u || data[0] != 'M' || data[1] != 'W' || data[2] != 'R' || data[3] != 'M' || be16(data + 4) < 3u ||
-        be16(data + 4) > 6u || be16(data + 6) & ~(be16(data + 4) == 6u ? 3u : 0u)) return refuse(RUNTIME_MALFORMED);
-    uint32_t abi = be16(data + 4), header = abi == 6 ? RUNTIME_HEADER_BYTES : abi == 5 ? 50u : abi == 4 ? 32u : 28u;
+        be16(data + 4) > 7u || be16(data + 6) & ~(be16(data + 4) >= 6u ? 3u : 0u)) return refuse(RUNTIME_MALFORMED);
+    uint32_t abi = be16(data + 4), header = abi == 7 ? RUNTIME_HEADER_BYTES : abi == 6 ? 68u : abi == 5 ? 50u : abi == 4 ? 32u : 28u;
     if (length < header) return refuse(RUNTIME_MALFORMED);
     uint32_t image = be32(data + 8), bss = be32(data + 12), count = be32(data + 16), hooks = be32(data + 20),
-             sites = be32(data + 24), id = abi > 3 ? be32(data + 28) : 0, end = image + bss, at = header + 4u * hooks;
+             sites = be32(data + 24), id = abi > 3 ? be32(data + 28) : 0, end = image + bss, at = header + 4u * hooks,
+             copies = abi == 7 ? be32(data + 68) : 0;
     struct runtime_dsp dsp = no_dsp;
     if (abi >= 5) {
         dsp.count = be32(data + 32); dsp.relocation_count = (uint16_t)be16(data + 36); dsp.id = data[38]; dsp.slots = data[39];
         dsp.init = (uint16_t)be16(data + 40); dsp.proc = (uint16_t)be16(data + 42); dsp.cycles = (uint16_t)be16(data + 44);
         dsp.kind = data[46]; dsp.state = data[47]; dsp.buffer = (uint16_t)be16(data + 48); dsp.module = id;
-        if (abi == 6) {
+        if (abi >= 6) {
             for (unsigned i = 0; i < 15u; ++i) dsp.name[i] = (char)data[50 + i];
             dsp.layout = (uint16_t)be16(data + 66);
             dsp.pinned = (uint8_t)(be16(data + 6) >> 1 & 1u);
         }
     }
     if (image > RUNTIME_IMAGE_BYTES || bss > RUNTIME_IMAGE_BYTES - image || hooks > RUNTIME_EVENTS ||
-        count > RUNTIME_RELOCATIONS || sites > RUNTIME_SITES || length < at + image + 4u * count) return refuse(RUNTIME_MALFORMED);
+        count > RUNTIME_RELOCATIONS || sites > RUNTIME_SITES || copies > RUNTIME_COPIES || length < at + image + 4u * count)
+        return refuse(RUNTIME_MALFORMED);
     const uint8_t *from = data + at, *relocation = from + image, *record = relocation + 4u * count, *p = record;
     uint32_t hook[RUNTIME_EVENTS], left = length - (at + image + 4u * count), address[RUNTIME_SITES], size[RUNTIME_SITES];
     for (uint32_t i = 0; i < RUNTIME_EVENTS; ++i) {
         hook[i] = i < hooks ? be32(data + header + 4u * i) : RUNTIME_NONE;
         if (hook[i] != RUNTIME_NONE && (hook[i] >= image || hook[i] & 1u)) return refuse(RUNTIME_MALFORMED);
     }
-    /* Sites: whole bounded records, patchable stock code, no overlaps. */
+    /* Sites: whole bounded records, patchable stock code, no overlaps. ABI 7: length u8; how many leading new bytes
+     * are the stock bytes (copied once the hash holds: an instruction keeping its opcode); how many stock bytes from
+     * the address the hash covers (the module's guard: bytes past it are read and put back as they are, and a guard
+     * may reach past the site, over an instruction the module returns to); relocations u8; the SHA-256. */
     for (uint32_t i = 0; i < sites; ++i) {
         if (left < 8u) return refuse(RUNTIME_MALFORMED);
-        uint32_t n = be16(p + 4), r = be16(p + 6);
+        uint32_t n = abi == 7u ? p[4] : be16(p + 4), keep = abi == 7u ? p[5] : 0u, checked = abi == 7u ? p[6] : n,
+                 r = abi == 7u ? p[7] : be16(p + 6);
         address[i] = be32(p); size[i] = n;
-        if (!n || n > RUNTIME_SITE_BYTES || (address[i] | n) & 1u || r > RUNTIME_SITE_RELOCATIONS ||
-            left - 8u < 2u * n + 2u * r || !modwerk_machine_patchable(address[i], n)) return refuse(RUNTIME_MALFORMED);
+        if (!n || n > RUNTIME_SITE_BYTES || (address[i] | n) & 1u || !checked || checked > RUNTIME_SITE_BYTES || keep > n || keep > checked ||
+            r > RUNTIME_SITE_RELOCATIONS || left < site_bytes(abi, n, r) || !modwerk_machine_patchable(address[i], n > checked ? n : checked))
+            return refuse(RUNTIME_MALFORMED);
         for (uint32_t j = 0; j < i; ++j)
             if (address[i] < address[j] + size[j] && address[j] < address[i] + n) return refuse(RUNTIME_MALFORMED);
-        p += 8u + 2u * n + 2u * r; left -= 8u + 2u * n + 2u * r;
+        left -= site_bytes(abi, n, r); p += site_bytes(abi, n, r);
+    }
+    /* ABI 7 stock copies: image offset u32, stock address u32, length u16, 0 u16, the bytes' SHA-256. The base reads
+     * them from its running stock code (a displaced instruction a module replays) and checks the hash. */
+    const uint8_t *copy = p;
+    for (uint32_t i = 0; i < copies; ++i, p += 12u + MU_DIGEST_BYTES, left -= 12u + MU_DIGEST_BYTES) {
+        uint32_t offset = be32(p), n = be16(p + 8);
+        if (left < 12u + MU_DIGEST_BYTES || !n || n > RUNTIME_SITE_BYTES || offset > image || n > image - offset ||
+            !modwerk_machine_patchable(be32(p + 4), n)) return refuse(RUNTIME_MALFORMED);
     }
     /* DSP code: 24-bit words; each relocation names a word holding an offset into them, in rising order. */
     const uint8_t *words = p, *dsp_relocation = p + 4u * dsp.count;
@@ -320,21 +359,31 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
         uint32_t base = (uint32_t)(uintptr_t)to;
         for (uint32_t i = 0; i < image; ++i) to[i] = from[i];
         for (uint32_t i = 0; i < bss; ++i) to[image + i] = 0;
-        /* Each word must point into the module; one listed twice no longer does. */
+        /* Each word must point into the module; one listed twice no longer does. ABI 7: rising and apart, and a word
+         * may hold any offset (address arithmetic, such as a label less a constant). */
         for (uint32_t i = 0; i < count; ++i) {
             uint32_t r = be32(relocation + 4u * i);
-            if (r & 1u || image < 4u || r > image - 4u || !relocate(to + r, end, base)) return refuse(RUNTIME_MALFORMED);
+            if (r & 1u || image < 4u || r > image - 4u || (abi == 7u ? i && r < be32(relocation + 4u * i - 4u) + 4u : !relocate(to + r, end, base)))
+                return refuse(RUNTIME_MALFORMED);
+            if (abi == 7u) put32(to + r, be32(to + r) + base);
+        }
+        for (uint32_t i = 0; i < copies; ++i) {
+            const uint8_t *c = copy + i * (12u + MU_DIGEST_BYTES);
+            if (!stock_of(slot, be32(c + 4), be16(c + 8), be16(c + 8), to + be32(c), c + 12)) return refuse(RUNTIME_STOCK);
         }
         p = record;
         for (uint32_t i = 0; i < sites; ++i) {
-            uint32_t n = size[i], r = be16(p + 6);
+            uint32_t n = size[i], r = abi == 7u ? p[7] : be16(p + 6), held = abi == 7u ? MU_DIGEST_BYTES : n, keep = abi == 7u ? p[5] : 0u;
             site[i].address = address[i]; site[i].length = n;
-            for (uint32_t j = 0; j < n; ++j) { site[i].stock[j] = p[8 + j]; site[i].code[j] = p[8 + n + j]; }
+            for (uint32_t j = 0; j < n; ++j) site[i].code[j] = p[8 + held + j];
+            if (abi != 7u) for (uint32_t j = 0; j < n; ++j) site[i].stock[j] = p[8 + j];
+            else if (!stock_of(slot, address[i], n, p[6], site[i].stock, p + 8)) return refuse(RUNTIME_STOCK);
+            for (uint32_t j = 0; j < keep; ++j) site[i].code[j] = site[i].stock[j];
             for (uint32_t j = 0; j < r; ++j) {
-                uint32_t o = be16(p + 8 + 2u * n + 2u * j);
-                if (o & 1u || n < 4u || o > n - 4u || !relocate(site[i].code + o, end, base)) return refuse(RUNTIME_MALFORMED);
+                uint32_t o = be16(p + 8 + held + n + 2u * j);
+                if (o & 1u || n < 4u || o > n - 4u || o < keep || !relocate(site[i].code + o, end, base)) return refuse(RUNTIME_MALFORMED);
             }
-            p += 8u + 2u * n + 2u * r;
+            p += site_bytes(abi, n, r);
         }
         modwerk_machine_invalidate_code();
         uint32_t *dsp_words = (uint32_t *)(void *)((uint8_t *)m + head + code);

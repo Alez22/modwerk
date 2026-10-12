@@ -3,6 +3,7 @@
  * at 0x1000, fake paused-task memory, and a mask the code accesses must hold.
  * Module code never runs. */
 #include "../loader.c"
+#include "../../upload/sha256.c"
 #include <stdio.h>
 #include <string.h>
 
@@ -85,6 +86,30 @@ static void dsp_words(uint32_t words, const uint16_t *reloc, uint32_t relocs)
     for (uint32_t i = 0; i < words; ++i) emit(0x0c0000u + i);
     for (uint32_t i = 0; i < relocs; ++i) put32(p + n - 4u * words + 4u * reloc[i], 1);
     for (uint32_t i = 0; i < relocs; ++i) emit16(reloc[i]);
+}
+/* ABI 7: the ABI 4 header grown to 72 bytes (no DSP code, a display name, `copies` stock copies). */
+static void begin7(uint32_t image, uint32_t tick, uint32_t sites, uint8_t fill)
+{
+    begin(image, 0, tick, 0, 0, sites, fill);
+    memmove(p + 72, p + 32, n - 32); n += 40; p[5] = 7;
+    memset(p + 32, 0, 40); memcpy(p + 50, "Tape Echo", 9); p[67] = 1;
+}
+/* An ABI 7 stock copy (after the sites): `length` stock bytes from `address` into the image at `offset`. */
+static void copy7(uint32_t offset, uint32_t address, uint32_t length)
+{
+    put32(p + 68, be32(p + 68) + 1u);
+    emit(offset); emit(address); emit16(length); emit16(0);
+    mu_sha256(original + (address - STOCK), length, p + n); n += 32;
+}
+/* An ABI 7 site: the SHA-256 of stock's first `checked` bytes instead of the bytes, the first `keep` new bytes
+ * taken from stock, jmp module+2. */
+static void site7(uint32_t address, uint32_t length, uint32_t keep, uint32_t checked)
+{
+    emit(address); p[n++] = (uint8_t)length; p[n++] = (uint8_t)keep; p[n++] = (uint8_t)checked; p[n++] = 1;
+    mu_sha256(original + (address - STOCK), checked, p + n); n += 32;
+    uint8_t code[RUNTIME_SITE_BYTES] = {0x4e, 0xf9, 0, 0, 0, 2};
+    memcpy(p + n, code, length); n += length;
+    emit16(2);
 }
 static int bytes_at(uint32_t address, const uint8_t *bytes, uint32_t length) { return !memcmp(stock + (address - STOCK), bytes, length); }
 static uint32_t word(uint32_t address) { return be32(stock + (address - STOCK)); }
@@ -318,6 +343,94 @@ int main(void)
     CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && !modwerk_runtime_module(0));
     CHECK(dsp_switches == 2 && dsp_from.id == 26 && !dsp_to.count);
 
+    /* ABI 7: a site names its stock bytes by their SHA-256, and the loader reads them from the running code. */
+    CHECK(!modwerk_runtime_active());
+    id = 70; begin7(8, 2, 1, 0xe7); site7(STOCK + 32, 6, 0, 6);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    const struct runtime_module *seven = modwerk_runtime_module(0);
+    CHECK(seven && seven->id == 70 && !strcmp(seven->dsp.name, "Tape Echo") && seven->dsp.layout == 1 && !seven->dsp.count);
+    CHECK(stock[32] == 0x4e && stock[33] == 0xf9 && word(STOCK + 34) == (uint32_t)(uintptr_t)seven->hook[RUNTIME_TICK] &&
+          bytes_at(STOCK + 38, original + 38, 2) && !memcmp(seven->site[0].stock, original + 32, 6));
+    /* Replaced by itself over its own patch (the hash is checked against the bytes it would put back), keeping two
+     * stock bytes in front (an instruction that keeps its opcode). */
+    begin7(8, 2, 1, 0xe8); site7(STOCK + 30, 8, 2, 6);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED);
+    const struct runtime_module *kept = modwerk_runtime_module(0);
+    CHECK(kept != seven && bytes_at(STOCK + 30, original + 30, 2) && word(STOCK + 32) == (uint32_t)(uintptr_t)kept->hook[RUNTIME_TICK] &&
+          stock[36] == 0 && stock[37] == 0 && bytes_at(STOCK + 38, original + 38, 2));
+    CHECK(b->restore(0) && modwerk_runtime_module(0) == seven && stock[32] == 0x4e && bytes_at(STOCK + 30, original + 30, 2));
+    /* A hash that does not match, or stock bytes that changed (another OS, another base), refuse before anything changes. */
+    CHECK(b->retire(0));                                         /* the replacement's memory is reclaimed */
+    id = 71; free = modwerk_runtime_free(0);
+    for (unsigned bad = 0; bad < 2; ++bad) {
+        begin7(8, 2, 1, 0xe9); site7(STOCK + 64, 6, 0, 6);
+        if (bad == 0) p[n - 2 - 6 - 1] ^= 1;
+        if (bad == 1) stock[66] ^= 1;
+        CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_STOCK && modwerk_runtime_free(0) == free);
+        if (bad == 1) stock[66] ^= 1;
+        CHECK(bytes_at(STOCK + 64, original + 64, 6) && modwerk_runtime_active() == 1);
+    }
+    /* Malformed: more kept bytes than the hash covers, a relocation inside the kept bytes, a site past 32 bytes, a
+     * hash over nothing or past the site. */
+    for (unsigned bad = 0; bad < 5; ++bad) {
+        begin7(8, 2, 1, 0xea); site7(STOCK + 64, 6, bad == 0 ? 6 : bad == 1 ? 4 : 0, bad == 0 ? 4 : 6);
+        if (bad == 3) p[72 + 16 + 8 + 6] = 0;
+        if (bad == 4) p[72 + 16 + 8 + 6] = 34;
+        if (bad == 2) p[72 + 16 + 8 + 4] = 34;
+        CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED && modwerk_runtime_free(0) == free);
+    }
+    /* A hash over the first four bytes only (a manifest guards what the module expects; the jmp also takes the next
+     * two): those two are read as they are and put back on removal. */
+    stock[68] = 0x99;
+    id = 74; begin7(8, 2, 1, 0xeb); site7(STOCK + 64, 6, 0, 4);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && stock[64] == 0x4e && stock[68] != 0x99);
+    begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && bytes_at(STOCK + 64, original + 64, 4) && stock[68] == 0x99);
+    stock[68] = original[68];
+    /* A guard past the site (over the instruction its module returns to): checked, never written. */
+    begin7(8, 2, 1, 0xec); site7(STOCK + 64, 6, 0, 8);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && stock[64] == 0x4e && bytes_at(STOCK + 70, original + 70, 2));
+    stock[71] ^= 1;
+    begin7(8, 2, 1, 0xed); site7(STOCK + 64, 6, 0, 8);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_STOCK);
+    stock[71] ^= 1;
+    begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && bytes_at(STOCK + 64, original + 64, 8));
+    /* Stock copies: bytes a module replays, read from the running code into its image once their hash holds. */
+    id = 72; begin7(16, 2, 0, 0); copy7(8, STOCK + 100, 6);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    const struct runtime_module *copier = modwerk_runtime_module(1);
+    CHECK(copier && copier->id == 72 && !memcmp((const uint8_t *)(uintptr_t)copier->hook[RUNTIME_TICK] + 6, original + 100, 6));
+    free = modwerk_runtime_free(0);
+    for (unsigned bad = 0; bad < 4; ++bad) {
+        begin7(16, 2, 0, 0); copy7(bad == 2 ? 12 : 8, bad == 3 ? STOCK + 8 : STOCK + 100, 6);
+        if (bad == 0) p[n - 1] ^= 1;                 /* a hash that does not match */
+        if (bad == 1) stock[101] ^= 1;               /* stock that changed */
+        CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == (bad < 2 ? RUNTIME_STOCK : RUNTIME_MALFORMED)); /* past the image; not stock code */
+        if (bad == 1) stock[101] ^= 1;
+        CHECK(modwerk_runtime_free(0) == free && modwerk_runtime_module(1) == copier);
+    }
+    /* ABI 7 relocations: rising, and a word may hold address arithmetic (an offset past the module, or below it). */
+    const uint32_t arithmetic[2] = {4, 8}, falling[2] = {8, 4};
+    id = 73; begin(12, 0, 0, arithmetic, 2, 0, 0); put32(p + 48 + 4, 0xfffffff0u); put32(p + 48 + 8, 0x10015e4du);
+    memmove(p + 72, p + 32, n - 32); n += 40; memset(p + 32, 0, 40); p[5] = 7; memcpy(p + 50, "Arith", 5); p[67] = 1;
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    const struct runtime_module *arith = modwerk_runtime_module(2);
+    const uint8_t *arith_code = (const uint8_t *)(uintptr_t)arith->hook[RUNTIME_TICK];
+    uint32_t at = (uint32_t)(uintptr_t)arith_code;
+    CHECK(be32(arith_code + 4) == at - 16u && be32(arith_code + 8) == at + 0x10015e4du);
+    begin(12, 0, 0, falling, 2, 0, 0);
+    memmove(p + 72, p + 32, n - 32); n += 40; memset(p + 32, 0, 40); p[5] = 7; memcpy(p + 50, "Arith", 5); p[67] = 1;
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
+    for (id = 72; id <= 73; ++id) {
+        begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+        CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    }
+    /* Removal puts back the bytes it read. */
+    id = 70; begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && !modwerk_runtime_active());
+    CHECK(memcmp(stock, original, sizeof stock) == 0 && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
+
     /* Activation only while nothing plays or records. */
     stopped = 0;
     CHECK(!b->enter(0) && !b->safe(0));
@@ -325,6 +438,7 @@ int main(void)
     CHECK(b->enter(0) && b->safe(0) && b->leave(0) && !b->safe(0) && !masked && !locked);
     if (failures) { fprintf(stderr, "%u loader checks failed\n", failures); return 1; }
     puts("Loader: refusals, relocation, bss, hooks, stock-code sites (in-flight, stock and changed-code refusals, "
-         "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion and DSP sections passed.");
+         "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion, DSP sections and ABI 7's "
+         "hashed stock bytes (kept bytes, stock copies, address arithmetic, replacement over its own patch, mismatch refusals) passed.");
     return 0;
 }

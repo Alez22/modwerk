@@ -7,12 +7,13 @@
 #include <stdint.h>
 #include "upload.h"
 #include "modwerk_module.h"
-#define RUNTIME_HEADER_BYTES 68u        /* ABI 6 (DSP code, its name and layout); ABI 5 50, ABI 4 32, ABI 3 28 (module 0) */
+#define RUNTIME_HEADER_BYTES 72u        /* ABI 7 (ABI 6 and its stock copies); ABI 6 68 (DSP code, its name and layout), ABI 5 50, ABI 4 32, ABI 3 28 (module 0) */
 #define RUNTIME_IMAGE_BYTES 131072u      /* one module's image and bss (Tape Echo's tone table is 86 KiB) */
 #define RUNTIME_RELOCATIONS 2048u
 #define RUNTIME_SITES 64u
 #define RUNTIME_SITE_BYTES 32u
 #define RUNTIME_SITE_RELOCATIONS 8u
+#define RUNTIME_COPIES 16u               /* ABI 7: stock bytes copied into the image, each at most RUNTIME_SITE_BYTES */
 #define RUNTIME_DSP_WORDS 4096u          /* one module's DSP code and tables, 24-bit words */
 #define RUNTIME_DSP_RELOCATIONS 256u
 /* A machine may raise these (the Octatrack: 128 modules in 768 KiB, build_core.py). */
@@ -53,10 +54,12 @@ enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 struct runtime_module { uint32_t id, size; uintptr_t hook[RUNTIME_EVENTS]; const struct runtime_site *site; uint32_t sites; struct runtime_dsp dsp; }; /* hook 0: none */
 /* Why the last package was refused, for diagnostics and the unit's own message. */
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
-                       RUNTIME_IN_USE /* a track runs the effect it would replace or remove */ };
+                       RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
+                       RUNTIME_STOCK /* ABI 7: the bytes under a site are not the stock bytes its hash names */ };
+/* ABI 7's site record (a 32-byte hash for the stock bytes) is never longer than ABI 6's (the stock bytes). */
 #define RUNTIME_PACKAGE_BYTES (RUNTIME_HEADER_BYTES + 4u * RUNTIME_EVENTS + RUNTIME_IMAGE_BYTES + 4u * RUNTIME_RELOCATIONS + \
                                RUNTIME_SITES * (8u + 2u * RUNTIME_SITE_BYTES + 2u * RUNTIME_SITE_RELOCATIONS) + \
-                               4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
+                               RUNTIME_COPIES * (12u + 32u) + 4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
 
 /* The controller's staging buffer is the machine's; it must hold RUNTIME_PACKAGE_BYTES. */
 extern const struct mu_backend modwerk_runtime_backend;

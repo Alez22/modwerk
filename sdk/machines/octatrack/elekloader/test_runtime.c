@@ -3,6 +3,7 @@
  * host functions; the loader itself is checked in sdk/runtime/loader/tests. */
 #include "loader.c"
 #include "runtime.c"
+#include "sha256.c" /* the loader checks ABI 7 sites against stock hashes */
 #include <stdio.h>
 
 static unsigned failures;

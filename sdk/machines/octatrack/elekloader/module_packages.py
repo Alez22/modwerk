@@ -6,18 +6,23 @@
   npm run octatrack:module-packages -- --check      # rebuilds every package and compares it byte for byte
   npm run octatrack:module-packages -- --check --stock OCTATRACK_OS1.40C.bin   # and: no run of the stock OS inside
 
-Each package is exactly what the local path makes (sdk/runtime/loader/build.py --dsp, as the elekloader README runs
-it): the module's DSP package from src/engine/assets/dsp-packages.json (dsp_packages.py rebuilds that from source) and
-its FX page recipe, with the figures the manifest (src/engine/assets/octatrack-module-packages.json) keeps for it. Only
-DSP effects without ColdFire code: hybrid modules (TAPE ECHO, EUCLID) and converted ColdFire modules copy stock bytes
-into their packages until loader ABI 7 carries their SHA-256 instead. To add a module, add its entry (id and figures)
-to the manifest and run this.
+Each package is exactly what the local path makes (sdk/runtime/loader/build.py, as the elekloader README runs it):
+- a DSP effect (--dsp): its DSP package from src/engine/assets/dsp-packages.json (dsp_packages.py rebuilds that from
+  source) and its FX page recipe, with the figures the manifest (src/engine/assets/octatrack-module-packages.json)
+  keeps for it (ABI 6);
+- an entry with "octabam": the module's ColdFire code from its Octabam manifest (--octabam, ABI 7), beside its DSP
+  effect when the entry has figures (TAPE ECHO, EUCLID; "pinned" when its C names its effect id). Its writes to stock
+  code carry the SHA-256 of the stock bytes, never the bytes; the base checks them against its running code. Needs
+  m68k-elf binutils and Elekloader's checkout (--upstream) to read the manifest; --check skips these entries, and
+  says so, without them.
+To add a module, add its entry (id and figures) to the manifest and run this.
 
-Every package is checked to have no stock-code sites and no ColdFire hooks, the only places a package carries stock
-bytes. --stock also scans it, and its DSP words packed in three bytes either way round, for runs of 12 or more bytes
-that appear in the stock OS image too, counted by their non-zero bytes (zero padding and empty header fields match
-anywhere), and fails on 12 (TAPE ECHO's private package shows 19; E-Verb's DSP words share 10 by chance). Needs Elekloader
-(--upstream, default ~/.cache/modwerk-upstream/elekloader) to unpack the OS. Node 24 for the page recipe."""
+ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
+scans every package, and its DSP words packed in three bytes either way round, for runs of 12 or more bytes that
+appear in the stock OS image too, counted by their non-zero bytes (zero padding and empty header fields match
+anywhere), and fails on 12 (E-Verb's DSP words share 10 by chance), and runs check_stock_free.py's scan (16 bytes at
+any alignment, against the image and its DSP words as the ColdFire keeps them). Needs Elekloader (--upstream,
+default ~/.cache/modwerk-upstream/elekloader) to unpack the OS. Node 24 for the page recipe."""
 import argparse, hashlib, json, shutil, struct, subprocess, sys, tempfile
 from pathlib import Path
 
@@ -29,12 +34,16 @@ PUBLIC = APP / 'public'
 SEED, LIMIT = 12, 12  # bytes: a shared run worth looking at; its non-zero bytes that fail
 
 
-def build(entry, out):
+def build(entry, out, upstream):
     """One package through build.py, as the README's command line makes it."""
-    args = [sys.executable, '-B', str(BUILD), '--dsp', '%s:%s' % (DSP, entry['id']), '--slots', entry['slots'],
-            '--cycles', str(entry['cycles']), '--cycles-kind', entry['cyclesKind'], '--state', str(entry['state']), '-o', str(out)]
+    args = [sys.executable, '-B', str(BUILD), '-o', str(out)]
+    if entry.get('slots'):
+        args += ['--dsp', '%s:%s' % (DSP, entry['id']), '--slots', entry['slots'], '--cycles', str(entry['cycles']),
+                 '--cycles-kind', entry['cyclesKind'], '--state', str(entry['state'])]
     if entry.get('buffer'):
         args += ['--buffer', str(entry['buffer'])]
+    if entry.get('octabam'):
+        args += ['--octabam', entry['id'], '--upstream', str(upstream)] + (['--pinned'] if entry.get('pinned') else [])
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)
     return out.read_bytes()
 
@@ -56,13 +65,18 @@ def runs(data, stock):
 
 
 def dsp_words(data):
-    """An ABI 6 package without stock-code sites or hooks: its DSP words packed big- and little-endian."""
+    """An ABI 6 package without stock-code sites or hooks, or an ABI 7 one: its DSP words packed big- and little-endian."""
     image, _, relocations, hooks, sites = struct.unpack_from('>IIIII', data, 8)
-    if data[:6] != b'MWRM\0\6' or sites or hooks:
-        raise ValueError('Not an ABI 6 DSP effect without stock-code sites and hooks.')
-    words = struct.unpack_from('>I', data, 32)[0]
-    values = struct.unpack_from('>%dI' % words, data, 68 + image + 4 * relocations)
+    if data[:4] != b'MWRM' or hooks or data[4:6] not in (b'\0\6', b'\0\7') or data[5] == 6 and sites:
+        raise ValueError('Not an ABI 6 DSP effect without stock-code sites and hooks, or an ABI 7 package without hooks.')
+    words, count = struct.unpack_from('>IH', data, 32)
+    values = struct.unpack_from('>%dI' % words, data, len(data) - 4 * words - 2 * count)
     return [b''.join(v.to_bytes(3, order) for v in values) for order in ('big', 'little')]
+
+
+def tools(entry, upstream):
+    """Whether this machine can build the entry: an Octabam one needs m68k-elf binutils and Elekloader's checkout."""
+    return not entry.get('octabam') or bool(shutil.which('m68k-elf-as') and (upstream / 'elekloader/sdk/octabam.py').is_file())
 
 
 def main():
@@ -74,20 +88,29 @@ def main():
     manifest = json.loads(MANIFEST.read_text())
     versions = {m['id']: m['version'] for m in json.loads((APP / 'sdk/catalog.json').read_text())['modules']}
     dsp = {p['id']: p for p in json.loads(DSP.read_text())['packages']}
-    stock = None
+    stock, upstream = None, a.upstream.expanduser().resolve()
     if a.stock:
-        sys.path.insert(0, str(a.upstream.expanduser().resolve()))
+        sys.path.insert(0, str(upstream))
         from elekloader import formats
         parsed, device, _ = formats.load(str(a.stock))
         stock = formats.main_image(parsed, device)
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import check_stock_free
+        haystacks = check_stock_free.haystacks(a.stock, upstream)
     failed, entries = 0, []
     with tempfile.TemporaryDirectory() as work:
         for entry in manifest['packages']:
             version = versions[entry['id']]
-            if dsp[entry['id']]['version'] != version:
+            if entry.get('slots') and dsp[entry['id']]['version'] != version:
                 sys.exit('%s: dsp-packages.json holds %s, the catalogue %s; rebuild it with dsp_packages.py first.' % (
                     entry['id'], dsp[entry['id']]['version'], version))
-            data = build(entry, Path(work) / 'p.mwrm')
+            if not tools(entry, upstream):
+                if not a.check:
+                    sys.exit('%s needs m68k-elf binutils and Elekloader\'s checkout (--upstream) to build.' % entry['id'])
+                print('%-18s skipped: no m68k-elf binutils or Elekloader checkout here' % entry['id'])
+                entries.append(entry)
+                continue
+            data = build(entry, Path(work) / 'p.mwrm', upstream)
             views = [data] + dsp_words(data)
             path = 'octatrack-modules/%s/%s.mwrm' % (entry['id'], version)
             name = data[50:66].split(b'\0')[0].decode('latin-1')
@@ -111,7 +134,10 @@ def main():
                         if n >= LIMIT:
                             print('  %s: a run at %d with %d non-zero bytes is also in the stock OS' % (entry['id'], start, n))
                 print('  %-16s most non-zero bytes in a run shared with the stock OS: %d (fails at %d)' % (entry['id'], longest, LIMIT))
-                failed += longest >= LIMIT
+                found = check_stock_free.stock_runs({'sections': {'package': {'parts': [['hex', data.hex()]]}}}, haystacks, 16)
+                for where, offset, length, source in found:
+                    print('  %s +%#x: %d bytes of %s (check_stock_free.py)' % (entry['id'], offset, length, source))
+                failed += longest >= LIMIT or bool(found)
     if not a.check:
         MANIFEST.write_text(json.dumps(dict(manifest, packages=entries), indent=2) + '\n')
     sys.exit(1 if failed else 0)

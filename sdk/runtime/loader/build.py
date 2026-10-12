@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build a runtime module package (MWRM, ABI 4, or 5 with DSP code; README.md).
+"""Build a runtime module package (MWRM, ABI 4, 6 with DSP code, 7 from a catalogue module's manifest; README.md).
 
 From C sources (handlers found by name, modwerk_module.h):
 
@@ -27,13 +27,16 @@ fresh assembly there; checked again here), with what it needs:
     python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:everb \\
         --slots fx2 --cycles 382 --cycles-kind executed --state 132 --buffer 16384 -o everb.mwrm
 
-A hybrid catalogue effect (ColdFire and DSP, such as TAPE ECHO and EUCLID), which Elekloader's converter
-refuses: its own GNU-as units from its Octabam manifest, linked after the page recipe, its detours as
-stock-code sites (checked against their stock hashes), and its DSP code, in one package. --pinned when its
-ColdFire code names its effect id. It holds stock bytes: keep it private.
+A catalogue module from its Octabam manifest (ABI 7, no firmware needed): its own GNU-as units, and its writes
+to stock (jmp, jsr and lea detours, pokes, symbol references) as stock-code sites that carry the SHA-256 the
+manifest names for the stock bytes instead of the bytes; the base reads them from its running code and checks
+them before it patches. A hybrid effect (ColdFire and DSP, such as TAPE ECHO and EUCLID) adds --dsp, its units
+linked after the page recipe; --pinned when its ColdFire code names its effect id. --stock checks each site's
+hash against the stock OS too.
 
-    python3 -B sdk/runtime/loader/build.py --octabam tapeecho --stock OS.bin --upstream ~/.cache/modwerk-upstream/elekloader \\
-        --dsp src/engine/assets/dsp-packages.json:tapeecho --slots fx2 --cycles 20 --cycles-kind modeled --state 1 --pinned -o tapeecho.mwrm
+    python3 -B sdk/runtime/loader/build.py --octabam previewvol --upstream ~/.cache/modwerk-upstream/elekloader -o previewvol.mwrm
+    python3 -B sdk/runtime/loader/build.py --octabam tapeecho --upstream ~/.cache/modwerk-upstream/elekloader \\
+        --dsp src/engine/assets/dsp-packages.json:tapeecho --slots fx2 --cycles 4 --cycles-kind modeled --state 1 --pinned -o tapeecho.mwrm
 """
 import argparse
 import hashlib
@@ -68,13 +71,14 @@ SECTIONS {
 '''
 
 
-def relocations(low, high, end):
-    """Offsets of the words that move with the link address; refuse anything else."""
+def relocations(low, high, end, anywhere=False):
+    """Offsets of the words that move with the link address; refuse anything else. `anywhere` (ABI 7): such a word
+    may hold any offset, as address arithmetic does (a label less a constant)."""
     offsets, moved = [], set()
     for at in range(0, len(low) - 3, 2):
         a, b = struct.unpack_from('>I', low, at)[0], struct.unpack_from('>I', high, at)[0]
-        if b - a == SHIFT:
-            if a >= end:
+        if (b - a) & 0xffffffff == SHIFT:
+            if a >= end and not anywhere:
                 raise ValueError('The reference at %#x points outside the module.' % at)
             offsets.append(at)
             moved.update((at, at + 1))  # adding 0x10000 changes only the upper half
@@ -87,21 +91,44 @@ def module_id(name):
     return int.from_bytes(hashlib.sha256(name.encode()).digest()[:4], 'big')
 
 
-def package(image, bss, hooks, offsets, sites=(), name='', dsp=None, flags=0):
-    """sites: (address, stock bytes, new bytes, offsets of self-references in them); dsp: dsp_section()'s."""
+def package(image, bss, hooks, offsets, sites=(), name='', dsp=None, flags=0, hashed=False, title='', layout=1, copies=()):
+    """sites: (address, stock bytes, new bytes, offsets of self-references in them), or with `hashed` (ABI 7)
+    (address, SHA-256 of the stock bytes, new bytes, offsets, how many leading new bytes are the stock bytes, how many
+    leading stock bytes the hash covers);
+    dsp: dsp_section()'s. An ABI 7 package without DSP code is named by `title` and `layout`; its `copies`
+    ((image offset, stock address, length, SHA-256)) are stock bytes the base copies into the image."""
     records = b''
-    for address, stock, code, local in sites:
-        if len(stock) != len(code) or not 0 < len(code) <= SITE_BYTES or len(local) > SITE_RELOCATIONS:
+    for address, stock, code, local, *more in sites:
+        keep, checked = more if hashed else (0, len(code))
+        if (len(stock) != (32 if hashed else len(code)) or not 0 < len(code) <= SITE_BYTES or len(local) > SITE_RELOCATIONS
+                or not 0 <= keep <= min(checked, len(code)) or not 0 < checked <= SITE_BYTES or any(o < keep for o in local)):
             raise ValueError('Site at %#x exceeds the loader\'s bounds.' % address)
-        records += struct.pack('>IHH', address, len(code), len(local)) + stock + code + struct.pack('>%dH' % len(local), *local)
+        if (address | len(code)) & 1:
+            raise ValueError('Site at %#x: the loader writes whole instructions, at even addresses and lengths.' % address)
+        code = b'\0' * keep + code[keep:]  # the base copies those from the stock bytes it checked
+        head = (struct.pack('>IBBBB', address, len(code), keep, checked, len(local)) if hashed else
+                struct.pack('>IHH', address, len(code), len(local)))
+        records += head + stock + code + struct.pack('>%dH' % len(local), *local)
+    for offset, address, length, digest in copies:
+        if not (0 < length <= SITE_BYTES and offset + length <= len(image) and not any(image[offset:offset + length])):
+            raise ValueError('The stock copy for %#x must fill zeros inside the image.' % address)
+        records += struct.pack('>IIHH', offset, address, length, 0) + digest
     head = struct.pack('>IIIIII', len(image), bss, len(offsets), len(hooks), len(sites), module_id(name))
     if dsp:
         head += struct.pack('>IHBBHHHBBH', len(dsp['words']), len(dsp['relocations']), dsp['effect'], dsp['slots'],
                             dsp['init'], dsp['proc'], dsp['cycles'], dsp['kind'], dsp['state'], dsp['buffer'])
         head += dsp['name'].encode().ljust(16, b'\0') + struct.pack('>H', dsp['layout'])
         records += struct.pack('>%dI' % len(dsp['words']), *dsp['words']) + struct.pack('>%dH' % len(dsp['relocations']), *dsp['relocations'])
-    return (b'MWRM' + struct.pack('>HH', 6 if dsp else 4, flags) + head + struct.pack('>%dI' % len(hooks), *hooks) + image
-            + struct.pack('>%dI' % len(offsets), *offsets) + records)
+    elif hashed:
+        if not (0 < len(title) <= 15 and title.isascii() and title.isprintable() and 0 < layout < 65536):
+            raise ValueError('Give the module a display name of 1-15 printable ASCII characters and a layout number of 1-65535.')
+        head += bytes(18) + title.encode().ljust(16, b'\0') + struct.pack('>H', layout)
+    if hashed:
+        head += struct.pack('>I', len(copies))
+    elif copies:
+        raise ValueError('Stock copies need ABI 7.')
+    return (b'MWRM' + struct.pack('>HH', 7 if hashed else 6 if dsp else 4, flags) + head + struct.pack('>%dI' % len(hooks), *hooks)
+            + image + struct.pack('>%dI' % len(offsets), *offsets) + records)
 
 
 PAGE_MAGIC = b'MWPG'
@@ -227,7 +254,7 @@ def link_elemod(doc, stock_at, base_symbols):
     return bytes(image), offsets, sites
 
 
-def link_units(objects, cross, origin, tmp):
+def link_units(objects, cross, origin, tmp, anywhere=False):
     """Objects linked at `origin` and origin + SHIFT: (image, its symbols, bss bytes, self-reference offsets)."""
     images, symbols = [], {}
     for base in (origin, origin + SHIFT):
@@ -244,12 +271,28 @@ def link_units(objects, cross, origin, tmp):
     image, length, end = images[0], symbols['__image_end'] - origin, symbols['__bss_end']
     if len(image) != length:
         raise ValueError('The module image is not contiguous.')
-    return image, symbols, end - symbols['__image_end'], relocations(image, images[1], end)
+    return image, symbols, end - symbols['__image_end'], relocations(image, images[1], end, anywhere)
 
 
-def octabam_units(name, stock_at, origin, cross, upstream):
-    """A hybrid catalogue module's ColdFire half from its Octabam manifest, linked at `origin`:
-    (image, bss, self-reference offsets, sites). Only units and jmp/jsr detours; anything else is refused."""
+OPCODES = {'jmp': b'\x4e\xf9', 'jsr': b'\x4e\xb9', 'lea': b'\0\0'}  # lea keeps its stock opcode (its register)
+
+
+def stock_digest(expect):
+    """(SHA-256, bytes it covers) a manifest names for the stock bytes at a write: a guarded span's,
+    or of bytes it spells out (never shipped). A guard may cover fewer bytes than a detour's jmp takes, or more (the
+    instruction its stub returns to)."""
+    covered = expect.length if hasattr(expect, 'sha256') else len(expect)
+    if not 0 < covered <= SITE_BYTES:
+        raise ValueError('A stock guard of %d bytes is past the loader\'s bounds.' % covered)
+    return bytes.fromhex(expect.sha256) if hasattr(expect, 'sha256') else hashlib.sha256(bytes(expect)).digest(), covered
+
+
+def octabam_units(name, origin, cross, upstream, dsp=False):
+    """A catalogue module's ColdFire code from its Octabam manifest, linked at `origin`: (image, bss, self-reference
+    offsets, ABI 7 sites, stock copies). Its units (each assembled as Octabam does: a DRAM unit for the chip), the stock
+    instructions they replay (StockCopy), its jmp, jsr and lea detours to its own symbols, its pokes and its symbol
+    references; every stock span named by the SHA-256 its manifest gives (no firmware is read). Anything else a
+    runtime package cannot carry is refused."""
     sys.path.insert(0, str(upstream))
     from elekloader.sdk import octabam as port
     root = Path(__file__).resolve().parents[2] / 'octabam'
@@ -258,10 +301,12 @@ def octabam_units(name, stock_at, origin, cross, upstream):
         raise ValueError('No Octabam module ' + name)
     m = ob.modules[name]
     own = [c for c in m.cf_patches if c.registers_formatter and c.registers_formatter.module == m.key]  # in the page recipe
-    extra = [what for what, there in (('requires', m.requires), ('pokes', m.pokes), ('tables', m.tables), ('keeps', m.keeps),
-                                      ('symbol references', m.symbol_refs), ('DRAM regions', m.dram_regions), ('overrides', m.overrides),
-                                      ('other cave patches', [c for c in m.cf_patches if c not in own])) if there]
+    extra = [what for what, there in (('requires', m.requires), ('tables', m.tables), ('keeps', m.keeps),
+                                      ('DRAM regions', m.dram_regions), ('overrides', m.overrides),
+                                      ('caves', [c for c in m.cf_patches if c not in own])) if there]
     extra += ['generated includes or defsyms of ' + u.label for u in m.linked if u.include or getattr(u, 'defsyms', ())]
+    extra += ['a unit pinned at %#x' % u.cave_addr for u in m.linked if not u.dram and u.cave_addr is not None]
+    extra += ['hooks in stock DSP code'] if m.dsp and m.dsp.hooks else ['its DSP code (give --dsp)'] if m.dsp and not dsp else []
     if extra or not m.linked:
         raise ValueError('%s needs what a runtime package cannot carry yet: %s' % (name, ', '.join(extra) or 'no ColdFire unit'))
     with tempfile.TemporaryDirectory() as tmp:
@@ -269,20 +314,43 @@ def octabam_units(name, stock_at, origin, cross, upstream):
         objects = []
         for i, unit in enumerate(m.linked):
             objects.append(tmp / ('%d.o' % i))
-            subprocess.run([cross + 'as', '-mcpu=' + unit.cpu, unit.source, '-o', str(objects[-1])], cwd=root, check=True)
-        image, symbols, bss, offsets = link_units(objects, cross, origin, tmp)
+            subprocess.run([cross + 'as', '-mcpu=' + ('54455' if unit.dram else unit.cpu), unit.source, '-o', str(objects[-1])],
+                           cwd=root, check=True)
+        image, symbols, bss, offsets = link_units(objects, cross, origin, tmp, anywhere=True)
+
+    def symbol(name_, addend=0):
+        if name_ not in symbols:
+            raise ValueError('%s names %s, which its units do not define.' % (name, name_))
+        return struct.pack('>I', symbols[name_] + addend)
     sites = []
     for d in m.detours:
         n = d.pad_to or 6
-        if d.kind not in ('jmp', 'jsr') or d.target is not None or d.symbol not in symbols or n < 6 or n % 2:
-            raise ValueError('Detour at %#x: only jmp or jsr to the module\'s own symbol.' % d.site)
-        stock = stock_at(d.site, n)
-        expect = d.expect
-        if getattr(expect, 'length', len(stock)) != n or hashlib.sha256(stock).hexdigest() != getattr(expect, 'sha256', None):
-            raise ValueError('Stock bytes at %#x are not the ones %s expects.' % (d.site, name))
-        code = struct.pack('>HI', 0x4ef9 if d.kind == 'jmp' else 0x4eb9, symbols[d.symbol]) + b'\x4e\x71' * ((n - 6) // 2)
-        sites.append((d.site, stock, code, [2]))
-    return image, bss, offsets, sites
+        if d.kind not in OPCODES or d.target is not None or n < 6 or n % 2:
+            raise ValueError('Detour at %#x: only jmp, jsr or lea to the module\'s own symbol.' % d.site)
+        code = OPCODES[d.kind] + symbol(d.symbol) + b'\x4e\x71' * ((n - 6) // 2)
+        digest, checked = stock_digest(d.expect)
+        sites.append((d.site, digest, code, [2], 2 if d.kind == 'lea' else 0, checked))
+    for poke in m.pokes:
+        digest, checked = stock_digest(poke.expect)
+        sites.append((poke.addr, digest, bytes(poke.write), [], 0, checked))
+    for ref in m.symbol_refs:
+        digest, checked = stock_digest(ref.expect.to_bytes(4, 'big'))
+        sites.append((ref.addr, digest, symbol(ref.symbol, ref.addend), [0], 0, checked))
+    copies = [(symbols[c.symbol], c.span.address, c.span.length, stock_digest(c.span)[0])
+              for unit in m.linked for c in getattr(unit, 'stock_copies', ())]
+    return image, bss, offsets, sites, copies
+
+
+def check_stock(sites, stock, upstream):
+    """Each ABI 7 site's hash against the stock OS: a manifest that names the wrong bytes fails here, not on a unit."""
+    sys.path.insert(0, str(upstream.expanduser().resolve()))
+    from elekloader import formats
+    parsed, device, _ = formats.load(str(stock))
+    main_image = formats.main_image(parsed, device)
+    for address, digest, _, _, _, checked in sites:
+        at = address - device.main_load
+        if at < 0 or hashlib.sha256(main_image[at:at + checked]).digest() != digest:
+            raise ValueError('The stock bytes at %#x are not the ones the module names.' % address)
 
 
 def build_c(sources, cross, module, dsp=None):
@@ -340,20 +408,20 @@ def main():
     parser.add_argument('--no-page', action='store_true', help='leave out the effect page recipe (no chooser row on the unit)')
     parser.add_argument('--page-from', help='development only: another catalogue module\'s page (a copy of an effect under its own id, '
                                             'to fill more effect ids than the catalogue has)')
-    parser.add_argument('--octabam', help='a hybrid catalogue module: its ColdFire units and detours beside --dsp')
+    parser.add_argument('--octabam', help='a catalogue module from its Octabam manifest (ABI 7); a hybrid effect adds --dsp')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     args = parser.parse_args()
     if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) > 1 or not (args.sources or args.elemod or args.dsp)
-            or (args.elemod and args.dsp) or (args.octabam and not (args.dsp and args.stock and args.upstream))):
-        parser.error('Give C sources, --elemod, --dsp, or --octabam with --dsp, --stock and --upstream.')
-    dsp = None
+            and not args.octabam or (args.elemod and args.dsp) or (args.octabam and not args.upstream)):
+        parser.error('Give C sources, --elemod, --dsp, or --octabam with --upstream.')
+    dsp, pkg = None, {}
+    documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
     if args.dsp:
         path, _, key = args.dsp.partition(':')
         doc = json.loads(Path(path).read_text())
         pkg = next((p for p in doc['packages'] if p['id'] == key), None) if 'packages' in doc else doc[key] if key else doc
         if not pkg:
             parser.error('No DSP package %s in %s.' % (key, path))
-        documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
         named = next((m.get('name') for m in documents.get('modules', []) if m.get('id') == pkg['id']), None) if 'id' in pkg else None
         dsp = dsp_section(pkg, args.slots, args.cycles or 0, args.cycles_kind, args.state or 0, args.buffer,
                           args.name or named or pkg.get('key', ''), args.layout)
@@ -363,25 +431,21 @@ def main():
         data = build_c(args.sources, args.cross, args.output.stem, dsp)
     else:
         image, relocations = page_section(args.page_from or pkg['id']) if 'id' in pkg and not args.no_page else (b'', [])
-        bss, sites, flags = 0, [], (1 if image else 0) | (2 if args.pinned else 0)
+        bss, sites, copies, flags = 0, [], [], (1 if image else 0) | (2 if args.pinned else 0)
         if args.octabam:  # the ColdFire half after the recipe, at a 16-byte boundary
-            sys.path.insert(0, str(args.upstream.expanduser().resolve()))
-            from elekloader import formats
-            parsed, device, _ = formats.load(str(args.stock))
-            main_image = formats.main_image(parsed, device)
-
-            def stock_at(address, length):
-                at = address - device.main_load
-                if at < 0 or at + length > len(main_image):
-                    raise ValueError('Stock bytes outside the OS image: %#x' % address)
-                return main_image[at:at + length]
             origin = (len(image) + 15) & ~15
-            unit, bss, offsets, sites = octabam_units(args.octabam, stock_at, origin, args.cross, args.upstream.expanduser().resolve())
+            unit, bss, offsets, sites, copies = octabam_units(args.octabam, origin, args.cross, args.upstream.expanduser().resolve(),
+                                                              dsp=bool(dsp))
             image, relocations = image + b'\0' * (origin - len(image)) + unit, relocations + [origin + r for r in offsets]
-        data = package(image, bss, [], relocations, sites, name=pkg.get('id', args.output.stem), dsp=dsp, flags=flags)
+            if args.stock:
+                check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
+        name = pkg.get('id', args.octabam or args.output.stem)
+        title = args.name or next((m.get('name') for m in documents.get('modules', []) if m.get('id') == name), '')
+        data = package(image, bss, [], relocations, sites, name=name, dsp=dsp, flags=flags, hashed=bool(args.octabam),
+                       title=title, layout=args.layout, copies=copies)
     args.output.write_bytes(data)
     image, bss, count, hooks, sites, ident = struct.unpack_from('>IIIIII', data, 8)
-    header = 68 if dsp else 32
+    header = {7: 72, 6: 68}.get(data[5], 32)
     print('%s: module %08x, %d bytes of code and data, %d of bss, %d relocations, %d hooks, %d stock-code sites%s' % (
         args.output, ident, image, bss, count, sum(h != NONE for h in struct.unpack_from('>%dI' % hooks, data, header)), sites,
         ', DSP effect %d: %d words, %d relocations' % (dsp['effect'], len(dsp['words']), len(dsp['relocations'])) if dsp else ''))
