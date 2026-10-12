@@ -2789,8 +2789,8 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "Five isolated hits: default 808, low/long 808, clean 909, 909 with attack/drive, and a long 909 body. Gaps follow each tail; one common gain preserves level differences. No external samples. Offline render through Analog BD 0.1.5's own 808/909 DSP, not an Octatrack recording.",
-          "alt": "Two contrasting 808 hits followed by three 909 hits, with clear gaps and audible tails.",
+          "caption": "At 128 BPM: default 808 (0 s), 909 TUNE 0 (3.75 s) and 127 (5.625 s), slow TUNE 0→127 (7.5 s), built-in Mackie SAT 0→95 (15 s). Tune Depth stays at default 64, PITCH at 49 and 909 ATK at 0; only TUNE and SAT sweep. 22.5 s, no added gaps, one common gain. Offline render through Analog BD 0.1.5's own DSP, not a physical Octatrack recording.",
+          "alt": "A steady 808 groove followed by slow 909 Tune and built-in Mackie saturation sweeps.",
           "credit": "Modwerk contributors (module-generated sound; no samples).",
           "license": "MIT (original audio; see media/LICENSE.md)",
           "source": "original"
