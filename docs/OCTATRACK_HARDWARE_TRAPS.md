@@ -78,6 +78,16 @@ and the base accepts any chunk length. WebUSB on Windows uses WinUSB, so the
 site has the same limit. Seen as a RAM boot failing on its first chunk
 ("chunk was not confirmed", no device refusal), S54, 12 October 2026.
 
+**The flashed `usbtest9` times out on 4,095-byte frames; RAM boots from it need `--chunk 4096`.** It predates
+the tick that answers stuck EP0 stages (S43). On the owner's MKII from macOS, 12 October 2026, staging a RAM-boot
+image in the client's default frames (4,043-byte chunks, the WinUSB limit) failed five times in five, at chunks
+4-60: a data stage timed out after 2 s and the session stopped ("chunk was not confirmed"). With 4,148-byte
+frames (`device boot DIR --chunk 4096`; serve: `boot DIR 4096`) the same 1.3 MB staged in about 1.3 s, twice,
+the base refusing some SUBMITs with a stall that the client retries. Bases from S43 on are not affected. Windows
+cannot send those frames, so a unit flashed with `usbtest9` RAM-boots from macOS or Linux only. The next RAM boot
+after those failures hung at the logo until a power cycle; whether the failed stages, or a DSP left stalled by
+the restart before them, caused it was not found.
+
 **macOS keeps stale device entries after the unit disappears abruptly**
 (`ioreg` shows inactive IOUSBHostDevice nodes held by `configd` or
 `systemstats`). They are harmless; a power-cycled unit enumerates beside

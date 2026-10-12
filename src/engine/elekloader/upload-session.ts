@@ -122,7 +122,9 @@ export class UploadSession {
 
   /** Copy and pin-check before entering upload mode. Cancellation is checked
    * between acknowledged commands, so it cannot overlap a pending transfer. */
-  async stage(pkg: UploadPackage, options: { signal?: AbortSignal; progress?: (received: number, length: number) => void } = {}) {
+  // chunk: bytes a frame carries (UPLOAD_CHUNK, which WinUSB allows); the flashed usbtest9 base times out on those
+  // 4,095-byte frames and needs UPLOAD_MAX_CHUNK (macOS and Linux only; docs/OCTATRACK_HARDWARE_TRAPS.md).
+  async stage(pkg: UploadPackage, options: { signal?: AbortSignal; progress?: (received: number, length: number) => void; chunk?: number } = {}) {
     return this.exclusive(async () => {
       const digest = pkg.sha256, length = pkg.data.length
       digestBytes(digest)
@@ -167,7 +169,7 @@ export class UploadSession {
           cancelled()
           // A frame of whole 64-byte packets never completes on bases before usbtest9 (the controller
           // waits for a zero-length packet the host does not send): shorten that chunk by a byte.
-          size = Math.min(UPLOAD_CHUNK, data.length - offset)
+          size = Math.min(options.chunk ?? UPLOAD_CHUNK, data.length - offset)
           if ((UPLOAD_HEADER + 4 + size) % 64 === 0) size -= 1
           const chunk = data.subarray(offset, offset + size)
           const status = await this.exchange({ command: 'chunk', session: this.status.session,

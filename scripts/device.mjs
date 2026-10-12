@@ -10,7 +10,7 @@
 //   npm run device -- try MODULE.mwrm [--seconds 5] [--accept]
 //   npm run device -- remove [MODULE.mwrm] [--accept]   # that file's module, else module 0
 //   npm run device -- lifecycle
-//   npm run device -- boot BUILD_DIR       # RAM boot: build_core.py's output, no flashing
+//   npm run device -- boot BUILD_DIR [--chunk 4096]  # RAM boot: build_core.py's output, no flashing; serve: 'boot DIR 4096'
 //   npm run device -- key PLAY | FUNC+FX1 | 0x27    # development bases (build_core.py --dev)
 //   npm run device -- screen [--png FILE] [--scale 1-4]  # the display, in block characters or as a PNG (4x unless --scale)
 //   npm run device -- ui                            # tracks, effects and transport as text, read from RAM (MEM)
@@ -51,12 +51,13 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   emulator: { type: 'boolean', default: false },
   png: { type: 'string' },
   scale: { type: 'string', default: '2' },
+  chunk: { type: 'string' }, // boot: bytes a frame (4096 for the flashed usbtest9 on macOS; docs/OCTATRACK_HARDWARE_TRAPS.md)
 } })
 let seconds = Number(values.seconds)
 if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
   (['serve', 'status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
-  !Number.isInteger(seconds) || seconds < 1 || seconds > 3600) {
-  console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
+  !Number.isInteger(seconds) || seconds < 1 || seconds > 3600 || (values.chunk && !(Number(values.chunk) >= 1 && Number(values.chunk) <= 4096 && Number.isInteger(Number(values.chunk))))) {
+  console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR [--chunk 1-4096] | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
   process.exit(2)
 }
 
@@ -397,10 +398,10 @@ if (command === 'serve') {
     const out = [], log = console.log
     console.log = (...a) => out.push(a.join(' '))
     try {
-      const [verb, arg] = line.trim().split(/\s+/)
+      const [verb, arg, chunk] = line.trim().split(/\s+/)
       if (verb === 'boot') { // the unit reboots and this link goes with it: hand the bridge to a one-shot boot, then exit (run serve in a loop)
         bench.socket.end(); await wait(300)
-        const r = spawnSync(process.execPath, [process.argv[1], 'boot', arg, '--socket', values.socket], { encoding: 'utf8', timeout: 180000 })
+        const r = spawnSync(process.execPath, [process.argv[1], 'boot', arg, '--socket', values.socket, ...(chunk ? ['--chunk', chunk] : [])], { encoding: 'utf8', timeout: 180000 })
         out.push(r.stdout, r.stderr, 'serve exits; the loop restarts it'); setTimeout(() => process.exit(0), 200)
       } else if (verb === 'recover') { // a transaction left behind (an install whose reply went missing): undo it, as the site does
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
@@ -524,7 +525,7 @@ if (command === 'serve') {
       throw new Error(join(file, 'MAIN.raw') + ' is not an OS image.')
     const arm = async (s, base) => {
       let shown = 0
-      await s.stage({ base, data: image, sha256: sha(image) }, { signal: interrupt.signal, progress: (done, total) => {
+      await s.stage({ base, data: image, sha256: sha(image) }, { signal: interrupt.signal, chunk: values.chunk ? Number(values.chunk) : undefined, progress: (done, total) => {
         if (Math.floor(10 * done / total) > shown) console.log(`  staged ${10 * (shown = Math.floor(10 * done / total))}%`)
       } })
       await s.activate() // the base arms the boot and resets half a second later
