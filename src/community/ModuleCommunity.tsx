@@ -42,7 +42,7 @@ function ModuleMediaGallery({id,version,media}:{id:string;version:string;media:r
   return <div className="media-gallery">{media.map(item=>{
     const url=assetUrl('module-media/'+id+'/'+version+'/'+item.path)
     return <figure key={item.path}>
-      {item.captureType==='audio'?<AudioPlayer src={url} label={item.caption || 'audio preview'}/>:<a href={url} target="_blank" rel="noreferrer"><img className={item.lcd ? 'ot-ui-capture' : undefined} src={url} alt={item.alt} loading="lazy"/></a>}
+      <a href={url} target="_blank" rel="noreferrer"><img className={item.lcd ? 'ot-ui-capture' : undefined} src={url} alt={item.alt} loading="lazy"/></a>
       <figcaption>{item.caption}</figcaption>
     </figure>
   })}</div>
@@ -53,7 +53,9 @@ export function ModuleCommunity({id,mode='all',onDiscuss,onReportIssue,onDiscuss
   // Visitors see live buttons; pressing one opens the sign-in prompt and brings them back to this page.
   const {dialog,gate}=useLoginPrompt(modulePageHref(id).slice(1))
   const document=moduleMediaDocument(id),sourceMedia=document?.media??[]
-  const mediaGuide=moduleMediaGuide<ModuleMedia>(id,document?.version??'',sourceMedia)
+  // Declared recordings already play in the main preview; the gallery contains screenshots only.
+  const screenshots=sourceMedia.filter(item=>item.captureType!=='audio')
+  const mediaGuide=moduleMediaGuide<ModuleMedia>(id,document?.version??'',screenshots)
   const [data,setData] = useState<Data | null>(null), [error,setError] = useState(''), [busy,setBusy] = useState(false), [notice,setNotice] = useState('')
   useEffect(() => {
     let cancelled=false, latest=0
@@ -78,9 +80,9 @@ export function ModuleCommunity({id,mode='all',onDiscuss,onReportIssue,onDiscuss
     } catch(error){setError(error instanceof Error?error.message:'Unable to save.')} finally{setBusy(false)}
   }
   const mediaSection = <section className="detail-section">
-    <div className="section-title"><h2>{mode === 'media' ? 'Previews' : 'Screenshots & audio'}</h2>{onAddPreview ? <button type="button" className="text-button" onClick={onAddPreview}>Add preview <Icon name="plus" size={15}/></button> : <a className="text-button" href={'#submit/' + id}>Add media <Icon name="plus" size={15}/></a>}</div>
+    <div className="section-title"><h2>{mode === 'media' ? 'Previews' : 'Screenshots'}</h2>{onAddPreview ? <button type="button" className="text-button" onClick={onAddPreview}>Add preview <Icon name="plus" size={15}/></button> : <a className="text-button" href={'#submit/' + id}>Add media <Icon name="plus" size={15}/></a>}</div>
     {mode === 'media' && <SubmittedAudioPreviews id={id}/>}
-    {mode === 'media' && !!sourceMedia.length && <h3 className="module-preview-docs-title">Module screenshots & recordings</h3>}
+    {mode === 'media' && !!screenshots.length && <h3 className="module-preview-docs-title">Module screenshots</h3>}
     {!!mediaGuide.primary.length && <ModuleMediaGallery id={id} version={document!.version} media={mediaGuide.primary}/>}
     {!!mediaGuide.additional.length && <details key={id} className="module-disclosure">
       <summary><span>More screenshots<small>{mediaGuide.additional.length} additional {mediaGuide.additional.length===1?'page':'pages'}</small></span><Icon name="plus" size={16}/></summary>
@@ -88,7 +90,7 @@ export function ModuleCommunity({id,mode='all',onDiscuss,onReportIssue,onDiscuss
     </details>}
     <MediaCredits key={'credits-' + id} media={sourceMedia}/>
     {!!data?.media.length && <MediaGallery media={data.media}/>}
-    {mode !== 'media' && !sourceMedia.length && !data?.media.length && <div className="media-empty"><Icon name="file" size={24}/><div><strong>Share a preview</strong><p>{onAddPreview ? 'Add an audio recording with Add preview. Screenshots can be submitted via PR.' : 'Share a screenshot or audio preview via PR.'}</p></div></div>}
+    {mode !== 'media' && !screenshots.length && !data?.media.length && <div className="media-empty"><Icon name="file" size={24}/><div><strong>Share a preview</strong><p>{onAddPreview ? 'Add an audio recording with Add preview. Screenshots can be submitted via PR.' : 'Share a screenshot or audio preview via PR.'}</p></div></div>}
   </section>
   // Working reports and likes are the community's verdict on a module. The like tile is the like button.
   const works=data?.worksReports

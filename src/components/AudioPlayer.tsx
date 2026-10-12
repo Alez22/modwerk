@@ -4,7 +4,7 @@ import { Icon } from './Icon'
 import './audio-player.css'
 
 type Props = {
-  src: string; label: string; variant?: 'default' | 'compact' | 'card' | 'dock'
+  src: string; label: string; variant?: 'default' | 'compact' | 'card' | 'dock' | 'preview'
   activation?: 'visible' | 'manual'; prepare?: boolean; seekStartsPlayback?: boolean
   peaks?: readonly number[]; duration?: number
 }
@@ -21,6 +21,7 @@ export function AudioPlayer(props: Props) {
 }
 
 function Player({ src, label, variant = 'default', activation = 'visible', prepare = false, seekStartsPlayback = false, peaks, duration = 0 }: Props) {
+  const dockWaveform = variant === 'dock' || variant === 'preview'
   const container = useRef<HTMLDivElement>(null), waveform = useRef<HTMLDivElement>(null), audio = useRef<HTMLAudioElement>(null)
   const wave = useRef<WaveSurfer | null>(null), initialize = useRef<() => void>(() => {})
   const [waveStatus, setWaveStatus] = useState<'waiting' | 'loading' | 'ready' | 'unavailable'>('waiting')
@@ -41,7 +42,7 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
         const { default: WaveSurfer } = await import('wavesurfer.js')
         if (cancelled) return
         const colors = getComputedStyle(player)
-        const height = variant === 'dock' ? 32 : variant === 'compact' ? 40 : variant === 'card' ? 64 : 48
+        const height = dockWaveform ? 32 : variant === 'compact' ? 40 : variant === 'card' ? 64 : 48
         const instance = WaveSurfer.create({
           container: host, media: element, height,
           ...(peaks?.length && duration > 0 ? { peaks: [Array.from(peaks)], duration } : {}),
@@ -51,7 +52,7 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
           // Dock previews use a balanced waveform; forum players retain their reflection.
           renderFunction: (channels, context) => {
             const { width, height: canvasHeight } = context.canvas
-            const ratio = canvasHeight / height, baseline = canvasHeight * (variant === 'dock' ? .5 : .7)
+            const ratio = canvasHeight / height, baseline = canvasHeight * (dockWaveform ? .5 : .7)
             const barWidth = 2 * ratio, spacing = 4 * ratio, length = channels[0]?.length || 0
             if (!length || !width) return
             let maximum = 0
@@ -65,7 +66,7 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
               const reflection = Math.max(ratio, amplitude * (canvasHeight - baseline - 2 * ratio))
               context.globalAlpha = 1
               context.fillRect(x, baseline - top, barWidth, top)
-              context.globalAlpha = variant === 'dock' ? 1 : .3
+              context.globalAlpha = dockWaveform ? 1 : .3
               context.fillRect(x, baseline + ratio, barWidth, reflection)
             }
             context.globalAlpha = .2
@@ -96,7 +97,7 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
       if (playing === element) playing = null
       element.pause(); element.removeAttribute('src'); element.load()
     }
-  }, [src, variant, activation, peaks, duration])
+  }, [src, variant, activation, peaks, duration, dockWaveform])
 
   useEffect(() => { if (prepare) initialize.current() }, [prepare, src])
 
@@ -153,20 +154,26 @@ function Player({ src, label, variant = 'default', activation = 'visible', prepa
     const position = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
     setHover({ position, time: position * state.duration })
   }
+  const playButton = <button type="button" className="audio-player-play" aria-label={(state.playing ? 'Pause ' : 'Play ') + label} aria-pressed={state.playing} onClick={toggle}><Icon name={state.playing ? 'pause' : 'play'} size={18}/></button>
   return <div ref={container} className="audio-player" data-variant={variant} data-wave-status={waveStatus} data-playing={state.playing || undefined} role="group" aria-label={label}>
+    {variant === 'preview' && playButton}
     <div className="audio-player-wave">
       <div ref={waveform} className="audio-player-render" aria-hidden="true"/>
       {waveStatus !== 'ready' && <div className="audio-player-placeholder" aria-hidden="true">
         <span className="audio-player-fallback-progress" style={{ width: (state.duration ? state.currentTime / state.duration * 100 : 0) + '%' }}/>
-        <span>{waveStatus === 'loading' ? 'Loading waveform…' : waveStatus === 'unavailable' ? 'Waveform unavailable' : 'Sound clip'}</span>
+        <span>{waveStatus === 'loading' ? 'Loading waveform…' : waveStatus === 'unavailable' ? 'Waveform unavailable' : variant === 'preview' ? 'Play to listen' : 'Sound clip'}</span>
       </div>}
       <input className="audio-player-seek" type="range" min={0} max={state.duration || 1} step="0.1" value={Math.min(state.currentTime, state.duration)} disabled={!state.duration && !seekStartsPlayback}
         aria-label={'Seek in ' + label} aria-valuetext={time(state.currentTime) + ' of ' + time(state.duration)} onChange={event => seek(Number(event.target.value))} onKeyDown={seekKey}
         onPointerDown={seekPointer} onPointerMove={hoverSeek} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)}/>
       {hover && <span className="audio-player-hover" style={{ left: hover.position * 100 + '%' }} aria-hidden="true"><span>{time(hover.time)}</span></span>}
-      <span className="audio-player-time" aria-hidden="true"><span className="audio-player-elapsed">{time(state.currentTime)}</span><span className="audio-player-duration">{state.duration ? time(state.duration) : '—:—'}</span></span>
+      {variant !== 'preview' && <span className="audio-player-time" aria-hidden="true"><span className="audio-player-elapsed">{time(state.currentTime)}</span><span className="audio-player-duration">{state.duration ? time(state.duration) : '—:—'}</span></span>}
     </div>
-    <button type="button" className="audio-player-play" aria-label={(state.playing ? 'Pause ' : 'Play ') + label} aria-pressed={state.playing} onClick={toggle}><Icon name={state.playing ? 'pause' : 'play'} size={18}/></button>
+    {variant !== 'preview' && playButton}
+    {variant === 'preview' && <div className="audio-player-time" aria-hidden="true">
+      <span className="audio-player-caption">Audio preview</span>
+      <span className="audio-player-clock"><span className="audio-player-elapsed">{time(state.currentTime)}</span><span> / </span><span className="audio-player-duration">{state.duration ? time(state.duration) : '—:—'}</span></span>
+    </div>}
     {error && <span className="audio-player-error" role="alert">{error}</span>}
     <audio ref={audio} src={src} preload="none" hidden
       onPlay={event => { if (playing && playing !== event.currentTarget) playing.pause(); playing = event.currentTarget; setError(''); update() }}

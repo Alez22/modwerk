@@ -14,7 +14,7 @@ export function ModuleAudioCardCover({ id, name, href, onBrowse, inert, prepare,
   return <div className="module-cover module-audio-cover" data-module={id} inert={inert} onPointerEnter={event => { if (event.pointerType !== 'touch') onPrepare() }} onFocus={onPrepare}>
     <a className="module-audio-cover-link" href={href} onClick={onBrowse} onAuxClick={onBrowse} aria-label={'View ' + name + ' (audio preview available)'}>{children}</a>
     <span className="audio-preview-hint" aria-hidden="true"><span className="audio-preview-hint-idle"><Icon name="play" size={13}/></span><span className="audio-preview-hint-playing"><Icon name="wave" size={13}/></span></span>
-    <div className="audio-preview-dock"><AudioPreviewPlayer key={clip.id} clip={clip} name={name} prepare={prepare}/></div>
+    <div className="audio-preview-dock"><AudioPreviewPlayer key={clip.id} clip={clip} name={name} prepare={prepare} variant="dock"/></div>
   </div>
 }
 
