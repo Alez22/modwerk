@@ -9,7 +9,7 @@ import type { AddBlock } from '../catalog/add-blocks'
 import { getModuleSource } from '../catalog/modules'
 import { DETAILS } from '../catalog/details'
 import { Icon } from './Icon'
-import { ModulePreview } from './ModulePreview'
+import { ModuleAudioDetailPreview } from './ModuleAudioPreview'
 import { ModuleResources } from './ModuleResources'
 import { ModuleResourceIndicators } from './ModuleResourceIndicators'
 import { MODULE_DOCUMENTS_BY_ID } from '../catalog/documents'
@@ -31,7 +31,7 @@ export function ModuleDetail({ module, selected, onToggle, addBlock, onSwap, bro
     configureTarget={module.id === USB_AUDIO_MODULE && onConfigureUsbAudio ? 'usb-setup' : undefined}
     author={module.authorName} authorUrl={module.authorUrl} contributors={module.contributors} description={module.description}
     selected={selected} onToggle={onToggle} addBlock={addBlock} onSwap={onSwap} backHref="#library" backLabel="All modules"
-    preview={<ModulePreview id={module.id} />} resources={<ModuleResourceIndicators id={module.id} usbLayout={module.id === USB_AUDIO_MODULE && onConfigureUsbAudio ? draft.layout : undefined} />}
+    preview={<ModuleAudioDetailPreview id={module.id} name={module.name}/>} resources={<ModuleResourceIndicators id={module.id} usbLayout={module.id === USB_AUDIO_MODULE && onConfigureUsbAudio ? draft.layout : undefined} />}
     notice={moduleDocument.build && <p className="service-note" role="status">{moduleDocument.build.reason}</p>}
     overviewIntro={module.id === USB_AUDIO_MODULE && onConfigureUsbAudio && <UsbAudioConfigurator key={previewKey} draft={draft} onDraftChange={value => setUsbDraft({ key: previewKey, value })} configuration={usbAudio} selected={selected} configurationName={configurationName} onConfigure={onConfigureUsbAudio} />}
     guide={<>

@@ -3,7 +3,11 @@ import type WaveSurfer from 'wavesurfer.js'
 import { Icon } from './Icon'
 import './audio-player.css'
 
-type Props = { src: string; label: string; variant?: 'default' | 'compact' | 'card' }
+type Props = {
+  src: string; label: string; variant?: 'default' | 'compact' | 'card' | 'dock'
+  activation?: 'visible' | 'manual'; prepare?: boolean; seekStartsPlayback?: boolean
+  peaks?: readonly number[]; duration?: number
+}
 // All site players share the same playback owner, including previews in dialogs.
 let playing: HTMLAudioElement | null = null
 function time(seconds: number) {
@@ -16,11 +20,12 @@ export function AudioPlayer(props: Props) {
   return <Player key={props.src} {...props}/>
 }
 
-function Player({ src, label, variant = 'default' }: Props) {
+function Player({ src, label, variant = 'default', activation = 'visible', prepare = false, seekStartsPlayback = false, peaks, duration = 0 }: Props) {
   const container = useRef<HTMLDivElement>(null), waveform = useRef<HTMLDivElement>(null), audio = useRef<HTMLAudioElement>(null)
   const wave = useRef<WaveSurfer | null>(null), initialize = useRef<() => void>(() => {})
   const [waveStatus, setWaveStatus] = useState<'waiting' | 'loading' | 'ready' | 'unavailable'>('waiting')
-  const [state, setState] = useState({ playing: false, currentTime: 0, duration: 0 }), [error, setError] = useState('')
+  const pendingSeek = useRef<number | null>(null)
+  const [state, setState] = useState({ playing: false, currentTime: 0, duration }), [error, setError] = useState('')
   const [hover, setHover] = useState<{ position: number; time: number } | null>(null)
   useEffect(() => {
     const element = audio.current!, host = waveform.current!, player = container.current!
@@ -36,16 +41,17 @@ function Player({ src, label, variant = 'default' }: Props) {
         const { default: WaveSurfer } = await import('wavesurfer.js')
         if (cancelled) return
         const colors = getComputedStyle(player)
-        const height = variant === 'compact' ? 40 : variant === 'card' ? 64 : 48
+        const height = variant === 'dock' ? 32 : variant === 'compact' ? 40 : variant === 'card' ? 64 : 48
         const instance = WaveSurfer.create({
           container: host, media: element, height,
+          ...(peaks?.length && duration > 0 ? { peaks: [Array.from(peaks)], duration } : {}),
           waveColor: colors.getPropertyValue('--audio-wave').trim() || '#a0a0ac',
           progressColor: colors.getPropertyValue('--audio-accent').trim() || '#929bff',
           cursorWidth: 1, cursorColor: colors.getPropertyValue('--audio-accent').trim() || '#929bff',
-          // A strong upper signal and a quiet reflection share one seek baseline.
+          // Dock previews use a balanced waveform; forum players retain their reflection.
           renderFunction: (channels, context) => {
             const { width, height: canvasHeight } = context.canvas
-            const ratio = canvasHeight / height, baseline = canvasHeight * .7
+            const ratio = canvasHeight / height, baseline = canvasHeight * (variant === 'dock' ? .5 : .7)
             const barWidth = 2 * ratio, spacing = 4 * ratio, length = channels[0]?.length || 0
             if (!length || !width) return
             let maximum = 0
@@ -59,7 +65,7 @@ function Player({ src, label, variant = 'default' }: Props) {
               const reflection = Math.max(ratio, amplitude * (canvasHeight - baseline - 2 * ratio))
               context.globalAlpha = 1
               context.fillRect(x, baseline - top, barWidth, top)
-              context.globalAlpha = .3
+              context.globalAlpha = variant === 'dock' ? 1 : .3
               context.fillRect(x, baseline + ratio, barWidth, reflection)
             }
             context.globalAlpha = .2
@@ -79,18 +85,20 @@ function Player({ src, label, variant = 'default' }: Props) {
       } catch { if (!cancelled) setWaveStatus('unavailable') }
     }
     initialize.current = () => { void start() }
-    const observer = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(entries => {
+    const observer = activation === 'manual' || typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { observer?.disconnect(); void start() }
     })
     if (observer) observer.observe(player)
-    else void start()
+    else if (activation === 'visible') void start()
     return () => {
       cancelled = true; observer?.disconnect(); initialize.current = () => {}
       wave.current?.destroy(); wave.current = null
       if (playing === element) playing = null
       element.pause(); element.removeAttribute('src'); element.load()
     }
-  }, [src, variant])
+  }, [src, variant, activation, peaks, duration])
+
+  useEffect(() => { if (prepare) initialize.current() }, [prepare, src])
 
   function update() {
     const element = audio.current
@@ -101,6 +109,10 @@ function Player({ src, label, variant = 'default' }: Props) {
   function toggle() {
     const element = audio.current!
     if (!element.paused) { element.pause(); return }
+    start()
+  }
+  function start() {
+    const element = audio.current!
     initialize.current(); setError('')
     if (element.error) element.load()
     if (element.ended) element.currentTime = 0
@@ -111,16 +123,29 @@ function Player({ src, label, variant = 'default' }: Props) {
   }
   function seek(value: number) {
     const currentTime = Math.max(0, Math.min(state.duration, value))
-    if (wave.current) wave.current.setTime(currentTime)
-    else audio.current!.currentTime = currentTime
+    const element = audio.current!
+    if (!seekStartsPlayback || element.readyState >= HTMLMediaElement.HAVE_METADATA || Number.isFinite(element.duration) && element.duration > 0) {
+      if (wave.current) wave.current.setTime(currentTime)
+      else element.currentTime = currentTime
+    } else if (state.duration) pendingSeek.current = currentTime / state.duration
     setState(current => ({ ...current, currentTime }))
   }
   function seekKey(event: KeyboardEvent<HTMLInputElement>) {
+    if (seekStartsPlayback && (event.key === ' ' || event.key === 'Enter')) { event.preventDefault(); toggle(); return }
     const delta = event.shiftKey ? 10 : 5
     const target = event.key === 'Home' ? 0 : event.key === 'End' ? state.duration
       : ['ArrowRight', 'ArrowUp'].includes(event.key) ? state.currentTime + delta
       : ['ArrowLeft', 'ArrowDown'].includes(event.key) ? state.currentTime - delta : null
     if (target !== null) { event.preventDefault(); seek(target) }
+  }
+  function seekPointer(event: PointerEvent<HTMLInputElement>) {
+    if (!seekStartsPlayback || event.button !== 0) return
+    event.preventDefault()
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const fraction = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
+    if (state.duration) seek(fraction * state.duration)
+    else pendingSeek.current = fraction
+    start()
   }
   function hoverSeek(event: PointerEvent<HTMLInputElement>) {
     if (event.pointerType === 'touch' || !state.duration) return
@@ -135,9 +160,9 @@ function Player({ src, label, variant = 'default' }: Props) {
         <span className="audio-player-fallback-progress" style={{ width: (state.duration ? state.currentTime / state.duration * 100 : 0) + '%' }}/>
         <span>{waveStatus === 'loading' ? 'Loading waveform…' : waveStatus === 'unavailable' ? 'Waveform unavailable' : 'Sound clip'}</span>
       </div>}
-      <input className="audio-player-seek" type="range" min={0} max={state.duration || 1} step="0.1" value={Math.min(state.currentTime, state.duration)} disabled={!state.duration}
+      <input className="audio-player-seek" type="range" min={0} max={state.duration || 1} step="0.1" value={Math.min(state.currentTime, state.duration)} disabled={!state.duration && !seekStartsPlayback}
         aria-label={'Seek in ' + label} aria-valuetext={time(state.currentTime) + ' of ' + time(state.duration)} onChange={event => seek(Number(event.target.value))} onKeyDown={seekKey}
-        onPointerMove={hoverSeek} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)}/>
+        onPointerDown={seekPointer} onPointerMove={hoverSeek} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)}/>
       {hover && <span className="audio-player-hover" style={{ left: hover.position * 100 + '%' }} aria-hidden="true"><span>{time(hover.time)}</span></span>}
       <span className="audio-player-time" aria-hidden="true"><span className="audio-player-elapsed">{time(state.currentTime)}</span><span className="audio-player-duration">{state.duration ? time(state.duration) : '—:—'}</span></span>
     </div>
@@ -146,7 +171,13 @@ function Player({ src, label, variant = 'default' }: Props) {
     <audio ref={audio} src={src} preload="none" hidden
       onPlay={event => { if (playing && playing !== event.currentTarget) playing.pause(); playing = event.currentTarget; setError(''); update() }}
       onPause={event => { if (playing === event.currentTarget) playing = null; update() }} onEnded={event => { if (playing === event.currentTarget) playing = null; update() }}
-      onTimeUpdate={update} onLoadedMetadata={update} onDurationChange={update}
+      onTimeUpdate={update} onLoadedMetadata={event => {
+        const element = event.currentTarget
+        if (pendingSeek.current !== null && Number.isFinite(element.duration) && element.duration > 0) {
+          element.currentTime = pendingSeek.current * element.duration; pendingSeek.current = null
+        }
+        update()
+      }} onDurationChange={update}
       onError={() => setError('This clip could not be loaded. Try again.')}/>
   </div>
 }
