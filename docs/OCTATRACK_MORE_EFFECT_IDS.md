@@ -142,7 +142,12 @@ Order, each step host-tested before the next:
    18 `lea` sites patched, stock's sign-extended id reads made zero-extended, the Part validator's clamp raised to
    159 (three sites), the lists' row capacity raised.
 6. **128 installed modules**: `RUNTIME_MODULES` 128, the module pool about 768 KiB, the saved set's buffer with it;
-   the hook events' cost with many modules measured on the unit.
+   the hook events' cost with many modules measured on the unit. **Built (12 October 2026, S58):** `loader.h` keeps
+   32 and 256 KiB as defaults and `build_core.py` raises them for the Octatrack (`RUNTIME_MODULES`,
+   `RUNTIME_POOL_BYTES`); modset.c's set buffer follows the pool. The base's RAM grows from about 2.1 to 3.1 MiB,
+   taken from sample memory at boot. The self-test's site check masks interrupts a module at a time instead of over
+   all of them. The loader's host test fills all 128 slots; S58 boots and passes `pick` in `ot_emu --dsp`. Not yet:
+   128 real modules installed, and their tick and key cost, on the unit.
 7. **Compatibility:** id 31 stays dry from step 5 on, so a project opened on an older base or stock (which clamp
    to 31) plays dry there instead of running another module. TapeHead's preferred handle moves off 31; the
    project map keeps existing projects on their handles until they are opened on the new base.

@@ -26,12 +26,13 @@ class LoaderTests(unittest.TestCase):
         cc = shutil.which('cc')
         if not cc:
             self.skipTest('no host C compiler')
-        with tempfile.TemporaryDirectory() as temp:
-            subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-I', LOADER,
-                            '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/host_test.c', '-o', temp + '/t'],
-                           check=True, capture_output=True)
-            result = subprocess.run([temp + '/t'], capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        for defines in ((), ('-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')):  # the default, the Octatrack's
+            with self.subTest(defines), tempfile.TemporaryDirectory() as temp:
+                subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', *defines, '-I', LOADER,
+                                '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/host_test.c', '-o', temp + '/t'],
+                               check=True, capture_output=True)
+                result = subprocess.run([temp + '/t'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_relocations_are_the_words_that_move_with_the_link_address(self):
         low = struct.pack('>HIHI', 0x4e71, 0x10, 0x4e75, 0x40001e50)  # a self-reference, then a stock address

@@ -15,7 +15,7 @@
 #include "loader.h"
 
 #define HEADER 84u
-#define SET_BYTES 0x41000u /* the 256 KiB pool's worth of packages, and the header */
+#define SET_BYTES (RUNTIME_POOL_BYTES + 0x1000u) /* the pool's worth of packages, and the header */
 extern const uint8_t modwerk_base_digest[32];
 extern const struct mu_backend modwerk_runtime_backend;
 #ifdef MODWERK_HOST

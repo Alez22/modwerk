@@ -149,9 +149,12 @@ static int holds(const struct runtime_module *m, int patched)
 unsigned modwerk_runtime_intact(void)
 {
     unsigned n = 0;
-    uint32_t lock = modwerk_machine_lock(), mask = modwerk_machine_mask();
-    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) n += live[i] && holds(live[i], 1);
-    modwerk_machine_unmask(mask);
+    uint32_t lock = modwerk_machine_lock();
+    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) { /* masked a module at a time: many modules, short spans */
+        uint32_t mask = modwerk_machine_mask();
+        n += live[i] && holds(live[i], 1);
+        modwerk_machine_unmask(mask);
+    }
     modwerk_machine_unlock(lock);
     return n;
 }
@@ -159,9 +162,12 @@ unsigned modwerk_runtime_intact(void)
 uint32_t modwerk_runtime_broken(void)
 {
     uint32_t id = 0;
-    uint32_t lock = modwerk_machine_lock(), mask = modwerk_machine_mask();
-    for (unsigned i = 0; !id && i < RUNTIME_MODULES; ++i) if (live[i] && !holds(live[i], 1)) id = live[i]->id;
-    modwerk_machine_unmask(mask);
+    uint32_t lock = modwerk_machine_lock();
+    for (unsigned i = 0; !id && i < RUNTIME_MODULES; ++i) {
+        uint32_t mask = modwerk_machine_mask();
+        if (live[i] && !holds(live[i], 1)) id = live[i]->id;
+        modwerk_machine_unmask(mask);
+    }
     modwerk_machine_unlock(lock);
     return id;
 }

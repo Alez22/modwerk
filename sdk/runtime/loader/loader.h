@@ -15,8 +15,13 @@
 #define RUNTIME_SITE_RELOCATIONS 8u
 #define RUNTIME_DSP_WORDS 4096u          /* one module's DSP code and tables, 24-bit words */
 #define RUNTIME_DSP_RELOCATIONS 256u
+/* A machine may raise these (the Octatrack: 128 modules in 768 KiB, build_core.py). */
+#ifndef RUNTIME_POOL_BYTES
 #define RUNTIME_POOL_BYTES 262144u       /* every module's memory, reclaimed once nothing can reach it */
+#endif
+#ifndef RUNTIME_MODULES
 #define RUNTIME_MODULES 32u              /* live at once: bounds the cost of each event, not memory */
+#endif
 #define RUNTIME_PAUSED 32u               /* memory spans the glue may report */
 #define RUNTIME_NONE 0xffffffffu
 /* Hook order in packages: the events every Elekloader core has. Later events

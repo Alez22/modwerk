@@ -239,7 +239,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       for (;;) { try { pages.push(Buffer.from(await devIn(24, pages.length, 276))) } catch { break } }
       const b = pages[0]
       if (b.toString('latin1', 0, 4) !== 'MWMP') throw new Error('Not a memory map.')
-      const pool = 262144, free = b.readUInt32BE(4), largest = b.readUInt32BE(8)
+      const free = b.readUInt32BE(4), largest = b.readUInt32BE(8), pool = free + (await statusWords())(72) // the base's own size
       console.log(`pool: ${pool - free} of ${pool} bytes used; free ${free}, largest free run ${largest}${free ? ` (${Math.round(100 * largest / free)} % of free)` : ''}`)
       for (const [core, name] of [[1, 'core 1 (T1-4)'], [0, 'core 0 (T5-8)']]) {
         const arena = b.readUInt16BE(12 + 2 * core), blocks = []
@@ -450,7 +450,7 @@ if (command === 'serve') {
     console.log(`CPU ${pc(w(66))}\nDSP T1-4 ${pc(w(69))} (peak ${pc(w(70))})  T5-8 ${pc(w(67))} (peak ${pc(w(68))})\n` +
       `arena T1-4 ${w(27)}/${arena >>> 16} words  T5-8 ${w(26)}/${arena & 0xffff} words\n` +
       `buffers FX1 T1-4 ${blocks(buf >> 8)} T5-8 ${blocks(buf)}  FX2 T1-4 ${blocks(buf >> 12)} T5-8 ${blocks(buf >> 4)}\n` +
-      `modules ${w(73)}, pool ${Math.round(w(72) / 1024)} KiB of 256\n` +
+      `modules ${w(73)}, pool ${Math.round(w(72) / 1024)} KiB of ${Math.round((w(72) + Buffer.from(await devIn(24, 0, 276)).readUInt32BE(4)) / 1024)}\n` +
       `idle passes a frame (last window): core 0 ${(w(76) / 1024).toFixed(1)}, core 1 ${(w(77) / 1024).toFixed(1)}`)
     process.exit(0)
   }

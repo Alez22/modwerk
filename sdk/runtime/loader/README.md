@@ -96,8 +96,9 @@ carry ColdFire code, stock-code sites and DSP code together (`build.py
 
 - **Admission before anything changes.** A package is refused, with the
   live set untouched, when another live module patches any byte of its
-  sites (Elekloader's own rule: one owner per byte), when 32 modules are
-  live, or when the pool has no free run large enough. The refusal reason
+  sites (Elekloader's own rule: one owner per byte), when `RUNTIME_MODULES`
+  are live (32 by default; the Octatrack base builds with 128 in a 768 KiB
+  pool), or when the pool has no free run large enough. The refusal reason
   (`modwerk_runtime_refusal()`: malformed, memory, conflict, full, busy)
   is kept for diagnostics and the unit's own message.
 - **One position each.** A module keeps its dispatch position for life;
