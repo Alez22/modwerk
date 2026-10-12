@@ -1889,6 +1889,83 @@ On S34 with six modules it passed in 7 s: all six ran, peaks CPU 54%, T1-4 67%, 
 
 **Not built yet:** the PEEK read-back of DSP code against the package, the persistence check, and the site's step after a sync.
 
+### Beta candidate qualification (owner's MKII, 12 October 2026)
+
+Images (private, `~/Downloads/modwerk-usb-test/`, each with `SHA256SUMS.txt`, `BUILD.txt`; every `.bin` passed
+`check_flash_safety.py`):
+- **Development twin** `beta1-dev/` (`build_core.py --dev --dsp-loader`, 128 ids, source `d3f13a60`), base `113f2954…`,
+  MAIN `04535dbe…`: RAM boots only, for driving and qualification.
+- **Tester image** `beta-9a86d7e1/` = `Modwerk-octatrack-beta3.bin` (`npm run octatrack:base` at `c9146e66`, main merged in:
+  NEW/BETA startup art, INVENTORY, the MISSING fix), `.bin` `9a86d7e1…` (641,216 bytes), MAIN `a20a1005…`, base
+  `dc1d7a39…`. Rebuilt from the committed package and equal to `build_core.py --dsp-loader`'s `.bin`. Earlier candidates
+  (`beta1`, `beta2`, `beta-browser-*`) are superseded (`SUPERSEDED.txt`).
+
+The unit was found on the flashed `usbtest9`, not on S63 as left (cause unknown). Getting the twin onto it:
+- Three RAM boots in the client's 4,095-byte frames failed while staging.
+- One with 4,148-byte frames staged and armed, then hung at the logo until a power cycle.
+- After the power cycle, one boot with `--chunk 4096` came back in 15 s.
+- See [traps](OCTATRACK_HARDWARE_TRAPS.md) for both.
+
+The battery RAM still held an older stall record. It said frames stopped 41 s after a boot, with nothing installed, the
+card's set refused as another base's, and T5 FX2 on DELAY. The S63 run had since put id 32 there, so that record
+predates today.
+
+**Qualification, `scripts/octatrack-qualify.py --soak 1800`** on the twin, LIVE/MODWERK-TEST bank C (every working Part
+equal to its saved one), 16:55-17:36. Passed, no failures.
+- **Packages:** E-Verb, Mini Verb, TapeHead, Air Chorus, Spectrum, Modulation, Euclid and Tape Echo (the
+  `~/.cache/modwerk-octatrack/pkgs` builds of 11 October).
+- **Each alone on T1 and T5:** picks ran 113-128 ms after YES. The highest core peak was 56.8 % (Air Chorus on T5,
+  core 0); the base load is 35 % on core 1 and 42 % on core 0.
+- **All at once, playing:** E-Verb, Mini Verb, Spectrum, Euclid and Tape Echo placed. The cycle ledger refused
+  TapeHead, Air Chorus and Modulation once each core was full. Peaks: T1-4 62.5 %, T5-8 47.7 %, CPU 56.9 %.
+- **Knob sweeps** on every placed module, 12 Part switches (each running its own effects), and a queued bank change
+  and back.
+- **Soak:** 180 meter windows over 35 minutes. CPU up to 65.7 %, T1-4 mean 65.0 % (peak 66.2 %), T5-8 mean 46.2 %
+  (peak 47.1 %).
+- **Afterwards:** no loader rejection, error or rollback, no new crash or stall record, the Part back as saved, every
+  module removed.
+
+The `-both` Spectrum and Modulation packages list on FX2, where their code runs a dry pass (FX1 only, by design;
+`spectrum.asm`). So a second run without the soak took the FX1 packages, with the site's beta packages from
+`public/octatrack-modules/` (everb 0.1.1, miniverb 0.2.1, tapehead 0.1.2, airwindows-chorus 0.1.2) plus Euclid and
+Tape Echo. It passed with no failures; all at once peaked at T1-4 64.7 % and T5-8 71.5 %.
+
+**What the runs found:**
+- **The chooser names Spectrum and Modulation "Spectrum79" and "Modulation79"**, their catalogue names, so the
+  script now picks by the chooser's name.
+- **A track without trigs keeps the other bank's effect after a playing bank change**, until its next trig. TapeHead
+  then still ran on T2, and its removal was refused as in use, which is correct. The script now switches Parts there
+  and back.
+- **MISSING MODULES reopened right after NO or YES**, when modules went missing while it showed: a base bug, fixed in
+  `5ad35d5a` (status.c, `test_status.c`). It was seen twice on the twin, which is built without the fix.
+
+**Crash test:** at 17:43:01, on bank A pattern 1 with the transport stopped, `crashtest` was sent. By about 17:43:05
+the unit was back on the flashed `usbtest9` without a power cycle. The record (crash 3) can be read on the next
+development boot, after the owner's power cycle.
+
+**The tester image on the unit:** after the owner's power cycle (on the flashed `usbtest9`, idle, DIAG clean), one RAM
+boot of `beta-9a86d7e1` with `--chunk 4096` came back in 14 s (17:50:20-17:50:34). Then only vendor requests, on bank C
+pattern 1 (the owner selected it and checked the screen):
+- **IDENTIFY and HELLO:** base `dc1d7a39…`, upload state normal.
+- **DIAG:** ticks advanced 180 in 3 s (60 Hz), no refusals, no abandoned stages.
+- **INVENTORY:** empty. The card's set was the twin's, so this base refused it as another base's (self-test record:
+  saved 4).
+- **MISSING:** E-Verb, Euclid, Air Chorus and TapeHead, which banks A and B name. The MISSING MODULES page was open;
+  one NO closed it and it stayed closed (the owner, at the unit): the fix, on the unit.
+- **`scripts/verify-octatrack-module-sets.mjs --hardware --selftest`** (the site's OctatrackLink with
+  `public/octatrack-modules`), 18:08:30-18:08:39, passed:
+  - load and keep everb + miniverb with the self-test as the stress test: 2 changes, 7.2 s;
+  - undo miniverb + tapehead + airwindows-chorus: 3 changes, 1.0 s, back to everb + miniverb;
+  - load and keep the same set: 3 changes, 0.2 s;
+  - load and keep the empty set: 3 changes, 0.4 s.
+  INVENTORY matched after every step.
+- **The self-test record afterwards:** passed, 2/2 modules intact and ran, peaks T1-4 41.0 %, T5-8 55.9 %, CPU 44.3 %,
+  longest frame 433 us, card set saved and read back (the empty set). DIAG: 100 vendor frames, 5 refused as busy and
+  retried, no abandoned stages. INVENTORY empty at the end.
+
+The unit was left RAM-booted on the tester image, with nothing installed, on bank C. It has no development requests, so
+the crash record of the crash test stays unread until a development base runs; a power cycle returns to `usbtest9`.
+
 ## Work required before public cutover
 
 | Area | Observed gap / next implementation |

@@ -190,10 +190,15 @@ Order, each step host-tested before the next:
    32, a project with T5 FX2 at id 32 was saved (`mapWritten` 5), then RELOAD restored it (RELOAD does not read
    `project.work`, `mapRead` 0), then PROJECT > CHANGE loaded it from the card: `mapRead` 4, `mapGeneration` 3,
    nothing missing, T5 FX2 Mini Verb and core 0 holding `id 32 @441+536`.
-   **Still to do (frozen here, 12 October 2026):** make 128 the default (`FX_IDS` in `build_core.py`, its help and
-   the docs), run the host tests and `npm run check -- --base origin/main`, then remove the seven Mini Verb clones
-   from the unit (`~/.cache/modwerk-octatrack/pkgs/clones/`) and return it to bank A, pattern 1. The unit is left
-   RAM-booted on S63 with project LIVE/MODWERK-TEST, bank B, Part 2, the clones installed.
+   **128 is the default (12 October 2026, `d3f13a60`):** `build_core.py` builds 128 ids unless `--fx-ids 32` asks for
+   the old width (kept to bisect). Host tests pass at both widths (`test_recipe.py`, `npm run upload:verify`, the
+   runtime loader's). The clones were gone before anyone removed them: the unit had restarted onto the flashed
+   `usbtest9` (cause unknown), and the next base refused S63's card set as another base's, so nothing was installed.
+   **What that restart did to the project:** bank B Part 2's working copy held T5 FX2 at id 31 (TapeHead's handle),
+   where the S63 run had left the Mini Verb copy at id 32; its saved copy says DELAY. `usbtest9`'s Part validator
+   clamps ids above 31 to 31 (the battery restore runs it), and the clamped byte stayed when the 128-id base came
+   back: the edge case of step 7 on the unit, in the working copy, without a save. RELOAD could not undo it after the
+   RAM boot (SAVE PART FIRST!); the Part was left so (a scratch project).
 8. **On the unit:** more than 13 module effects at once on both cores, a project saved with ids above 31 opened
    on the old flashed base (dry, nothing else running), the edge-case runs again.
 
