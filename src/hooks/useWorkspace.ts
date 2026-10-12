@@ -1,8 +1,9 @@
+import { normalizeRemovedStockFx } from '../catalog/stock-effects'
 import { useCommunity } from '../community/context'
 import { hasBetaAccess } from '../community/beta-access'
 import { trackConfigurationStarted } from '../community/usage'
 import { useEffect, useRef, useState } from 'react'
-import { afterDeleting, newConfiguration, cleanName, pinModuleVersions, configurationDevice, DEFAULT_DEVICE } from '../config/workspace'
+import { afterDeleting, newConfiguration, cleanName, pinModuleVersions, configurationDevice, DEFAULT_DEVICE, removedSettings } from '../config/workspace'
 import { DEVICES_BY_ID } from '../devices/registry'
 import { isModuleAvailable } from '../catalog/availability'
 import type { Configuration } from '../config/workspace'
@@ -103,19 +104,19 @@ export function useWorkspace() {
   function createConfiguration(name: string, copy = false, device = DEFAULT_DEVICE) {
     const original = configsRef.current.find(item => item.id === activeRef.current)
     const source = copy && original && configurationDevice(original) === device ? original : undefined
-    const item = newConfiguration(name, source?.moduleIds, source?.keepStockFx2 ?? true, source?.moduleVersions, device, source?.usbAudio)
+    const item = { ...newConfiguration(name, source?.moduleIds, source?.keepStockFx2 ?? true, source?.moduleVersions, device, source?.usbAudio), ...removedSettings(device, source?.removedStockFx) }
     replaceConfigurations([...configsRef.current, item]); changeActive(item.id)
     persist(async store => { await store.saveConfiguration(item); await store.setActiveConfiguration(item.id) })
     if(item.moduleIds.length)trackConfigurationStarted(item.id)
     return item
   }
-  function importConfiguration(name: string, ids: string[], keepStockFx2 = true, moduleVersions?: Record<string,string>, device = DEFAULT_DEVICE, usbAudio?: UsbAudioConfiguration) {
-    const item = newConfiguration(name, ids, keepStockFx2, moduleVersions, device, usbAudio)
+  function importConfiguration(name: string, ids: string[], keepStockFx2 = true, moduleVersions?: Record<string,string>, device = DEFAULT_DEVICE, usbAudio?: UsbAudioConfiguration, removedStockFx?: string[]) {
+    const item = { ...newConfiguration(name, ids, keepStockFx2, moduleVersions, device, usbAudio), ...removedSettings(device, removedStockFx) }
     replaceConfigurations([...configsRef.current,item]);changeActive(item.id)
     if(item.moduleIds.length)trackConfigurationStarted(item.id)
     persist(async store => {await store.saveConfiguration(item);await store.setActiveConfiguration(item.id)})
   }
-  function updateActive(update: Partial<Pick<Configuration, 'name' | 'moduleIds' | 'moduleVersions' | 'keepStockFx2' | 'usbAudio'>>) {
+  function updateActive(update: Partial<Pick<Configuration, 'name' | 'moduleIds' | 'moduleVersions' | 'keepStockFx2' | 'usbAudio' | 'removedStockFx'>>) {
     const current = configsRef.current.find(item => item.id === activeRef.current)
     if (!current) return
     const updated = { ...current, ...update, updatedAt: new Date().toISOString() }
@@ -185,5 +186,5 @@ export function useWorkspace() {
     persist(store => store.forgetFirmware())
     void clientRef.current?.clear().catch(() => setFileError('The firmware reader stopped. Reload the page.'))
   }
-  return { firmwareClient: clientRef, setKeepStockFx2: (keepStockFx2: boolean) => updateActive({ keepStockFx2 }), configureUsbAudio, importConfiguration, configurations, active, ready, saving, storageError, unreadable, selectConfiguration, createConfiguration, renameConfiguration, deleteConfiguration, toggleModule, firmware, fileState, fileError, setFileError, firmwareSaved, readFile, clearFile }
+  return { firmwareClient: clientRef, setKeepStockFx2: (keepStockFx2: boolean) => updateActive({ keepStockFx2 }), setRemovedStockFx: (keys: string[]) => updateActive({ removedStockFx: normalizeRemovedStockFx(keys) }), configureUsbAudio, importConfiguration, configurations, active, ready, saving, storageError, unreadable, selectConfiguration, createConfiguration, renameConfiguration, deleteConfiguration, toggleModule, firmware, fileState, fileError, setFileError, firmwareSaved, readFile, clearFile }
 }

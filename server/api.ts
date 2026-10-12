@@ -36,6 +36,7 @@ import { MODULES } from '../src/catalog/modules'
 import { handleGithubWebhook, githubConfig, mirrorIssue, setGithubIssueState } from './github'
 import { publicIssueReplies } from './issue-replies'
 import { createConfigurationReport } from './configuration-reports'
+import { octatrackDiagnosticRoutes } from './octatrack-diagnostics'
 import { IssueInputError, validateIssueContext, validateLogMissing } from '../src/community/issue-context'
 import { OT_LOG_MAX_BYTES, OtLogError, parseOtLog } from '../src/community/ot-log'
 
@@ -93,6 +94,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if(announcements)return announcements
     // Private history rows name the administrator account that acted; the key falls back to the fixed administrator row.
     const adminId = await adminActor(request,env,db), admin = !!adminId
+    const diagnostics = await octatrackDiagnosticRoutes(request,db,user,admin)
+    if (diagnostics) return diagnostics
     const push = await pushRoutes(request,env,db,user,admin)
     if(push)return push
     const signedDeveloper = await developerUser(request,env,db)

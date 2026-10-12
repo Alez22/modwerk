@@ -11,6 +11,7 @@ import { DigiModPreview } from './DigiModPreview'
 import { deviceHref, type DeviceProfile } from './registry'
 import { ModuleAuthors } from '../components/ModuleAuthors'
 import { ModuleAudioDetailPreview } from '../components/ModuleAudioPreview'
+import { useSetWords } from '../community/beta-ui'
 
 const kib = (bytes: number) => (bytes / 1024).toFixed(bytes < 10240 ? 1 : 0) + ' KiB'
 const documentUrl = (mod: DigiMod, path: string) => issueRepository() + '/blob/main/sdk/' + mod.device + '/modules/' + mod.id + '/' + path
@@ -35,6 +36,7 @@ function DigiResourceIndicators({ mod }: { mod: DigiMod }) {
 }
 
 function DigiModuleGuide({ mod, device }: { mod: DigiMod; device: DeviceProfile }) {
+  const w = useSetWords()
   const document = digiModuleDocument(mod), core = DIGI_CORES[mod.device]
   const others = DIGI_MODS.filter(other => other.device === mod.device && other.id !== mod.id)
   const access = document.access, controls = document.controls
@@ -75,7 +77,7 @@ function DigiModuleGuide({ mod, device }: { mod: DigiMod; device: DeviceProfile 
       <div className="disclosure-content">
         <section className="detail-section resource-section"><div className="section-title"><h2>Storage & processing</h2><span className="subtle">v{document.version}</span></div>
           <div className="resource-grid"><div className="resource-card"><span>Shared mod memory</span><strong>{document.resources.memoryBytes === null ? 'Not measured' : kib(mod.ramBytes)}</strong><p>{kib(core.areaBytes)} shared by all mods; {kib(core.ramBytes)} reserved for the core and alignment.</p></div><div className="resource-card"><span>Processing load</span><strong>{document.resources.load.display}</strong><p>{document.resources.load.conditions}</p></div></div>
-          <p className="resource-note">Estimated from code and data sizes. The build’s own checks decide whether your complete configuration fits. <a href={documentUrl(mod, document.tests.report)} target="_blank" rel="noreferrer">Read the measurement record ↗</a></p>
+          <p className="resource-note">Estimated from code and data sizes. The build’s own checks decide whether your complete {w.set} fits. <a href={documentUrl(mod, document.tests.report)} target="_blank" rel="noreferrer">Read the measurement record ↗</a></p>
           <dl className="device-facts"><dt>Claims</dt><dd>{mod.claims.join(', ') || 'No shared resources claimed.'}</dd></dl>
           {!!document.compatibility.limitations.length && <><h3>Compatibility notes</h3><ul>{document.compatibility.limitations.map(note => <li key={note}>{note}</li>)}</ul></>}
         </section>

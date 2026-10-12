@@ -77,6 +77,36 @@ ninth tile's later arrival/echo.
 See [the verification record](../../../docs/STARTUP_ANIMATION.md) for actual
 LCD capture results and remaining checks.
 
+## Base edition
+
+The Elekloader base replaces the stock logo loop with its own startup,
+[`boot_anim.c`](../../machines/octatrack/elekloader/boot_anim.c): **docking**. The
+mark's ninth dot is a module arriving. First the mark flies in: every pixel of the
+frame and the tiles comes from far beyond the screen and lands, the frame clockwise,
+the tiles from the middle one round the ring. The lamps stay dark while the mark
+builds. The empty corner, the socket, blinks, and a light far off at trig 1 answers. The module runs along the
+trig row, turns up through the keys under the screen, enters it from below and docks;
+the screen's rows shudder. Its wave bends the screen like a lens as it passes,
+reveals MODWERK and **NEW / BETA** and rolls on across the whole panel. It takes 3.5 s and ends on the same frame each
+time (`base_art.final_pixels`).
+
+Screen and lamps are one plane: the LCD sits in the panel (lamp positions from the
+stock lamp table at run time, 54.2 hundredths of a millimetre per pixel), so the
+module and the wave cross the screen's edge without a break. Those two are all the
+lamps show, so the module's run and its wave carry the panel on their own. The lamps are white on
+an MKII. The startup sets channel A's colour to white at the panel's LED intensity
+and repeats the firmware's own pre-logo colour call before it returns. An MKI has
+fixed colours, so there they are red.
+
+The base has its own compact art in `base.json`, with room between the elements: the
+mark at 29 px (the same frame, 3 x 3 grid of 5 px tiles and detached tile), MODWERK
+at 11 px tall, NEW and BETA in a small 7 px type, and where each sits. Since
+the 12 October 2026 merge of main the base uses the beta docking edition's art below
+(owner: the newer one); the version is in `boot_art.h` but not on the screen.
+`base_art.py` writes it as C data (`boot_art.h`) for `build_core.py` and gives the
+final frame to the tests. Public builds are unchanged: they keep `artwork.json`, and
+`build.py` still writes only the two graphic tables above.
+
 ## Beta docking edition
 
 Beta testers and verified administrators get the Elekloader migration's 3.5-second

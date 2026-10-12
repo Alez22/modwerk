@@ -19,6 +19,7 @@ import type { ModuleContributor } from '../catalog/module-authors'
 import type { AddBlock } from '../catalog/add-blocks'
 import { AddBlockChip, AddBlockPrompt } from './AddBlockPrompt'
 import { useAddBlockPrompt } from './use-add-block-prompt'
+import { useSetWords } from '../community/beta-ui'
 
 type DetailTab = 'Overview' | 'Previews' | 'Discussion' | 'Changelog' | 'Issues'
 const tabs: DetailTab[] = ['Overview', 'Previews', 'Discussion', 'Changelog', 'Issues']
@@ -30,8 +31,10 @@ function linkedTab(): DetailTab {
   return tabs.find(value => value.toLowerCase() === query.get('tab')) ?? 'Overview'
 }
 
-export function ModuleDetailLayout({ id, title, family, detail, author, authorUrl, contributors, description, selected, onToggle, backHref, backLabel, preview, resources, notice, guide, issueReport, browse, onBackToResults, titleBadge, configureTarget, overviewIntro, addBlock, onSwap }: {
+export function ModuleDetailLayout({ id, title, family, detail, author, authorUrl, contributors, description, selected, onToggle, backHref, backLabel, preview, resources, notice, guide, issueReport, browse, onBackToResults, titleBadge, configureTarget, overviewIntro, addBlock, onSwap, modal = false }: {
   browse?: CatalogBrowse | null; onBackToResults?: () => void
+  /** Shown in a dialog over another page: no way back, since nothing navigated. */
+  modal?: boolean
   id: string; title: string; family: string; detail: string; author: string; authorUrl: string; description: string
   contributors?: readonly ModuleContributor[]
   titleBadge?: string
@@ -43,6 +46,7 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
   // What adding this module would do to the current configuration; undefined when it fits.
   addBlock?: AddBlock; onSwap?: (removeIds: readonly string[]) => void
 }) {
+  const w = useSetWords()
   const navigation = catalogNeighbors(browse, id, hasBetaAccess(useCommunity().session))
   const [tab, setTab] = useState<DetailTab>(linkedTab)
   const pending = selected ? undefined : addBlock
@@ -68,10 +72,10 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
   const discussionBadge = <span className="module-tab-count-slot"><span className="tab-count">{discussionCount ?? '—'}<span className="sr-only">{discussionCount === null ? ' comments loading' : discussionCount === 1 ? ' comment' : ' comments'}</span></span></span>
   return <div className={'detail-page' + (navigation && navigation.total > 1 ? ' has-catalog-navigation' : '')}>
     {navigation && navigation.total > 1 && <CatalogNavigation navigation={navigation} />}
-    <div className="module-page-actions">
+    {!modal && <div className="module-page-actions">
       <div className="module-browse-context"><a className="back-link" href={navigation?.backHref ?? backHref} onClick={navigation ? onBackToResults : undefined}><Icon name="back" size={15} />{navigation ? 'Back to results' : backLabel}</a>{navigation && <span className="catalog-position" aria-label={'Module ' + navigation.position + ' of ' + navigation.total + ' results'}>{navigation.position} of {navigation.total}</span>}</div>
       <div className="module-page-buttons"><ShareModuleButton id={id} title={title} /></div>
-    </div>
+    </div>}
     <section className="detail-hero detail-hero-with-resources" aria-labelledby="module-title">
       {preview}
       <div className="detail-intro">
@@ -83,7 +87,7 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
         <div className="module-add-region">
           {prompt.conflict
             ? <button ref={addTrigger} className="button button-quiet module-configure-action is-conflict" onClick={prompt.toggle} aria-expanded={prompt.open} aria-controls={prompt.id}><Icon name="swap" size={16} /><span className="add-block-label">{prompt.conflict.reason}</span></button>
-            : <button className={'button module-configure-action ' + (selected ? 'button-added' : 'button-primary')} onClick={configureTarget && !selected ? showConfiguration : onToggle} aria-pressed={selected}><Icon name={selected ? 'check' : configureTarget ? 'sliders' : 'plus'} size={16} />{selected ? 'Added to configuration' : configureTarget ? 'Configure ' + title : 'Add to configuration'}</button>}
+            : <button className={'button module-configure-action ' + (selected ? 'button-added' : 'button-primary')} onClick={configureTarget && !selected ? showConfiguration : onToggle} aria-pressed={selected}><Icon name={selected ? 'check' : configureTarget ? 'sliders' : 'plus'} size={16} />{selected ? 'Added to ' + w.set : configureTarget ? 'Configure ' + title : 'Add to ' + w.set}</button>}
           {pending && !prompt.conflict && <AddBlockChip block={pending} />}
           {prompt.conflict && prompt.open && <AddBlockPrompt id={prompt.id} name={title} block={prompt.conflict} onCancel={prompt.close}
             onSwap={() => { onSwap?.(prompt.conflict?.swapRemoveIds ?? []); prompt.close() }} onAddAnyway={() => { onToggle(); prompt.close() }} />}

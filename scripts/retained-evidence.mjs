@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { resolve, dirname } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { loadBuilderPreservation } from './builder-preservation.mjs'
+import { loadBrowserInfrastructurePreservation } from './browser-infrastructure-preservation.mjs'
 import { parseModuleDocument } from '../src/catalog/module-contract.ts'
 import { compareModuleVersions } from '../src/catalog/versions.ts'
 import { requireModuleDocumentation } from './module-documentation.mjs'
@@ -199,7 +200,8 @@ export async function requireRetainedEvidence(root, folder, document, baseline, 
       // and validate that binding only when a changed input requires it.
       if (!triedPreservation) {
         triedPreservation = true
-        preservation = await loadBuilderPreservation(root, approvedRef, document.id)
+        preservation = await loadBrowserInfrastructurePreservation(root, approvedRef, document)
+          ?? await loadBuilderPreservation(root, approvedRef, document.id)
       }
       try { compare() } catch { changedInfrastructure ??= error }
     }

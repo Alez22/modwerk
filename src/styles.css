@@ -285,14 +285,16 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
 .module-browse-context { display: flex; align-items: center; gap: 14px; }
 .catalog-position { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .catalog-navigation { display: none; }
+/* Paging chevrons: fixed beside the module page, and beside the module dialog's panel. */
+.catalog-chevron { display: flex; align-items: center; justify-content: center; width: 44px; height: 52px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); }
+.catalog-chevron.is-next svg { transform: rotate(180deg); }
+.catalog-chevron:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
 @media (min-width: 1101px) {
   .has-catalog-navigation { padding-inline: 40px; }
   .catalog-navigation { display: block; }
-  .catalog-chevron { position: fixed; top: 50%; z-index: 5; display: flex; align-items: center; justify-content: center; width: 44px; height: 52px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); transform: translateY(-50%); }
-  .catalog-chevron.is-previous { left: calc(var(--sidebar-width) + 12px); }
-  .catalog-chevron.is-next { right: 12px; }
-  .catalog-chevron.is-next svg { transform: rotate(180deg); }
-  .catalog-chevron:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+  .catalog-navigation .catalog-chevron { position: fixed; top: 50%; z-index: 5; transform: translateY(-50%); }
+  .catalog-navigation .catalog-chevron.is-previous { left: calc(var(--sidebar-width) + 12px); }
+  .catalog-navigation .catalog-chevron.is-next { right: 12px; }
 }
 
 .module-issue-action { min-height: 44px; font-size: 12px; background: #393222; border-color: #71603b; color: #efd17c; }
@@ -1762,8 +1764,8 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
 
 /* Configurations occupy two quiet rows, regardless of how many are saved. */
 .configuration-launcher { display: flex; flex-direction: column; gap: 2px; }
-.configuration-launcher button { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-radius: 6px; background: transparent; color: var(--muted); text-align: left; padding: 7px 11px; }
-.configuration-launcher button:hover { background: var(--surface-hover); }
+.configuration-launcher button, .configuration-launcher a { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-radius: 6px; background: transparent; color: var(--muted); text-align: left; padding: 7px 11px; }
+.configuration-launcher button:hover, .configuration-launcher a:hover { background: var(--surface-hover); }
 .configuration-launcher .configuration-browse { min-height: 36px; font-size: 13px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .configuration-browse svg { color: #afb3d5; }
 .configuration-browse span { flex: 1; }
@@ -1775,6 +1777,7 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
 .configuration-recent small { margin-top: 3px; color: var(--muted); font-size: 11px; }
 .configuration-browser { width: min(640px, calc(100% - 32px)); max-height: min(720px, calc(100dvh - 32px)); padding: 20px; overflow: hidden; }
 .configuration-browser[open] { display: flex; flex-direction: column; }
+.configuration-browser.your-module-sets { width: auto; max-height: none; height: auto; padding: 23px; overflow: visible; }
 .configuration-browser.is-scrollable { height: min(640px, calc(100dvh - 32px)); }
 .configuration-browser h2 .subtle { margin-left: 6px; }
 .configuration-browser-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-shrink: 0; }
@@ -1920,8 +1923,8 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
 @media (max-width: 600px) {
   .detail-hero-with-resources .detail-description { margin: 12px 0 8px; font-size: 14px; }
   .detail-hero-with-resources .detail-intro h1 { font-size: 30px; }
-  .detail-page .share-button-label { display: none; }
-  .detail-page .share-control > .button { width: 44px; padding: 0; }
+  :is(.detail-page, .module-dialog-bar) .share-button-label { display: none; }
+  :is(.detail-page, .module-dialog-bar) .share-control > .button { width: 44px; padding: 0; }
   .detail-page .catalog-position { display: none; }
   .detail-hero-with-resources .resource-gauge-dial strong { font-size: 13px; }
   .detail-hero-with-resources .module-resource-gauges { gap: 6px; }
