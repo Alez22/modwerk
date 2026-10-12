@@ -182,6 +182,18 @@ Order, each step host-tested before the next:
 7. **Compatibility:** id 31 stays dry from step 5 on, so a project opened on an older base or stock (which clamp
    to 31) plays dry there instead of running another module. TapeHead's preferred handle moves off 31; the
    project map keeps existing projects on their handles until they are opened on the new base.
+   **Changed (owner, 12 October 2026):** TapeHead keeps id 31, so projects real users saved on static firmware
+   keep playing it. The edge case: a project with ids above 31 opened where id 31 is TapeHead (an older base,
+   static firmware) plays TapeHead in those slots; stock plays them dry. To write into
+   [OCTATRACK_MODULE_EDGE_CASES.md](OCTATRACK_MODULE_EDGE_CASES.md).
+   **Persistence on the unit (S63, 128 ids, 12 October 2026):** with Mini Verb clones installed at handles up to
+   32, a project with T5 FX2 at id 32 was saved (`mapWritten` 5), then RELOAD restored it (RELOAD does not read
+   `project.work`, `mapRead` 0), then PROJECT > CHANGE loaded it from the card: `mapRead` 4, `mapGeneration` 3,
+   nothing missing, T5 FX2 Mini Verb and core 0 holding `id 32 @441+536`.
+   **Still to do (frozen here, 12 October 2026):** make 128 the default (`FX_IDS` in `build_core.py`, its help and
+   the docs), run the host tests and `npm run check -- --base origin/main`, then remove the seven Mini Verb clones
+   from the unit (`~/.cache/modwerk-octatrack/pkgs/clones/`) and return it to bank A, pattern 1. The unit is left
+   RAM-booted on S63 with project LIVE/MODWERK-TEST, bank B, Part 2, the clones installed.
 8. **On the unit:** more than 13 module effects at once on both cores, a project saved with ids above 31 opened
    on the old flashed base (dry, nothing else running), the edge-case runs again.
 
