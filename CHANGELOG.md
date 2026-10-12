@@ -2,7 +2,7 @@
 
 ## 12 October 2026
 
-- Documented the USB runtime arena separately from card-builder compatibility, including exact qualified-base capacities, Analog BD source-engine integration and shared-site ownership gaps.
+- Required new Octatrack modules to deliver the base/USB lifecycle alongside card builds, with companion ownership, browser/runtime package checks, lifecycle/persistence evidence and explicit owner review of unavoidable limits. Documented exact qualified-base capacities and current source-engine/shared-site gaps without presenting pending adapters as released.
 
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.

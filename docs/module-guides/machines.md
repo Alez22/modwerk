@@ -39,7 +39,7 @@ Test in layers, as Analog BD does: the DSP engine, the ColdFire glue, the port (
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots as in [Add or port a module](../ADD_A_MODULE.md).
-- [ ] Conflicts are declared. Analog BD runs with stock effects only and is refused beside every module with an effect ID. A machine that brings its own DSP engine needs the same, in `compatibility.conflicts` and in the ledger.
+- [ ] Conflicts are declared with actual ownership and placement reasons. Analog BD supports reviewed custom DSP companions, subject to space; inspect both cores rather than inheriting a blanket effect exclusion. Follow the [base/USB lifecycle requirements](../ADD_A_MODULE.md#octatrack-base-and-usb-lifecycle), including shared machine registration, missing-module behavior and Keep/Undo. Unavoidable limits require owner review.
 - [ ] `npm run module:verify -- <id> --os <your 1.40C>` and `npm run module:doctor -- <id>` are green.
 
 ## Digitakt and Digitone
