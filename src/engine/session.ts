@@ -39,14 +39,14 @@ export function createEngineSession(reply: (response: EngineResponse, transfer?:
       if (!claims.checked || claims.issues.length) throw new Error(claims.issues.join(' ') || 'This module selection could not be validated.')
       reply({ id: request.id, type: 'progress', phase: 'composing' })
       let result
-      try { result = await composeSelection(original.mainOs, request.moduleIds, request.keepStockFx2, request.usbAudio) }
+      try { result = await composeSelection(original.mainOs, request.moduleIds, request.keepStockFx2, request.usbAudio, request.betaAccess === true) }
       catch (error) {
         if (!isPlacementFailure(error)) throw error
         const conflict = await diagnosePlacement(request.moduleIds, error, ids => {
           const claims = checkSelection(ids, DSP_LOADER && request.keepStockFx2)
           if (!claims.checked || claims.issues.length) return Promise.reject(new Error('Selection declarations did not pass.'))
           // USB settings belong only to the USB Audio module; removing it must remove its settings too.
-          return composeSelection(original.mainOs, ids, request.keepStockFx2, ids.includes('usb-audio-out-tracks-main-cue') ? request.usbAudio : undefined)
+          return composeSelection(original.mainOs, ids, request.keepStockFx2, ids.includes('usb-audio-out-tracks-main-cue') ? request.usbAudio : undefined, request.betaAccess === true)
         }, () => current === generation && newest === request.id)
         if (current !== generation) throw new Error('The selected firmware changed. Build again.', { cause: error })
         // A newer selection replaced this one; its partial diagnosis would mislead and nobody waits for it.
@@ -61,6 +61,7 @@ export function createEngineSession(reply: (response: EngineResponse, transfer?:
         osBytes: result.bytes.length, runtimeBytes: result.runtime.bytes, reservedBytes: result.runtime.reservedBytes,
         fx1Rows: result.chooser.fx1.length, fx2Rows: result.chooser.fx2.length,
         omittedStockFx2: chooserMetadata.stockFx2.filter(key => !result.chooser.fx2.includes(key)),
+        startupAnimation: request.betaAccess === true ? 'beta-docking' : 'classic',
       }
       if (request.type === 'validate') { reply({ id: request.id, type: 'validated', report }); return }
       if (!DOWNLOADS_ENABLED) throw new Error('Firmware downloads are paused while the built-in logger completes verification.')

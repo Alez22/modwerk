@@ -22,6 +22,19 @@ const synthetic = (): DecodedFirmware => ({
 })
 
 describe('Octatrack firmware boot name', () => {
+  it('selects beta startup for an eligible request and returns to classic after revocation', async () => {
+    const firmware = synthetic(), replies: EngineResponse[] = []
+    const handle = createEngineSession(response => { replies.push(response) })
+    await handle({ id: 1, type: 'inspect', name: 'synthetic.bin', buffer: new Uint8Array(encodeFirmware(firmware, firmware.mainOs, 'STOCK')).buffer })
+    for (const [index, betaAccess] of [false, true, false].entries()) {
+      await handle({ id: index + 2, type: 'validate', moduleIds: ['repitch'], keepStockFx2: false, betaAccess })
+      const reply = replies.at(-1)
+      expect(reply?.type).toBe('validated')
+      if (reply?.type !== 'validated') throw new Error(JSON.stringify(reply))
+      expect(reply.report.startupAnimation).toBe(betaAccess ? 'beta-docking' : 'classic')
+      expect(vi.mocked(composeSelection).mock.calls.at(-1)?.[4]).toBe(betaAccess)
+    }
+  })
   it('uses only the panel boot font letter range', () => {
     expect(FIRMWARE_VERSION).toMatch(/^[A-Z0-9. ]{1,10}$/)
   })
