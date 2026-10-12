@@ -2,6 +2,8 @@
 
 ## 12 October 2026
 
+- Count FM Synth's instrument captures separately from audio previews in SDK and app release checks. Its seven screenshots keep their exact image and file-hash checks, while an added audio clip no longer blocks deployment.
+
 - Documented focused comparisons and musical phrases without quiet padding, full Euclid clock/envelope capture, FM + Mini Verb capture through Octemu with offline VECTOR note generation, reliable parameter-lock editing, decoded MP3 checks and the retained-evidence editorial media path.
 
 - Allow editorial documentation to be appended to a retained module's README when it also holds historical resource measurements. The entire approved record, other reports and runtime inputs remain immutable.
