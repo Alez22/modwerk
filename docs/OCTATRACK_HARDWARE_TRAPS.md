@@ -85,8 +85,9 @@ image in the client's default frames (4,043-byte chunks, the WinUSB limit) faile
 frames (`device boot DIR --chunk 4096`; serve: `boot DIR 4096`) the same 1.3 MB staged in about 1.3 s, twice,
 the base refusing some SUBMITs with a stall that the client retries. Bases from S43 on are not affected. Windows
 cannot send those frames, so a unit flashed with `usbtest9` RAM-boots from macOS or Linux only. The next RAM boot
-after those failures hung at the logo until a power cycle; whether the failed stages, or a DSP left stalled by
-the restart before them, caused it was not found.
+after those failures (4,148-byte frames, staged and armed) hung at the logo until a power cycle; whether the failed
+stages, or a DSP left stalled by the restart that had put the unit on `usbtest9` before them, caused it was not found.
+After the power cycle one RAM boot with `--chunk 4096` came back in 15 s.
 
 **macOS keeps stale device entries after the unit disappears abruptly**
 (`ioreg` shows inactive IOUSBHostDevice nodes held by `configd` or
@@ -191,6 +192,12 @@ Any other code that masks at level 5 or above must stay well under 200 µs.
 
 **A RAM boot does not rescue a stalled DSP; it hangs at the logo.** The soft reset parks both DSP cores first, and a
 hung core does not park. After a DSP stall only a power cycle helps.
+
+**After a crash restart, power-cycle before the next RAM boot** (rule from 12 October 2026, until disproved). A crash
+restart (`crash.c`, or `crashtest`) lands on the flashed base without a power cycle, and its DSPs may be left as the
+crash found them. That day the unit was found on the flashed `usbtest9` after an unknown restart, and the first RAM
+boot from there hung at the logo (above, under USB and EP0). So after any restart that was not a power cycle, ask the
+owner for one before arming a RAM boot.
 
 **Never select core 1 at state 7, not even to read its host flags.** The
 loader read each core's answer flags by setting the DSP select byte

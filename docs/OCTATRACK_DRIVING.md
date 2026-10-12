@@ -22,6 +22,9 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
 - Keep each command short: a few steps, a time limit, its output read at once. A long run goes in the
   background and logs every step, and you look at the log.
 - Never power-cycle on your own; ask the owner. Never flash.
+- After a crash restart, or finding the unit on the flashed base with no power cycle you know of, ask for a power
+  cycle before the next RAM boot: one such boot hung at the logo (12 October 2026,
+  [traps](OCTATRACK_HARDWARE_TRAPS.md#dsp-loader-dynamic-dsp-code)).
 
 ## Start the link
 

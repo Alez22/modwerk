@@ -15,11 +15,11 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 
 | # | Case | Today | Status |
 |---|---|---|---|
-| 1 | A project names modules that are not installed | The unit opens MISSING MODULES (status.c, owner: a list to close, not a popup): every module the project names in any bank or Part that is not installed, UP and DOWN to scroll, YES or NO to close; it opens when the list gains one and has held still for half a second, once the boot's restore is over, and closes itself when nothing is missing. Selecting a track running one still says `MISSING <NAME>` briefly. Those slots play dry and keep their knobs. The site reads the same list every 3 s while the unit is idle and offers Add to set, or says a load brings them back. | unit: done (S45); site: built, not seen in a browser with the unit |
+| 1 | A project names modules that are not installed | The unit opens MISSING MODULES (status.c, owner: a list to close, not a popup): every module the project names in any bank or Part that is not installed, UP and DOWN to scroll, YES or NO to close (12 October 2026: modules that went missing while the page showed reopened it at once after NO, which looked like NO doing nothing; now what the open page shows counts as told, `test_status.c`); it opens when the list gains one and has held still for half a second, once the boot's restore is over, and closes itself when nothing is missing. Selecting a track running one still says `MISSING <NAME>` briefly. Those slots play dry and keep their knobs. The site reads the same list every 3 s while the unit is idle and offers Add to set, or says a load brings them back. | unit: done (S45); site: built, not seen in a browser with the unit |
 | 2 | A new base build: the saved set belongs to another build and is not restored | The page lists every module the project names (S45: E-Verb, Euclid, TapeHead); reinstalling them brought back every assignment, knob and both Part copies | done (unit) |
 | 3 | The restore installs only some modules (`SOME MODULES FAILED`) | The ones the project names show as missing on the site (1); the unit's popup does not name them | built (as 1) |
 | 4 | Another project gives a handle to a different module | Two-step rebind: the old module lets go, then the new one takes the handle. On the unit: MODWERK-TEST, then a second scratch project with E-Verb on another track, then back: identical to the baseline (both projects used the catalogue handles, so no handle actually moved) | built (host test, emulator); switch and back done |
-| 5 | More than 13 different modules in one project | 13 free handles; the 14th is refused as FULL (host test `test_dsp.c`) and the site says the Octatrack has no room for another module. Too few for configurations of ~90 modules: see 21 | built (host test) |
+| 5 | More than 13 different modules in one project | 13 free handles; the 14th is refused as FULL (host test `test_dsp.c`) and the site says the Octatrack has no room for another module. Too few for configurations of ~90 modules: see 21 | superseded by 21: 128 ids, 109 for modules (S63 ran 14 module effects at once) |
 | 6 | A module update changes what its knobs mean | The map records a layout number, but nothing converts or warns. Detecting it needs `modwerk_fxmap_assign`: a module taking a handle overwrites the project's map entry with its own layout at once, so the mismatch has to be caught there (old layout against new) before it is lost; a project loaded over an installed module keeps the project's layout and could be compared later. No module has layout 2 yet | open (design noted) |
 | 7 | Updating a module a track plays | Refused as `RUNTIME_IN_USE`, and the site now says why; the user must pick another effect first | done, poor experience |
 | 8 | A module removed while a saved or another Part or bank names it | Removal is allowed (only playing tracks hold it). MISSING lists it at once; reloading the Part runs those slots dry (NONE) with their bytes kept, `MISSING EUCLID` shows when the track is selected, and reinstalling restores everything | done |
@@ -39,8 +39,8 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 | # | Case | Today | Status |
 |---|---|---|---|
 | 14 | Power lost while the set is being saved | Two files in turn: the older set stays | built (host test) |
-| 15 | FUNC held at boot skips the restore | Everything the project names is missing | built, not run on the unit |
-| 16 | A real power cycle into a flashed base that restores | Needs a flash with the restore | open |
+| 15 | FUNC held at boot skips the restore | Everything the project names is missing | built, not run on the unit; owner steps below |
+| 16 | A real power cycle into a flashed base that restores | Needs a flash with the restore (the beta has it) | open; owner steps below |
 | 17 | The restore held back past 10 s (playback or USB disk mode right after boot) | Hosts then go ahead, and a late restore could still overwrite a change made before it. Installs need the transport stopped, so this needs the card unavailable or USB disk mode for 10 s after boot while installing | open (rare; shortcut in ep0.c) |
 
 ## While playing
@@ -55,7 +55,7 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
 
 | # | Case | Today | Status |
 |---|---|---|---|
-| 21 | More module effects than the list holds (owner, 11 October 2026: "I just want a longer list than 32 entries"; categories in the choosers: not now) | The chooser itself scrolls any length (stock's 7 is only its viewport, build_bus.py CHOOSER_ROWS); the 32 is the base's lists and the 32 effect ids, of which stock keeps 19. Owner: more than 13 different module effects at once are needed, so ids handed out on pick are not enough; the DSP dispatch and stock's per-id tables have to grow, or one id has to dispatch to a second-level table. Research under way | open (design) |
+| 21 | More module effects than the list holds (owner, 11 October 2026: "I just want a longer list than 32 entries"; categories in the choosers: not now) | The chooser itself scrolls any length (stock's 7 is only its viewport, build_bus.py CHOOSER_ROWS); the 32 is the base's lists and the 32 effect ids, of which stock keeps 19. Owner: more than 13 different module effects at once are needed, so ids handed out on pick are not enough; the DSP dispatch and stock's per-id tables have to grow, or one id has to dispatch to a second-level table. Research under way | done: 128 effect ids, the default from `d3f13a60` ([OCTATRACK_MORE_EFFECT_IDS.md](OCTATRACK_MORE_EFFECT_IDS.md)); 14 module effects at once on the unit (S63) |
 
 ## Loading and memory, measured (11 October 2026, S47/S48, `scripts/octatrack-loadbench.py`, `memory`)
 
@@ -156,3 +156,34 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
    at boot) is deferred (owner, 12 October 2026) but must run on the unit before the beta rollout: it is the way
    out when a module breaks the unit at boot.
 6. Case 9: paste between projects (owner, 11 October 2026: not now).
+
+## Owner steps for 15 and 16, on the flashed beta (12 October 2026)
+
+Flash the tester image once (`Modwerk-octatrack-beta3.bin`, `9a86d7e1…`, flash-safety checked):
+
+1. On the Octatrack, press STOP.
+2. PROJECT > SYSTEM > USB DISK MODE, then YES.
+3. On the computer, copy `Modwerk-octatrack-beta3.bin` to the top level of the Octatrack drive.
+4. Eject the drive in Finder and wait until it is gone.
+5. On the Octatrack, press NO to leave USB DISK MODE.
+6. PROJECT > SYSTEM > OS UPGRADE, select the file, YES, confirm.
+7. Leave the power on until it has restarted and shows the project.
+
+The agent then installs two modules over USB, keeps them, and checks that the card set was saved.
+
+Case 16, a real power cycle restores the set:
+
+8. Press STOP, switch the Octatrack off, and wait 5 seconds.
+9. Switch it on, holding no key.
+10. About 3 seconds after the project shows, read the message: MODULES LOADED, SOME MODULES FAILED or MODULES NOT LOADED.
+
+Case 15, FUNC skips the restore:
+
+11. Switch off and wait 5 seconds.
+12. Switch on, holding no key.
+13. When the startup animation begins, press and hold FUNC until MODULES SKIPPED shows, then let go. If the Startup
+    Menu appears, FUNC came too early: switch off, wait 5 seconds and repeat from step 12.
+14. Switch off, wait 5 seconds, and switch on holding no key: MODULES LOADED again, because the skip leaves the card's
+    set alone.
+
+After steps 10, 13 and 14 the agent reads INVENTORY and MISSING over USB and records them here.
