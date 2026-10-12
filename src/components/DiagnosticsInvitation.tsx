@@ -33,15 +33,14 @@ export function DiagnosticsInvitation({onClose,preview=false}: {onClose:()=>void
   return <dialog ref={dialog} className="diagnostics-invitation" aria-labelledby="diagnostics-title" aria-describedby="diagnostics-intro" onCancel={event=>{event.preventDefault();onClose()}}>
     <button type="button" className="icon-button diagnostics-close" aria-label="Close diagnostics invitation" onClick={onClose}><Icon name="close"/></button>
     <div className="diagnostics-heading-icon" aria-hidden="true"><Icon name="wave" size={24}/></div>
-    <h2 id="diagnostics-title" tabIndex={-1}>Help me find bugs</h2>
+    <h2 id="diagnostics-title" tabIndex={-1}>Help us find bugs</h2>
     {preview && <p className="diagnostics-preview">Preview · no data is shared</p>}
-    <p id="diagnostics-intro" className="diagnostics-intro">If a build or sync fails, a technical report helps me see where it went wrong. Sharing these reports helps me fix problems you run into.</p>
+    <p id="diagnostics-intro" className="diagnostics-intro">If a build or sync fails, a technical report helps us see where it went wrong and fix the problem.</p>
     <ul className="diagnostics-facts">
       <li><Icon name="search" size={19}/><div><strong>What went wrong</strong><p>Browser and build failure categories, plus sync results and performance readings when you connect your Octatrack.</p></div></li>
-      <li><Icon name="shield" size={19}/><div><strong>Your music stays with you</strong><p>No audio, samples, firmware or project contents.</p></div></li>
       <li><Icon name="lock" size={19}/><div><strong>Private, for 30 days</strong><p>Reports are linked to your account and visible only to you and site administrators.</p></div></li>
     </ul>
-    <p className="diagnostics-connected">Trying the Octatrack beta? Keep this page open and your Octatrack connected so I can receive a report if something fails.</p>
+    <p className="diagnostics-connected">Trying the Octatrack beta? Keep this page open and your Octatrack connected so we can receive a report if something fails.</p>
     <DiagnosticDetails/>
     <p className="diagnostics-choice">Optional. Sharing applies to your signed-in sessions for 90 days. You can turn it off and delete reports in Account → Diagnostics anytime. Builds and syncing work either way.</p>
     {privacy && <p className="diagnostics-choice" role="status">Your browser requests privacy, so automatic diagnostics stay off here.</p>}

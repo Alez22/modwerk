@@ -2,7 +2,7 @@
 
 ## 12 October 2026
 
-- The base-install guide shows one readable step at a time, keeps its next action visible, explains unsupported browsers, follows the Octatrack’s restart prompt and makes Connect Octatrack prominent only after the base download. Diagnostics has a separate, dismissible invitation for verified members, including regular users, with an explicit choice and clear data, retention and withdrawal details. Browser/build failure categories join the opt-in technical reports; the expanded scope requires fresh consent. USB syncing remains beta-only.
+- The base-install guide shows one readable step at a time, keeps its next action visible, explains unsupported browsers, follows the Octatrack’s restart prompt and makes Connect Octatrack prominent only after the base download. “Help us find bugs” is a separate, dismissible diagnostics invitation for verified members, including regular users, with an explicit choice and clear data, retention and withdrawal details. Browser/build failure categories join the opt-in technical reports; the expanded scope requires fresh consent. USB syncing remains beta-only.
 
 - Beta USB sync preflights loader capabilities and exact machine-package layouts, including retained Undo packages, before fetching or sending changes. Package identities, group membership and bounded record structure are checked before a transaction; unrecognised layouts and individual-machine migrations without exact rollback identity are refused. This prepares the browser for additional USB packages without publishing them or changing the qualified base.
 
