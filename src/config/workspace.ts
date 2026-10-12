@@ -10,7 +10,7 @@ export const DEFAULT_DEVICE = 'octatrack'
 export function configurationDevice(item: { device?: string }) { return item.device ?? DEFAULT_DEVICE }
 function resolveIds(ids: readonly string[], device: string): { id: string; version: string }[] {
   if (device === DEFAULT_DEVICE) return resolveSelection(ids)
-  if (!isDigiDevice(device)) throw new Error('A saved module set is for an unknown machine.')
+  if (!isDigiDevice(device)) throw new Error('A saved configuration is for an unknown machine.')
   return resolveDigiSelection(device, ids)
 }
 
@@ -27,7 +27,7 @@ export type Configuration = { id: string; name: string; device?: string; moduleI
 export function afterDeleting(configurations: Configuration[], id: string) {
   const deleted = configurations.find(item => item.id === id), device = deleted ? configurationDevice(deleted) : DEFAULT_DEVICE
   const remaining = configurations.filter(item => item.id !== id)
-  const next = remaining.find(item => configurationDevice(item) === device) ?? remaining[0] ?? newConfiguration('My module set', [], DSP_LOADER, undefined, device)
+  const next = remaining.find(item => configurationDevice(item) === device) ?? remaining[0] ?? newConfiguration('My configuration', [], DSP_LOADER, undefined, device)
   return { remaining: remaining.includes(next) ? remaining : [...remaining, next], next }
 }
 export function newConfiguration(name: string, moduleIds: string[] = [], keepStockFx2 = DSP_LOADER, moduleVersions?: Record<string,string>, device = DEFAULT_DEVICE, usbAudio?: UsbAudioConfiguration): Configuration {
@@ -45,15 +45,15 @@ function usbSettings(ids: readonly string[], device: string, value: unknown) {
 }
 export function cleanName(name: string) {
   const value = name.trim()
-  if (!value || value.length > 80) throw new Error('Use a module set name between 1 and 80 characters.')
+  if (!value || value.length > 80) throw new Error('Use a configuration name between 1 and 80 characters.')
   return value
 }
 export function validateConfiguration(value: unknown): Configuration {
-  if (!value || typeof value !== 'object') throw new Error('A saved module set is unreadable.')
+  if (!value || typeof value !== 'object') throw new Error('A saved configuration is unreadable.')
   const item = value as Configuration
   if (item.keepStockFx2 !== undefined && typeof item.keepStockFx2 !== 'boolean') throw new Error('A saved chooser setting is unreadable.')
-  if (item.device !== undefined && (typeof item.device !== 'string' || !isDigiDevice(item.device))) throw new Error('A saved module set is for an unknown machine.')
-  if (typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !Array.isArray(item.moduleIds) || !item.moduleIds.every(id => typeof id === 'string') || typeof item.createdAt !== 'string' || typeof item.updatedAt !== 'string') throw new Error('A saved module set is unreadable.')
+  if (item.device !== undefined && (typeof item.device !== 'string' || !isDigiDevice(item.device))) throw new Error('A saved configuration is for an unknown machine.')
+  if (typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !Array.isArray(item.moduleIds) || !item.moduleIds.every(id => typeof id === 'string') || typeof item.createdAt !== 'string' || typeof item.updatedAt !== 'string') throw new Error('A saved configuration is unreadable.')
   const device = configurationDevice(item)
   return { id: item.id, name: cleanName(item.name), ...(device === DEFAULT_DEVICE ? {} : { device }), moduleIds: resolveIds(item.moduleIds, device).map(m => m.id), moduleVersions: normalizeModuleVersions(item.moduleIds,item.moduleVersions,device), keepStockFx2: item.keepStockFx2 ?? true, ...removedSettings(device, item.removedStockFx), ...usbSettings(item.moduleIds, device, item.usbAudio), createdAt: item.createdAt, updatedAt: item.updatedAt }
 }

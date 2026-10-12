@@ -19,6 +19,7 @@ import type { ModuleContributor } from '../catalog/module-authors'
 import type { AddBlock } from '../catalog/add-blocks'
 import { AddBlockChip, AddBlockPrompt } from './AddBlockPrompt'
 import { useAddBlockPrompt } from './use-add-block-prompt'
+import { useSetWords } from '../community/beta-ui'
 
 type DetailTab = 'Overview' | 'Previews' | 'Discussion' | 'Changelog' | 'Issues'
 const tabs: DetailTab[] = ['Overview', 'Previews', 'Discussion', 'Changelog', 'Issues']
@@ -45,6 +46,7 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
   // What adding this module would do to the current configuration; undefined when it fits.
   addBlock?: AddBlock; onSwap?: (removeIds: readonly string[]) => void
 }) {
+  const w = useSetWords()
   const navigation = catalogNeighbors(browse, id, hasBetaAccess(useCommunity().session))
   const [tab, setTab] = useState<DetailTab>(linkedTab)
   const pending = selected ? undefined : addBlock
@@ -85,7 +87,7 @@ export function ModuleDetailLayout({ id, title, family, detail, author, authorUr
         <div className="module-add-region">
           {prompt.conflict
             ? <button ref={addTrigger} className="button button-quiet module-configure-action is-conflict" onClick={prompt.toggle} aria-expanded={prompt.open} aria-controls={prompt.id}><Icon name="swap" size={16} /><span className="add-block-label">{prompt.conflict.reason}</span></button>
-            : <button className={'button module-configure-action ' + (selected ? 'button-added' : 'button-primary')} onClick={configureTarget && !selected ? showConfiguration : onToggle} aria-pressed={selected}><Icon name={selected ? 'check' : configureTarget ? 'sliders' : 'plus'} size={16} />{selected ? 'Added to module set' : configureTarget ? 'Configure ' + title : 'Add to module set'}</button>}
+            : <button className={'button module-configure-action ' + (selected ? 'button-added' : 'button-primary')} onClick={configureTarget && !selected ? showConfiguration : onToggle} aria-pressed={selected}><Icon name={selected ? 'check' : configureTarget ? 'sliders' : 'plus'} size={16} />{selected ? 'Added to ' + w.set : configureTarget ? 'Configure ' + title : 'Add to ' + w.set}</button>}
           {pending && !prompt.conflict && <AddBlockChip block={pending} />}
           {prompt.conflict && prompt.open && <AddBlockPrompt id={prompt.id} name={title} block={prompt.conflict} onCancel={prompt.close}
             onSwap={() => { onSwap?.(prompt.conflict?.swapRemoveIds ?? []); prompt.close() }} onAddAnyway={() => { onToggle(); prompt.close() }} />}

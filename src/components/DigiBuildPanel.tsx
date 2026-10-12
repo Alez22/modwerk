@@ -15,6 +15,7 @@ import { useDigiBuild } from '../hooks/useDigiBuild'
 import type { useDigiFirmware } from '../hooks/useDigiFirmware'
 import { Icon } from './Icon'
 import { BuildProgressIndicator } from './BuildProgressIndicator'
+import { useSetWords } from '../community/beta-ui'
 
 function save(data: BlobPart, name: string, type = 'application/octet-stream') {
   const url = URL.createObjectURL(new Blob([data], { type })), link = document.createElement('a')
@@ -24,6 +25,7 @@ function save(data: BlobPart, name: string, type = 'application/octet-stream') {
 const kib = (bytes: number) => (bytes / 1024).toFixed(0) + ' KB'
 
 export function DigiBuildPanel({ device, firmware, moduleIds, onExport, exported, canExport, results }: { device: { id: DigiMod['device']; name: string; firmware?: { recovery: string } }; firmware: ReturnType<typeof useDigiFirmware>; moduleIds: readonly string[]; onExport: () => void; exported: boolean; canExport: boolean; results: HTMLElement | null }) {
+  const w = useSetWords()
   const downloadsEnabled = digiDownloadsEnabled(device.id)
   const ready = firmware.state === 'ready' && !!firmware.file, release = ready ? firmware.firmware?.release : undefined
   const plan = release ? planBuild(device.id, release, moduleIds) : undefined
@@ -67,7 +69,7 @@ export function DigiBuildPanel({ device, firmware, moduleIds, onExport, exported
         {state.phase === 'blocked' && state.check?.problems?.length ? <details className="build-report"><summary>Show the builder’s report</summary><ul className="build-problems">{state.check.problems.map(problem => <li key={problem}>{problem}</li>)}</ul></details> : null}
         {state.phase === 'building' && <BuildProgressIndicator phase={state.step} finished={false}/>}
         {result && <BuildProgressIndicator finished/>}
-        <span className="subtle">No firmware upload. Local validation does not qualify this module set on hardware.</span>
+        <span className="subtle">{'No firmware upload. Local validation does not qualify this ' + w.set + ' on hardware.'}</span>
 
         {(state.phase === 'ready' || state.phase === 'failed' || state.phase === 'built') && <label className="version-field build-version"><span>OS version shown on the unit</span>
           <input value={shown} maxLength={length} spellCheck={false} aria-invalid={!!versionError} aria-describedby="digi-version-help" onChange={event => setVersion(event.target.value)} />
@@ -78,7 +80,7 @@ export function DigiBuildPanel({ device, firmware, moduleIds, onExport, exported
         {!busy && (state.phase === 'ready' || state.phase === 'failed' || state.phase === 'built'
           ? <button className={'button ' + (result ? 'button-quiet' : 'button-primary')} disabled={!!versionError || !riskAccepted} onClick={() => void build(shown)} aria-describedby="digi-build-status"><Icon name="sliders" size={16} />{result ? 'Build again' : 'Build firmware'}</button>
           : <button className="button button-primary" disabled={!ready || !!missing.length || busy} onClick={() => void check()} aria-describedby="digi-build-status"><Icon name="check" size={16} />{state.phase === 'blocked' ? 'Check again' : 'Check selection'}</button>)}
-        <button className="button button-quiet" disabled={!canExport} onClick={onExport}><Icon name="download" size={16}/>Export module set</button><p className="export-note" aria-live="polite">{exported ? 'Module set exported as JSON.' : 'JSON backup · no firmware included'}</p>
+        <button className="button button-quiet" disabled={!canExport} onClick={onExport}><Icon name="download" size={16}/>{'Export ' + w.set}</button><p className="export-note" aria-live="polite">{exported ? w.Set + ' exported as JSON.' : 'JSON backup · no firmware included'}</p>
       </div>
     </section>
     <p className="file-footnote"><span>Builder: <a href={BUILDER_SOURCE.repository} target="_blank" rel="noreferrer">elekloader ↗</a> by irpina (GPL-3.0-or-later), with each mod’s pinned author release. It runs in this browser.</span></p>

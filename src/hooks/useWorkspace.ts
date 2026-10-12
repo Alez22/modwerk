@@ -55,7 +55,7 @@ export function useWorkspace() {
         let skipped = 0
         let items = await store.listConfigurations(() => skipped++)
         setUnreadable(skipped)
-        if (!items.length) { const item = newConfiguration('My first module set'); await store.saveConfiguration(item); items = [item] }
+        if (!items.length) { const item = newConfiguration('My first configuration'); await store.saveConfiguration(item); items = [item] }
         const rememberedId = await store.activeConfiguration()
         if (cancelled) return
         replaceConfigurations(items)
@@ -79,7 +79,7 @@ export function useWorkspace() {
       } catch (error) {
         if (!cancelled) {
           setStorageError('Device storage could not be opened. Changes are not saved. ' + (error instanceof Error ? error.message : ''))
-          const fallback = newConfiguration('Unsaved module set')
+          const fallback = newConfiguration('Unsaved configuration')
           replaceConfigurations([fallback]); changeActive(fallback.id)
         }
       } finally { if (!cancelled) setReady(true) }
@@ -92,7 +92,7 @@ export function useWorkspace() {
     saveQueue.current = saveQueue.current.catch(() => {}).then(async () => {
       if (!storeRef.current) throw new Error('Browser storage is unavailable.')
       await operation(storeRef.current)
-    }).catch(error => { if (alive.current) setStorageError('Not saved on this device. ' + (error instanceof Error ? error.message : 'Try exporting your module set.')) })
+    }).catch(error => { if (alive.current) setStorageError('Not saved on this device. ' + (error instanceof Error ? error.message : 'Try exporting your configuration.')) })
     const latest = saveQueue.current
     void latest.finally(() => { if (alive.current && saveQueue.current === latest) setSaving(false) })
   }

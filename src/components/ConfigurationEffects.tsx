@@ -3,8 +3,10 @@ import { defaultChoosers } from '../engine/choosers'
 import { DSP_LOADER } from '../engine/protocol'
 import type { BuildView } from '../hooks/useFirmwareBuild'
 import { STOCK_EFFECT_NAMES as FX_NAMES } from '../catalog/stock-effects'
+import { useSetWords } from '../community/beta-ui'
 
 export function ConfigurationEffects({ ids, keepStockFx2, build }: { ids: readonly string[]; keepStockFx2: boolean; build: BuildView }) {
+  const w = useSetWords()
   const blocked = build.state === 'error'
   const checked = !!build.report
   // The checked report also accounts for a compact FX2 menu when the longer list does not fit.
@@ -14,7 +16,7 @@ export function ConfigurationEffects({ ids, keepStockFx2, build }: { ids: readon
   return <section className="configuration-section stock-fx-summary" aria-labelledby="stock-fx-title">
     <div className="section-title"><h2 id="stock-fx-title">Stock FX replacements</h2>{!blocked && <span className="subtle">{checked ? 'Checked for this build' : 'Selection preview'}</span>}</div>
     <div aria-live="polite">
-      {blocked ? <p>Resolve the module set issues to see which stock FX will be replaced.</p> : <>
+      {blocked ? <p>{'Resolve the ' + w.set + ' issues to see which stock FX will be replaced.'}</p> : <>
         {omitted.length ? <>
           <p>These stock effects will be unavailable in FX2:</p>
           <ul className="stock-fx-list">{omitted.map(key => <li key={key}>{FX_NAMES[key] ?? key}</li>)}</ul>

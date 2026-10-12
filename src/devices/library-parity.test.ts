@@ -78,7 +78,7 @@ describe('All machines library parity', () => {
     expect(html).not.toContain('4.5 (2)')
     expect(html).toContain(count('7', 'likes'))
     expect(html).toContain(count('12', 'downloads'))
-    expect(html).toContain('Remove Mini Verb from module set')
+    expect(html).toContain('Remove Mini Verb from configuration')
     expect(html).toContain('type="checkbox" checked=""')
   })
 
