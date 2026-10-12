@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Limited FM Synth's Node and Python screenshot regressions to instrument captures so bundled audio previews are not decoded as PNGs or counted as screenshots; capture hashes and version/source checks remain required.
 - Required the shared signal-art style for module thumbnails, documented the grid, palette and typography, and explained how to replace artwork whose original asset is bound by older release evidence.
 - Documented focused comparisons and musical phrases without quiet padding, full Euclid clock/envelope capture, FM + Mini Verb capture through Octemu with offline VECTOR note generation, reliable parameter-lock editing, decoded MP3 checks and the retained-evidence editorial media path.
 
