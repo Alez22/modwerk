@@ -2,7 +2,7 @@
 
 ## 12 October 2026
 
-- Documentation: recorded the beta diagnostics consent, account isolation, retention, deletion and USB read constraints in the app developer guide.
+- Documentation: recorded private diagnostics consent v2, verified-member eligibility, closed browser/build failure fields, account isolation, retention, deletion and USB read constraints. Clarified the first base-install restart prompt; USB access remains beta-only.
 - Empty beta module sets no longer show a green installed marker or “On your Octatrack” when the connected or remembered inventory is also empty. The sync row and sidebar keep the empty-set state separate from the device connection.
 - The beta hub keeps Sync to Octatrack above the modules in a compact sticky row with the set name and add/remove counts. Long sets no longer push the primary action below the module grid; phones use a full-width button.
 - Beta testers can opt into private Octatrack diagnostics from installation, the hub or account settings. Current consent is enforced by the server, expires after 90 days and can be withdrawn with deletion. Only documented technical fields are accepted; no firmware, samples, audio, project contents, set names, serial numbers or raw crash/memory dumps are collected. Records are retained for 30 days, capped per account, included in account export and visible only to their owner and site administrators. Removing beta access deletes the diagnostics and disables consent. Additional read-only status checks require opt-in, including after waiting for the USB interface. Collection and replies stay bound to the account that started them. Separate fixed daily sync-action totals honor existing count preferences and browser privacy signals.
