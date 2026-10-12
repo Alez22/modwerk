@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { changeCount, inventoryChanges, lastInventory, loadStep, missingFromProject, rememberInventory, sameModules, unitState } from './inventory'
+import { changeCount, inventoryChanges, lastInventory, listboxMove, loadStep, missingFromProject, rememberInventory, sameModules, unitPreview, unitState } from './inventory'
 
 describe('making the unit match a module set', () => {
   it('adds and removes modules and switches stock effects both ways', () => {
@@ -58,5 +58,23 @@ describe('the Octatrack hub', () => {
     expect(loadStep('finishing', true, false)).toBe('trial')
     expect(loadStep('ready', true, false)).toBe('done') // kept, undone or failed: the link's notice says which
     expect(loadStep('idle', true, false)).toBe('done') // unplugged part way
+  })
+})
+
+describe('the hub split view', () => {
+  it('previews loading the selected set on the unit: what stays, what it adds, what leaves', () => {
+    expect(unitPreview(['everb', 'miniverb'], ['everb', 'poly8'])).toEqual([{ id: 'everb', state: 'on' }, { id: 'miniverb', state: 'load' }, { id: 'poly8', state: 'leaving' }])
+    expect(unitPreview(['everb'], ['everb'])).toEqual([{ id: 'everb', state: 'on' }])
+    expect(unitPreview([], ['poly8'])).toEqual([{ id: 'poly8', state: 'leaving' }])
+  })
+  it('moves the set list selection with the arrow keys, Home and End, and stops at the ends', () => {
+    expect(listboxMove('ArrowDown', 0, 3)).toBe(1)
+    expect(listboxMove('ArrowDown', 2, 3)).toBe(2)
+    expect(listboxMove('ArrowUp', 0, 3)).toBe(0)
+    expect(listboxMove('ArrowUp', 2, 3)).toBe(1)
+    expect(listboxMove('Home', 2, 3)).toBe(0)
+    expect(listboxMove('End', 0, 3)).toBe(2)
+    expect(listboxMove('Enter', 1, 3)).toBeUndefined()
+    expect(listboxMove('ArrowDown', 0, 0)).toBeUndefined()
   })
 })

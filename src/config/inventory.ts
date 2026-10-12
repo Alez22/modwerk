@@ -61,3 +61,15 @@ export function lastInventory(base?: string): LastSeen | undefined {
     .sort((a, b) => b[1].at.localeCompare(a[1].at))
   return found && { base: found[0], moduleIds: found[1].moduleIds, at: found[1].at }
 }
+
+/** The hub's tiles for a selected set against the unit: what stays, what loading it adds, and what leaves. */
+export function unitPreview(setIds: readonly string[], unitIds: readonly string[]): { id: string; state: UnitState }[] {
+  return [...setIds.filter(id => unitIds.includes(id)).map(id => ({ id, state: 'on' as const })),
+    ...setIds.filter(id => !unitIds.includes(id)).map(id => ({ id, state: 'load' as const })),
+    ...unitIds.filter(id => !setIds.includes(id)).map(id => ({ id, state: 'leaving' as const }))]
+}
+/** A listbox's keys: the option an arrow, Home or End moves to; undefined for any other key. */
+export function listboxMove(key: string, index: number, count: number): number | undefined {
+  if (!count) return undefined
+  return key === 'ArrowDown' ? Math.min(count - 1, index + 1) : key === 'ArrowUp' ? Math.max(0, index - 1) : key === 'Home' ? 0 : key === 'End' ? count - 1 : undefined
+}

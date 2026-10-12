@@ -1,34 +1,44 @@
 import { useEffect, useRef, useState } from 'react'
 import { changeCount, inventoryChanges, loadStep, type Inventory, type InventoryTarget } from '../config/inventory'
 import { LinkBusyError, type OctatrackLink } from '../engine/elekloader/octatrack-link'
-import { ModuleSetError } from '../engine/elekloader/module-set'
+import { ModuleSetError, USB_MODULE_IDS } from '../engine/elekloader/module-set'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
-import { ChangeSummary } from './InventoryChanges'
+import { MODULES } from '../catalog/modules'
+import { StateChip } from './ModuleGrid'
+import { ModulePreview } from './ModulePreview'
 import { Icon } from './Icon'
 import type { PrepareUpdate, StressTest } from './OctatrackUpdate'
 import './octatrack-link.css'
 
 const STEPS = ['Load', 'Self-test', 'Try it']
 
+const list = (ids: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(ids.map(id => MODULES.find(item => item.id === id)?.name ?? id))
+
 /**
  * The one way to load a module set onto the Octatrack: review what changes, confirm playback is stopped, load,
  * self-test, then try it and keep it or undo. While the trial runs it can't be dismissed; closing would undo it.
+ * A module with no package for USB shows as Card only in the review: Load waits, and `onEdit` (take it out of the
+ * set) or `onCard` (install the set from the card) lead on.
  */
-export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, onClose }: {
+export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, onClose, onEdit, onCard }: {
   link: OctatrackLink; set: InventoryTarget; inventory?: Inventory; prepareUpdate?: PrepareUpdate; stressTest?: StressTest; onClose: () => void
+  onEdit: () => void; onCard: () => void
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null), title = useRef<HTMLHeadingElement>(null)
   const state = useOctatrackLink(link), { status, progress = 0, tested, notice } = state
   const [stopped, setStopped] = useState(false), [started, setStarted] = useState(false), [preparing, setPreparing] = useState(false)
   const [error, setError] = useState(''), [leaving, setLeaving] = useState(false)
   const step = loadStep(status, started, preparing)
   const connected = !!state.identity?.canSubmit && status === 'ready'
   const changes = inventory && inventoryChanges(inventory, set), stays = inventory ? set.moduleIds.filter(id => inventory.moduleIds.includes(id)) : []
+  const cardOnly = changes ? changes.add.filter(id => !USB_MODULE_IDS.includes(id)) : []
   useEffect(() => {
     const element = dialog.current, previousFocus = document.activeElement
     element?.showModal()
     return () => { element?.close(); if (previousFocus instanceof HTMLElement) previousFocus.focus() }
   }, [])
+  // The heading takes focus on open and at each step, since the button that moved the step on is gone.
+  useEffect(() => { title.current?.focus() }, [step])
 
   async function load() {
     setStarted(true); setPreparing(true); setError('')
@@ -40,35 +50,43 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
 
   return <dialog ref={dialog} className="base-install-dialog load-dialog" aria-labelledby="load-title" onCancel={event => { event.preventDefault(); if (closable) onClose(); else if (step === 'trial') setLeaving(true) }}>
     {closable && <button type="button" className="icon-button base-install-close" aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button>}
-    <header className="base-install-header"><h2 id="load-title">Load “{set.name}” onto your Octatrack</h2></header>
+    <header className="base-install-header"><div><span className="guide-eyebrow">Load onto your Octatrack</span><h2 id="load-title" ref={title} tabIndex={-1}>{set.name}</h2></div></header>
     {step === 'review' ? <>
       {!connected ? <p className="base-install-intro">Connect your Octatrack with the Modwerk base first.</p>
         : !changes ? <p className="base-install-intro">Reading what’s on it…</p>
         : !changeCount(changes) ? <p className="base-install-intro">Your Octatrack already has exactly these modules.</p>
         : <>
-          <ChangeSummary changes={changes} stays={stays} />
-          {changes.remove.length > 0 && <p className="link-hint">Tracks that use a module it removes play dry until you load it again.</p>}
-          <label className="load-check"><input type="checkbox" checked={stopped} onChange={event => setStopped(event.target.checked)} />Playback is stopped</label>
-          <p className="link-hint">Your project isn’t changed.</p>
+          <p className="base-install-intro">After loading, the Octatrack tests itself, then you keep it or undo. Your project isn’t changed.</p>
+          <ul className="load-changes">{([['card', 'Card only', cardOnly], ['load', 'Adds', changes.add.filter(id => !cardOnly.includes(id))], ['leaving', 'Removes', changes.remove], ['on', 'Stays', stays]] as const).flatMap(([state, label, ids]) => ids.map(id => {
+            const module = MODULES.find(item => item.id === id)
+            return <li key={id} className={'load-change is-' + state}>
+              {module ? <ModulePreview id={id} compact /> : <span className="compact-preview" />}
+              <span className="load-change-name"><strong>{module?.name ?? id}</strong>{state === 'leaving' ? <small>Tracks that use it play dry until you load it again.</small> : state === 'card' && <small>Can’t be loaded over USB yet.</small>}</span>
+              <StateChip state={state}>{label}</StateChip>
+            </li>
+          }))}</ul>
+          {cardOnly.length > 0 && <div className="load-blocked" role="note">
+            <p>{list(cardOnly)} still {cardOnly.length === 1 ? 'needs' : 'need'} the card. Take {cardOnly.length === 1 ? 'it' : 'them'} out of {set.name} to load the rest now, or install {set.name} from the card.</p>
+            <p><button type="button" className="text-button" onClick={onEdit}>Edit {set.name}</button><button type="button" className="text-button" onClick={onCard}>Install from the card</button></p>
+          </div>}
         </>}
     </> : step === 'done' ? <p className={'base-install-intro ' + (error || notice?.tone === 'error' ? 'file-error' : 'success-note')} role={error || notice?.tone === 'error' ? 'alert' : 'status'}>{error || notice?.text || (status === 'busy' ? 'Another tab or app is using your Octatrack, so nothing was sent.' : 'Done.')}</p>
     : <>
-      <div className="build-progress" role="progressbar" aria-label="Load progress" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={index}>
-        <ol className="build-progress-steps" aria-hidden="true">{STEPS.map((label, i) => <li key={label} className={i < index ? 'is-complete' : i === index ? 'is-active' : undefined}>
-          <span className="build-progress-track" /><span className="build-progress-label"><span className="build-progress-marker">{i < index ? <Icon name="check" size={14} /> : i + 1}</span><span>{label}</span></span>
-        </li>)}</ol>
-      </div>
+      <ol className="load-steps" aria-label="Steps">{STEPS.map((label, i) => <li key={label} className={i < index ? 'is-complete' : i === index ? 'is-active' : undefined} aria-current={i === index ? 'step' : undefined}>{label}</li>)}</ol>
+      {/* Sending and the self-test report how far they are; the trial waits on you. */}
+      {(step === 'loading' && !preparing || step === 'testing') && <progress className="load-progress" max={1} value={progress} aria-label={step === 'loading' ? 'Loading' : 'Self-test'} />}
       <p className="base-install-intro" role="status">{step === 'loading' ? (preparing ? 'Preparing your modules…' : progress < 1 ? `Loading… ${Math.round(progress * 100)}%` : 'Starting…')
-        : step === 'testing' ? 'Running the Octatrack’s self-test…'
+        : step === 'testing' ? `Running the Octatrack’s self-test… ${Math.round(progress * 100)}%`
         : `${tested ? 'The self-test passed. ' : ''}“${set.name}” is running on your Octatrack. Try it, then keep it or undo.`}</p>
       {step === 'trial' && notice?.tone === 'error' && <p className="file-error" role="alert">{notice.text}</p>}
       {step === 'trial' && (leaving && status === 'trial' ? <p className="file-error" role="alert">Closing now undoes it. Keep it or undo it first.</p> : <p className="link-hint">Unplugging or closing the site also undoes it.</p>)}
     </>}
     <footer className="base-install-footer">
-      <span />
+      {step === 'review' && connected && changes && changeCount(changes) > 0 && !cardOnly.length
+        ? <label className="load-check"><input type="checkbox" checked={stopped} onChange={event => setStopped(event.target.checked)} />Playback is stopped</label> : <span />}
       <div className="base-install-actions">
         {step === 'review' && <><button type="button" className="button button-quiet" onClick={onClose}>Cancel</button>
-          <button type="button" className="button button-primary" disabled={!connected || !changes || !changeCount(changes) || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Load</button></>}
+          <button type="button" className="button button-primary" disabled={!connected || !changes || !changeCount(changes) || cardOnly.length > 0 || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Load</button></>}
         {step === 'loading' && !preparing && progress < 1 && <button type="button" className="button button-quiet" onClick={() => link.cancel()}>Cancel</button>}
         {step === 'trial' && <><button type="button" className="button button-quiet" disabled={status === 'finishing'} onClick={() => void link.undo()}>Undo</button>
           <button type="button" className="button button-primary" disabled={status === 'finishing'} onClick={() => void link.keep()}><Icon name="check" size={16} />Keep</button></>}

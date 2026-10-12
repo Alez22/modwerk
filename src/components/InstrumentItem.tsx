@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { lastInventory, type Inventory } from '../config/inventory'
+import { lastInventory, sameModules, type Inventory } from '../config/inventory'
 import type { Configuration } from '../config/workspace'
 import { DeviceImage } from '../devices/DeviceImage'
 import type { DeviceProfile } from '../devices/registry'
@@ -11,8 +11,9 @@ const LIVE: LinkState['status'][] = ['connecting', 'sending', 'testing', 'trial'
 const modules = (n: number) => n + (n === 1 ? ' module' : ' modules')
 
 /**
- * The machine you work on, in the sidebar. With a USB link (the Octatrack) it shows the unit, not a set: what is on
- * it, or what this browser read when it was last connected, with a dot for the connection, and leads to the hub.
+ * The machine you work on, in the sidebar. With a USB link (the Octatrack, beta) it is one card leading to the hub:
+ * the unit (what is on it, or what this browser read when it was last connected) and the set you are editing, with
+ * the Octatrack's own LED language: lit green is on the unit, outlined is waiting to load.
  * Without one (other machines, phones) it shows the module set you are editing and leads to its page.
  */
 export function InstrumentItem({ device, set, href, link, current, inventory }: { device: DeviceProfile; set?: Configuration; href: string; link?: OctatrackLink | null; current: boolean; inventory?: Inventory }) {
@@ -25,10 +26,25 @@ export function InstrumentItem({ device, set, href, link, current, inventory }: 
   const unit = status === 'connecting' ? 'Connecting…' : connection === 'busy' ? 'Loading…'
     : status === 'connected' ? inventory ? inventory.moduleIds.length ? modules(inventory.moduleIds.length) + ' on it' : 'No modules on it' : 'Connected'
     : status === 'stock' ? 'Original OS: install the base' : status === 'busy' ? 'In use by another tab or app' : last ? 'Last seen: ' + modules(last.moduleIds.length) : 'Not connected'
-  const detail = link ? unit : set ? set.name : 'No module set yet'
-  return <a className="sidebar-device instrument-item" href={href} aria-current={current ? 'page' : undefined} aria-label={device.name + ', ' + detail}>
-    <span className="instrument-picture"><DeviceImage device={device} eager />{connection && <span className={'instrument-dot is-' + connection} title={device.name + ': ' + unit} />}</span>
-    <span><strong>{device.name}</strong><small>{detail}</small></span>
+  if (!link) return <a className="sidebar-device instrument-item" href={href} aria-current={current ? 'page' : undefined} aria-label={device.name + ', ' + (set ? set.name : 'No module set yet')}>
+    <span className="instrument-picture"><DeviceImage device={device} eager /></span>
+    <span><strong>{device.name}</strong><small>{set ? set.name : 'No module set yet'}</small></span>
     <Icon name="arrow" size={14} />
+  </a>
+  const known = status === 'connected' ? inventory?.moduleIds : last?.moduleIds
+  const on = !!set && !!known && sameModules(set.moduleIds, known)
+  const editing = on ? 'On your Octatrack' : known ? 'Not on your Octatrack yet' : ''
+  return <a className="sidebar-device instrument-item is-unit" href={href} aria-current={current ? 'page' : undefined}
+    aria-label={device.name + ', ' + unit + (set ? '. Editing ' + set.name + ', ' + modules(set.moduleIds.length) + (editing ? ', ' + editing.toLowerCase() : '') : '')}>
+    <span className="instrument-head">
+      <span className="instrument-picture"><DeviceImage device={device} eager />{connection && <span className={'instrument-dot is-' + connection} />}</span>
+      <span><strong>{device.name}</strong><small>{unit}</small></span>
+      <Icon name="arrow" size={14} />
+    </span>
+    {set && <span className="instrument-editing">
+      <em>Editing</em>
+      <strong>{set.name}</strong><b>{modules(set.moduleIds.length)}</b>
+      {editing && <small className={on ? 'is-on' : 'is-load'}><span className={'unit-led is-' + (on ? 'on' : 'load')} />{editing}</small>}
+    </span>}
   </a>
 }

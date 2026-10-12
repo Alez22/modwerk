@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type Ref } from 'react'
+import { useContext, useRef, useState, type ReactNode, type Ref } from 'react'
 import { isBetaModule } from '../catalog/availability'
 import type { AddBlock } from '../catalog/add-blocks'
 import { DETAILS } from '../catalog/details'
@@ -18,7 +18,7 @@ import { AddBlockChip, AddBlockPrompt } from './AddBlockPrompt'
 import { useAddBlockPrompt } from './use-add-block-prompt'
 import { useModuleAudioPreviews } from './audio-preview-context'
 import { ModuleAudioCardCover } from './ModuleAudioPreview'
-import { useSetWords } from '../community/beta-ui'
+import { SetName, useSetWords } from '../community/beta-ui'
 
 export type ModuleCardProps = {
   module: FirmwareModule
@@ -38,13 +38,18 @@ export type ModuleCardProps = {
 
 export type AddConflict = { block: AddBlock; open: boolean; controls: string; onAsk: () => void }
 
-export function AddButton({ name, selected, onToggle, configure = false, conflict, ref }: { name: string; selected: boolean; onToggle: () => void; configure?: boolean; conflict?: AddConflict; ref?: Ref<HTMLButtonElement> }) {
-  const w = useSetWords()
+export function AddButton({ name, selected, onToggle, configure = false, conflict, ref, named = false }: { name: string; selected: boolean; onToggle: () => void; configure?: boolean; conflict?: AddConflict; ref?: Ref<HTMLButtonElement>; named?: boolean }) {
+  const w = useSetWords(), setName = useContext(SetName)
   // A conflicting add asks first instead of adding. It stays an enabled button so it can be reached by keyboard and touch.
   if (conflict && !selected) {
     const swappable = !!conflict.block.swapRemoveIds
     const label = name + ': ' + conflict.block.reason + '. ' + (swappable ? 'Choose to swap or add anyway.' : 'Choose how to add it.')
     return <button ref={ref} className="add-button is-conflict" aria-label={label} title={conflict.block.reason} aria-expanded={conflict.open} aria-controls={conflict.controls} onClick={conflict.onAsk}><Icon name="swap" size={15} /><span>{swappable ? 'Swap' : 'Review'}</span></button>
+  }
+  // The beta names the set it adds to (the selected Octatrack module set).
+  if (named && setName && !configure) {
+    const label = (selected ? 'Remove ' + name + ' from ' : 'Add ' + name + ' to ') + setName
+    return <button ref={ref} className={'add-button is-named' + (selected ? ' is-added' : '')} aria-label={label} title={label} aria-pressed={selected} onClick={onToggle}><Icon name={selected ? 'check' : 'plus'} size={15} /><span>{(selected ? 'In ' : 'Add to ') + setName}</span></button>
   }
   const label = configure && !selected ? 'Configure ' + name : (selected ? 'Remove ' : 'Add ') + name + (selected ? ' from ' : ' to ') + w.set
   return <button ref={ref} className={'add-button ' + (selected ? 'is-added' : '')} aria-label={label} title={label} aria-pressed={selected} onClick={onToggle}><Icon name={selected ? 'check' : configure ? 'sliders' : 'plus'} size={15} /><span>{selected ? 'Added' : configure ? 'Configure' : 'Add'}</span></button>
@@ -89,7 +94,7 @@ export function ModuleCard({ module, selected, statistics, viewedVersion, baseli
     <div className="module-card-body" inert={prompt.open}>
       <div className="module-card-title">
         <div className="module-card-heading"><a href={moduleHref(module.id)} onClick={onBrowse} onAuxClick={onBrowse}>{module.name}</a>{isBetaModule(module.id) && <span className="module-beta-badge">Beta</span>}<ModuleRelease module={module} viewedVersion={viewedVersion} baseline={baseline} /></div>
-        <AddButton ref={trigger} name={module.name} selected={selected} onToggle={onToggle} configure={module.id === USB_AUDIO_MODULE} conflict={prompt.conflict && { block: prompt.conflict, open: prompt.open, controls: prompt.id, onAsk: prompt.toggle }} />
+        <AddButton named ref={trigger} name={module.name} selected={selected} onToggle={onToggle} configure={module.id === USB_AUDIO_MODULE} conflict={prompt.conflict && { block: prompt.conflict, open: prompt.open, controls: prompt.id, onAsk: prompt.toggle }} />
       </div>
       {module.id === USB_AUDIO_MODULE && <span className="module-compatibility-badge module-card-compatibility"><Icon name="wave" size={12} />Outbox 8 compatible</span>}
       <div className="card-credit"><ModuleAuthors name={module.authorName} url={module.authorUrl} contributors={module.contributors}/><span>{module.detail}</span></div>
