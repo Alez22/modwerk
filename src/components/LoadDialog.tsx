@@ -10,19 +10,19 @@ import { Icon } from './Icon'
 import type { PrepareUpdate, StressTest } from './OctatrackUpdate'
 import './octatrack-link.css'
 
-const STEPS = ['Load', 'Self-test', 'Try it']
+const STEPS = ['Sync', 'Self-test', 'Try it']
 
 const list = (ids: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(ids.map(id => MODULES.find(item => item.id === id)?.name ?? id))
 
 /**
- * The one way to load a module set onto the Octatrack: review what changes, confirm playback is stopped, load,
+ * The one way to sync a module set to the Octatrack: review what changes, confirm playback is stopped, sync,
  * self-test, then try it and keep it or undo. While the trial runs it can't be dismissed; closing would undo it.
- * A module with no package for USB shows as Card only in the review: Load waits, and `onEdit` (take it out of the
- * set) or `onCard` (install the set from the card) lead on.
+ * A module with no package for USB shows as Card only in the review: Sync waits, and `onEdit` (take it out of the
+ * set) or `onCard` (install the set from the card) lead on. A failed sync offers `onReport` (the set's problem report).
  */
-export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, onClose, onEdit, onCard }: {
+export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, onClose, onEdit, onCard, onReport }: {
   link: OctatrackLink; set: InventoryTarget; inventory?: Inventory; prepareUpdate?: PrepareUpdate; stressTest?: StressTest; onClose: () => void
-  onEdit: () => void; onCard: () => void
+  onEdit: () => void; onCard: () => void; onReport: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null), title = useRef<HTMLHeadingElement>(null)
   const state = useOctatrackLink(link), { status, progress = 0, tested, notice } = state
@@ -50,23 +50,23 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
 
   return <dialog ref={dialog} className="base-install-dialog load-dialog" aria-labelledby="load-title" onCancel={event => { event.preventDefault(); if (closable) onClose(); else if (step === 'trial') setLeaving(true) }}>
     {closable && <button type="button" className="icon-button base-install-close" aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button>}
-    <header className="base-install-header"><div><span className="guide-eyebrow">Load onto your Octatrack</span><h2 id="load-title" ref={title} tabIndex={-1}>{set.name}</h2></div></header>
+    <header className="base-install-header"><div><span className="guide-eyebrow">Sync to your Octatrack</span><h2 id="load-title" ref={title} tabIndex={-1}>{set.name}</h2></div></header>
     {step === 'review' ? <>
       {!connected ? <p className="base-install-intro">Connect your Octatrack with the Modwerk base first.</p>
         : !changes ? <p className="base-install-intro">Reading what’s on it…</p>
         : !changeCount(changes) ? <p className="base-install-intro">Your Octatrack already has exactly these modules.</p>
         : <>
-          <p className="base-install-intro">After loading, the Octatrack tests itself, then you keep it or undo. Your project isn’t changed.</p>
+          <p className="base-install-intro">After syncing, the Octatrack tests itself, then you keep it or undo. Your project isn’t changed.</p>
           <ul className="load-changes">{([['card', 'Card only', cardOnly], ['load', 'Adds', changes.add.filter(id => !cardOnly.includes(id))], ['leaving', 'Removes', changes.remove], ['on', 'Stays', stays]] as const).flatMap(([state, label, ids]) => ids.map(id => {
             const module = MODULES.find(item => item.id === id)
             return <li key={id} className={'load-change is-' + state}>
               {module ? <ModulePreview id={id} compact /> : <span className="compact-preview" />}
-              <span className="load-change-name"><strong>{module?.name ?? id}</strong>{state === 'leaving' ? <small>Tracks that use it play dry until you load it again.</small> : state === 'card' && <small>Can’t be loaded over USB yet.</small>}</span>
+              <span className="load-change-name"><strong>{module?.name ?? id}</strong>{state === 'leaving' ? <small>Tracks that use it play dry until you sync it again.</small> : state === 'card' && <small>Can’t be loaded over USB yet.</small>}</span>
               <StateChip state={state}>{label}</StateChip>
             </li>
           }))}</ul>
           {cardOnly.length > 0 && <div className="load-blocked" role="note">
-            <p>{list(cardOnly)} still {cardOnly.length === 1 ? 'needs' : 'need'} the card. Take {cardOnly.length === 1 ? 'it' : 'them'} out of {set.name} to load the rest now, or install {set.name} from the card.</p>
+            <p>{list(cardOnly)} still {cardOnly.length === 1 ? 'needs' : 'need'} the card. Take {cardOnly.length === 1 ? 'it' : 'them'} out of {set.name} to sync the rest now, or install {set.name} from the card.</p>
             <p><button type="button" className="text-button" onClick={onEdit}>Edit {set.name}</button><button type="button" className="text-button" onClick={onCard}>Install from the card</button></p>
           </div>}
         </>}
@@ -74,8 +74,8 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
     : <>
       <ol className="load-steps" aria-label="Steps">{STEPS.map((label, i) => <li key={label} className={i < index ? 'is-complete' : i === index ? 'is-active' : undefined} aria-current={i === index ? 'step' : undefined}>{label}</li>)}</ol>
       {/* Sending and the self-test report how far they are; the trial waits on you. */}
-      {(step === 'loading' && !preparing || step === 'testing') && <progress className="load-progress" max={1} value={progress} aria-label={step === 'loading' ? 'Loading' : 'Self-test'} />}
-      <p className="base-install-intro" role="status">{step === 'loading' ? (preparing ? 'Preparing your modules…' : progress < 1 ? `Loading… ${Math.round(progress * 100)}%` : 'Starting…')
+      {(step === 'loading' && !preparing || step === 'testing') && <progress className="load-progress" max={1} value={progress} aria-label={step === 'loading' ? 'Syncing' : 'Self-test'} />}
+      <p className="base-install-intro" role="status">{step === 'loading' ? (preparing ? 'Preparing your modules…' : progress < 1 ? `Syncing… ${Math.round(progress * 100)}%` : 'Starting…')
         : step === 'testing' ? `Running the Octatrack’s self-test… ${Math.round(progress * 100)}%`
         : `${tested ? 'The self-test passed. ' : ''}“${set.name}” is running on your Octatrack. Try it, then keep it or undo.`}</p>
       {step === 'trial' && notice?.tone === 'error' && <p className="file-error" role="alert">{notice.text}</p>}
@@ -86,10 +86,11 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
         ? <label className="load-check"><input type="checkbox" checked={stopped} onChange={event => setStopped(event.target.checked)} />Playback is stopped</label> : <span />}
       <div className="base-install-actions">
         {step === 'review' && <><button type="button" className="button button-quiet" onClick={onClose}>Cancel</button>
-          <button type="button" className="button button-primary" disabled={!connected || !changes || !changeCount(changes) || cardOnly.length > 0 || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Load</button></>}
+          <button type="button" className="button button-primary" disabled={!connected || !changes || !changeCount(changes) || cardOnly.length > 0 || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Sync</button></>}
         {step === 'loading' && !preparing && progress < 1 && <button type="button" className="button button-quiet" onClick={() => link.cancel()}>Cancel</button>}
         {step === 'trial' && <><button type="button" className="button button-quiet" disabled={status === 'finishing'} onClick={() => void link.undo()}>Undo</button>
           <button type="button" className="button button-primary" disabled={status === 'finishing'} onClick={() => void link.keep()}><Icon name="check" size={16} />Keep</button></>}
+        {step === 'done' && (error || notice?.tone === 'error') && <button type="button" className="button button-quiet" aria-haspopup="dialog" onClick={onReport}><Icon name="message" size={16} />Report a problem</button>}
         {step === 'done' && <button type="button" className="button button-primary" onClick={onClose}>Done</button>}
       </div>
     </footer>

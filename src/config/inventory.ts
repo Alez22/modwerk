@@ -20,7 +20,7 @@ export function inventoryChanges(current: Inventory, target: InventoryTarget): I
 export const changeCount = (changes: InventoryChanges) => changes.add.length + changes.remove.length + changes.stockOff.length + changes.stockOn.length
 
 export type UnitState = 'on' | 'load' | 'leaving'
-export const UNIT_STATE: Record<UnitState, string> = { on: 'On your Octatrack', load: 'Not loaded yet', leaving: 'Leaves next load' }
+export const UNIT_STATE: Record<UnitState, string> = { on: 'On your Octatrack', load: 'Not on your Octatrack yet', leaving: 'Leaves next sync' }
 /** Where a module stands against the unit: on it, only in the module set, or on it but leaving with the next load. */
 export const unitState = (id: string, setIds: readonly string[], inventory?: Inventory): UnitState | undefined =>
   !inventory ? undefined : inventory.moduleIds.includes(id) ? setIds.includes(id) ? 'on' : 'leaving' : setIds.includes(id) ? 'load' : undefined
@@ -62,12 +62,6 @@ export function lastInventory(base?: string): LastSeen | undefined {
   return found && { base: found[0], moduleIds: found[1].moduleIds, at: found[1].at }
 }
 
-/** The hub's tiles for a selected set against the unit: what stays, what loading it adds, and what leaves. */
-export function unitPreview(setIds: readonly string[], unitIds: readonly string[]): { id: string; state: UnitState }[] {
-  return [...setIds.filter(id => unitIds.includes(id)).map(id => ({ id, state: 'on' as const })),
-    ...setIds.filter(id => !unitIds.includes(id)).map(id => ({ id, state: 'load' as const })),
-    ...unitIds.filter(id => !setIds.includes(id)).map(id => ({ id, state: 'leaving' as const }))]
-}
 /** A listbox's keys: the option an arrow, Home or End moves to; undefined for any other key. */
 export function listboxMove(key: string, index: number, count: number): number | undefined {
   if (!count) return undefined

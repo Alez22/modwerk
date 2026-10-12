@@ -73,7 +73,7 @@ const REJECTED: Partial<Record<number, string>> = {
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
-const BETWEEN = 'Your Octatrack is between the two module sets: load one of them again.'
+const BETWEEN = 'Your Octatrack is between the two module sets: sync one of them again.'
 const list = (items: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(items)
 const notPutBack = (lost: string[]) => `${list(lost)} couldn’t be put back: the site has no package for ${lost.length === 1 ? 'it' : 'them'}.`
 
@@ -85,7 +85,7 @@ export class StaleLoadError extends Error {}
 /** What a failed step means for the user, in their words. */
 export function explainLinkError(error: unknown): string {
   if (error instanceof StressTestFailure) return `The self-test failed: ${error.message}. Nothing was kept.`
-  if (error instanceof StaleLoadError) return 'Another tab changed your Octatrack meanwhile, so nothing was loaded. Review the load again.'
+  if (error instanceof StaleLoadError) return 'Another tab changed your Octatrack meanwhile, so nothing was synced. Review the sync again.'
   if (error instanceof DOMException && error.name === 'AbortError') return 'Cancelled. Nothing changed on the Octatrack.'
   if (error instanceof UploadDeviceError) return REFUSED[error.status.result] ?? 'The Octatrack refused this step.'
   if (error instanceof UploadUnconfirmedError) return 'The Octatrack stopped answering.'

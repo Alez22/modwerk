@@ -23,7 +23,7 @@ export function InstrumentItem({ device, set, href, link, current, inventory }: 
   }, () => '')
   const connection = !status || status === 'unsupported' ? '' : LIVE.includes(status as LinkState['status']) ? 'busy' : status === 'connected' || status === 'stock' ? status : 'off'
   const last = connection === 'off' || status === 'unsupported' ? lastInventory() : undefined
-  const unit = status === 'connecting' ? 'Connecting…' : connection === 'busy' ? 'Loading…'
+  const unit = status === 'connecting' ? 'Connecting…' : connection === 'busy' ? 'Syncing…'
     : status === 'connected' ? inventory ? inventory.moduleIds.length ? modules(inventory.moduleIds.length) + ' on it' : 'No modules on it' : 'Connected'
     : status === 'stock' ? 'Original OS: install the base' : status === 'busy' ? 'In use by another tab or app' : last ? 'Last seen: ' + modules(last.moduleIds.length) : 'Not connected'
   if (!link) return <a className="sidebar-device instrument-item" href={href} aria-current={current ? 'page' : undefined} aria-label={device.name + ', ' + (set ? set.name : 'No module set yet')}>

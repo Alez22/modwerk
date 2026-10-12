@@ -16,7 +16,7 @@ export function MissingNote({ needs }: { needs?: ProjectNeeds }) {
   const { names, unknown, add } = needs, verb = (n: number) => n === 1 ? 'isn’t' : 'aren’t'
   return <p className="usb-missing" role="status">
     {names.length > 0 && <>Your project uses {list(names)}, which {verb(names.length)} on your Octatrack. {add
-      ? <button className="text-button" onClick={add}>Add to set</button> : `Load onto Octatrack to bring ${names.length === 1 ? 'it' : 'them'} back.`}</>}
+      ? <button className="text-button" onClick={add}>Add to set</button> : `Sync to bring ${names.length === 1 ? 'it' : 'them'} back.`}</>}
     {unknown.length > 0 && <>{names.length ? ' It also uses ' : 'Your project uses '}{list(unknown)}, which {verb(unknown.length)} in the library.</>}
   </p>
 }

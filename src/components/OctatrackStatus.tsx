@@ -5,7 +5,7 @@ import { Icon } from './Icon'
 import './octatrack-link.css'
 
 const ACTIVE: LinkState['status'][] = ['sending', 'testing', 'trial', 'finishing']
-const activity = ({ status, progress = 0 }: LinkState) => status === 'sending' ? `Loading ${Math.round(progress * 100)}%`
+const activity = ({ status, progress = 0 }: LinkState) => status === 'sending' ? `Syncing ${Math.round(progress * 100)}%`
   : status === 'testing' ? 'Self-test' : status === 'trial' ? 'Waiting for Keep or Undo' : 'Finishing'
 
 /** The Octatrack's connection in the status bar; nothing while idle or without WebUSB. */
@@ -13,7 +13,7 @@ export function OctatrackStatus({ link }: { link: OctatrackLink }) {
   const state = useOctatrackLink(link), { status, identity } = state
   if (status === 'unsupported' || status === 'idle' || status === 'connecting') return null
   const busy = ACTIVE.includes(status)
-  return <span className="octatrack-status-bar"><span className={'status-dot' + (busy ? ' is-live' : identity?.canSubmit ? ' verified' : '')} />{busy ? 'Loading onto Octatrack · ' + activity(state) : status === 'busy' ? 'Octatrack in use' : 'Octatrack connected'}</span>
+  return <span className="octatrack-status-bar"><span className={'status-dot' + (busy ? ' is-live' : identity?.canSubmit ? ' verified' : '')} />{busy ? 'Syncing to Octatrack · ' + activity(state) : status === 'busy' ? 'Octatrack in use' : 'Octatrack connected'}</span>
 }
 
 /** A pill while an update runs or waits for Keep or Undo, and for its result, on every page but the configuration page. */
