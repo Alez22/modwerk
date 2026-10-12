@@ -177,7 +177,7 @@ These are actual headless-emulator LCD captures, not hardware results. See
 recorded separately in [swing capture provenance](docs/swing-capture.md).
 No audio preview is included.
 
-**Audio preview.** [Listen](media/audio-preview.mp3). One pad, played three times at 123 BPM: dry, then Euclid as a low-pass pulse filter (FREQ 36, RES 70, DEPTH 110, DECAY 56, STEPS 16, PULSE 5), then as amplitude pulses (TYPE AMP, FREQ 127, DEPTH 0, STEPS 12, PULSE 7). Each pass is level-matched to the dry one. Swing is not applied. It is an offline render on a computer through the module's own code, not a recording of an Octatrack. The sample, settings and method are in [audio-preview.json](media/audio-preview.json); rights are in [media rights](media/LICENSE.md).
+**Audio preview.** [Listen](media/audio-preview.mp3). One original pad at 120 BPM: dry, then E(5,16) low-pass pulses, then E(7,12) amplitude pulses, each with a fresh PLAY reset. RATE 1/16, straight swing. RMS matched over the same 4 s source. Offline render through Euclid 0.1.4's own clock/envelope code and DSP, not an Octatrack recording. Pass start times, stored settings, exact source hashes and render details are in [audio-preview.json](media/audio-preview.json); [media rights](media/LICENSE.md) covers the original audio.
 
 ## Clock reset safety (0.1.4)
 

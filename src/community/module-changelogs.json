@@ -96,7 +96,8 @@
         "changes": [
           "Protect clock reset when playback starts: preserve the CPU status register and mask interrupts while resetting timing state.",
           "Clear the initialized flag before the reset and publish it after the new state is ready, preventing an interrupt from seeing a partial reset. Existing timing, swing and controls are unchanged.",
-          "Documentation/media-only: add an offline audio preview rendered through 0.1.4-experimental, with sample credits, settings and provenance; firmware is unchanged."
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.4-experimental, with sample credits, settings and provenance; firmware is unchanged.",
+          "Documentation/media-only (12 October 2026): replace the static-stage preview with an original pad rendered through the actual clock/envelope control code and DSP, including verified E(5,16) filter and E(7,12) amplitude pulses at 120 BPM with fractional cutoff/gain values. Firmware and its version are unchanged; these offline previews add no physical-hardware or performance qualification."
         ],
         "sourceCommit": "e027bea0fcaed334ef69c11be4474627814a2e21"
       },

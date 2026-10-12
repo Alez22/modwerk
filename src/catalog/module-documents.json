@@ -1405,10 +1405,10 @@
         {
           "path": "media/audio-preview.mp3",
           "captureType": "audio",
-          "caption": "One pad, played three times at 123 BPM: dry, then Euclid as a low-pass pulse filter (FREQ 36, RES 70, DEPTH 110, DECAY 56, STEPS 16, PULSE 5), then as amplitude pulses (TYPE AMP, FREQ 127, DEPTH 0, STEPS 12, PULSE 7). Each pass is level-matched to the dry one. Swing is not applied. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
-          "alt": "A sustained synth pad heard dry, then with a pulsing low-pass filter, then with rhythmic amplitude pulses.",
-          "credit": "Modwerk contributors (offline render). Sample: Volpe, Dub Techno Sample Pack.",
-          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "caption": "One original pad at 120 BPM: dry, then E(5,16) low-pass pulses, then E(7,12) amplitude pulses, each with a fresh PLAY reset. RATE 1/16, straight swing. RMS matched over the same 4 s source. Offline render through Euclid 0.1.4's own clock/envelope code and DSP, not an Octatrack recording.",
+          "alt": "The same sustained chord dry, with five low-pass pulses over sixteen steps, and seven amplitude pulses over twelve steps.",
+          "credit": "Modwerk contributors (offline render; original source sound).",
+          "license": "MIT (original audio; see media/LICENSE.md)",
           "source": "original"
         }
       ]
