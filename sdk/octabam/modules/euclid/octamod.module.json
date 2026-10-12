@@ -452,10 +452,10 @@
     {
       "path": "media/audio-preview.mp3",
       "captureType": "audio",
-      "caption": "One original pad at 120 BPM: dry, then E(5,16) low-pass pulses, then E(7,12) amplitude pulses, each with a fresh PLAY reset. RATE 1/16, straight swing. RMS matched over the same 4 s source. Offline render through Euclid 0.1.4's own clock/envelope code and DSP, not an Octatrack recording.",
-      "alt": "The same sustained chord dry, with five low-pass pulses over sixteen steps, and seven amplitude pulses over twelve steps.",
-      "credit": "Modwerk contributors (offline render; original source sound).",
-      "license": "MIT (original audio; see media/LICENSE.md)",
+      "caption": "Owner-supplied modpad.wav at 128 BPM. An eight-bar middle excerpt (22.5–37.5 s) leaves both render-error ends out and preserves the supplied modulation and decay. Peak adjusted with short edge fades; no added gaps or DSP. Recording setup and module version were not supplied; this clip adds no hardware qualification.",
+      "alt": "A flowing Euclid pad phrase at 128 BPM from the middle of the supplied recording.",
+      "credit": "Audio supplied by repeat98; excerpt preparation by Modwerk contributors.",
+      "license": "LicenseRef-Owner-Provided-Audio-Permission",
       "source": "original"
     }
   ],

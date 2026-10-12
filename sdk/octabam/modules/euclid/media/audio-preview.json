@@ -1,183 +1,68 @@
 {
+  "schemaVersion": 2,
+  "moduleId": "euclid",
+  "catalogModuleVersion": "0.1.4-experimental",
+  "recordedModuleVersion": null,
+  "rendered": "2026-10-12",
   "file": "media/audio-preview.mp3",
-  "sha256": "acff2c86798383137790116eb68f80356ff6f7372e0e9d1a3fd7f19beb2c76eb",
-  "seconds": 12.900408,
-  "encoding": {
-    "format": "MP3",
-    "sampleRateHz": 44100,
-    "channels": 2,
-    "bitrateKbps": 192,
-    "decodedPeakDbfs": -1.563,
-    "fadeInMs": 5,
-    "passFadeOutMs": 200,
-    "gapSeconds": 0.3,
-    "loudnessMatch": "RMS",
-    "matchWindowSeconds": 4,
-    "limiter": false
+  "sha256": "dac2dff3cda83285aa33b56d4f29edf90b3deee7c3616027fd2f520986279898",
+  "seconds": 15,
+  "method": "Owner-supplied audio; excerpt only. No additional Euclid processing. Exclude the first 22.5 and last 22.5 seconds, apply one common peak gain and 8/35 ms edge fades, and encode MP3. Capture method and DSP settings were not supplied.",
+  "sample": {
+    "name": "modpad.wav",
+    "originalFileSha256": "4e7b7c573907d6f52d88bb306891d7d4cdfe407b386afb9baabd317bb792cb44",
+    "originalPcmSha256": "eb9130628e0ef30d79a3654ce125dc223d1837aab33d3de2fcc81de623996dc5",
+    "originalFormat": {
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "sampleBits": 24,
+      "frames": 2880000,
+      "seconds": 60
+    },
+    "permission": "Owner supplied the file and explicitly requested its use as the Euclid preview on 2026-10-12.",
+    "license": "LicenseRef-Owner-Provided-Audio-Permission",
+    "credit": "Audio supplied by repeat98; underlying sample/capture attribution not supplied."
   },
   "passes": [
     {
-      "label": "dry",
-      "frames": 180816,
-      "settings": {
-        "FREQ": 48,
-        "RES": 48,
-        "DEPTH": 100,
-        "DECAY": 48,
-        "STEPS": 15,
-        "PULSE": 5,
-        "ROT": 0,
-        "RATE": 1,
-        "TYPE": 0,
-        "ATK": 0,
-        "OUT": 0,
-        "MIX": 0
-      },
-      "dryBitExact": true,
-      "pcmSha256": "8cf9e0b1b4b1a27b215ec14a9d3fa84b5b18752a43a4bd4afe168d66ba62edd3",
-      "start": 0.0,
-      "duration": 4.100136,
-      "matchGainDb": 0.0,
-      "unmatchedPeakDbfs": -14.0
-    },
-    {
-      "label": "low-pass E(5,16)",
-      "frames": 180816,
-      "settings": {
-        "FREQ": 30,
-        "RES": 50,
-        "DEPTH": 110,
-        "DECAY": 36,
-        "STEPS": 15,
-        "PULSE": 5,
-        "ROT": 0,
-        "RATE": 1,
-        "TYPE": 0,
-        "ATK": 4,
-        "OUT": 0,
-        "MIX": 127
-      },
-      "control": {
-        "tempoBpm": 120,
-        "trackScale": 6,
-        "trackLength": 16,
-        "swingPercent": 50,
-        "steps": 16,
-        "pulses": 5,
-        "triggers": 11,
-        "minimumQ15": 7680,
-        "maximumQ15": 31231,
-        "automationSha256": "09626f0bb55de4d9c28d3f54ed59dc7f1f4054d0778974ef95b7ca07bee7d221",
-        "fractionalValues": 1236
-      },
-      "pcmSha256": "62671a72694e4a463b1a8e95e06f47e1b14c9eb23193061509c64a1a761ea8a0",
-      "start": 4.400136,
-      "duration": 4.100136,
-      "matchGainDb": -2.484,
-      "unmatchedPeakDbfs": -10.149
-    },
-    {
-      "label": "amplitude E(7,12)",
-      "frames": 180816,
-      "settings": {
-        "FREQ": 0,
-        "RES": 0,
-        "DEPTH": 127,
-        "DECAY": 56,
-        "STEPS": 11,
-        "PULSE": 7,
-        "ROT": 0,
-        "RATE": 1,
-        "TYPE": 3,
-        "ATK": 6,
-        "OUT": 0,
-        "MIX": 127
-      },
-      "control": {
-        "tempoBpm": 120,
-        "trackScale": 6,
-        "trackLength": 16,
-        "swingPercent": 50,
-        "steps": 12,
-        "pulses": 7,
-        "triggers": 19,
-        "minimumQ15": 0,
-        "maximumQ15": 32255,
-        "automationSha256": "4f6d18868afab32b47bc16409c8c4da1118083a155fb02d2b7bc93e4fb13e0eb",
-        "fractionalValues": 5136
-      },
-      "pcmSha256": "1c0849a7aed8712ba1180234ae41a80101d906b960b163c214732283eebc52bd",
-      "start": 8.800272,
-      "duration": 4.100136,
-      "matchGainDb": 10.436,
-      "unmatchedPeakDbfs": -16.178
+      "label": "Owner-supplied Euclid excerpt",
+      "start": 0,
+      "duration": 15,
+      "sourceStartFrame": 1080000,
+      "sourceEndFrame": 1800000,
+      "sourceStartSeconds": 22.5,
+      "sourceEndSeconds": 37.5,
+      "sourceExcerptPcmSha256": "e7e02adab891d50410b71d1836f345e1d22d1584d1f07e5d227e58bad8595dc1",
+      "settings": null
     }
   ],
+  "tempo": {
+    "bpm": 128,
+    "status": "Audio estimate accepted by owner",
+    "method": "Spectral-flux transient grid from 10–50 seconds and recurring 3.75-second phrase; eight beats at 128 BPM. Sixteenth-note grid gives approximately 127.97 BPM; tempo rounded to 128 and confirmed by owner.",
+    "bars": 8,
+    "beats": 32
+  },
+  "encoding": {
+    "format": "MP3",
+    "sampleRateHz": 48000,
+    "channels": 2,
+    "bitrateKbps": 192,
+    "decodedPeakDbfs": -1.57,
+    "gainDb": -1.299,
+    "fadeInMs": 8,
+    "passFadeOutMs": 35,
+    "gapSeconds": 0,
+    "loudnessMatch": "single common peak gain",
+    "limiter": false
+  },
   "validation": {
     "nonzeroAudio": true,
     "decodedPeakBelowMinus1Dbfs": true,
-    "final50msPeakDbfs": -240.0,
     "clippedSamples": 0,
-    "rhythmControlVerified": true
+    "sourceClippedSamples": 0
   },
-  "schemaVersion": 2,
-  "moduleId": "euclid",
-  "moduleVersion": "0.1.4-experimental",
-  "rendered": "2026-10-12",
-  "sourceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
   "limitations": [
-    "Offline emulator/native render, not a physical Octatrack recording or new hardware/performance qualification."
-  ],
-  "sourceFilesSha256": {
-    "control.c": "bb49a94ac7d63eb9d33258c995026d6ad8ac1843dbe8be1c2f944a6a38bd8333",
-    "control.h": "3b46d1ec81f83942c0303bbb146cbd3509cabd7e030c4ed1d6ff7304181bb7b2",
-    "control.s": "5a7881df366f6c7ec83c9b1a7cfe8825aedbe8af933ecf155c156223c744c263",
-    "filter.asm": "b0fef9bfb99aabc67de2bd452feba6ae045603340b7d56405140d2afc3a0f35e",
-    "generate_control.py": "64e711025c513d5c3c933dbecf73a95e1193bb9a7ab31a11ad28906246dbf6fd",
-    "hooks.s": "597006c7fd73fc9956170f284deb47a2ddd13c8f20e7a9669ef51fa469f767d1",
-    "manifest.py": "e43eac70260eda028417be31773b2cd3abf4bf60698ca5968704de3774d1f31a"
-  },
-  "image": {
-    "moduleId": "euclid",
-    "mainOsSha256": "89e8cc59ea151fe3592cb8d7be3703fd75fd84cc4f02ac10798f1c48afa6c9a1",
-    "bytes": 1119617,
-    "source": "current main browser composer, released module package",
-    "stockMainSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e"
-  },
-  "harness": {
-    "name": "dsp_host",
-    "warmupBlocks": 300,
-    "framesPerBlock": 16,
-    "payloads": "A and B loaded; core A FX2 instance rendered",
-    "upstreamSourceSha256": "27257a3ee152d812629dc9880eb9abbb1d05b6df1dfb558f73d0d251bbf2d921",
-    "privateSourceSha256": "7c0a952a4029eb6bc34d3d614a8bdfec331518b08cc269b111dbeeaf4228f454",
-    "adaptation": "The private harness permits slot A tagged with bit 16 to carry Q15 values, writing their fractional byte to r6 unchanged; untagged 0..127 knobs retain the upstream protocol. No module instructions are changed.",
-    "controlClock": "Quarter note 63,504,000 units; tempo24=2,880 at 120 BPM. Track scale 6 (1x), length 16, straight swing; eu_clock_start at the first source block, then eu_clock_update and eu_process each block.",
-    "parameterConvention": "Settings are stored knob bytes; STEPS is displayed length minus one. DPTH/DEPTH is centered at 64."
-  },
-  "method": "Offline render through the released module: compile control.c natively with -DEUCLID_NATIVE, advance EuClock with the instrument-clock fixture (16 samples x tempo24 per block), call eu_process for the Q15 cutoff/gain, and feed its full fractional value to the unchanged filter.asm in dsp_host. Each wet pass starts a fresh PLAY epoch. Not a hardware recording.",
-  "sample": {
-    "name": "Original Modwerk stereo chord pad",
-    "license": "MIT",
-    "credit": "Modwerk contributors, 2026",
-    "sourcePcmSha256": "43137268e571272fcc81ffb026cbc1b8346c36f4155add21347238eef4c7fe65",
-    "recipe": {
-      "sampleRateHz": 44100,
-      "durationSeconds": 4,
-      "midiNotes": [
-        48,
-        55,
-        58,
-        63
-      ],
-      "harmonics": 14,
-      "harmonicAmplitude": "1 / h^1.4",
-      "frequencyHz": "440 * 2^((note - 69) / 12) * (1 + (-1 for left, +1 for right) * 0.0005)",
-      "phaseRadians": "0.23*h + channel*0.1 (left=0, right=1)",
-      "envelope": "(1 - exp(-t/0.005)) * exp(-t/20)",
-      "endEnvelope": "clamp((4-t)/0.10, 0, 1)",
-      "peakDbfs": -14,
-      "format": "interleaved stereo signed little-endian int32 containing Q23 words"
-    }
-  }
+    "User-provided audio; capture method, recorded module version, source samples and hardware behaviour were not independently verified."
+  ]
 }

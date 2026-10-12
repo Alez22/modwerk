@@ -17,4 +17,6 @@ No firmware, raw LCD/RAM dump, card, recording or private log is included.
 
 ## Audio preview
 
-`audio-preview.mp3` uses an original Modwerk sustained chord, authored for this preview with deterministic additive synthesis. The source recipe and PCM hash are in `audio-preview.json`; no third-party sample pack is used. The processing runs the module’s own MIT-licensed code. The original source sound and final audio render are copyright 2026 Modwerk contributors and licensed under MIT (see the module `LICENSE`). The clip is an offline computer render, not a physical Octatrack recording. No firmware bytes, extracted code/tables, private card, raw memory dump or build image is included. Exact version, method, settings, post-encoding peak checks and file hash are in `audio-preview.json`.
+Audio supplied by the repository owner, who requested its use as Euclid’s preview on 12 October 2026. Permission covers this preview (LicenseRef-Owner-Provided-Audio-Permission); no broader licence or sample authorship is asserted. Capture setup, source samples and the recorded module version were not supplied. The module’s MIT software licence does not relicense the audio. The original 60-second WAV stays private; only the 15-second middle excerpt is bundled. No firmware, stock code, memory dump or build image is included.
+
+Exact source identity, crop, tempo estimate and encoding are in `audio-preview.json`.

@@ -177,7 +177,7 @@ These are actual headless-emulator LCD captures, not hardware results. See
 recorded separately in [swing capture provenance](docs/swing-capture.md).
 No audio preview is included.
 
-**Audio preview.** [Listen](media/audio-preview.mp3). One original pad at 120 BPM: dry, then E(5,16) low-pass pulses, then E(7,12) amplitude pulses, each with a fresh PLAY reset. RATE 1/16, straight swing. RMS matched over the same 4 s source. Offline render through Euclid 0.1.4's own clock/envelope code and DSP, not an Octatrack recording. Pass start times, stored settings, exact source hashes and render details are in [audio-preview.json](media/audio-preview.json); [media rights](media/LICENSE.md) covers the original audio.
+**Audio preview.** [Listen](media/audio-preview.mp3). Owner-supplied modpad.wav at 128 BPM. An eight-bar middle excerpt (22.5–37.5 s) leaves both render-error ends out and preserves the supplied modulation and decay. Peak adjusted with short edge fades; no added gaps or DSP. Recording setup and module version were not supplied; this clip adds no hardware qualification. Source identity, permission, exact crop and encoding are in [audio preview provenance](media/audio-preview.json).
 
 ## Clock reset safety (0.1.4)
 
