@@ -18,6 +18,7 @@ import { AddBlockChip, AddBlockPrompt } from './AddBlockPrompt'
 import { useAddBlockPrompt } from './use-add-block-prompt'
 import { useModuleAudioPreviews } from './audio-preview-context'
 import { ModuleAudioCardCover } from './ModuleAudioPreview'
+import { useSetWords } from '../community/beta-ui'
 
 export type ModuleCardProps = {
   module: FirmwareModule
@@ -38,13 +39,14 @@ export type ModuleCardProps = {
 export type AddConflict = { block: AddBlock; open: boolean; controls: string; onAsk: () => void }
 
 export function AddButton({ name, selected, onToggle, configure = false, conflict, ref }: { name: string; selected: boolean; onToggle: () => void; configure?: boolean; conflict?: AddConflict; ref?: Ref<HTMLButtonElement> }) {
+  const w = useSetWords()
   // A conflicting add asks first instead of adding. It stays an enabled button so it can be reached by keyboard and touch.
   if (conflict && !selected) {
     const swappable = !!conflict.block.swapRemoveIds
     const label = name + ': ' + conflict.block.reason + '. ' + (swappable ? 'Choose to swap or add anyway.' : 'Choose how to add it.')
     return <button ref={ref} className="add-button is-conflict" aria-label={label} title={conflict.block.reason} aria-expanded={conflict.open} aria-controls={conflict.controls} onClick={conflict.onAsk}><Icon name="swap" size={15} /><span>{swappable ? 'Swap' : 'Review'}</span></button>
   }
-  const label = configure && !selected ? 'Configure ' + name : (selected ? 'Remove ' : 'Add ') + name + (selected ? ' from module set' : ' to module set')
+  const label = configure && !selected ? 'Configure ' + name : (selected ? 'Remove ' : 'Add ') + name + (selected ? ' from ' : ' to ') + w.set
   return <button ref={ref} className={'add-button ' + (selected ? 'is-added' : '')} aria-label={label} title={label} aria-pressed={selected} onClick={onToggle}><Icon name={selected ? 'check' : configure ? 'sliders' : 'plus'} size={15} /><span>{selected ? 'Added' : configure ? 'Configure' : 'Add'}</span></button>
 }
 

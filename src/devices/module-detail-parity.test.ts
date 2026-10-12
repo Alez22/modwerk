@@ -29,7 +29,7 @@ describe('module detail parity across machines', () => {
         'Reviews &amp; discussion', 'role="tablist" aria-label="Module information"',
         'id="tab-Overview" aria-selected="true"', 'id="tab-Previews" aria-selected="false"',
         'id="tab-Discussion" aria-selected="false"', 'id="tab-Changelog" aria-selected="false"', 'id="tab-Issues" aria-selected="false"', 'role="tabpanel" aria-labelledby="tab-Overview"',
-        'class="module-showcase"', 'Screenshots &amp; audio', 'class="community-signals"',
+        'class="module-showcase"', 'Screenshots', 'class="community-signals"',
         'Join the discussion', 'class="module-guide"', 'About &amp; credits',
         'Controls &amp; defaults', 'How to use it', 'Technical details &amp; safety', 'class="issue-report"',
       ]) {
@@ -52,7 +52,7 @@ describe('module detail parity across machines', () => {
       expect(html).toContain(document.version)
       expect(html).toContain('/sdk/' + mod.device + '/modules/' + mod.id + '/' + document.tests.report)
       for (const control of document.controls) expect(html).toContain(control.doc.replaceAll('&', '&amp;'))
-      expect(html).toContain('Added to module set')
+      expect(html).toContain('Added to configuration')
       expect(html).not.toContain('Find it on your Octatrack')
       expect(html).not.toContain('adjust on your Octatrack')
     }
