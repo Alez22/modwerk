@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Made module-release announcements opt-in for each version. Deployments and media edits record release history quietly unless that version's authored notes explicitly set `announce: true`; existing subscriptions and delivery preferences remain intact.
 - Limited FM Synth's Node and Python screenshot regressions to instrument captures so bundled audio previews are not decoded as PNGs or counted as screenshots; capture hashes and version/source checks remain required.
 - Required the shared signal-art style for module thumbnails, documented the grid, palette and typography, and explained how to replace artwork whose original asset is bound by older release evidence.
 - Documented focused comparisons and musical phrases without quiet padding, full Euclid clock/envelope capture, FM + Mini Verb capture through Octemu with offline VECTOR note generation, reliable parameter-lock editing, decoded MP3 checks and the retained-evidence editorial media path.
