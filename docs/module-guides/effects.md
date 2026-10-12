@@ -121,6 +121,7 @@ Octabam's behaviour tests run through its DSP host and need a native toolchain (
 - The DSP assembler silently mis-encodes some instructions: [octabam's AGENTS.md](../../sdk/octabam/AGENTS.md). Disassemble what you assemble.
 - A knob rename or count change is a stored-data change. Stamp every project before anyone plays it.
 - A formatter overrides the count it sits beside; declare `formatter=` per slot.
+- FUNC + turn comes from the donor too. The descriptor word at P+0x12a (`Param.word_12a`) is a knob's edit handler. With FUNC held, `0x400328e4` (the stock reverbs' MIX and BAL, most bipolar knobs) steps through 0, 64 and 127; `0x40032814` (DARK REV's TIME to LP, the MIX of PHASER, FLANGER, CHORUS and COMB FILTER) jumps between 0 and 127 only; 0 does not jump. The builder writes the word for `BIPOLAR` and stepped slots; `PLAIN` and `INHERIT` keep the donor's. For three stops on a plain knob, set `formatter_word=0, widget_word=0, word_12a=0x400328e4`. E-Verb 0.1.0 inherited two stops on four knobs this way (#438). Measured on the ColdFire emulator with OS 1.40C, not on hardware.
 - A labelled select wider than five values falls back to a plain dial unless it uses `Formatter.WIDE_STEPPED`.
 - Voicing is judged by ear, level-matched, A/B/A/B, wet only. Render locally rather than flashing.
 
