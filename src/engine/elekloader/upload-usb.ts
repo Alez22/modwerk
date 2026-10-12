@@ -15,6 +15,7 @@ export const VENDOR_SELFTEST = 21 // the Octatrack base's self-test (sdk/machine
 export const SELFTEST_BYTES = 96
 export const VENDOR_MISSING = 14 // the modules the unit's project names that are not installed (elekloader/ep0.c)
 export const MISSING_BYTES = 316
+export const MISSING_PAGE = 13 // entries a MISSING reply holds; wValue is the first (elekloader/fxids.h)
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -159,14 +160,20 @@ export class UsbVendorTransport implements UploadTransport {
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the self-test request.')
     return parseSelftest(reply.data)
   }
-  /** The modules the unit's project names that are not installed, answered by the USB interrupt; undefined when the
-   * base stalls the request (one built before it). */
+  /** The modules the unit's project names that are not installed, answered by the USB interrupt, a page of 13 at a
+   * time while pages come back full; undefined when the base stalls the request (one built before it). A base from
+   * before pages stalls a later page: its first is all it has. */
   async missing(signal?: AbortSignal): Promise<MissingModule[] | undefined> {
-    signal?.throwIfAborted()
-    const reply = await this.device.controlTransferIn(this.setup(VENDOR_MISSING, 0), MISSING_BYTES)
-    if (reply.status === 'stall') return undefined
-    if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the missing-modules request.')
-    return parseMissing(reply.data)
+    const all: MissingModule[] = []
+    for (let first = 0; ; first += MISSING_PAGE) {
+      signal?.throwIfAborted()
+      const reply = await this.device.controlTransferIn(this.setup(VENDOR_MISSING, first), MISSING_BYTES)
+      if (reply.status === 'stall') return first ? all : undefined
+      if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the missing-modules request.')
+      const page = parseMissing(reply.data)
+      all.push(...page)
+      if (page.length < MISSING_PAGE) return all
+    }
   }
   async exchange(frame: Uint8Array, signal: AbortSignal): Promise<Uint8Array> {
     if (this.busy) throw new VendorTransportError('A vendor exchange is already in progress.')

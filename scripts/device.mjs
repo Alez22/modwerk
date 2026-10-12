@@ -174,21 +174,35 @@ const REPORT_NAMES = ['version', 'frames', 'phase', 'job0', 'job1', 'hostFlags',
   'cpu', 'dsp0Mean', 'dsp0Peak', 'dsp1Mean', 'dsp1Peak', 'buffers', 'poolUsed', 'modules', 'idleWrap', 'arenas', 'idleSum0', 'idleSum1']
 const named = w => REPORT_NAMES.map((name, i) => name + '=' + (REPORT_HEX.has(name) ? '0x' + w(i).toString(16) : ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? w(i) | 0 : w(i))).join(' ')
 const REPORT_HEX = new Set(['buffers', 'arenas', 'hostFlags', 'manager', 'used', 'dry', 'intcIprl', 'intcImrl', 'eportPinFlagSelect', 'edmaIntErr', 'csr0csr1', 'edmaEs', 'edmaEsSeen', 'missCheck', 'miss0', 'miss1', 'miss2'])
-/** status.c's tail of the report (version 11): word i of 78. */
+/** The report, at the length the base sends: 78 words, or 81 past 32 effect ids (version 12: the used and dry
+ * masks' second words and a pad at the end; fxids.h). The base answers only its own length. */
+async function reportView() {
+  for (const words of [78, 81]) {
+    try { const bytes = await devIn(11, 0, 4 * words); return new DataView(bytes.buffer, bytes.byteOffset, 4 * words) } catch { /* the other length */ }
+  }
+  throw new Error('This base does not answer development requests: build it with --dev.')
+}
+/** status.c's tail of the report (version 11 and up): word i of the first 78. */
 async function statusWords() {
-  const bytes = await devIn(11, 0, 4 * 78), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * 78), w = i => view.getUint32(4 * i)
+  const view = await reportView(), w = i => view.getUint32(4 * i)
   if (w(0) < 11) throw new Error('This base has no status (report version ' + w(0) + ').')
   return w
 }
 /** MISSING (ep0.c, dsp.c): the modules the project names that are not installed. "MWM", a count, then 24 bytes a handle. */
 async function missing() {
-  const reply = await unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: 14, value: 0, index }, 316)
-  if (reply.status !== 'ok' || !reply.data) throw new Error('This base does not answer MISSING: build it with --dsp-loader.')
-  const bytes = new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength), view = new DataView(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength)
-  const n = bytes[3], text = (at, length) => String.fromCharCode(...bytes.subarray(at, at + length)).replace(/\0.*$/, '')
-  if (text(0, 3) !== 'MWM' || bytes.byteLength !== 4 + 24 * n) throw new Error('Not a MISSING reply.')
-  return n ? JSON.stringify(Array.from({ length: n }, (_, i) => ({ handle: bytes[4 + 24 * i], layout: view.getUint16(6 + 24 * i),
-    module: view.getUint32(8 + 24 * i).toString(16).padStart(8, '0'), name: text(12 + 24 * i, 16) }))) : 'nothing missing'
+  const all = []
+  for (let first = 0; ; first += 13) { // pages of 13 from wValue on: a full page means there may be more
+    const reply = await unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: 14, value: first, index }, 316)
+    if (reply.status !== 'ok' && first) break // a base from before pages: one page is all it has
+    if (reply.status !== 'ok' || !reply.data) throw new Error('This base does not answer MISSING: build it with --dsp-loader.')
+    const bytes = new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength), view = new DataView(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength)
+    const n = bytes[3], text = (at, length) => String.fromCharCode(...bytes.subarray(at, at + length)).replace(/\0.*$/, '')
+    if (text(0, 3) !== 'MWM' || bytes.byteLength !== 4 + 24 * n) throw new Error('Not a MISSING reply.')
+    all.push(...Array.from({ length: n }, (_, i) => ({ handle: bytes[4 + 24 * i], layout: view.getUint16(6 + 24 * i),
+      module: view.getUint32(8 + 24 * i).toString(16).padStart(8, '0'), name: text(12 + 24 * i, 16) })))
+    if (n < 13) break
+  }
+  return all.length ? JSON.stringify(all) : 'nothing missing'
 }
 
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
@@ -221,13 +235,20 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
     else if (step === 'missing') console.log(await missing())
     else if (step === 'memory') { // MEMORY MAP (dev request 24): how full and how fragmented each memory is
-      const b = Buffer.from(await devIn(24, 0, 276))
+      const pages = [Buffer.from(await devIn(24, 0, 276))] // then 32 packages a page until the base stalls (fxids.h)
+      for (;;) { try { pages.push(Buffer.from(await devIn(24, pages.length, 276))) } catch { break } }
+      const b = pages[0]
       if (b.toString('latin1', 0, 4) !== 'MWMP') throw new Error('Not a memory map.')
       const pool = 262144, free = b.readUInt32BE(4), largest = b.readUInt32BE(8)
       console.log(`pool: ${pool - free} of ${pool} bytes used; free ${free}, largest free run ${largest}${free ? ` (${Math.round(100 * largest / free)} % of free)` : ''}`)
       for (const [core, name] of [[1, 'core 1 (T1-4)'], [0, 'core 0 (T5-8)']]) {
         const arena = b.readUInt16BE(12 + 2 * core), blocks = []
-        for (let p = 0; p < 32; p++) { const at = b.readUInt16BE(20 + 4 * (32 * core + p)); if (at !== 0xffff) blocks.push({ p, at: at - 64, n: b.readUInt16BE(22 + 4 * (32 * core + p)) }) }
+        pages.forEach((page, k) => {
+          for (let i = 0; i < 32; i++) {
+            const at = page.readUInt16BE(20 + 4 * (32 * core + i))
+            if (at !== 0xffff) blocks.push({ p: 32 * k + i, at: at - 64, n: page.readUInt16BE(22 + 4 * (32 * core + i)) })
+          }
+        })
         blocks.sort((x, y) => x.at - y.at)
         // Holes: free words outside the largest free run (big blocks sit at the top, the rest at the bottom: dsp.c)
         let end = 0, largest = 0
@@ -417,8 +438,8 @@ if (command === 'serve') {
     process.exit(0)
   }
   if (command === 'report') {
-    const names = REPORT_NAMES, hex = REPORT_HEX
-    const bytes = await devIn(11, 0, 4 * names.length), view = new DataView(bytes.buffer, bytes.byteOffset, 4 * names.length)
+    const view = await reportView(), hex = new Set([...REPORT_HEX, 'used1', 'dry1'])
+    const names = view.byteLength > 4 * REPORT_NAMES.length ? [...REPORT_NAMES, 'used1', 'dry1', 'pad'] : REPORT_NAMES
     console.log(Object.fromEntries(names.map((name, i) => [name, ['job0', 'job1', 'missCore', 'meterCore'].includes(name) ? view.getInt32(4 * i)
       : hex.has(name) ? '0x' + view.getUint32(4 * i).toString(16) : view.getUint32(4 * i)])))
     process.exit(0)

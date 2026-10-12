@@ -104,7 +104,14 @@ Order, each step host-tested before the next:
    reads it back over USB while effects change. The one step that needs the unit before the rest.
 2. **The base at N ids** behind `MODWERK_FX_IDS` (32 until step 5): the masks, sentinels and arrays above in
    dsp.c, fxmap.c (new magic), fxpage.c, status.c; MISSING and MEMORY MAP paged; the report's masks widened.
-   With N = 32 this changes no behaviour, so the unit's runs so far stay valid.
+   With N = 32 this changes no behaviour, so the unit's runs so far stay valid. **Done (12 October 2026, S56):**
+   `fxids.h` holds the count and an id set of 32-bit words (no 64-bit shifts, so no libgcc); `build_core.py` passes
+   `FX_IDS` and emits `modwerk_fx_modules` beside the transport's one-word `modwerk_dsp_modules` (step 3 retires it).
+   The handle map keeps 'MWFX' at 32 and takes 'MWF' + the count otherwise. MISSING pages by its first entry (13 a
+   page), MEMORY MAP by 32 packages (a stall past the last), the report appends the masks' other words and a pad
+   (78 words at 32, 81 at 64, version 12); `device.mjs` and the site's `upload-usb.ts` read all of them. The host
+   tests run at 32 and at 64 ids (`test_recipe.py`: a module at handle 40 counts as 40, never as 8). S56 builds
+   and draws PROJ > MODWERK in `ot_emu`.
 3. **The transport** through `DSP_EDITS` at N: `DL_PACKAGES`, `DL_CODE_START`, the manager's per-id loops and
    masks, `transfer.c`'s and `selection.c`'s id bounds.
 4. **The DSP**: the receiver's id bound and saved region, init and proc tables at the new home (`dsp_loader.py`

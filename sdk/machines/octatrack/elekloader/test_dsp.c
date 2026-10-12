@@ -100,16 +100,29 @@ static void planner(void)
     CHECK(most <= 32u);
 }
 const uint32_t dl_stub_at_boot = 1u << 21 | 1u << 26 | 1u << 27, modwerk_dsp_modules = 1u << 26 | 1u << 27;
+#if MODWERK_FX_IDS > 32
+const fx_set modwerk_fx_modules = {{1u << 26 | 1u << 27, 1u << (40 - 32)}}; /* a handle past 32 too */
+#else
+const fx_set modwerk_fx_modules = {{1u << 26 | 1u << 27}};
+#endif
 /* identity.c's catalog: SPRING REV (21) a stock package loaded on demand, every other id what stock runs. */
 #define STOCK4 STOCK, STOCK, STOCK, STOCK
-struct dl_package dl_catalog[32] = {STOCK4, STOCK4, STOCK4, STOCK4, STOCK4, STOCK, {1063, 1, MODWERK_DSP_RESERVE, 2, 0, 1, 1}, STOCK, STOCK, STOCK4, STOCK4};
-struct code dl_codes[2][32];
+struct dl_package dl_catalog[MODWERK_FX_IDS] = {STOCK4, STOCK4, STOCK4, STOCK4, STOCK4, STOCK, {1063, 1, MODWERK_DSP_RESERVE, 2, 0, 1, 1}, STOCK, STOCK, STOCK4, STOCK4};
+struct code dl_codes[2][MODWERK_FX_IDS];
 const uint16_t modwerk_dsp_arena[2] = {2320, 2300};
 static int idle = 1;
 int dl_publication_idle(void) { return idle; }
 
+/* All handles held: FULL; with 64 ids the fixture's third handle, 40, is still free and goes to the newcomer. */
+static int full_or_40(const struct runtime_dsp *none, struct runtime_dsp t) /* a copy: admission writes the id it gives */
+{
+    int r = modwerk_machine_dsp_admit(none, &t);
+    return MODWERK_FX_IDS > 32u ? r == RUNTIME_OK && t.id == 40 : r == RUNTIME_FULL;
+}
+#define FULL_OR_40(t) full_or_40(&none, (t))
 int main(void)
 {
+    for (unsigned k = 32; k < MODWERK_FX_IDS; ++k) dl_catalog[k] = (struct dl_package)STOCK; /* identity.c's stubs */
     static const uint32_t words[3] = {1, 2, 3};
     static const uint16_t relocations[1] = {0};
     struct runtime_dsp none = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", 0, 0, 0};
@@ -118,7 +131,7 @@ int main(void)
     /* The effect id is a handle: the preferred one when it is a free module id, else the lowest free module id. */
     fx.id = 27; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK && fx.id == 27);
     fx.id = 21; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK && fx.id == 26); /* a stock effect's id */
-    fx.id = 40; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK && fx.id == 26);
+    fx.id = MODWERK_FX_IDS + 8; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK && fx.id == 26); /* past the ids */
     fx.id = 26;
     /* The smaller core's arena, the instance block, a known cycle figure within the allowance. */
     fx.count = 2301; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_MEMORY);
@@ -148,14 +161,14 @@ int main(void)
     other.module = 71; CHECK(modwerk_machine_dsp_admit(&none, &other) == RUNTIME_OK && other.id == 27);
     modwerk_machine_dsp_switch(&none, &other);
     struct runtime_dsp third = fx;
-    third.module = 72; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);
+    third.module = 72; CHECK(FULL_OR_40(third));
     third = other; third.id = 26; CHECK(modwerk_machine_dsp_admit(&other, &third) == RUNTIME_OK && third.id == 27);
     modwerk_machine_dsp_switch(&other, &none);
     /* A track running it, or the manager mid-transaction, keeps it: removal and replacement wait. */
     modwerk_test_live_fx[13] = 26;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_IN_USE && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_IN_USE);
     /* MODULE LOAD (status.c): the one module, unfloored 7/4 of its claim, an estimate, on T6 FX2 (core 0). */
-    struct modwerk_module_load loads[32];
+    struct modwerk_module_load loads[MODWERK_FX_IDS];
     CHECK(modwerk_dsp_module_loads(loads) == 1 && loads[0].id == 26 && loads[0].cycles == (244 * 7 + 3) / 4 &&
           !loads[0].measured && loads[0].slots[0] == 1 && !loads[0].slots[1]);
     modwerk_test_live_fx[13] = 4; idle = 0;
@@ -171,19 +184,25 @@ int main(void)
     static uint8_t bank[0x9504a + 4 * 6322];
     for (unsigned i = 0; i < 16; ++i) modwerk_test_live_fx[i] = i < 8 ? 4 : 8;
     modwerk_test_live_fx[2] = 26;
-    CHECK(modwerk_dsp_used() == 1u << 26);              /* no project yet: the live effects only */
+    CHECK(modwerk_dsp_used().w[0] == 1u << 26);         /* no project yet: the live effects only */
     modwerk_test_bank = bank;
     bank[0x8ed80 + 3 * 6322 + 9] = 27;                  /* Part 4's FX2 on T2 */
     bank[0x9504a + 1 * 6322 + 0] = 27;                  /* Part 2's saved copy, FX1 on T1 */
     bank[0x8ed80 + 5] = 21;                             /* SPRING REV: stock, not a module */
-    CHECK(modwerk_dsp_used() == (1u << 26 | 1u << 27));
+    CHECK(modwerk_dsp_used().w[0] == (1u << 26 | 1u << 27));
     modwerk_test_live_fx[2] = 4; bank[0x8ed80 + 3 * 6322 + 9] = 0;
-    CHECK(modwerk_dsp_used() == 1u << 27);
+    CHECK(modwerk_dsp_used().w[0] == 1u << 27);
     /* What runs dry: an uninstalled module's effect only; a stock effect loads its package. */
     modwerk_test_live_fx[3] = 27; modwerk_test_live_fx[9] = 21;
-    CHECK(modwerk_dsp_dry() == 1u << 27);
+    CHECK(modwerk_dsp_dry().w[0] == 1u << 27);
+#if MODWERK_FX_IDS > 32
+    /* Past 32 ids: handle 40 counts as 40, never as 8 (an `& 31` would run it as stock's id 8). */
+    modwerk_test_live_fx[4] = 40;
+    CHECK(fx_in(modwerk_dsp_used(), 40) && !fx_in(modwerk_dsp_used(), 8) && fx_in(modwerk_dsp_dry(), 40) && !fx_in(modwerk_dsp_dry(), 8));
+    modwerk_test_live_fx[4] = 4;
+#endif
     modwerk_machine_dsp_switch(&none, &fx); fx.id = 27; modwerk_machine_dsp_switch(&none, &fx);
-    CHECK(!modwerk_dsp_dry());
+    CHECK(!fx_any(modwerk_dsp_dry()));
     /* The watchdog: frames still for 30 ticks while a transfer is in flight, reported once; frames moving or no transfer, never. */
     unsigned fired = 0;
     for (unsigned t = 0; t < 100; ++t) fired += modwerk_dsp_stalled(500u + t, 1);   /* frames advance */
@@ -194,7 +213,7 @@ int main(void)
     for (unsigned t = 0; t < 100; ++t) CHECK(!modwerk_dsp_stalled(42857u, 1));       /* once */
     CHECK(!modwerk_dsp_stalled(42858u, 1));
     /* The project's map (fxmap.c): '#MODWERK_FX=' lines in, only module handles, a failed load changes nothing. */
-    for (unsigned k = 0; k < 32u; ++k) release(k);
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) release(k);
     for (unsigned i = 0; i < 16u; ++i) modwerk_test_live_fx[i] = 0;
     modwerk_fxmap_begin(0); modwerk_fxmap_line("#MODWERK_FX=26:00000099:1:Parse only", 1); /* the parse-only pass */
     modwerk_fxmap_begin(1);
@@ -215,7 +234,7 @@ int main(void)
     third = fx; third.module = 0x46; third.id = 26;
     CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_OK && third.id == 27);
     third.module = 0x48; third.id = 27;
-    CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);
+    CHECK(FULL_OR_40(third));
     /* A module holding the handle the map gives another lets go, then takes its own once the manager is idle. */
     third.module = 0x46; third.id = 26; modwerk_machine_dsp_switch(&none, &third); /* installed under the last project */
     modwerk_fxmap_begin(1);                                                      /* then this project loads */
@@ -232,8 +251,9 @@ int main(void)
     CHECK(!strcmp(written, "#MODWERK_FX=26:00000047:2:Mod G\r\n#MODWERK_FX=27:00000046:1:Mod F\r\n"));
     /* MISSING: what the project names that no installed module answers for (0x47 at 26 is not installed). */
     uint8_t list[316];
-    CHECK(modwerk_dsp_missing_list(list) == 28 && !memcmp(list, "MWM\1", 4) && list[4] == 26 && list[7] == 2 &&
-          list[11] == 0x47 && !strcmp((const char *)list + 12, "Mod G"));
+    CHECK(modwerk_dsp_missing_list(list, 0, MODWERK_MISSING_PAGE) == 28 && !memcmp(list, "MWM\1", 4) && list[4] == 26 &&
+          list[7] == 2 && list[11] == 0x47 && !strcmp((const char *)list + 12, "Mod G"));
+    CHECK(modwerk_dsp_missing_list(list, 1, MODWERK_MISSING_PAGE) == 4 && !memcmp(list, "MWM\0", 4)); /* the next page: empty */
     /* A project without lines names today's assignments. */
     modwerk_fxmap_begin(1); modwerk_fxmap_loaded(0);
     CHECK(modwerk_fxmap_handle(0x873d83ccu) == 27 && !modwerk_fxmap_module(26));
@@ -241,7 +261,7 @@ int main(void)
     CHECK(!strcmp(written, "#MODWERK_FX=27:873d83cc:0:E-Verb\r\n"));
     /* A handle an old project uses for a module no map or catalogue names is never handed to another module. */
     modwerk_test_live_fx[0] = 26; third.module = 0x49; third.id = 26;
-    CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);
+    CHECK(FULL_OR_40(third));
     modwerk_test_live_fx[0] = 0;
     CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_OK && third.id == 26);
     /* A pinned effect id (its ColdFire code names it): that id or none, never another. */

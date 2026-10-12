@@ -10,5 +10,5 @@ struct modwerk_module_load {
     uint8_t measured; /* 1: a hardware figure; 0: 7/4 of an emulator claim (an estimate) */
     uint8_t slots[2]; /* slots running it on core 0 (T5-T8) and core 1 (T1-T4) */
 };
-unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out); /* dsp.c: how many, at most 32 */
+unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out); /* dsp.c: how many, at most MODWERK_FX_IDS */
 #endif

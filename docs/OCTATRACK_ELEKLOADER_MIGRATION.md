@@ -1024,7 +1024,8 @@ card, another unit) and change version, and old projects must keep loading:
     a count, then per handle its number, layout, module id and name, for
     every module the project names in any bank that nothing installed answers
     for. On the unit: `[{handle: 27, layout: 1, module: 873d83cc, name:
-    E-Verb}]` (`npm run device -- missing`).
+    E-Verb}]` (`npm run device -- missing`). From S56 (12 October 2026) wValue is the first entry and a reply holds
+    at most 13, so a host asks on while pages come back full; page 0 is the reply from before (fxids.h).
   - **Chooser rows and FX pages at runtime** (`dsp3-R1`, base `f58b9ecf…`, 11
     October 2026). A package now carries its page as a recipe (ABI 6 flag 1, the
     module image's head; `build.py` from the catalogue's descriptor and menu

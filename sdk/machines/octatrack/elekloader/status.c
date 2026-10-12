@@ -12,6 +12,7 @@
 #include "loader.h"
 #include "selftest.h"
 #include "status.h"
+#include "fxids.h"
 void modwerk_status_close_menu(void); /* below, with the menu rows */
 
 #define CUE 0x2a
@@ -144,21 +145,22 @@ void modwerk_test_menu(int unused)
 #define UP 0x33
 #define DOWN 0x20
 #define ROWS 4u
-unsigned modwerk_dsp_missing_list(uint8_t *out);
+unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most);
 int modwerk_modset_restored(void);
 extern volatile uint32_t modwerk_modset_result;
-static uint8_t missing[4 + 24 * 32];
-static uint32_t missing_told, missing_last; /* the handles the page told about; the list at the last check */
+static uint8_t missing[4 + 24 * MODWERK_FX_IDS];
+static fx_set missing_told, missing_last; /* the handles the page told about; the list at the last check */
 static void missing_check(void)
 {
-    unsigned n = (modwerk_dsp_missing_list(missing) - 4u) / 24u;
-    uint32_t handles = 0;
-    for (unsigned i = 0; i < n; ++i) handles |= 1u << (missing[4 + 24 * i] & 31u);
+    unsigned n = (modwerk_dsp_missing_list(missing, 0, MODWERK_FX_IDS) - 4u) / 24u;
+    fx_set handles = {{0}};
+    for (unsigned i = 0; i < n; ++i) handles = fx_with(handles, missing[4 + 24 * i]);
     if (open == MISSING && !n && !missing_asked) open = CLOSED;
     if (missing_top + ROWS > n) missing_top = n > ROWS ? n - ROWS : 0;
-    if (handles & ~missing_told && handles == missing_last && open == CLOSED && modwerk_modset_restored() && modwerk_modset_result)
+    if (fx_any(fx_less(handles, missing_told)) && fx_same(handles, missing_last) && open == CLOSED && modwerk_modset_restored() &&
+        modwerk_modset_result)
         open = MISSING, missing_top = 0, missing_asked = 0, missing_told = handles;
-    missing_told &= handles; /* one that comes back and goes missing again is told again */
+    missing_told = fx_and(missing_told, handles); /* one that comes back and goes missing again is told again */
     missing_last = handles;
 }
 /* The memory after a module loads (owner, 11 October 2026): picked onto a track, or accepted over USB. A box with
@@ -170,7 +172,6 @@ extern uint8_t modwerk_test_live_fx[16];
 #define LIVE ((const volatile uint8_t *)0x80000ec4u) /* the FX ids each track runs: FX1 T1-T8, then FX2 */
 #endif
 extern volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
-extern const uint32_t modwerk_dsp_modules;
 static unsigned memory_left; /* ticks the box still shows */
 static void memory_tick(void)
 {
@@ -179,7 +180,7 @@ static void memory_tick(void)
     int loaded = modwerk_boot_accepted != accepted;
     if (dl_selection_completed != completed) { /* a pick changes one slot; a Part change, usually many: no box then */
         unsigned changed = 0, module = 0;
-        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, module |= modwerk_dsp_modules >> (LIVE[i] & 31u) & 1u;
+        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, module |= (unsigned)fx_in(modwerk_fx_modules, LIVE[i]);
         loaded |= changed == 1u && module;
     }
     if (dl_selection_completed != completed || loaded) for (unsigned i = 0; i < 16u; ++i) before[i] = LIVE[i];
@@ -190,7 +191,7 @@ static void memory_tick(void)
 /* MODULE LOAD (owner, 12 October 2026: "load per module"): each installed module effect, with what its instances
  * cost on each core as a share of the frame, as the LOAD page's bars count. The cores' meters see only their sum, so
  * this is each module's figure times the slots running it: a hardware figure, or 7/4 of an emulator claim (~). */
-static struct modwerk_module_load modules[32];
+static struct modwerk_module_load modules[MODWERK_FX_IDS];
 static unsigned modules_count(void) { return modwerk_dsp_module_loads(modules); }
 volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key or knob: dsp.c's compaction waits for quiet */
 int modwerk_status_key(int code, int pressed)

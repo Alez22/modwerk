@@ -34,7 +34,8 @@
 #include "selection.h"
 #include "allocator.h"
 #include "runtime.h"
-uint32_t modwerk_dsp_used(void);
+#include "fxids.h"
+fx_set modwerk_dsp_used(void);
 int modwerk_dsp_probe(unsigned core);
 int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words);
 extern volatile uint32_t modwerk_dsp_missing;
@@ -140,7 +141,7 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
     if (s[1] == 9 && want == 60 && !s[2] && !s[3]) {
         uint32_t w[15] = {dl_frames, dl_accepted[0], dl_accepted[1], dl_rejected[0], dl_rejected[1], dl_errors,
                           dl_request_probe, dl_request_stage, (uint32_t)dl_job_status(0), (uint32_t)dl_job_status(1),
-                          dl_pool_words[0], dl_pool_words[1], dl_selection_refused, modwerk_dsp_missing, modwerk_dsp_used()};
+                          dl_pool_words[0], dl_pool_words[1], dl_selection_refused, modwerk_dsp_missing, modwerk_dsp_used().w[0]};
         for (unsigned i = 0; i < 60; ++i) out[i] = (uint8_t)(w[i / 4] >> (24 - 8 * (i % 4)));
         *reply = out;
         return 60;
@@ -150,8 +151,10 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 1;
     }
-    if (s[1] == 24 && want == 276u && !s[2] && !s[3]) { /* MEMORY MAP: the module pool, each core's code arena, buffer blocks */
-        extern struct dl_package dl_catalog[DL_PACKAGES];
+    /* MEMORY MAP: the module pool, each core's code arena, buffer blocks, then 32 packages a page (wValue the page;
+     * past the last the request stalls, so a host reads on until then). Page 0 is the layout from before pages. */
+    if (s[1] == 24 && want == 276u && s[2] < MODWERK_FX_WORDS && !s[3]) {
+        extern struct dl_package dl_catalog[MODWERK_FX_IDS];
         extern const uint16_t modwerk_dsp_arena[2];
         int dl_placed(unsigned c, unsigned p);
         uint32_t dl_buffers_in_use(void);
@@ -163,9 +166,10 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         out[12] = (uint8_t)(modwerk_dsp_arena[0] >> 8), out[13] = (uint8_t)modwerk_dsp_arena[0];
         out[14] = (uint8_t)(modwerk_dsp_arena[1] >> 8), out[15] = (uint8_t)modwerk_dsp_arena[1];
         for (unsigned c = 0; c < 2u; ++c) /* per package: where its code starts (0xffff none) and its words */
-            for (unsigned p = 0; p < 32u; ++p) {
-                int at = dl_placed(c, p);
-                uint8_t *e = out + 20u + 4u * (32u * c + p);
+            for (unsigned i = 0; i < 32u; ++i) {
+                unsigned p = 32u * s[2] + i;
+                int at = p < MODWERK_FX_IDS ? dl_placed(c, p) : -1;
+                uint8_t *e = out + 20u + 4u * (32u * c + i);
                 uint16_t where = at < 0 ? 0xffffu : (uint16_t)at, n = at < 0 ? 0 : dl_catalog[p].words;
                 e[0] = (uint8_t)(where >> 8), e[1] = (uint8_t)where, e[2] = (uint8_t)(n >> 8), e[3] = (uint8_t)n;
             }

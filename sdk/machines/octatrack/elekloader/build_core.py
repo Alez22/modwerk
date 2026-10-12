@@ -100,6 +100,9 @@ DSP_ALLOWANCE = (3120, 3565)
 # The dearest stock effect per slot, chip cycles: DJ EQUALIZER, 342 a sample on the same unit (its 331 executed
 # instructions in the emulator, stock_dsp_worst.py, run at about one a cycle). Every slot without a module is charged it.
 DSP_RESERVE = 342
+# Effect ids the base handles (fxids.h MODWERK_FX_IDS; 64 is the plan, docs/OCTATRACK_MORE_EFFECT_IDS.md).
+FX_IDS = 32
+FX_WORDS = (FX_IDS + 31) // 32
 DSP_EDITS = {
     # The FX selectors read their chooser list through these LEA operands, which the chooser composer repoints.
     'selection.c': (('static uint8_t paste[6322]={0};', 'static uint8_t paste[6322]; /* in .bss, which the core clears at boot: '
@@ -664,7 +667,7 @@ def main():
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')
     usb = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb)
-    for name in ('ep0.c', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s') + (('dev.c',) if args.dev else ()):
+    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s') + (('dev.c',) if args.dev else ()):
         shutil.copyfile(HERE / name, source / name)
     # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.
     spec = importlib.util.spec_from_file_location('modwerk_base_art', APP / 'sdk/runtime/startup/base_art.py')
@@ -752,7 +755,10 @@ def main():
         stock = sum(1 << fx for fx in dsp_layout['A']['stock'])
         definitions += '#include "allocator.h"\nconst uint32_t dl_stub_at_boot = %#xu;\nconst uint32_t dl_pmap16 = 0;\n' % (
             dsp_layout['A']['free'] | stock)
+        # The module ids twice: one word for the transport's edits (manager.c), the set the base reads (fxids.h).
         definitions += 'const uint32_t modwerk_dsp_modules = %#xu;\n' % dsp_layout['A']['free']
+        definitions += '#include "fxids.h"\nconst fx_set modwerk_fx_modules = {{%s}};\n' % ', '.join(
+            '%#xu' % (dsp_layout['A']['free'] >> 32 * w & 0xffffffff) for w in range(FX_WORDS))
         # fxmap.c: today's catalogue assignments, what a project without '#MODWERK_FX=' lines names.
         names = {m['id']: m['name'] for m in json.loads((APP / 'src/catalog/module-documents.json').read_text())['modules']}
         legacy = [(m['fxId'], m['id']) for m in chooser['modules'] if dsp_layout['A']['free'] >> (m.get('fxId') or 0) & 1]
@@ -808,7 +814,7 @@ modwerk_retained_end:
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
-                        '-Wall', '-Wextra', '-Werror'] + (['-DMODWERK_DEV'] if args.dev else []) + (
+                        '-Wall', '-Wextra', '-Werror', '-DMODWERK_FX_IDS=%du' % FX_IDS] + (['-DMODWERK_DEV'] if args.dev else []) + (
         ['-DMODWERK_DSP_LOADER', '-DMODWERK_DSP_ALLOWANCE0=%d' % DSP_ALLOWANCE[0], '-DMODWERK_DSP_ALLOWANCE1=%d' % DSP_ALLOWANCE[1],
          '-DMODWERK_DSP_RESERVE=%d' % DSP_RESERVE] +
         ['-DMODWERK_DSP_%s%d=%d' % (key, n, dsp_layout[t][field]) for n, t in enumerate('AB')

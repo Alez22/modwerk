@@ -9,8 +9,8 @@
 
 static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
-const uint32_t modwerk_dsp_modules = 1u << 26 | 1u << 27;
-uint32_t modwerk_fx1_list[32] = {0x1000, 0x1100, 0x1200}, modwerk_fx2_list[32] = {0x1000, 0x2100, 0x2200, 0x2300};
+const fx_set modwerk_fx_modules = {{1u << 26 | 1u << 27}};
+uint32_t modwerk_fx1_list[MODWERK_LIST_ROWS] = {0x1000, 0x1100, 0x1200}, modwerk_fx2_list[MODWERK_LIST_ROWS] = {0x1000, 0x2100, 0x2200, 0x2300};
 const uint32_t modwerk_fx_rows[2] = {3, 4};
 static unsigned invalidations;
 void modwerk_machine_invalidate_code(void) { ++invalidations; }

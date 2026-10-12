@@ -140,4 +140,24 @@ describe('the modules a project names that are not installed', () => {
     expect(parseMissing(new DataView(new Uint8Array([0x4d, 0x57, 0x4d, 0]).buffer))).toEqual([])
     expect(() => parseMissing(new DataView(new Uint8Array([0x4d, 0x57, 0x4d, 1]).buffer))).toThrow(VendorTransportError)
   })
+  it('reads MISSING a page of 13 at a time, and stops at a base without pages', async () => {
+    const page = (first: number, n: number) => {
+      const view = new DataView(new ArrayBuffer(4 + 24 * n))
+      ;[0x4d, 0x57, 0x4d, n].forEach((b, i) => view.setUint8(i, b))
+      for (let i = 0; i < n; i++) view.setUint8(4 + 24 * i, first + i)
+      return view
+    }
+    const asked: number[] = []
+    const unit = (pages: boolean): ControlDevice => ({
+      async controlTransferOut() { throw new Error('read-only') },
+      async controlTransferIn(setup, length) {
+        expect(setup).toMatchObject({ request: 14 }); expect(length).toBe(316); asked.push(setup.value)
+        if (setup.value && !pages) return { status: 'stall' }
+        return { status: 'ok', data: page(setup.value, setup.value ? 2 : 13) }
+      },
+    })
+    expect((await new UsbVendorTransport(unit(true), 6).missing())!.map(m => m.handle)).toEqual([...Array(15).keys()])
+    expect(asked).toEqual([0, 13])
+    expect((await new UsbVendorTransport(unit(false), 6).missing())!.length).toBe(13)
+  })
 })

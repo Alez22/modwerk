@@ -25,8 +25,9 @@ uint32_t modwerk_runtime_free(uint32_t *largest) { if (largest) *largest = 0; re
 /* dsp.c's MISSING list: `listed` modules at handles 20 and up; modset.c's restore. */
 static unsigned listed;
 volatile uint32_t modwerk_runtime_ticks;
-unsigned modwerk_dsp_missing_list(uint8_t *out)
+unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most)
 {
+    (void)first, (void)most;
     for (unsigned i = 0; i < listed; ++i) {
         uint8_t *e = out + 4u + 24u * i;
         for (unsigned c = 0; c < 24u; ++c) e[c] = 0;
@@ -41,7 +42,7 @@ volatile uint32_t modwerk_modset_result;
 /* The memory box: picks (the guard's completed count) and USB accepts. */
 uint8_t modwerk_test_live_fx[16];
 volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
-const uint32_t modwerk_dsp_modules = 1u << 27 | 1u << 29;
+const fx_set modwerk_fx_modules = {{1u << 27 | 1u << 29}};
 /* dsp.c's MODULE LOAD list: `installed` modules. */
 static unsigned installed;
 unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)

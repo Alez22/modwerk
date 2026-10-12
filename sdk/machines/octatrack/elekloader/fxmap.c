@@ -7,14 +7,16 @@
  * project uses, which stock's loader skips like any '#' line (fxmap.s). A project without such lines
  * reads today's catalogue assignments (identity.c's modwerk_fx_legacy). */
 #include <stdint.h>
+#include "fxids.h"
 
 struct fx_entry { uint32_t module; uint16_t layout, spare; char name[16]; };
-struct fx_map { uint32_t magic, generation; struct fx_entry e[32]; uint32_t sum; };
+struct fx_map { uint32_t magic, generation; struct fx_entry e[MODWERK_FX_IDS]; uint32_t sum; };
 struct fx_legacy { uint32_t module; uint32_t id; char name[16]; };
-#define MAGIC 0x4d574658u /* 'MWFX' */
+/* 'MWFX' at 32 ids, as before; another width another magic ('MWF' and the count), so a map of another size is
+ * dropped on purpose, not by a checksum that happens to fail. */
+#define MAGIC (MODWERK_FX_IDS == 32u ? 0x4d574658u : 0x4d574600u | MODWERK_FX_IDS)
 #define LINE "#MODWERK_FX="
 
-extern const uint32_t modwerk_dsp_modules;             /* identity.c: the module effect ids */
 extern const struct fx_legacy modwerk_fx_legacy[];     /* identity.c: today's catalogue assignments */
 extern const uint32_t modwerk_fx_legacy_count;
 
@@ -61,26 +63,23 @@ static void put(volatile struct fx_entry *e, uint32_t module, unsigned layout, c
 }
 
 /* The module effect ids the project names anywhere: what runs, and every bank's Parts, working and saved. */
-uint32_t modwerk_fxmap_used(void)
+fx_set modwerk_fxmap_used(void)
 {
-    uint32_t used = 0;
-    for (unsigned i = 0; i < 16u; ++i) used |= 1u << (RUNNING(i) & 31u);
+    fx_set used = {{0}};
+    for (unsigned i = 0; i < 16u; ++i) used = fx_with(used, RUNNING(i));
     for (unsigned bank = 0; bank < 16u; ++bank)
         for (unsigned part = 0; part < 8u; ++part)
-            for (unsigned i = 0; i < 16u; ++i) {
-                unsigned fx = PART_FX(bank, part, i);
-                if (fx < 32u) used |= 1u << fx;
-            }
-    return used & modwerk_dsp_modules;
+            for (unsigned i = 0; i < 16u; ++i) used = fx_with(used, PART_FX(bank, part, i));
+    return fx_and(used, modwerk_fx_modules);
 }
 uint32_t modwerk_fxmap_generation(void) { return valid() ? MAP->generation : 0; }
 /* The module the map names at handle `id`, 0 none. */
-uint32_t modwerk_fxmap_module(unsigned id) { return id < 32u && valid() ? MAP->e[id].module : 0; }
+uint32_t modwerk_fxmap_module(unsigned id) { return id < MODWERK_FX_IDS && valid() ? MAP->e[id].module : 0; }
 /* The handle the map gives `module`, -1 none. */
 int modwerk_fxmap_handle(uint32_t module)
 {
     if (!module || !valid()) return -1;
-    for (unsigned k = 0; k < 32u; ++k) if (modwerk_dsp_modules >> k & 1u && MAP->e[k].module == module) return (int)k;
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) if (fx_in(modwerk_fx_modules, k) && MAP->e[k].module == module) return (int)k;
     return -1;
 }
 /* The name the map records at `id`, else today's catalogue name for it (no project loaded under this
@@ -88,7 +87,7 @@ int modwerk_fxmap_handle(uint32_t module)
 void modwerk_fxmap_name(unsigned id, char *out)
 {
     out[0] = 0;
-    if (id >= 32u) return;
+    if (id >= MODWERK_FX_IDS) return;
     if (valid() && MAP->e[id].module) for (unsigned i = 0; i < 16u; ++i) out[i] = MAP->e[id].name[i];
     else for (unsigned i = 0; i < modwerk_fx_legacy_count; ++i)
         if (modwerk_fx_legacy[i].id == id) for (unsigned c = 0; c < 16u; ++c) out[c] = modwerk_fx_legacy[i].name[c];
@@ -99,7 +98,7 @@ int modwerk_fxmap_describe(unsigned id, uint32_t *module, uint16_t *layout, char
 {
     *module = 0, *layout = 0;
     modwerk_fxmap_name(id, name);
-    if (id >= 32u) return 0;
+    if (id >= MODWERK_FX_IDS) return 0;
     if (valid() && MAP->e[id].module) *module = MAP->e[id].module, *layout = MAP->e[id].layout;
     else for (unsigned i = 0; i < modwerk_fx_legacy_count; ++i) if (modwerk_fx_legacy[i].id == id) *module = modwerk_fx_legacy[i].module;
     return *module != 0;
@@ -107,22 +106,22 @@ int modwerk_fxmap_describe(unsigned id, uint32_t *module, uint16_t *layout, char
 /* A module took handle `id` (dsp.c, at its switch): the map names it there. */
 void modwerk_fxmap_assign(unsigned id, uint32_t module, unsigned layout, const char *name)
 {
-    if (id >= 32u || !(modwerk_dsp_modules >> id & 1u)) return;
-    if (!valid()) { MAP->generation = 0; for (unsigned k = 0; k < 32u; ++k) put(&MAP->e[k], 0, 0, 0); }
+    if (!fx_in(modwerk_fx_modules, id)) return;
+    if (!valid()) { MAP->generation = 0; for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&MAP->e[k], 0, 0, 0); }
     put(&MAP->e[id], module, layout, name);
     seal();
 }
 
 /* The project file (fxmap.s). The loader parses project.work twice; the storing pass fills `staged`,
  * and the map takes it once the engine says the load succeeded. */
-static struct fx_entry staged[32];
+static struct fx_entry staged[MODWERK_FX_IDS];
 static int staging;
 static unsigned lines;
 volatile uint32_t modwerk_fxmap_read, modwerk_fxmap_written; /* lines the last load took, the last save wrote */
 void modwerk_fxmap_begin(uint32_t storing)
 {
     if (!storing) return;
-    for (unsigned k = 0; k < 32u; ++k) put(&staged[k], 0, 0, 0);
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&staged[k], 0, 0, 0);
     staging = 1, lines = 0;
 }
 static const char *number(const char *s, unsigned base, uint32_t *out)
@@ -144,7 +143,7 @@ void modwerk_fxmap_line(const char *line, uint32_t parse_only)
     uint32_t id, module, layout;
     const char *s = line + sizeof LINE - 1u;
     if (!(s = number(s, 10, &id)) || !(s = number(s, 16, &module)) || !(s = number(s, 10, &layout))) return;
-    if (id >= 32u || !(modwerk_dsp_modules >> id & 1u) || !module || layout > 0xffffu) return; /* only module handles */
+    if (!fx_in(modwerk_fx_modules, id) || !module || layout > 0xffffu) return; /* only module handles */
     put(&staged[id], module, layout, s);
     ++lines;
 }
@@ -154,11 +153,12 @@ void modwerk_fxmap_loaded(int32_t result)
     staging = 0;
     if (result < 0) return; /* a failed load keeps the project that is still there */
     modwerk_fxmap_read = lines;
-    if (lines) for (unsigned k = 0; k < 32u; ++k) put(&MAP->e[k], staged[k].module, staged[k].layout, staged[k].name);
+    if (lines) for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&MAP->e[k], staged[k].module, staged[k].layout, staged[k].name);
     else {
-        for (unsigned k = 0; k < 32u; ++k) put(&MAP->e[k], 0, 0, 0);
+        for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&MAP->e[k], 0, 0, 0);
         for (unsigned i = 0; i < modwerk_fx_legacy_count; ++i)
-            put(&MAP->e[modwerk_fx_legacy[i].id & 31u], modwerk_fx_legacy[i].module, 0, modwerk_fx_legacy[i].name);
+            if (modwerk_fx_legacy[i].id < MODWERK_FX_IDS)
+                put(&MAP->e[modwerk_fx_legacy[i].id], modwerk_fx_legacy[i].module, 0, modwerk_fx_legacy[i].name);
     }
     seal();
 }
@@ -167,9 +167,9 @@ void modwerk_fxmap_write(uint32_t file)
 {
     modwerk_fxmap_written = 0;
     if (!valid()) return;
-    uint32_t used = modwerk_fxmap_used();
-    for (unsigned k = 0; k < 32u; ++k) {
-        if (!(used >> k & 1u) || !MAP->e[k].module) continue;
+    fx_set used = modwerk_fxmap_used();
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) {
+        if (!fx_in(used, k) || !MAP->e[k].module) continue;
         char line[64];
         unsigned n = 0;
         for (const char *p = LINE; *p; ++p) line[n++] = *p;

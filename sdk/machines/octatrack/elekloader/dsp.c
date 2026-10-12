@@ -11,6 +11,7 @@
 #include "allocator.h"
 #include "transfer.h"
 #include "status.h"
+#include "fxids.h"
 
 /* manager.c's code descriptor, which it reads from dl_codes. */
 struct code { const uint32_t *words; const uint16_t *relocations; uint16_t count, init, proc, relocation_count; };
@@ -31,10 +32,9 @@ static uint32_t chip_cycles(const struct runtime_dsp *d)
 #define STOCK {0, 1, MODWERK_DSP_RESERVE, 3, 1, 1, 0}
 /* identity.c (dsp_loader.py catalog_c): every stock DSP effect's package per core, loaded on demand;
  * a module registers into its own id. */
-extern struct dl_package dl_catalog[32];
-extern struct code dl_codes[2][32];
+extern struct dl_package dl_catalog[MODWERK_FX_IDS];
+extern struct code dl_codes[2][MODWERK_FX_IDS];
 extern const uint32_t dl_stub_at_boot;     /* stock and module effect ids (identity.c): the null stub until bound */
-extern const uint32_t modwerk_dsp_modules; /* the module effect ids alone */
 extern const uint16_t modwerk_dsp_arena[2]; /* each core's code arena past the saved entries, words (identity.c) */
 int dl_publication_idle(void);
 void dl_residency_nudge(void);
@@ -68,7 +68,7 @@ static int in_use(unsigned id)
  * load may move (rebind_tick), so the module id is what finds it. */
 uint32_t modwerk_fxmap_module(unsigned id);
 int modwerk_fxmap_handle(uint32_t module);
-uint32_t modwerk_fxmap_used(void);
+fx_set modwerk_fxmap_used(void);
 uint32_t modwerk_fxmap_generation(void);
 void modwerk_fxmap_assign(unsigned id, uint32_t module, unsigned layout, const char *name);
 void modwerk_fxmap_name(unsigned id, char *out);
@@ -76,36 +76,36 @@ extern volatile uint32_t modwerk_fxmap_read, modwerk_fxmap_written;
 extern volatile uint32_t modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result; /* modset.c */
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots); /* fxpage.c */
 void modwerk_fxpage_drop(unsigned id);
-static uint32_t owner[32];
-static uint16_t owner_layout[32];
-static char owner_name[32][16];
-static uint8_t *owner_page[32]; /* its page recipe (the module image's head), and that image's length */
-static uint32_t owner_page_bytes[32];
-static uint8_t owner_pinned[32]; /* its ColdFire code names this id: it never moves (loader.h) */
-static uint32_t owner_cycles[32]; /* an instance's chip cycles a sample, unfloored (status.c's MODULE LOAD) */
-static uint8_t owner_measured[32]; /* 1: a hardware figure; 0: 7/4 of an emulator claim */
+static uint32_t owner[MODWERK_FX_IDS];
+static uint16_t owner_layout[MODWERK_FX_IDS];
+static char owner_name[MODWERK_FX_IDS][16];
+static uint8_t *owner_page[MODWERK_FX_IDS]; /* its page recipe (the module image's head), and that image's length */
+static uint32_t owner_page_bytes[MODWERK_FX_IDS];
+static uint8_t owner_pinned[MODWERK_FX_IDS]; /* its ColdFire code names this id: it never moves (loader.h) */
+static uint32_t owner_cycles[MODWERK_FX_IDS]; /* an instance's chip cycles a sample, unfloored (status.c's MODULE LOAD) */
+static uint8_t owner_measured[MODWERK_FX_IDS]; /* 1: a hardware figure; 0: 7/4 of an emulator claim */
 /* shortcut: a pinned module's ColdFire hooks still act on tracks running its id after it lets go of it (a project
  * from elsewhere naming another module there); give such modules their handle at run time to lift this. */
 static unsigned rebinding; /* ticks into a rebind, 0 none */
 static int handle_of(uint32_t module)
 {
-    for (unsigned k = 0; module && k < 32u; ++k) if (owner[k] == module) return (int)k;
+    for (unsigned k = 0; module && k < MODWERK_FX_IDS; ++k) if (owner[k] == module) return (int)k;
     return -1;
 }
-static int free_for(unsigned k, uint32_t module, uint32_t used)
+static int free_for(unsigned k, uint32_t module, fx_set used)
 {
-    if (k >= 32u || !(modwerk_dsp_modules >> k & 1u) || owner[k]) return 0;
+    if (!fx_in(modwerk_fx_modules, k) || owner[k]) return 0;
     uint32_t named = modwerk_fxmap_module(k);
-    return named == module || !(used >> k & 1u); /* a handle the project uses for an unknown module stays its own */
+    return named == module || !fx_in(used, k); /* a handle the project uses for an unknown module stays its own */
 }
 static int choose(uint32_t module, unsigned preferred, int pinned)
 {
-    uint32_t used = modwerk_fxmap_used();
+    fx_set used = modwerk_fxmap_used();
     int mapped = modwerk_fxmap_handle(module);
     if (pinned) return (mapped < 0 || mapped == (int)preferred) && free_for(preferred, module, used) ? (int)preferred : -1;
     if (mapped >= 0 && !owner[mapped]) return mapped;
     if (free_for(preferred, module, used)) return (int)preferred;
-    for (unsigned k = 0; k < 32u; ++k) if (free_for(k, module, used)) return (int)k;
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) if (free_for(k, module, used)) return (int)k;
     return -1;
 }
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to)
@@ -165,7 +165,7 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
 /* A project load can name an installed module at another handle, or another module at the handle one
  * holds. Those modules let go first: the manager retires their code, so no slot runs the wrong module.
  * Once it is idle, each takes the handle the map gives it (choose); one that finds none stays out. */
-static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured; } moving[32];
+static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured; } moving[MODWERK_FX_IDS];
 static unsigned moving_count;
 static uint32_t mapped; /* the map generation the handles follow */
 static void rebind_tick(void)
@@ -174,13 +174,13 @@ static void rebind_tick(void)
         uint32_t generation = modwerk_fxmap_generation();
         if (generation == mapped || !dl_publication_idle()) return;
         mapped = generation;
-        uint32_t used = modwerk_fxmap_used();
+        fx_set used = modwerk_fxmap_used();
         moving_count = 0;
-        for (unsigned k = 0; k < 32u; ++k) {
+        for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) {
             if (!owner[k]) continue;
             int want = modwerk_fxmap_handle(owner[k]);
             uint32_t named = modwerk_fxmap_module(k);
-            if (want == (int)k || (want < 0 && (!named || named == owner[k] || !(used >> k & 1u)))) continue;
+            if (want == (int)k || (want < 0 && (!named || named == owner[k] || !fx_in(used, k)))) continue;
             moving[moving_count].package = dl_catalog[k];
             moving[moving_count].code[0] = dl_codes[0][k], moving[moving_count].code[1] = dl_codes[1][k];
             moving[moving_count].module = owner[k], moving[moving_count].layout = owner_layout[k];
@@ -196,7 +196,7 @@ static void rebind_tick(void)
     }
     if (++rebinding < 4u || !dl_publication_idle()) return; /* the manager has retired what let go */
     for (unsigned i = 0; i < moving_count; ++i) {
-        int id = choose(moving[i].module, moving[i].pinned ? moving[i].from : 32u, moving[i].pinned); /* pinned: its own or none */
+        int id = choose(moving[i].module, moving[i].pinned ? moving[i].from : MODWERK_FX_IDS, moving[i].pinned); /* pinned: its own or none */
         if (id < 0) continue;
         dl_catalog[id] = moving[i].package;
         dl_codes[0][id] = moving[i].code[0], dl_codes[1][id] = moving[i].code[1];
@@ -211,23 +211,23 @@ static void rebind_tick(void)
 }
 /* The module effects the current bank names: what each track runs, and its four Parts, working and saved.
  * Other banks stay on the card. A bit per effect id, for an update to warn before removing one. */
-uint32_t modwerk_dsp_used(void)
+fx_set modwerk_dsp_used(void)
 {
-    uint32_t used = 0;
+    fx_set used = {{0}};
     uintptr_t bank = BANK;
-    for (unsigned i = 0; i < 16; ++i) used |= 1u << (LIVE_FX[i] & 31u);
+    for (unsigned i = 0; i < 16; ++i) used = fx_with(used, LIVE_FX[i]);
     for (unsigned part = 0; bank && part < 8; ++part)
-        for (unsigned i = 0; i < 16; ++i) if (PART(bank, part)[i] < 32u) used |= 1u << PART(bank, part)[i];
-    return used & modwerk_dsp_modules;
+        for (unsigned i = 0; i < 16; ++i) used = fx_with(used, PART(bank, part)[i]);
+    return fx_and(used, modwerk_fx_modules);
 }
 
 /* MODULE LOAD (status.c): each installed module effect, by handle: its name, an instance's chip cycles a sample
  * (unfloored: what it costs, not the ledger's charge), whether that is a hardware figure, and how many slots run it
- * on each core (T1-T4 core 1, T5-T8 core 0). Returns how many it wrote, at most 32. */
+ * on each core (T1-T4 core 1, T5-T8 core 0). Returns how many it wrote, at most MODWERK_FX_IDS. */
 unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)
 {
     unsigned n = 0;
-    for (unsigned k = 0; k < 32u; ++k) {
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) {
         if (!owner[k]) continue;
         struct modwerk_module_load *m = &out[n++];
         for (unsigned i = 0; i < 16u; ++i) m->name[i] = owner_name[k][i];
@@ -253,31 +253,33 @@ int modwerk_dsp_pick(unsigned slot, unsigned track, unsigned row)
 /* A track naming a module effect that is not installed runs stock's null stub, dry,
  * its stored parameters untouched; the unit says so once per change. */
 #ifndef MODWERK_HOST
-static uint32_t missing_shown;
+static fx_set missing_shown;
 #endif
 volatile uint32_t modwerk_dsp_missing; /* times the unit said so, for diagnostics */
-uint32_t modwerk_dsp_dry(void)
+fx_set modwerk_dsp_dry(void)
 {
-    uint32_t dry = 0;
+    fx_set dry = {{0}};
     for (unsigned i = 0; i < 16; ++i) {
-        unsigned fx = LIVE_FX[i] & 31u;
-        if (modwerk_dsp_modules >> fx & 1u && dl_catalog[fx].resident) dry |= 1u << fx;
+        unsigned fx = LIVE_FX[i];
+        if (fx_in(modwerk_fx_modules, fx) && dl_catalog[fx].resident) dry = fx_with(dry, fx);
     }
     return dry;
 }
-/* MISSING (ep0.c): the modules the project names, in any bank, that no installed module answers for:
+/* MISSING (ep0.c, status.c): the modules the project names, in any bank, that no installed module answers for:
  * "MWM" and a count, then per handle 24 bytes: the handle, 0, the layout (big-endian), the module id
- * (big-endian) and the name (16 bytes). 4 + 24 x count bytes, never a whole number of 64-byte packets. */
+ * (big-endian) and the name (16 bytes). Entries `first` on, at most `most` of them: ep0.c's pages of
+ * MODWERK_MISSING_PAGE are 4 + 24 x count bytes, never a whole number of 64-byte packets. */
 int modwerk_fxmap_describe(unsigned id, uint32_t *module, uint16_t *layout, char *name);
-unsigned modwerk_dsp_missing_list(uint8_t *out)
+unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most)
 {
-    uint32_t used = modwerk_fxmap_used();
-    unsigned n = 0;
-    for (unsigned k = 0; k < 32u; ++k) {
+    fx_set used = modwerk_fxmap_used();
+    unsigned n = 0, seen = 0;
+    for (unsigned k = 0; k < MODWERK_FX_IDS && n < most; ++k) {
         uint32_t module;
         uint16_t layout;
         char name[16];
-        if (!(used >> k & 1u) || !modwerk_fxmap_describe(k, &module, &layout, name) || owner[k] == module) continue;
+        if (!fx_in(used, k) || !modwerk_fxmap_describe(k, &module, &layout, name) || owner[k] == module) continue;
+        if (seen++ < first) continue;
         uint8_t *e = out + 4u + 24u * n++;
         e[0] = (uint8_t)k, e[1] = 0, e[2] = (uint8_t)(layout >> 8), e[3] = (uint8_t)layout;
         for (unsigned i = 0; i < 4u; ++i) e[4 + i] = (uint8_t)(module >> (24 - 8 * i));
@@ -334,7 +336,7 @@ void dl_abort(void);
 struct stall { uint32_t magic, count, reason, ticks, report_words, report[96]; uint16_t tx[2][8]; uint8_t live[16]; uint16_t isr[2]; };
 #define STALL ((volatile struct stall *)0x100ff900u)
 typedef char stall_fits_battery_ram[0x100ff900u + sizeof(struct stall) <= 0x100fff00u ? 1 : -1];
-typedef char stall_holds_report[sizeof ((struct stall *)0)->report / 4u >= 78u ? 1 : -1]; /* 66 + status.c's 12 today */
+typedef char stall_holds_report[sizeof ((struct stall *)0)->report / 4u >= DSP_REPORT_WORDS ? 1 : -1]; /* 66 + status.c's 12, more past 32 ids */
 unsigned modwerk_dsp_report(uint32_t *out);
 extern volatile uint32_t modwerk_dsp_watch_ticks;
 void modwerk_dsp_stall_record(unsigned reason)
@@ -513,14 +515,15 @@ int dl_placed(unsigned core, unsigned id);        /* manager.c: where id's code 
 int dl_sum_start(unsigned core, unsigned offset, unsigned count, uint32_t expected); /* transfer.c: SUM */
 static const uint8_t track_order[8] = {4, 5, 6, 7, 0, 1, 2, 3}; /* core 0's tracks first: it mixes as well */
 static uint8_t chk_id[2][8], batch_ids[8];
-/* The first failure's module: by its effect id (k < 32), or by its runtime id alone (a module without an effect). */
+/* The first failure's module: by its effect id (k < MODWERK_FX_IDS), or by its runtime id alone (a module without
+ * an effect: k is MODWERK_FX_IDS). */
 static void blame(unsigned k, uint32_t module)
 {
     volatile struct selftest *t = &modwerk_selftest;
     if (t->culprit) return;
-    t->culprit = k < 32u ? owner[k] : module;
-    for (unsigned i = 0; i < 16u; ++i) t->culprit_name[i] = k < 32u ? owner_name[k][i] : 0;
-    for (unsigned j = 0; module && k >= 32u && j < 32u; ++j)
+    t->culprit = k < MODWERK_FX_IDS ? owner[k] : module;
+    for (unsigned i = 0; i < 16u; ++i) t->culprit_name[i] = k < MODWERK_FX_IDS ? owner_name[k][i] : 0;
+    for (unsigned j = 0; module && k >= MODWERK_FX_IDS && j < MODWERK_FX_IDS; ++j)
         if (owner[j] == module) for (unsigned i = 0; i < 16u; ++i) t->culprit_name[i] = owner_name[j][i];
 }
 static unsigned chk_n[2], chk_i[2], chk_at[2], chk_busy[2];
@@ -545,7 +548,7 @@ void modwerk_selftest_refresh(void)
     modwerk_selftest.refusal = modwerk_runtime_refusal();
 }
 enum { PLACE, WAIT, HOLD, CODE, CLEAR };
-static uint8_t st_live[16], st_want[16], st_queue[32], st_later[32];
+static uint8_t st_live[16], st_want[16], st_queue[MODWERK_FX_IDS], st_later[MODWERK_FX_IDS];
 static unsigned st_queued, st_deferred, st_track, st_batch, st_step, st_ticks, st_round;
 static uint32_t st_counted, st_frames, st_failures, st_reads;
 #define LANE(t) ((volatile uint8_t *)(0x80000810u + 72u * (t))) /* a track's live lane (Octabam's PARAM_PAGES.md 5a') */
@@ -581,7 +584,7 @@ static int settled(const uint8_t *want) /* the manager idle, and every slot runn
 {
     if (!dl_publication_idle()) return 0;
     for (unsigned i = 0; i < 16u; ++i)
-        if (LIVE_SET[i] != want[i] || (want[i] < 32u && !dl_catalog[want[i]].resident && !dl_bound(core_of_slot(i), want[i]))) return 0;
+        if (LIVE_SET[i] != want[i] || (want[i] < MODWERK_FX_IDS && !dl_catalog[want[i]].resident && !dl_bound(core_of_slot(i), want[i]))) return 0;
     return 1;
 }
 static void set_live(const uint8_t *want)
@@ -619,13 +622,13 @@ int modwerk_selftest_start(void)
     for (unsigned i = 0; i < 16u; ++i) t->culprit_name[i] = 0;
     for (unsigned i = 0; i < 8u; ++i) t->track[i] = 0;
     st_queued = st_deferred = 0;
-    for (unsigned k = 0; k < 32u; ++k) if (owner[k] && dl_catalog[k].words) st_queue[st_queued++] = (uint8_t)k;
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) if (owner[k] && dl_catalog[k].words) st_queue[st_queued++] = (uint8_t)k;
     for (unsigned a = 1; a < st_queued; ++a) /* the dearest first, so a batch reaches the ledger's limit */
         for (unsigned b = a; b && dl_catalog[st_queue[b]].cycles > dl_catalog[st_queue[b - 1]].cycles; --b) {
             uint8_t x = st_queue[b]; st_queue[b] = st_queue[b - 1], st_queue[b - 1] = x;
         }
     t->modules = modwerk_runtime_active(), t->dsp = st_queued, t->intact = modwerk_runtime_intact(), t->total = st_queued + 2u;
-    if (t->intact != t->modules) t->failed |= SELFTEST_BROKEN, blame(32u, modwerk_runtime_broken());
+    if (t->intact != t->modules) t->failed |= SELFTEST_BROKEN, blame(MODWERK_FX_IDS, modwerk_runtime_broken());
     for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_want[i] = LIVE_SET[i];
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
     st_counted = counted(), st_ticks = st_step = 0, st_played = 0;
@@ -787,7 +790,7 @@ int modwerk_dsp_compact(void)
 static unsigned placed(unsigned c, unsigned *at, unsigned *n, unsigned *align, unsigned *id) /* core c's code by address */
 {
     unsigned k = 0;
-    for (unsigned p = 0; p < 32u; ++p) {
+    for (unsigned p = 0; p < MODWERK_FX_IDS; ++p) {
         int a = dl_placed(c, p);
         if (a < 0) continue;
         unsigned j = k++;
@@ -798,7 +801,7 @@ static unsigned placed(unsigned c, unsigned *at, unsigned *n, unsigned *align, u
 }
 static int holes(void) /* a core's free code words are in more than one run */
 {
-    unsigned at[32], n[32], align[32], id[32];
+    unsigned at[MODWERK_FX_IDS], n[MODWERK_FX_IDS], align[MODWERK_FX_IDS], id[MODWERK_FX_IDS];
     for (unsigned c = 0; c < 2u; ++c)
         if (modwerk_compact_left(at, n, align, placed(c, at, n, align, id), dl_arena(c))) return 1;
     return 0;
@@ -806,7 +809,8 @@ static int holes(void) /* a core's free code words are in more than one run */
 static int move_one(void)
 {
     for (unsigned c = 0; c < 2u; ++c) {
-        unsigned at[32], n[32], align[32], id[32], k = placed(c, at, n, align, id), which, to;
+        unsigned at[MODWERK_FX_IDS], n[MODWERK_FX_IDS], align[MODWERK_FX_IDS], id[MODWERK_FX_IDS], k = placed(c, at, n, align, id),
+            which, to;
         if (modwerk_compact_plan(at, n, align, k, dl_arena(c), &which, &to) && dl_move(c, id[which], to)) return 1;
     }
     return 0;
@@ -906,19 +910,19 @@ void modwerk_dsp_tick(void)
     if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
     else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
     rebind_tick();
-    uint32_t dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = 0;
+    fx_set dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = {{0}};
     missing_shown = dry;
     /* Said whenever a track running a missing module is selected; the project's whole list is status.c's page. */
     static unsigned last_track = 0xffu;
     unsigned track = *(volatile uint8_t *)0x80000000u; /* the current track; 8 and up on the MIDI side */
     if (track != last_track) {
         last_track = track;
-        if (track < 8u) say |= dry & (1u << (LIVE_FX[track] & 31u) | 1u << (LIVE_FX[8u + track] & 31u));
+        if (track < 8u) say = fx_and(dry, fx_with(fx_with(say, LIVE_FX[track]), LIVE_FX[8u + track]));
     }
-    if (say) { /* the project's map names what is missing */
+    if (fx_any(say)) { /* the project's map names what is missing */
         static char text[24] = "MISSING ";
         unsigned k = 0;
-        while (!(say >> k & 1u)) ++k;
+        while (!fx_in(say, k)) ++k;
         modwerk_fxmap_name(k, text + 8);
         for (char *c = text + 8; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* the popup sizes capitals only */
         ((void (*)(const char *, unsigned))0x4005a2b8u)(text[8] ? text : "MODULE MISSING", 0xa0);
@@ -957,7 +961,7 @@ unsigned modwerk_dsp_report(uint32_t *out)
         modwerk_dsp_probes_failed,
         dl_selection_requested, dl_selection_completed, dl_selection_refused, dl_selection_cancelled,
         dl_residency_commits, dl_residency_failures, dl_residency_rollbacks, dl_residency_words[0], dl_residency_words[1],
-        dl_early, dl_parked, dl_reinit, modwerk_dsp_missing, modwerk_dsp_used(), modwerk_dsp_dry(),
+        dl_early, dl_parked, dl_reinit, modwerk_dsp_missing, modwerk_dsp_used().w[0], modwerk_dsp_dry().w[0],
         /* Where stock's frame chain stands (reads without side effects): the transfer machine's state and the
          * frame interrupt's busy flag (stock RAM), INTC0 IPRL and IMRL, EPORT pin levels | edge flags | the
          * DSP select, eDMA INT | ERR, TCD0 CSR | TCD1 CSR, eDMA ES. */
@@ -972,7 +976,13 @@ unsigned modwerk_dsp_report(uint32_t *out)
         modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result};
     unsigned n = sizeof words / sizeof words[0]; /* then status.c's twelve */
     for (unsigned i = 0; i < n; ++i) out[i] = words[i];
-    return n + modwerk_status_report(out + n);
+    n += modwerk_status_report(out + n);
+    /* More than 32 ids: the masks' other words at the end, so every word before keeps its place (version 12). */
+    fx_set used = modwerk_dsp_used(), dry = modwerk_dsp_dry();
+    for (unsigned i = 1; i < MODWERK_FX_WORDS; ++i) out[n++] = used.w[i];
+    for (unsigned i = 1; i < MODWERK_FX_WORDS; ++i) out[n++] = dry.w[i];
+    if (MODWERK_FX_WORDS > 1u) out[0] = 12, out[n++] = 0; /* a pad: 4 x words must not fill whole 64-byte packets */
+    return n;
 }
 #endif
 

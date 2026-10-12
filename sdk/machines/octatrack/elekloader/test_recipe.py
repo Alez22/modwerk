@@ -195,7 +195,7 @@ class UsbBaseTests(unittest.TestCase):
 
 
 class RuntimeSlotTests(unittest.TestCase):
-    def host_test(self, *sources):
+    def host_test(self, *sources, defines=()):
         import pathlib, shutil, subprocess, tempfile
         cc = shutil.which('cc')
         if not cc:
@@ -204,7 +204,7 @@ class RuntimeSlotTests(unittest.TestCase):
         loader = here.parents[2] / 'runtime/loader'
         with tempfile.TemporaryDirectory() as temp:
             subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-DMODWERK_HOST', '-I', here,
-                            '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565', '-DMODWERK_DSP_RESERVE=342',
+                            '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565', '-DMODWERK_DSP_RESERVE=342', *defines,
                             '-I', here.parents[3] / 'sdk/octabam/platform/dsp-dynload-transport',
                             '-I', here.parents[2] / 'runtime/upload', '-I', loader,
                             *[loader / s if s == 'loader.c' else here / s for s in sources], '-o', temp + '/t'],
@@ -229,6 +229,12 @@ class RuntimeSlotTests(unittest.TestCase):
 
     def test_status_keys_on_the_host(self):
         self.host_test('test_status.c')
+
+    def test_the_base_at_64_effect_ids_on_the_host(self):
+        # docs/OCTATRACK_MORE_EFFECT_IDS.md: the base behind MODWERK_FX_IDS works past 32 before the tables move.
+        for test in ('test_dsp.c', 'test_fxpage.c', 'test_status.c'):
+            with self.subTest(test):
+                self.host_test(test, defines=('-DMODWERK_FX_IDS=64u',))
 
     def test_allocator_move_on_the_host(self):
         """build_core.py's edits to Octabam's allocator, applied to copies, with test_move.c."""
