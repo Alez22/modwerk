@@ -133,7 +133,11 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
       known one, a remove meeting a move refused as busy (refusal 5), which the site retries and `device.mjs remove`
       does not. The self-test afterwards: 5/5 modules intact, all ran together, longest frame 426 us, and no hole
       left. Not run: movelisten (needs a recorder on Windows; its E-Verb setup still assumes E-Verb moves).
-  - Not run yet: a RAM boot after heavy churn.
+  - **A RAM boot after heavy churn (S54, 12 October 2026).** After a 60-step movestress (49 picks, 11 refused by the
+    ledger, no failure), a RAM boot into the same base restored the card's set by itself (5 modules, the same 25,984
+    pool bytes, nothing missing, no loader error or stall). The self-test then passed (5/5 intact, longest frame
+    428 us), a 15-step movestress on top of it too, with no hole left, no new crash or stall record, and the Part
+    as saved.
 - **The module pool** (256 KB) held six modules in 26 KB with no hole; removing Euclid from the middle and
   installing it again left none (first fit at the lowest address; nothing moves).
 
