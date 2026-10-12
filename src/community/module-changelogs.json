@@ -396,7 +396,7 @@
         "version": "0.1.3-experimental",
         "date": "2026-10-12",
         "changes": [
-          "Documentation/media-only: add a compact Legowelt Juno 106 laser-snare dry/bright/worn comparison with tempo-synced sixteenth and eighth repeats through the unchanged fixed-point CPU engine, onset matching, short edited tails and no added gaps. Record pack permission, credit, source/settings and decoded peaks. Complete the tutorial while preserving the historical resource and testing records verbatim.",
+          "Documentation/media-only: retain the exact 0.1.2-experimental runtime and historical UI, source and test evidence while adding a 7.85-second Legowelt Juno 106 chord-pluck preview: dry, clean eighth-note repeats and worn dotted-eighth echoes at 128 BPM, without added gaps. Include pack permission, source/excerpt hashes and offline render settings; refresh monochrome exports from the existing LCD captures.",
           "Retain the approved 0.1.2-experimental runtime and evidence. No DSP behavior, hardware freeze mitigation, timing headroom or new physical-hardware qualification is claimed."
         ]
       },

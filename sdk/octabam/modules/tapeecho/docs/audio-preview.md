@@ -2,19 +2,19 @@
 
 Rendered on 12 October 2026 through the unchanged 0.1.2-experimental fixed-point CPU engine. Editorial release 0.1.3-experimental retains that exact runtime and historical test status.
 
-Source: `106 Drums Lazer Snare.wav` from Legowelt's Roland JUNO 106 sample kit. Credit: Legowelt (Danny Wolfers), ©2012 Pacific Micro International Software. The included `106 SAMPLES README.txt` declares the kit free with unrestricted use. The source and this processed comparison are used under that pack permission (LicenseRef-Legowelt-Juno106-Sample-Permission); the module's MIT software licence does not relicense the source audio. The provenance below records the exact permission quote/file hash, original WAV/PCM hashes, excerpt, gain/fades and processed file hash. Only the comparison MP3 is bundled; the source WAV and sample pack stay on the developer's computer. No firmware, extracted stock code/tables, card, memory dump or build image is included. This is an offline computer render, with no new physical-hardware or performance qualification.
+Source: `106 Synth Chord Short Blue Synth 2.wav` from Legowelt's Roland JUNO 106 sample kit. Credit: Legowelt (Danny Wolfers), ©2012 Pacific Micro International Software. The included `106 SAMPLES README.txt` declares the kit free with unrestricted use. The source and this processed comparison are used under that pack permission (LicenseRef-Legowelt-Juno106-Sample-Permission); the module's MIT software licence does not relicense the source audio. The provenance below records the exact permission quote/file hash, original WAV/PCM hashes, excerpt, gain/fades and processed file hash. Only the comparison MP3 is bundled; the source WAV and sample pack stay on the developer's computer. No firmware, extracted stock code/tables, card, memory dump or build image is included. This is an offline computer render, with no new physical-hardware or performance qualification.
 
 ```json
 {
   "file": "media/audio-preview.mp3",
-  "sha256": "62321000c02d064db2a486c1f50edec19d737cea8c0c825492b6c7d903782566",
-  "seconds": 4.05,
+  "sha256": "af6a8b612e29813d792d673d8c9fd14e2a2e6657e1e762bee082149cea9c147f",
+  "seconds": 7.85,
   "encoding": {
     "format": "MP3",
     "sampleRateHz": 44100,
     "channels": 2,
     "bitrateKbps": 192,
-    "decodedPeakDbfs": -1.564,
+    "decodedPeakDbfs": -1.552,
     "fadeInMs": 5,
     "passFadeOutMs": 35,
     "gapSeconds": 0,
@@ -25,77 +25,77 @@ Source: `106 Drums Lazer Snare.wav` from Legowelt's Roland JUNO 106 sample kit. 
   "passes": [
     {
       "label": "dry",
-      "seconds": 0.45024943310657595,
+      "seconds": 0.8500680272108844,
       "settings": {
-        "time": 48,
+        "time": 80,
         "feedback": 0,
         "wow": 0,
         "age": 0,
         "sync": 1,
         "mix": 0,
-        "tempoBpm": 120
+        "tempoBpm": 128
       },
-      "pcmSha256": "96c1fe60512f761bbec4a935c94308116176b9fd701ef02e48f6bea050bf8902",
+      "pcmSha256": "745e78a8a1beb8ad7bdd22dee3d81fabaedd66509ef9ea3a5fed393b6e4a60e7",
       "dryBitExact": true,
       "start": 0.0,
-      "duration": 0.45,
-      "renderedFrames": 19856,
+      "duration": 0.85,
+      "renderedFrames": 37488,
       "trimStartFrame": 0,
-      "trimEndFrame": 19845,
+      "trimEndFrame": 37485,
       "matchGainDb": 0.0,
       "unmatchedPeakDbfs": -14.0
     },
     {
-      "label": "bright sixteenth-note repeats",
-      "seconds": 1.6,
-      "settings": {
-        "time": 48,
-        "feedback": 84,
-        "wow": 0,
-        "age": 0,
-        "sync": 1,
-        "mix": 85,
-        "tempoBpm": 120
-      },
-      "pcmSha256": "6e9a53ee32a4f4d7fb89007cac3e709ce147f0d6662ebcf47b36fb094e6876d5",
-      "dryBitExact": false,
-      "start": 0.45,
-      "duration": 1.6,
-      "renderedFrames": 70560,
-      "trimStartFrame": 0,
-      "trimEndFrame": 70560,
-      "matchGainDb": 9.609,
-      "unmatchedPeakDbfs": -23.611
-    },
-    {
-      "label": "worn eighth-note repeats",
-      "seconds": 2.0001814058956917,
+      "label": "clean eighth-note repeats",
+      "seconds": 3.000090702947846,
       "settings": {
         "time": 80,
-        "feedback": 98,
-        "wow": 105,
-        "age": 110,
+        "feedback": 78,
+        "wow": 10,
+        "age": 20,
         "sync": 1,
-        "mix": 85,
-        "tempoBpm": 120
+        "mix": 75,
+        "tempoBpm": 128
       },
-      "pcmSha256": "06e09ee91173b3b95db3efeaa614fd0e5c0f1993561e66bced209e3736a234af",
+      "pcmSha256": "60d3b076f76350c8f77fe068c2f5b4845cf3702fb8a37a8760bb7868ce0548e0",
       "dryBitExact": false,
-      "start": 2.05,
-      "duration": 2.0,
-      "renderedFrames": 88208,
+      "start": 0.85,
+      "duration": 3.0,
+      "renderedFrames": 132304,
       "trimStartFrame": 0,
-      "trimEndFrame": 88200,
-      "matchGainDb": 9.611,
-      "unmatchedPeakDbfs": -22.173
+      "trimEndFrame": 132300,
+      "matchGainDb": 7.756,
+      "unmatchedPeakDbfs": -21.756
+    },
+    {
+      "label": "worn dotted-eighth repeats",
+      "seconds": 4.0,
+      "settings": {
+        "time": 101,
+        "feedback": 94,
+        "wow": 80,
+        "age": 70,
+        "sync": 1,
+        "mix": 75,
+        "tempoBpm": 128
+      },
+      "pcmSha256": "0a3c69adf36c685ded0fec3176a0e819590b1e3b3d6943b6a25b79c7a67bc53a",
+      "dryBitExact": false,
+      "start": 3.85,
+      "duration": 4.0,
+      "renderedFrames": 176400,
+      "trimStartFrame": 0,
+      "trimEndFrame": 176400,
+      "matchGainDb": 7.756,
+      "unmatchedPeakDbfs": -21.756
     }
   ],
   "validation": {
     "nonzeroAudio": true,
     "decodedPeakBelowMinus1Dbfs": true,
-    "final50msPeakDbfs": -21.163,
+    "final50msPeakDbfs": -4.913,
     "clippedSamples": 0,
-    "maximumQuietRunSecondsBelowMinus48Dbfs": 0.04
+    "maximumQuietRunSecondsBelowMinus48Dbfs": 0.16
   },
   "schemaVersion": 2,
   "moduleId": "tapeecho",
@@ -120,38 +120,38 @@ Source: `106 Drums Lazer Snare.wav` from Legowelt's Roland JUNO 106 sample kit. 
   },
   "method": "Offline render of the module’s unchanged fixed-point cpu.c, compiled natively with cc -shared -fPIC -O2 -DTE_HOST=1 and called through te_process in 16-sample blocks using the existing verify_tapeecho_cpu.Engine ring-buffer harness. 300 silent blocks warm the controls. Direct onset RMS is matched over 20 ms; repeat levels and tails retain the module response. Not a hardware recording.",
   "sample": {
-    "name": "106 Drums Lazer Snare.wav",
+    "name": "106 Synth Chord Short Blue Synth 2.wav",
     "pack": "Legowelt Roland JUNO 106 sample kit",
-    "pathWithinPack": "106 Drums Lazer Snare.wav",
+    "pathWithinPack": "106 Synth Chord Short Blue Synth 2.wav",
     "credit": "Legowelt (Danny Wolfers), ©2012 Pacific Micro International Software",
     "license": "LicenseRef-Legowelt-Juno106-Sample-Permission",
     "permissionFile": "106 SAMPLES README.txt",
     "permissionFileSha256": "20398760fc080b8b53a8fff99b302d02a2ab73a420d90ee6333ee714ff47b2c3",
     "permissionQuote": "This sample kit is free, you can do whatever you want it",
-    "originalFileSha256": "58047bd9dbd37de3b8c54c6b56c780af483a57ba7d2dcaa216575efee944c642",
-    "originalPcmSha256": "23bb1412b59eedb793a1a793a911e519c58ffd5221d43628f7cf2e3d69f16d6a",
+    "originalFileSha256": "d0d712b95c2ed0336923ae1a0562f58a8633c9ebb11c109f70fbead98d5ec008",
+    "originalPcmSha256": "36a3776271b1bb55914d6572f8e459f329f0e84e3d31bc7b376de8b030348ac2",
     "originalFormat": {
       "sampleRateHz": 44100,
       "channels": 2,
       "sampleBits": 16,
-      "frames": 34304
+      "frames": 50688
     },
     "preparation": {
       "startFrame": 0,
-      "frames": 18522,
+      "frames": 37485,
       "fadeInMs": 0,
-      "fadeOutMs": 20.0,
-      "gainDb": -9.735022,
+      "fadeOutMs": 35.0,
+      "gainDb": -13.998675,
       "peakDbfs": -14,
       "resampled": false
     },
-    "sourcePcmSha256": "ceb034dbe05d9da88f86f0589947a74b37c9ec4f9c9daefb9337f7f0c50a92e0",
+    "sourcePcmSha256": "4a568128c0cd81e56b22d4d813983372f9ac435a7d951b44fe5066b51873146e",
     "sourceFormat": "interleaved stereo signed little-endian int32 containing Q23 words"
   },
   "harness": {
     "name": "verify_tapeecho_cpu.Engine",
     "sourceSha256": "7e978248e9d6e00ff4cef19137ecc8044b376459ff6dab3ae87499f5ec2ee806",
-    "abi": "Q31 stereo in/out; 176400-frame ring; tempo24=2880 at 120 BPM"
+    "abi": "Q31 stereo in/out; 176400-frame ring; tempo24=3072 at 128 BPM"
   }
 }
 ```

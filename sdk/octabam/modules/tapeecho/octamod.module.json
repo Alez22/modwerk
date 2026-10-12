@@ -178,9 +178,9 @@
     {
       "path": "media/audio-preview.mp3",
       "captureType": "audio",
-      "caption": "Legowelt Juno 106 laser snare: dry (0 s), bright 1/16 repeats (0.45 s; FDBK 84, WOW 0, AGE 0), worn 1/8 repeats (2.05 s; FDBK 98, WOW 105, AGE 110). BEAT, 120 BPM, MIX 85. 4.05 s, no added gaps; tails edited short. First-hit RMS matched (20 ms). Offline computer render through Tape Echo 0.1.2's unchanged CPU engine, not recorded on an Octatrack.",
-      "alt": "A Legowelt laser snare jumps from dry to bright sixteenth-note repeats to wobbling eighth-note repeats.",
-      "credit": "Legowelt — 106 Drums Lazer Snare.wav. Modwerk contributors (offline processing).",
+      "caption": "Legowelt Juno 106 chord pluck: dry (0 s), clean 1/8 repeats (0.85 s; FDBK 78, WOW 10, AGE 20), worn dotted-1/8 repeats (3.85 s; FDBK 94, WOW 80, AGE 70). BEAT, 128 BPM, MIX 75. 7.85 s, no added gaps; tails edited short. First-hit RMS matched (20 ms). Offline computer render through Tape Echo 0.1.2's unchanged CPU engine, not recorded on an Octatrack.",
+      "alt": "A warm Legowelt chord pluck moves from dry to clean eighth-note repeats and worn dotted-eighth echoes.",
+      "credit": "Legowelt — 106 Synth Chord Short Blue Synth 2.wav. Modwerk contributors (offline processing).",
       "license": "LicenseRef-Legowelt-Juno106-Sample-Permission",
       "source": "https://legowelt.org/samples/"
     }
