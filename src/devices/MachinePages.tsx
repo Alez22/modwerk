@@ -50,7 +50,7 @@ function DigiModCard({ mod, selected, statistics, compared, canCompare, onToggle
       <div className="card-credit"><ModuleAuthors name={mod.author} url={mod.repository} contributors={mod.contributors}/><span>{mod.license}</span></div>
       <p className="card-description">{mod.summary}</p>
       <div className="card-bottom"><span>{mod.category}</span><CardStats statistics={statistics}><span className="card-stat">{kib(mod.ramBytes)} memory</span></CardStats></div>
-      <CardProof stability={stability} name={mod.title + ' for ' + DEVICES_BY_ID[mod.device].name} compared={compared} canCompare={canCompare} onCompare={onCompare} />
+      <CardProof stability={stability} statistics={statistics} name={mod.title + ' for ' + DEVICES_BY_ID[mod.device].name} compared={compared} canCompare={canCompare} onCompare={onCompare} />
     </div>
   </article>
 }

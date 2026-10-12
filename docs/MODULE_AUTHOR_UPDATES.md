@@ -4,6 +4,19 @@ The owner approves a module's first release by reviewing and merging its additio
 
 ## Start with an issue
 
+For a report that needs a reply rather than code, stay on GitHub. No fork, coding agent, repository write access or owner review is needed. Post one new comment:
+
+| Situation | Command |
+| --- | --- |
+| Need reproduction details | `/modwerk needs-info <question>` |
+| Reproduced a bug | `/modwerk confirm <affected-version|unknown> <evidence>` |
+| Waiting for a candidate fix to be tested | `/modwerk awaiting-verification <explanation>` |
+| Reporter never supplied enough information | `/modwerk close insufficient_information <explanation>` |
+| Usage question or requested enhancement | `/modwerk classify question|feature <explanation>` |
+| Need the command list | `/modwerk help` |
+
+Registered authors can act immediately. Other declared maintainers verify GitHub and claim their module once in Creator settings, then can triage, close and reopen its reports. They do not gain release-author or repository-wide privileges. A known bug remains confirmed while waiting for more information. Whole-configuration confirmations use `unknown` and do not blame every included module. Further actions are in [Manage reports](DEVELOPER_WORKFLOW.md#manage-reports-on-github).
+
 In your fork, tell your coding agent:
 
 ```text
@@ -32,7 +45,7 @@ After verifying the exact published download on the unit, finish the release by 
 
 The comment is the author's actual version-bound download confirmation. A coding agent can post it only after the author supplies those results; it cannot invent a pass. The signed webhook verifies the numeric GitHub account against `.github/module-authors.json`, current catalog maintainership, suspension, revocation and existing reporter sharing. No website claim or repository-wide GitHub write access is required. The shared release gate checks the exact live version, posts the public release link, closes the issue and synchronizes Modwerk and the existing follower/reporter notification fanout. Missing live publication, withdrawn sharing or failed GitHub closure keeps the report open. Durable command receipts and notification keys keep redelivery quiet.
 
-Usage/configuration questions, duplicates, unconfirmed reproduction and withdrawn reports can use `/modwerk close configuration|duplicate|not_reproducible|withdrawn <public explanation>` without claiming a firmware fix. `/modwerk reopen <public explanation>` reopens the report. Commands apply only to mapped public Modwerk reports for that author's module, or to a whole-configuration report that lists it (labelled `configuration`, with every module named). On those, `resolve` also names the module: `/modwerk resolve <module-id> <published-version> verified-download`, from a maintainer of that module; edited comments and PRs cannot execute them. Direct GitHub issues without a Modwerk report still require authorized native GitHub closure.
+Usage/configuration questions, duplicates, unconfirmed reproduction, insufficient information and withdrawn reports can use `/modwerk close configuration|duplicate|not_reproducible|insufficient_information|withdrawn <public explanation>` without claiming a firmware fix. `/modwerk reopen <public explanation>` reopens the report. Commands apply only to mapped public Modwerk reports for the author's or verified maintainer's module, or to a whole-configuration report that lists it (labelled `configuration`, with every module named). On those, `resolve` also names the module: `/modwerk resolve <module-id> <published-version> verified-download`, from that module's registered release author; edited comments and PRs cannot execute them. Direct GitHub issues without a Modwerk report still require authorized native GitHub closure.
 
 The existing authenticated `POST /api/developer/modules/<community-id>/releases/complete` route remains for compatible clients. It accepts `{ "version": "<published-version>", "issues": ["<shared-report-id>"], "verifiedDownload": true }`, with at most 25 reports from the same currently claimed module. Creator settings retain Ko-fi/claim management and consent-controlled private details, with no duplicated public developer inbox.
 

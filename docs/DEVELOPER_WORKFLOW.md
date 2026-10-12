@@ -29,17 +29,23 @@ Follow checks, the author publisher and deployments; then verify the live versio
 
 ## Manage reports on GitHub
 
-Public reports and GitHub replies share a thread, with replies/status synchronized to Modwerk. Replying, closing and reopening need no fork; code changes use a fork and PR. Registered authors post commands as **new comments** on their module's mapped public reports:
+Public reports and GitHub replies share a thread, with replies/status synchronized to Modwerk. Report handling needs no fork, coding agent, repository write access or owner review. Registered authors can act immediately. Other declared maintainers verify their GitHub identity and claim the module once in **Creator settings**; that permits triage and ordinary closure, while release completion retains its registered-author check. Post commands as **new comments** on mapped public reports:
 
 ```text
-/modwerk resolve <published-version> verified-download
-/modwerk close configuration <public explanation>
+/modwerk needs-info Which steps reproduce this, and on which track?
+/modwerk close insufficient_information No reproduction details yet. Reply with them and I can reopen.
+/modwerk confirm <affected-version|unknown> <reproduction evidence>
 /modwerk reopen <public explanation>
+/modwerk resolve <published-version> verified-download
 ```
 
 A report titled `[configuration] …` covers a whole saved configuration and lists its modules; every module's registered maintainer can use `close` and `reopen` on it. Name the module in `resolve`, `/modwerk resolve <module-id> <version> verified-download`, because the fix ships in one module; it closes the whole report.
 
-Use `resolve` only after the exact published download and hardware fix have actually been verified. Push and merge alone leave the report open. Other closure reasons are `duplicate`, `not_reproducible` and `withdrawn`; these claim no firmware fix. GitHub-only issues use authorized native GitHub closure. Private details remain access-controlled and consent-based.
+Use `needs-info` to keep a report open while waiting; an unconfirmed report does not establish a module defect. Use `confirm` only after reproduction, naming the exact affected semantic version or `unknown`. Whole-configuration reports use `unknown` and never count against every included module. Once a bug is confirmed, asking for more information keeps that confirmation visible. `/modwerk investigate <explanation>` records an investigation; `/modwerk awaiting-verification <explanation>` keeps a confirmed bug open while its candidate fix is tested. `/modwerk unconfirm <explanation>` explicitly removes a mistaken confirmation. Questions and suggestions use `/modwerk classify question|feature <explanation>`; reclassify as `bug` before confirming. `/modwerk help` shows the commands on an existing issue.
+
+Use `resolve` only after the exact published download and hardware fix have actually been verified. Push and merge alone leave the report open. Other closure reasons are `configuration`, `duplicate`, `not_reproducible`, `insufficient_information` and `withdrawn`; each needs an explanation and claims no firmware fix. Private reports offer the same triage and closure choices on their access-controlled page. GitHub-only issues use authorized native GitHub closure. Private details remain access-controlled and consent-based.
+
+Routine updates to an author's approved modules use the existing automatic PR workflow: prepare the fix, pass CI, personally verify the evidence and check both publication boxes. The bot merges and starts site/API publication without an owner review. First releases, shared code, ownership/licence changes and exceptions still need owner review. See [Author updates](MODULE_AUTHOR_UPDATES.md).
 
 Verify GitHub status, Modwerk synchronization and reporter notification. Release completion uses the existing idempotent follower/downloader fanout, preserving opt-outs and push/email preferences. Report actual queue counts separately from provider acceptance or delivery/digest delays; do not create another scheduler or send a separate blast.
 
