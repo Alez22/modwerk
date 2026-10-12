@@ -853,7 +853,8 @@ def main():
         (source/'remix.inc').write_text(usb.AUDIO_INC)
     # Identity describes this core-only private base. Later selections need
     # their complete module/version/chooser identities regenerated explicitly.
-    inputs = {str(p.relative_to(APP)): sha(p.read_bytes()) for folder in (logger, upload, loader, HERE) + ((DYNLOAD,) if args.dsp_loader else ())
+    folders = (logger, upload, loader, HERE) + ((DYNLOAD,) if args.dsp_loader else ())
+    inputs = {str(p.relative_to(APP)): sha(p.read_bytes()) for folder in folders
               for p in sorted(folder.iterdir()) if p.is_file() and p.suffix in ('.c', '.h', '.s', '.asm', '.py', '.json')}
     if args.dev:
         for path in (usb.AUDIO_SOURCE, usb.AUDIO_DESCRIPTORS):
@@ -1048,6 +1049,9 @@ modwerk_retained_end:
                                dsp_layout[f['tag']]['shared'][f['shared']])[f['first']:f['first'] + f['count']]
         (out/'base.elemod').write_text(json.dumps(strip(document, fills, recovered, image, device.main_load), indent=1)+'\n')
         (out/'base-fills.json').write_text(json.dumps(fills, indent=1)+'\n')
+        # What the base's source hash covers, so a test without the stock file sees the package go stale.
+        (out/'base-sources.json').write_text(json.dumps(dict(folders=[str(f.relative_to(APP)) for f in folders], sources=inputs),
+                                                        indent=1, sort_keys=True)+'\n')
     mod = elemod.load_any(path)
     if set(mod.imports) - {'__run_load','__run_start','__run_words','__bss_start','__bss_words',
                       'arena_base','__arena_pages','__arena_fill','__arena_clear',

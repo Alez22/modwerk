@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { loadAny } from '../../../vendor/elekloader/kit/src/patch.ts'
 import metadata from '../assets/stock-dsp-metadata.json' with { type: 'json' }
 import type { StockDspCore } from '../stock-dsp.ts'
@@ -53,5 +54,20 @@ describe('the Octatrack base from the stock file', () => {
     expect([...missing.values()].every(n => n === 0)).toBe(true)
     expect(fills.length).toBeGreaterThan(0)
     expect(() => loadAny({ path: '/octatrack-base.elemod', data: new TextEncoder().encode(text) })).toThrow()
+  })
+
+  it('is rebuilt whenever a file the base is built from changes', () => {
+    const root = new URL('../../../', import.meta.url)
+    const { folders, sources } = JSON.parse(readFileSync(new URL('../assets/octatrack-base-sources.json', import.meta.url), 'utf8')) as
+      { folders: string[]; sources: Record<string, string> }
+    // build_core.py's folder scan, as it hashes them; `elekloader/` is the upstream core, pinned by kit.json's commit.
+    const scanned = folders.flatMap(folder => readdirSync(new URL(folder + '/', root), { withFileTypes: true })
+      .filter(file => file.isFile() && /\.(c|h|s|asm|py|json)$/.test(file.name)).map(file => folder + '/' + file.name))
+    const stale = [
+      ...Object.keys(sources).filter(path => !path.startsWith('elekloader/') &&
+        (!existsSync(new URL(path, root)) || sha(readFileSync(new URL(path, root))) !== sources[path])),
+      ...scanned.filter(path => !(path in sources)),
+    ]
+    expect(stale, 'The committed Octatrack base is stale: run npm run octatrack:base -- --write').toEqual([])
   })
 })

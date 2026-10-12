@@ -61,13 +61,15 @@ the package ships literally (`--min 8` lists the chance ones below that: effect 
 
 The committed pair is `src/engine/assets/octatrack-base.elemod` and `octatrack-base-fills.json`. Any change
 to what the base's source hash covers (this folder, the logger, upload, loader, DSP transport and startup
-sources) changes the base: rebuild and commit it with
+sources) changes the base. `octatrack-base-sources.json` lists those inputs and their hashes, and a test
+(`octatrack-base.test.ts`, no firmware) fails when one changed or a file joined those folders. Rebuild and
+commit it with
 
 ```sh
 npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --write
 ```
 
-Without `--write` it checks the committed pair is what this source builds. Both runs check the package is
+Without `--write` it checks the committed files are what this source builds. Both runs check the package is
 stock-free, that the browser's path builds a `.bin` identical to `build_core.py`'s `NOT_FLASH_CANDIDATE.bin`,
 and `check_flash_safety.py`; `--out NEW-DIR` (outside Git) saves that `.bin` and its `MAIN.raw` for a RAM
 boot. It uses `~/.cache/modwerk-upstream` (`--upstream`, `ELEKLOADER_DSP_ASM`) as the build above does.

@@ -23,14 +23,15 @@ const { values: args } = parseArgs({ options: {
 } })
 if (!args.stock) throw new Error('Usage: npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]')
 const root = resolve(import.meta.dirname, '..'), here = join(root, 'sdk/machines/octatrack/elekloader')
-const committed = { package: join(root, 'src/engine/assets/octatrack-base.elemod'), fills: join(root, 'src/engine/assets/octatrack-base-fills.json') }
+const committed = { package: join(root, 'src/engine/assets/octatrack-base.elemod'), fills: join(root, 'src/engine/assets/octatrack-base-fills.json'),
+  sources: join(root, 'src/engine/assets/octatrack-base-sources.json') }
 const asm = process.env.ELEKLOADER_DSP_ASM ?? join(homedir(), '.cache/modwerk-upstream/octabam/vendor/dsp56300/build/source/dsp_host/dsp_asm')
 const python = (script, ...rest) => execFileSync('python3', ['-B', join(here, script), ...rest], { stdio: 'inherit', env: { ...process.env, ELEKLOADER_DSP_ASM: asm } })
 
 const core = join(mkdtempSync(join(tmpdir(), 'modwerk-base-')), 'core')
 python('build_core.py', '--stock', args.stock, '--upstream', args.upstream, '--output', core, '--dsp-loader')
 python('check_stock_free.py', join(core, 'base.elemod'), '--stock', args.stock, '--upstream', args.upstream)
-for (const [key, file] of [['package', 'base.elemod'], ['fills', 'base-fills.json']]) {
+for (const [key, file] of [['package', 'base.elemod'], ['fills', 'base-fills.json'], ['sources', 'base-sources.json']]) {
   const fresh = readFileSync(join(core, file))
   if (args.write) writeFileSync(committed[key], fresh)
   else assert(existsSync(committed[key]) && fresh.equals(readFileSync(committed[key])), committed[key] + ' is not what this source builds: run with --write and commit it.')
