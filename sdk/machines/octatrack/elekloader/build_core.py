@@ -195,7 +195,9 @@ DSP_EDITS = {
                    '#ifndef DL_NATIVE_TEST\n/* Modwerk\'s self-test (dsp.c): a slot on core c running id p runs bound code. */\n'
                    'int dl_bound(unsigned c,unsigned p) { return c<2 && p<32 && slot_bound(c,p); }\n#endif\n'
                    '/* ... and where p\'s code sits on core c: its table offset, -1 when it is not placed. */\n'
-                   'int dl_placed(unsigned c,unsigned p) { return c<2 && p<32 && allocator.live[c][p].present ? (int)(DL_CODE_START+allocator.live[c][p].offset) : -1; }'),
+                   'int dl_placed(unsigned c,unsigned p) { return c<2 && p<32 && allocator.live[c][p].present ? (int)(DL_CODE_START+allocator.live[c][p].offset) : -1; }\n'
+                   '/* ... in an arena of this many words (0 until its core answered a probe). */\n'
+                   'unsigned dl_arena(unsigned c) { return c<2 ? allocator.capacity[c] : 0; }'),
                   # dsp.c's self-test places effects by the live array alone: what it holds there is what a parked
                   # slot waits for, not the Part's byte (else the slot is let go to NONE and never loads).
                   ('static unsigned intended(unsigned i) {\n',
@@ -296,6 +298,23 @@ DSP_EDITS = {
                      '    for(unsigned i=0;i<16+DL_PACKAGES;++i) {\n'
                      '        unsigned p=i<16 ? (core_of(i)==c ? ids[i] : DL_NONE) : (a->keep[c]>>(i-16)&1u ? i-16 : DL_NONE);\n'
                      '        if(p==DL_NONE || a->catalog[p].resident || a->target[c][p].present) continue;'),
+                    # A big package (a quarter of the arena or more) goes as high as it fits, the rest as low: a hole
+                    # left under a big one could never close once the core's free words are fewer than its own (dsp.c's
+                    # compaction moves code by copying it whole).
+                    ('        uint32_t base=0,align=pkg->alignment;\n        for(;;) {',
+                     '        uint32_t base=0,align=pkg->alignment;\n'
+                     '        if(pkg->words*4u>=a->capacity[c]) {\n'
+                     '            if(pkg->words>a->capacity[c]) return DL_ALLOC_MEMORY;\n'
+                     '            for(base=(a->capacity[c]-pkg->words)&~(align-1);;) {\n'
+                     '                unsigned moved=0;\n'
+                     '                for(unsigned j=0;j<n && !moved;++j)\n'
+                     '                    if(base<(uint32_t)used[j].offset+used[j].words && base+pkg->words>used[j].offset) {\n'
+                     '                        if(used[j].offset<pkg->words) return DL_ALLOC_MEMORY;\n'
+                     '                        base=(used[j].offset-pkg->words)&~(align-1); moved=1;\n'
+                     '                    }\n'
+                     '                if(!moved) break;\n'
+                     '            }\n'
+                     '        } else for(;;) {'),
                     # Compaction without a gap (owner, 11 October 2026): one live package gets a new copy at `offset`,
                     # uploaded and bound while the old one runs, then the old is freed; never over live code.
                     ('int dl_allocator_cancel(struct dl_allocator *a,uint32_t token) {',

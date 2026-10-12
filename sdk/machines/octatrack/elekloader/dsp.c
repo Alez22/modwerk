@@ -750,7 +750,9 @@ volatile uint32_t modwerk_dsp_compact_counts, modwerk_dsp_compact_step, modwerk_
 extern volatile uint32_t modwerk_status_key_at; /* status.c: modwerk_runtime_ticks at the last key or knob */
 int modwerk_upload_busy(void);                 /* ep0.c: a host session is open */
 int dl_move(unsigned core, unsigned p, unsigned offset);
+unsigned dl_arena(unsigned core);
 int modwerk_compact_plan(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k, unsigned cap, unsigned *which, unsigned *to);
+unsigned modwerk_compact_left(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k, unsigned cap);
 static uint32_t compact_at;
 int modwerk_dsp_compact(void)
 {
@@ -758,32 +760,30 @@ int modwerk_dsp_compact(void)
     compact_at = *(volatile uint32_t *)0xfc07c00cu, modwerk_dsp_compact_step = 1;
     return 1;
 }
-static int holes(void) /* a core's placed code has a gap below its top */
+static unsigned placed(unsigned c, unsigned *at, unsigned *n, unsigned *align, unsigned *id) /* core c's code by address */
 {
-    for (unsigned c = 0; c < 2u; ++c) {
-        uint32_t used = 0, top = 0;
-        for (unsigned p = 0; p < 32u; ++p) {
-            int at = dl_placed(c, p);
-            if (at < 0) continue;
-            used += dl_catalog[p].words;
-            if ((uint32_t)at + dl_catalog[p].words > top) top = (uint32_t)at + dl_catalog[p].words;
-        }
-        if (top > 64u + used) return 1; /* dl_placed counts from DL_CODE_START */
+    unsigned k = 0;
+    for (unsigned p = 0; p < 32u; ++p) {
+        int a = dl_placed(c, p);
+        if (a < 0) continue;
+        unsigned j = k++;
+        for (; j && at[j - 1] > (unsigned)a - 64u; --j) at[j] = at[j - 1], n[j] = n[j - 1], align[j] = align[j - 1], id[j] = id[j - 1];
+        at[j] = (unsigned)a - 64u, n[j] = dl_catalog[p].words, align[j] = dl_catalog[p].alignment, id[j] = p; /* from DL_CODE_START */
     }
+    return k;
+}
+static int holes(void) /* a core's free code words are in more than one run */
+{
+    unsigned at[32], n[32], align[32], id[32];
+    for (unsigned c = 0; c < 2u; ++c)
+        if (modwerk_compact_left(at, n, align, placed(c, at, n, align, id), dl_arena(c))) return 1;
     return 0;
 }
 static int move_one(void)
 {
     for (unsigned c = 0; c < 2u; ++c) {
-        unsigned at[32], n[32], align[32], id[32], k = 0, which, to;
-        for (unsigned p = 0; p < 32u; ++p) {
-            int a = dl_placed(c, p);
-            if (a < 0) continue;
-            unsigned j = k++;
-            for (; j && at[j - 1] > (unsigned)a - 64u; --j) at[j] = at[j - 1], n[j] = n[j - 1], align[j] = align[j - 1], id[j] = id[j - 1];
-            at[j] = (unsigned)a - 64u, n[j] = dl_catalog[p].words, align[j] = dl_catalog[p].alignment, id[j] = p; /* from DL_CODE_START */
-        }
-        if (modwerk_compact_plan(at, n, align, k, modwerk_dsp_arena[c], &which, &to) && dl_move(c, id[which], to)) return 1;
+        unsigned at[32], n[32], align[32], id[32], k = placed(c, at, n, align, id), which, to;
+        if (modwerk_compact_plan(at, n, align, k, dl_arena(c), &which, &to) && dl_move(c, id[which], to)) return 1;
     }
     return 0;
 }
@@ -797,37 +797,62 @@ static void compact_tick(void)
     static unsigned spent, key; /* moves since the last key: a layout that cannot be packed stops after 32 */
     if (key != modwerk_status_key_at || modwerk_dsp_compact_step == 1u) key = modwerk_status_key_at, spent = 0;
     if (modwerk_dsp_compact_step == 1u) modwerk_dsp_compact_step = 2u;
-    if (spent < 32u && holes() && move_one()) { ++spent, modwerk_dsp_compact_moves = modwerk_dsp_compact_moves + 1; return; }
+    if (spent < 32u && move_one()) { ++spent, modwerk_dsp_compact_moves = modwerk_dsp_compact_moves + 1; return; }
     if (modwerk_dsp_compact_step)
         modwerk_dsp_compact_counts = holes() ? 0xffffffffu : *(volatile uint32_t *)0xfc07c00cu - compact_at, modwerk_dsp_compact_step = 0;
 }
 #endif
 /* The compaction planner (dsp.c's move_one; host-tested by test_dsp.c): k placed blocks sorted by address (where each
- * starts, its words, its alignment, 0 as 1) in an arena of cap words. The first move any hole allows, lowest hole
- * first: the first block above it that fits in it clear of its own old copy; else the block right above it parks in
- * the first gap above it that holds it (the hole widens, and it comes back down later); else the block right below it
- * parks there, when the room it leaves and the hole together hold the block above. A copy needs one free run as big as
- * its block, apart from its own old copy. A hole that allows none of these is passed over. 1 and the move (block
- * index, new start) when there is one. */
+ * starts, its words, its alignment, 0 as 1) in an arena of cap words. A copy needs one free run as big as its block,
+ * apart from its own old copy, so a hole under a block bigger than all the core's free words could never close: big
+ * blocks (a quarter of the arena or more) sit at the top, packed down from it, where the allocator places them
+ * (build_core.py), and the rest packs up from the bottom; the free words are then one run between them. First a big
+ * block below the top ones goes up under them when that room is free. Then, below the top ones, lowest hole first:
+ * the first block above it that fits in it clear of its own old copy; else the block right above it parks in the
+ * first gap above it that holds it (the hole widens, and it comes back down later); else the block right below it
+ * parks there, when the room it leaves and the hole together hold the block above. A hole that allows none of these
+ * is passed over. 1 and the move (block index, new start) when there is one. */
 static unsigned up_to(unsigned at, unsigned align) { unsigned a = align ? align : 1u; return (at + a - 1u) & ~(a - 1u); }
+static unsigned down_to(unsigned at, unsigned align) { return at & ~((align ? align : 1u) - 1u); }
 int modwerk_compact_plan(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k, unsigned cap,
                          unsigned *which, unsigned *to)
 {
-    for (unsigned i = 0, end = 0; i < k; end = at[i] + n[i], ++i) {
+    unsigned top = k, ceiling = cap; /* blocks top..k-1: big ones packed down from the arena's end */
+    while (top && n[top - 1] * 4u >= cap && n[top - 1] <= ceiling && down_to(ceiling - n[top - 1], align[top - 1]) == at[top - 1])
+        ceiling = at[--top];
+    for (unsigned i = top; i--;) { /* a big block below them, up under them */
+        if (n[i] * 4u < cap || n[i] > ceiling || down_to(ceiling - n[i], align[i]) < at[i] + n[i]) continue;
+        unsigned t = down_to(ceiling - n[i], align[i]), clear = 1;
+        for (unsigned j = i + 1; j < top; ++j) clear &= t >= at[j] + n[j] || t + n[i] <= at[j];
+        if (clear) { *which = i, *to = t; return 1; }
+    }
+    for (unsigned i = 0, end = 0; i < top; end = at[i] + n[i], ++i) {
         if (up_to(end, align[i]) >= at[i]) continue; /* no hole, or only the block's own alignment padding */
-        for (unsigned j = i; j < k; ++j) /* a block above that fits in the hole */
+        for (unsigned j = i; j < top; ++j) /* a block above that fits in the hole */
             if (up_to(end, align[j]) + n[j] <= at[i]) { *which = j, *to = up_to(end, align[j]); return 1; }
-        for (unsigned m = i + 1; m <= k; ++m) { /* else the block above parks in the first gap above it that holds it */
-            unsigned from = up_to(at[m - 1] + n[m - 1], align[i]), until = m < k ? at[m] : cap;
+        for (unsigned m = i + 1; m <= top; ++m) { /* else the block above parks in the first gap above it that holds it */
+            unsigned from = up_to(at[m - 1] + n[m - 1], align[i]), until = m < top ? at[m] : ceiling;
             if (from + n[i] <= until) { *which = i, *to = from; return 1; }
         }
         if (i && up_to(at[i - 1], align[i]) + n[i] <= at[i]) /* else the block below parks above, if that frees enough */
-            for (unsigned m = i + 1; m <= k; ++m) {
-                unsigned from = up_to(at[m - 1] + n[m - 1], align[i - 1]), until = m < k ? at[m] : cap;
+            for (unsigned m = i + 1; m <= top; ++m) {
+                unsigned from = up_to(at[m - 1] + n[m - 1], align[i - 1]), until = m < top ? at[m] : ceiling;
                 if (from + n[i - 1] <= until) { *which = i - 1, *to = from; return 1; }
             }
     }
     return 0;
+}
+/* Free words outside the largest free run (alignment padding aside): 0 when the planner's work is done. */
+unsigned modwerk_compact_left(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k, unsigned cap)
+{
+    unsigned free = 0, largest = 0, end = 0;
+    for (unsigned i = 0; i <= k; ++i) {
+        unsigned next = i < k ? at[i] : cap, run = next > end ? next - end : 0;
+        if ((i < k && run < align[i]) || (i && run < align[i - 1])) run = 0; /* a block beside it could not sit closer */
+        free += run, largest = run > largest ? run : largest;
+        if (i < k) end = at[i] + n[i];
+    }
+    return free - largest;
 }
 void modwerk_dsp_unpack(void); /* identity.c: the stock effects' code into RAM, before the manager needs it */
 /* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3

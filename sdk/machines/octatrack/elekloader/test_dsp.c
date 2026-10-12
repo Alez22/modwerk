@@ -21,20 +21,36 @@ static int capture(uint32_t file, const void *data, unsigned length)
 
 static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
-/* The compaction planner on random layouts: the moves it plans, applied, until packed. */
+/* The compaction planner: the moves it plans, applied, until it has none; every copy clear of live code. */
 static unsigned seed = 2026;
 static unsigned rnd(void) { seed = seed * 1103515245u + 12345u; return seed >> 16; }
-static unsigned gaps(const unsigned *at, const unsigned *n, const unsigned *align, unsigned k) /* closable holes */
+static void by_address(unsigned *at, unsigned *n, unsigned *align, unsigned k)
 {
-    unsigned sum = 0;
-    for (unsigned i = 0, end = 0; i < k; end = at[i] + n[i], ++i) {
-        unsigned down = (end + align[i] - 1u) & ~(align[i] - 1u);
-        if (down < at[i]) sum += at[i] - down;
+    for (unsigned i = 1; i < k; ++i)
+        for (unsigned j = i; j && at[j - 1] > at[j]; --j) {
+            unsigned t = at[j]; at[j] = at[j - 1], at[j - 1] = t;
+            t = n[j], n[j] = n[j - 1], n[j - 1] = t;
+            t = align[j], align[j] = align[j - 1], align[j - 1] = t;
+        }
+}
+static unsigned pack(unsigned *at, unsigned *n, unsigned *align, unsigned k, unsigned cap) /* the moves it took */
+{
+    unsigned moves = 0, which, to;
+    for (; moves < 64u && modwerk_compact_plan(at, n, align, k, cap, &which, &to); ++moves) {
+        CHECK(to + n[which] <= cap && !(to & (align[which] - 1u)));
+        for (unsigned q = 0; q < k; ++q) CHECK(to >= at[q] + n[q] || to + n[which] <= at[q]); /* never over live code */
+        at[which] = to, by_address(at, n, align, k);
     }
-    return sum;
+    return moves;
+}
+static int fits(const unsigned *at, const unsigned *n, unsigned k, unsigned to, unsigned size)
+{
+    for (unsigned q = 0; q < k; ++q) if (to < at[q] + n[q] && to + size > at[q]) return 0;
+    return 1;
 }
 static void planner(void)
 {
+    /* Random layouts, blocks anywhere. */
     unsigned roomy = 0, roomy_packed = 0, tight = 0, tight_packed = 0, most = 0;
     for (unsigned trial = 0; trial < 20000u; ++trial) {
         unsigned at[32], n[32], align[32], k = 0, cap = 5075u, pos = 0, used = 0, largest = 0, want = 2u + rnd() % 9u;
@@ -46,26 +62,42 @@ static void planner(void)
             if (at[k] + size > cap) break;
             pos = at[k] + size, used += size, largest = size > largest ? size : largest, ++k;
         }
-        unsigned room = cap - used >= 2u * largest, moves = 0, which, to;
-        for (; moves < 64u && gaps(at, n, align, k); ++moves) {
-            if (!modwerk_compact_plan(at, n, align, k, cap, &which, &to)) break;
-            CHECK(to + n[which] <= cap && !(to & (align[which] - 1u)));
-            for (unsigned q = 0; q < k; ++q) CHECK(to >= at[q] + n[q] || to + n[which] <= at[q]); /* never over live code */
-            at[which] = to;
-            for (unsigned i = 1; i < k; ++i) /* keep them sorted by address */
-                for (unsigned j = i; j && at[j - 1] > at[j]; --j) {
-                    unsigned t = at[j]; at[j] = at[j - 1], at[j - 1] = t;
-                    t = n[j], n[j] = n[j - 1], n[j - 1] = t;
-                    t = align[j], align[j] = align[j - 1], align[j - 1] = t;
-                }
-        }
-        unsigned packed = !gaps(at, n, align, k);
+        unsigned moves = pack(at, n, align, k, cap), packed = !modwerk_compact_left(at, n, align, k, cap);
         most = moves > most ? moves : most;
-        if (room) ++roomy, roomy_packed += packed; else ++tight, tight_packed += packed;
+        if (cap - used >= 2u * largest) ++roomy, roomy_packed += packed; else ++tight, tight_packed += packed;
     }
-    /* A copy needs one free run as big as its block; a few roomy layouts have none for the block that must move. */
+    printf("compaction planner: %u/%u roomy random layouts packed, %u/%u tight ones, at most %u moves\n", roomy_packed, roomy, tight_packed, tight, most);
     CHECK(roomy_packed * 100u >= roomy * 99u && most <= 32u);
-    printf("compaction planner: %u/%u roomy layouts packed, %u/%u tight ones, at most %u moves\n", roomy_packed, roomy, tight_packed, tight, most);
+    /* Churn as on the unit: blocks come and go, placed as the allocator does (build_core.py: a quarter of the arena or
+     * more as high as it fits, the rest as low), and the planner packs after each step. A placement refused although
+     * the free words would hold it is what a hole costs. */
+    unsigned at[32], n[32], align[32], k = 0, cap = 5075u, steps = 0, adds = 0, refused = 0, split = 0, left_over = 0;
+    most = 0;
+    for (unsigned step = 0; step < 200000u; ++step) {
+        if (k && (k == 8u || rnd() % 2u)) { /* one comes off */
+            unsigned r = rnd() % k;
+            for (unsigned i = r; i + 1u < k; ++i) at[i] = at[i + 1], n[i] = n[i + 1], align[i] = align[i + 1];
+            --k;
+        } else { /* one goes on: most 200-800 words, some up to 1,200, a few big */
+            unsigned size = rnd() % 10u < 7u ? 200u + rnd() % 600u : rnd() % 3u ? 800u + rnd() % 400u : 1269u + rnd() % 450u;
+            unsigned a = rnd() % 4u ? 1u : 4u, free = cap, to = 0, found = 0;
+            for (unsigned q = 0; q < k; ++q) free -= n[q];
+            if (size * 4u >= cap) {
+                for (unsigned t = (cap - size) & ~(a - 1u);; t -= a) { if (fits(at, n, k, t, size)) { to = t, found = 1; break; } if (t < a) break; }
+            } else {
+                for (unsigned t = 0; t + size <= cap; t += a) if (fits(at, n, k, t, size)) { to = t, found = 1; break; }
+            }
+            ++adds;
+            if (!found) { refused += free >= size + 3u; continue; } /* 3: alignment */
+            at[k] = to, n[k] = size, align[k] = a, ++k, by_address(at, n, align, k);
+        }
+        unsigned moves = pack(at, n, align, k, cap), left = modwerk_compact_left(at, n, align, k, cap);
+        most = moves > most ? moves : most, ++steps;
+        if (left) ++split, left_over = left > left_over ? left : left_over;
+    }
+    printf("compaction churn: %u steps, %u placements, %u refused with the words free; %u steps left free words split "
+           "(at most %u outside the largest run), at most %u moves\n", steps, adds, refused, split, left_over, most);
+    CHECK(most <= 32u);
 }
 const uint32_t dl_stub_at_boot = 1u << 21 | 1u << 26 | 1u << 27, modwerk_dsp_modules = 1u << 26 | 1u << 27;
 /* identity.c's catalog: SPRING REV (21) a stock package loaded on demand, every other id what stock runs. */

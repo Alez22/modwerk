@@ -229,11 +229,12 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
         const arena = b.readUInt16BE(12 + 2 * core), blocks = []
         for (let p = 0; p < 32; p++) { const at = b.readUInt16BE(20 + 4 * (32 * core + p)); if (at !== 0xffff) blocks.push({ p, at: at - 64, n: b.readUInt16BE(22 + 4 * (32 * core + p)) }) }
         blocks.sort((x, y) => x.at - y.at)
-        let end = 0, holes = 0, largestHole = 0
-        for (const k of blocks) { const h = k.at - end; if (h > 0) holes += h, largestHole = Math.max(largestHole, h); end = Math.max(end, k.at + k.n) }
-        const used = blocks.reduce((s, k) => s + k.n, 0), tail = arena - end
+        // Holes: free words outside the largest free run (big blocks sit at the top, the rest at the bottom: dsp.c)
+        let end = 0, largest = 0
+        for (const k of [...blocks, { at: arena, n: 0 }]) { largest = Math.max(largest, k.at - end); end = Math.max(end, k.at + k.n) }
+        const used = blocks.reduce((s, k) => s + k.n, 0)
         console.log(`${name}: ${used} of ${arena} words in ${blocks.length} blocks [${blocks.map(k => `id ${k.p} @${k.at}+${k.n}`).join(', ')}]; ` +
-          `holes ${holes} words, largest free run ${Math.max(largestHole, tail)} of ${arena - used} free`)
+          `holes ${arena - used - largest} words, largest free run ${largest} of ${arena - used} free`)
       }
       console.log(`buffer blocks in use: 0x${b.readUInt32BE(16).toString(16)}`)
     }

@@ -32,7 +32,25 @@ int main(void)
     CHECK(dl_allocator_retire(&a, 7) == DL_ALLOC_OK && a.phase == 0);
     CHECK(a.live[1][2].present && a.live[1][2].offset == 300 && a.live[1][1].present && a.live[1][1].offset == 0);
     CHECK(dl_allocator_move(&a, 1, 2, 100, 9) == DL_ALLOC_OK);         /* then down into the hole, now clear */
+
+    /* Placement: a package of a quarter of the arena or more as high as it fits, the rest as low. */
+    static struct dl_allocator b;
+    uint8_t ids[16];
+    catalog[3] = (struct dl_package){300, 1, 10, 3, 0, 1, 0};
+    catalog[4] = (struct dl_package){260, 4, 10, 3, 0, 1, 0};
+    catalog[5] = (struct dl_package){330, 1, 10, 3, 0, 1, 0};
+    dl_allocator_init(&b, catalog, 1000, 1000, 100000, 100000);
+    for (unsigned i = 0; i < 16u; ++i) ids[i] = DL_NONE;
+    ids[0] = 3, ids[1] = 1, ids[2] = 4; /* core 1 */
+    CHECK(dl_allocator_prepare(&b, ids, 5) == DL_ALLOC_OK);
+    CHECK(b.target[1][3].offset == 700 && b.target[1][1].offset == 0 && b.target[1][4].offset == 440); /* 4: aligned down */
+    CHECK(dl_allocator_ack(&b, 5, 1) == DL_ALLOC_OK && dl_allocator_commit(&b, 5) == DL_ALLOC_OK && dl_allocator_retire(&b, 5) == DL_ALLOC_OK);
+    ids[3] = 5; /* the highest run that holds it, between 1 and 4 */
+    CHECK(dl_allocator_prepare(&b, ids, 6) == DL_ALLOC_OK && b.target[1][5].offset == 110 && b.target[1][3].offset == 700);
+    CHECK(dl_allocator_cancel(&b, 6) == DL_ALLOC_OK);
+    catalog[5].words = 341; /* no run holds it, nor the whole arena */
+    CHECK(dl_allocator_prepare(&b, ids, 7) == DL_ALLOC_MEMORY);
     if (failures) { fprintf(stderr, "%u move checks failed\n", failures); return 1; }
-    puts("allocator move: clear of live code, one at a time, only that package moves.");
+    puts("allocator move: clear of live code, one at a time, only that package moves; big packages placed from the top.");
     return 0;
 }
