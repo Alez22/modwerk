@@ -23,9 +23,9 @@ const CHIP: Record<UnitState, string> = { on: 'Stays', load: 'Adds', leaving: 'L
  * the one the library adds to and the one Load sends) and the unit on the trailing side, its modules previewing what
  * loading the selected set changes. Nothing goes onto the unit without the guided load.
  */
-export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelect, onOpen, onLoad, onEdit, onCreate, onDialog, onSaveUnit, onInstall }: {
+export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelect, onOpen, onToggle, onLoad, onEdit, onCreate, onDialog, onSaveUnit, onInstall }: {
   link: OctatrackLink | null; inventory?: Inventory; sets: Configuration[]; selectedId?: string; needs?: ProjectNeeds
-  onSelect: (id: string) => void; onOpen: (id: string) => void; onLoad: (id: string) => void; onEdit: (id: string) => void; onCreate: () => void
+  onSelect: (id: string) => void; onOpen: (id: string) => void; onToggle: (id: string) => void; onLoad: (id: string) => void; onEdit: (id: string) => void; onCreate: () => void
   onDialog: (mode: 'rename' | 'duplicate' | 'delete') => void; onSaveUnit: () => void; onInstall: () => void
 }) {
   const state = useOctatrackLink(link), { status, identity } = state
@@ -87,6 +87,9 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
             return <li key={id} className={'module-tile' + (connected ? ' is-' + tile : ' is-last')}>
               <button type="button" className="module-tile-open" aria-haspopup="dialog" disabled={!module} onClick={() => onOpen(id)}><ModulePreview id={id} compact /><strong>{moduleName(id)}</strong><small>{module?.detail ?? 'Not in the library'}</small></button>
               <StateChip state={connected ? tile : 'off'}>{connected ? changes.length ? CHIP[tile] : 'On it' : 'Last seen'}</StateChip>
+              {connected && selected?.id === selectedId && (tile === 'leaving'
+                ? module && <button type="button" className="module-tile-action text-button" aria-label={'Keep ' + moduleName(id) + ' in ' + selected.name} onClick={() => onToggle(id)}>Keep</button>
+                : <button type="button" className="module-tile-action icon-button" aria-label={'Remove ' + moduleName(id) + ' from ' + selected.name} title={'Remove from ' + selected.name} onClick={() => onToggle(id)}><Icon name="close" size={15} /></button>)}
             </li> })}</ul>
           : unitIds ? <p className="link-hint">No modules on it.</p>
           : usb ? <p className="link-hint">Plug in your Octatrack to see what’s on it.</p> : null}

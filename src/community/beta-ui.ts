@@ -10,5 +10,3 @@ const WORDS = {
 /** The beta calls configurations module sets; everyone else keeps main's word. */
 export const setWords = (beta: boolean) => WORDS[beta ? 'beta' : 'classic']
 export const useSetWords = () => setWords(useBetaUi())
-/** The beta's selected Octatrack module set by name: the one the library's add control names. */
-export const SetName = createContext<string | undefined>(undefined)

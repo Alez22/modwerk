@@ -8,7 +8,7 @@
 /* The machine in the sidebar, with the USB connection as a dot on its picture. */
 .instrument-item { margin: 4px 0 2px; }
 .instrument-item[aria-current="page"] { border-color: var(--accent-line); }
-.sidebar-device > .instrument-picture { position: relative; display: inline-flex; flex: 0 0 auto; } /* not the label's flex: 1 */
+.instrument-picture { position: relative; display: inline-flex; flex: 0 0 auto; } /* not the label's flex: 1 */
 .instrument-item small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .instrument-dot { position: absolute; right: -4px; bottom: -4px; width: 11px; height: 11px; border: 2px solid var(--surface-raised); border-radius: 50%; background: #8a8a98; }
 .instrument-dot.is-connected { background: #7fd39b; }
@@ -232,10 +232,10 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-set-actions > span { display: flex; flex-wrap: wrap; gap: 10px; }
 .hub-set-actions .text-button { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; font-size: 13px; }
 .hub-unit { min-width: 0; padding: 18px 22px 20px; }
-.hub-unit-head { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
-.hub-unit-head .device-photo { width: 112px; height: auto; flex: none; }
+.hub-unit-head { display: flex; align-items: center; gap: 22px; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.hub-unit-head .device-photo { width: 260px; height: auto; flex: none; }
 .hub-unit-head > div { flex: 1; min-width: 0; }
-.hub-unit-head h2 { margin: 0; font-size: 18px; }
+.hub-unit-head h2 { margin: 0; font-size: 22px; letter-spacing: -.3px; }
 .hub-unit-head p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 .hub-unit-head p b { color: var(--text-secondary); font-weight: 600; }
 .hub-unit-head .button { flex: none; min-height: 32px; padding: 5px 12px; }
@@ -247,12 +247,9 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-footer b, .hub-insync b { color: var(--text); font-weight: 600; }
 .hub-insync { display: flex; align-items: center; gap: 8px; }
 .hub-footer .button { min-height: 40px; }
-@media (max-width: 1100px) { .hub-split { grid-template-columns: 240px minmax(0, 1fr); } .hub-unit-head .device-photo { width: 88px; } }
+@media (max-width: 1100px) { .hub-split { grid-template-columns: 240px minmax(0, 1fr); } .hub-unit-head .device-photo { width: 180px; } }
 @media (max-width: 760px) { .hub-split { grid-template-columns: 1fr; } .hub-sets { border-right: 0; border-bottom: 1px solid var(--line); } }
 /* The library's add control names the set it adds to (beta). */
-.add-button.is-named { display: inline-flex; gap: 6px; width: auto; max-width: 15em; padding: 0 11px 0 9px; border-radius: 999px; font-size: 12px; }
-.add-button.is-named span { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (min-width: 601px) and (max-width: 1180px) { .add-button.is-named { width: 32px; padding: 0; justify-content: center; } .add-button.is-named span { display: none; } }
 .unit-strip .button { min-height: 32px; margin-left: 6px; padding: 5px 12px; }
 .toolbar-load { flex-shrink: 0; height: 36px; padding: 0 12px; }
 /* The top bar names the selected set (beta): long names stop before they crowd the search. */
