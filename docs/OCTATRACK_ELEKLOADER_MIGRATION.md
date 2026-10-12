@@ -2346,6 +2346,26 @@ It runs on the dev preview's pretend unit until the base provides:
 The builder's `prepareUpdate(target)` receives the whole target (`{ name, moduleIds,
 removedStockFx }`).
 
+**Built for the beta (12 October 2026; emulator, not yet on the unit).**
+- **Inventory:** INVENTORY, vendor request 27 (`ep0.c`, `loader.c` `modwerk_runtime_list`), lists the live modules in
+  MISSING's form, 13 a page: effect id, layout, module id, name. A base needs rebuilding for it; one without it
+  stalls the request, and the site then says the base can't list its modules.
+- **Packages:** the site's runtime packages are built from source with no firmware (`npm run
+  octatrack:module-packages`, [`module_packages.py`](../sdk/machines/octatrack/elekloader/module_packages.py)):
+  E-Verb, Mini Verb, TapeHead and Air Chorus, in `public/octatrack-modules/ID/VERSION.mwrm` with
+  [their manifest](../src/engine/assets/octatrack-module-packages.json). They are byte for byte the README's
+  `build.py --dsp` output, have no stock-code sites or hooks, and `--stock` finds no run of the stock OS in them.
+  Spectrum and Modulation build the same way but are paused in the library. Every module with ColdFire code
+  (TAPE ECHO and EUCLID too) copies stock bytes into its package, so it waits for loader ABI 7.
+- **Loading** ([`module-set.ts`](../src/engine/elekloader/module-set.ts), `OctatrackLink.update`): removals first,
+  then installs. The base runs one transaction at a time, so every change but the last is kept as soon as it is
+  in, and the last runs as the trial for the self-test and Keep or Undo. Undo, a failed self-test or a refusal
+  part way rolls the trial back, then sends the undo packages of the kept changes, newest first (a removed module
+  the site does not publish cannot be put back, and the notice says so). An unplug part way leaves the unit
+  between the two sets; loading either again finishes it, since a load only sends the differences.
+- **Not built:** stock effects out of the menus (the base keeps no such state; a set that changes them is refused
+  before anything is sent), one Keep or Undo held by the base for a whole set, and versions other than the latest.
+
 Later, not now (owner): people may own several units of the same machine. The site connects to
 the first allowed unit today. Telling units apart needs a unit identity from the base, since every
 unit reports the same USB serial (`000000000001`). The sidebar would then list each unit, and a

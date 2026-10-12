@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  findVendorInterface, parseMissing, parseVendorIdentity, parseVendorResult, UsbVendorTransport, VendorTransportError, type ControlDevice,
+  findVendorInterface, parseInventory, parseMissing, parseVendorIdentity, parseVendorResult, UsbVendorTransport, VendorTransportError, type ControlDevice,
   VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_RESULT_BYTES, VENDOR_SUBCLASS,
 } from './upload-usb'
 
@@ -159,5 +159,18 @@ describe('the modules a project names that are not installed', () => {
     expect((await new UsbVendorTransport(unit(true), 6).missing())!.map(m => m.handle)).toEqual([...Array(15).keys()])
     expect(asked).toEqual([0, 13])
     expect((await new UsbVendorTransport(unit(false), 6).missing())!.length).toBe(13)
+  })
+  it('reads INVENTORY, the installed modules, in the same form and pages ("MWI"; 0xff: no DSP code)', async () => {
+    const view = new DataView(new ArrayBuffer(4 + 24))
+    ;[0x4d, 0x57, 0x49, 1, 0xff].forEach((b, i) => view.setUint8(i, b))
+    view.setUint32(8, 0x0000002a)
+    expect(parseInventory(view)).toEqual([{ handle: 0xff, layout: 0, module: '0000002a', name: '' }])
+    expect(() => parseMissing(view)).toThrow(VendorTransportError)
+    const unit = (stall: boolean): ControlDevice => ({
+      async controlTransferOut() { throw new Error('read-only') },
+      async controlTransferIn(setup, length) { expect(setup).toMatchObject({ request: 27 }); expect(length).toBe(316); return stall ? { status: 'stall' } : { status: 'ok', data: view } },
+    })
+    expect(await new UsbVendorTransport(unit(false), 6).inventory()).toEqual([{ handle: 0xff, layout: 0, module: '0000002a', name: '' }])
+    expect(await new UsbVendorTransport(unit(true), 6).inventory()).toBeUndefined() // a base from before INVENTORY
   })
 })

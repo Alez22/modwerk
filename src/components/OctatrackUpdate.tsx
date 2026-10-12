@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import { changeCount, inventoryChanges, type Inventory, type InventoryTarget } from '../config/inventory'
-import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
+import type { OctatrackLink, SetChange } from '../engine/elekloader/octatrack-link'
 import { useInventory, useOctatrackLink } from '../hooks/useOctatrackLink'
 import { ChangeSummary } from './InventoryChanges'
 import { Icon } from './Icon'
 import './octatrack-link.css'
 
-/** The builder: the target set as what the base loads. */
-export type PrepareUpdate = (target: InventoryTarget) => Promise<{ name: string; data: Uint8Array }>
+/** The builder: the target set as what the base loads, change by change. */
+export type PrepareUpdate = (target: InventoryTarget) => Promise<{ name: string; changes: SetChange[] }>
 /** The base: what is on the unit. */
 export type ReadInventory = () => Promise<Inventory>
 export type StressTest = () => Promise<string | null>
@@ -63,7 +63,7 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
 
   async function update() {
     setPreparing('busy')
-    try { const prepared = await prepareUpdate!(set); setPreparing('idle'); await link.update(prepared.name, prepared.data, stressTest) }
+    try { const prepared = await prepareUpdate!(set); setPreparing('idle'); await link.update(prepared.name, prepared.changes, stressTest) }
     catch (error) { console.error(error); setPreparing('failed') }
   }
   const step = status === 'sending' ? 0 : status === 'testing' ? 1 : 2

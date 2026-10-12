@@ -171,6 +171,24 @@ uint32_t modwerk_runtime_broken(void)
     modwerk_machine_unlock(lock);
     return id;
 }
+/* What the unit has (a machine's INVENTORY request, so the host can make it match a module set): "MWI" and a
+ * count, then per live module in position order 24 bytes: its effect id (0xff without DSP code), 0, its parameter
+ * layout and module id (big-endian) and its name (16 bytes), the form of the Octatrack's MISSING entries. Entries
+ * `first` on, at most `most`. Read-only, and from an interrupt: positions switch with interrupts masked. */
+unsigned modwerk_runtime_list(uint8_t *out, unsigned first, unsigned most)
+{
+    unsigned n = 0, seen = 0;
+    for (unsigned i = 0; i < RUNTIME_MODULES && n < most; ++i) {
+        const struct runtime_module *m = live[i];
+        if (!m || seen++ < first) continue;
+        uint8_t *e = out + 4u + 24u * n++;
+        e[0] = m->dsp.count ? m->dsp.id : 0xffu, e[1] = 0, e[2] = (uint8_t)(m->dsp.layout >> 8), e[3] = (uint8_t)m->dsp.layout;
+        put32(e + 4, m->id);
+        for (unsigned k = 0; k < 16u; ++k) e[8 + k] = (uint8_t)m->dsp.name[k];
+    }
+    out[0] = 'M', out[1] = 'W', out[2] = 'I', out[3] = (uint8_t)n;
+    return 4u + 24u * n;
+}
 static void put(const struct runtime_module *m, int patched)
 {
     for (uint32_t i = 0; m && i < m->sites; ++i) {

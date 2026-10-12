@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -72,6 +73,13 @@ class LoaderTests(unittest.TestCase):
             build.dsp_section(pkg, 'fx2', 382, 'executed', 133, 16384, 'E-Verb')
         with self.assertRaisesRegex(ValueError, 'display name'):
             build.dsp_section(pkg, 'fx2', 382, 'executed', 132, 16384, 'A' * 16)
+
+    def test_published_module_packages_rebuild_byte_for_byte(self):
+        if not shutil.which('node'):
+            self.skipTest('no Node for the FX page recipes')
+        result = subprocess.run([sys.executable, '-B', ROOT / 'sdk/machines/octatrack/elekloader/module_packages.py', '--check'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_converted_module_becomes_image_relocations_and_sites(self):
         stock = {0x40001000: bytes.fromhex('70201140000e'), 0x40002000: bytes.fromhex('4e714e71')}

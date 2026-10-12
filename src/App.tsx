@@ -54,6 +54,7 @@ import { StockEffects } from './components/StockEffects'
 import { OctatrackActivity, OctatrackStatus } from './components/OctatrackStatus'
 import { BaseInstallDialog } from './components/BaseInstallDialog'
 import { OctatrackLink } from './engine/elekloader/octatrack-link'
+import { moduleSetKit } from './engine/elekloader/module-set'
 import { useBaseInstallPrompt } from './hooks/useBaseInstallPrompt'
 import { OctatrackLinkContext, useInventory, useMissing, useOctatrackBase } from './hooks/useOctatrackLink'
 import { digiDownloadsEnabled } from './engine/elekloader/protocol'
@@ -133,9 +134,9 @@ export default function App() {
   const developerRoute = route === 'developer' || route.startsWith('developer/')
   const accountRoute = route === 'account' || route.startsWith('account/')
   // One link to the unit for the whole site: it connects by itself whenever an allowed Octatrack is plugged in.
-  // The builder's prepareUpdate joins it once it exists; the stress test is the base's own self-test.
+  // Loading a module set sends the site's packages (module-set.ts); the stress test is the base's own self-test.
   const [unitKit, setUsbKit] = useState<{ link: OctatrackLink; prepareUpdate?: PrepareUpdate; readInventory?: ReadInventory; stressTest?: StressTest } | null>(
-    () => { if (usbLinkPreview) return null; const link = new OctatrackLink(); return { link, stressTest: () => link.selftest() } })
+    () => { if (usbLinkPreview) return null; const link = new OctatrackLink(); return { link, ...moduleSetKit(link), stressTest: () => link.selftest() } })
   useEffect(() => { if (import.meta.env.DEV && usbLinkPreview) void import('./dev/octatrack-link-fake').then(fake => setUsbKit(fake.previewKit())) }, [])
   // Beta only: without access every USB view unmounts, and the link lets go of the unit.
   const usbKit = usbLinkPreview || hasUsbLinkAccess(session, touchOnly) ? unitKit : null

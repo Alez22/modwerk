@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The site's USB link to an Octatrack running the Modwerk base: find the unit,
-// send one runtime module, run it as a trial, then keep or undo it. The base
-// itself undoes anything not kept when USB goes quiet or away, so every
-// failure here ends in "unplug to undo" at worst.
+// send a module set's runtime packages, run the last as a trial, then keep or
+// undo it. The base itself undoes anything not kept when USB goes quiet or away,
+// so every failure here ends in "unplug to undo" at worst.
 import { runSelftest, waitUntilSaved } from './selftest.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { UploadDeviceError, UploadSession, UploadUnconfirmedError } from './upload-session.ts'
@@ -34,6 +34,10 @@ export interface LinkUsb {
 export type LinkSession = Pick<UploadSession, 'status' | 'connectionTrusted' | 'stage' | 'activate' | 'startTrial' | 'holdTrial' |
   'accept' | 'rollback' | 'cancel' | 'adopt' | 'leaveUploadMode'>
 type Connect = (transport: UsbVendorTransport, base: string) => Promise<LinkSession>
+
+/** One step of a module set load: a runtime package, and the package that puts back what it changes (absent when the
+ * site has none, such as for a removed module it does not publish). */
+export interface SetChange { readonly module: string; readonly data: Uint8Array; readonly undo?: Uint8Array }
 
 export type LinkStatus = 'unsupported' | 'idle' | 'connecting' | 'stock' | 'busy' | 'ready' | 'sending' | 'testing' | 'trial' | 'finishing'
 export interface LinkState {
@@ -69,6 +73,9 @@ const REJECTED: Partial<Record<number, string>> = {
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
+const BETWEEN = 'Your Octatrack is between the two module sets: load one of them again.'
+const list = (items: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(items)
+const notPutBack = (lost: string[]) => `${list(lost)} couldn’t be put back: the site has no package for ${lost.length === 1 ? 'it' : 'them'}.`
 
 /** A stress test found a problem; its reason is shown to the user. */
 export class StressTestFailure extends Error {}
@@ -100,6 +107,12 @@ export class OctatrackLink {
   private abort?: AbortController
   private keepalive?: ReturnType<typeof setInterval>
   private users = 0
+  /** The changes of the load in progress already kept on the unit, and the one being sent (of a set of several). */
+  private kept: SetChange[] = []
+  private current?: string
+  /** USB jobs run one at a time: a read releasing the interface would cut off a load that just claimed it. */
+  private queue: Promise<unknown> = Promise.resolve()
+  private serial<T>(job: () => Promise<T>): Promise<T> { const run = this.queue.then(job); this.queue = run.catch(() => {}); return run }
 
   /** `usb` defaults to the browser's WebUSB; null stands for a browser without it. */
   constructor(usb: LinkUsb | null | undefined = webUsb(), connectSession: Connect = (transport, base) => UploadSession.connect(transport, base), stopWaitMs = 3000) {
@@ -142,10 +155,12 @@ export class OctatrackLink {
   }
   private readonly onDisconnect: DeviceListener = ({ device }) => {
     if (device !== this.device) return
-    const { status, module } = this.state
+    const { status, module } = this.state, between = this.kept.length > 0
     this.stopKeepalive(); this.abort?.abort()
     this.device = this.index = this.transport = this.session = undefined
-    this.set({ status: 'idle', notice: status === 'sending' ? { tone: 'error', text: 'USB disconnected. Nothing changed on the Octatrack.' }
+    this.kept = []
+    this.set({ status: 'idle', notice: between && status !== 'idle' ? { tone: 'error', text: 'USB disconnected. ' + BETWEEN }
+      : status === 'sending' ? { tone: 'error', text: 'USB disconnected. Nothing changed on the Octatrack.' }
       : status === 'testing' || status === 'trial' || status === 'finishing' ? { tone: 'error', text: `USB disconnected. The Octatrack undoes ${module} by itself as soon as playback is stopped.` }
       : undefined })
   }
@@ -188,23 +203,27 @@ export class OctatrackLink {
     if (close) { this.device = this.index = this.transport = this.session = undefined; if (device?.opened) await device.close().catch(() => {}) }
   }
 
-  /** Load an update (the configuration as one runtime package) and start its trial. With `stressTest`, the
-   * unit is tested first (null means passed) and a failure undoes the update. The previous modules stay
-   * until the user keeps it. */
-  async update(module: string, data: Uint8Array, stressTest?: () => Promise<string | null>) {
+  /** Load a module set's changes (`module` names the set) and start the trial of the last one. With `stressTest`,
+   * the unit is tested first (null means passed) and a failure undoes the load. The base runs one transaction at a
+   * time, so each change before the last is kept as soon as it is in; undoing the load (Undo, a failed stress test,
+   * a refusal part way) rolls back the trial, then sends those changes' undo packages, newest first. */
+  update(module: string, changes: readonly SetChange[], stressTest?: () => Promise<string | null>) { return this.serial(() => this.load(module, changes, stressTest)) }
+  private async load(module: string, changes: readonly SetChange[], stressTest?: () => Promise<string | null>) {
     const base = this.state.identity?.base
-    if (this.state.status !== 'ready' || !this.state.identity?.canSubmit || !base || !await this.claim()) return
-    const abort = this.abort = new AbortController()
+    if (!changes.length || this.state.status !== 'ready' || !this.state.identity?.canSubmit || !base || !await this.claim()) return
+    const abort = this.abort = new AbortController(), total = changes.reduce((sum, change) => sum + change.data.length, 0)
+    this.kept = []
     this.set({ status: 'sending', identity: this.state.identity, active: this.state.active, module, progress: 0 })
-    let session: LinkSession | undefined
+    let session: LinkSession | undefined, sent = 0
     try {
       session = this.session = await this.connectSession(this.transport!, base)
-      if (data.length > session.status.capacity) throw new UploadDeviceError({ ...session.status, result: 'limit' })
-      // shortcut: module files do not name their base yet (as in scripts/device.mjs), so the connected base's loader
-      // validates the file; bind the package to its base once module files carry one.
-      await this.whenStopped(() => session!.stage({ base, data, sha256: sha(data) }, { signal: abort.signal,
-        progress: (received, length) => this.set({ ...this.state, progress: received / length }) }))
-      await session.activate()
+      for (const [i, change] of changes.entries()) {
+        this.current = changes.length > 1 ? change.module : undefined
+        await this.install(session, change.data, abort.signal, received => this.set({ ...this.state, progress: (sent + received) / total }))
+        sent += change.data.length
+        if (i < changes.length - 1) { await session.accept(); this.kept.push(change) }
+      }
+      this.current = undefined
       await session.startTrial()
       this.startKeepalive()
       if (stressTest) {
@@ -217,16 +236,39 @@ export class OctatrackLink {
       await this.failed(error, session)
     }
   }
+  /** Stage and publish one package. shortcut: module files do not name their base yet (as in scripts/device.mjs), so
+   * the connected base's loader validates the file; bind the package to its base once module files carry one. */
+  private async install(session: LinkSession, data: Uint8Array, signal?: AbortSignal, progress?: (received: number) => void) {
+    if (data.length > session.status.capacity) throw new UploadDeviceError({ ...session.status, result: 'limit' })
+    await this.whenStopped(() => session.stage({ base: session.status.base, data, sha256: sha(data) }, { signal, progress }))
+    await session.activate()
+  }
+  /** Put back what the load's kept changes did, newest first, each kept at once; the modules it had no package for. */
+  private async revert(session: LinkSession) {
+    const lost: string[] = []
+    for (let change; (change = this.kept.at(-1)); this.kept.pop()) {
+      if (!change.undo) { lost.push(change.module); continue }
+      await this.install(session, change.undo)
+      await session.accept()
+    }
+    return lost
+  }
   cancel() { this.abort?.abort() }
   /** The base's self-test, as an update's stress test: null when it passed, else why not; progress while it runs. */
   selftest(): Promise<string | null> {
     if (!this.transport) return Promise.resolve('the Octatrack isn’t connected')
-    return runSelftest(this.transport, { signal: this.abort?.signal, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }) })
+    return runSelftest(this.transport, { signal: this.abort?.signal, startMs: this.stopWaitMs, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }) })
   }
   /** The modules the unit's project names that are not installed, while it is idle; [] when it can't say. */
-  async missing(): Promise<MissingModule[]> {
-    if (!this.transport || this.state.status !== 'ready') return []
-    return await this.transport.missing().catch(() => undefined) ?? []
+  async missing(): Promise<MissingModule[]> { return await this.read(transport => transport.missing()) ?? [] }
+  /** The modules installed on the unit, while it is idle; undefined when it can't say (a base from before INVENTORY). */
+  inventory(): Promise<MissingModule[] | undefined> { return this.read(transport => transport.inventory()) }
+  /** A read-only request while the unit is idle: WebUSB sends an interface's requests only while it is claimed. */
+  private read<T>(request: (transport: UsbVendorTransport) => Promise<T>): Promise<T | undefined> {
+    return this.serial(async () => {
+      if (!this.transport || this.state.status !== 'ready' || !await this.claim()) return undefined
+      try { return await request(this.transport) } catch { return undefined } finally { await this.release() }
+    })
   }
   keep() { return this.finish(true) }
   undo() { return this.finish(false) }
@@ -238,11 +280,13 @@ export class OctatrackLink {
     this.set({ ...this.state, status: 'finishing', notice: undefined })
     try {
       await this.whenStopped(() => session.holdTrial())
-      if (keep) await session.accept(); else await session.rollback()
+      let lost: string[] = []
+      if (keep) { await session.accept(); this.kept = [] } else { await this.whenStopped(() => session.rollback()); lost = await this.revert(session) }
       const unsaved = keep && this.transport && !await waitUntilSaved(this.transport).catch(() => false)
       await session.leaveUploadMode()
       await this.release()
       this.ready(unsaved ? { tone: 'error', text: `Kept, but the Octatrack couldn’t save ${module} to the card. It runs until you switch off; load it again to save it.` }
+        : lost.length ? { tone: 'error', text: 'Undone, except: ' + notPutBack(lost) }
         : { tone: 'success', text: keep ? `Kept. ${module} stays on your Octatrack, also after a restart.` : 'Undone. Your Octatrack is back to how it was.' },
         session.status.active)
     } catch (error) {
@@ -270,26 +314,37 @@ export class OctatrackLink {
     }
     const why = error instanceof UploadDeviceError && error.status.result === 'rejected' ?
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal : undefined
-    this.session = undefined
+    // A set's changes kept before the failure are undone too, once the base is back to normal.
+    let lost: string[] = [], between = false
+    if (this.kept.length) {
+      try { if (!clean || !settled) throw new Error('unsettled'); lost = await this.revert(settled); await settled.leaveUploadMode() } catch { between = true }
+    }
+    const failing = this.current
+    this.session = this.current = undefined
+    this.kept = []
     await this.release()
     // An untrusted connection that could not be read again leaves the running set unknown.
-    const text = recovered && clean ? RECOVERED : (REJECTED[why ?? 0] ?? explainLinkError(error)) + (clean ? '' : ' ' + UNPLUG)
+    const text = (failing ? failing + ': ' : '') + (recovered && clean ? RECOVERED : (REJECTED[why ?? 0] ?? explainLinkError(error)) + (clean ? '' : ' ' + UNPLUG)) +
+      (between ? ' ' + BETWEEN : lost.length ? ' ' + notPutBack(lost) : '')
     if (this.device) this.ready({ tone: 'error', text }, session ? settled?.status.active : this.state.active)
   }
   /** Cancel, roll back or leave upload mode from whatever phase `session` reports; true once back to normal. */
   private async cleanUp(session: LinkSession) {
     const phase = session.status.phase
     if (phase === 'receiving' || phase === 'verified') { session.adopt(); await session.cancel() } // a fresh session adopts what the lost one staged
-    else if (phase === 'pending' || phase === 'trial' || phase === 'recovery') { await session.rollback(); await session.leaveUploadMode() }
+    else if (phase === 'pending' || phase === 'trial' || phase === 'recovery') { await this.whenStopped(() => session.rollback()); await session.leaveUploadMode() }
     else if (phase === 'ready') await session.leaveUploadMode()
     return session.status.phase === 'normal'
   }
   /** Repeat a step the base refused only because the unit plays or records, or because its loader was busy for a
-   * moment (refusal 5: DSP code loading or moving), for `stopWaitMs`. */
+   * moment (refusal 5: DSP code loading or moving), for `stopWaitMs`. A rollback the loader could not switch yet (an
+   * effect's code still being published just after it went in, emulator 12 October 2026) leaves the controller in
+   * recovery, from where it rolls back again. */
   private async whenStopped<T>(step: () => Promise<T>): Promise<T> {
     for (const start = Date.now(); ; await wait(STOP_RETRY_MS)) {
       try { return await step() } catch (error) {
-        if (Date.now() - start >= this.stopWaitMs || !(unsafe(error) || await this.loaderBusy(error))) throw error
+        const recovery = error instanceof UploadDeviceError && error.status.result === 'needs-recovery'
+        if (Date.now() - start >= this.stopWaitMs || !(unsafe(error) || recovery || await this.loaderBusy(error))) throw error
       }
     }
   }

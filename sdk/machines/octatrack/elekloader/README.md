@@ -101,6 +101,8 @@ the extent of its r7 block and the Y words it reads:
 ELEKLOADER_DSP_ASM=/path/to/dsp_asm python3 -B sdk/machines/octatrack/elekloader/build_core.py \
   --stock /private/OCTATRACK_OS1.40C.bin --upstream /private/pinned-elekloader \
   --output /private/NEW-dsp-base --dsp-loader
+# The site publishes these from source (npm run octatrack:module-packages: public/octatrack-modules, the figures in
+# src/engine/assets/octatrack-module-packages.json); the same commands by hand:
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:everb \
   --slots fx2 --cycles 382 --cycles-kind executed --state 132 --buffer 16384 -o /private/everb.mwrm
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:miniverb \

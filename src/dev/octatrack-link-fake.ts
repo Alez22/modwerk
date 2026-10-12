@@ -31,6 +31,12 @@ export interface FakeUnit {
   staged?: boolean
   /** The loader refuses the next load with this reason (loader.h runtime_refusal), as the base's record reports it. */
   refusal?: number
+  /** Rollbacks the loader cannot switch yet (an effect's code still being published): the controller stays in recovery. */
+  stuck?: number
+  /** The runtime ids (hex) of the modules the kept runtime packages installed, as INVENTORY lists them, and each kept
+   * package in order: + installed, - removed. */
+  modules: string[]
+  kept: string[]
 }
 
 export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
@@ -47,8 +53,14 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
       async claimInterface() { if (unit.taken) throw new DOMException('Unable to claim interface.', 'NetworkError') },
       async releaseInterface() {},
       async controlTransferOut() { return { status: 'stall', bytesWritten: 0 } },
-      async controlTransferIn(setup: { request: number }) {
+      async controlTransferIn(setup: { request: number; value: number }) {
         if (setup.request === 3) return { status: 'ok', data: new DataView(identity.buffer.slice(0)) }
+        if (setup.request === 27) { // INVENTORY, 13 a page from wValue: no DSP code, no name
+          const page = unit.modules.slice(setup.value, setup.value + 13), list = new DataView(new ArrayBuffer(4 + 24 * page.length))
+          ;[0x4d, 0x57, 0x49, page.length].forEach((byte, i) => list.setUint8(i, byte))
+          page.forEach((id, i) => { list.setUint8(4 + 24 * i, 0xff); list.setUint32(8 + 24 * i, Number.parseInt(id, 16)) })
+          return { status: 'ok', data: list }
+        }
         if (setup.request !== 21 || unit.refusal === undefined) return { status: 'stall' }
         const record = new DataView(new ArrayBuffer(SELFTEST_BYTES)) // the base's record, idle, with its last refusal
         record.setUint32(92, unit.refusal)
@@ -59,7 +71,7 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
   }
   let device: LinkDevice | undefined = kind === 'none' ? undefined : make(kind === 'base')
   const unit: FakeUnit = {
-    taken: false, playing: false, installed: { moduleIds: [], removedStockFx: [] }, active: FAKE_BASE,
+    taken: false, playing: false, installed: { moduleIds: [], removedStockFx: [] }, active: FAKE_BASE, modules: [], kept: [],
     usb: {
       async requestDevice() { if (!device) throw new DOMException('No device selected.', 'NotFoundError'); return device },
       async getDevices() { return device ? [device] : [] },
@@ -78,7 +90,7 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
   return async (): Promise<LinkSession> => {
     let status: UploadStatus = { command: 'hello', transaction: 0, result: 'ok', phase: unit.staged ? 'receiving' : 'normal', activeKnown: true, generation: 0,
       lastTransaction: 0, currentTransaction: 0, received: 0, capacity: 262144, base: FAKE_BASE, session: '00'.repeat(32), active: unit.active }
-    let staged = unit.active, owned = false
+    let staged = unit.active, owned = false, data: Uint8Array | undefined
     const step = async (phase: UploadPhaseName, refuse?: UploadResultName) => {
       await wait()
       if (refuse) throw new UploadDeviceError(status = { ...status, result: refuse })
@@ -91,7 +103,7 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
       async stage(pkg, { signal, progress } = {}) {
         if (unit.playing) return step('normal', 'unsafe')
         if (unit.refusal) return step('normal', 'rejected')
-        staged = pkg.sha256
+        staged = pkg.sha256; data = pkg.data
         for (let sent = 0; sent < pkg.data.length;) {
           if (signal?.aborted) { status = { ...status, phase: 'normal' }; throw new DOMException('Module staging cancelled.', 'AbortError') }
           await wait()
@@ -102,8 +114,19 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
       activate: () => step('pending'),
       startTrial: async () => status = { ...await step('trial'), active: staged },
       holdTrial: () => step('pending', unit.playing ? 'unsafe' : undefined),
-      accept: async () => { await step('ready'); unit.active = status.active!; unit.installed = unit.pending ?? unit.installed; unit.pending = undefined; return status },
-      rollback: async () => { unit.pending = undefined; return status = { ...await step('ready'), active: unit.active } },
+      accept: async () => {
+        await step('ready'); unit.active = status.active!; unit.installed = unit.pending ?? unit.installed; unit.pending = undefined
+        if (data && String.fromCharCode(...data.subarray(0, 4)) === 'MWRM') { // a runtime package: its module in or out
+          const view = new DataView(data.buffer, data.byteOffset), id = view.getUint32(28).toString(16).padStart(8, '0')
+          const removes = !view.getUint32(8) && !view.getUint32(20) && !view.getUint32(24) && (view.getUint16(4) < 5 || !view.getUint32(32))
+          unit.modules = unit.modules.filter(item => item !== id).concat(removes ? [] : [id]); unit.kept.push((removes ? '-' : '+') + id)
+        }
+        return status
+      },
+      rollback: async () => {
+        if (unit.stuck && unit.stuck-- > 0) return step('recovery', 'needs-recovery')
+        unit.pending = undefined; return status = { ...await step('ready'), active: unit.active }
+      },
       adopt: () => owned ||= status.phase === 'receiving',
       cancel: async () => {
         if (unit.staged && !owned) throw new Error('This client does not own a staged transaction.')
@@ -133,7 +156,7 @@ export function previewKit() {
     prepareUpdate: async (target: InventoryTarget) => {
       await wait(400); unit.pending = { moduleIds: target.moduleIds, removedStockFx: target.removedStockFx ?? [] }
       // Each load stages different bytes, so the unit's active digest (and the inventory read after Keep) changes.
-      return { name: target.name, data: new TextEncoder().encode(JSON.stringify(unit.pending).padEnd(160 * 1024)) }
+      return { name: target.name, changes: [{ module: target.name, data: new TextEncoder().encode(JSON.stringify(unit.pending).padEnd(160 * 1024)) }] }
     },
     readInventory: async () => { await wait(150); return structuredClone(unit.installed) },
     stressTest: async () => { await wait(2500); return null },

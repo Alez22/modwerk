@@ -23,7 +23,10 @@ describe('the base self-test as the update stress test', () => {
     expect(await runSelftest(unit([record(1), record(3, 128)]), { pollMs: 0 })).toBe('a module doesn’t fit on the DSP, even on its own')
   })
   it('says when it cannot start (playing, or the loader busy)', async () => {
-    expect(await runSelftest(unit([record(0)]), { pollMs: 0 })).toMatch(/stop playback/)
+    expect(await runSelftest(unit([record(0)]), { pollMs: 0, startMs: 0 })).toMatch(/stop playback/)
+    const busy = unit([record(0), record(1), record(2)]) // a new module's DSP code still being published, then free
+    expect(await runSelftest(busy, { pollMs: 0, startMs: 1000 })).toBeNull()
+    expect(busy.calls).toEqual([true, true, false])
   })
   it('lets a base without the self-test through untested, but not one that stops answering', async () => {
     expect(await runSelftest(unit([undefined]), { pollMs: 0 })).toBeNull()

@@ -16,6 +16,7 @@ export const SELFTEST_BYTES = 96
 export const VENDOR_MISSING = 14 // the modules the unit's project names that are not installed (elekloader/ep0.c)
 export const MISSING_BYTES = 316
 export const MISSING_PAGE = 13 // entries a MISSING reply holds; wValue is the first (elekloader/fxids.h)
+export const VENDOR_INVENTORY = 27 // the modules installed on the unit, in MISSING's form (sdk/runtime/loader/loader.c)
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -73,10 +74,13 @@ export function parseSelftest(view: DataView): SelftestRecord {
 /** A module the unit's project names that is not installed: its effect handle, parameter layout, module id (the
  * first four bytes of the SHA-256 of its catalogue id, hex) and name. */
 export interface MissingModule { handle: number; layout: number; module: string; name: string }
-/** MISSING: "MWM", a count, then 24 bytes a module (handle, -, layout u16, module id u32, name 16). */
-export function parseMissing(view: DataView): MissingModule[] {
+/** MISSING ("MWM") and INVENTORY ("MWI", the handle 0xff for a module without DSP code): a count, then 24 bytes a
+ * module (handle, -, layout u16, module id u32, name 16). */
+export const parseMissing = (view: DataView) => parseModules(view, 0x4d574d)
+export const parseInventory = (view: DataView) => parseModules(view, 0x4d5749)
+function parseModules(view: DataView, magic: number): MissingModule[] {
   const n = view.byteLength >= 4 ? view.getUint8(3) : -1
-  if (n < 0 || view.getUint32(0) >>> 8 !== 0x4d574d || view.byteLength !== 4 + 24 * n) throw new VendorTransportError('Not a MISSING reply.')
+  if (n < 0 || view.getUint32(0) >>> 8 !== magic || view.byteLength !== 4 + 24 * n) throw new VendorTransportError('Not a module list.')
   return Array.from({ length: n }, (_, i) => ({ handle: view.getUint8(4 + 24 * i), layout: view.getUint16(6 + 24 * i),
     module: view.getUint32(8 + 24 * i).toString(16).padStart(8, '0'),
     name: String.fromCharCode(...new Uint8Array(view.buffer, view.byteOffset + 12 + 24 * i, 16)).replace(/\0.*$/s, '').trim() }))
@@ -163,14 +167,17 @@ export class UsbVendorTransport implements UploadTransport {
   /** The modules the unit's project names that are not installed, answered by the USB interrupt, a page of 13 at a
    * time while pages come back full; undefined when the base stalls the request (one built before it). A base from
    * before pages stalls a later page: its first is all it has. */
-  async missing(signal?: AbortSignal): Promise<MissingModule[] | undefined> {
+  missing(signal?: AbortSignal) { return this.modules(VENDOR_MISSING, parseMissing, signal) }
+  /** The modules installed on the unit, the same way; undefined from a base built before INVENTORY. */
+  inventory(signal?: AbortSignal) { return this.modules(VENDOR_INVENTORY, parseInventory, signal) }
+  private async modules(request: number, parse: (view: DataView) => MissingModule[], signal?: AbortSignal): Promise<MissingModule[] | undefined> {
     const all: MissingModule[] = []
     for (let first = 0; ; first += MISSING_PAGE) {
       signal?.throwIfAborted()
-      const reply = await this.device.controlTransferIn(this.setup(VENDOR_MISSING, first), MISSING_BYTES)
+      const reply = await this.device.controlTransferIn(this.setup(request, first), MISSING_BYTES)
       if (reply.status === 'stall') return first ? all : undefined
-      if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the missing-modules request.')
-      const page = parseMissing(reply.data)
+      if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the module list request.')
+      const page = parse(reply.data)
       all.push(...page)
       if (page.length < MISSING_PAGE) return all
     }

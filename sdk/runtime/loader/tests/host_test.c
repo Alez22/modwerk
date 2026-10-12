@@ -210,6 +210,12 @@ int main(void)
     CHECK(modwerk_runtime_free(&largest) == RUNTIME_POOL_BYTES - two->size && largest == RUNTIME_POOL_BYTES - two->size - one_size); /* module 1 left a hole below 2 */
     id = 4; begin(8, 0, 0, 0, 0, 0, 0xd5);
     CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0) && modwerk_runtime_module(0)->id == 4);
+    /* INVENTORY: the live modules in position order, a page from `first`, no DSP code is effect 0xff. */
+    uint8_t list[4 + 24 * 13];
+    CHECK(modwerk_runtime_list(list, 0, 13) == 52 && !memcmp(list, "MWI\2", 4) && list[4] == 0xff && list[5] == 0 &&
+          be32(list + 8) == 4 && be32(list + 32) == two->id && !list[12] && !memcmp(list + 36, two->dsp.name, 16));
+    CHECK(modwerk_runtime_list(list, 1, 13) == 28 && list[3] == 1 && be32(list + 8) == two->id);
+    CHECK(modwerk_runtime_list(list, 2, 13) == 4 && !memcmp(list, "MWI\0", 4) && modwerk_runtime_list(list, 0, 1) == 28);
     /* Genuine exhaustion refuses before activation and keeps the live set. */
     unsigned fitted = 0;
     for (id = 100; id < 100 + RUNTIME_MODULES; ++id) {

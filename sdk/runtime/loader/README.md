@@ -111,7 +111,9 @@ carry ColdFire code, stock-code sites and DSP code together (`build.py
   alias. A module that no position or transaction holds is freed once,
   with interrupts masked, no paused task's stack or saved registers hold an
   address inside it; unknown task state frees nothing. `modwerk_runtime_free()`
-  reports free bytes and the largest free run.
+  reports free bytes and the largest free run. `modwerk_runtime_list()` lists the live modules
+  (id, name, layout, effect id) for a machine's INVENTORY request, so a host can
+  make the unit match a module set (the Octatrack's vendor request 27).
 - **Not carried at run time:** `requires`, imports between modules and
   `contribute` tables. A module must not leave pointers to itself anywhere
   but its sites and hooks.

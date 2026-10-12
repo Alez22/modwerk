@@ -226,6 +226,7 @@ async function missing() {
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
  * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (PROJ > MODWERK > SELF TEST, about 15 s)
  * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
+ * inventory (the installed modules, INVENTORY),
  * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
  * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed)
  * (spaces in NAME as _; it waits until the track runs it). */
@@ -250,6 +251,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if ((m = /^storm([01])$/.exec(step))) await devIn(19, Number(m[1]), 1) // development bases: a finished PEEK goes again at once
     else if ((m = /^mask:(\d+)$/.exec(step))) await devIn(20, Math.min(Number(m[1]), 65535), 1) // development bases: interrupts off for N microseconds
     else if (step === 'missing') console.log(await missing())
+    else if (step === 'inventory') console.log(JSON.stringify(await transport.inventory() ?? 'this base does not answer INVENTORY'))
     else if (step === 'xwatch') { // probe X bases (dev request 26): does anything write X:$7a92-$7fff? per core
       for (const core of [1, 0]) {
         for (const until = Date.now() + 10000; !(await devIn(26, 0x100 | core, 1))[0]; await wait(100))

@@ -39,13 +39,18 @@ const wait = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, r
   signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason) }, { once: true })
 })
 
-/** Starts the test and waits for it: null when it passed, else why it failed (the first reason, in bit order).
+/** Starts the test and waits for it: null when it passed, else why it failed (the first reason, in bit order). The
+ * base refuses to start while a new module's DSP code is still being published, so starting is retried for `startMs`.
  * shortcut: a base without the self-test (it stalls the request) passes untested, as updates were before; refuse
  * those once every published base has it. */
 export async function runSelftest(transport: SelftestTransport, options: { signal?: AbortSignal; pollMs?: number; timeoutMs?: number;
-  progress?: (done: number, total: number) => void } = {}): Promise<string | null> {
-  const { signal, pollMs = 500, timeoutMs = 180_000, progress } = options
+  startMs?: number; progress?: (done: number, total: number) => void } = {}): Promise<string | null> {
+  const { signal, pollMs = 500, timeoutMs = 180_000, startMs = 3000, progress } = options
   let record = await transport.selftest(true, signal)
+  for (const start = Date.now(); record && record.state !== 1 && Date.now() - start < startMs;) {
+    await wait(pollMs, signal)
+    record = await transport.selftest(true, signal)
+  }
   if (!record) return null
   if (record.state !== 1) return 'the Octatrack couldn’t start it; stop playback and try again'
   for (const start = Date.now(); record.state === 1; ) {
