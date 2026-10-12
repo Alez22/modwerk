@@ -4,7 +4,7 @@
   "order": 60,
   "name": "Syntakt",
   "status": "research",
-  "summary": "OS 1.40A and 1.42 files documented and rebuilt byte-identical; modified builds boot on a unit. Stock-file recovery is not yet verified on hardware. No shared core yet.",
+  "summary": "OS 1.40A and 1.42 files documented and rebuilt byte-identical; modified builds boot on a unit and the stock 1.42 file returns it to stock. No shared core yet.",
   "firmware": {
     "releases": [
       {
@@ -27,12 +27,12 @@
       }
     ],
     "flash": "Elektron Transfer over USB: set MIDI IN and OUT to the device, drop the .syx on and confirm on the device.",
-    "recovery": "Hold FUNC while powering on to open the STARTUP menu, choose TRIG 4 (OS UPGRADE), then send the owner's stock .syx from Transfer's SysEx Transfer / OS Upgrade via device startup menu over MIDI DIN; USB does not work there. Documented by Synthack-OS; not yet tested on our unit."
+    "recovery": "Hold FUNC while powering on to open the STARTUP menu, choose TRIG 4 (OS UPGRADE), then send the owner's stock .syx from Transfer's SysEx Transfer / OS Upgrade via device startup menu over MIDI DIN; USB does not work there. Documented by Synthack-OS; this startup-menu path is not yet tested on our unit."
   },
   "steps": {
     "format": "done",
     "rebuild": "done",
-    "boot": "started",
+    "boot": "done",
     "core": "open",
     "mods": "open"
   },
