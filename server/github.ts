@@ -5,7 +5,7 @@ import { HttpError } from './security'
 import { communityModule } from '../src/community/modules'
 import { CONFIGURATION_REPORT_MAX_OWNERS, configurationOwners, configurationSummary } from '../src/community/configuration-report'
 import { profilePath } from '../src/community/forum-links'
-import { REPORT_CLOSURE_REASONS, type ReportClosureReason } from '../src/community/report-closure'
+import { REPORT_CLOSURE_REASONS, REPORT_COMMANDS, type ReportClosureReason } from '../src/community/report-closure'
 import { digest } from './security'
 
 const API = 'https://api.github.com'
@@ -83,10 +83,10 @@ export function issueMarkdown(issue: MirroredIssue, app?: string) {
     ...([['Steps to reproduce', steps], ['Expected', expected], ['Actual', actual]] as const).filter(([, text]) => text).flatMap(([heading, text]) => ['### ' + heading, '', quote(text), '']), '---',
     '_The reporter’s configuration, build fingerprint and device log are private' + (details ? '. Verified maintainers can [open them on Modwerk](' + details + ')' : '') + '. Comments and status changes here are sent to the reporter on Modwerk._', '',
     '### Module maintainer actions', '',
-    'Reply here normally. Registered ' + (configuration ? 'maintainers of any module in this configuration' : 'module maintainers') + ' can post these commands without a fork or repository write access:', '',
-    '- `/modwerk close configuration <explanation>` (also: `duplicate`, `not_reproducible`, `withdrawn`)',
-    '- `/modwerk reopen <explanation>`',
-    configuration ? '- `/modwerk resolve <module-id> <version> verified-download` — only after verifying that exact published download of that module fixes this report on your unit.' : '- `/modwerk resolve <version> verified-download` — only after verifying that exact published download fixes this report on your unit.', '',
+    'Reply here normally. Registered authors and verified current maintainers ' + (configuration ? 'of any module in this configuration ' : '') + 'can manage reports with new comments; no fork or repository write access is needed:', '',
+    ...REPORT_COMMANDS.map(command => '- `' + (configuration && command.startsWith('/modwerk resolve') ? '/modwerk resolve <module-id> <published-version> verified-download' : command) + '`'), '',
+    'Keep a report open with `needs-info` while waiting for the reporter. Confirm only a reproduced bug; use `unknown` for a configuration report. Questions and suggestions can use `/modwerk classify question|feature <explanation>`. Advanced states: `/modwerk investigate <explanation>`, `/modwerk awaiting-verification <explanation>`, `/modwerk unconfirm <explanation>`.', '',
+    'Only the registered release author can use `resolve`, after verifying that exact published download fixes the report on their unit. Ordinary closures claim no new firmware fix.', '',
     'A merged PR alone does not resolve a report. [Author release steps](https://github.com/repeat98/modwerk/blob/main/docs/MODULE_AUTHOR_UPDATES.md).',
   ].join('\n').slice(0, BODY_LIMIT)
 }
@@ -203,6 +203,11 @@ export async function handleGithubWebhook(request: Request, env: Env, db: Databa
     if (relayed) {
       await db.prepare('INSERT INTO github_webhook_deliveries(id,issue_id) VALUES(?,?) ON CONFLICT DO NOTHING').bind(delivery, issue.id).run()
       return { ok: true, handled: true }
+    }
+    const acknowledgement = /<!-- modwerk-(?:command|triage):/.test(comment.body) && await db.prepare("SELECT id FROM github_actions WHERE issue_id=? AND published_hash=? AND (id LIKE 'command:%' OR id LIKE 'triage:%')").bind(issue.id,await digest(comment.body)).first()
+    if (acknowledgement) {
+      await db.prepare('INSERT INTO github_webhook_deliveries(id,issue_id) VALUES(?,?) ON CONFLICT DO NOTHING').bind(delivery,issue.id).run()
+      return {ok:true,handled:true}
     }
     await db.batch([notify('issue_comment', comment.user?.login, comment.body.slice(0, 400)),db.prepare('INSERT INTO github_webhook_deliveries(id,issue_id) VALUES(?,?) ON CONFLICT DO NOTHING').bind(delivery,issue.id)])
     return { ok: true, handled: true }
