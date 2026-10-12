@@ -2,6 +2,7 @@
 
 ## 12 October 2026
 
+- Fixed imported README provenance after adding audio previews, and limited E-Verb's monochrome capture checks to instrument screenshots.
 - Added report triage: awaiting review, waiting for the reporter, investigating, confirmed bug and fix awaiting verification. Questions and suggestions are classified separately.
 - Module warnings and quiet periods use confirmed bugs applicable to the current version or with unknown applicability. Unconfirmed reports remain visible; configuration reports do not blame individual modules.
 - Maintainers can request information, classify, confirm, close and reopen reports through GitHub comments or consent-controlled report forms. Verified claimed maintainers can triage without release-author privileges. Existing author updates retain automatic CI-gated merge and publication.
