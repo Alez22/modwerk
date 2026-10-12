@@ -160,10 +160,10 @@ async function part(n) {
  * and id -> chooser row); what runs, 0x80000ec4 (FX1 T1-8, FX2). */
 async function pick(track, slot, wanted) {
   const tables = await effectTables(), ids = tables.ids[slot - 1], rows = tables.rows[slot - 1]
-  let id = -1
+  let id = typeof wanted === 'number' ? wanted : -1 // a number: that effect id, through its chooser row (pickid)
   for (let i = 0; i < tables.count && id < 0; i++)
     if (ids[i] && Buffer.from(await mem(ids[i] + 9, 13)).toString('latin1').replace(/\0.*$/s, '').toLowerCase() === wanted.toLowerCase()) id = i
-  if (id < 0) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
+  if (id < 0 || id >= tables.count || (typeof wanted === 'number' && !rows[id])) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
   await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
   const cursor = await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4)
   const move = rows[id] - new DataView(cursor.buffer, cursor.byteOffset, 4).getUint32(0) // the chooser's cursor (dsp.c)
@@ -192,7 +192,7 @@ const REPORT_HEX = new Set(['buffers', 'arenas', 'hostFlags', 'manager', 'used',
 /** The report, at the length the base sends: 78 words, or 81 past 32 effect ids (version 12: the used and dry
  * masks' second words and a pad at the end; fxids.h). The base answers only its own length. */
 async function reportView() {
-  for (const words of [78, 81]) {
+  for (const words of [78, 81, 83, 85]) { // 32, 64, 96 or 128 ids
     try { const bytes = await devIn(11, 0, 4 * words); return new DataView(bytes.buffer, bytes.byteOffset, 4 * words) } catch { /* the other length */ }
   }
   throw new Error('This base does not answer development requests: build it with --dev.')
@@ -334,6 +334,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     }
     else if ((m = /^part([1-4])$/.exec(step))) await part(Number(m[1]))
     else if ((m = /^pick:T([1-8]):FX([12]):(\S+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), m[3].replace(/_/g, ' '))
+    else if ((m = /^pickid:T([1-8]):FX([12]):(\d+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), Number(m[3])) // by effect id
     else if (step === 'state') { const [s, r] = await devIn(6, 0, 2); console.log(s ? 'stopped' : 'playing', r ? 'recording' : '') }
     else if (step === 'stats') { const w = await statusWords(); console.log(`stats cpu ${w(66)} T1-4 ${w(69)}/${w(70)} T5-8 ${w(67)}/${w(68)} passes ${(w(76) / 1024).toFixed(1)} ${(w(77) / 1024).toFixed(1)}`) }
     else { const [, spec, times] = /^(.+?)(?:\*(\d+))?$/.exec(step); for (let i = 0; i < Number(times ?? 1); i++) await keys(spec) }

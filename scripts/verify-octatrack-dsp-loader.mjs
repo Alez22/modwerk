@@ -59,11 +59,17 @@ const place = (proofs, fx1First) => {
   return [slot, (slot ? proofs.configuration.fx2 : proofs.configuration.fx1).length]
 }
 
+/** Where the dispatch tables are (init[ids], then proc[ids]): the receiver's since step 4, stock's X:$215 before. */
+function dispatchTable(layout) {
+  const number = v => typeof v === 'string' ? parseInt(v, 16) : v
+  return { home: number(layout.A.dispatch ?? 0x215), ids: number(layout.A.ids ?? 32) }
+}
+
 if (mode === 'dumps') {
-  const [dir, out] = args, { proofs, symbols } = build(dir), layout = proofs.dspLoader
+  const [dir, out] = args, { proofs, symbols } = build(dir), layout = proofs.dspLoader, { home, ids } = dispatchTable(layout)
   const dumps = [...Object.entries(COUNTERS).filter(([name]) => name in symbols).map(([name, n]) => `0x${symbols[name].toString(16)},${n}=${out}/${name}.bin`),
     `0x${LIVE_FX.toString(16)},16=${out}/ids.bin`]
-  console.log(`--mem-dump ${dumps.join(';')} --dsp-peek 0:X:215,64;1:X:215,64;0:P:${layout.A.table.slice(2)},${parseInt(layout.A.tableWords, 16)};1:P:${layout.B.table.slice(2)},${parseInt(layout.B.tableWords, 16)}`)
+  console.log(`--mem-dump ${dumps.join(';')} --dsp-peek 0:X:${home.toString(16)},${2 * ids};1:X:${home.toString(16)},${2 * ids};0:P:${layout.A.table.slice(2)},${parseInt(layout.A.tableWords, 16)};1:P:${layout.B.table.slice(2)},${parseInt(layout.B.tableWords, 16)}`)
 } else if (mode === 'drive') {
   const [socket, dir, , file, second] = args, { proofs, symbols } = build(dir)
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -143,7 +149,7 @@ if (mode === 'dumps') {
   }
   // Install once the project load has set the map (fxmap.c, battery RAM 0x100fe000), as a user would: handles follow
   // the project, and a large package's commit does not wait behind the load's engine work.
-  for (let tries = 0; tries < 120 && await long(0x100fe000) !== 0x4d574658; tries++) await settle(10)
+  for (let tries = 0; tries < 120 && (await long(0x100fe000)) >>> 8 !== 0x4d5746; tries++) await settle(10) // 'MWFX', or 'MWF' and the id count
   await keep(data); console.log('module installed')
   await settle(60) // the manager handles the project's own effects in its first ticks
   // missing: what the project named is restored; restore: install only (old_projects.py checks the result).
@@ -155,6 +161,27 @@ if (mode === 'dumps') {
       while (await call(symbols.modwerk_dsp_pick, slot, track, at) !== 1) await wait(20)
     console.log(`picked ${pkg.key} on FX${slot + 1} of T1, T5 and T6, then FILTER on T6, on consecutive ticks`)
     await settle(600); bench.socket.end(); process.exit(0)
+  }
+  if (scenario === 'wide') {
+    // Past 31 ids (docs/OCTATRACK_MORE_EFFECT_IDS.md): the module, then more under their own ids (SECOND, comma-separated),
+    // until the last takes a handle past 31; T5's FX2 names it, as a project would, and core 0 runs it.
+    for (const path of second.split(',')) { // the base refuses as busy (5) while it rebinds or moves code: wait, then again
+      for (let tries = 1; ; tries++) {
+        try { await keep(new Uint8Array(readFileSync(path))); break } catch (error) {
+          const refusal = await call(symbols.modwerk_runtime_refusal)
+          console.log(`${path.split('/').at(-1)} refused (loader refusal ${refusal}), try ${tries}`)
+          if (refusal !== 5 || tries === 5) throw error
+          await settle(240)
+        }
+      }
+    }
+    const last = new Uint8Array(readFileSync(second.split(',').at(-1))), handle = await call(symbols.modwerk_fxmap_handle, new DataView(last.buffer).getUint32(28))
+    assert(handle >= 32 && handle < 128, `the last module took handle ${handle}, not one past 31`)
+    const bank = await long(0x46c82456)
+    for (const address of [bank + 0x8ed80 + 12, LIVE_FX + 12]) await bench.command(`poke 0x${hex(address)} ${hex(handle).padStart(2, '0')}`)
+    await settle(300)
+    console.log(`${second.split(',').length} more modules installed; T5's FX2 names the last, at handle ${handle}`)
+    bench.socket.end(); process.exit(0)
   }
   if (scenario === 'union') {
     const [slot, chooserRow] = place(proofs), a = slot ? 8 : 0
@@ -219,7 +246,8 @@ if (mode === 'dumps') {
   }
   // What core `core` runs for the effect: its code word for word where its dispatch points, inside the arena, or the null stub.
   const core = (number, tag, bound) => {
-    const layout = proofs.dspLoader[tag], dispatch = peek(number, 'X', 0x215, 64), entry = [dispatch[EFFECT], dispatch[32 + EFFECT]]
+    const layout = proofs.dspLoader[tag], { home, ids } = dispatchTable(proofs.dspLoader), dispatch = peek(number, 'X', home, 2 * ids)
+    const entry = [dispatch[EFFECT], dispatch[ids + EFFECT]]
     if (!bound) return assert.deepEqual(entry, layout.null, `core ${number} still dispatches the effect`)
     const table = parseInt(layout.table, 16), size = parseInt(layout.tableWords, 16), at = entry[0] - pkg.init
     assert(at >= table + 64 && at + words.length <= table + size, `core ${number} runs the effect outside the arena`)
@@ -233,11 +261,11 @@ if (mode === 'dumps') {
   // Every stock effect core `number` runs on `tracks` is bound in its arena, entries as its package says.
   const stockBound = (number, tag, tracks) => {
     const layout = proofs.dspLoader[tag], table = parseInt(layout.table, 16), end = table + parseInt(layout.tableWords, 16)
-    const dispatch = peek(number, 'X', 0x215, 64)
+    const width = dispatchTable(proofs.dspLoader), dispatch = peek(number, 'X', width.home, 2 * width.ids)
     for (const fx of new Set(tracks.flatMap(t => [ids[t], ids[8 + t]]))) {
       if (!layout.stock[fx]) continue
-      assert(dispatch[fx] >= table + 64 && dispatch[fx] < end && dispatch[32 + fx] < end, `core ${number} does not run effect ${fx} from its arena`)
-      assert.equal(dispatch[32 + fx] - dispatch[fx], layout.stock[fx].proc - layout.stock[fx].init, `core ${number} effect ${fx} entries`)
+      assert(dispatch[fx] >= table + 64 && dispatch[fx] < end && dispatch[width.ids + fx] < end, `core ${number} does not run effect ${fx} from its arena`)
+      assert.equal(dispatch[width.ids + fx] - dispatch[fx], layout.stock[fx].proc - layout.stock[fx].init, `core ${number} effect ${fx} entries`)
     }
   }
   if (scenario !== 'probe') assert.equal(u32('dl_errors')[0], 0, 'transport errors')
@@ -262,6 +290,16 @@ if (mode === 'dumps') {
     assert.equal(u32('dl_selection_refused')[0], 0)
     assert.deepEqual(u32('dl_residency_words'), resident()); core(0, 'A', true); core(1, 'B', true)
     console.log(`picks meeting T1's upload waited (${u32('dl_selection_queued')[0]} queued, none dropped): T1 and T5 run ${pkg.key}, T6 its latest pick, FILTER: passed`)
+  } else if (scenario === 'wide') {
+    const handle = ids[12], { home, ids: n } = dispatchTable(proofs.dspLoader), layout = proofs.dspLoader.A
+    assert(handle >= 32 && handle < n, `T5 runs effect ${handle}, not one past 31`)
+    const dispatch = peek(0, 'X', home, 2 * n), table = parseInt(layout.table, 16), size = parseInt(layout.tableWords, 16), at = dispatch[handle] - pkg.init
+    assert(at >= table + 64 && at + words.length <= table + size, 'core 0 runs the effect outside the arena')
+    const placed = words.map((w, i) => pkg.relocations.includes(i) ? (w + at) & 0xffffff : w)
+    assert.deepEqual(peek(0, 'P', table, size).slice(at - table, at - table + words.length), placed, 'core 0 code')
+    assert.equal(dispatch[n + handle], at + pkg.proc, 'core 0 dispatch')
+    assert.equal(u32('dl_errors')[0], 0)
+    console.log(`a module at effect id ${handle} of ${n}: core 0 holds its code word for word and dispatches to it from X:$${(home + handle).toString(16)}: passed`)
   } else if (scenario === 'union') {
     const a = place(proofs)[0] ? 8 : 0
     assert.equal(ids[a + 4], EFFECT, 'T5 runs the module in Part 2'); assert.notEqual(ids[a + 1], EFFECT, 'T2 kept its effect')

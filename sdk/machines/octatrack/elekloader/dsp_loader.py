@@ -26,7 +26,11 @@ METADATA = APP / 'src/engine/assets/stock-dsp-metadata.json'
 CHOOSERS = APP / 'src/engine/assets/chooser-metadata.json'
 FRAME = {'A': 0x8e, 'B': 0x76}  # `move r6,x:>$207` at the head of each core's frame (dsp-dynload's hooks)
 FRAME_WORDS = (0x667000, 0x000207)
-INIT, PROC = 0x215, 0x235  # the shared dispatch table: init[32], then proc[32]
+INIT, PROC = 0x215, 0x235  # stock's dispatch table: init[32], then proc[32]
+# Where the receiver keeps the dispatch tables (init[ids], then proc[ids]) and stock's six reads of them point: the
+# start of X:$7a92-$7fff, which no payload record loads and nothing writes (docs/OCTATRACK_MORE_EFFECT_IDS.md step 1).
+TABLE_HOME, TABLE_END = 0x7a92, 0x8000
+TABLE_READ = 0x0a71d2      # the opcode word before each read's operand ($215 or $235), six per payload
 SAVED = 64                 # the receiver keeps each id's original entries at the head of its table
 
 
@@ -55,16 +59,16 @@ PROBES = {
     # not touched), then check 8 words a frame in turn. P words after the meter's window count what differs, keep
     # the first address and value that did, and the passes over the whole region (dsp.c reads them, dev.c 26).
     'X': (('tallied:\n', '''tallied:
-        move    #>xwfillpos,r1             ; probe X: fill, then watch X:$7a92-$7fff
+        move    #>xwfillpos,r1          ; probe X: fill, then watch X:@XWSTART@-$7fff (past the dispatch tables)
         move    p:(r1),a
         tst     a
         bne     xwfrom
-        move    #>$7a92,a
+        move    #>@XWSTART@,a
 xwfrom:
         cmp     #>$8000,a
         bge     xwwatch
         move    a1,r0
-        do      #139,xwfillend
+        do      #@XWCHUNK@,xwfillend
         move    r0,a
         eor     #>$a5a5a5,a
         move    a1,x:(r0)+
@@ -76,7 +80,7 @@ xwwatch:
         move    p:(r1),a
         tst     a
         bne     xwat
-        move    #>$7a92,a
+        move    #>@XWSTART@,a
 xwat:
         move    a1,r0
         do      #<8,xwlooped
@@ -101,7 +105,7 @@ xwok:
         move    r0,a
         cmp     #>$8000,a
         blt     xwnext
-        move    #>$7a92,r0
+        move    #>@XWSTART@,r0
         move    #>xwpasses,r1
         move    p:(r1),a
         add     #>1,a
@@ -139,7 +143,7 @@ CORE1_WAIT = (0x57, (0x0cd341, 0x000000))  # payload B: brclr #1,y:<<$ffffd3,* (
 CORE1_METER = ('        move    b1,x0\n', '        move    x:>$2840,x0\n        clr     a\n        move    a1,x:>$2840\n')
 
 
-def receiver_source(text, null, table_words, probe=None, burn=0, tag='A'):
+def receiver_source(text, null, table_words, probe=None, burn=0, tag='A', ids=32):
     """The receiver with its table's size and stock's null stub (dry ids) filled in, its idle count
     core 1's counted wait on payload B; `burn` (calibration builds) spends that many more cycles every
     frame, so the load meter's idle count falls by a known amount."""
@@ -157,7 +161,17 @@ def receiver_source(text, null, table_words, probe=None, burn=0, tag='A'):
             raise ValueError('The DSP receiver changed, or a burn not even and within 2-4094 cycles.')
         # A DO loop, not rep: rep holds off interrupts while it repeats.
         text = text.replace(old, old + '        do      #%d,burnt\n        nop\n        nop\nburnt:\n' % (burn // 2))
-    for old, new, count in (('@NULL_INIT@', '$%x' % null[0], 1), ('@NULL_PROC@', '$%x' % null[1], 1),
+    if not 32 <= ids <= 128 or TABLE_HOME + 2 * ids > TABLE_END:
+        raise ValueError('The dispatch tables hold 32 to 128 ids.')
+    fill = lambda value, label: ('        move    #>$%x,x0\n        do      #%d,%s\n        move    x0,x:(r1)+\n%s:\n' % (
+        value, ids - 32, label, label)) if ids > 32 else ''  # DO #0 would loop 65,536 times
+    watched = TABLE_END - TABLE_HOME - 2 * ids
+    chunk = max(k for k in range(1, 141) if watched % k == 0)  # probe X fills it in whole chunks, ending at $8000
+    for old, new, count in (('@INITFILL@', fill(null[0], 'initfilled'), 1), ('@PROCFILL@', fill(null[1], 'procfilled'), 1),
+                            ('@NULL_INIT@', '$%x' % null[0], 2), ('@NULL_PROC@', '$%x' % null[1], 2),
+                            ('@INITTABLE@', '$%x' % TABLE_HOME, 3), ('@IDS@', str(ids), 7), ('@IDMAX@', str(ids - 1), 1),
+                            ('@XWSTART@', '$%x' % (TABLE_HOME + 2 * ids), 4 if probe == 'X' else 0),
+                            ('@XWCHUNK@', str(chunk), 1 if probe == 'X' else 0),
                             ('@DLWORDS@', str(table_words), 4)):
         if text.count(old) != count:
             raise ValueError('The DSP receiver changed (%s); review the port.' % old)
@@ -215,7 +229,7 @@ def reads_buffer(words, base, init, work):
     return 1  # no rts reached: assume it reads, the side that reserves a block
 
 
-def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
+def recipe(image, device, dsp, assemble, work, probe=None, burn=0, ids=32):
     """-> (sites, layout) for both payloads. `assemble(path)` is Elekloader's
     sdk.build.dsp_assemble (octabam's dsp_asm at two origins)."""
     metadata = json.loads(METADATA.read_text())
@@ -268,6 +282,7 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
                     except ValueError:
                         break
                 reads[fx] = reads_buffer(code, entry[0], entry[0], work)
+        free |= (1 << ids) - (1 << 32)  # every id past stock's 32 is a module's from the start (the receiver stubs them)
         hook = [read(0, FRAME[tag] + k) for k in range(2)]
         if hook != list(FRAME_WORDS):
             raise ValueError('Payload %s: the frame head is not the stock instruction the receiver replays.' % tag)
@@ -275,10 +290,10 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
         path = Path(work) / ('receiver-%s.asm' % tag)
         # One core at a time: with 2,000 more cycles a frame on both cores the unit hung at its logo (10 October 2026).
         burned = abs(burn) if (tag == 'B') == (burn < 0) else 0  # a negative burn is core 1's
-        path.write_text(receiver_source(RECEIVER.read_text(), null, 0, probe, burned, tag))
+        path.write_text(receiver_source(RECEIVER.read_text(), null, 0, probe, burned, tag, ids))
         size = len(assemble(str(path))[0])
         table = hi - origin - size
-        path.write_text(receiver_source(RECEIVER.read_text(), null, table, probe, burned, tag))
+        path.write_text(receiver_source(RECEIVER.read_text(), null, table, probe, burned, tag, ids))
         code, labels, relocations = assemble(str(path))
         # The least arena that still runs every stock effect on its own: the largest, DARK REV.
         if len(code) != size or labels['dltable'] != size or table < SAVED + max(len(s['words']) for s in stock.values()):
@@ -309,12 +324,22 @@ def recipe(image, device, dsp, assemble, work, probe=None, burn=0):
             first = at(0, CORE1_WAIT[0]) - device.main_load
             sites.append(dict(addr=hex(at(0, CORE1_WAIT[0])), stock=image[first:first + 6].hex(), op='bytes', kind='data',
                               new=b''.join(w.to_bytes(3, 'little') for w in (0x0bf080, origin + labels['c1wait'])).hex()))
+        # Stock's six reads of the dispatch table (X:$215 + id, X:$235 + id) read the receiver's instead.
+        reads_at = [a for sp, start, count, _ in records if sp == 0 for a in range(start + 1, start + count)
+                    if read(0, a - 1) == TABLE_READ and read(0, a) in (INIT, PROC)]
+        if len(reads_at) != 6 or sum(read(0, a) == INIT for a in reads_at) != 2:
+            raise ValueError('Payload %s: stock does not read its dispatch table at six sites (two init, four proc).' % tag)
+        for a in reads_at:
+            first = at(0, a) - device.main_load
+            sites.append(dict(addr=hex(at(0, a)), stock=image[first:first + 3].hex(), op='bytes', kind='data',
+                              new=(TABLE_HOME + (ids if read(0, a) == PROC else 0)).to_bytes(3, 'little').hex()))
         for fx in sorted(stock):
             for table_at, value in ((INIT, null[0]), (PROC, null[1])):
                 first = at(1, table_at + fx) - device.main_load
                 sites.append(dict(addr=hex(at(1, table_at + fx)), stock=image[first:first + 3].hex(), op='bytes',
                                   kind='data', new=value.to_bytes(3, 'little').hex()))
         layout[tag] = dict(core=payload['core'], receiver=origin, frame=frame, table=origin + size, tableWords=table,
+                           dispatch=TABLE_HOME, ids=ids,
                            miss=origin + labels['missoffset'], meter=origin + labels['idlepub'], null=null, free=free,
                            stock={fx: {k: v for k, v in s.items() if k != 'words'} for fx, s in stock.items()},
                            reads=reads, words={fx: s['words'] for fx, s in stock.items()})

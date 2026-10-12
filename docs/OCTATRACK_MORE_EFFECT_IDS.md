@@ -144,7 +144,24 @@ Order, each step host-tested before the next:
    inactive Part) all passed. `build_core.py --fx-ids 128` compiles and links the whole base and transport (no image
    kept).
 4. **The DSP**: the receiver's id bound and saved region, init and proc tables at the new home (`dsp_loader.py`
-   writes them and rewrites the six operand words per payload), ids 32 and up free from the start.
+   writes them and rewrites the six operand words per payload), ids 32 and up free from the start. **Done (12 October
+   2026):** init[ids] and proc[ids] at X:$7a92. No payload record loads that region, so each receiver's first frame
+   hook copies stock's 32 entries and puts every later id on the null stub before any effect runs. Stock's six reads
+   per payload (`0x0a71d2` and $215 or $235: A P:$4b5-$505, B P:$2aa-$2fa) are repointed, found and counted at build
+   time. The saved originals stay at stock's 32: past them BIND keeps nothing and UNBIND and BYPASS put the null stub
+   back (a shared null pair). At 32 ids S60 passed pick, remove, queue, beside and union in `ot_emu --dsp`; at 128,
+   S61 passed pick and `wide` (14 modules, the last at effect id 32, dispatched from X:$7ab2).
+   **On the owner's MKII (S63, 128 ids):** seven modules and seven Mini Verb copies under their own ids
+   (`build.py --page-from`): the seventh copy took id 32, picked by id (`device -- do pickid:T5:FX2:32`) on T5 and
+   T1 while playing, each core holding its code (`id 32 @441+536`); movestress 40 steps (27 picks, 13 refused by the
+   ledger, gaps under 430 us); the self-test with all 14 together (14/14 intact and ran, peaks T1-4 64 %, T5-8 60 %).
+   No loader error, crash or stall. The copies were removed afterwards.
+   **The handle map across the switch:** the first 128-id boot dropped the 32-id battery map (another magic), and a
+   RAM boot restores the project from battery RAM, not the card, so nothing named the project's handles: installs
+   took other ids (E-Verb 6) and the project's ran dry. Now a wider base widens a 32-id map in place (the first 32
+   entries sit where they sat), and a map no base can read starts from today's catalogue assignments, as a project
+   without `#MODWERK_FX=` lines does (fxmap.c `widened`, `seeded`; host-tested at 128). On the unit: S62 (32) seeded
+   the unreadable map, S63 (128) widened it, and every module took its catalogue id again.
 5. **The ColdFire tables and N = 128**: FX1_IDS, FX2_IDS, FX1_ID2POS and ID2POS copied to 128 entries with their
    18 `lea` sites patched, the Part validator's clamp raised to 127 (four `moveq #31`), the lists' row capacity
    raised. **ColdFire part built (12 October 2026, S59):** `dsp_loader.py choosers()` writes the base's copies of the

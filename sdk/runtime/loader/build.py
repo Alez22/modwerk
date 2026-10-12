@@ -338,6 +338,8 @@ def main():
     parser.add_argument('--name', help='the display name projects record it by (default: its catalogue name)')
     parser.add_argument('--layout', type=int, default=1, help='parameter-layout number: raise it when stored values change meaning')
     parser.add_argument('--no-page', action='store_true', help='leave out the effect page recipe (no chooser row on the unit)')
+    parser.add_argument('--page-from', help='development only: another catalogue module\'s page (a copy of an effect under its own id, '
+                                            'to fill more effect ids than the catalogue has)')
     parser.add_argument('--octabam', help='a hybrid catalogue module: its ColdFire units and detours beside --dsp')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     args = parser.parse_args()
@@ -360,7 +362,7 @@ def main():
     elif args.sources:
         data = build_c(args.sources, args.cross, args.output.stem, dsp)
     else:
-        image, relocations = page_section(pkg['id']) if 'id' in pkg and not args.no_page else (b'', [])
+        image, relocations = page_section(args.page_from or pkg['id']) if 'id' in pkg and not args.no_page else (b'', [])
         bss, sites, flags = 0, [], (1 if image else 0) | (2 if args.pinned else 0)
         if args.octabam:  # the ColdFire half after the recipe, at a 16-byte boundary
             sys.path.insert(0, str(args.upstream.expanduser().resolve()))

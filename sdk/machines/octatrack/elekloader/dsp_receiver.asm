@@ -33,6 +33,33 @@
 ; before any effect. Entry changes keep the stock per-instance state.
 frame:
         move    r6,x:>$207              ; the instruction the hook displaced
+; The dispatch tables (docs/OCTATRACK_MORE_EFFECT_IDS.md step 4): init[@IDS@] at X:@INITTABLE@, then proc[@IDS@], where
+; stock's six reads of X:$215 and X:$235 now point (dsp_loader.py). No payload record loads that region, so the first
+; frame sets it up before any effect runs: stock's 32 entries copied, every id past them on the null stub.
+        move    #>tblready,r1
+        move    p:(r1),a
+        tst     a
+        bne     tblset
+        move    #>$215,r0
+        move    #>@INITTABLE@,r1
+        do      #<32,initcopied
+        move    x:(r0)+,x0
+        move    x0,x:(r1)+
+initcopied:
+@INITFILL@        move    #>$235,r0
+        do      #<32,proccopied
+        move    x:(r0)+,x0
+        move    x0,x:(r1)+
+proccopied:
+@PROCFILL@        move    #>nullentry,r1
+        move    #>@NULL_INIT@,x0
+        move    x0,p:(r1)+
+        move    #>@NULL_PROC@,x0
+        move    x0,p:(r1)
+        move    #>tblready,r1
+        move    #>1,x0
+        move    x0,p:(r1)
+tblset:
 ; Load meter: core 0's main loop (P:$4b) counts its idle iterations in b until a frame is due, and
 ; this runs before stock stores that count (P:$92); b stays untouched. Core 1 counts its wait for
 ; core 0 in X:$2840 (c1wait), taken and cleared here (the build substitutes that for core 1).
@@ -329,7 +356,7 @@ keeprecord:
 binding:
         move    x:(r0+4),a
         and     #>$ffff,a
-        cmp     #>31,a
+        cmp     #>@IDMAX@,a
         bgt     badsaved
         move    a1,x1
         asl     a
@@ -337,8 +364,15 @@ binding:
         bsr     tablebase
         add     x0,a
         move    a,r3
+        ; Only stock's 32 ids have originals to keep: past them the saved pair is the null stub's, so BIND keeps
+        ; nothing and UNBIND and BYPASS put the stub back.
         move    x1,a
-        add     #>$215,a
+        cmp     #>31,a
+        ble     ownsaved
+        move    #>nullentry,r3
+ownsaved:
+        move    x1,a
+        add     #>@INITTABLE@,a
         move    a,r1
         move    x:(r0+2),a
         and     #>$ffff,a
@@ -368,7 +402,7 @@ binding:
         move    r3,a
         add     #>1,a
         move    a,r3
-        move    x:(r1+32),x0
+        move    x:(r1+@IDS@),x0
         move    x0,p:(r3)
 retained:
         move    x:(r0+5),a
@@ -382,7 +416,7 @@ retained:
         move    a1,x0
         bsr     tablebase
         add     x0,a
-        move    a1,x:(r1+32)
+        move    a1,x:(r1+@IDS@)
         bra     accepted
 restoreentry:
         move    p:(r3),x0
@@ -394,7 +428,7 @@ restoreentry:
         add     #>1,a
         move    a,r3
         move    p:(r3),x0
-        move    x0,x:(r1+32)
+        move    x0,x:(r1+@IDS@)
         bra     accepted
 stubentry:
         move    p:(r3),x0
@@ -406,13 +440,13 @@ stubentry:
         move    r3,a
         add     #>1,a
         move    a,r3
-        move    x:(r1+32),x0
+        move    x:(r1+@IDS@),x0
         move    x0,p:(r3)
 stubsaved:
         move    #>@NULL_INIT@,x0
         move    x0,x:(r1)
         move    #>@NULL_PROC@,x0
-        move    x0,x:(r1+32)
+        move    x0,x:(r1+@IDS@)
         bra     accepted
 ; BASE (7): the Y buffer table entry X:$255 + (r0+4), 0..7, becomes
 ; (r0+7) << 16 | (r0+5). Stock reads it only in an effect's init.
@@ -511,5 +545,10 @@ idlepub:                            ; then the published window: serial, least, 
         nop
         nop
         nop
+        nop
+nullentry:                              ; the saved pair of every id past 31: the null stub's init and proc
+        nop
+        nop
+tblready:                               ; 1 once the first frame set the dispatch tables up
         nop
 dltable:

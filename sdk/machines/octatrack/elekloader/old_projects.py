@@ -83,15 +83,26 @@ def dumps(build, out):
     if build != 'stock':
         symbols = json.loads((Path(build) / 'symbols.json').read_text())
         spans += ['0x%x,4=%s/%s.bin' % (symbols[n], out, n) for n in ('modwerk_dsp_missing', 'dl_errors', 'dl_reinit')]
-    print('--mem-dump %s --dsp-peek 0:X:215,64;1:X:215,64' % ';'.join(spans))
+    home, ids = table(build)
+    print('--mem-dump %s --dsp-peek 0:X:%x,%d;1:X:%x,%d' % (';'.join(spans), home, 2 * ids, home, 2 * ids))
 
 
-def dispatch(log, core):
+def table(build):
+    """Where the dispatch tables are: the receiver's (init[ids], then proc[ids]) since step 4, stock's X:$215 before."""
+    if build == 'stock':
+        return 0x215, 32
+    layout = json.loads((Path(build) / 'proofs.json').read_text()).get('dspLoader', {}).get('A', {})
+    number = lambda v: int(v, 16) if isinstance(v, str) else v
+    return number(layout.get('dispatch', 0x215)), number(layout.get('ids', 32))
+
+
+def dispatch(log, core, build='stock'):
     import re
-    m = re.search(r'core %d X:0x00215:((?: [0-9a-f]{6}){64})' % core, log)
+    home, ids = table(build)
+    m = re.search(r'core %d X:0x%05x:((?: [0-9a-f]{6}){%d})' % (core, home, 2 * ids), log)
     assert m, 'no dispatch table of core %d in the log' % core
     words = [int(w, 16) for w in m[1].split()]
-    return words[:32], words[32:]
+    return words[:ids], words[ids:]
 
 
 def check(stock_run, base_run, build, case):
@@ -113,7 +124,7 @@ def check(stock_run, base_run, build, case):
     logs = [(run / 'log.txt').read_text() for run in (stock_run, base_run)]
     dry = set()
     for tag, core in (('A', 0), ('B', 1)):
-        (si, sp), (bi, bp) = dispatch(logs[0], core), dispatch(logs[1], core)
+        (si, sp), (bi, bp) = dispatch(logs[0], core), dispatch(logs[1], core, build)  # stock, then the base
         null = tuple(layout[tag]['null'])
         tracks = range(4, 8) if core == 0 else range(4)
         for fx in {live[t] for t in tracks} | {live[8 + t] for t in tracks}:

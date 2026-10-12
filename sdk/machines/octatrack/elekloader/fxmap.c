@@ -42,14 +42,49 @@ typedef char map_fits[sizeof(struct fx_map) <= 0x1800u ? 1 : -1];
 #define WRITE ((int (*)(uint32_t, const void *, unsigned))0x400166b8u) /* write(file, data, n), the writer's own */
 #endif
 
-static uint32_t checksum(void)
+static uint32_t checksum_of(unsigned words) /* the map's first `words` words */
 {
     const volatile uint32_t *w = (const volatile uint32_t *)MAP;
     uint32_t sum = 0x5a17u;
-    for (unsigned i = 0; i < (sizeof(struct fx_map) - 4u) / 4u; ++i) sum = sum * 31u + w[i];
+    for (unsigned i = 0; i < words; ++i) sum = sum * 31u + w[i];
     return sum;
 }
-static int valid(void) { return MAP->magic == MAGIC && MAP->sum == checksum(); }
+static uint32_t checksum(void) { return checksum_of((sizeof(struct fx_map) - 4u) / 4u); }
+/* A map a 32-id base left (magic 'MWFX', 32 entries, its sum after them): the first 32 entries sit where they sat,
+ * so a wider base keeps them, clears the rest and seals it as its own. Dropping it would forget, until the next
+ * project load from the card, which handle the project gave each module (a RAM boot restores the project from
+ * battery RAM, not the card): installs would then take other handles, and the project's would run dry. */
+#define OLD_WORDS ((8u + 24u * 32u) / 4u)
+static int widened(void)
+{
+    if (MODWERK_FX_IDS == 32u || MAP->magic != 0x4d574658u || ((const volatile uint32_t *)MAP)[OLD_WORDS] != checksum_of(OLD_WORDS))
+        return 0;
+    for (unsigned k = 32; k < MODWERK_FX_IDS; ++k) {
+        volatile struct fx_entry *e = &MAP->e[k];
+        e->module = 0, e->layout = 0, e->spare = 0;
+        for (unsigned i = 0; i < 16u; ++i) e->name[i] = 0;
+    }
+    MAP->magic = MAGIC, MAP->generation = MAP->generation + 1u, MAP->sum = checksum();
+    return 1;
+}
+static void put(volatile struct fx_entry *e, uint32_t module, unsigned layout, const char *name);
+/* No map this base can read (a fresh battery, another layout): today's catalogue assignments, as a project without
+ * '#MODWERK_FX=' lines gets at its load. An empty map instead would let installs take the handles a project names
+ * for its modules, and those would then run dry. */
+static void seeded(void)
+{
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&MAP->e[k], 0, 0, 0);
+    for (unsigned i = 0; i < modwerk_fx_legacy_count; ++i)
+        if (modwerk_fx_legacy[i].id < MODWERK_FX_IDS)
+            put(&MAP->e[modwerk_fx_legacy[i].id], modwerk_fx_legacy[i].module, 0, modwerk_fx_legacy[i].name);
+    MAP->magic = MAGIC, MAP->generation = 1, MAP->sum = checksum();
+}
+static int valid(void)
+{
+    if ((MAP->magic == MAGIC && MAP->sum == checksum()) || widened()) return 1;
+    seeded();
+    return 1;
+}
 static void seal(void)
 {
     MAP->magic = MAGIC;

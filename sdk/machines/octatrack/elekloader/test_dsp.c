@@ -253,6 +253,16 @@ int main(void)
     CHECK(modwerk_dsp_missing_list(list, 0, MODWERK_MISSING_PAGE) == 28 && !memcmp(list, "MWM\1", 4) && list[4] == 26 &&
           list[7] == 2 && list[11] == 0x47 && !strcmp((const char *)list + 12, "Mod G"));
     CHECK(modwerk_dsp_missing_list(list, 1, MODWERK_MISSING_PAGE) == 4 && !memcmp(list, "MWM\0", 4)); /* the next page: empty */
+#if MODWERK_FX_IDS > 32
+    { /* A map a 32-id base left: kept, widened, sealed as this base's (fxmap.c widened). */
+        uint32_t *w = (uint32_t *)&modwerk_test_map, sum = 0x5a17u;
+        int before = modwerk_fxmap_handle(0x46);
+        w[0] = 0x4d574658u; /* 'MWFX', the 32-id layout: entries 0-31, then its sum */
+        for (unsigned i = 0; i < (8u + 24u * 32u) / 4u; ++i) sum = sum * 31u + w[i];
+        w[(8u + 24u * 32u) / 4u] = sum;
+        CHECK(before >= 0 && modwerk_fxmap_handle(0x46) == before && modwerk_test_map.magic == (0x4d574600u | MODWERK_FX_IDS));
+    }
+#endif
     /* A project without lines names today's assignments. */
     modwerk_fxmap_begin(1); modwerk_fxmap_loaded(0);
     CHECK(modwerk_fxmap_handle(0x873d83ccu) == 27 && !modwerk_fxmap_module(26));
