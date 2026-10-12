@@ -9,7 +9,8 @@
           "Restore stock FLEX playback and SETUP defaults in both working Part copies before removing the Analog BD marker, preventing invalid borrowed parameters from rejecting the retained bank after a machine switch.",
           "Cover both SRC SETUP commit paths and the main machine chooser; preserve existing Analog BD patches on reselection and leave unsigned tracks and other Parts untouched.",
           "808/909 DSP code is byte-identical to 0.1.4. Existing SRC locks, scene targets and LFO destinations remain assigned to their parameter slots and may require adjustment when changing machines.",
-          "Owner reports physical FLEX reboot persistence on exact AB015FIX01 and authorizes this experimental release. Broader hardware/maximum-load, worst-case chip timing and complete memory bounds remain unverified under a new exact-source approval; Output Matrix sequencer halt remains unverified."
+          "Owner reports physical FLEX reboot persistence on exact AB015FIX01 and authorizes this experimental release. Broader hardware/maximum-load, worst-case chip timing and complete memory bounds remain unverified under a new exact-source approval; Output Matrix sequencer halt remains unverified.",
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.5-experimental, with sample credits, settings and provenance; firmware is unchanged."
         ]
       },
       {
@@ -94,7 +95,8 @@
         "date": "2026-10-07",
         "changes": [
           "Protect clock reset when playback starts: preserve the CPU status register and mask interrupts while resetting timing state.",
-          "Clear the initialized flag before the reset and publish it after the new state is ready, preventing an interrupt from seeing a partial reset. Existing timing, swing and controls are unchanged."
+          "Clear the initialized flag before the reset and publish it after the new state is ready, preventing an interrupt from seeing a partial reset. Existing timing, swing and controls are unchanged.",
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.4-experimental, with sample credits, settings and provenance; firmware is unchanged."
         ],
         "sourceCommit": "e027bea0fcaed334ef69c11be4474627814a2e21"
       },
@@ -192,7 +194,8 @@
         "changes": [
           "Fix intermediate dry/wet clipping at hot input levels by preserving the wet-minus-dry headroom before multiplication. MIX 32 remains 25% and MIX 0 remains exact dry.",
           "Keep the feedback tank, controls, defaults, effect ID and memory allocation unchanged. Multiplier quantization can change otherwise unclipped output by up to 8 of the 24-bit least significant bits.",
-          "The mixer defect is reproduced in native DSP tests on both cores. The original THRU noise in #428 has not been confirmed on hardware; chip timing, complete runtime memory bounds, played automation, persistence and physical reboot remain unverified."
+          "The mixer defect is reproduced in native DSP tests on both cores. The original THRU noise in #428 has not been confirmed on hardware; chip timing, complete runtime memory bounds, played automation, persistence and physical reboot remain unverified.",
+          "Documentation/media-only: add an offline audio preview rendered through 0.2.0-experimental, with sample credits, settings and provenance; firmware is unchanged. The clip predates the 0.2.1 mixer fix and does not verify it."
         ]
       },
       {
@@ -419,7 +422,8 @@
         "date": "2026-10-05",
         "changes": [
           "Correct the input drive level to compensate for the stock AMP volume scaling, bringing saturation closer to the original DAW effect.",
-          "Apply +12 dB before the saturation stage and compensate by −12 dB afterward."
+          "Apply +12 dB before the saturation stage and compensate by −12 dB afterward.",
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.2-experimental, with sample credits, settings and provenance; firmware is unchanged."
         ],
         "sourceCommit": "177df636fde9419cba2fcb42ddaacdc14a736458"
       },
@@ -810,7 +814,8 @@
         "changes": [
           "Protect stock T3 inter-core mailbox and T7 parameter staging data by keeping the first 72 virtual ring words in safe per-instance X state. Preserve stock track state, full stereo delay range, smoothing, controls and saved parameter layout.",
           "Losslessly pack all original sine values into 256 DSP words and reduce code/table storage from 1,425 to 795 words per core. Air Chorus now combines with E-Verb and Analog BD, including more DSP companions; larger selections remain limited by available program space.",
-          "The shared-data corruption is reproduced and checked in software. The tester still reported T3 clicking in 0.1.1; whether this update fixes that audible hardware symptom remains unverified. Current hardware timing, multi-instance audio and Part/project/reboot persistence are owner-waived for this exact beta source/version."
+          "The shared-data corruption is reproduced and checked in software. The tester still reported T3 clicking in 0.1.1; whether this update fixes that audible hardware symptom remains unverified. Current hardware timing, multi-instance audio and Part/project/reboot persistence are owner-waived for this exact beta source/version.",
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.2-experimental, with sample credits, settings and provenance; firmware is unchanged."
         ]
       },
       {
@@ -921,7 +926,8 @@
         "changes": [
           "Holding FUNC while turning SIZE, DCY, ABSB or SPD now steps through 0, the centre (64) and 127, as MIX and DPTH already did and as on the stock reverbs' MIX. In 0.1.0 those four knobs jumped only between 0 and 127, an editor inherited from the stock reverb that E-Verb's page is cloned from (#438).",
           "Plain turns and every stored value are unchanged: only four editor words in E-Verb's FX2 descriptor change. The DSP code and memory are byte-identical to 0.1.0, so the sound and cycle cost are unchanged, and the knob values a project stores mean the same.",
-          "Measured on the ColdFire emulator only: 0.1.1 has not run on hardware. The owner's MKII report (two simultaneous instances, Part/project reload, physical reboot) covers 0.1.0; MKI, full-load chip timing and broader hardware coverage remain unverified."
+          "Measured on the ColdFire emulator only: 0.1.1 has not run on hardware. The owner's MKII report (two simultaneous instances, Part/project reload, physical reboot) covers 0.1.0; MKI, full-load chip timing and broader hardware coverage remain unverified.",
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.0-experimental, with sample credits, settings and provenance; firmware is unchanged."
         ]
       },
       {

@@ -291,6 +291,15 @@
         "imageSha256": "b525e4a42fdddaf6c6f381478bc54e56206e3d5df9be1c76272d8c36d84cdc7a",
         "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; 128×64 LCD at integer scale 6."
       }
+    },
+    {
+      "path": "media/audio-preview.mp3",
+      "captureType": "audio",
+      "caption": "One chord stab, played three times: dry, then the Hall starting point (SIZE 110, DCY 90, ABSB 45, MIX 70), then the Shimmer pad starting point (SIZE 100, DCY 100, ABSB 70, DPTH +56, MIX 100). Rendered offline through version 0.1.0-experimental on a computer, not recorded on an Octatrack.",
+      "alt": "A single synth chord stab heard dry, then in a large hall, then as a shimmering pad.",
+      "credit": "Modwerk contributors (offline render). Sample: Malin Genie Drum Sample Pack.",
+      "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+      "source": "original"
     }
   ],
   "access": {
