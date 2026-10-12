@@ -27,7 +27,7 @@ describe('module detail parity across machines', () => {
         'class="module-page-actions"', 'class="button button-quiet module-issue-action"', 'Works for me', 'class="detail-works-summary"', 'Across versions',
         'class="detail-hero detail-hero-with-resources"', 'class="module-resource-summary"',
         'Reviews &amp; discussion', 'role="tablist" aria-label="Module information"',
-        'id="tab-Overview" aria-selected="true"', 'id="tab-Media" aria-selected="false"',
+        'id="tab-Overview" aria-selected="true"', 'id="tab-Previews" aria-selected="false"',
         'id="tab-Discussion" aria-selected="false"', 'id="tab-Changelog" aria-selected="false"', 'id="tab-Issues" aria-selected="false"', 'role="tabpanel" aria-labelledby="tab-Overview"',
         'class="module-showcase"', 'Screenshots &amp; audio', 'class="community-signals"',
         'Join the discussion', 'class="module-guide"', 'About &amp; credits',

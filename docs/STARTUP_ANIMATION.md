@@ -1,5 +1,60 @@
 # Modwerk Octatrack startup — 8 October 2026
 
+## Beta docking edition — 12 October 2026
+
+New Octatrack builds for beta testers and verified administrators include the
+Elekloader migration's docking startup, ported independently of its new base.
+The mark flies in, a module crosses the lamps and docks, and its wave reveals
+MODWERK with **NEW / BETA**. It lasts 3.5 seconds. Ordinary members keep the existing
+2.8-second startup. Existing firmware files need to be rebuilt to receive it.
+
+Beta eligibility is carried through validation, composition, alternative placement
+checks and standalone MIDI Scenes. The server rechecks beta access immediately
+before a beta build; revocation also changes the frontend build key. The build
+panel labels the beta startup, and its source/configuration fingerprints distinguish
+it in the device logger.
+
+The port changes the startup loop and compositor frame-load sites and adds its
+authored runtime object and persistent ROM cave gate. Both sites have SHA-256
+guards; original frame-load code
+comes from the verified local firmware. The drawing adapter preserves registers
+and flags and stops drawing after startup. Both models restore the stock panel
+colours. The same sample-memory reservation is used; the extra initialized runtime
+state remains inside the existing runtime/staging bounds. The gate and its
+initially zero active word occupy 80 bytes reserved before beta descriptor clones;
+utility overflow sites stay intact.
+Standalone MIDI Scenes uses the unused fill after its scene-mute helper. Early
+compositor calls replay the stock instruction before the runtime is unpacked;
+the appended loader area is reused by stock RAM and cannot hold this gate.
+
+The original migration's MKII RAM-boot observation on 11 October applies to that
+base, not to this port. Physical flashing, reboot and timing of this beta port
+remain untested. The emulator exercised core-only and standalone MIDI Scenes on
+both MKI and MKII. All four runs matched all 912 authored final pixels, lit the
+expected 44/67 lamps on the correct channel with bounded levels, ended dark,
+and handed over to the stock screen with identical LED levels, rows and colours.
+
+The native matrix passed for core only, Repitch, Mini Verb, Tape Echo + Euclid,
+Analog BD, Sidechain Compressor, USB Audio + Quantizer, standalone MIDI Scenes,
+Airwindows Chorus and Poly8; the developer dynamic-loader Repitch path passed
+as well. With Node 24, the full app/SDK/lint/typecheck/bundle suite passed
+all 1,748 tests in 233 files. GNU/browser startup links matched at both runtime bases, and the ROM
+gate matched GNU placement. Every final image round-tripped through the original
+firmware container without changing its tail or seed. Changed hooks and repeated
+patching were rejected. The standalone live CC-cache table remained intact.
+
+![Actual beta docking final frame, captured from MKII firmware](media/startup/beta-docking.png)
+
+[Native composition evidence](media/startup/beta-docking-native.json),
+[core boot captures](media/startup/beta-docking-core.json) and
+[standalone boot captures](media/startup/beta-docking-midi-scenes.json) contain
+hashes and results only. Firmware and raw memory remain private.
+
+Source, package regeneration and private-check commands are in the
+[startup SDK](../sdk/runtime/startup/README.md#beta-docking-edition).
+
+## Public graphic-table edition
+
 The boot animation now traces the Modwerk frame clockwise, locks eight tiles
 in from the center around the ring, and brings the ninth tile in with a short
 comet tail. It reveals original geometric MODWERK lettering alongside the

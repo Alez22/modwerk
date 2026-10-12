@@ -31,6 +31,8 @@ import { DigiBuildPanel } from '../components/DigiBuildPanel'
 import { ConfigurationHeader } from '../components/ConfigurationLayout'
 import { ModuleAuthors } from '../components/ModuleAuthors'
 import { contributorSearchText } from '../catalog/module-authors'
+import { useModuleAudioPreviews } from '../components/audio-preview-context'
+import { ModuleAudioCardCover } from '../components/ModuleAudioPreview'
 
 type DigiDevice = DeviceProfile & { id: DigiMod['device'] }
 const STEP_LABELS = { done: 'Done', started: 'Started', open: 'Open' } as const
@@ -39,9 +41,13 @@ function kib(bytes: number) { return (bytes / 1024).toFixed(bytes < 10240 ? 1 : 
 
 function DigiModCard({ mod, selected, statistics, compared, canCompare, onToggle, onCompare, onBrowse }: { mod: DigiMod; selected: boolean; statistics?: ModuleStatistics; compared: boolean; canCompare: boolean; onToggle: () => void; onCompare: () => void; onBrowse?: () => void }) {
   const href = deviceHref(mod.device, 'module/' + mod.id)
+  const id = mod.device + '-' + mod.id
+  const { clips } = useModuleAudioPreviews(id)
+  const [prepare, setPrepare] = useState(false)
   const stability = moduleStability(statistics, { hardware: mod.hardware ? 'Author-tested on hardware.' : 'Author release, not yet tested in Modwerk.' })
   return <article className={'module-card ' + (selected ? 'is-selected' : '')}>
-    <a href={href} onClick={onBrowse} onAuxClick={onBrowse} className="module-cover" aria-label={'View ' + mod.title}><DigiModPreview mod={mod} /><div className="hover-info"><span>{mod.summary}</span><strong>Explore module <Icon name="arrow" size={15} /></strong></div></a>
+    {clips.length ? <ModuleAudioCardCover id={id} name={mod.title} href={href} onBrowse={onBrowse} clip={clips[0]} prepare={prepare} onPrepare={() => setPrepare(true)}><DigiModPreview mod={mod}/></ModuleAudioCardCover> :
+      <a href={href} onClick={onBrowse} onAuxClick={onBrowse} className="module-cover" aria-label={'View ' + mod.title}><DigiModPreview mod={mod} /><div className="hover-info"><span>{mod.summary}</span><strong>Explore module <Icon name="arrow" size={15} /></strong></div></a>}
     <div className="module-card-body">
       <div className="module-card-title">
         <div className="module-card-heading"><a href={href} onClick={onBrowse} onAuxClick={onBrowse}>{mod.title}</a><div className="card-release"><span className="card-version">v{mod.version}</span></div></div>
