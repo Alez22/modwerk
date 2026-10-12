@@ -1,6 +1,6 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { MODULES } from '../catalog/modules'
-import { inventoryChanges, lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
+import { changeCount, inventoryChanges, lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
 import { lastSuccessfulSync } from '../config/octatrack-progress'
 import type { Configuration } from '../config/workspace'
 import { DeviceImage } from '../devices/DeviceImage'
@@ -12,7 +12,6 @@ import { MissingNote, type ProjectNeeds } from './OctatrackUpdate'
 import './octatrack-link.css'
 
 const moduleName = (id: string) => MODULES.find(module => module.id === id)?.name ?? id
-const names = (ids: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(ids.map(moduleName))
 const modules = (n: number) => n + (n === 1 ? ' module' : ' modules')
 const BUSY = ['sending', 'testing', 'trial', 'finishing']
 
@@ -76,14 +75,16 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
           {action}
         </div>
         {lastSync && <p className="hub-last-sync">Last sync from this browser: <b>{lastSync.name}</b> · <time dateTime={lastSync.at}>{new Date(lastSync.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></p>}
+        {selected && usb && <div className="hub-sync-bar" aria-label="Module set sync">
+          <div><strong>{selected.name}</strong>
+            <p>{changes ? changeCount(changes) ? <>Adds {changes.add.length} · Removes {changes.remove.length}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
+                : <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span>
+              : busy ? 'A sync is running.' : status === 'stock' ? 'Install the base to sync this set.' : connected ? 'Reading what’s on your Octatrack…' : 'Connect your Octatrack to sync this set.'}</p>
+          </div>
+          <button type="button" className="button button-primary" disabled={!changes || !changeCount(changes)} onClick={() => onSync(selected.id)}><Icon name="download" size={16} />Sync to Octatrack</button>
+        </div>}
         {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
         {grid}
-        {selected && usb && <div className="hub-footer">
-          {changes && !changes.add.length && !changes.remove.length ? <p className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Your Octatrack has exactly <b>{selected.name}</b>.</p>
-            : <><p>{changes ? <>Syncing <b>{selected.name}</b> {changes.add.length ? 'adds ' + names(changes.add) : ''}{changes.add.length && changes.remove.length ? ' and ' : ''}{changes.remove.length ? 'removes ' + names(changes.remove) : ''}.</>
-                : busy ? <>A sync is running.</> : status === 'stock' ? <>Install the base to sync <b>{selected.name}</b>.</> : connected ? <>Reading what’s on your Octatrack…</> : <>Connect your Octatrack to sync <b>{selected.name}</b>.</>}</p>
-              <button type="button" className="button button-primary" disabled={!changes} onClick={() => onSync(selected.id)}><Icon name="download" size={16} />Sync to Octatrack</button></>}
-        </div>}
         {card}
       </section>
     </div>
