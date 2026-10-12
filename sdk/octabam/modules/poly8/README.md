@@ -13,7 +13,17 @@ PTCH tunes the whole chord. Panel and MIDI notes add their own semitone offset
 without moving PTCH or overwriting its live lock. The machine follows the
 instrument's audio frames and sequencer; it has no independent clock.
 
-The 0.2.6-experimental candidate adds a shared native chooser for POLY8, Analog BD, VECTOR and FM Synth. Repitch, Mute Modes and Scale Quantizer can be selected alongside it. Each machine retains its own signed Part state, controls and playback engine. FM Synth supplies its bundled quantizer when both quantizers are selected. Unknown overlaps and existing DSP/menu limits still refuse; Octakit remains incompatible.
+The 0.2.7-experimental candidate releases the previous sequenced chord before
+starting the next native trig. Finite AMP REL can therefore end its tails even
+with HOLD INF. The incoming chord starts together; held panel/MIDI notes keep
+their separate key ownership. This corrects a native reproduction related to
+[hanging sequence notes (#447)](https://github.com/repeat98/modwerk/issues/447).
+The reporter's HOLD setting is unknown and physical MKI confirmation is pending.
+The owner approved this scoped 0.2.7 experimental release with current hardware,
+chip worst-case timing and complete memory qualification waived. Those results
+remain unverified; native/browser checks and owner review remain required.
+
+The 0.2.6 release added a shared native chooser for POLY8, Analog BD, VECTOR and FM Synth. Repitch, Mute Modes and Scale Quantizer can be selected alongside it. Each machine retains its own signed Part state, controls and playback engine. FM Synth supplies its bundled quantizer when both quantizers are selected. Unknown overlaps and existing DSP/menu limits still refuse; Octakit remains incompatible.
 
 The POLY8-only build preserves both original 1.40C DSP payloads and uses the standard loader-free builder. Selecting effects or Analog BD retains those modules’ normal DSP placement; the shared chooser does not add a dynamic DSP loader. The eight-voice cap, fixed headroom and T06 LOOP/browser corrections remain.
 
@@ -67,13 +77,17 @@ shapes. Slot 31 remains native SAMPLE. Playback consumes encoded roots before
 PTCH locking, leaving the Part tuning, other locks, scenes and LFO destinations
 on their stock path. No sidecar file or independent sequencer clock is added.
 
-Recorded duration follows AMP HOLD; key-up duration is not captured. Larger or
+Recorded voices enter release when AMP HOLD ends or the next sequencer trig
+starts, whichever comes first. With HOLD INF, the final chord sustains until
+another trig or STOP. Key-up duration is not captured. Larger or
 wider held chords do not overwrite the last valid capture. Stock grid PTCH-lock
 editing/display of an encoded root is not qualified. Without POLY8 installed,
 that step falls back to one FLEX note using its encoded PTCH byte.
 
-HOLD and REL INF intentionally sustain a voice; LOOP OFF allows a finite sample
-to end naturally. New assignments take LOOP OFF, while existing Parts and
+HOLD INF sustains live notes until key-up and sequenced notes until the next
+trig or STOP. REL INF intentionally sustains released voices; use finite REL
+for fading tails. LOOP OFF allows a finite sample to end naturally.
+New assignments take LOOP OFF, while existing Parts and
 browser confirmations preserve the saved choice. Set existing POLY8 tracks to
 LOOP OFF manually when testing this build.
 
@@ -140,7 +154,7 @@ These are actual LCD captures from the exact private image, with provenance in [
 4. Return to SRC, open the trig-mode menu with FUNC+DOWN, select CHROMATIC and confirm with YES. Hold several trig keys; FUNC+LEFT/RIGHT changes octave from -6 to +3.
 5. Turn PTCH to transpose the sounding chord. A dedicated POLY8 MIDI channel accepts notes 0–127; note 84 plays the tuned sample root.
 6. New assignments default to LOOP OFF. POLY8 has a maximum of eight voices, subject to the pitch-work limit, with fixed -18.06 dB gain per voice.
-7. Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. Recorded duration follows AMP HOLD.
+7. Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. AMP HOLD or the next sequencer trig starts their release. With HOLD INF, the final chord sustains until another trig or STOP; recorded key-up timing is not captured.
 
 ## Screens and audio
 
@@ -173,6 +187,18 @@ Open SRC SETUP with FUNC+SRC and turn encoder A to change LOOP. AUTO is shown he
 Press LEFT from the FLEX slots to return to the machine list; POLY8 stays selected. Choose FLEX and press YES to replace POLY8, or press NO to keep the current assignment.
 
 These earlier 0.2.6 controls captures retain their original image and command provenance. They precede the T09 startup fix and T10 selection-flow change; they are not measurements of the current image. T06 captures above also remain historical evidence.
+
+## Current candidate UI
+
+![SRC SETUP with POLY8 selected and LOOP OFF](media/sequence-release/assigned-src.png)
+![Machine chooser with POLY8 selected](media/sequence-release/left-machine-chooser.png)
+![FLEX sample pool opened explicitly](media/sequence-release/right-flex-pool.png)
+
+Select POLY8 in SRC SETUP and press YES; assignment retains the current page.
+Double-TRACK opens FLEX samples. LEFT returns to the machine list and RIGHT
+reopens slots. These are actual native 0.2.7 candidate captures, bound to its
+source and image in [capture.json](media/sequence-release/capture.json).
+They document emulator behavior; physical MKI confirmation remains pending.
 
 ## Machine selection in T10
 

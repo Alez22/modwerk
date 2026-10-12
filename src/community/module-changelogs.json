@@ -840,6 +840,15 @@
     ],
     "poly8": [
       {
+        "version": "0.2.7-experimental",
+        "date": "2026-10-12",
+        "changes": [
+          "Release the previous sequenced chord once before the next native sample trig, so finite AMP REL can end its tails even with HOLD INF. Preserve all notes in the new chord and independently owned panel/MIDI notes. Related to https://github.com/repeat98/modwerk/issues/447.",
+          "Keep finite HOLD, intentional REL INF sustain and native STOP behavior. Recorded key-up timing remains unsupported; the final chord with HOLD INF sustains until another trig or STOP.",
+          "The owner approved this scoped experimental release with current-build hardware, chip worst-case timing and complete memory qualification waived. Native playback tests pass; physical MKI confirmation remains pending. Keep issue 447 open until the exact published download is verified on the affected unit."
+        ]
+      },
+      {
         "version": "0.2.6-experimental",
         "date": "2026-10-09",
         "changes": [

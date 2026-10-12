@@ -314,6 +314,11 @@ poly_voice_trigger:
         bsr.w   poly_is_track
         tst.l   %d0
         beq.w   .pvt_passthrough
+| Release the previous unowned chord once per native trigger, before any of
+| this chord's notes enter the pool. Live panel/MIDI presses keep their owners.
+        move.l  %d2,-(%sp)
+        jsr     pm_sequence_retrigger
+        addq.l  #4,%sp
         moveq   #0,%d4
 .pvt_chord_next:
         move.l  %d2,-(%sp)
