@@ -1,13 +1,13 @@
 {
   "file": "media/audio-preview.mp3",
-  "sha256": "227c0b8d3a1123293ca2c518aef1c365df4bebc7318d604fc7c9799e97d6ffd2",
+  "sha256": "efec1651bf87203077092efe63002b48a060bcc253aa47b2ee51180e27e9e33b",
   "seconds": 15.400544,
   "encoding": {
     "format": "MP3",
     "sampleRateHz": 44100,
     "channels": 2,
     "bitrateKbps": 192,
-    "decodedPeakDbfs": -1.586,
+    "decodedPeakDbfs": -1.606,
     "fadeInMs": 5,
     "passFadeOutMs": 200,
     "gapSeconds": 0.3,
@@ -30,10 +30,11 @@
         "PRE": 25,
         "REV": 0,
         "EDCY": 64,
-        "ESIZ": 64
+        "ESIZ": 64,
+        "": 0
       },
       "dryBitExact": true,
-      "pcmSha256": "221a418c6e1daedb9b323cb6d3be56d962577f917d2fb2706282024044af674e",
+      "pcmSha256": "5990e44d8765585451b0e352b12b96de0026a8d48c33f03a9e2d1c24d21145e6",
       "start": 0.0,
       "duration": 1.300317,
       "matchGainDb": 0.0,
@@ -53,13 +54,14 @@
         "PRE": 10,
         "REV": 0,
         "EDCY": 64,
-        "ESIZ": 64
+        "ESIZ": 64,
+        "": 0
       },
-      "pcmSha256": "e63207e72c85eb35a980273e132ce95e2ca9d114033a43bf13c3a250c7738c62",
+      "pcmSha256": "2234c0a9dd291051f8a3009229838c7df1e867525b4171f40042a5e3ec92899b",
       "start": 1.600317,
       "duration": 6.000181,
-      "matchGainDb": -0.049,
-      "unmatchedPeakDbfs": -13.336
+      "matchGainDb": 0.862,
+      "unmatchedPeakDbfs": -12.897
     },
     {
       "label": "shimmer",
@@ -75,13 +77,14 @@
         "PRE": 10,
         "REV": 0,
         "EDCY": 64,
-        "ESIZ": 64
+        "ESIZ": 64,
+        "": 0
       },
-      "pcmSha256": "905716f5213195e5d25feea1c7793b023af77195188e8b49f09489b89bc66962",
+      "pcmSha256": "fa98911ea8a3e02430e268ed0467bdf7488389499d097a331a140736c5d2ba87",
       "start": 7.900499,
       "duration": 7.500045,
-      "matchGainDb": -2.223,
-      "unmatchedPeakDbfs": -10.92
+      "matchGainDb": -0.589,
+      "unmatchedPeakDbfs": -10.51
     }
   ],
   "validation": {
@@ -124,27 +127,32 @@
   },
   "method": "Offline render through the current released E-Verb DSP in the current browser-composed private OS 1.40C image, using its real dispatch entry in dsp_host. Fresh engine for each pass; the first 250 ms are RMS-matched, followed by unscaled reverb tails. Not a hardware recording.",
   "sample": {
-    "name": "Original Modwerk stereo chord stab",
-    "license": "MIT",
-    "credit": "Modwerk contributors, 2026",
-    "sourcePcmSha256": "be5119b71f0c9b1d64f19fd26264cdc53d7e55647c7a6e3cae3c2424890ba13d",
-    "recipe": {
+    "name": "106 Synth Chord Dark No Attack.wav",
+    "pack": "Legowelt Roland JUNO 106 sample kit",
+    "pathWithinPack": "106 Synth Chord Dark No Attack.wav",
+    "credit": "Legowelt (Danny Wolfers), ©2012 Pacific Micro International Software",
+    "license": "LicenseRef-Legowelt-Juno106-Sample-Permission",
+    "permissionFile": "106 SAMPLES README.txt",
+    "permissionFileSha256": "20398760fc080b8b53a8fff99b302d02a2ab73a420d90ee6333ee714ff47b2c3",
+    "permissionQuote": "This sample kit is free, you can do whatever you want it",
+    "originalFileSha256": "cfda5a30e22b5696d33ade901780a45d3276de5dc39e3cbfbf0b4e9dfe575ec7",
+    "originalPcmSha256": "faff7e05c31b4d73c7b3961603589197d2b979e45868f668454e3c7dd19a5761",
+    "originalFormat": {
       "sampleRateHz": 44100,
-      "durationSeconds": 0.7,
-      "midiNotes": [
-        48,
-        55,
-        58,
-        63
-      ],
-      "harmonics": 14,
-      "harmonicAmplitude": "1 / h^1.4",
-      "frequencyHz": "440 * 2^((note - 69) / 12) * (1 + (-1 for left, +1 for right) * 0.0005)",
-      "phaseRadians": "0.23*h + channel*0.1 (left=0, right=1)",
-      "envelope": "(1 - exp(-t/0.005)) * exp(-t/0.18)",
-      "endEnvelope": "clamp((0.65-t)/0.08, 0, 1)",
+      "channels": 2,
+      "sampleBits": 16,
+      "frames": 52224
+    },
+    "preparation": {
+      "startFrame": 0,
+      "frames": 52224,
+      "fadeInMs": 0,
+      "fadeOutMs": 0,
+      "gainDb": -9.846055,
       "peakDbfs": -14,
-      "format": "interleaved stereo signed little-endian int32 containing Q23 words"
-    }
+      "resampled": false
+    },
+    "sourcePcmSha256": "88d6e8526139d3526837bd16dbd714c967d281125091bc96a7db011f34e3d4ef",
+    "sourceFormat": "interleaved stereo signed little-endian int32 containing Q23 words"
   }
 }
