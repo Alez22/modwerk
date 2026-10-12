@@ -4,26 +4,26 @@
 
   scripts/octatrack-movecollide.py [--rounds 3] [--playing] [--kinds pick,part,install]
 
-Each trial opens a hole on core 1 (E-Verb on T1, Mini Verb above it on T4, E-Verb off again), waits 1.8-2.3 s
+Each trial opens a hole on core 1 (Mini Verb on T1, Air Chorus above it on T4, Mini Verb off again), waits 1.8-2.3 s
 (the base moves code two seconds after the last key or knob), then does one thing: a pick on core 0 (stock COMPRESSOR, loaded on demand), a Part
 switch there and back, or a USB install. Checks that the thing succeeded, that the hole closed afterwards and that
 the loader counted no error, stall, rollback or rejected packet. Use a scratch project; it ends stopped with the
-Part reloaded. Prints one JSON line; exit status 1 on a failure."""
+Part as saved. Prints one JSON line; exit status 1 on a failure."""
 import argparse, importlib.util, json, os, re, sys, time
 from pathlib import Path
 
 _spec = importlib.util.spec_from_file_location('qualify', Path(__file__).with_name('octatrack-qualify.py'))
 qualify = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(qualify)
-send, counters = qualify.send, qualify.counters
+send, counters, mem = qualify.send, qualify.counters, qualify.mem
 PKG = Path(os.path.expanduser('~/.cache/modwerk-octatrack/pkgs'))
 
 
 def holes(): return [int(h) for h in re.findall(r'holes (\d+) words', send('memory'))]
 
 
-def open_hole():
-    send('pick:T1:FX2:E-VERB'); send('pick:T4:FX2:MINI_VERB'); send('pick:T1:FX2:DELAY')
+def open_hole():  # big blocks (E-Verb) sit at the arena's top and leave no hole: open one under a small block
+    send('pick:T1:FX2:MINI_VERB'); send('pick:T4:FX2:AIR_CHORUS'); send('pick:T1:FX2:DELAY')
     return holes()[0]
 
 
@@ -42,6 +42,9 @@ def main():
     ap.add_argument('--playing', action='store_true')
     ap.add_argument('--kinds', default='pick,part,install')
     args = ap.parse_args()
+    part = mem(qualify.PART, 1)[0]
+    saved = qualify.part_copy(part, saved=True)
+    if qualify.part_copy(part) != saved: raise SystemExit('The current Part differs from its saved copy: run on one that does not.')
     before, failures, trials = counters(), [], []
     send('pick:T2:FX1:FILTER'); send('pick:T6:FX2:DELAY')  # TapeHead free for the install, T6 free for the pick
     if args.playing: send('PLAY w500')
@@ -67,7 +70,8 @@ def main():
                     if grew: failures.append('%s at %.1f s: %s' % (kind, delay, grew))
                     send('pick:T4:FX2:DELAY')
     finally:
-        send('STOP w300 STOP w300'); send('reload')
+        send('STOP w300 STOP w300')
+        if not qualify.restore_part(part, saved): failures.append('Part %d is not back as saved' % (part + 1))
     print(json.dumps(dict(trials=len(trials), failures=failures)))
     sys.exit(1 if failures else 0)
 

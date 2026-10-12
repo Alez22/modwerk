@@ -13,7 +13,7 @@ so each half second of MAIN equals the one before it: sample for sample through 
 24-bit steps through E-Verb's tail. Around the moves the difference must stay within what the take shows before the
 pick (twice that, for the noise in a maximum); a change of code, state or timing shows far above it (a dry frame
 would be ~10^5 steps). Round 0 also records T2 without the module: how much of MAIN the module changes shows it is
-heard. Ends stopped with the Part reloaded. Prints one JSON line; exit status
+heard. Ends stopped with the Part as saved. Prints one JSON line; exit status
 1 if the module did not move, the difference grew near a move, or the loader counted an error, stall, rollback or
 rejected packet."""
 import argparse, importlib.util, json, os, re, subprocess, sys, time
@@ -75,6 +75,9 @@ def main():
     args = ap.parse_args()
     setup = SETUPS[args.module]
     OUT.mkdir(parents=True, exist_ok=True)
+    part = qualify.mem(qualify.PART, 1)[0]
+    saved = qualify.part_copy(part, saved=True)
+    if qualify.part_copy(part) != saved: raise SystemExit('The current Part differs from its saved copy: run on one that does not.')
     before, failures, rounds, dry = counters(), [], [], None
     try:
         for n in range(args.rounds):
@@ -103,7 +106,8 @@ def main():
             if not moves: failures.append('round %d: %s did not move' % (n, args.module))
             elif near > 2 * floor: failures.append('round %d: %d steps near a move, %d before the pick' % (n, near, floor))
     finally:
-        send('STOP w300 STOP w300'); send('reload')
+        send('STOP w300 STOP w300')
+        if not qualify.restore_part(part, saved): failures.append('Part %d is not back as saved' % (part + 1))
     now = counters()
     grew = {k: now[k] - before[k] for k in ('errors', 'stalls', 'rollbacks', 'rejected') if now[k] > before[k]}
     if grew: failures.append(str(grew))

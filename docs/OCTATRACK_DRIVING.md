@@ -13,6 +13,10 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
   afterwards; then both copies must equal the saved copy read before. (Until 11 October 2026 this said
   PART+FUNC+PLAY, which clears: Dev12's bank B Part 1 is named `PART 1` from it.)
 - Read the state before you change it, and after you put it back.
+- RELOAD needs a Part that was saved at least once. On one that never was, it shows SAVE PART FIRST! and
+  changes nothing, though the saved copy reads equal (Dev12's bank B after a RAM boot, 12 October 2026). The
+  scripts then pick each changed slot's saved effect back by name (`restore_part` in `octatrack-qualify.py`), which
+  restores a cleared Part's default knobs, and check both copies afterwards.
 - After a power cycle, check the Part again: the unit can come back with an older working copy from the card
   (11 October 2026: a RELOAD made before the unplug was gone, and picks from before it were back).
 - Keep each command short: a few steps, a time limit, its output read at once. A long run goes in the
@@ -30,9 +34,25 @@ Run it in a terminal of the owner's, or in a background task: those stop after t
 bridge, keeps one connection open, pings every 4 s (so MODWERK CONNECTED shows once) and comes back after a
 RAM boot. One process at a time: a second `serve` or a one-shot `npm run device` fights it for the bridge.
 After an unplug, a crash restart or a RAM boot, the bridge can hold a dead handle; `pkill -f usb_bridge;
-pkill -f 'node scripts/device.mjs serve'` and the loop starts both again. Match the node process exactly: a
-looser pattern such as `device.mjs serve` also matches a shell whose command line contains it, and kills the
-loop itself.
+pkill -f '^node scripts/device.mjs serve'` and the loop starts both again. Anchor the pattern: without `^` it also
+matches any shell whose command line contains it (the loop's, or the one running `pkill`), and kills that.
+
+**On Windows, from WSL** (12 October 2026). WSL sees no USB device, and the unit binds WinUSB by itself, so the
+bridge runs in Windows Python and serves TCP; with WSL's mirrored networking (`networkingMode=mirrored` in
+`.wslconfig`), WSL reaches it on 127.0.0.1. usbipd is not needed.
+
+```sh
+# Windows, once: a venv with pyusb and libusb-package (cmd expands %LOCALAPPDATA%; a path with non-ASCII
+# characters cannot be passed from WSL). Then, each time:
+#   "%LOCALAPPDATA%\modwerk-usb\venv\Scripts\python.exe" -B usb_bridge.py 47811
+# WSL:
+while :; do node scripts/device.mjs serve --socket 47811; sleep 1; done
+```
+
+The bridge runs from a copy of `usb_bridge.py` on the Windows side. Stop it with PowerShell's `Stop-Process` (find
+it with `Get-CimInstance Win32_Process`; `wmic` is gone). `boot` and `try` on Windows need a client from 12 October
+2026 or later: older ones send 4,148-byte frames, which WinUSB refuses
+([traps](OCTATRACK_HARDWARE_TRAPS.md#usb-and-ep0)).
 
 ## Send steps
 
@@ -73,7 +93,8 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
   (`PART+FUNC+PLAY`): it CLEARS the Part**, both working and saved copies, its knobs, machines and name
   (`PART 1`), and saves that (stock's Part Clear; 11 October 2026). FUNC+PLAY elsewhere clears the pattern.
   To reload, use `reload`: FUNC+PART opens RENAME, RELOAD, SAVE, SAVE ALL, keeps its cursor from last time and
-  stops at RENAME, so UP three times, DOWN, YES. Do not use SAVE or SAVE ALL.
+  stops at RENAME, so UP three times, DOWN, YES. Do not use SAVE or SAVE ALL. `reload` reports no failure: compare
+  the Part with its saved copy afterwards (SAVE PART FIRST! above).
 - **Patterns.** PATTERN+TRIG n selects pattern n of this bank. Another bank: BANK, then TRIG b (bank b), then
   TRIG n (pattern n) within four seconds (the manual's "CHOOSE BANK", "CHOOSE PATTERN"). Stopped, it applies
   at once; playing, it waits for the pattern's end.

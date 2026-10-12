@@ -230,7 +230,9 @@ int modwerk_dsp_pick(unsigned slot, unsigned track, unsigned row)
 }
 /* A track naming a module effect that is not installed runs stock's null stub, dry,
  * its stored parameters untouched; the unit says so once per change. */
+#ifndef MODWERK_HOST
 static uint32_t missing_shown;
+#endif
 volatile uint32_t modwerk_dsp_missing; /* times the unit said so, for diagnostics */
 uint32_t modwerk_dsp_dry(void)
 {

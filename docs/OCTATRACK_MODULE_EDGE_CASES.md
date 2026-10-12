@@ -113,18 +113,26 @@ brought back the baseline exactly. Not yet: another project and back, a real pow
     module comes off. Seen twice on core 1 at 64-72 % used: after Euclid came off below E-Verb (395 words), and
     after the self-test put the set back (774). Nothing is heard; a module bigger than the largest run is then
     refused as memory though the words are free.
-  - **Fix in progress (owner: "fix it", frozen 12 October 2026, built on the host only, not on the unit):** big
-    blocks (a quarter of the arena or more: E-Verb) are placed as high as they fit (build_core.py's allocator edit),
+  - **Big blocks at the top (owner: "fix it"; S54, 12 October 2026).** Big blocks (a quarter of the arena or more:
+    E-Verb, and the 1,391- and 1,575-word packages) are placed as high as they fit (build_core.py's allocator edit),
     the rest as low; the planner packs big ones down from the top and the rest up from the bottom, lifts a big block
     that sits low once the room under the top ones is free, and moves whenever it has a move, not only when there is a
     hole (dsp.c). A hole now means free words outside the largest free run (dsp.c `modwerk_compact_left`, device.mjs
-    `memory`). Host tests pass (test_move.c placement, test_dsp.c). The churn simulation (test_dsp.c, random sizes,
-    up to 8 blocks) still ends 4.9 % of steps with the free words split and refuses 1.6 % of placements with the words
-    free: blocks of 800-1,200 words are not "big" and can still sit stuck over a hole. **Not done:** the same
-    simulation with the old policy, to see what the change gains; whether the residual needs more (a lower
-    threshold, or sorting); build S54 and run it (the stuck cases above, movestress, movecollide, the selftest).
-    movecollide's `open_hole` and movelisten's `e-verb` setup assume E-Verb sits low and moves; with E-Verb at the
-    top they must change (a hole under a small block instead).
+    `memory`). Host tests pass (test_move.c placement, test_dsp.c).
+    - **What it gains (host churn, 200,000 steps, three seeds, 12 October 2026).** With sizes drawn from the real
+      catalogue (5-1,588 words), placements refused with the words free fall from 2.0 % to 0.6 %, steps that end with
+      the free words split from 9.9 % to 3.0 %, and the words copied per step from 485 to 286. A lower threshold (an
+      eighth) copies less (244) but leaves more split (4.9 %) and refused (0.9 %); with today's catalogue a quarter and a
+      sixth pick the same blocks. test_dsp.c's synthetic sizes: 2.3 % to 1.56 % refused, 8.3 % to 4.9 % split. Kept
+      at a quarter; the residual is mid-sized blocks (800-1,200 words) stuck over a hole.
+    - **On the unit (S54, `ee76c36f`, RAM-booted; LIVE/Dev12 bank B).** E-Verb lands at the top of both cores (@3487
+      of 5,075 words on core 1, @3491 of 5,079 on core 0). Air Chorus coming off under TapeHead left a 795-word hole,
+      closed two seconds after the last key by moving TapeHead down. Movestress (`--steps 40 --seed 7`, playing): 34
+      picks, 6 refused by the cycle ledger, 10 holes closed, longest frame gap 428 us, no error, stall or rollback.
+      Movecollide (`--playing`, its hole now opened under Air Chorus by Mini Verb, 532 words): 35/36; the miss is the
+      known one, a remove meeting a move refused as busy (refusal 5), which the site retries and `device.mjs remove`
+      does not. The self-test afterwards: 5/5 modules intact, all ran together, longest frame 426 us, and no hole
+      left. Not run: movelisten (needs a recorder on Windows; its E-Verb setup still assumes E-Verb moves).
   - Not run yet: a RAM boot after heavy churn.
 - **The module pool** (256 KB) held six modules in 26 KB with no hole; removing Euclid from the middle and
   installing it again left none (first fit at the lowest address; nothing moves).

@@ -53,6 +53,21 @@ def part_fx(part, saved=False): return mem(u32(BANK) + (0x9504a if saved else 0x
 def part_copy(part, saved=False): return mem(u32(BANK) + (0x9504a if saved else 0x8ed80) + part * 6322, 6322)
 def part_saved_equal(): part = mem(PART, 1)[0]; return part_copy(part) == part_copy(part, saved=True)
 def frames(): return int(re.search(r'frames=(\d+)', send('report')).group(1))
+FX_IDS = {1: 0x400d5f58, 2: 0x400d5fdc}  # FX1_IDS, FX2_IDS: id -> descriptor, its name at +9
+def fx_name(slot, fx): return mem(u32(FX_IDS[slot] + 4 * fx) + 9, 16).split(b'\0')[0].decode('latin1').upper().replace(' ', '_')
+
+
+def restore_part(part, saved):
+    """The Part as `saved` again, in both copies. RELOAD first; a Part that was never saved refuses it (SAVE PART FIRST!,
+    nothing changes), so then each slot whose effect differs gets the saved one picked back by name, which brings its
+    default knobs back: enough for a Part that holds defaults (a cleared one). True when both copies equal `saved`."""
+    send('reload')
+    if part_copy(part) != saved:
+        send('NO w200')  # the SAVE PART FIRST! message
+        work = part_copy(part)
+        for i in range(16):
+            if work[i] != saved[i]: send('pick:T%d:FX%d:%s' % (i % 8 + 1, i // 8 + 1, fx_name(i // 8 + 1, saved[i])))
+    return part_copy(part) == saved and part_copy(part, saved=True) == saved
 
 
 def running(failures, what):  # frames advance: the DSPs are alive
@@ -91,7 +106,7 @@ def main():
     pkgs = [package(p) for p in args.packages]
     failures, result = [], dict(base=None, modules=[], together=None)
     if 'stopped' not in send('state'): raise SystemExit('Stop the transport first.')
-    if not part_saved_equal(): raise SystemExit('The current Part differs from its saved copy: run on one that does not (RELOAD it first).')
+    if not part_saved_equal(): raise SystemExit('The current Part differs from its saved copy: run on one that does not.')
     saved_start = part_copy(mem(PART, 1)[0], saved=True)  # what the reload at the end must bring back, in both copies
     before = counters()
     start_part, (start_bank, start_pattern) = mem(PART, 1)[0], mem(0x800065bd, 2)
@@ -162,8 +177,7 @@ def main():
     finally:
         send('STOP w300')
         if mem(PART, 1)[0] != start_part: send('part%d' % (start_part + 1))
-        send('reload')  # the Part as saved, every pick and knob of this run undone
-        if part_copy(start_part) != saved_start or part_copy(start_part, saved=True) != saved_start:
+        if not restore_part(start_part, saved_start):  # the Part as saved, every pick and knob of this run undone
             failures.append('Part %d is not back as saved after the reload (working or saved copy changed)' % (start_part + 1))
         if mem(0x800065bd, 2) != bytes([start_bank, start_pattern]):
             send('BANK w150 TRIG%d w150 TRIG%d w500' % (start_bank + 1, start_pattern + 1))

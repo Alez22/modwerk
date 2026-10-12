@@ -74,7 +74,7 @@ int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned 
     const uint8_t *end = recipe + bytes;
     uint32_t low = ADDR(recipe), high = ADDR(end);
     uint32_t donor = be32(recipe + 4);
-    if (donor < DONOR_LOW || donor > DONOR_HIGH - PAGE) return 0;
+    if (donor - DONOR_LOW > DONOR_HIGH - PAGE - DONOR_LOW) return 0; /* below DONOR_LOW wraps high */
     uint8_t digest[MU_DIGEST_BYTES], *d = pages[id];
     mu_sha256(AT(donor), PAGE, digest);
     for (unsigned i = 0; i < MU_DIGEST_BYTES; ++i) if (digest[i] != recipe[8 + i]) return 0;
