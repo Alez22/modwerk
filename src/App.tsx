@@ -25,8 +25,8 @@ import { ModuleComparison } from './components/ModuleComparison'
 import { api } from './community/api'
 import { compareModules, DEFAULT_MODULE_SORT, MODULE_STATISTICS_CHANGED, type ModuleStatistics } from './community/module-statistics'
 import { ModulePopularity } from './community/ModulePopularity'
-import { selectionConflicts, type ConflictFix } from './catalog/selection-conflicts'
-import { addBlocks } from './catalog/add-blocks'
+import type { ConflictFix } from './catalog/selection-conflicts'
+import { libraryCompatibility } from './catalog/library-compatibility'
 import { useCommunity } from './community/context'
 import { hasBetaAccess, hasBetaUi, hasUsbLinkAccess } from './community/beta-access'
 import { BetaUi, setWords } from './community/beta-ui'
@@ -282,9 +282,7 @@ export default function App() {
   const selection = resolveSelection(selectedIds)
   const availabilityError = moduleAvailabilityError(selectedIds, betaAccess)
   const stockFx2Kept = DSP_LOADER && (active?.keepStockFx2 ?? true)
-  const conflicts = selectionConflicts(selectedIds, stockFx2Kept)
-  // What each module in the library would do to this configuration, so a conflicting add is flagged before it happens.
-  const addBlockMap = addBlocks(selectedIds, stockFx2Kept, accessibleModules.map(module => module.id))
+  const { conflicts, blocks: addBlockMap } = libraryCompatibility(betaUi, selectedIds, stockFx2Kept, accessibleModules.map(module => module.id))
   const libraryFilter = allRoute ? allCategory ?? 'all' : filter
   const libraryFamily = allRoute || accessibleModules.some(module=>DETAILS[module.id].family===family) ? family : 'all'
   const visibleModules = accessibleModules.filter((module) =>
