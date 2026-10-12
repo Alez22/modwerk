@@ -1,0 +1,487 @@
+{
+  "file": "media/audio-preview.mp3",
+  "sha256": "40a52e277f80ec0df487e7a63713f112c44fb07cd51b298900851711466ba5e9",
+  "seconds": 16.459955,
+  "encoding": {
+    "format": "MP3",
+    "sampleRateHz": 44100,
+    "channels": 2,
+    "bitrateKbps": 192,
+    "decodedPeakDbfs": -1.296,
+    "fadeInMs": 5,
+    "passFadeOutMs": 200,
+    "gapSeconds": 0.3,
+    "loudnessMatch": "common gain",
+    "matchWindowSeconds": null,
+    "limiter": false
+  },
+  "passes": [
+    {
+      "label": "sine carrier",
+      "settings": {
+        "PTCH": 64,
+        "RATO": 12,
+        "INDX": 0,
+        "FINE": 64,
+        "FDBK": 0,
+        "DEC": 40,
+        "VOIC": 1,
+        "CHRD": null,
+        "AMP_REL": 40,
+        "AMP_VOL": 127,
+        "FX1": "NONE",
+        "FX2": "NONE"
+      },
+      "sourceRecordingStartFrame": 1115510,
+      "sourceRecordingEndFrame": 1305801,
+      "sourceRecordingPcmSha256": "88b2fa160b39ab90d0b395d3fcf8b3936d486f10458a21e265c99a4ebe3b4122",
+      "start": 0.0,
+      "duration": 4.314989,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -25.074
+    },
+    {
+      "label": "bell-like FM",
+      "settings": {
+        "PTCH": 76,
+        "RATO": 48,
+        "INDX": 80,
+        "FINE": 64,
+        "FDBK": 0,
+        "DEC": 40,
+        "VOIC": 1,
+        "CHRD": null,
+        "AMP_REL": 40,
+        "AMP_VOL": 127,
+        "FX1": "NONE",
+        "FX2": "NONE"
+      },
+      "sourceRecordingStartFrame": 1461254,
+      "sourceRecordingEndFrame": 1652868,
+      "sourceRecordingPcmSha256": "a5bdc97d7dba9dde6a4beeb1b789eb473429b7a0cc3a4f5f4af8114b2a44bdcf",
+      "start": 4.614989,
+      "duration": 4.344989,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -26.297
+    },
+    {
+      "label": "feedback bass",
+      "settings": {
+        "PTCH": 40,
+        "RATO": 12,
+        "INDX": 52,
+        "FINE": 64,
+        "FDBK": 48,
+        "DEC": 28,
+        "VOIC": 1,
+        "CHRD": null,
+        "AMP_REL": 40,
+        "AMP_VOL": 127,
+        "FX1": "NONE",
+        "FX2": "NONE"
+      },
+      "sourceRecordingStartFrame": 1828166,
+      "sourceRecordingEndFrame": 1978767,
+      "sourceRecordingPcmSha256": "905c4a71f95ddd6288f4cb36e7bb225c433fc45cb16c77ebe0118570045368fe",
+      "start": 9.259977,
+      "duration": 3.414989,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -21.046
+    },
+    {
+      "label": "four-voice chord",
+      "settings": {
+        "PTCH": 64,
+        "RATO": 12,
+        "INDX": 24,
+        "FINE": 64,
+        "FDBK": 0,
+        "DEC": 40,
+        "VOIC": 4,
+        "CHRD": 127,
+        "AMP_REL": 40,
+        "AMP_VOL": 127,
+        "FX1": "NONE",
+        "FX2": "NONE"
+      },
+      "sourceRecordingStartFrame": 2246234,
+      "sourceRecordingEndFrame": 2399922,
+      "sourceRecordingPcmSha256": "2946cbd1a78946e2656539bd0afe3e55c77c4bfa96b8ff561471b70c86ca9dfe",
+      "start": 12.974966,
+      "duration": 3.484989,
+      "matchGainDb": 0.0,
+      "unmatchedPeakDbfs": -21.459
+    }
+  ],
+  "validation": {
+    "nonzeroAudio": true,
+    "decodedPeakBelowMinus1Dbfs": true,
+    "final50msPeakDbfs": -84.288,
+    "clippedSamples": 0,
+    "sourceSampleFree": true
+  },
+  "schemaVersion": 2,
+  "moduleId": "synth",
+  "moduleVersion": "0.1.2-experimental",
+  "rendered": "2026-10-12",
+  "sourceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
+  "limitations": [
+    "Offline emulator/native render, not a physical Octatrack recording or new hardware/performance qualification."
+  ],
+  "sourceFilesSha256": {
+    "machine.s": "de9d849bf0b6e5d5ad747df32ae5806e7f9516674a14ac74b1c15d73d30d280a",
+    "manifest.py": "7854330aca001d2841de2fb384f0ca8adb7497db49dacc56da2815c1f444c0e6",
+    "registration.c": "c7f969f6536ef3b03727c02a05ce48755662c2eae0fbb4aaba80708d02c06f76",
+    "registration.s": "d04e47d6d21287ea969e4d39d0fea8c90b262a577081ba8376915f96cd2d9d2d",
+    "upstream/quantizer/core.s": "2992b6c85cff440de03ae84eb22dee8b8a83a84f23e94b699404d28940b6f958",
+    "upstream/quantizer/keys.s": "e2ffdbfae34b0828794a4eb4cc229e3efcaed25dc953bf7c05c13f6e37f65587",
+    "upstream/quantizer/manifest.py": "e637e3718e4b65320b847ef0758e0d46800f8be6b8020290f89192c798c535ef",
+    "upstream/quantizer/quantizer.s": "d1737168a1750f540b3dfbefdd2a64b11084013b9f7b71b31aa4f189d33a24c5",
+    "upstream/quantizer/scale.s": "82242c407847ac61a6f60fe15bdc5b0b4fc852bac82c39745b5c838ec9389c64",
+    "upstream/synth/manifest.py": "58c7acd5684fe0b59c42501f7fdbfd1b288b3bfb71938dcadf43bc1774b3e5e8",
+    "upstream/synth/page.s": "25e2a0624fcc30ee3a8db5966954113119fb5942855042f765e664a2f8544a70",
+    "upstream/synth/poly.s": "ce21f5f7cddcd7268d27e25c500f1403cc59a9dff28044b1832cf2b45592d34c",
+    "verify-audio.py": "d02b7b916d9b198b9e10e34d21c7eb0242267ef8bdac5762b5958721c05b0283",
+    "verify-regressions.py": "86f6eb9e2a0c738212703bfcec2ad830910702e4064052b1b7e2bc10fbba444d",
+    "verify.py": "685d4aa146ed206caf8c9d78acf0f635e727f8eccc359167bb46205d647f3a75"
+  },
+  "method": "Actual sample-free FM Synth playback in Octemu through the current released module’s browser-composed private OS 1.40C image. Four separate PLAY starts followed by double STOP, before the 16-step pattern loops. Trim boot/edit silence, preserve the complete held notes and stopped tails, join with 300 ms gaps, then apply one common gain. Not a physical Octatrack recording.",
+  "image": {
+    "moduleId": "synth",
+    "mainOsSha256": "f1bace63e566c22b0c1a55dd833b0fd24a1ce9c2004bc168643c2a8110a7a524",
+    "bytes": 1129795,
+    "source": "current main browser composer, released module package",
+    "stockMainSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e"
+  },
+  "sample": null,
+  "emulator": {
+    "name": "Octemu",
+    "sha256": "3ce6cebde0de2c61edc4228436338a1e115ce227373351a5ca84aefc9cf90acb",
+    "qemuSha256": "a7eecaeae877630879062afd6462b8b7b9f2ad4a0664e325c4edddc0a84950c0"
+  },
+  "fixture": {
+    "recipe": "Private copy of Octemu out/fx2 firmware-created card and battery, step-1 T1 trig and FX1/FX2 NONE; delete Set 260922/AUDIO/SINE440.WAV before boot. No audio files are used. Original fixture unchanged.",
+    "sampleFreeCardSha256": "dbe748ed445db9305ac3245204464dd730ac0611a2efef75cbeb7ba02dced9f8",
+    "initialBatterySha256": "5bd8f41de2f41b2ad63707e05ccc6b3a5e91f32ca8330f421f8f7469cb430ece",
+    "sourceRecordingSha256": "588326c8661cf65a19ad473e55a5058d8ab8f4f34f48e50325a1cf5a8844e1d1"
+  },
+  "panelWalk": [
+    {
+      "record": 0
+    },
+    {
+      "wait_text": "PTCH",
+      "timeout_ms": 60000
+    },
+    {
+      "wait_guest_ms": 16000
+    },
+    {
+      "tap": "NO"
+    },
+    {
+      "tap": "T1"
+    },
+    {
+      "press": "FUNC"
+    },
+    {
+      "tap": "SRC"
+    },
+    {
+      "release": "FUNC"
+    },
+    {
+      "wait_guest_ms": 300
+    },
+    {
+      "tap": "DOWN"
+    },
+    {
+      "tap": "DOWN"
+    },
+    {
+      "tap": "DOWN"
+    },
+    {
+      "tap": "DOWN"
+    },
+    {
+      "tap": "DOWN"
+    },
+    {
+      "tap": "YES"
+    },
+    {
+      "tap": "SRC",
+      "until": "RAT0"
+    },
+    {
+      "encoder": 2,
+      "delta": -1,
+      "times": 32,
+      "over_ms": 480
+    },
+    {
+      "tap": "AMP"
+    },
+    {
+      "encoder": 2,
+      "delta": -1,
+      "times": 87,
+      "over_ms": 1305
+    },
+    {
+      "encoder": 3,
+      "delta": 1,
+      "times": 127,
+      "over_ms": 1905
+    },
+    {
+      "tap": "SRC"
+    },
+    {
+      "wait_guest_ms": 300
+    },
+    {
+      "screenshot": "fm-carrier.pgm"
+    },
+    {
+      "record": 1
+    },
+    {
+      "mark": "carrier"
+    },
+    {
+      "tap": "PLAY",
+      "until_lamp": 1,
+      "lit": 1
+    },
+    {
+      "wait_guest_ms": 900
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "wait_guest_ms": 800
+    },
+    {
+      "record": 0
+    },
+    {
+      "encoder": 0,
+      "delta": 1,
+      "times": 12,
+      "over_ms": 300
+    },
+    {
+      "encoder": 1,
+      "delta": 1,
+      "times": 36,
+      "over_ms": 1000
+    },
+    {
+      "encoder": 2,
+      "delta": 1,
+      "times": 80,
+      "over_ms": 1200
+    },
+    {
+      "tap": "SRC"
+    },
+    {
+      "wait_guest_ms": 300
+    },
+    {
+      "screenshot": "fm-bell.pgm"
+    },
+    {
+      "record": 1
+    },
+    {
+      "mark": "bell"
+    },
+    {
+      "tap": "PLAY",
+      "until_lamp": 1,
+      "lit": 1
+    },
+    {
+      "wait_guest_ms": 900
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "wait_guest_ms": 800
+    },
+    {
+      "record": 0
+    },
+    {
+      "encoder": 0,
+      "delta": -1,
+      "times": 36,
+      "over_ms": 540
+    },
+    {
+      "encoder": 1,
+      "delta": -1,
+      "times": 36,
+      "over_ms": 1000
+    },
+    {
+      "encoder": 2,
+      "delta": -1,
+      "times": 28,
+      "over_ms": 420
+    },
+    {
+      "encoder": 4,
+      "delta": 1,
+      "times": 48,
+      "over_ms": 720
+    },
+    {
+      "encoder": 5,
+      "delta": -1,
+      "times": 12,
+      "over_ms": 300
+    },
+    {
+      "tap": "SRC"
+    },
+    {
+      "wait_guest_ms": 300
+    },
+    {
+      "screenshot": "fm-bass.pgm"
+    },
+    {
+      "record": 1
+    },
+    {
+      "mark": "bass"
+    },
+    {
+      "tap": "PLAY",
+      "until_lamp": 1,
+      "lit": 1
+    },
+    {
+      "wait_guest_ms": 900
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "wait_guest_ms": 800
+    },
+    {
+      "record": 0
+    },
+    {
+      "encoder": 0,
+      "delta": 1,
+      "times": 24,
+      "over_ms": 360
+    },
+    {
+      "encoder": 2,
+      "delta": -1,
+      "times": 28,
+      "over_ms": 420
+    },
+    {
+      "encoder": 4,
+      "delta": -1,
+      "times": 48,
+      "over_ms": 720
+    },
+    {
+      "encoder": 5,
+      "delta": 1,
+      "times": 12,
+      "over_ms": 300
+    },
+    {
+      "tap": "LFO"
+    },
+    {
+      "encoder": 2,
+      "delta": 1,
+      "times": 3,
+      "over_ms": 300
+    },
+    {
+      "encoder": 5,
+      "delta": 1,
+      "times": 127,
+      "over_ms": 1905
+    },
+    {
+      "screenshot": "fm-chord-controls.pgm"
+    },
+    {
+      "tap": "SRC"
+    },
+    {
+      "wait_guest_ms": 300
+    },
+    {
+      "screenshot": "fm-chord.pgm"
+    },
+    {
+      "record": 1
+    },
+    {
+      "mark": "chord"
+    },
+    {
+      "tap": "PLAY",
+      "until_lamp": 1,
+      "lit": 1
+    },
+    {
+      "wait_guest_ms": 900
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "tap": "STOP",
+      "until_lamp": 1,
+      "lit": 0
+    },
+    {
+      "wait_guest_ms": 800
+    },
+    {
+      "record": 0
+    }
+  ]
+}
