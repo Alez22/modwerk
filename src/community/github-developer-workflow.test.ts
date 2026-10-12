@@ -12,6 +12,7 @@ import { GithubReplyForm } from './GithubIssueReplies'
 import { CommunityContext, emptySession } from './context'
 import { DeveloperPage } from './DeveloperPage'
 import { BugReportSuccess, ExistingIssues } from './BugReportNotice'
+import registeredAuthors from '../../.github/module-authors.json'
 
 const databases: DatabaseSync[] = []
 afterEach(() => { vi.unstubAllGlobals(); for (const db of databases.splice(0)) db.close() })
@@ -112,6 +113,80 @@ describe('frontend public replies into GitHub', () => {
 })
 
 describe('scoped GitHub maintainer commands', () => {
+  it('triages through one public command receipt, preserves confirmation while waiting, and retries quietly', async () => {
+    const f = await fixture()
+    const waiting = f.payload('/modwerk needs-info Which FX slot and steps reproduce this?')
+    expect(await (await f.hook(waiting)).json()).toMatchObject({command:'completed'})
+    expect(f.db.prepare('SELECT status,triage_state,confirmed_at FROM issues').get()).toEqual({status:'open',triage_state:'needs_info',confirmed_at:null})
+    expect(f.comments).toHaveLength(1)
+    expect(f.comments[0].body).toContain('Waiting for reporter')
+    await f.hook(waiting)
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM issue_triage_events').get()!.count).toBe(1)
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM notifications').get()!.count).toBe(1)
+    // The service account is a User with a personal token; a signed echo of its verified receipt stays quiet.
+    await f.hook(f.payload(f.comments[0].body,99))
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM notifications').get()!.count).toBe(1)
+    await f.hook(f.payload('/modwerk confirm '+f.module.version+' Reproduced on track 8 with stock delay.',2))
+    await f.hook(f.payload('/modwerk needs-info Can you test a second track?',3))
+    expect(f.db.prepare('SELECT status,triage_state,affected_version,confirmed_at FROM issues').get()).toMatchObject({status:'open',triage_state:'needs_info',affected_version:f.module.version,confirmed_at:expect.any(String)})
+    expect((await (await f.call('/modules/'+f.module.id+'/issues')).json()).issues[0]).toMatchObject({triage_state:'needs_info',affected_version:f.module.version})
+    expect(f.comments.map(comment => comment.body).join('\n')).not.toContain('PRIVATE CONFIGURATION')
+  })
+
+  it('classifies suggestions separately and closes missing-information reports without claiming a fix', async () => {
+    const f = await fixture()
+    await f.hook(f.payload('/modwerk classify feature This asks for an additional control.'))
+    expect(f.db.prepare('SELECT report_kind,confirmed_at FROM issues').get()).toEqual({report_kind:'feature',confirmed_at:null})
+    expect(await (await f.hook(f.payload('/modwerk confirm unknown I think so.',2))).json()).toMatchObject({command:'rejected'})
+    await f.hook(f.payload('/modwerk close insufficient_information Please reply with reproduction steps to reopen.',3))
+    expect(f.db.prepare('SELECT status,closure_reason,closure_note FROM issues').get()).toEqual({status:'closed',closure_reason:'insufficient_information',closure_note:'Please reply with reproduction steps to reopen.'})
+    expect(f.db.prepare("SELECT COUNT(*) AS count FROM notifications WHERE kind='issue_resolved'").get()!.count).toBe(0)
+  })
+
+  it('lets a verified current maintainer triage without release-author registration, while keeping release authority separate',async()=>{
+    const f=await fixture(),accounts=registeredAuthors.accounts as Record<string,number>,id=accounts['zac-kyoti']
+    f.db.exec("INSERT INTO users(id,display_name,github_id,github_login) VALUES('maker','Maker','273702472','Zac-Kyoti'); INSERT INTO module_maintainers(module_id,user_id,github_login) VALUES('sidechain-compressor','maker','Zac-Kyoti')")
+    delete accounts['zac-kyoti']
+    try {
+      expect(await (await f.hook(f.payload('/modwerk needs-info Which track?'))).json()).toMatchObject({command:'completed'})
+      expect(await (await f.hook(f.payload('/modwerk resolve '+f.module.version+' verified-download',2))).json()).toMatchObject({command:'rejected'})
+      expect(await (await f.hook(f.payload('/modwerk close insufficient_information Please reply with details.',3))).json()).toMatchObject({command:'completed'})
+      f.db.exec("UPDATE module_maintainers SET revoked=1")
+      expect(await (await f.hook(f.payload('/modwerk reopen More details arrived.',4))).json()).toMatchObject({command:'denied'})
+    } finally {accounts['zac-kyoti']=id}
+  })
+
+  it('does not let a site claim replace a registered author’s numeric identity',async()=>{
+    const f=await fixture(),p=f.payload('/modwerk needs-info Which track?')
+    f.db.exec("INSERT INTO users(id,display_name,github_id,github_login) VALUES('recycled','Someone else','1','Zac-Kyoti'); INSERT INTO module_maintainers(module_id,user_id,github_login) VALUES('sidechain-compressor','recycled','Zac-Kyoti')")
+    const identity={...p.sender,id:1}
+    expect(await (await f.hook({...p,sender:identity,comment:{...p.comment,user:identity}})).json()).toMatchObject({command:'denied'})
+    expect(f.writes).toEqual([])
+  })
+
+  it('requires evidence and confirmation before marking a candidate fix, and allows explicit unconfirmation', async () => {
+    const f = await fixture()
+    for (const [index,command] of ['/modwerk confirm unknown','/modwerk confirm nonsense Tested it.','/modwerk awaiting-verification PR ready.'].entries()) {
+      expect(await (await f.hook(f.payload(command,index+1))).json()).toMatchObject({command:'rejected'})
+    }
+    await f.hook(f.payload('/modwerk confirm unknown Reproduced; affected versions not established.',4))
+    await f.hook(f.payload('/modwerk awaiting-verification Candidate PR ready; hardware check pending.',5))
+    expect(f.db.prepare('SELECT status,triage_state FROM issues').get()).toEqual({status:'open',triage_state:'awaiting_verification'})
+    await f.hook(f.payload('/modwerk unconfirm Reproduction was stock behavior; reassessing.',6))
+    expect(f.db.prepare('SELECT confirmed_at,affected_version FROM issues').get()).toEqual({confirmed_at:null,affected_version:null})
+  })
+
+  it('keeps triage unchanged when the GitHub acknowledgement fails and recovers a lost response once', async () => {
+    const f = await fixture(),command=f.payload('/modwerk needs-info Please supply reproduction steps.')
+    f.dropPost()
+    expect((await f.hook(command)).status).toBe(502)
+    expect(f.db.prepare('SELECT triage_state FROM issues').get()!.triage_state).toBe('untriaged')
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM issue_triage_events').get()!.count).toBe(0)
+    await f.hook(command)
+    expect(f.comments.filter(comment=>comment.body.includes('Status:'))).toHaveLength(1)
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM notifications').get()!.count).toBe(1)
+  })
+
   it('allows Zac to close and reopen his module report without a site claim or repository write access', async () => {
     const f = await fixture()
     const close = f.payload('/modwerk close configuration Set the preceding track’s CUE volume to zero.')

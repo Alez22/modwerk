@@ -196,14 +196,17 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
 .card-stat { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .card-stat.is-downloads { color: var(--muted); }
 .card-stats .module-works-count { font-size: 12px; }
-.card-proof { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; border-top: 1px solid #ffffff1c; color: #b9b5c8; font-size: 11px; }
-.card-proof > span { display: inline-flex; align-items: center; gap: 7px; }
+.card-proof { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; white-space: nowrap; }
+.card-proof-grade { display: inline-flex; flex: 1 1 0; align-items: center; gap: 6px; min-width: 0; }
+.card-proof-grade-label { overflow: hidden; text-overflow: ellipsis; }
+.card-proof-reports { display: inline-flex; flex: none; align-items: center; gap: 8px; }
+.card-proof-count { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
 .evidence-dot { width: 7px; height: 7px; border-radius: 50%; background: #8f8fa3; flex-shrink: 0; }
 .evidence-dot.is-proven { background: #7ed3a0; box-shadow: 0 0 6px #7ed3a066; }
 .evidence-dot.is-in-use { background: #7ed3a0; }
 .evidence-dot.is-reported { background: #d8b56f; }
 .evidence-dot.is-pending { background: transparent; border: 1px dashed #8f8fa3; }
-.card-proof label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; margin-right: -8px; padding: 4px 8px; border: 1px solid transparent; border-radius: 5px; }
+.card-proof label { display: inline-flex; flex: none; gap: 6px; align-items: center; cursor: pointer; margin-right: -8px; padding: 6px 8px; border: 1px solid transparent; border-radius: 5px; }
 .card-proof label:hover { background: var(--surface-hover); }
 .card-proof label:has(input:checked) { background: var(--accent-soft); color: #c1c7ff; }
 .card-proof label:has(input:disabled) { cursor: not-allowed; opacity: .5; }
@@ -384,7 +387,9 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
 .module-issue-heading { display: flex; flex: 1 1 300px; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .module-issue-heading h3 { flex-basis: 100%; font-size: 16px; line-height: 1.5; margin: 5px 0 0; overflow-wrap: anywhere; }
 .module-issue-state { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #456354; border-radius: 5px; padding: 3px 7px; background: #25332c; color: #a9d6b5; font-size: 11px; font-weight: 600; }
-.module-issue-state[data-open="true"] { background: #393222; border-color: #71603b; color: #efd17c; }
+.module-issue-state[data-open="true"] { background: #2c2b3b; border-color: #53516b; color: #cfccdf; }
+.module-issue-state[data-confirmed="true"] { background: #393222; border-color: #71603b; color: #efd17c; }
+.module-issue-triage { padding: 12px; border-left: 2px solid #696381; background: #ffffff05; }
 .module-issue-number { font-family: var(--mono); color: var(--muted); font-size: 12px; }
 .module-issue-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 12px; margin: 10px 0 18px; }
 .module-issue-meta a { color: #c3c5ef; }
@@ -415,8 +420,7 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
   .module-issues-empty { padding: 18px; }
 }
 .tab-count { min-width: 22px; padding: 0 7px; border-radius: 11px; background: var(--accent); color: #15151b; font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; }
-.module-issue-count { background: #25332c; border: 1px solid #456354; color: #a9d6b5; font-variant-numeric: tabular-nums; }
-.module-issue-count[data-open="true"] { background: #393222; border-color: #71603b; color: #efd17c; }
+.module-issue-count { background: #2c2b3b; border: 1px solid #53516b; color: #cfccdf; font-variant-numeric: tabular-nums; }
 .detail-tabs button[aria-selected="true"] .tab-count:not(.module-issue-count) { background: #c3c8ff; }
 .detail-rating .tab-count { min-width: 20px; line-height: 18px; font-size: 11px; }
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 35px; }

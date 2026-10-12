@@ -58,6 +58,7 @@ async function fixture(){
  db.exec(readFileSync(new URL('../../migrations/0038_direct_messages.sql',import.meta.url),'utf8'))
  db.exec(readFileSync(new URL('../../migrations/0041_issue_closed_at.sql',import.meta.url),'utf8'))
  db.exec(readFileSync(new URL('../../migrations/0060_module_working_reports.sql',import.meta.url),'utf8'))
+ db.exec(readFileSync(new URL('../../migrations/0068_report_triage.sql',import.meta.url),'utf8'))
  const env:Env={DB:adapter(db),APP_URL:'https://octamod.test',ADMIN_KEY_SHA256:await digest(adminKey)}
  const objects=new Map<string,ArrayBuffer>()
  env.MEDIA={async put(key,bytes){objects.set(key,bytes)},async get(key){const bytes=objects.get(key);return bytes?{body:new ReadableStream({start(controller){controller.enqueue(new Uint8Array(bytes));controller.close()}})}:null},async delete(key){objects.delete(key)}}
@@ -194,7 +195,7 @@ describe('community access and review',()=>{
    const privateId=String(db.prepare('SELECT id FROM issues').get()!.id)
    expect((await call('/admin/issues/'+privateId+'/github','POST',{},'',undefined,admin)).status).toBe(400)
    expect(requests).toHaveLength(0)
-   expect(await (await call('/modules/spectrum/issues')).json()).toEqual({tracker:'github',issues:[],openCount:0,closedCount:0,hasMore:false,allUrl:'https://github.com/repeat98/octamod/issues?q='+encodeURIComponent('is:issue is:open label:"module:spectrum"')})
+   expect(await (await call('/modules/spectrum/issues')).json()).toEqual({tracker:'github',issues:[],openCount:0,closedCount:0,confirmedCount:0,needsInfoCount:0,hasMore:false,allUrl:'https://github.com/repeat98/octamod/issues?q='+encodeURIComponent('is:issue is:open label:"module:spectrum"')})
    // A public report becomes a GitHub issue straight away and gets no forum thread of its own.
    const published=await call('/modules/spectrum/issues','POST',issue({visibility:'forum',steps:'Ping @someone about #12 <img src=x>'}),reporter)
    expect(published.status).toBe(201)

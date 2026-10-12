@@ -1,5 +1,5 @@
-// openIssues, lastIssueAt and firstDownloadAt feed the stability grade; an older response without them grades as untried.
-export type ModuleStatistics = { module_id: string; average: number | null; count: number; likes: number; downloads: number; downloadsStarted: string | null; worksReports?: number; firstDownloadAt?: string | null; openIssues?: number; lastIssueAt?: string | null }
+// Confirmation is distinct from open reports; an older response without triage must not imply no known bugs.
+export type ModuleStatistics = { module_id: string; average: number | null; count: number; likes: number; downloads: number; downloadsStarted: string | null; worksReports?: number; firstDownloadAt?: string | null; openIssues?: number; lastIssueAt?: string | null; confirmedIssues?: number; unconfirmedIssues?: number; needsInfoIssues?: number; lastConfirmedIssueAt?: string | null }
 export const MODULE_STATISTICS_CHANGED = 'modwerk-module-statistics'
 export const DEFAULT_MODULE_SORT = 'updated'
 // Every library sort, with the short label the phone results bar shows beside its sort icon.

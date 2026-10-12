@@ -67,7 +67,7 @@ describe('the public GitHub issue for a configuration', () => {
     const markdown = issueMarkdown({ ...issue(['repeat98']), scope: 'module', moduleIds: undefined, details: { ...issue([]).details, modules: undefined, version: '0.2.0' } }, 'https://modwerk.app/')
     expect(markdown).toContain('for **`miniverb`** by')
     expect(markdown).toContain('| Module version | 0.2.0 |')
-    expect(markdown).toContain('`/modwerk resolve <version> verified-download`')
+    expect(markdown).toContain('`/modwerk resolve <published-version> verified-download`')
     expect(markdown).not.toMatch(/whole configuration|Configuration \|/)
     expect(issueTitle({ module_id: 'miniverb', title: 'Freeze' })).toBe('[miniverb] Freeze')
   })

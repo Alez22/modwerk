@@ -92,7 +92,11 @@ Documentation/media-only fixes do not need a version bump unless requesting auto
 
 ## Documentation-only updates
 
+Local module `README.md`, `TESTING.md` and `CPU.md` can be edited without updating import checksums. Their recorded hashes remain import history. Code, licences, archived snapshots and preserved `upstream/` documentation retain exact checksums. The lightweight `npm run sdk:imports:check` uses Node alone and runs on documentation PRs; the full SDK check at publication uses the same policy.
+
 Fixing a README, a tutorial, a caption or a screenshot of a module that already has its qualification record needs none of the heavy steps: no version bump, no rebuilt packages, no fresh approval, and no Docker compile in CI when only README, Markdown, `media/`, `presentation/` or `evidence/` files change. The packages and the owner's approval bind to the module's code fingerprint (`moduleSourceFingerprint` in `scripts/module-source.mjs`), which ignores those files and the manifest's prose. Open a normal pull request and run `npm run check -- --base origin/main`. The same classifier drives PR checks and deployment: prose and media on all three machines skip native compilation, while firmware source, linking/build inputs and compiler changes retain it. The site still bundles and publishes the documentation; unchanged Worker inputs skip its deploy. The frozen baseline modules, `cc-map`, `previewvol` and MIDI Scenes keep their older exact-folder rules (see [retained evidence](MODULE_QUALIFICATION.md#risk-based-update-checks--3-october-2026)).
+
+For imported files outside the three editable local guides, refresh affected `vendoredSha256` records in `sdk/imports/` after reviewed media or attribution edits, and record the local update while preserving upstream source fingerprints. Instrument capture checks must select `otUi` media; audio previews share the media list.
 
 ## What a finished module contains
 
@@ -117,6 +121,8 @@ what they do; label inventories and fixture descriptions are insufficient.
 Keep alt text about the visible screen and reserve extra pages for supplementary
 screenshots. Read the complete gallery as a first-time user and follow the
 [screenshot caption standard](MODULE_UI_CAPTURES.md#write-a-short-screenshot-walkthrough).
+
+A module that makes or changes sound can also carry one short [audio preview](MODULE_AUDIO_PREVIEWS.md): a single sample played dry, then through the module.
 
 ## Octatrack
 

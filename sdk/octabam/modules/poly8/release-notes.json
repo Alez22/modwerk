@@ -1,26 +1,34 @@
 {
-  "version": "0.2.6-experimental",
-  "date": "2026-10-09",
-  "publication": "Unpublished experimental update candidate. T07/T08 remain withdrawn; corrected T09 received a functional MKII report. The subsequent selection-flow update has separate source/image identities.",
+  "version": "0.2.7-experimental",
+  "date": "2026-10-12",
   "changes": [
-    "Combine POLY8 with Repitch, Mute Modes and Scale Quantizer through guarded shared hooks; other configurations retain their original build paths.",
-    "Add a bounded native chooser for POLY8, Analog BD, VECTOR and FM Synth together. Each machine retains its own saved Part marker, controls and playback engine.",
-    "Use FM Synth\u2019s bundled signature-aware quantizer when both quantizers are selected; preserve its complete helper-pointer ABI and refuse changed or unknown overlapping claims.",
-    "Keep the pitch cache within signed ColdFire PC-relative addressing range; prevent silent assembler displacement wrap from overwriting preceding companion-machine code. Add a firmware-free check of all 121 compiled local PC-relative addresses.",
-    "Restore NO dismissal of the one-POLY8 refusal using stock\u2019s modal input layer while retaining its automatic native timeout.",
-    "Retain eight POLY8 voices, one POLY8 assignment per Part, LOOP OFF on new assignments and fixed 1/8 gain. Existing DSP memory and menu-space limits still apply; Octakit remains incompatible.",
-    "Explicitly load the shared machine-table initialization flag instead of leaving it in uncleared BSS. Nonzero RAM reproduces an odd widget target at the T07/T08 boot-failure call; add a compiled-section gate rejecting uninitialized POLY8 runtime state. The owner reports corrected T09 works on MKII; detailed cases were not reported.",
-    "Current physical recording, responsiveness, reboot, chip worst-case timing and complete memory bounds remain unqualified. Native combined-machine results are emulator evidence only.",
-    "Match FLEX/STATIC machine assignment: selection and reselection retain the current page instead of automatically opening sample slots. Double-TRACK opens FLEX slots; LEFT/RIGHT and sample confirmation retain their native behavior."
+    "Release the previous sequenced chord once before the next native sample trig, so finite AMP REL can end its tails even with HOLD INF. Preserve all notes in the new chord and independently owned panel/MIDI notes. Related to https://github.com/repeat98/modwerk/issues/447.",
+    "Keep finite HOLD, intentional REL INF sustain and native STOP behavior. Recorded key-up timing remains unsupported; the final chord with HOLD INF sustains until another trig or STOP.",
+    "The owner approved this scoped experimental release with current-build hardware, chip worst-case timing and complete memory qualification waived. Native playback tests pass; physical MKI confirmation remains pending. Keep issue 447 open until the exact published download is verified on the affected unit."
   ],
   "history": [
+    {
+      "version": "0.2.6-experimental",
+      "date": "2026-10-09",
+      "changes": [
+        "Combine POLY8 with Repitch, Mute Modes and Scale Quantizer through guarded shared hooks; other configurations retain their original build paths.",
+        "Add a bounded native chooser for POLY8, Analog BD, VECTOR and FM Synth together. Each machine retains its own saved Part marker, controls and playback engine.",
+        "Use FM Synth’s bundled signature-aware quantizer when both quantizers are selected; preserve its complete helper-pointer ABI and refuse changed or unknown overlapping claims.",
+        "Keep the pitch cache within signed ColdFire PC-relative addressing range; prevent silent assembler displacement wrap from overwriting preceding companion-machine code. Add a firmware-free check of all 121 compiled local PC-relative addresses.",
+        "Restore NO dismissal of the one-POLY8 refusal using stock’s modal input layer while retaining its automatic native timeout.",
+        "Retain eight POLY8 voices, one POLY8 assignment per Part, LOOP OFF on new assignments and fixed 1/8 gain. Existing DSP memory and menu-space limits still apply; Octakit remains incompatible.",
+        "Explicitly load the shared machine-table initialization flag instead of leaving it in uncleared BSS. Nonzero RAM reproduces an odd widget target at the T07/T08 boot-failure call; add a compiled-section gate rejecting uninitialized POLY8 runtime state. The owner reports corrected T09 works on MKII; detailed cases were not reported.",
+        "Current physical recording, responsiveness, reboot, chip worst-case timing and complete memory bounds remain unqualified. Native combined-machine results are emulator evidence only.",
+        "Match FLEX/STATIC machine assignment: selection and reselection retain the current page instead of automatically opening sample slots. Double-TRACK opens FLEX slots; LEFT/RIGHT and sample confirmation retain their native behavior."
+      ]
+    },
     {
       "version": "0.2.5-experimental",
       "date": "2026-10-08",
       "changes": [
         "Publish as POLY8, including the native machine name and one-machine refusal dialog. Saved PL/1 Parts retain their identity.",
-        "POLY8T06 preserves an existing POLY track\u2019s LOOP setting when reselecting the machine; newly assigned tracks still default to OFF.",
-        "Returning LEFT from POLY\u2019s sample slots restores the POLY machine cursor and title; RIGHT opens FLEX samples again.",
+        "POLY8T06 preserves an existing POLY track’s LOOP setting when reselecting the machine; newly assigned tracks still default to OFF.",
+        "Returning LEFT from POLY’s sample slots restores the POLY machine cursor and title; RIGHT opens FLEX samples again.",
         "Reduce ColdFire interpolation and held-voice mixing instructions without changing eight-voice admission, envelopes or fixed 1/8 gain. Skip redundant peak measurement while the limiter is at unity, retaining defensive output saturation.",
         "Retain the original DSP payloads and existing core logger. Native load comparisons and panel flows are emulator evidence; physical CPU deadlines, recording and reboot qualification remain pending."
       ]
@@ -70,7 +78,7 @@
       "changes": [
         "32 active POLY voices share one global pool; one track can use all free voices.",
         "Independent preallocated AMP envelopes with shared per-track filters and FX.",
-        "PTCH tuning is independent of chromatic and MIDI notes, with ten panel octave positions and dedicated-route MIDI 0\u2013127.",
+        "PTCH tuning is independent of chromatic and MIDI notes, with ten panel octave positions and dedicated-route MIDI 0–127.",
         "Selecting POLY opens native FLEX samples directly; STATIC is excluded.",
         "Hardware deadlines, broad lifecycle combinations, note recording and public packaging remain unqualified."
       ]

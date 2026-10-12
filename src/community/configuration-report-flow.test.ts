@@ -78,7 +78,7 @@ describe('a report about a whole configuration', () => {
     expect(markdown.match(/@repeat98/g)).toHaveLength(1)
     expect(markdown).toContain('| Configuration | 3 modules |')
     for (const id of ['sidechain-compressor', 'miniverb', 'repitch']) expect(markdown).toContain('- `' + id + '` ' + version(id))
-    expect(markdown).toContain('`/modwerk resolve <module-id> <version> verified-download`')
+    expect(markdown).toContain('`/modwerk resolve <module-id> <published-version> verified-download`')
     // The build fingerprint, the FX2 choice and the token stay out of the public issue.
     for (const secret of ['c'.repeat(64), 'private-test-token', 'stock FX2']) expect(markdown).not.toContain(secret)
     expect(f.row()).toMatchObject({ scope: 'configuration', module_id: 'sidechain-compressor', github_state: 'synced', github_number: 321, maintainer_sharing: 1, public_sharing: 0 })

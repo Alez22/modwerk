@@ -79,7 +79,7 @@
       "revision": "363861e31ee963c478fab2b190a0fabe1d7ce37b",
       "sourcePath": "modules/analog-bassdrum/README.md",
       "sourceSha256": "4876d9613e5e65de0aefeef7ddd60ef6d0d5642c61b1fde60b97fc0f72255f68",
-      "vendoredSha256": "a86c759c8955de4d0299b634fda94c01c1df6c7aa95dd3ad6c0e70e5177641df",
+      "vendoredSha256": "d4d2900174dc66de7aa8c2b13e4a9a8155eb310e0d5c0b4ddc33e32f6f166dfb",
       "importedVendoredSha256": "57743ee073204e2a1b51ed7abad7ddf44eae95faddc90d397ca707d30a2bdfed",
       "adaptation": " Octamod 0.1.1 version and native verification evidence appended; imported fingerprint retained.",
       "localDocumentationUpdate": {
@@ -114,6 +114,12 @@
           "moduleVersion": "0.1.5-experimental",
           "previousVendoredSha256": "efcdface8d593d015d0de6d037ec97ddb0781a9349343bfe30a8fda55d31d0cc",
           "reason": "Restore stock SRC defaults in both Part copies on departure; exact AB015FIX01 promoted after reported physical FLEX persistence and owner merge/publication instruction. Updated release documentation retains broader unverified limits."
+        },
+        {
+          "moduleVersion": "0.1.5-experimental",
+          "documentationOnly": true,
+          "previousVendoredSha256": "a86c759c8955de4d0299b634fda94c01c1df6c7aa95dd3ad6c0e70e5177641df",
+          "reason": "Document the reviewed audio preview from PR #406; original upstream and import fingerprints retained. Firmware source and qualification are unchanged."
         }
       ]
     },

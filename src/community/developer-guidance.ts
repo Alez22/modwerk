@@ -1,10 +1,11 @@
 /** Shared guidance for the readable submit page and its complete agent prompt. */
+import { REPORT_COMMANDS } from './report-closure'
 export type DeveloperTask = 'create' | 'update'
 export type DeveloperStage = 'prepare' | 'verify' | 'submit' | 'publish'
 
 export const AUTHOR_RELEASE_OPT_IN = '- [ ] Automatically merge and publish my module update after checks pass.\n- [ ] I verified the source, licences, UI and qualification reports, including instance isolation and Part/project/reboot persistence where applicable; no required acceptance check is failed or untested.'
 
-export const ISSUE_COMMANDS = '/modwerk resolve <published-version> verified-download\n/modwerk close configuration <public explanation>\n/modwerk reopen <public explanation>'
+export const ISSUE_COMMANDS = REPORT_COMMANDS.join('\n')
 
 export const DEVELOPER_CONTEXT = [
   { title: 'Separate catalogues', summary: 'Octabam, Modwerk and Elekloader maintain separate catalogues. A module enters Modwerk through an explicit submission or port; an Elekloader listing is optional.' },
@@ -35,7 +36,7 @@ export const RELEASE_STEPS: Record<DeveloperTask, { id: DeveloperStage; title: s
   ],
 }
 
-export const REPORT_GUIDANCE = 'Public Modwerk reports and GitHub replies share one thread; replies and status sync back to Modwerk. Replying, closing or reopening needs no fork; code changes use a fork and PR. As the registered author, post issue commands as new comments on mapped public reports for your module. Other closure reasons are duplicate, not_reproducible or withdrawn; include a public explanation without claiming a firmware fix. Direct GitHub-only issues use authorized native GitHub closure. Private report details stay access-controlled and consent-based.'
+export const REPORT_GUIDANCE = 'Public Modwerk reports and GitHub replies share one thread; replies and status sync back to Modwerk. Replying, requesting information, classifying and closing reports need no fork, coding agent or repository write access. Registered authors can act immediately; other declared maintainers verify their GitHub identity and claim their module once in Creator settings. Post issue commands as new comments. Use needs-info while waiting for a reporter; it keeps the report open without declaring a bug. Confirm a reproduced bug with an exact affected version or unknown; whole-configuration reports use unknown and never count against each module. Classify questions or suggestions with /modwerk classify question|feature <explanation>. Close missing-information reports with insufficient_information, and use configuration, duplicate, not_reproducible or withdrawn for their actual outcomes. Every ordinary closure needs an explanation and claims no firmware fix. Registered release authors use resolve only after verifying the published download and hardware fix. Their routine module-update PRs merge and publish automatically after CI and their explicit evidence opt-in; owner review is for first releases, shared code, ownership changes or exceptions. Direct GitHub-only issues use authorized native GitHub closure. Private report details stay access-controlled and consent-based.'
 
 export const INSTRUMENT_STEPS = [
   { title: 'Research the instrument', summary: 'Establish the stock format, exact rebuild and safe recovery.' },

@@ -114,13 +114,23 @@ int pm_reserve(unsigned track) {
  * that head to the shared pool when the release becomes inaudible. */
 void pm_release_head(unsigned track,unsigned key) {
     if(track>=8) return;
-    if(poly_primary_note[track]==key) {
+    if(PRIMARY[track][0] && poly_primary_note[track]==key) {
         poly_primary_note[track]=255;
         if(poly_env_stage[track]) poly_env_stage[track]=3;
     }
     for(unsigned i=0;i<EXTRA_CAPACITY;++i)
-        if(poly_extra_track[i]==track && poly_extra_note[i]==key) {
+        if(poly_extra_voices[i][0] && poly_extra_track[i]==track && poly_extra_note[i]==key) {
             poly_extra_note[i]=255;
             if(poly_env_stage[i+8]) poly_env_stage[i+8]=3;
         }
+}
+
+/* Sequencer/grid triggers have no key-up owner. End the previous chord's
+ * hold on the next native trigger so finite REL can run even with HOLD=INF.
+ * Call once before expanding the new chord, never between its notes. Live
+ * presses retain independent ownership and must not release sequenced heads.
+ */
+void pm_sequence_retrigger(unsigned track) {
+    if(track>=8 || poly_pending_key[track]!=255) return;
+    pm_release_head(track,255);
 }

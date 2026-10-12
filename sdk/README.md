@@ -19,7 +19,7 @@ To add, port or update a module, follow [Add or port a module](../docs/ADD_A_MOD
 | `digitakt/`, `digitone/`, `elemod/` | Digitakt and Digitone cores and modules |
 | `drafts/<id>/` | modules staged outside the catalog until they qualify |
 | `catalog.json` | the Octatrack modules the site offers, each at an exact version |
-| `imports/` | one record per ported source: repository, commit, every file and its SHA-256 |
+| `imports/` | ported source history: repository, commit and file hashes; code and preserved upstream files stay exact, while local module README, TESTING and CPU guides can be edited without checksum updates |
 | `templates/` | what `npm run module:new` copies |
 | `build/Dockerfile` | the pinned, firmware-free toolchain that compiles module packages |
 | `module-qualification-baseline.json`, `module-release-waivers.json`, `*-build-approval.json` | owner-approved exceptions, each bound to exact versions and hashes ([qualification](../docs/MODULE_QUALIFICATION.md)) |

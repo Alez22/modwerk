@@ -6,7 +6,7 @@ import { MediaCredits } from './MediaCredits'
 export function ModuleAccess({ id, showScreenshots = true }: { id: string; showScreenshots?: boolean }) {
   const document = MODULE_DOCUMENTS_BY_ID[id], access = document.access
   if (!access) return null
-  const documentation = document.tests.retainedEvidence?.documentation ?? document.tests.qualification?.documentation ?? document.tests.releaseWaiver?.documentation
+  const documentation = document.tests.retainedEvidence?.documentation ?? document.tests.qualification?.documentation ?? document.tests.releaseWaiver?.documentation ?? document.tests.documentation
   const screenshots = document.media.filter(item => access.screenshots.includes(item.path) || documentation?.screenshots.includes(item.path))
   const hasQuickTest = downloadedModuleGuide({ id, name: document.name, version: document.version })?.hasQuickTest
   const setup = <>

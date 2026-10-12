@@ -58,9 +58,15 @@ export function CardStats({ statistics: stats, children }: { statistics?: Module
 }
 
 // The stability grade, explained on hover and to screen readers.
-export function CardProof({ stability, name, compared, canCompare, onCompare }: { stability: ModuleStability; name: string; compared: boolean; canCompare: boolean; onCompare: () => void }) {
+export function CardProof({ stability, statistics, name, compared, canCompare, onCompare }: { stability: ModuleStability; statistics?: ModuleStatistics; name: string; compared: boolean; canCompare: boolean; onCompare: () => void }) {
+  const waiting = statistics?.needsInfoIssues ?? 0, review = Math.max(0,(statistics?.unconfirmedIssues ?? 0) - waiting)
+  const grade = { limited: 'Limited testing', pending: 'Build pending', 'in-use': 'In regular use', proven: 'Widely used', reported: stability.label }[stability.level]
   return <div className="card-proof">
-    <span title={stability.detail}><span className={'evidence-dot is-' + stability.level} aria-hidden="true" />{stability.label}<span className="sr-only">. {stability.detail}</span></span>
+    <span className="card-proof-grade" title={stability.label + '. ' + stability.detail}><span className={'evidence-dot is-' + stability.level} aria-hidden="true" /><span className="card-proof-grade-label">{grade}</span><span className="sr-only">. {stability.detail}</span></span>
+    {(review > 0 || waiting > 0) && <span className="card-proof-reports">
+      {review > 0 && <span className="card-proof-count" title={review.toLocaleString() + ' unconfirmed ' + (review === 1 ? 'report' : 'reports')}><Icon name="message" size={13} />{review.toLocaleString()}<span className="sr-only"> unconfirmed {review === 1 ? 'report' : 'reports'}</span></span>}
+      {waiting > 0 && <span className="card-proof-count" title={waiting.toLocaleString() + ' waiting for reporter details'}><Icon name="help" size={13} />{waiting.toLocaleString()}<span className="sr-only"> waiting for reporter details</span></span>}
+    </span>}
     <label><input type="checkbox" checked={compared} disabled={!canCompare} onChange={onCompare} />Compare<span className="sr-only"> {name}</span></label>
   </div>
 }
@@ -83,7 +89,7 @@ export function ModuleCard({ module, selected, statistics, viewedVersion, baseli
       <div className="card-credit"><ModuleAuthors name={module.authorName} url={module.authorUrl} contributors={module.contributors}/><span>{module.detail}</span></div>
       <p className="card-description">{module.description}</p>
       <div className="card-bottom">{pending ? <AddBlockChip block={pending} /> : <span>{DETAILS[module.id].family}</span>}<CardStats statistics={statistics} /></div>
-      <CardProof stability={moduleStability(statistics, { buildPending: moduleBuildPending(module.id), hardware: moduleHardwareEvidence(module.id) })} name={module.name} compared={compared} canCompare={canCompare} onCompare={onCompare} />
+      <CardProof stability={moduleStability(statistics, { buildPending: moduleBuildPending(module.id), hardware: moduleHardwareEvidence(module.id) })} statistics={statistics} name={module.name} compared={compared} canCompare={canCompare} onCompare={onCompare} />
     </div>
     {prompt.conflict && prompt.open && <AddBlockPrompt id={prompt.id} name={module.name} block={prompt.conflict} onCancel={prompt.close}
       onSwap={() => { onSwap?.(prompt.conflict?.swapRemoveIds ?? []); prompt.close() }} onAddAnyway={() => { onToggle(); prompt.close() }} />}

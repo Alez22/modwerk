@@ -725,6 +725,15 @@
             "imageSha256": "2a517bc54a92fbf811a3f7366ce27713fdcbdb1aeb2ebbd9bd9c2368ba317cfa",
             "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6."
           }
+        },
+        {
+          "path": "media/audio-preview.mp3",
+          "captureType": "audio",
+          "caption": "One clap, played three times: dry, then Mini Verb as a room (DECAY 104, DAMP 70, TONE 64, MOD 80, RATE 2, MIX 76), then a long, bright tail (DECAY 122, DAMP 40, TONE 96, MOD 110, RATE 5, MIX 90). Rendered offline through version 0.2.0-experimental on a computer, not recorded on an Octatrack.",
+          "alt": "A single clap heard dry, then with Mini Verb as a room, then with a longer, brighter tail.",
+          "credit": "Modwerk contributors (offline render). Sample: MGFW-01 Sample Pack V1.",
+          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "source": "original"
         }
       ]
     },
@@ -1392,6 +1401,15 @@
             "imageSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e",
             "setup": "Reviewed headless ot_emu; MKII panel; verified unmodified stock 1.40C MAIN OS; empty scratch card; transport stopped; Grid Recording enabled on T1. Actual 128x64 LCD pixels at integer scale 6. This shared stock swing menu configures the track timing followed by Euclid; no Euclid runtime was loaded for these stock-menu captures. See docs/swing-capture.md."
           }
+        },
+        {
+          "path": "media/audio-preview.mp3",
+          "captureType": "audio",
+          "caption": "One pad, played three times at 123 BPM: dry, then Euclid as a low-pass pulse filter (FREQ 36, RES 70, DEPTH 110, DECAY 56, STEPS 16, PULSE 5), then as amplitude pulses (TYPE AMP, FREQ 127, DEPTH 0, STEPS 12, PULSE 7). Each pass is level-matched to the dry one. Swing is not applied. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
+          "alt": "A sustained synth pad heard dry, then with a pulsing low-pass filter, then with rhythmic amplitude pulses.",
+          "credit": "Modwerk contributors (offline render). Sample: Volpe, Dub Techno Sample Pack.",
+          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "source": "original"
         }
       ]
     },
@@ -1867,6 +1885,15 @@
             "imageSha256": "774aa99723625fb698e5f0bb6fc32ea3196996931f55beb10ce1ec53eccc328b",
             "setup": "ot_emu (MKII panel) on 1.40C composed with the tapehead-spring remix: stock effects, TAPEHEAD in SPRING REV's FX2 row, stock DSP code built in; empty scratch card; transport stopped; actual 128x64 LCD pixels at integer scale 6."
           }
+        },
+        {
+          "path": "media/audio-preview.mp3",
+          "captureType": "audio",
+          "caption": "One 909 drum loop, played three times through TapeHead: DRIVE 10, then DRIVE 70, then DRIVE 115 with COLOR set to BRGT. Each pass is level-matched to the first, so only the character changes. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
+          "alt": "A 909 drum loop heard with light tape drive, then driven, then hot and bright.",
+          "credit": "Modwerk contributors (offline render). Sample: Malin Genie Drum Sample Pack.",
+          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "source": "original"
         }
       ]
     },
@@ -2103,6 +2130,15 @@
             "imageSha256": "5e0cbe6040633dd1eda7de247baeb226f38c1308e9d02cedebdf0fdf35a1d6c6",
             "setup": "Headless ot_emu; MKII panel; stopped transport; 128×64 LCD at integer scale 6."
           }
+        },
+        {
+          "path": "media/audio-preview.mp3",
+          "captureType": "audio",
+          "caption": "One pad, played three times: dry, then the plugin defaults (SPD 64, RNG 64, MIX 64), then faster and wider (SPD 84, RNG 92, MIX 96). Each pass is level-matched to the dry one. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
+          "alt": "A sustained synth pad heard dry, then with Air Chorus at its defaults, then with a faster, wider sweep.",
+          "credit": "Modwerk contributors (offline render). Sample: Volpe, Dub Techno Sample Pack.",
+          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "source": "original"
         }
       ]
     },
@@ -2415,6 +2451,15 @@
             "imageSha256": "b525e4a42fdddaf6c6f381478bc54e56206e3d5df9be1c76272d8c36d84cdc7a",
             "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; 128×64 LCD at integer scale 6."
           }
+        },
+        {
+          "path": "media/audio-preview.mp3",
+          "captureType": "audio",
+          "caption": "One chord stab, played three times: dry, then the Hall starting point (SIZE 110, DCY 90, ABSB 45, MIX 70), then the Shimmer pad starting point (SIZE 100, DCY 100, ABSB 70, DPTH +56, MIX 100). Rendered offline through version 0.1.0-experimental on a computer, not recorded on an Octatrack.",
+          "alt": "A single synth chord stab heard dry, then in a large hall, then as a shimmering pad.",
+          "credit": "Modwerk contributors (offline render). Sample: Malin Genie Drum Sample Pack.",
+          "license": "Render MIT; sample per its pack terms (media/LICENSE.md)",
+          "source": "original"
         }
       ]
     },
@@ -2712,6 +2757,15 @@
             "imageSha256": "137580f326b6adc3b0d58f2183d530507f1b370c48911b38d5d0cf94d9e96898",
             "setup": "Headless ot_emu; MKII panel, stopped transport; actual DSP-enabled AB015FIX01 image and disposable project; 128×64 LCD at integer scale 6."
           }
+        },
+        {
+          "path": "media/audio-preview.mp3",
+          "captureType": "audio",
+          "caption": "Four single hits from the 808 and 909 engines, 2.4 s apart: 808 at the defaults, 808 low and long (PITCH 40, DECAY 110, TONE 60, SWEEP 100), 909 at the defaults, and 909 with a hard attack and drive (DECAY 20, ATK 100, TDEP 100, SAT 50). No samples are used. Rendered offline through the module's own code on a computer, not recorded on an Octatrack.",
+          "alt": "Four bass drum hits: a default 808, a low long 808, a default 909 and a hard, driven 909.",
+          "credit": "Modwerk contributors (offline render of the module's 808/909 engines; no samples).",
+          "license": "MIT",
+          "source": "original"
         }
       ]
     },
@@ -6058,7 +6112,7 @@
       "id": "poly8",
       "key": "POLY8",
       "name": "POLY8",
-      "version": "0.2.6-experimental",
+      "version": "0.2.7-experimental",
       "category": "machines",
       "source": {
         "repository": "https://github.com/repeat98/octamad",
@@ -6074,14 +6128,12 @@
           "Return to SRC, open the trig-mode menu with FUNC+DOWN, select CHROMATIC and confirm with YES. Hold several trig keys; FUNC+LEFT/RIGHT changes octave from -6 to +3.",
           "Turn PTCH to transpose the sounding chord. A dedicated POLY8 MIDI channel accepts notes 0–127; note 84 plays the tuned sample root.",
           "New assignments default to LOOP OFF. POLY8 has a maximum of eight voices, subject to the pitch-work limit, with fixed -18.06 dB gain per voice.",
-          "Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. Recorded duration follows AMP HOLD."
+          "Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. AMP HOLD or the next sequencer trig starts their release. With HOLD INF, the final chord sustains until another trig or STOP; recorded key-up timing is not captured."
         ],
         "screenshots": [
-          "media/selection-flow/assigned-src.png",
-          "media/selection-flow/left-machine-chooser.png",
-          "media/selection-flow/right-flex-pool.png",
-          "media/poly8/main-poly.png",
-          "media/poly8/loop-encoder.png"
+          "media/sequence-release/assigned-src.png",
+          "media/sequence-release/left-machine-chooser.png",
+          "media/sequence-release/right-flex-pool.png"
         ]
       },
       "author": {
@@ -6116,7 +6168,7 @@
           "Return to SRC, open the trig-mode menu with FUNC+DOWN, select CHROMATIC and confirm with YES. Hold several trig keys; FUNC+LEFT/RIGHT changes octave from -6 to +3.",
           "Turn PTCH to transpose the sounding chord. A dedicated POLY8 MIDI channel accepts notes 0–127; note 84 plays the tuned sample root.",
           "New assignments default to LOOP OFF. POLY8 has a maximum of eight voices, subject to the pitch-work limit, with fixed -18.06 dB gain per voice.",
-          "Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. Recorded duration follows AMP HOLD."
+          "Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. AMP HOLD or the next sequencer trig starts their release. With HOLD INF, the final chord sustains until another trig or STOP; recorded key-up timing is not captured."
         ]
       },
       "controls": [
@@ -6205,8 +6257,8 @@
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "T07/T08 MKII boot failure was traced to an unloaded initialization flag. Corrected T09 received the owner report \"works really well\"; the exact T10 selection-flow update then received \"works like a charm\" on MKII. Duration, separate persistence tests and maximum-load coverage were not reported. Chip deadlines and complete memory bounds remain unqualified under an exact-version owner exception.",
-        "hardwareStatus": "reported",
+        "summary": "The 0.2.7 sequencer release correction passes three native ColdFire/DSP cases, sanitizer ownership/recording regressions and the native dirty-RAM selection-flow/UI gate. The owner approved this exact experimental source with current hardware, chip worst-case timing and complete memory qualification waived. Physical MKI confirmation remains pending; earlier T09/T10 MKII reports are historical evidence.",
+        "hardwareStatus": "untested",
         "evidenceRevision": "9e853271be169d242bdf00b79147707e86ee12cb",
         "gates": [
           "verify-source.py",
@@ -6229,7 +6281,8 @@
           "native-shared-machine-gate.py",
           "native-warm-audio-gate.py",
           "shared-validation-test.c (256 mixed AB/FM/VECTOR signature masks with sanitizers)",
-          "native-selection-flow-gate.py"
+          "native-selection-flow-gate.py",
+          "native-sequence-release-gate.py"
         ],
         "documentation": {
           "tutorial": {
@@ -6241,15 +6294,13 @@
               "Return to SRC, open the trig-mode menu with FUNC+DOWN, select CHROMATIC and confirm with YES. Hold several trig keys; FUNC+LEFT/RIGHT changes octave from -6 to +3.",
               "Turn PTCH to transpose the sounding chord. A dedicated POLY8 MIDI channel accepts notes 0–127; note 84 plays the tuned sample root.",
               "New assignments default to LOOP OFF. POLY8 has a maximum of eight voices, subject to the pitch-work limit, with fixed -18.06 dB gain per voice.",
-              "Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. Recorded duration follows AMP HOLD."
+              "Use REC+PLAY in chromatic mode to record up to four held panel notes spanning at most eleven semitones. AMP HOLD or the next sequencer trig starts their release. With HOLD INF, the final chord sustains until another trig or STOP; recorded key-up timing is not captured."
             ]
           },
           "screenshots": [
-            "media/selection-flow/assigned-src.png",
-            "media/selection-flow/left-machine-chooser.png",
-            "media/selection-flow/right-flex-pool.png",
-            "media/poly8/main-poly.png",
-            "media/poly8/loop-encoder.png"
+            "media/sequence-release/assigned-src.png",
+            "media/sequence-release/left-machine-chooser.png",
+            "media/sequence-release/right-flex-pool.png"
           ],
           "screenshotStyle": "black-and-white"
         }
@@ -6346,7 +6397,7 @@
           }
         },
         {
-          "path": "media/selection-flow/assigned-src.png",
+          "path": "media/sequence-release/assigned-src.png",
           "captureType": "emulator",
           "caption": "Open SRC SETUP with FUNC+SRC, choose POLY8 and press YES. The page stays open and sample slots do not appear automatically.",
           "alt": "SRC SETUP remains visible after POLY8 assignment; LOOP OFF",
@@ -6357,13 +6408,13 @@
             "page": "SRC SETUP remains visible after POLY8 assignment; LOOP OFF",
             "shows": "location-and-controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.2.6-experimental",
-            "imageSha256": "0271c801ad8b77cd5890d112f72e4a14438520138dc3b587624e703f1950248e",
-            "setup": "Actual native ColdFire/DSP MKII LCD from private POLY8T10, with the runtime arena filled with 0xff before loading. SRC SETUP assignment stays on SRC SETUP. Double-TRACK opens FLEX slots; LEFT restores the POLY8 machine list and RIGHT reopens slots. Stock FLEX/STATIC controls were run separately. Physical testing of this selection-flow update is not yet reported."
+            "moduleVersion": "0.2.7-experimental",
+            "imageSha256": "ab78639d7881f05637fb876da77fa98bd7d1ef69e4815ef9a85bd427a50da00c",
+            "setup": "Actual native ColdFire/DSP MKII LCD from the 0.2.7 sequencer-release candidate, with the runtime arena filled with 0xff before loading. The SRC assignment/reselection, double-TRACK, LEFT/RIGHT and sample YES regression passes. These are emulator captures; physical MKI confirmation remains pending."
           }
         },
         {
-          "path": "media/selection-flow/left-machine-chooser.png",
+          "path": "media/sequence-release/left-machine-chooser.png",
           "captureType": "emulator",
           "caption": "Double-press the track key, then press LEFT from FLEX slots to reach the machine list. POLY8 stays selected.",
           "alt": "Machine chooser with POLY8 selected",
@@ -6374,13 +6425,13 @@
             "page": "Machine chooser with POLY8 selected",
             "shows": "location",
             "firmware": "1.40C",
-            "moduleVersion": "0.2.6-experimental",
-            "imageSha256": "0271c801ad8b77cd5890d112f72e4a14438520138dc3b587624e703f1950248e",
-            "setup": "Actual native ColdFire/DSP MKII LCD from private POLY8T10, with the runtime arena filled with 0xff before loading. SRC SETUP assignment stays on SRC SETUP. Double-TRACK opens FLEX slots; LEFT restores the POLY8 machine list and RIGHT reopens slots. Stock FLEX/STATIC controls were run separately. Physical testing of this selection-flow update is not yet reported."
+            "moduleVersion": "0.2.7-experimental",
+            "imageSha256": "ab78639d7881f05637fb876da77fa98bd7d1ef69e4815ef9a85bd427a50da00c",
+            "setup": "Actual native ColdFire/DSP MKII LCD from the 0.2.7 sequencer-release candidate, with the runtime arena filled with 0xff before loading. The SRC assignment/reselection, double-TRACK, LEFT/RIGHT and sample YES regression passes. These are emulator captures; physical MKI confirmation remains pending."
           }
         },
         {
-          "path": "media/selection-flow/right-flex-pool.png",
+          "path": "media/sequence-release/right-flex-pool.png",
           "captureType": "emulator",
           "caption": "Double-press the track key to browse FLEX slots. LEFT returns to the machine list; RIGHT reopens the slots.",
           "alt": "FLEX sample slots opened explicitly",
@@ -6391,9 +6442,9 @@
             "page": "FLEX sample slots opened explicitly",
             "shows": "location",
             "firmware": "1.40C",
-            "moduleVersion": "0.2.6-experimental",
-            "imageSha256": "0271c801ad8b77cd5890d112f72e4a14438520138dc3b587624e703f1950248e",
-            "setup": "Actual native ColdFire/DSP MKII LCD from private POLY8T10, with the runtime arena filled with 0xff before loading. SRC SETUP assignment stays on SRC SETUP. Double-TRACK opens FLEX slots; LEFT restores the POLY8 machine list and RIGHT reopens slots. Stock FLEX/STATIC controls were run separately. Physical testing of this selection-flow update is not yet reported."
+            "moduleVersion": "0.2.7-experimental",
+            "imageSha256": "ab78639d7881f05637fb876da77fa98bd7d1ef69e4815ef9a85bd427a50da00c",
+            "setup": "Actual native ColdFire/DSP MKII LCD from the 0.2.7 sequencer-release candidate, with the runtime arena filled with 0xff before loading. The SRC assignment/reselection, double-TRACK, LEFT/RIGHT and sample YES regression passes. These are emulator captures; physical MKI confirmation remains pending."
           }
         }
       ]

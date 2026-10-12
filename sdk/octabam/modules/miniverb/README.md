@@ -123,3 +123,5 @@ empty scratch card; they do not prove hardware behavior or audible playback.
 See [capture provenance](media/capture.json) and [capture rights](media/LICENSE.md).
 The native verifier writes private dark/neutral/bright percussion WAVs for
 level-preserving listening. Physical hardware remains untested for this source.
+
+**Audio preview.** [Listen](media/audio-preview.mp3). One clap, played three times: dry, then Mini Verb as a room (DECAY 104, DAMP 70, TONE 64, MOD 80, RATE 2, MIX 76), then a long, bright tail (DECAY 122, DAMP 40, TONE 96, MOD 110, RATE 5, MIX 90). It is an offline render on a computer through version 0.2.0-experimental, not a recording of an Octatrack or a test of the 0.2.1 mixer fix. The sample, settings and method are in [audio-preview.json](media/audio-preview.json); rights are in [media rights](media/LICENSE.md).
