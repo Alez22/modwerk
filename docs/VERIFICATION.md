@@ -1364,3 +1364,27 @@ private updates with those limits disclosed on 11 October 2026. This is a new
 source-bound exception, not an extension of 0.2.0. Report #428 remains open
 until reporter confirmation; publication and saved live-download verification
 are separate steps.
+
+## E-Verb FUNC stops — 11 October 2026
+
+E-Verb 0.1.1-experimental fixes #438: holding FUNC and turning SIZE, DCY, ABSB
+or SPD jumped between 0 and 127 only. The FX page word at P+0x12a is a knob's
+edit handler, and E-Verb's clone of DARK REV's page inherited stock's two-stop
+editor on those four slots. 0.1.1 writes stock's three-stop editor (0, 64, 127,
+as on the stock reverbs' MIX and BAL) on all six plain knobs. The private
+image differs from 0.1.0's tested `b776efe2…` in exactly four descriptor bytes;
+both DSP memory images are byte-identical, all 27 render gates pass and the
+matched benchmark reproduces 0.1.0's figures.
+
+Driven through the firmware's own panel code on the ColdFire emulator with FUNC
+held, all six main-page knobs step through 0, 64 and 127 on 0.1.1; the same run
+on 0.1.0 reproduces the report on the four knobs. The native/browser matrix has
+126 selections: 48 matching module-owned images (18 identical outright, 30
+outside platform writes), 78 matching refusals and zero mismatches; a modified
+original is refused. The rebuilt packages change only E-Verb's version, its
+descriptor recipe and source provenance. The Analog BD composition proofs,
+re-exported natively on this tree, are identical apart from the source-tree pin;
+E-Verb is in none of them.
+
+No hardware result exists for 0.1.1; the owner's MKII report covers 0.1.0.
+Publication needs the owner's approval of this exact source.

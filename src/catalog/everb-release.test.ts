@@ -6,7 +6,8 @@ import release from '../../sdk/octabam/modules/everb/octamod.module.json'
 import capture from '../../sdk/octabam/modules/everb/media/capture.json'
 import performance from '../../sdk/octabam/modules/everb/evidence/performance.json'
 import baseline from '../../sdk/module-qualification-baseline.json'
-import { parseModuleDocument, requireModuleUiForPublication, requireModuleQualificationForPublication } from './module-contract'
+import recipes from '../engine/assets/descriptor-recipes.json'
+import { parseModuleDocument, requireModuleUiForPublication } from './module-contract'
 import { requireModuleResourceImpact } from './resource-impact'
 import { moduleNativeSourceSha256, parseQualificationBaseline, requireFolderQualification } from '../../scripts/module-qualification.mjs'
 import { requireCompleteReadme, requireMonochromePng } from '../../scripts/module-documentation.mjs'
@@ -17,18 +18,26 @@ import chooserMetadata from '../engine/assets/chooser-metadata.json'
 const folder = resolve('sdk/octabam/modules/everb')
 
 describe('E-Verb experimental release', () => {
-  it('publishes the exact owner-reported source and image through the shared catalog', async () => {
+  it('publishes 0.1.1 as an owner-approved update through the shared catalog, with 0.1.0 hardware evidence only', async () => {
     const document = parseModuleDocument(release)
-    expect(document.tests.hardwareStatus).toBe('reported')
-    expect(document.tests.qualification?.hardware).toMatchObject({ kind: 'functional', model: 'MKII', tester: 'repeat98' })
-    expect(document.tests.qualification?.imageSha256).toBe(capture.imageSha256)
-    expect(() => requireModuleQualificationForPublication(document)).not.toThrow()
-    await expect(requireFolderQualification(folder, document, parseQualificationBaseline(baseline))).resolves.toBe('qualified')
+    // 0.1.1 changes four FX2 descriptor words (#438) and has not run on hardware; the owner's MKII report is 0.1.0's.
+    expect(document.tests.hardwareStatus).toBe('historical')
+    expect(document.tests.qualification).toBeUndefined()
+    await expect(requireFolderQualification(folder, document, parseQualificationBaseline(baseline))).resolves.toBe('owner-approved-update')
     expect(MODULES.some(module => module.id === document.id && module.version === document.version)).toBe(true)
     expect(() => resolveSelection([document.id])).not.toThrow()
     const menus = defaultChoosers([document.id])
     expect(menus.fx1).toEqual(chooserMetadata.stockFx1)
     expect(menus.fx2).toEqual([...chooserMetadata.stockFx2.filter(key => !['SPRING REV', 'DARK REV'].includes(key)), 'EVERB'])
+  })
+
+  it('gives every 0..127 knob the three-stop FUNC editor in the shipped descriptor recipe (#438)', () => {
+    // P+0x12a is a knob's edit handler. 0x400328e4 makes FUNC + turn stop at 0, 64 and 127; the donor's TIME..LP slots carry a
+    // two-stop one (0 and 127), which SIZE, DCY, ABSB and SPD inherited in 0.1.0. A select (REV) keeps the plain editor, 0.
+    const recipe = recipes.recipes.find(item => item.id === 'everb')!
+    const editor = (slot: number) => recipe.integers.filter(field => field.offset === 0x12a + 4 * slot && field.width === 4).at(-1)?.value
+    for (const slot of [0, 1, 2, 3, 4, 5, 6, 7, 9, 10]) expect(editor(slot), `slot ${slot}`).toBe(0x400328e4)
+    expect(editor(8)).toBe(0)
   })
 
   it('carries a complete tutorial, gauges and real monochrome captures of this version', async () => {
