@@ -2,6 +2,8 @@
 
 ## 12 October 2026
 
+- Fixed the host-side Windows package command by passing the qualified builder a relative JSON selector, and made temporary Git checkout cleanup handle read-only pack files. Firmware inputs and published package bytes remain unchanged.
+
 - Added the owner-approved, version-specific browser preservation guard for Tape Echo. It requires exact protected inputs and actual legacy-worker output equality; original evidence and hardware limitations remain unchanged. A missing or stale integration proof still blocks release. The binding also pins the checked-in two-snapshot runner; generation refuses mismatched or uncommitted inputs. The isolated publication test includes the preservation helper, so it still exercises the real release gates.
 
 - The base-install guide shows one readable step at a time, keeps its next action visible, explains unsupported browsers, follows the Octatrack’s restart prompt and makes Connect Octatrack prominent only after the base download. “Help us find bugs” is a separate, dismissible diagnostics invitation for verified members, including regular users, with an explicit choice and clear data, retention and withdrawal details. Browser/build failure categories join the opt-in technical reports; the expanded scope requires fresh consent. USB syncing remains beta-only.

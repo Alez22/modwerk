@@ -77,7 +77,7 @@ class LoaderTests(unittest.TestCase):
     def test_published_module_packages_rebuild_byte_for_byte(self):
         if not shutil.which('node'):
             self.skipTest('no Node for the FX page recipes')
-        result = subprocess.run([sys.executable, '-B', ROOT / 'sdk/machines/octatrack/elekloader/module_packages.py', '--check'],
+        result = subprocess.run([sys.executable, '-B', ROOT / 'scripts/octatrack-module-packages.py', '--check'],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
