@@ -8,12 +8,12 @@ beforeEach(() => { vi.stubGlobal('fetch', vi.fn(async () => Response.json({ id: 
 afterEach(() => { vi.unstubAllGlobals(); for (const db of databases.splice(0)) db.close() })
 async function fixture() {
   const server = await testServer(); databases.push(server.db)
-  async function member(username: string) {
+  async function member(username: string, betaTester = true) {
     const email = username + '@example.test'
     expect((await server.call('/auth/register', 'POST', { username, email, password, rulesVersion: COMMUNITY_RULES_VERSION })).status).toBe(202)
     const id = String(server.db.prepare('SELECT id FROM auth_users WHERE email=?').get(email)!.id)
     server.db.prepare('UPDATE auth_users SET emailVerified=1 WHERE id=?').run(id)
-    server.db.prepare('UPDATE users SET email_verified=1 WHERE id=?').run(id)
+    server.db.prepare('UPDATE users SET email_verified=1, beta_tester=? WHERE id=?').run(Number(betaTester), id)
     async function login() { return (await server.call('/auth/login', 'POST', { email, password })).headers.get('X-Octamod-Session')! }
     return { id, token: await login(), login }
   }
@@ -30,6 +30,15 @@ describe('once-per-account base install prompt', () => {
     expect((await call('/auth/base-install-prompt', 'POST', {}, owner.token)).status).toBe(200)
     expect(await due(call, await owner.login())).toBe(false)
     expect(await due(call, other.token)).toBe(true)
+  })
+  it('is due only to beta testers and verified administrators while USB loading is a beta', async () => {
+    const { call, member, db } = await fixture(), plain = await member('baseplain', false), tester = await member('basetester')
+    const admin = (await (await call('/auth/admin', 'POST', { key: 'e'.repeat(64) })).json()).token as string
+    expect(await due(call, plain.token)).toBe(false)
+    expect((await (await call('/auth/base-install-prompt', 'GET', undefined, plain.token, admin)).json()).show).toBe(true)
+    expect(await due(call, tester.token)).toBe(true)
+    db.prepare('UPDATE users SET beta_tester=0 WHERE id=?').run(tester.id)
+    expect(await due(call, tester.token)).toBe(false)
   })
   it('requires a verified member and the site origin to record it', async () => {
     const { call, member, db } = await fixture(), owner = await member('baseguard')

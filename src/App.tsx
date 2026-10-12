@@ -28,7 +28,7 @@ import { ModulePopularity } from './community/ModulePopularity'
 import { selectionConflicts, type ConflictFix } from './catalog/selection-conflicts'
 import { addBlocks } from './catalog/add-blocks'
 import { useCommunity } from './community/context'
-import { hasBetaAccess } from './community/beta-access'
+import { hasBetaAccess, hasUsbLinkAccess } from './community/beta-access'
 import { SubmissionPage } from './community/SubmissionPage'
 import { AdminPage } from './community/AdminPage'
 import { PublishedModulePage } from './community/PublishedModulePage'
@@ -39,7 +39,7 @@ import { LIBRARY_CATEGORIES, LIBRARY_CATEGORY_LABELS, MODULES, resolveSelection,
 import { AVAILABLE_MODULES, availableModules, isModuleAvailable, isModulePaused, moduleAvailabilityError } from './catalog/availability'
 import { DETAILS } from './catalog/details'
 import { readCatalogBrowse, saveCatalogBrowse, type CatalogBrowse } from './catalog/catalog-browse'
-import { ENGINE_AVAILABLE, DOWNLOADS_ENABLED, DSP_LOADER, USB_LINK } from './engine/protocol'
+import { ENGINE_AVAILABLE, DOWNLOADS_ENABLED, DSP_LOADER } from './engine/protocol'
 import { useFirmwareBuild } from './hooks/useFirmwareBuild'
 import { issueRepository, setWorkspaceReportContext } from './community/report-context'
 import { FirmwareBuildPanel } from './components/FirmwareBuildPanel'
@@ -134,16 +134,18 @@ export default function App() {
   const accountRoute = route === 'account' || route.startsWith('account/')
   // One link to the unit for the whole site: it connects by itself whenever an allowed Octatrack is plugged in.
   // The builder's prepareUpdate joins it once it exists; the stress test is the base's own self-test.
-  const [usbKit, setUsbKit] = useState<{ link: OctatrackLink; prepareUpdate?: PrepareUpdate; readInventory?: ReadInventory; stressTest?: StressTest } | null>(
-    () => { if (!USB_LINK || touchOnly || usbLinkPreview) return null; const link = new OctatrackLink(); return { link, stressTest: () => link.selftest() } })
+  const [unitKit, setUsbKit] = useState<{ link: OctatrackLink; prepareUpdate?: PrepareUpdate; readInventory?: ReadInventory; stressTest?: StressTest } | null>(
+    () => { if (usbLinkPreview) return null; const link = new OctatrackLink(); return { link, stressTest: () => link.selftest() } })
   useEffect(() => { if (import.meta.env.DEV && usbLinkPreview) void import('./dev/octatrack-link-fake').then(fake => setUsbKit(fake.previewKit())) }, [])
+  // Beta only: without access every USB view unmounts, and the link lets go of the unit.
+  const usbKit = usbLinkPreview || hasUsbLinkAccess(session, touchOnly) ? unitKit : null
   const usbLink = usbKit?.link
   const usbBase = useOctatrackBase(usbLink ?? null)
   const inventory = useInventory(usbLink, usbKit?.readInventory), missingOnUnit = useMissing(usbLink)
   const unitNeeds = useMemo(() => missingFromProject(missingOnUnit, MODULES.map(module => module.id)), [missingOnUnit])
   const [openModule, setOpenModule] = useState<string>()
   const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(usbPreview === 'base-install' ? 'preview' : null)
-  // At release, once per member wherever they are, except on account, sign-in, admin and legal pages.
+  // Once per member with USB access wherever they are, except on account, sign-in, admin and legal pages.
   const baseInstallPrompt = useBaseInstallPrompt(session.user?.verified ? session.user.id : null, !!usbLink && !usbLinkPreview && !accountRoute && !developerRoute && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route))
   useEffect(()=>{if(developerRoute&&!route.startsWith('developer/complete')&&developer&&!developer.user)window.location.replace('#account/developer')},[developerRoute,route,developer])
   const communityRoute = developerRoute || forumRoute || accountRoute || route === 'review' || route === 'admin' || route.startsWith('submit') || !!communityModule

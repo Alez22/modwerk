@@ -68,9 +68,10 @@ export async function authentication(request:Request,env:Env,path:string):Promis
   return response({show:body.alreadyShown!==true&&claimed.meta.changes===1})
  }
  // Asked for on each visit while due; recorded only once the member closes or completes it, so a reload cannot skip it.
+ // Due only to beta testers and verified administrators while USB loading is a beta (src/engine/protocol.ts USB_LINK).
  if(path==='/api/auth/base-install-prompt'){
   const member=needMember(await accountUser(request,env,db))
-  if(request.method==='GET')return response({show:!await db.prepare('SELECT 1 FROM member_base_install_prompts WHERE user_id=?').bind(member.id).first()})
+  if(request.method==='GET')return response({show:(memberBetaAccess(member)||await isAdmin(request,env,db))&&!await db.prepare('SELECT 1 FROM member_base_install_prompts WHERE user_id=?').bind(member.id).first()})
   if(request.method!=='POST')throw new HttpError(405,'Use GET or POST for the base install prompt.')
   await db.prepare('INSERT OR IGNORE INTO member_base_install_prompts(user_id) VALUES(?)').bind(member.id).run()
   return response({ok:true})

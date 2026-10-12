@@ -11,7 +11,7 @@ export type PrepareUpdate = (target: InventoryTarget) => Promise<{ name: string;
 /** The base: what is on the unit. */
 export type ReadInventory = () => Promise<Inventory>
 export type StressTest = () => Promise<string | null>
-const STEPS = ['Load', 'Stress test', 'Keep']
+const STEPS = ['Load', 'Self-test', 'Keep']
 /** What the unit's project names that the unit lacks: library names, names the library does not know, and how to add
  * the ones this set does not have yet (absent when it has them all). */
 export interface ProjectNeeds { names: string[]; unknown: string[]; add?: () => void }
@@ -69,11 +69,11 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
   const step = status === 'sending' ? 0 : status === 'testing' ? 1 : 2
   const busy = status !== 'ready'
   const text = status === 'sending' ? (progress < 1 ? `Loading… ${Math.round(progress * 100)}%` : 'Starting…')
-    : status === 'testing' ? 'Stress-testing on your Octatrack…'
+    : status === 'testing' ? 'Running the Octatrack’s self-test…'
     : status === 'trial' || status === 'finishing' ? `${tested ? 'Passed. ' : ''}${module} is running. Try it, then keep it or undo.`
     : preparing === 'busy' ? 'Preparing your modules…'
     : changes && !changeCount(changes) ? 'Your Octatrack already matches this module set.'
-    : 'Your Octatrack will match this module set. Playback stops, the stress tests run, then you keep it or undo.'
+    : 'Your Octatrack will match this module set. Stop playback first; after its self-test you keep it or undo.'
   if (bar) return <section className="sync-bar" aria-label="Load onto your Octatrack" aria-busy={status === 'sending' || status === 'testing' || status === 'finishing'}>
     <div className="sync-bar-status" role="status">
       {status === 'ready' && changes && changeCount(changes) > 0 && preparing !== 'busy' ? <><strong>Next load</strong><ChangeSummary changes={changes} inline /></>
@@ -92,7 +92,7 @@ export function OctatrackUpdate({ link, set, prepareUpdate, readInventory, stres
   </section>
   return <section className="build-section usb-update" aria-labelledby="usb-update-title" aria-busy={status === 'sending' || status === 'testing' || status === 'finishing'}>
     <div>
-      <h2 id="usb-update-title">Load onto your Octatrack</h2>
+      <h2 id="usb-update-title">Load onto your Octatrack <span className="module-beta-badge">Beta</span></h2>
       <p className="usb-identity"><span className="status-dot verified" />{identity!.model} · base {identity!.base.slice(0, 8)}{inventory ? ` · ${inventory.moduleIds.length} ${inventory.moduleIds.length === 1 ? 'module' : 'modules'} installed` : active && (active === identity!.base ? ' · no modules' : ' · last module ' + active.slice(0, 8))}</p>
       <p role="status">{text}</p>
       {busy && <div className="build-progress" role="progressbar" aria-label="Update progress" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={step}>

@@ -75,7 +75,7 @@ export class StressTestFailure extends Error {}
 
 /** What a failed step means for the user, in their words. */
 export function explainLinkError(error: unknown): string {
-  if (error instanceof StressTestFailure) return `The stress test failed: ${error.message}. Nothing was kept.`
+  if (error instanceof StressTestFailure) return `The self-test failed: ${error.message}. Nothing was kept.`
   if (error instanceof DOMException && error.name === 'AbortError') return 'Cancelled. Nothing changed on the Octatrack.'
   if (error instanceof UploadDeviceError) return REFUSED[error.status.result] ?? 'The Octatrack refused this step.'
   if (error instanceof UploadUnconfirmedError) return 'The Octatrack stopped answering.'

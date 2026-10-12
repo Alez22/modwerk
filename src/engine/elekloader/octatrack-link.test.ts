@@ -85,7 +85,7 @@ describe('sending a module', () => {
     expect(link.getState()).toMatchObject({ status: 'trial', tested: true })
     await link.keep()
     await link.update('My set', data, async () => 'CPU over budget on track 3')
-    expect(link.getState()).toMatchObject({ status: 'ready', notice: { tone: 'error', text: 'The stress test failed: CPU over budget on track 3. Nothing was kept.' } })
+    expect(link.getState()).toMatchObject({ status: 'ready', notice: { tone: 'error', text: 'The self-test failed: CPU over budget on track 3. Nothing was kept.' } })
   })
   it('refuses a module bigger than the base can stage', async () => {
     const { link } = await linked()

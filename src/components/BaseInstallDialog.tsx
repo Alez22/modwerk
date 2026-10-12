@@ -9,15 +9,13 @@ import './octatrack-link.css'
 export interface BaseImage { buffer: ArrayBuffer; sha256: string }
 /** The release prompt holds this long before it can be put off. */
 const LAUNCH_HOLD_SECONDS = 10
-// What the release prompt promises. Every line must be true on release day: cross-compatibility, stock effects
-// kept, the stress tests and the automatic reports are still to be built (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
+// What the beta prompt promises: only what the base does today. Cross-compatibility, effects loaded on demand,
+// automatic stress tests and bug reports are still to be built (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 const ALSO_NEW: [IconName, string, string][] = [
-  ['grid', 'As many modules as fit', ', all selectable from the Octatrack’s menus'],
-  ['check', 'All modules are cross-compatible', ', no more conflicts between them'],
+  ['check', 'Kept after a restart', ', the Octatrack loads your modules again when it starts'],
+  ['shield', 'A self-test on the Octatrack', ' after every load, then you keep it or undo it'],
+  ['search', 'Missing modules named', ' when a project uses one the Octatrack doesn’t have'],
   ['sliders', 'Stock effects stay', ', none of them get replaced'],
-  ['wave', 'Effects load on demand', ', straight onto the DSP chip when you pick them'],
-  ['shield', 'Automatic stress tests', ' for every module and module set before it lands'],
-  ['message', 'Automatic bug reports', ' when something fails, straight to the module’s author'],
 ]
 const SCREEN = ['LOADING', 'TRYING', 'KEPT']
 
@@ -44,7 +42,7 @@ const squiggle = (x: number, y: number, w: number, a: number) => Array.from({ le
 function LinkHero() {
   const [sx, sy] = at(473, 425), screenW = 269 * OT.scale, screenH = 205 * OT.scale, [fx, fy] = at(940, 745)
   return <div className="module-preview link-hero" aria-hidden="true">
-    <div className="preview-label"><span>NEW</span><span className="preview-led" /></div>
+    <div className="preview-label"><span>BETA</span><span className="preview-led" /></div>
     <svg viewBox="0 0 640 220" className="signal-art link-hero-art" fill="none">
       <g className="signal-grid">{[60, 110, 160].map(y => <path key={y} d={'M12 ' + y + 'H628'} />)}{[128, 256, 384, 512].map(x => <path key={x} d={'M' + x + ' 12V204'} />)}</g>
       {/* This page: sidebar, search, a grid of module cards; the highlighted one is being sent. */}
@@ -83,8 +81,8 @@ function LinkHero() {
 }
 
 /**
- * The one place to install the Modwerk base. The USB card opens it at any time; at
- * release it opens once per member (`launch`) and cannot be put off for the first
+ * The one place to install the Modwerk base. The USB card opens it at any time; for
+ * beta testers it opens once per member (`launch`) and cannot be put off for the first
  * seconds. Step 4 completes by itself when the unit comes back with the base.
  * `buildBase` is the builder's seam, absent until the browser can build the base.
  */
@@ -128,13 +126,13 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, onChoos
     {canClose && <button type="button" className="icon-button base-install-close" aria-label="Close" onClick={finish}><Icon name="close" size={18} /></button>}
     {view === 'intro' ? <>
       <LinkHero />
-      <h2 id="base-install-title" className="link-title" tabIndex={-1}>Load modules over USB</h2>
-      <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot.</p>
+      <h2 id="base-install-title" className="link-title" tabIndex={-1}>Load modules over USB <span className="module-beta-badge">Beta</span></h2>
+      <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot. It’s a beta, so please tell me in the forum what goes wrong.</p>
       <ul className="link-promises">{ALSO_NEW.map(([icon, lead, rest]) => <li key={lead}><span className="link-feature-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><span><strong>{lead}</strong><span className="link-feature-rest">{rest}</span></span></li>)}</ul>
       <p className={'link-needs' + (state.status === 'unsupported' ? ' is-missing' : '')}>You need an Octatrack MKII, your OS 1.40C file, a USB cable and Chrome or Edge on a computer.</p>
       {state.status === 'unsupported' && <p className="file-error" role="alert">This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.</p>}
     </> : <>
-    <header className="base-install-header"><h2 id="base-install-title" tabIndex={-1}>Install the Modwerk base</h2></header>
+    <header className="base-install-header"><h2 id="base-install-title" tabIndex={-1}>Install the Modwerk base <span className="module-beta-badge">Beta</span></h2></header>
     <p id="base-install-intro" className="base-install-intro">Install it once from the card, like an OS update. {launch && <button type="button" className="text-button" onClick={() => setView('intro')}>What’s new?</button>}</p>
     <ol className="link-steps">
       <li className={download === 'done' ? 'is-complete' : undefined}>{step(download === 'done', 1)}<div className="link-step-body">

@@ -6,7 +6,7 @@ import './octatrack-link.css'
 
 const ACTIVE: LinkState['status'][] = ['sending', 'testing', 'trial', 'finishing']
 const activity = ({ status, progress = 0 }: LinkState) => status === 'sending' ? `Loading ${Math.round(progress * 100)}%`
-  : status === 'testing' ? 'Stress-testing' : status === 'trial' ? 'Waiting for Keep or Undo' : 'Finishing'
+  : status === 'testing' ? 'Self-test' : status === 'trial' ? 'Waiting for Keep or Undo' : 'Finishing'
 
 /** The Octatrack's connection in the status bar; nothing while idle or without WebUSB. */
 export function OctatrackStatus({ link }: { link: OctatrackLink }) {
