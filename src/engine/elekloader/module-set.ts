@@ -65,7 +65,8 @@ export async function prepareModuleSet(target: InventoryTarget, current: Invento
 export function moduleSetKit(link: OctatrackLink) {
   const readInventory = async () => {
     const modules = await link.inventory()
-    if (!modules) throw new ModuleSetError('This Octatrack can’t list its modules. Install the latest Modwerk base, then try again.')
+    // Only a base that doesn't know INVENTORY lands here; couldn't-ask-now rejects with LinkBusyError, which callers retry.
+    if (!modules) throw new ModuleSetError('This Octatrack’s base doesn’t list its modules. Install the latest Modwerk base, then try again.')
     return inventoryFrom(modules)
   }
   return { readInventory, prepareUpdate: async (target: InventoryTarget) => prepareModuleSet(target, await readInventory()) }

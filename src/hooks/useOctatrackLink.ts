@@ -27,12 +27,15 @@ export function useInventory(link?: OctatrackLink | null, read?: () => Promise<I
   const unitKey = () => { const state = link?.getState(); return state?.status === 'ready' && state.identity?.canSubmit ? state.identity.base + '|' + (state.active ?? '') : '' }
   const key = useSyncExternalStore(link?.subscribe ?? noSubscription, unitKey, unitKey)
   const [inventory, setInventory] = useState<{ key: string; value: Inventory }>()
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (!key || !read) return
-    let live = true
-    read().then(value => { rememberInventory(key.split('|')[0], value); if (live) setInventory({ key, value }) }, error => console.error(error))
-    return () => { live = false }
-  }, [key, read])
+    let live = true, again: ReturnType<typeof setTimeout> | undefined
+    // A read that couldn't ask just now (another tab, a moment of USB trouble) tries again; any other failure is final.
+    read().then(value => { rememberInventory(key.split('|')[0], value); if (live) setInventory({ key, value }) },
+      error => { if ((error as { retry?: boolean })?.retry) again = setTimeout(() => { if (live) setAttempt(n => n + 1) }, 2000); else console.error(error) })
+    return () => { live = false; clearTimeout(again) }
+  }, [key, read, attempt])
   return key && inventory?.key === key ? inventory.value : undefined
 }
 
@@ -45,7 +48,7 @@ export function useMissing(link?: OctatrackLink | null) {
   useEffect(() => {
     if (!live || !link) return
     let on = true
-    const read = () => void link.missing().then(list => { if (on) setMissing(old => JSON.stringify(old) === JSON.stringify(list) ? old : list) })
+    const read = () => void link.missing().then(list => { if (on && list) setMissing(old => JSON.stringify(old) === JSON.stringify(list) ? old : list) })
     read()
     const timer = setInterval(read, 3000)
     return () => { on = false; clearInterval(timer) }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { changeCount, inventoryChanges, loadStep, type Inventory, type InventoryTarget } from '../config/inventory'
-import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
+import { LinkBusyError, type OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { ModuleSetError } from '../engine/elekloader/module-set'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
 import { ChangeSummary } from './InventoryChanges'
@@ -33,7 +33,7 @@ export function LoadDialog({ link, set, inventory, prepareUpdate, stressTest, on
   async function load() {
     setStarted(true); setPreparing(true); setError('')
     try { const prepared = await prepareUpdate!(set); setPreparing(false); await link.update(prepared.name, prepared.changes, stressTest) }
-    catch (failure) { console.error(failure); setPreparing(false); setError(failure instanceof ModuleSetError ? failure.message : 'This module set couldn’t be prepared, so nothing was sent.') }
+    catch (failure) { console.error(failure); setPreparing(false); setError(failure instanceof ModuleSetError || failure instanceof LinkBusyError ? failure.message : 'This module set couldn’t be prepared, so nothing was sent.') }
   }
   const index = step === 'loading' ? 0 : step === 'testing' ? 1 : 2
   const closable = step === 'review' || step === 'done'

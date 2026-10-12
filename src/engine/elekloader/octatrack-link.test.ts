@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { removalPackage } from './module-set'
-import { OctatrackLink } from './octatrack-link'
+import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
 import { UploadUnconfirmedError } from './upload-session'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -11,7 +11,9 @@ async function linked(kind: 'base' | 'stock' | 'none' = 'base') {
   link.start(); await settle(); await settle()
   return { unit, link }
 }
-afterEach(() => { vi.useRealTimers() })
+// Each link gets its own in-tab lock; Node's own navigator.locks would be shared by every test.
+beforeEach(() => { vi.stubGlobal('navigator', {}) })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('finding the unit', () => {
   it('reports a browser without WebUSB instead of offering a dead button', () => {
@@ -206,5 +208,41 @@ describe('loading a module set', () => {
     const { unit, link } = await loaded()
     unit.unplug()
     expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: 'USB disconnected. Your Octatrack is between the two module sets: load one of them again.' } })
+  })
+})
+
+describe('several tabs of the site', () => {
+  const data = (n: number) => new Uint8Array(4000).fill(n)
+  async function tabs() {
+    const unit = fakeUnit(), locks = tabLocks() // one lock for both, as navigator.locks is across tabs
+    const a = new OctatrackLink(unit.usb, fakeSession(unit), 300, locks), b = new OctatrackLink(unit.usb, fakeSession(unit), 300, locks)
+    a.start(); b.start()
+    for (let i = 0; i < 6; i++) await settle()
+    return { unit, a, b }
+  }
+  it('take turns: the other tab skips its reads during a load, and its own load waits instead of failing', async () => {
+    const { unit, a, b } = await tabs()
+    expect([a.getState().status, b.getState().status]).toEqual(['ready', 'ready'])
+    await a.update('Set A', [{ module: 'A', data: data(1) }])
+    expect(a.getState().status).toBe('trial')
+    await expect(b.inventory()).rejects.toBeInstanceOf(LinkBusyError) // skipped this round, not "can't list"
+    expect(await b.missing()).toBeUndefined() // a poll keeps what it had
+    const waiting = b.update('Set B', [{ module: 'B', data: data(2) }])
+    await settle()
+    expect(b.getState().status).toBe('ready') // waiting for the unit, not failed
+    await a.keep()
+    await waiting
+    // Tab B planned its load against the unit before A's: it refuses to send it.
+    expect(b.getState().notice?.text).toBe('Another tab changed your Octatrack meanwhile, so nothing was loaded. Review the load again.')
+    expect(unit.active).toBe(sha(data(1)))
+  })
+  it('lets the waiting tab load once the other tab undid its load', async () => {
+    const { a, b } = await tabs()
+    await a.update('Set A', [{ module: 'A', data: data(1) }])
+    const waiting = b.update('Set B', [{ module: 'B', data: data(2) }])
+    await a.undo()
+    await waiting
+    expect(b.getState()).toMatchObject({ status: 'trial', module: 'Set B' })
+    await b.keep()
   })
 })

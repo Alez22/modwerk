@@ -79,16 +79,39 @@ const notPutBack = (lost: string[]) => `${list(lost)} couldn’t be put back: th
 
 /** A stress test found a problem; its reason is shown to the user. */
 export class StressTestFailure extends Error {}
+/** The unit changed between planning a load and sending it (another tab loaded first). */
+export class StaleLoadError extends Error {}
 
 /** What a failed step means for the user, in their words. */
 export function explainLinkError(error: unknown): string {
   if (error instanceof StressTestFailure) return `The self-test failed: ${error.message}. Nothing was kept.`
+  if (error instanceof StaleLoadError) return 'Another tab changed your Octatrack meanwhile, so nothing was loaded. Review the load again.'
   if (error instanceof DOMException && error.name === 'AbortError') return 'Cancelled. Nothing changed on the Octatrack.'
   if (error instanceof UploadDeviceError) return REFUSED[error.status.result] ?? 'The Octatrack refused this step.'
   if (error instanceof UploadUnconfirmedError) return 'The Octatrack stopped answering.'
   return 'Something went wrong talking to the Octatrack.'
 }
 const unsafe = (error: unknown) => error instanceof UploadDeviceError && error.status.result === 'unsafe'
+const LOADING: LinkStatus[] = ['sending', 'testing', 'trial', 'finishing']
+
+/** The read could not ask the unit just now (not idle, another tab or app holds it, or the transfer failed): try again
+ * later. A base that does not know the request is not this error; its read resolves to undefined. */
+export class LinkBusyError extends Error { readonly retry = true }
+
+/** The Web Locks the link takes, so tabs of the site never claim the unit at once (`navigator.locks`; tests share a fake). */
+export interface UsbLocks { request<T>(name: string, options: { signal?: AbortSignal }, job: (lock: unknown) => Promise<T>): Promise<T> }
+const LOCK = 'modwerk-octatrack-usb', READ_WAIT_MS = 1000
+/** Without Web Locks: one job at a time within this tab, as before; `signal` gives up a turn not yet started. */
+export function tabLocks(): UsbLocks {
+  let queue: Promise<unknown> = Promise.resolve()
+  return { request(_name, { signal }, job) {
+    let started = false
+    const run = queue.then(() => { signal?.throwIfAborted(); started = true; return job({}) })
+    queue = run.catch(() => {})
+    return !signal ? run : Promise.race([run, new Promise<never>((_, reject) => signal.addEventListener('abort', () => { if (!started) reject(signal.reason) }, { once: true }))])
+  } }
+}
+const siteLocks = (): UsbLocks => (globalThis.navigator as Navigator & { locks?: UsbLocks } | undefined)?.locks ?? tabLocks()
 
 export function webUsb(): LinkUsb | undefined {
   return typeof navigator !== 'undefined' && globalThis.isSecureContext ? (navigator as Navigator & { usb?: LinkUsb }).usb : undefined
@@ -110,13 +133,14 @@ export class OctatrackLink {
   /** The changes of the load in progress already kept on the unit, and the one being sent (of a set of several). */
   private kept: SetChange[] = []
   private current?: string
-  /** USB jobs run one at a time: a read releasing the interface would cut off a load that just claimed it. */
-  private queue: Promise<unknown> = Promise.resolve()
-  private serial<T>(job: () => Promise<T>): Promise<T> { const run = this.queue.then(job); this.queue = run.catch(() => {}); return run }
+  /** USB jobs run one at a time across every tab of the site: a read releasing the interface would cut off a load that
+   * just claimed it, and two tabs claiming in turn collide. A load holds the lock until it is kept or undone. */
+  private readonly locks: UsbLocks
+  private serial<T>(job: () => Promise<T>): Promise<T> { return this.locks.request(LOCK, {}, job) }
 
   /** `usb` defaults to the browser's WebUSB; null stands for a browser without it. */
-  constructor(usb: LinkUsb | null | undefined = webUsb(), connectSession: Connect = (transport, base) => UploadSession.connect(transport, base), stopWaitMs = 3000) {
-    this.usb = usb; this.connectSession = connectSession; this.stopWaitMs = stopWaitMs
+  constructor(usb: LinkUsb | null | undefined = webUsb(), connectSession: Connect = (transport, base) => UploadSession.connect(transport, base), stopWaitMs = 3000, locks: UsbLocks = siteLocks()) {
+    this.usb = usb; this.connectSession = connectSession; this.stopWaitMs = stopWaitMs; this.locks = locks
     this.state = { status: usb ? 'idle' : 'unsupported' }
   }
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
@@ -165,7 +189,8 @@ export class OctatrackLink {
       : undefined })
   }
 
-  private async open(device: LinkDevice) {
+  private open(device: LinkDevice) { return this.serial(() => this.opening(device)) }
+  private async opening(device: LinkDevice) {
     await this.release(true)
     this.set({ status: 'connecting' })
     this.device = device
@@ -207,8 +232,20 @@ export class OctatrackLink {
    * the unit is tested first (null means passed) and a failure undoes the load. The base runs one transaction at a
    * time, so each change before the last is kept as soon as it is in; undoing the load (Undo, a failed stress test,
    * a refusal part way) rolls back the trial, then sends those changes' undo packages, newest first. */
-  update(module: string, changes: readonly SetChange[], stressTest?: () => Promise<string | null>) { return this.serial(() => this.load(module, changes, stressTest)) }
-  private async load(module: string, changes: readonly SetChange[], stressTest?: () => Promise<string | null>) {
+  update(module: string, changes: readonly SetChange[], stressTest?: () => Promise<string | null>) {
+    const planned = this.state.active // what the changes were prepared against
+    // Resolves once the trial runs (or the load failed); the lock stays held until it is kept or undone.
+    return new Promise<void>(loaded => { void this.serial(async () => { try { await this.load(module, changes, stressTest, planned) } finally { loaded() } await this.settled() }) })
+  }
+  /** Resolves once a load is over (kept, undone, failed or unplugged): until then its tab keeps the lock, so other tabs wait. */
+  private settled() {
+    return new Promise<void>(resolve => {
+      const check = () => { if (!LOADING.includes(this.state.status)) { stop(); resolve() } }
+      const stop = this.subscribe(check)
+      check()
+    })
+  }
+  private async load(module: string, changes: readonly SetChange[], stressTest?: () => Promise<string | null>, planned?: string | null) {
     const base = this.state.identity?.base
     if (!changes.length || this.state.status !== 'ready' || !this.state.identity?.canSubmit || !base || !await this.claim()) return
     const abort = this.abort = new AbortController(), total = changes.reduce((sum, change) => sum + change.data.length, 0)
@@ -217,6 +254,8 @@ export class OctatrackLink {
     let session: LinkSession | undefined, sent = 0
     try {
       session = this.session = await this.connectSession(this.transport!, base)
+      // Another tab loaded while this one waited for the unit: these changes were planned for what was on it before.
+      if (planned && session.status.active && session.status.active !== planned) throw new StaleLoadError()
       for (const [i, change] of changes.entries()) {
         this.current = changes.length > 1 ? change.module : undefined
         await this.install(session, change.data, abort.signal, received => this.set({ ...this.state, progress: (sent + received) / total }))
@@ -259,16 +298,25 @@ export class OctatrackLink {
     if (!this.transport) return Promise.resolve('the Octatrack isn’t connected')
     return runSelftest(this.transport, { signal: this.abort?.signal, startMs: this.stopWaitMs, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }) })
   }
-  /** The modules the unit's project names that are not installed, while it is idle; [] when it can't say. */
-  async missing(): Promise<MissingModule[]> { return await this.read(transport => transport.missing()) ?? [] }
-  /** The modules installed on the unit, while it is idle; undefined when it can't say (a base from before INVENTORY). */
-  inventory(): Promise<MissingModule[] | undefined> { return this.read(transport => transport.inventory()) }
-  /** A read-only request while the unit is idle: WebUSB sends an interface's requests only while it is claimed. */
-  private read<T>(request: (transport: UsbVendorTransport) => Promise<T>): Promise<T | undefined> {
-    return this.serial(async () => {
-      if (!this.transport || this.state.status !== 'ready' || !await this.claim()) return undefined
-      try { return await request(this.transport) } catch { return undefined } finally { await this.release() }
-    })
+  /** The modules the unit's project names that are not installed, while it is idle ([] from a base without MISSING);
+   * undefined when it couldn't ask this round, so a poll keeps what it had. */
+  async missing(): Promise<MissingModule[] | undefined> { return this.read('missing modules', transport => transport.missing()).then(list => list ?? [], () => undefined) }
+  /** The modules installed on the unit, while it is idle; undefined from a base before INVENTORY (it stalls the request).
+   * Rejects with LinkBusyError when it couldn't ask just now. */
+  inventory(): Promise<MissingModule[] | undefined> { return this.read('modules', transport => transport.inventory()) }
+  /** A read-only request while the unit is idle: WebUSB sends an interface's requests only while it is claimed. It
+   * skips the round (LinkBusyError) rather than wait long when another tab or a load holds the unit. */
+  private read<T>(what: string, request: (transport: UsbVendorTransport) => Promise<T>): Promise<T | undefined> {
+    const busy = (why: string, cause?: unknown) => {
+      const error = new LinkBusyError(`Couldn’t read the Octatrack’s ${what} just now: ${why}.`, { cause })
+      if (cause) console.warn(error.message, cause); else console.debug(error.message)
+      return error
+    }
+    return this.locks.request(LOCK, { signal: AbortSignal.timeout(READ_WAIT_MS) }, async () => {
+      if (!this.transport || this.state.status !== 'ready') throw busy('it isn’t idle (' + this.state.status + ')')
+      if (!await this.claim()) throw busy('another app holds it', 'claim failed')
+      try { return await request(this.transport) } catch (error) { throw busy('the transfer failed', error) } finally { await this.release() }
+    }).catch(error => { throw error instanceof LinkBusyError ? error : busy('another tab of the site or a load is using it') })
   }
   keep() { return this.finish(true) }
   undo() { return this.finish(false) }
@@ -303,7 +351,7 @@ export class OctatrackLink {
    * connection), a fresh session reads where the base stands and undoes it from there; only when that fails
    * too does the user get the unplug advice. */
   private async failed(error: unknown, session?: LinkSession) {
-    if (!(error instanceof UploadDeviceError) && !(error instanceof DOMException) && !(error instanceof StressTestFailure)) console.error(error)
+    if (!(error instanceof UploadDeviceError) && !(error instanceof DOMException) && !(error instanceof StressTestFailure) && !(error instanceof StaleLoadError)) console.error(error)
     this.stopKeepalive()
     let clean = !session, settled = session?.connectionTrusted ? session : undefined, recovered = false
     if (session && !session.connectionTrusted && error instanceof UploadUnconfirmedError && this.transport && this.state.identity?.base) {
