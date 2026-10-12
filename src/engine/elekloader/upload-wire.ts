@@ -6,6 +6,9 @@ export const UPLOAD_RESPONSE = 144
 export const UPLOAD_MAX_CHUNK = 4096
 export const UPLOAD_MAX_BYTES = 2097152 // sdk/runtime/upload/upload.h MU_MAX_BYTES: a whole OS image fits
 export const UPLOAD_MAX_FRAME = UPLOAD_HEADER + 4 + UPLOAD_MAX_CHUNK
+// What a client sends per chunk: the frame fits one 4 KiB control transfer. WinUSB, and with it WebUSB on Windows,
+// refuses longer ones ("Invalid parameter"); macOS and Linux do not.
+export const UPLOAD_CHUNK = 4096 - UPLOAD_HEADER - 4
 export const UploadCommand = Object.freeze({
   hello: 0, enter: 1, begin: 2, chunk: 3, verify: 4, commit: 5,
   accept: 6, rollback: 7, abort: 8, leave: 9, disconnect: 10,

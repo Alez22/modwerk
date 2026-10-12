@@ -42,7 +42,7 @@ import { sha } from '../vendor/elekloader/kit/src/bytes.ts'
 import { UploadSession } from '../src/engine/elekloader/upload-session.ts'
 import { findVendorInterface, UsbVendorTransport } from '../src/engine/elekloader/upload-usb.ts'
 import { diagnostics, removal, runLifecycle } from '../src/dev/octatrack-usb-lifecycle.ts'
-import { Bench, device, enumerate } from './usb-bench.mjs'
+import { Bench, benchEndpoint, device, enumerate } from './usb-bench.mjs'
 
 const { values, positionals: [command, file] } = parseArgs({ allowPositionals: true, options: {
   socket: { type: 'string', default: '/tmp/modwerk-ot.sock' },
@@ -61,7 +61,7 @@ if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', '
 }
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
-if (command === 'serve' && !await new Promise(resolve => { const c = createConnection(values.socket, () => { c.end(); resolve(true) }); c.on('error', () => resolve(false)) })) {
+if (command === 'serve' && !await new Promise(resolve => { const c = createConnection(benchEndpoint(values.socket), () => { c.end(); resolve(true) }); c.on('error', () => resolve(false)) })) {
   const bridge = spawn(process.env.MODWERK_PYTHON ?? join(homedir(), '.cache/modwerk-upstream/venv/bin/python'),
     ['-B', 'sdk/machines/octatrack/elekloader/usb_bridge.py', values.socket], { stdio: ['ignore', 'pipe', 'inherit'] })
   await new Promise((resolve, reject) => { bridge.stdout.on('data', d => /ready/.test(d) && resolve()); bridge.once('exit', code => reject(new Error('bridge exited ' + code))) })

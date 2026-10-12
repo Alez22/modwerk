@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { sha } from '../vendor/elekloader/kit/src/bytes.ts'
 import { UploadSession, UploadDeviceError, UploadUnconfirmedError } from '../src/engine/elekloader/upload-session.ts'
-import { UPLOAD_MAX_BYTES, UPLOAD_MAX_CHUNK, UPLOAD_RESPONSE, UploadCommand } from '../src/engine/elekloader/upload-wire.ts'
+import { UPLOAD_CHUNK, UPLOAD_MAX_BYTES, UPLOAD_RESPONSE, UploadCommand } from '../src/engine/elekloader/upload-wire.ts'
 
 const executable = process.argv[2]
 if (!executable) throw new Error('Supply the authored-only C wire probe executable.')
@@ -74,7 +74,7 @@ async function scenario(name, run, fault = 'none', generation = 0) {
 await scenario('stage -> stopped publication -> playback trial -> stopped acceptance', async (s, t) => {
   const pkg = payload(), progress = []
   await s.stage(pkg, { progress: n => progress.push(n) })
-  assert.deepEqual(progress, [4096, 8192, pkg.data.length])
+  assert.deepEqual(progress, [UPLOAD_CHUNK - 1, 2 * (UPLOAD_CHUNK - 1), pkg.data.length])
   assert.equal(s.status.phase, 'verified'); assert.equal(s.status.active, previous); assert.equal(s.status.generation, 0)
   assert(!t.commands.includes(UploadCommand.commit)); assert(!t.commands.includes(UploadCommand.accept))
   await s.activate(); assert.equal(s.status.active, pkg.sha256); assert.equal(s.status.phase, 'pending')
@@ -96,7 +96,7 @@ await scenario('trial rollback and a second transaction without restarting the C
 })
 
 await scenario('no frame is a whole number of 64-byte packets', async (s, t) => {
-  for (const n of [76, 140, 4096 + 76]) { // 128- and 192-byte frames, and a short last chunk of 128
+  for (const n of [76, 140, UPLOAD_CHUNK - 1 + 76]) { // 128- and 192-byte frames; a full chunk (its 4096-byte frame one byte short), then a last of 128
     await s.stage(payload(n))
     assert.equal(s.status.received, n)
     assert(t.frames.every(frame => frame.length % 64), String(t.frames.map(frame => frame.length)))
@@ -108,8 +108,8 @@ await scenario('protocol maximum stages in bounded chunks', async (s, t) => {
   const pkg = payload(UPLOAD_MAX_BYTES)
   await s.stage(pkg)
   assert.equal(s.status.received, UPLOAD_MAX_BYTES)
-  assert.equal(t.commands.filter(c => c === UploadCommand.chunk).length, UPLOAD_MAX_BYTES / UPLOAD_MAX_CHUNK)
-  assert(t.frames.every(frame => frame.length <= 4148))
+  assert.equal(t.commands.filter(c => c === UploadCommand.chunk).length, Math.ceil(UPLOAD_MAX_BYTES / (UPLOAD_CHUNK - 1)))
+  assert(t.frames.every(frame => frame.length <= 4096)) // one control transfer on WinUSB
   await s.cancel()
 })
 

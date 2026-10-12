@@ -66,7 +66,17 @@ the base from ever seeing that quiet.
 Microsoft OS 2.0 set.** Both requests reach the base through stock's
 unknown-request STALL tail; the device descriptor needs a copy (stock's sits
 in the protected bootloader range). macOS and USB disk mode are unaffected.
-`usbtest8`. Windows itself is not tested yet.
+`usbtest8`. On Windows 11 the vendor interface came up as a WinUSB device with
+no driver install, next to the card's mass storage (flashed base `19d37e25`
+and `ee76c36f` (S54), 12 October 2026), and libusb drives it.
+
+**WinUSB refuses a control transfer longer than 4,096 bytes** ("Invalid
+parameter", before anything reaches the wire); macOS and Linux take the
+protocol's 4,148-byte frames. Every frame must fit 4 KiB: the client sends
+chunks of `UPLOAD_CHUNK` (4,044 bytes, 4,043 after the 64-byte rule above),
+and the base accepts any chunk length. WebUSB on Windows uses WinUSB, so the
+site has the same limit. Seen as a RAM boot failing on its first chunk
+("chunk was not confirmed", no device refusal), S54, 12 October 2026.
 
 **macOS keeps stale device entries after the unit disappears abruptly**
 (`ioreg` shows inactive IOUSBHostDevice nodes held by `configd` or

@@ -6,12 +6,15 @@
     npm run device -- status      # or try/remove/lifecycle: scripts/device.mjs
     node scripts/verify-octatrack-vendor-client.mjs /tmp/modwerk-ot.sock PROOFS.json --hardware
 
+    py usb_bridge.py 47811    # Windows: TCP on 127.0.0.1; from WSL (mirrored networking), --socket 47811
+
 Any bench client then drives the unit as it drives ot_emu. Control transfers
 only: a SETUP is held until its data stage ("in"/"out") performs the whole
 transfer with libusb; the status stage the client sends next is answered
 locally. Claims only the Modwerk vendor interface. Refuses SET_ADDRESS and
 SET_CONFIGURATION and never resets the bus. Needs pyusb in a venv outside
-the repository (`python3 -m venv ...; pip install pyusb`).
+the repository (`python3 -m venv ...; pip install pyusb`; on Windows also
+libusb-package, which brings libusb: the unit binds WinUSB by itself).
 """
 import errno
 import os
@@ -21,6 +24,12 @@ import sys
 
 import usb.core
 import usb.util
+
+try:  # Windows: libusb comes with the libusb-package wheel, not with the system
+    import functools, libusb_package
+    usb.core.find = functools.partial(usb.core.find, backend=libusb_package.get_libusb1_backend())
+except ImportError:
+    pass
 
 
 def reply_for(dev, held, line):
@@ -66,31 +75,40 @@ def main():
     unit = open_unit()
     if unit is None:
         sys.exit('No unit running the test base (Modwerk vendor interface) on USB.')
-    if os.path.exists(path):
-        os.unlink(path)
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    server.bind(path)
-    server.listen(1)
+    if path.isdigit():  # a TCP port on this computer
+        server = socket.create_server(('127.0.0.1', int(path)))
+    else:
+        if os.path.exists(path):
+            os.unlink(path)
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(path)
+        server.listen(1)
     print('bridge ready on %s (vendor interface %d)' % (path, unit[1]), flush=True)
     try:
         while True:
             conn, _ = server.accept()
             held = None
-            with conn, conn.makefile('rw') as stream:
-                for line in stream:
-                    # A RAM boot or a replug takes the unit away: answer that, and
-                    # find it again on the next request.
-                    unit = unit or open_unit()
-                    try:
-                        held, answer = reply_for(unit[0], held, line.strip()) if unit else (None, 'err the unit is away')
-                    except usb.core.USBError as error:
-                        held, answer, unit = None, 'err the unit went away: %s' % error, None
-                    stream.write(answer + '\n')
-                    stream.flush()
+            try:
+                with conn, conn.makefile('rw', newline='\n') as stream:
+                    for line in stream:
+                        # A RAM boot or a replug takes the unit away: answer that, and
+                        # find it again on the next request.
+                        unit = unit or open_unit()
+                        try:
+                            held, answer = reply_for(unit[0], held, line.strip()) if unit else (None, 'err the unit is away')
+                        except usb.core.USBError as error:
+                            held, answer = None, 'err the unit went away: %s' % error
+                            usb.util.dispose_resources(unit[0])  # else the next open finds the stale handle
+                            unit = None
+                        stream.write(answer + '\n')
+                        stream.flush()
+            except ConnectionError:  # the client hung up (Windows resets the socket)
+                pass
     finally:
         if unit:
             usb.util.release_interface(*unit)
-        os.unlink(path)
+        if not path.isdigit():
+            os.unlink(path)
 
 
 if __name__ == '__main__':

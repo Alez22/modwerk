@@ -4,11 +4,14 @@
 // plus the WebUSB calls UsbVendorTransport makes, carried over it.
 import { createConnection } from 'node:net'
 
+/** A bench socket: a Unix socket's path, or a TCP port on this computer (usb_bridge.py on Windows, reached from WSL). */
+export const benchEndpoint = path => /^\d+$/.test(path) ? Number(path) : path
+
 /** One command, one reply line, in order. */
 export class Bench {
   constructor(path, { timeoutMs = 60000 } = {}) { // an emulated unit under --dsp runs far below real time
     this.lines = []; this.waiters = []; this.buffer = ''; this.timeoutMs = timeoutMs
-    this.socket = createConnection(path)
+    this.socket = createConnection(benchEndpoint(path))
     this.socket.setEncoding('utf8')
     this.socket.on('data', chunk => {
       this.buffer += chunk
