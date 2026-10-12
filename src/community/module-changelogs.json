@@ -10,7 +10,8 @@
           "Cover both SRC SETUP commit paths and the main machine chooser; preserve existing Analog BD patches on reselection and leave unsigned tracks and other Parts untouched.",
           "808/909 DSP code is byte-identical to 0.1.4. Existing SRC locks, scene targets and LFO destinations remain assigned to their parameter slots and may require adjustment when changing machines.",
           "Owner reports physical FLEX reboot persistence on exact AB015FIX01 and authorizes this experimental release. Broader hardware/maximum-load, worst-case chip timing and complete memory bounds remain unverified under a new exact-source approval; Output Matrix sequencer halt remains unverified.",
-          "Documentation/media-only: add an offline audio preview rendered through 0.1.5-experimental, with sample credits, settings and provenance; firmware is unchanged."
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.5-experimental, with sample credits, settings and provenance; firmware is unchanged.",
+          "Documentation/media-only (12 October 2026): replace the preview with five isolated 808/909 hits, longer tail windows, clean/attack/long 909 comparisons and one common gain; retain the released 0.1.5 engine source identity. Firmware and its version are unchanged; these offline previews add no physical-hardware or performance qualification."
         ]
       },
       {
