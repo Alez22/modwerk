@@ -496,7 +496,8 @@
         "date": "2026-10-09",
         "changes": [
           "Prevent packed VECTOR settings from making stock Part validation reject the saved bank at startup, which reset machines to STATIC and left PLAY stuck on the first step. Preserve existing S2 version 1/2 settings while retaining stock validation of other data.",
-          "Two-instance Part/project save-reload, saved-card fresh load and battery-RAM-only restart pass in the emulator. Physical reboot/audio remain unverified under the owner-approved exception for this exact version. Already reset projects require restoration from a backup."
+          "Two-instance Part/project save-reload, saved-card fresh load and battery-RAM-only restart pass in the emulator. Physical reboot/audio remain unverified under the owner-approved exception for this exact version. Already reset projects require restoration from a backup.",
+          "Development-only USB adapter: split three VECTOR pointer-minus-stock-address expressions into bounded self-references and fixed address arithmetic, and prepare a shared VECTOR/FM chooser without adding POLY8. Imported 0.2.4 sources and public card downloads remain exact. Fresh source/host/native relocation checks do not extend the old hardware exception; runtime packaging, removal, Keep/Undo and physical timing remain unqualified."
         ]
       },
       {

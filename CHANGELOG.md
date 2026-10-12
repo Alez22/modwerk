@@ -2,6 +2,8 @@
 
 ## 12 October 2026
 
+- Added a guarded private VECTOR/FM machine composition adapter for subsets without POLY8. It gives shared chooser and parameter-page hooks one owner, retains each selected engine, and keeps runtime descriptor pointers inside the group. Source, host controller and fresh two-origin link checks are preparation only: ABI8 packaging, active-Part removal/quiescence, browser inventory, hardware timing and Keep/Undo still require their own qualification; no public base or module release changes.
+
 - Documented how an authenticated Cloudflare operator can publish and verify an owner-approved site announcement when the admin UI is unavailable.
 - Added slim waveform overlays for modules with audio previews: thumbnail-only hover and keyboard focus, click-to-seek playback, persistent controls while playing, and tap-to-play on mobile module pages. Existing card and thumbnail sizes are preserved.
 - Verified members can upload public audio previews with credits and optional captions. The renamed Previews tab lists submitted recordings with usernames and captions; contributors and administrators can remove them. Uploads use the existing media bucket with file/request limits, retry protection and account-deletion cleanup. Synthetic recordings remain development-only.
