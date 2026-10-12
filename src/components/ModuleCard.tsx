@@ -46,14 +46,13 @@ export function AddButton({ name, selected, onToggle, configure = false, conflic
   return <button ref={ref} className={'add-button ' + (selected ? 'is-added' : '')} aria-label={label} title={label} aria-pressed={selected} onClick={onToggle}><Icon name={selected ? 'check' : configure ? 'sliders' : 'plus'} size={15} /><span>{selected ? 'Added' : configure ? 'Configure' : 'Add'}</span></button>
 }
 
-// Rating, likes and downloads on one line. An unrated module shows no star; an unavailable count shows a dash so a
+// Working reports, likes and downloads on one line, strongest signal first. An unavailable count shows a dash so a
 // loaded zero stays distinct from a service that did not answer.
 export function CardStats({ statistics: stats, children }: { statistics?: ModuleStatistics; children?: ReactNode }) {
   return <div className="card-stats">
-    {stats?.count && stats.average !== null ? <span className="card-stat is-rating" title={stats.count + (stats.count === 1 ? ' rating' : ' ratings')}><Icon name="star" size={12} />{stats.average.toFixed(1) + ' (' + stats.count + ')'}</span> : null}
-    <span className="card-stat"><Icon name="heart" size={12} />{stats ? stats.likes.toLocaleString() : '—'}<span className="sr-only"> {stats?.likes === 1 ? 'like' : 'likes'}</span></span>
-    <span className="card-stat" title={downloadCoverage(stats?.downloadsStarted)}><Icon name="download" size={12} />{stats?.downloads === undefined ? '—' : stats.downloads.toLocaleString()}<span className="sr-only"> {stats?.downloads === 1 ? 'download' : 'downloads'}</span></span>
     <ModuleWorksCount count={stats?.worksReports} compact/>
+    <span className="card-stat"><Icon name="heart" size={12} />{stats ? stats.likes.toLocaleString() : '—'}<span className="sr-only"> {stats?.likes === 1 ? 'like' : 'likes'}</span></span>
+    <span className="card-stat is-downloads" title={downloadCoverage(stats?.downloadsStarted)}><Icon name="download" size={12} />{stats?.downloads === undefined ? '—' : stats.downloads.toLocaleString()}<span className="sr-only"> {stats?.downloads === 1 ? 'download' : 'downloads'}</span></span>
     {children}
   </div>
 }

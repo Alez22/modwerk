@@ -1,6 +1,28 @@
 # Verification record
 
+## Digi EQ 1.0.2-experimental — 11 October 2026
+
+For issue [#185](https://github.com/repeat98/modwerk/issues/185), the native page-clear callback now resets all sixteen EQ band parameters; the EQ box aligns with the pattern header at x=13. Filter DSP and stored EQ layout are unchanged. Source-only packages from commit `1107d484c8d7ad84cfff14917b34acdcb83a53e6` replace the two 1.0b pins through `npm run elekloader:update`; kit 0.5.0 remains unchanged and the catalogue revision is `94516877d374af1e7c14a69c6c7602773590e8045fd8f3b8c1fcaa47e155f6fc`.
+
+Native panel regressions on OS 1.53 and 1.54 reset all band parameters and preserve EQ-unowned bytes across all eight sound records. Repeat Clear, pressed Q mode, FUNC+PLAY and Internal Mixer Clear isolation pass. Current native screenshots show complete EQ/Q-type pages. Exported packages, private recipe materialization and final pinned builds save the same D185 images. Static module memory is 9,146 B before shared dependencies/alignment. [The source-bound evidence](../sdk/digitakt/modules/digieq/evidence/clear-1.0.2.json) and [physical test steps](../sdk/digitakt/modules/digieq/TESTING.md) state exact images and unverified hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot, stress and clipboard/undo coverage. Owner repeat98 approved this exact version/source and both D185 images for experimental publication and #185 closure after saved live-download verification, with those limits disclosed. The literal statement and exact scope are in the evidence JSON; this records no hardware pass.
+
 **Owner-approved logger release (3 October 2026):** the owner explicitly lifted the logger addition’s qualification restrictions, authorized local firmware/DSP checks, approved the current module versions and logger for release, and waived hardware testing. Downloads are enabled with the logger included. This exception does not claim measured chip timing, complete stress qualification or new hardware evidence. Existing firmware isolation, original-source provenance, compatibility checks, stock fingerprint guards and packaging integrity remain in force. MIDI Scenes keeps its pinned standalone code and 12-page reservation; the logger occupies the top 16 pages of the arena, and a one-page guard separates it from the sample arena; guarded arena updates reserve all 29 pages. Mixed MIDI Scenes configurations remain incompatible. The earlier full-image proofs below predate logger integration; local verification of this change is recorded separately. See [logger evidence and limitations](../sdk/runtime/logging/TESTING.md).
+
+## Digi Mono 0.13.3-experimental — 11 October 2026
+
+For issue [#182](https://github.com/repeat98/modwerk/issues/182), the PULSE page moves descriptors so SUB1/SUB2 use G/H as on SAW. Stored slots and synthesis sources are unchanged. Two source-only packages from commit `20ce6bcc910741ab2bc49fd288ee57dd13d7900f` replace the 0.13.2 download pins through `npm run elekloader:update`; the kit remains 0.5.0 and catalogue revision is `55fb4937fc92338acce5b2ef73cb783488d0acfd00f65e9d8c0bbf0311792825`. The precise generated revision and package hashes are authoritative in [the encoder evidence](../sdk/digitakt/modules/digimono/evidence/encoder-layout-0.13.3.json).
+
+Native panel encoder regressions pass on OS 1.53 and 1.54. Exported packages match private materialized recipes byte for byte. Static memory is 32,417 B before shared dependencies/alignment. The current gallery has a complete SAW/PULSE view and documents common-region omissions on NOISE/ENS. Node 24 checks pass: 1,698 app tests, 88 SDK tests, lint, type checks, catalogue/licence/capture checks and production bundle. The owner approved this exact source and both D182 images for experimental release/#182 closure after live-download verification, with all qualification and NOISE/ENS capture limits disclosed. This records no hardware pass; [TESTING.md](../sdk/digitakt/modules/digimono/TESTING.md) records exact D182 images, required physical steps and all limits.
+
+## Sidechain Compressor 0.1.2 — 10 October 2026
+
+0.1.2 adds `sc_norm` (ColdFire unit 134 → 338 B) and two guarded `jsr` detours over the page-2 copiers' first instruction, so a COMPRESSOR saved on stock firmware (page-2 slots `0x7f/0/0/0`) comes up with KEY OFF, KFLT and KGN centred and MON OFF. DSP source and tables are unchanged. Source: octabam `9228782`, author pin `329b801`. [TESTING.md](../sdk/octabam/modules/sidechain-compressor/TESTING.md) has the details.
+
+**Native and browser.** `npm run module:verify -- sidechain-compressor` built all 122 coverage selections natively and compared the composer against them. The two native suites were regenerated with `export-composition-proofs.py`: the original eight modules build 200 of 512 and the nine visible modules 786 of 1,024. 16 original-suite selections built in the 0.1.1 record now refuse for core A DSP space; all hold Spectrum or Character, and unchanged `main` refuses the same 16 with the same word counts. 12 visible-suite selections that `main` builds are refused by 0.1.2's larger unit, for ColdFire cave space; every selection of one or two other modules still builds. The Analog BD suite (22 refusals, stock effects only) is unchanged and was not regenerated.
+
+**Packages.** Rebuilt in the pinned image with `scripts/build-modules-isolated.sh`; only the sidechain ROM unit's bytes change, the DSP package's code words are identical and the other packages move only their version labels.
+
+**Hardware.** The author flashed the module-alone native image (MAIN OS `2816f0bc…`) on an MKI and reported a functional pass: a stock-saved compressor reset, two instances across both cores, MON, Part/project reload and a power cycle. No stress, timing or maximum-load test.
 
 ## Output Matrix 0.1.0 and hooked DSP without a menu entry — 9 October 2026
 
@@ -41,6 +63,122 @@ app tests in 200 files and 86 SDK tests, catalogue/licences, lint, types and the
 production bundle. Firmware and reference audio remain private.
 See [the exact-source approval](../sdk/analog-bassdrum-build-approval.json) and
 [the testing record](../sdk/octabam/modules/analog-bassdrum/TESTING.md).
+
+## Digitakt II browser-builder preview — 10 October 2026
+
+This work adds a local, non-downloadable Modwerk preview for the Digitakt II;
+it does not mark the machine available or publish its mods. The profile stays
+`research`, the `mods` step stays `open`, and the device-specific download gate
+is false. The exact stock file remains local and no output firmware was saved
+by the browser test.
+
+The pinned source is elekloader kit 0.5.0 (`3acac10`) plus the stock-free
+site-owned overlay `sdk/imports/elekloader-digitakt2-perform-v1.0.json`, from
+toonst's v1.0 release. `npm run elekloader:update -- --overlay
+sdk/imports/elekloader-digitakt2-perform-v1.0.json` fetched the three release
+assets by their source pins, checked SHA-256, updated the generated catalog and
+lock transactionally, and passed the Elekloader vendor and licence checks.
+Catalog revision is `49b6059bec17c74170e1a09467b776ab3d556d0c8e9a6ee3f32905463f81e307`
+(six cores, 23 mods); all pre-existing package pins remain present.
+
+Modwerk's adapter maps `digitakt-ii` to `digitakt-mk2`; the catalogue importer
+retains that device, and the Elekloader planner selects only OS 1.17's DTII
+core/mod packages. Modwerk's local ELE3 reader recognizes the exact stock
+file/hash and uses a separate browser-storage key. Its legacy, unsealed ELE3
+writer and verifier explicitly refuse HMAC-sealed device profiles. The app
+offers a research-stage core preview, while the `DigiBuildPanel` test confirms
+there is no DTII download action. Existing mk1 download approvals are unchanged.
+
+The real stock OS 1.17 file was selected through the local page and identified
+as Digitakt II 1.17 by full-file hash. In the same browser, Modwerk's
+`createDigiBuilder`/`prepareBuild` worker path built `core-1.0`,
+`perform-direct-1.0` and `perform-levels-1.0` as `PB10`; SHA-256
+`9b86f3f5208d96e359cb226eed6e2e9d3df4ebb14be7e0e21213456f4cec6566`,
+2,184,480 bytes. This exactly matches the independent Elekloader build. Its
+log reports 261,380 bytes of DDR spare and 3,840 bytes of fast SRAM spare;
+sections 2, 4, 5, 7 and 8 are unchanged, with 2,303,048 bytes minimum
+in-place depack gap and 1,422,112 bytes flash headroom. The browser engine
+verified the output in memory. The app's visible build button still requires
+sign-in; this check invoked the same worker API directly in the browser.
+
+Focused checks passed: Elekloader DTII suite 18/18 without skips, required
+Elekloader unit suite 17/17, Modwerk builder/planner, profile, reader, writer
+refusal, storage isolation, catalog overlay, library-preview and download-gate
+tests (90 tests total). On current main `b51143f`, Modwerk typecheck and
+production bundle pass; lint has no errors and six warnings in existing
+community/bootstrap files. `machines:check` validates 17 profiles, including
+four SDKs, and `elekloader:check` verifies the 0.5.0 kit and 49b6059 catalog.
+
+The full app run reports 1,680 passed and 11 failed tests across seven files.
+The failures concern the current MIDI Scenes 0.2.5 qualification/source
+records, utility release fingerprints, module changelog checks and checks that
+cascade from those records; none names DTII. `npm run check -- --base
+origin/main` and `modules:generate` stop at `modules:check` because MIDI Scenes
+0.2.5 lacks the current required worst-case cycle, exact-memory and hardware
+qualification record. With Python 3.12, `sdk:check` reports 87 passed and one
+failure: `test_catalog_and_author_dependencies_remain_exact` still expects
+MIDI Scenes 0.2.4 while the current catalog pins 0.2.5. No MIDI Scenes or
+utility-release files were changed here.
+
+Remaining before public module availability: import reviewed Modwerk module
+folders with complete tutorials/screenshots and exact source provenance; add
+them to the SDK catalog only after qualification; test the exact combined
+source on a DTII unit (the author does not report the current pair tested
+together); receive owner review. No hardware was flashed, and no firmware
+download was enabled or produced.
+
+## Digitakt II integration preparation - 9 October 2026
+
+This is upstream package/build verification, not approval to enable Digitakt II
+downloads in Modwerk. The machine remains `research`, without a Modwerk SDK or
+module listing. No unit was flashed and no new emulator run was made.
+
+Inputs: elekloader `3acac10` (0.5.0), digitakt2-perform source
+`09688a6ca194dd8a9f07130a30545c6ec3816d11`, and the owner's stock OS 1.17,
+SHA-256 `26c22f6652625ac2cfd47f7ee970d388ed8b6427dae3563c0a6a2f2d334350d5`.
+The source build used `m68k-elf-*` and Python 3.9.6 on macOS.
+
+The packages downloaded from [toonst's v1.0 release](https://github.com/toonst/digitakt2-perform/releases/tag/v1.0)
+passed elekloader's shop loader checks for hashes, device identity, format and
+redistributable licence:
+
+| Package | SHA-256 |
+| --- | --- |
+| core-1.0.elemod | `95303655a9358f581b485acb68b884b394a577f5d0b373f0a3e5957c8d0ca72c` |
+| perform-direct-1.0.elemod | `601b187f5af3025234c83e8c077b1e8f4ac755a8f1a8c929ab03aff331f30732` |
+| perform-levels-1.0.elemod | `bb100389f2800401495ca3fa3a52d5974bb00434a8a70fd6f89978ec6b25d9e6` |
+
+Both mod packages reproduced byte-for-byte from source. The locally built core
+had SHA-256 `4bfb84c9f553edede11846d08eabcca815977b7fe6c4305eeacd895b9cc9854d`;
+its parsed package differed from the released core only in the `build` metadata.
+The three locally built packages linted together at 764/262144 bytes RAM and
+0/3840 bytes fast SRAM. The output checks below used the released core and mods,
+not a substituted local core.
+
+| Selection, always including core | Version | Verified SysEx SHA-256 |
+| --- | --- | --- |
+| perform-direct | PD10 | `d9a7d90d2f9750c04942d99238aeba9134d1739ab9cbc834102c169365690db1` |
+| perform-levels | PL10 | `72748884eab12062031ae1a830db067e1702d4f2216b122cfb3d293702cb92eb` |
+| Both mods | PB10 | `9b86f3f5208d96e359cb226eed6e2e9d3df4ebb14be7e0e21213456f4cec6566` |
+
+Each in-memory build passed elekloader's output verification and preserved
+stored sections 5, 2, 4, 7 and 8 exactly; only MAIN changed. The required
+`tests/test_units.py` passed 17 tests. With `ELEKLOADER_CROSS=m68k-elf-` and
+`ELEKLOADER_DT2_SYX` set to the owner's stock file, `tests/test_digitakt2.py`
+passed all 18 tests without skips, including the byte-exact stock writer check.
+
+Reproduce package creation with digitakt2-perform's `build.sh`, then use
+`python -m elekloader.patch` with the released core, each selection above,
+the corresponding `--version`, and the owner's `--stock` file. Keep all
+packages and output firmware outside tracked source.
+
+The author reports individual hardware results, with perform-direct's report
+covering an earlier version with a PERSONALIZE row. The pair is not reported
+tested on a unit. No historical hardware waiver elsewhere in this document
+applies to DTII. This initial record predates the catalog, reader and
+browser-builder preview documented above. Reviewed module records, screenshots,
+exact-version hardware qualification or an explicit owner waiver, and owner
+review remain outstanding before Modwerk can offer downloads.
 
 ## USB Audio 0.2 / Outbox 8 — 8 October 2026
 
@@ -1191,3 +1329,62 @@ clean and 36,864 refused combinations; immutable source-fact memoization matches
 uncached checks on 529 varied selections. After the main update, the production
 exporter additionally verifies all 51,712 missing allowed E-Verb/Air Chorus beta
 combinations as clean. Existing declaration records are preserved.
+
+## Digi Mono repeated-SRC release preparation — 11 October 2026
+
+PR [#424](https://github.com/repeat98/modwerk/pull/424) replaces only Digi Mono's two 0.13b catalog pins with source-built 0.13.2-experimental objects from Modwerk source/package commit `48a9b5ade88052d4fb0130d87a79be64935d4d9d`. The upstream author and MIT notice are preserved. The transactional catalog updater verifies both package hashes; kit 0.5.0, cores and other module pins are unchanged. Evidence and exact private-image identities are recorded in [Digi Mono testing](../sdk/digitakt/modules/digimono/TESTING.md).
+
+Owner repeat98 explicitly approved this exact 0.13.2-experimental source and the two D180 private images on 11 October 2026, with issue #180 closure gated on live-download verification. The scope and literal approval are in Digi Mono’s evidence JSON. Physical hardware, audio, timing, complete runtime memory bounds, persistence, reboot and stress remain unverified. A passing PR does not establish a saved live download.
+
+## Mini Verb mixer regression — 11 October 2026
+
+Mini Verb 0.2.1-experimental fixes clipping when the wide wet-minus-dry
+difference entered a 24-bit multiplier register. A measured raw-wet oracle
+reproduces the 0.2.0 error at 0.9 FS / MIX 32 on both DSP cores without final
+mixed-output clipping. Scaling the difference before multiplication and
+restoring it in the accumulator passes the regression. All 53 DSP checks pass,
+including exact dry, bounded low-level quantization, eight-instance isolation,
+dirty-state guards and a 30-second moving render. The change adds four program
+words, no state and 1.096% executed instructions with eight moving instances.
+
+The current native/browser matrix has 126 selections: 52 matching builds,
+74 matching refusals and zero mismatches; a modified original is refused.
+Both chooser profiles of #428's saved six-module selection also match native
+module-owned writes outside platform differences. Exact candidate images,
+source hashes and packaging identities are in the module's TESTING.md. Real
+LCD captures match that candidate. Separate native T1/T5 THRU runs produce
+nonzero audio without output clipping or emulator failure; their private
+diagnostic emulator extends the bounded checksum watchdog. Those moderate
+input runs do not confirm the reporter's hardware noise.
+
+Physical hardware, played automation, Part/project/reboot persistence, chip
+timing and complete runtime bounds remain unverified. The original noise
+symptom is unconfirmed. The owner explicitly approved this exact 0.2.1 source and the two I428
+private updates with those limits disclosed on 11 October 2026. This is a new
+source-bound exception, not an extension of 0.2.0. Report #428 remains open
+until reporter confirmation; publication and saved live-download verification
+are separate steps.
+
+## E-Verb FUNC stops — 11 October 2026
+
+E-Verb 0.1.1-experimental fixes #438: holding FUNC and turning SIZE, DCY, ABSB
+or SPD jumped between 0 and 127 only. The FX page word at P+0x12a is a knob's
+edit handler, and E-Verb's clone of DARK REV's page inherited stock's two-stop
+editor on those four slots. 0.1.1 writes stock's three-stop editor (0, 64, 127,
+as on the stock reverbs' MIX and BAL) on all six plain knobs. The private
+image differs from 0.1.0's tested `b776efe2…` in exactly four descriptor bytes;
+both DSP memory images are byte-identical, all 27 render gates pass and the
+matched benchmark reproduces 0.1.0's figures.
+
+Driven through the firmware's own panel code on the ColdFire emulator with FUNC
+held, all six main-page knobs step through 0, 64 and 127 on 0.1.1; the same run
+on 0.1.0 reproduces the report on the four knobs. The native/browser matrix has
+126 selections: 48 matching module-owned images (18 identical outright, 30
+outside platform writes), 78 matching refusals and zero mismatches; a modified
+original is refused. The rebuilt packages change only E-Verb's version, its
+descriptor recipe and source provenance. The Analog BD composition proofs,
+re-exported natively on this tree, are identical apart from the source-tree pin;
+E-Verb is in none of them.
+
+No hardware result exists for 0.1.1; the owner's MKII report covers 0.1.0.
+Publication needs the owner's approval of this exact source.

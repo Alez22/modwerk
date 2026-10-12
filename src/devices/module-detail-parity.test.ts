@@ -29,8 +29,8 @@ describe('module detail parity across machines', () => {
         'Reviews &amp; discussion', 'role="tablist" aria-label="Module information"',
         'id="tab-Overview" aria-selected="true"', 'id="tab-Media" aria-selected="false"',
         'id="tab-Discussion" aria-selected="false"', 'id="tab-Changelog" aria-selected="false"', 'id="tab-Issues" aria-selected="false"', 'role="tabpanel" aria-labelledby="tab-Overview"',
-        'class="module-showcase"', 'Screenshots &amp; audio', 'class="ratings-overview"',
-        'Rate &amp; discuss', 'class="module-guide"', 'About &amp; credits',
+        'class="module-showcase"', 'Screenshots &amp; audio', 'class="community-signals"',
+        'Join the discussion', 'class="module-guide"', 'About &amp; credits',
         'Controls &amp; defaults', 'How to use it', 'Technical details &amp; safety', 'class="issue-report"',
       ]) {
         expect(ot).toContain(markup)

@@ -15,6 +15,9 @@ Gates:
   placement    E-Verb sits in the given-up reverbs' code on both payloads, ends before PLATE REV's
                helper (93 words at DARK REV+974, as src/engine/assets/stock-dsp-metadata.json records
                it), and the helper's words equal stock
+  func stops   the built descriptor gives every 0..127 knob stock's three-stop FUNC editor (0, 64
+               and 127, issue #438) and REV the plain select editor; the editor's own code and stop
+               table are stock's (func_stops.py turns the knobs on ot_emu)
   dry          MIX 0 is the input sample for sample, with every other knob moving and trig splits
   reverb       an impulse, fully wet: the onset follows PRE (7, 42 and 250 ms), the tail decays
                faster at lower DCY and smaller SIZE, and the two channels are decorrelated
@@ -246,6 +249,42 @@ def gate_placement(g, log, mems, stock_mems):
                 f'E-Verb P:0x{lo:05x}..0x{end - 1:05x} ({words} words) in P:0x{r_lo:05x}..0x{r_end - 1:05x}; '
                 f'PLATE REV helper P:0x{h_lo:05x}..0x{h_end - 1:05x} {"as the stock metadata records it" if known else "NOT where the metadata puts it"}, '
                 f'{"identical to stock" if same else "CHANGED"}; {h_lo - end} words free before it')
+
+
+# FUNC + turn moves a knob between the stops of its edit handler, the word at P+0x12a of the FX2
+# descriptor (0 is the plain editor: no FUNC jump). Among stock's: three stops (0, 64, 127, the table
+# at STOP_TABLE) on the reverbs' MIX and BAL and most bipolar knobs, and two (0, 127) on DARK REV's
+# TIME..LP, which SIZE, DCY, ABSB and SPD inherited until 0.1.1 (issue #438). A select keeps 0.
+THREE_STOPS, TWO_STOPS, STOP_TABLE, EDITOR_BYTES = 0x400328e4, 0x40032814, 0x400a8168, 0x162
+
+
+def gate_func_stops(g, image, log):
+    m = re.search(r'EVERB\s+id 0x1b\s+clone P=0x([0-9a-f]+)', log)
+    if not m:
+        g.check('func stops: the descriptor clone', False, 'no EVERB clone line in the build log')
+        return
+    clone, img, stock_img = int(m[1], 16), image.read_bytes(), STOCK.read_bytes()
+
+    def word(data, address):
+        return struct.unpack('>I', data[address - dsp_modmap.BASE:address - dsp_modmap.BASE + 4])[0]
+
+    bad, knob, select = [], [], []
+    for slot, p in enumerate(MOD.params):
+        if not p.active:
+            continue
+        want = THREE_STOPS if p.count == 128 else 0
+        got = word(img, clone + 0x12a + 4 * slot)
+        (knob if p.count == 128 else select).append(NAMES[slot])
+        if got != want:
+            bad.append(f'{NAMES[slot]} 0x{got:08x}' + (' (two stops, 0 and 127)' if got == TWO_STOPS else ''))
+    lo = THREE_STOPS - dsp_modmap.BASE
+    stock_code = img[lo:lo + EDITOR_BYTES] == stock_img[lo:lo + EDITOR_BYTES]
+    stops = [struct.unpack('>i', img[STOP_TABLE - dsp_modmap.BASE + 4 * i:STOP_TABLE - dsp_modmap.BASE + 4 * i + 4])[0]
+             for i in range(3)]
+    g.check('func stops: every knob carries the three-stop FUNC editor', not bad and stock_code and stops == [0, 64, 127],
+            (f'wrong editor on {", ".join(bad)}; ' if bad else '')
+            + f'{" ".join(knob)} {"should carry" if bad else "carry"} the three-stop editor 0x{THREE_STOPS:08x} '
+            f'(stock code {"unchanged" if stock_code else "CHANGED"}, stops {stops}), {" ".join(select)} the select editor 0')
 
 
 def noise(n, level, seed, stereo=True):
@@ -632,6 +671,7 @@ def main():
         mems = {c: send_probe.dump_mem(image, work / f'mem_{t}.mem', t) for c, t in ((0, 'A'), (1, 'B'))}
         stock_mems = {c: send_probe.dump_mem(STOCK, work / f'stock_{t}.mem', t) for c, t in ((0, 'A'), (1, 'B'))}
         gate_placement(g, log, mems, stock_mems)
+        gate_func_stops(g, image, log)
         host = Host(mems, work)
         for gate in (gate_dry, gate_reverb, gate_idle, gate_isolation, gate_garbage, gate_zipper, gate_splits, gate_reverse,
                      gate_depth_locks, gate_envelope):

@@ -11,7 +11,7 @@ import type { BuilderResult } from './protocol'
 
 export { buildStep } from '../../../vendor/elekloader/kit/src/kit/index.ts'
 export type { Builder }
-export const MACHINE_DEVICE = { octatrack: 'octatrack', digitakt: 'digitakt-mk1', digitone: 'digitone-mk1' } as const
+export const MACHINE_DEVICE = { octatrack: 'octatrack', digitakt: 'digitakt-mk1', 'digitakt-ii': 'digitakt-mk2', digitone: 'digitone-mk1' } as const
 export type ElekloaderMachine = keyof typeof MACHINE_DEVICE
 export const BUILDER_CATALOG: Catalog = parseCatalog(CATALOG_JSON)
 export const BUILDER_SOURCE = { repository: 'https://github.com/irpina/elekloader', commit: KIT.commit, version: KIT.version, protocol: KIT.protocol, catalogRevision: BUILDER_CATALOG.revision }

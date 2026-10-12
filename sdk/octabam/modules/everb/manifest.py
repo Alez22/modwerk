@@ -11,7 +11,14 @@ dry frames pass untouched.
 from remix.schema import (BusRole, Category, Claims, DspSection, Formatter, Gate,
                           Harness, Kind, MenuEntry, Module, Param, Proof, YBase)
 
-P, S, B = Formatter.PLAIN, Formatter.STEPPED, Formatter.BIPOLAR
+S, B = Formatter.STEPPED, Formatter.BIPOLAR
+# A plain 0..127 knob (both formatter words 0) whose FUNC + turn stops at 0, 64 and
+# 127. The word at P+0x12a is the knob's edit handler: 0x400328e4 is stock's
+# three-stop one, on the stock reverbs' MIX and BAL and on BIPOLAR slots here.
+# DARK REV's TIME..LP slots carry the two-stop one (0 and 127 only), which SIZE,
+# DCY, ABSB and SPD inherited until 0.1.1 (issue #438). Written on all six plain
+# knobs, so none of them depends on what the donor's slot carries.
+K = dict(formatter_word=0, widget_word=0, word_12a=0x400328e4)
 
 MODULE = Module(
     name="everb",
@@ -23,14 +30,14 @@ MODULE = Module(
     menu=MenuEntry(fx2_id=0x1b, donor_desc=0x400d58b8,   # DARK REV's descriptor, every field written
                    abbr=b"EVRB", fullname=b"E-Verb", build_tag=False),
     params=(
-        Param(b"SIZE", 64, 128, True, P, doc="space: every delay over six octaves, 2 ms to 143 ms; glides as it moves"),
-        Param(b"DCY", 64, 128, True, P, doc="decay gain 0..120%: sustains from about 106, saturates above"),
-        Param(b"ABSB", 60, 128, True, P, doc="0..38 adds diffusion, 38..127 adds damping: darker and shorter"),
+        Param(b"SIZE", 64, 128, True, doc="space: every delay over six octaves, 2 ms to 143 ms; glides as it moves", **K),
+        Param(b"DCY", 64, 128, True, doc="decay gain 0..120%: sustains from about 106, saturates above", **K),
+        Param(b"ABSB", 60, 128, True, doc="0..38 adds diffusion, 38..127 adds damping: darker and shorter", **K),
         Param(b"DPTH", 64, 128, True, B, doc="left: cyclic chorus; right: ergodic grains, shimmer from +48"),
-        Param(b"SPD", 64, 128, True, P, doc="modulation speed 0.5..256 Hz: cyclic rate, ergodic grain rate"),
-        Param(b"MIX", 51, 128, True, P, doc="equal-power dry/wet; 0 is exactly the dry signal"),
+        Param(b"SPD", 64, 128, True, doc="modulation speed 0.5..256 Hz: cyclic rate, ergodic grain rate", **K),
+        Param(b"MIX", 51, 128, True, doc="equal-power dry/wet; 0 is exactly the dry signal", **K),
         Param(b"TILT", 64, 128, True, B, doc="wet tone: left warms (lows +12 dB), right brightens (highs +24 dB)"),
-        Param(b"PRE", 25, 128, True, P, doc="pre-delay 7..250 ms; with REV on, the reverse window (at least 42 ms)"),
+        Param(b"PRE", 25, 128, True, doc="pre-delay 7..250 ms; with REV on, the reverse window (at least 42 ms)", **K),
         Param(b"REV", 0, 2, True, S, labels=("OFF", "ON"), doc="reverse the pre-delay buffer; switches under a short duck"),
         Param(b"EDCY", 64, 128, True, B, doc="envelope into DCY: left reins the tail in, right swells it, no sustain"),
         Param(b"ESIZ", 64, 128, True, B, doc="reverb envelope into SIZE: the space shrinks or grows with level"),

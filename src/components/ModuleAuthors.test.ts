@@ -20,10 +20,12 @@ describe('multiple module credits', () => {
     expect(element.querySelectorAll('.module-author-line button')).toHaveLength(1)
   })
 
-  it('credits Bryan on Recorder Loop Fix while retaining the module maintainer', () => {
+  it('credits Sam and Bryan on Recorder Loop Fix after the maintainer opts out', () => {
     const module = MODULES.find(module => module.id === 'recorder-loop-fix')!
     expect(module.contributors).toEqual([{ github: 'bryantysinger', name: 'Bryan Tysinger' }])
-    expect(communityModule(module.id)?.maintainers).toEqual(['sambanks'])
+    expect(module).toMatchObject({ author: 'sambanks', authorName: 'Sam Banks' })
+    expect(communityModule(module.id)?.maintainers).toEqual([])
+    expect(developerModules('sambanks')).toEqual([])
     expect(developerModules('bryantysinger')).toEqual([])
   })
 })
