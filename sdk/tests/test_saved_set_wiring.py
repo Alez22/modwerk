@@ -25,7 +25,7 @@ def load(name, path):
 
 core = load('saved_set_core_fixture', ELEK / 'build_core.py')
 
-def generated(resident):
+def generated(resident, refusal=False):
     texts = {}
     for name in core.DYNLOAD_SOURCES:
         text = (core.DYNLOAD / name).read_text()
@@ -41,7 +41,7 @@ def generated(resident):
             text = saved_set_wiring.selection(text)
         texts[name] = text
     text = resident_source.sources()['dsp.c'] if resident else (ELEK / 'dsp.c').read_text()
-    texts['dsp.c'] = saved_set_wiring.dsp(text)
+    texts['dsp.c'] = saved_set_wiring.dsp(text, refusal)
     return texts
 
 class SavedSetWiring(unittest.TestCase):
@@ -67,10 +67,10 @@ class SavedSetWiring(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('m68k-elf-gcc'), 'ColdFire compiler unavailable')
     def test_actual_board_objects_and_exact_bss_capacity(self):
-        for resident in (False, True):
-            with self.subTest(resident=resident), tempfile.TemporaryDirectory() as tmp:
+        for resident, refusal in ((False, False), (True, False), (False, True), (True, True)):
+            with self.subTest(resident=resident, refusal=refusal), tempfile.TemporaryDirectory() as tmp:
                 work = Path(tmp)
-                for name, text in generated(resident).items():
+                for name, text in generated(resident, refusal).items():
                     (work / name).write_text(text)
                 usb = load('saved_set_usb_fixture', ELEK / 'usb_base.py')
                 (work / 'usb_base.h').write_text(usb.header())
@@ -81,10 +81,14 @@ class SavedSetWiring(unittest.TestCase):
                 flags += ['-DMODWERK_DSP_%s%d=4096' % (name, c) for name in ('TABLE', 'WORDS', 'MISS', 'METER') for c in (0, 1)]
                 if resident:
                     flags.append('-DMODWERK_RESIDENT_STOCK_HOOKS')
+                if refusal:
+                    flags.append('-DMODWERK_EXPORT_REFUSALS')
                 includes = ['-I'+str(path) for path in (work, ELEK, GLUE, ADAPTER / 'resident-runtime',
                     ROOT / 'sdk/runtime/loader', ROOT / 'sdk/runtime/upload')]
                 sources = [work / 'transfer.c', work / 'selection.c', work / 'dsp.c', ELEK / 'ep0.c', ELEK / 'modset.c',
                            GLUE / 'saved_set_export.c', GLUE / 'saved_set_reader.c', GLUE / 'saved_set_session.c']
+                if refusal:
+                    sources.append(GLUE / 'saved_set_refusal.c')
                 for source in sources:
                     result = subprocess.run(['m68k-elf-gcc', *flags, *includes, '-c', str(source),
                         '-o', str(work / (source.stem + '.o'))], capture_output=True, text=True)

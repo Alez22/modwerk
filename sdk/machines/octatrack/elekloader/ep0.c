@@ -24,6 +24,9 @@
 #include "boot.h"
 #ifdef MODWERK_SAVED_SET_EXPORT
 #include "saved_set_session.h"
+#ifdef MODWERK_EXPORT_REFUSALS
+#include "saved_set_refusal.h"
+#endif
 #endif
 
 #define UNCACHED(p) ((void *)((uintptr_t)(p) + 0x08000000u))
@@ -89,6 +92,39 @@ int modwerk_modset_export_idle(void);
 int modwerk_dsp_export_idle(void);
 int octamod_log_can_flush(void);
 int modwerk_saved_set_busy(void) { return msx_session_active(SAVED_SET); }
+#ifdef MODWERK_EXPORT_REFUSALS
+static struct msxr_cache export_refusal;
+#define EXPORT_REFUSAL ((struct msxr_cache *)UNCACHED(&export_refusal))
+uint32_t modwerk_dsp_export_refusal(void);
+static uint32_t saved_set_structural_refusal(void)
+{
+    uint32_t mask=modwerk_dsp_export_refusal();
+    if (receiving) mask|=MSXR_RECEIVING;
+    if (held) mask|=MSXR_HELD;
+    if (controller_started && controller.phase!=MU_NORMAL) mask|=MSXR_CONTROLLER;
+    if (!modwerk_modset_export_idle()) mask|=MSXR_MODSET;
+    if (!modwerk_machine_stopped()) mask|=MSXR_MACHINE_RUNNING;
+    if (REG(0x460d1cb8u)!=1u) mask|=MSXR_TRANSPORT_RUNNING;
+    if (REG(0x460e76a0u)) mask|=MSXR_RECORDING;
+#ifdef MODWERK_RESIDENT_STOCK_HOOKS
+    int modwerk_stock_hook_export_idle(void);
+    if (!modwerk_stock_hook_export_idle()) mask|=MSXR_HOOKS;
+#endif
+    return mask;
+}
+/* Begin never uses the logger gate. Owned/token bounds are the actual
+ * msx_session_request preconditions, evaluated before issuing a token. */
+static uint32_t saved_set_begin_refusal(const struct mv_transport *t)
+{
+    uint32_t mask=saved_set_structural_refusal();
+    if (wake_posted) mask|=MSXR_WAKE;
+    if (t->resets!=t->handled) mask|=MSXR_RESET;
+    if (t->lapses!=t->lapses_handled) mask|=MSXR_LAPSE;
+    if (msx_session_active(SAVED_SET)) mask|=MSXR_OWNED;
+    if (SAVED_SET->file.token>=UINT16_MAX) mask|=MSXR_TOKEN_EXHAUSTED;
+    return mask;
+}
+#else
 static int saved_set_structural_safe(void)
 {
     if (receiving || held || (controller_started && controller.phase != MU_NORMAL) ||
@@ -101,10 +137,20 @@ static int saved_set_structural_safe(void)
 #endif
     return 1;
 }
+#endif
 int modwerk_saved_set_safe(void)
 {
     uint32_t lock = modwerk_machine_lock();
+#ifdef MODWERK_EXPORT_REFUSALS
+    uint32_t mask=saved_set_structural_refusal();
+    if (!msx_session_reading(SAVED_SET)) mask|=MSXR_NOT_READING;
+    if (!octamod_log_can_flush()) mask|=MSXR_LOGGER;
+    msxr_capture(EXPORT_REFUSAL, MSXR_ENGINE_READ, modwerk_runtime_calls(), mask,
+                 SAVED_SET->file.token, SAVED_SET->file.status);
+    int safe=mask==0;
+#else
     int safe = msx_session_reading(SAVED_SET) && saved_set_structural_safe() && octamod_log_can_flush();
+#endif
     modwerk_machine_unlock(lock);
     return safe;
 }
@@ -223,10 +269,33 @@ uint32_t modwerk_ep0_dispatch(void)
         return modwerk_runtime_list(out, SETUP[2], 13u);
     }
 #ifdef MODWERK_SAVED_SET_EXPORT
+#ifdef MODWERK_EXPORT_REFUSALS
+    if (r.action==MV_STALL && SETUP[0]==MV_RESULT_TYPE && SETUP[1]==MSXR_REQUEST &&
+        !SETUP[2] && !SETUP[3] && SETUP[4]==MODWERK_VENDOR_INTERFACE && !SETUP[5] &&
+        SETUP[6]==MSXR_BYTES && !SETUP[7]) {
+        uint32_t lock=modwerk_machine_lock();
+        unsigned n=msxr_read(EXPORT_REFUSAL,out);
+        modwerk_machine_unlock(lock);
+        modwerk_ep0_reply=out;
+        return n;
+    }
+#endif
     if (r.action == MV_STALL && SETUP[1] >= 31u && SETUP[1] <= 33u) {
         uint32_t lock = modwerk_machine_lock();
+#ifdef MODWERK_EXPORT_REFUSALS
+        uint32_t mask=saved_set_begin_refusal(t);
+        /* Record only an exact Begin request, not Poll/Chunk/Release or an
+         * invalid transfer. Status/token describe its predecision snapshot. */
+        if (SETUP[0]==MV_RESULT_TYPE && SETUP[1]==31u && SETUP[2]>=1u && SETUP[2]<=2u &&
+            !SETUP[3] && SETUP[4]==MODWERK_VENDOR_INTERFACE && !SETUP[5] &&
+            SETUP[6]==MSX_METADATA_BYTES && !SETUP[7])
+            msxr_capture(EXPORT_REFUSAL,MSXR_BEGIN,modwerk_runtime_calls(),mask,
+                         SAVED_SET->file.token,SAVED_SET->file.status);
+        int begin_safe=mask==0;
+#else
         int begin_safe = !wake_posted && t->resets == t->handled && t->lapses == t->lapses_handled &&
                          saved_set_structural_safe();
+#endif
         unsigned n = msx_session_request(SAVED_SET, SETUP, out, MODWERK_VENDOR_INTERFACE, begin_safe);
         modwerk_machine_unlock(lock);
         if (n) {

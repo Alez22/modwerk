@@ -777,6 +777,8 @@ def main():
                              'X the full loader, and the receivers watch X:$7a92-$7fff for anything that writes it (dev request 26).')
     parser.add_argument('--saved-set-export', action='store_true',
                         help='Private fixed-two-file read-only recovery snapshot. No card writes.')
+    parser.add_argument('--export-refusals', action='store_true',
+                        help='Private cached named export refusal factors, without work or raw memory reads.')
     parser.add_argument('--resident-stock-hooks', action='store_true',
                         help='Private dormant resident SC/Matrix/Analog BD packing. Does not admit their runtime controllers.')
     parser.add_argument('--dsp-loader', action='store_true',
@@ -789,6 +791,8 @@ def main():
     args = parser.parse_args()
     if args.saved_set_export and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
         parser.error('Private saved-set export requires the ordinary DSP loader without probes/burn.')
+    if args.export_refusals and not args.saved_set_export:
+        parser.error('Private export refusal metadata requires fixed saved-set export.')
     if args.resident_stock_hooks and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
         parser.error('Private resident stock hooks require the ordinary DSP loader, without probes/burn.')
     global FX_IDS, FX_WORDS
@@ -810,6 +814,8 @@ def main():
     saved_set_proof, saved_set_wiring, saved_set_root = None, None, None
     saved_set_files = ('saved_set_export.c', 'saved_set_export.h', 'saved_set_reader.c',
         'saved_set_session.c', 'saved_set_session.h', 'saved_set_source.py', 'saved_set_wiring.py')
+    if args.export_refusals:
+        saved_set_files += ('saved_set_refusal.c', 'saved_set_refusal.h')
     if args.saved_set_export:
         saved_set_root = APP / 'sdk/machines/octatrack/module-adapters/saved-set-export'
         for name in ('saved_set_source', 'saved_set_wiring'):
@@ -939,7 +945,7 @@ def main():
         else:
             shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
         if saved_set_wiring:
-            (source / 'dsp.c').write_text(saved_set_wiring.dsp((source / 'dsp.c').read_text()))
+            (source / 'dsp.c').write_text(saved_set_wiring.dsp((source / 'dsp.c').read_text(), args.export_refusals))
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
         for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'load_wire.h', 'selftest.h'):
             shutil.copyfile(HERE / name, source / name)
@@ -1124,6 +1130,8 @@ modwerk_retained_end:
          for key, field in (('TABLE', 'table'), ('WORDS', 'tableWords'), ('MISS', 'miss'), ('METER', 'meter'))] if args.dsp_loader else [])
     if args.saved_set_export:
         recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
+    if args.export_refusals:
+        recipe['cflags'].append('-DMODWERK_EXPORT_REFUSALS')
     if args.resident_stock_hooks:
         recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
     for key in ('idle', 'job', 'transport', 'open', 'read', 'write', 'close'):

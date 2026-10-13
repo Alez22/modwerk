@@ -10,7 +10,7 @@ def _change(text, old, new):
         raise ValueError('Saved-set export source seam changed: ' + old[:64])
     return text.replace(old, new)
 
-def dsp(text):
+def dsp(text, refusal=False):
     if 'modwerk_dsp_export_idle' in text:
         raise ValueError('Saved-set export source seam changed: DSP already wired')
     text = 'int modwerk_saved_set_busy(void);\n' + text
@@ -21,6 +21,36 @@ def dsp(text):
         text = _change(text, signature, signature + '\n    if (modwerk_saved_set_busy()) return 0;')
     text = _change(text, 'void modwerk_dsp_tick(void)\n{',
                    'void modwerk_dsp_tick(void)\n{\n    if (modwerk_saved_set_busy()) return;')
+    if refusal:
+        text = '#include "saved_set_refusal.h"\n' + text
+        return text + '''
+/* The exact existing export conjunction, evaluated as bounded pure factors.
+ * Each bit is a named boolean; this schedules no diagnostic or frame work. */
+uint32_t modwerk_dsp_export_refusal(void)
+{
+#ifndef MODWERK_HOST
+    int dl_transfer_export_idle(void), dl_selection_export_idle(void);
+    uint32_t mask=0;
+    if (!dl_publication_idle() || dl_phase || dl_c1_phase) mask|=MSXR_PUBLICATION;
+    if (!dl_transfer_export_idle()) mask|=MSXR_TRANSFER;
+    if (!dl_selection_export_idle()) mask|=MSXR_SELECTION;
+    if (moving_count) mask|=MSXR_MOVING;
+    if (rebinding) mask|=MSXR_REBINDING;
+    if (nudge) mask|=MSXR_NUDGE;
+    if (probing>=0 || peeking>=0 || meter_wanted>=0) mask|=MSXR_DIAGNOSTIC;
+#ifdef MODWERK_DSP_XWATCH
+    if (xwatch_wanted>=0) mask|=MSXR_DIAGNOSTIC;
+#endif
+    if (modwerk_selftest.state==SELFTEST_RUNNING) mask|=MSXR_SELFTEST;
+    if (modwerk_dsp_compact_step) mask|=MSXR_COMPACTION;
+    if (picks_in!=picks_out) mask|=MSXR_PICKS;
+    return mask;
+#else
+    return MSXR_HOST_UNPROVED;
+#endif
+}
+int modwerk_dsp_export_idle(void) { return modwerk_dsp_export_refusal()==0; }
+'''
     return text + '''
 /* Fixed counter/job reads only: no pool scan, DSP probe or work scheduling. */
 int modwerk_dsp_export_idle(void)

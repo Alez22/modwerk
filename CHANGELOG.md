@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared private cached export refusal metadata that names only the actual Begin or engine-read safety factors. Reads expose a bounded origin, capture sequence and counter mask without scheduling work, revealing source memory or relaxing gates. The previously tested RAM build and approved public downloads remain unchanged; successor firmware and backup qualification are pending.
+
 - Prepare a separate MIDI/20-channel USB Audio, live Load and fixed saved-module-set export base from authored source. The export is engine-owned, read-only on the card, bounded to the two existing files, and expires after ten seconds; interrupted reads keep the mutation latch until they finish.
 - Compile empty machine/table trust reservations and retain package identities and paused-context fences without enabling their admission. The private image and receipts remain outside Git. Public base metadata and downloads remain unchanged; fresh exact-source native/browser checks and physical boot, backup, recovery, audio and persistence qualification are still required.
 
