@@ -22,9 +22,9 @@ class StockHookControllers(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp:
                 sdk = Path(tmp)
                 for relative, text in controllers.sources(name, SDK).items():
-                    path = sdk / relative; path.parent.mkdir(parents=True, exist_ok=True); path.write_text(text)
+                    path = sdk / relative; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(text.encode())
                 self.assertEqual(controllers.sources(name, sdk), controllers.sources(name, SDK))
-                path.write_text(text + '\n')
+                path.write_bytes((text + '\n').encode())
                 with self.assertRaisesRegex(ValueError, 'source changed'):
                     controllers.sources(name, sdk)
         for name in ('analog-bassdrum', 'character', '../output-matrix'):
