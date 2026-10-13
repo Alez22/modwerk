@@ -42,6 +42,7 @@ class FakeLink {
     if (this.failHealthOnce) { this.failHealthOnce = false; throw new Error('post-undo status unavailable') }
     return this.diagnostics && structuredClone(this.diagnostics)
   }
+  liveLoad = async () => ({ ticks: 120, frames: 1000, cpu: 123, tracks1to4: 234, tracks5to8: 345, peak1to4: 456, peak5to8: 567 })
   subscribeDiagnostics = listener => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   selftest = async () => {
     if (this.finalReading) for (const listener of this.listeners) listener({ event: 'selftest', reading: structuredClone(this.finalReading) })
@@ -86,6 +87,19 @@ describe('frontend MCP reviewed device transactions', () => {
     })
   })
   afterEach(async () => { await service?.close(); await rm(folder, { recursive: true, force: true }) })
+
+  it('reads cached live load without self-test, review, trial or device-write permission', async () => {
+    await service.close()
+    service = await createFrontendTools({ dataDir: folder, deviceSocket: 'test-only' }, frontend, { openLink: async () => link })
+    const result = await service.call('device_load')
+    expect(result).toMatchObject({ base, supported: true, reading: { cpu: 123, tracks1to4: 234, tracks5to8: 345 } })
+    expect(service.tools.find(tool => tool.name === 'device_load').annotations.readOnlyHint).toBe(true)
+    expect(link.updates).toHaveLength(0); expect(link.keeps).toBe(0); expect(link.undos).toBe(0)
+    link.liveLoad = async () => undefined
+    expect(await service.call('device_load')).toEqual({ base, supported: false, reading: null })
+    link.liveLoad = async () => { link.state = { ...link.state, identity: { ...link.state.identity, base: 'd'.repeat(64) } }; return {} }
+    await expect(service.call('device_load')).rejects.toThrow('changed during')
+  })
 
   it('preserves the legacy E-Verb baseline and sends only the verified TapeHead addition with its removal Undo', async () => {
     await expect(service.call('device_review', { moduleIds: ['tapehead'] })).rejects.toThrow('Preserve')

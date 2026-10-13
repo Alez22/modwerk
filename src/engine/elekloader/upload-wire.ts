@@ -20,6 +20,27 @@ export const UploadResult = ['ok', 'state', 'unsafe', 'identity', 'limit', 'stal
 export type UploadResultName = typeof UploadResult[number]
 export const ZERO_DIGEST = '0'.repeat(64)
 
+/** Public MWLD v1, request 30: cached hardware meters, never self-test peaks. */
+export const LOAD_BYTES = 48
+export interface LoadReading {
+  ticks: number; frames: number
+  cpu: number | null; tracks1to4: number | null; tracks5to8: number | null
+  peak1to4: number | null; peak5to8: number | null
+}
+export function parseLoadReading(view: DataView): LoadReading {
+  if (view.byteLength !== LOAD_BYTES || view.getUint32(0) !== 0x4d574c44 || view.getUint8(4) !== 1 ||
+    view.getUint8(5) & ~7 || view.getUint16(6) !== LOAD_BYTES) throw new Error('The Octatrack load record is unsupported or incomplete.')
+  const ticks = view.getUint32(8), flags = view.getUint8(5)
+  const values = Array.from({ length: 5 }, (_, i) => view.getUint32(28 + 4 * i))
+  if (values.some(value => value > 1000)) throw new Error('The Octatrack load reading is outside its meter range.')
+  // Ticks wrap at uint32. Uninitialized or old meter windows are gaps, never zero load.
+  const fresh = (bit: number, offset: number) => !!(flags & bit) && ((ticks - view.getUint32(offset)) >>> 0) <= 600
+  const cpu = fresh(1, 16), core0 = fresh(2, 20), core1 = fresh(4, 24)
+  return { ticks, frames: view.getUint32(12), cpu: cpu ? values[0] : null,
+    tracks5to8: core0 ? values[1] : null, peak5to8: core0 ? values[2] : null,
+    tracks1to4: core1 ? values[3] : null, peak1to4: core1 ? values[4] : null }
+}
+
 type BoundRequest = { transaction: number; session: string }
 export type UploadRequest =
   | { command: 'hello' }

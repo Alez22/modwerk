@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Added a beta Load tab with separate live CPU/DSP readings, recent device peaks, a bounded five-minute graph and an accessible history table. It samples only cached meter windows every two seconds while visible and idle; missing or stale readings remain gaps. The read-only MCP device_load tool uses the same client. Live readings require the matching beta base; older bases report unavailable rather than displaying self-test peaks.
+
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.
 - Made consent-renewal and online-member ordering fixtures use deterministic timestamps. They check that equal-time enables cannot replace prior consent, later opt-ins succeed, and member check-ins in the same second sort alphabetically. Production consent, privacy and ordering checks remain unchanged.
 

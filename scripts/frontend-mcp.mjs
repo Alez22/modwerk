@@ -45,6 +45,7 @@ const TOOLS = [
   tool('api_request', 'Call a supported frontend community API route. Uses startup-selected normal member/developer credentials; server permissions still apply. Writes need --allow-api-writes and confirm=true.', { path: string, method: { enum: ['GET', 'POST', 'PATCH', 'DELETE'] }, body: { type: 'object' }, confirm: { type: 'boolean' } }, ['path'], true),
   tool('firmware_download', 'Build from exact deployed public inputs using local private stock, save files privately and return only a hash/identity receipt. Never sends firmware to MCP.', { request: { type: 'object' } }, ['request'], true),
   tool('device_status', 'Read the connected base identity, inventory, missing modules and bounded diagnostic status through the real site USB client.'),
+  tool('device_load', 'Read one cached CPU/DSP meter snapshot through the real frontend client. Read-only; never runs a self-test. Older bases report unsupported.'),
   tool('device_review', 'Review a requested set against exact connected base, active digest and verified packages. Returns a short-lived plan; no device changes.', { moduleIds: strings }, ['moduleIds']),
   tool('device_trial', 'Execute a reviewed set through the real frontend link and self-test. A trial requires --allow-device-writes; never accepts automatically.', { review: string }, ['review'], true),
   tool('device_keep', 'Explicitly accept the current successful self-tested trial and save it on the card. Requires --allow-device-writes.', { trial: string }, ['trial'], true),
@@ -204,6 +205,13 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     },
     firmware_download: async args => { if (!options.stock) throw new Error('Choose private stock at startup with --stock.'); return buildAndSave(args.request, { stockPath: options.stock, outputDir: dataDir, site, root }) },
     device_status: snapshot,
+    device_load: async () => {
+      const unit = await connected(), before = unit.getState()
+      if (before.status !== 'ready' || !/^[0-9a-f]{64}$/.test(before.identity?.base ?? '')) throw new Error('The Octatrack must be idle with a verified base identity.')
+      const reading = await unit.liveLoad(), after = unit.getState()
+      if (after.status !== 'ready' || after.identity?.base !== before.identity.base || after.active !== before.active) throw new Error('The device changed during the load read.')
+      return { base: after.identity.base, supported: reading !== undefined, reading: reading ?? null }
+    },
     device_review: async args => {
       if (trial) throw new Error('Finish the current trial first.')
       const before = await snapshot(), target = { name: 'MCP reviewed set', moduleIds: ids(args.moduleIds), removedStockFx: [] }

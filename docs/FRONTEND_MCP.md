@@ -83,6 +83,12 @@ It claims no mass-storage or audio interface. `device_status` reads IDENTIFY,
 inventory, missing modules and bounded diagnostic status. Socket loss invalidates
 the connection; restart the server/bridge to establish a fresh session.
 
+`device_load` reads one cached live CPU/DSP snapshot without starting a
+self-test or meter job. Bases without MWLD request 30 return `supported: false`.
+Unavailable or stale meter windows return null rather than zero load. The hub
+keeps at most 150 readings, samples every two seconds, and pauses outside the
+visible Load tab or during USB sync.
+
 Enable `--allow-device-writes` only for authorized hardware tests. Review with
 `device_review({"moduleIds":[...]})`, then call `device_trial` with its review ID
 within 60 seconds. The server rechecks base, active digest and inventory before
