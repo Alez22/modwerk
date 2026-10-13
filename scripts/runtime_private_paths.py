@@ -15,6 +15,9 @@ import subprocess
 
 WINDOWS = os.name == 'nt'
 FULL_CONTROL = 0x1f01ff
+# Cold native Windows CI exceeded 15 seconds before PowerShell produced any
+# ACL error. Keep one bounded attempt, including startup and .NET loading.
+WINDOWS_ACL_TIMEOUT_SECONDS = 60
 ACL_SCRIPT = r'''
 $ErrorActionPreference = 'Stop'
 $stage = 'identity'
@@ -68,12 +71,14 @@ def windows_acl(path, protect=False):
            'MODWERK_RUNTIME_PRIVATE_ACTION': 'protect' if protect else 'inspect'}
     try:
         result = subprocess.run([str(executable), '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', ACL_SCRIPT],
-                                env=env, capture_output=True, text=True, timeout=15, check=True)
+                                env=env, capture_output=True, text=True, timeout=WINDOWS_ACL_TIMEOUT_SECONDS, check=True)
         if len(result.stdout) > 16384:
             raise ValueError('Unbounded ACL response')
         value = json.loads(result.stdout)
     except (OSError, subprocess.SubprocessError, ValueError) as error:
         # Never expose native error text, commands, private paths or causes.
+        if isinstance(error, subprocess.TimeoutExpired):
+            raise ValueError('Windows private-output DACL verification timed out after 60 seconds.') from None
         detail = ''
         if isinstance(error, subprocess.CalledProcessError) and isinstance(error.stderr, str):
             safe = re.fullmatch(r'PRIVATE_ACL:(identity|item|create-rule|apply|inspect):([A-Za-z][A-Za-z0-9_.]{0,127})\s*', error.stderr)
