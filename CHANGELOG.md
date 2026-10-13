@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Added private machine/table declaration tooling that requires exact reviewed package, recipe, source and state/parameter layout identities, reconstructs all three table arrays and reserves fixed trust storage without moving package addresses. Native FM consumer tooling executes complete reset/randomize notification tails with an initialized input layer and records observed pointer escapes at two origins. This is preparation only; the public base, USB catalogue and admission gates remain unchanged, and complete boot, consumer coverage, audio and physical persistence qualification remain pending.
+
 - Fixed private runtime preparation's native Windows ACL verifier timing out during cold PowerShell startup. One fixed, noninteractive attempt has a bounded 60-second startup/inspection budget; expiry still refuses output, removes only the newly created empty artifact and reports a bounded error. Owner-only DACL, shared-parent, junction and exclusive-write checks remain required.
 
 - Prepared a bounded read-only backup helper for the Octatrack’s two fixed saved module files. It retains one immutable private snapshot, serves only bounded cached chunks, checks the existing stopped-engine/card gate around reads, closes every opened descriptor and refuses upload/save/publication conflicts at its integration seam. This preparation has no wired USB endpoint or public admission; physical export and exact original-set recovery remain unverified.
