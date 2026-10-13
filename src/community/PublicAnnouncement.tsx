@@ -8,7 +8,7 @@ import { useCommunity } from './context'
 import { claimDiscordInvite, discordInviteHandledHere } from './discord-invite'
 import discordInvitation from '../../docs/news/development-discord-announcement.json'
 import audioPreviewAnnouncement from '../../docs/announcements/audio-previews-2026-10-13.draft.json'
-import { AUDIO_PREVIEW_GUIDE_HREF } from '../components/audio-preview-guide'
+import { AUDIO_PREVIEW_GUIDE_HREF, LEGACY_AUDIO_PREVIEW_GUIDE_HREF } from '../components/audio-preview-guide'
 import { accountHref } from './member-access'
 import type { BellItem } from './notification-contract'
 import type { NotificationLine } from './notification-text'
@@ -17,6 +17,8 @@ import { trackAnnouncement, trackUsage } from './usage'
 
 /** The same card is used in the public prompt and the operator's preview. It never takes focus. `signup` adds Create account to a Discord card. */
 export function PublicAnnouncementCard({ line, signup, onDismiss, onOpen }: { line: NotificationLine; signup?: string; onDismiss: () => void; onOpen: (action?: 'signup') => void }) {
+  // Already-published cards and shared links keep working after the walkthrough moves.
+  if (line.href === LEGACY_AUDIO_PREVIEW_GUIDE_HREF) line = { ...line, href: AUDIO_PREVIEW_GUIDE_HREF }
   const titleId = useId(), moduleLink = /^#(?:module\/|(?:digitakt|digitone)\/module\/)/.test(line.href), supportLink = !!SUPPORT_URL && line.href === SUPPORT_URL, discordLink = line.href === DEVELOPMENT_DISCORD_URL, previewGuide = line.href === AUDIO_PREVIEW_GUIDE_HREF, external = /^https?:/.test(line.href)
   const action = <a className="public-announcement-action" href={line.href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})} onClick={() => { if (supportLink) trackUsage('support_link_opened'); onOpen() }}>{supportLink && <Icon name="heart" size={15} />}{discordLink && <img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />}{supportLink ? 'Support on Ko-fi' : discordLink ? 'Join Discord' : previewGuide ? 'Show me how' : moduleLink ? 'Explore module' : 'Take a look'}<Icon name="arrow" size={16} />{external && <span className="sr-only"> (opens in a new tab)</span>}</a>
   return <section className="public-announcement-card" aria-labelledby={titleId} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onDismiss() } }}>
@@ -24,7 +26,7 @@ export function PublicAnnouncementCard({ line, signup, onDismiss, onOpen }: { li
       <span className="public-announcement-brand"><img src={assetUrl('modwerk-mark.svg')} width={28} height={28} alt="" /><span>Modwerk news</span></span>
       <button type="button" className="icon-button" aria-label="Dismiss announcement" onClick={onDismiss}><Icon name="close" size={17} /></button>
     </header>
-    {moduleLink && <span className="public-announcement-kicker">Module news</span>}
+    {moduleLink && !previewGuide && <span className="public-announcement-kicker">Module news</span>}
     <h2 id={titleId}>{line.text}</h2>
     {line.excerpt && <p>{line.excerpt}</p>}
     {supportLink && <a className="public-announcement-credits" href="#credits" onClick={() => onOpen()}>Credits &amp; acknowledgements<Icon name="arrow" size={14} /></a>}
