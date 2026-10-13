@@ -151,11 +151,13 @@ describe('private cached volatile status validation', () => {
     for (let phase = 0; phase <= 8; ++phase) expect(parseVolatileStatus(status(phase), observed).phase).toBeTruthy()
     expect(parseVolatileStatus(status(), observed)).toMatchObject({ phase: 'idle', transaction: 0, baseline: null, current: baseline, offer: null })
   })
-  it('permits confirmed rollback Idle to retain consumed tokens only with exact baseline restoration', () => {
+  it('permits rollback Idle to retain consumed tokens while its live current moves on', () => {
     const bytes = status(), view = new DataView(bytes.buffer); bytes[7] = 11
     bytes.set(Buffer.from(baseline, 'hex'), 96); view.setUint32(8, 9); view.setUint32(12, 5); view.setUint32(16, 7)
     expect(parseVolatileStatus(bytes, observed)).toMatchObject({ transaction: 5, generation: 7, current: baseline, baseline })
-    bytes[160] ^= 1; expect(() => parseVolatileStatus(bytes, observed)).toThrow('idle state')
+    // The board refreshes current every Idle tick; a later legacy upload moves it off the rolled-back baseline.
+    bytes[160] ^= 1; expect(parseVolatileStatus(bytes, observed).current).not.toBe(baseline)
+    view.setUint32(12, 0); expect(() => parseVolatileStatus(bytes, observed)).toThrow('idle state')
   })
   it('accepts an unowned queued Begin without a baseline or new token', () => {
     const bytes = status(); bytes[5] = 1; new DataView(bytes.buffer).setUint32(8, 9)

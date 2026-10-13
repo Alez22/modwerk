@@ -115,7 +115,7 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
     received > total || total > available.stageBytes || records > available.records || published > records) fail('inconsistent counters or core acknowledgments')
   if (phase === 'idle') {
     if (latchHeld || received || total || records || published || offerHash !== ZERO_DIGEST || required || touched || confirmed || !currentKnown ||
-      (baselineKnown ? !transaction || !generation || !sequence || baselineHash !== currentHash :
+      (baselineKnown ? !transaction || !generation || !sequence :
         transaction || generation || (sequence && result !== 'queued' && !VolatileIdleRefusals.includes(result))))
       fail('inconsistent idle state')
   } else {
