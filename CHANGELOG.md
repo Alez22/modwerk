@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Register the portable Octatrack package builder as an imported Python module before executing it. Private preparation entry points can resolve their own builder when forwarding `--prepare-ports`, and Python dataclass declarations can load correctly. The regression uses an isolated stock-free entry point; runtime admission and hardware qualification remain unchanged.
+
 - Fixed the beta Octatrack page still scrolling by a few pixels on desktop: fitting it to the window now converts the app's 90% zoom, so the page never scrolls as a whole (checked from 1024×768 to 1920×1080). Beta-only.
 
 - Fixed the beta Octatrack page's missing-modules note, which lost its styles in the redesign; it is a one-line band again. The page now fits the window: the hero and list stay put, Status fills the height left (more compact on short windows) and a long page scrolls inside its own pane. The independence notice no longer sits above this page. Beta-only.
@@ -17,7 +19,13 @@
 
 - Documented the separate volatile full-set trial requirements for future frontend/MCP integration: engine-acknowledged ownership, no adoption or replay after uncertainty, retained baseline and saved-file write inhibition through confirmed rollback. Existing single-package trial refusals and hardware qualification gates remain. Updated MCP context for the beta hub's Status load panel, Backups and Samples work in progress, and the independent byte copies needed for offset-backed Node Buffer inputs.
 
+- Prepared an isolated adapter for the proposed fixed volatile USB service, requiring exact identities and capability 64 before use, immutable bounded command frames, complete serialized EP0 transfers and permanent refusal after uncertain cancellation or replies. It has no public site/MCP import or interface-claiming action. Synthetic host tests do not qualify board expiry, source/resource admission or physical rollback; current public capabilities remain unchanged.
+
+- Fixed private volatile helper copies for Node Buffer inputs: offset-backed frames, cached status, bundles and chunks now become plain independent byte arrays before parsing or asynchronous work. Buffer slicing previously retained shared bytes and parent-slab offsets. Offset/mutation regressions cover future MCP callers; these helpers remain outside public USB operations.
+
 - Prepared an isolated board-only controller association contract binding exact encoded-package/source-policy identities, whole reconstructed allocations and monotonic generations to actual operation tickets and wire sequences. Partial/unknown work retains incoming and predecessor leases until exact disable acknowledgments, job release and foreign-root retirement; pending ColdFire publication has a separate guard. Native fixture regressions and ColdFire compilation do not qualify the unwired asynchronous loader backend or hardware behavior. The strong resource-policy bridge has zero entries and public controller admission remains closed.
+
+- Prepare an unwired eight-read-step Analog BD task-root observer from the reviewed eleven-task context geometry, including source-proven full-Part clipboard/undo storage. Actual level4 checks leave frame levels5/6 enabled; unknown state records both whole allocations as retained. Root-byte completion never grants semantic Part completeness or generation retirement. Native source/fixture execution does not qualify board snapshot coherence, physical timing or persistence; public admission remains unchanged. Its host regression builds cleanly under GCC and MinGW as well as Clang (a test-only counter no longer trips `-Wmisleading-indentation`), and a failed compile now reports the compiler diagnostics.
 
 - Prepare an unwired conservative Analog BD Part retirement predicate using exact FLEX/AB1 semantics across every working/saved bank, current CS1 mirrors and bounded current/paused extra Parts. Unknown reads, layouts and ownership retain the generation. Marker absence grants no package identity or whole-image/UI/DSP retirement authority; synthetic regressions and ColdFire compilation do not qualify board callbacks, timing or persistence. Public admission remains unchanged.
 
