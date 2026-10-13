@@ -280,6 +280,8 @@ The community runs separately through `worker.ts` and `wrangler.worker.jsonc`, i
 
 ### Public module audio previews
 
+The public audio-preview announcement links to `#faq/audio-previews` with **Show me how**. This opens the expanded upload guide, also available in the searchable FAQ. Preview the exact draft locally with `?preview=previews-announcement`; it does not publish the announcement or record announcement counts. After the frontend is deployed and the guide verified, publish `docs/announcements/audio-previews-2026-10-13.draft.json` through the existing announcement flow.
+
 Declared module recordings play in the card and main detail preview; the screenshots gallery no longer repeats them as standalone audio tiles. Community submissions retain their contributor, caption and removal controls in the Previews tab, and media credits remain available.
 
 Cards with recordings retain the waveform strip on thumbnail hover or keyboard focus. Clicking the waveform seeks and starts playback; playing controls remain visible after pointer exit. Card dimensions and the hover description stay unchanged. The idle play indicator matches the Add button height: 32px on desktop and 40px on phones. Touch users open the module page to play.
@@ -444,6 +446,8 @@ public/licenses/  licenses for adapted source and documentation
 sdk/              pinned native source, eleven module folders, internal dependencies, templates and SDK guide
 ```
 
+## Testing
+
 `npm run check` runs lint, small domain / API tests, type checks and a production build. API tests use an in-memory SQLite database and synthetic media, never real firmware. Native emulator, stress and audio-render checks require separate qualification and are not part of this command or the configuration flow.
 
 Checks first validate licence-notice and catalog freshness, then finish notice/catalog/media generation before readers start. SDK checks, lint, tests and the production build run concurrently, and every stage must pass; type errors prevent bundling. Test files retain isolation and use up to four workers, including the release tests under `scripts/`. ESLint caches results by file contents and configuration under `node_modules/.cache/eslint/`; TypeScript keeps incremental app, tooling and server state under `node_modules/.tmp/`. Licence and catalog/qualification validation, SDK checks, all tests and production bundling still run every time. `npm run typecheck` checks all three TypeScript projects, and `npm run lint -- --no-cache` performs an uncached lint run.
@@ -455,6 +459,19 @@ For a constrained machine or concurrent emulator work, use
 The default still uses up to four workers. This changes concurrency only;
 every test, assertion, metadata/SDK check, type check and build still runs.
 
+### Testing through the developer MCP
+
+Test source/domain behavior, HTTP/API contracts and MCP/DOM interactions before connecting hardware. Do not use computer-use, browser-control or Playwright automation to test the site. Review supplied or retained screenshots for layout changes and state any remaining rendered-layout limit. Neither domain/API results nor DOM assertions prove CSS geometry, audible quality, hardware timing, saved-project survival or physical reboot persistence.
+
+The beta [frontend and device MCP](FRONTEND_MCP.md) calls the site's real catalogue, configuration, API and USB code. Start with Node 24 and `npm run --silent mcp -- --data-dir PRIVATE_DIR`, using a dedicated private directory (0700 on Unix) for isolated local state. Register a client with Node 24 and the absolute `scripts/frontend-mcp.mjs` path directly; npm's startup banner is not MCP JSON. Each account/developer uses a separate process and state directory. Keep API/site URLs, stock-file paths, session-file paths and the device socket fixed at startup rather than tool-call choices.
+
+Use the existing normal member/developer session file and permissions; the MCP grants no membership, role, ownership or release authority and accepts no administrator key bypass. Authentication and secret-management mutations are excluded; supported session, build-access and base-install-prompt requests retain normal permissions (build-access uses POST for its authorization check). API writes require `--allow-api-writes` and per-call confirmation; device writes require `--allow-device-writes`. Use disposable local Worker state for test posts, reports and notification effects unless the human authorized those live effects.
+
+For authorized hardware work, review the exact device/base/module identities and catalogue versions, start the reviewed trial, require its actual passed device self-test, and explicitly choose Keep or Undo while the trial identity still matches. MCP trials support one changed package at a time: the frontend currently accepts intermediate steps in a multiple-package sync, so such a trial is refused before sending. Older inventories lack exact package hashes: preserve already-installed modules rather than guessing their Undo images; an absent package may be tested as an addition, then undone. The MCP returns saved download identity/hash receipts, never raw firmware or memory. Stock firmware and built images stay in private local files and never enter Git or CI.
+
+Use the [local firmware download API workflow](FIRMWARE_DOWNLOAD_API.md) for strict published-build verification. A raw checkout of the exact deployed Git SHA still differs from the published release records until the existing release approval stamp is independently reproduced and checked. Use the existing builder helpers; never invent approval or omit a source fingerprint to force a match, and never relabel unpublished packages as approved.
+
+Record real device outcomes against the exact source, base, package hashes and versions after software regressions pass. Device self-test does not replace audible, timing, simultaneous-module or Part/project/physical-reboot qualification. Beta tooling does not establish whole-catalogue USB compatibility or persistence; unavailable packages and unobserved behavior remain explicit gaps. Existing module-release and issue-resolution gates still apply.
 
 ## Documentation validation and deployment scope
 
