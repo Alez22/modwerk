@@ -1,0 +1,128 @@
+# Frontend and device MCP (beta)
+
+Other developers can test Modwerk through a local standard MCP stdio server:
+
+```sh
+nvm use 24
+npm ci
+npm run --silent mcp -- --data-dir /private/path/modwerk-mcp
+```
+
+Choose a dedicated private directory (0700 on Unix). The server stores only
+configuration metadata in `sets.json` (0600); it neither opens nor changes a
+browser profile. Each developer/account runs a separate process and directory.
+An exclusive `.mcp-lock` records the owning process and prevents concurrent set
+overwrites. Normal exit removes it. After a crash, check `owner.json` and remove
+the lock only after confirming that its recorded process is no longer running.
+Use Node directly when registering the server with an MCP client, because npm's
+startup banner is not MCP JSON:
+
+```json
+{
+  "command": "node",
+  "args": ["/absolute/path/modwerk/scripts/frontend-mcp.mjs", "--data-dir", "/private/path/modwerk-mcp"]
+}
+```
+
+Node must resolve to version 24. No HTTP listener, browser extension, cloud MCP
+endpoint or administrator key is installed. The transport implements the
+[MCP stdio protocol](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports).
+
+## Site tools first
+
+`site_features` reports tools and evidence limits. `site_catalogue` searches and
+filters the actual machine/module catalogue; `site_module` exposes controls,
+usage, attribution, licences and evidence. `site_selection` calls the frontend's
+card compatibility or USB package validation. USB preparation verifies both
+forward and Undo package hashes and header/capability requirements without
+writing to the device. A beta catalogue inspection grants no live membership.
+
+`set_list`, `set_save`, `set_delete`, `set_import` and `set_export` operate on
+the isolated MCP workspace. They use the same configuration validation and
+current-version normalization as the browser. Backups include no firmware.
+
+`api_request` covers catalogue, forum, module community, reports, notifications,
+accounts, creator/developer and admin API surfaces. The API is fixed at startup
+with `--api` (default `http://127.0.0.1:8788/api`). It must be HTTPS or localhost;
+requests cannot select hosts, credentials, arbitrary headers or filesystem paths.
+Normal session/build-access/base-install-prompt reads are supported;
+authentication and secret-management mutations are excluded. OAuth/sign-in and
+file-upload UI are separate workflows.
+
+For authenticated tests, supply `--session-file /private/path/session.json` with
+the existing normal site `session` and/or `developer` token. It must be a private
+regular file (0600), and tokens are neither logged nor returned in protocol
+metadata. The real frontend's `apiFetch` handles authorization and rotation;
+the Worker still enforces verification, beta membership, ownership and all role
+permissions. The MCP grants no role or author-release authority.
+
+API reads are available by default. Writes require `--allow-api-writes` plus
+`confirm: true` for each call. Test posts, reports, email/push and destructive
+account operations against a disposable local Worker database unless the human
+explicitly requests their live effect. Tool availability is not authorization
+to message people or publish on their behalf.
+
+`firmware_download` reuses the saved-download API with `--stock PRIVATE_FILE`
+and optional `--site HTTPS_DEPLOYMENT`. Both paths/deployment are startup choices.
+Firmware stays private in the data directory; the tool returns only the saved
+identity/hash receipt. This public-release builder does not bypass beta gates.
+
+## Then test the connected device
+
+Start the existing USB bridge with permission to access the connected Octatrack:
+
+```sh
+python -B sdk/machines/octatrack/elekloader/usb_bridge.py /private/path/modwerk-ot.sock
+node scripts/frontend-mcp.mjs --data-dir /private/path/modwerk-mcp --device-socket /private/path/modwerk-ot.sock
+```
+
+The MCP uses `OctatrackLink`, `UploadSession`, `moduleSetKit` and the same
+package validator as the site, through the bridge's WebUSB-compatible adapter.
+It claims no mass-storage or audio interface. `device_status` reads IDENTIFY,
+inventory, missing modules and bounded diagnostic status. Socket loss invalidates
+the connection; restart the server/bridge to establish a fresh session.
+
+Enable `--allow-device-writes` only for authorized hardware tests. Review with
+`device_review({"moduleIds":[...]})`, then call `device_trial` with its review ID
+within 60 seconds. The server rechecks base, active digest and inventory before
+sending, refuses unsupported capabilities, and requires actual passed device
+self-test evidence. `device_undo` restores the reviewed previous set;
+`device_keep` is a separate explicit tool that accepts and saves the trial.
+Both require the returned trial token and the unchanged trial identity. Exiting
+the server attempts Undo; the base's timeout handles a lost unaccepted session.
+
+Trials support one changed package at a time. The frontend currently accepts
+intermediate changes in a multi-package sync, so the MCP refuses such a trial
+before sending. Full combinations can be prepared and checked without device
+writes; physical trial-only tests add one absent module and Undo before the next.
+This does not prove that a full multi-module set runs simultaneously on hardware.
+
+Use `--frontend-root /absolute/candidate/checkout` to test a specific source and
+its package catalogue. This startup-only path is trusted local configuration,
+never an MCP tool argument; record the candidate revision in the evidence.
+
+Old inventories lack exact per-package hashes. The MCP therefore preserves
+already-installed modules rather than guessing their Undo image. Test an absent
+module as an addition, then Undo. Unsupported modules, stock-menu changes and
+unqualified machine groups retain their existing refusals. The MCP offers no
+raw memory/key injection, arbitrary packages, whole-OS flashing or automatic
+Keep. Base installation/upgrades retain the reviewed card/recovery flow.
+
+## Evidence and testing
+
+Run the repository's normal locked checks and MCP regressions before hardware:
+
+```sh
+lockf -k /tmp/modwerk-check.lock npm run check -- --base origin/main
+```
+
+The tests exercise protocol initialization/discovery/errors, private configuration
+round trips, current-version normalization, source catalogue/USB validation,
+credential/route boundaries, workspace ownership, pure stdio and write opt-ins.
+Device regressions cover stale/expired reviews, actual self-test failures, exact package
+Undo, token consumption after a failed status receipt and hidden intermediate
+Keep prevention. Site operations through this MCP are domain/API evidence.
+DOM regressions exercise React interactions without
+computer use. Neither proves CSS geometry, audible output, timing, saved project
+survival or a physical reboot. Record exact source/base/package identities and
+actual outcomes for hardware checks; missing observations stay qualification gaps.

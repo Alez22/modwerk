@@ -3,6 +3,7 @@
 ## 13 October 2026
 
 - Gave the news campaign integration regression time to complete five real account flows, provider pacing and the hourly scheduler on shared CI runners. All consent, delivery and duplicate-send assertions remain required; production behavior is unchanged.
+- Added a local beta MCP server for catalogue/module inspection, card and USB preflight, isolated module sets, ordinary authenticated community API calls, saved firmware receipts and reviewed USB trials through the frontend client. API and device writes require explicit startup opt-ins; one-change trials never accept automatically. Private workspace leases prevent concurrent set overwrites, and the server preserves existing modules whose exact rollback identity is unavailable. It returns no firmware or raw memory. Domain/API evidence remains separate from visual, audio and physical reboot qualification.
 
 ## 12 October 2026
 
