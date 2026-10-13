@@ -5,12 +5,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { api } from './api'
 import { CommunityContext } from './context'
-import { MembersOnlineChip, MembersOnlineList } from './MembersOnline'
+import { ForumOnlineNow, MembersOnlineChip, MembersOnlineList } from './MembersOnline'
 import { useMembersOnline } from './useMembersOnline'
 import type { MembersOnline } from './forum-contract'
 
 vi.mock('./api', () => ({ api: vi.fn() }))
-const presence: MembersOnline = { online: 3, members: [{ username: 'alpha', avatar: null }], more: 2 }
+const presence: MembersOnline = { online: 3, members: [{ username: 'alpha', avatar: null }], more: 2, guests: 1 }
 let root: Root, container: HTMLDivElement, current: MembersOnline | null, visible: boolean
 function Harness({ poll = true, registerPresence = true }: { poll?: boolean; registerPresence?: boolean }) {
   const value = useMembersOnline(poll,registerPresence)
@@ -95,6 +95,18 @@ it('labels the count as people and includes visitors without exposing guest iden
   const chip = renderToStaticMarkup(createElement(MembersOnlineChip,{ presence }))
   const list = renderToStaticMarkup(createElement(MembersOnlineList,{ presence }))
   expect(chip).toContain('3 people online'); expect(chip).toContain('active in the last 5 minutes')
-  expect(list).toContain('People online'); expect(list).toContain('@alpha'); expect(list).toContain('and 2 more')
+  expect(list).toContain('People online'); expect(list).toContain('@alpha'); expect(list).toContain('1 guest'); expect(list).toContain('1 more member')
+  expect(list).not.toContain('and 2 more')
+  expect(renderToStaticMarkup(createElement(MembersOnlineList,{ presence: { online: 2, members: [], more: 2, guests: 2 } }))).toContain('2 guests')
+  // A frontend deployed before the new backend can still render the old contract.
   expect(renderToStaticMarkup(createElement(MembersOnlineList,{ presence: { online: 1, members: [], more: 1 } }))).toContain('1 person online')
+  expect(renderToStaticMarkup(createElement(MembersOnlineList,{ presence: { online: 3, members: presence.members, more: 2 } }))).toContain('and 2 more')
+})
+
+it('shows the complete online total alongside the forum names and guest subtotal',async () => {
+  await act(() => root.render(createElement(ForumOnlineNow)))
+  expect(container.textContent).toContain('3 online now')
+  expect(container.textContent).toContain('@alpha')
+  expect(container.textContent).toContain('1 guest')
+  expect(container.textContent).toContain('1 more member')
 })

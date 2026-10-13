@@ -106,7 +106,7 @@ describe('saved-file transport lease lifecycle', () => {
     const result = await new UsbVendorTransport(device, 1).savedBackup()
     expect(result?.[0].status === 'ready' && result[0].data).toEqual(device.files[0])
     expect(device.commands.filter(command => command.request === 32)).toHaveLength(Math.ceil(SAVED_SET_CAPACITY / 448) + 1)
-  })
+  }, 15000) // 1,765 bounded transfers plus byte comparison can exceed 5s on the shared CI runner.
   it('stalls on old bases without Begin, chunks or release', async () => {
     const device = new ExportDevice(); device.unsupported = true
     expect(await new UsbVendorTransport(device, 1).savedBackup()).toBeUndefined()
