@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared an unwired, read-only Analog BD browser retirement helper bound to exact package/source/layout, whole extent and generation. It refuses open or changed menus and current/paused callbacks, then plans restoration of the prior handler, label and list state because closing the stock browser leaves its arrays retained. Host negatives, ColdFire compilation and hash-only native close/callback observations are preparation; real board locks, controller leases, complete descriptor/Part consumers and hardware qualification remain pending. Public runtime admission is unchanged.
+
 - Prepared private volatile USB command, bundle and cached-status framing with exact encoded identities, disjoint canonical participants, immutable hash inputs and bounded Windows control transfers. These developer-only helpers make no device calls; parsed status never grants transaction ownership. Public capabilities, saved files and persistent upload behavior are unchanged. Board source trust, ownership, complete resource admission and physical lifecycle qualification remain pending.
 
 - Prepared an isolated board-only controller association contract binding exact encoded-package/source-policy identities, whole reconstructed allocations and monotonic generations to actual operation tickets and wire sequences. Partial/unknown work retains incoming and predecessor leases until exact disable acknowledgments, job release and foreign-root retirement; pending ColdFire publication has a separate guard. Native fixture regressions and ColdFire compilation do not qualify the unwired asynchronous loader backend or hardware behavior. The strong resource-policy bridge has zero entries and public controller admission remains closed.
