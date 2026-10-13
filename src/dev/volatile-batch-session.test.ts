@@ -45,7 +45,7 @@ class Board implements VolatileTransport {
   this.facts.sequence=view.getUint32(8)
   switch(this.command){
    case 1:
-    this.facts={...this.facts,phase:'receiving',transaction:9,generation:11,baseline,
+    this.facts={...this.facts,result:'ok',phase:'receiving',transaction:9,generation:11,baseline,
      offer:Buffer.from(frame.slice(128,160)).toString('hex'),total:view.getUint32(160),latchHeld:true}
     this.bundle=new Uint8Array(this.facts.total);break
    case 2:
@@ -145,6 +145,27 @@ describe('private volatile session authority',()=>{
    await expect(action()).rejects.toThrow('unconfirmed')
   expect(board.submit.mock.calls).toHaveLength(count)
   if(mode==='out') expect(board.result).not.toHaveBeenCalled()
+ })
+ it('reports the real board\'s idle Begin refusal without ownership and lets a fresh session begin later',async()=>{
+  // Synthetic board reply shaped like volatile_service.c: sequence consumed, no transaction, baseline unknown.
+  const board=new Board(),client=await connect(board)
+  board.submit.mockImplementationOnce(async(frame:Uint8Array)=>{
+   board.frames.push(frame.slice());board.command=frame[5];board.reads=0
+   board.facts={...board.facts,sequence:new DataView(frame.buffer,frame.byteOffset).getUint32(8),result:'busy'}
+  })
+  await expect(client.stage([record()])).rejects.toMatchObject({cause:{message:'Device refused the owned command: busy'}})
+  expect(client.ownsTransaction).toBe(false);expect(board.frames.map(f=>f[5])).toEqual([1])
+  const fresh=await connect(board)
+  expect(fresh.status).toMatchObject({phase:'idle',result:'busy',sequence:1,transaction:0,baseline:null})
+  await fresh.stage([record()])
+  expect(board.frames.map(f=>[f[5],new DataView(f.buffer).getUint32(8)])).toEqual([[1,1],[1,2],[2,3],[3,4]])
+ })
+ it('waits through a queued Begin after an earlier rollback consumed tokens',async()=>{
+  const board=new Board();board.facts={...initial(),transaction:5,generation:7,sequence:6,baseline}
+  const client=await connect(board)
+  board.transform=(facts,command,read)=>command===1&&read===1?
+   {...initial(),transaction:5,generation:7,baseline,result:'queued',sequence:facts.sequence}:facts
+  expect(await client.stage([record()])).toMatchObject({phase:'verified',transaction:9,generation:11})
  })
  it('allows acknowledged asynchronous publication without assigning prior ACKs to the current operation',async()=>{
   const board=new Board(),client=await connect(board);await client.stage([record()])

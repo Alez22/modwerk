@@ -24,6 +24,8 @@ export const VolatilePhase = ['idle', 'receiving', 'verified', 'initializing', '
   'stoppedTrial', 'runningTrial', 'rollingBack', 'quarantined'] as const
 export const VolatileResult = ['ok', 'queued', 'busy', 'state', 'identity', 'stale', 'limit', 'length',
   'conflict', 'hash', 'refused', 'pending', 'quarantined', 'unsupported'] as const
+/** Definite refusals the board reports while staying Idle; they consume the sequence but grant nothing. */
+export const VolatileIdleRefusals: readonly string[] = ['busy', 'state', 'identity', 'stale', 'limit']
 export interface VolatileStatus extends VolatileBinding {
   sequence: number; result: typeof VolatileResult[number]; phase: typeof VolatilePhase[number]
   baseline: string | null; current: string | null; offer: string | null; latchHeld: boolean
@@ -113,7 +115,8 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
     received > total || total > available.stageBytes || records > available.records || published > records) fail('inconsistent counters or core acknowledgments')
   if (phase === 'idle') {
     if (latchHeld || received || total || records || published || offerHash !== ZERO_DIGEST || required || touched || confirmed || !currentKnown ||
-      (baselineKnown ? !transaction || !generation || !sequence || baselineHash !== currentHash : transaction || generation || (sequence && result !== 'queued')))
+      (baselineKnown ? !transaction || !generation || !sequence || baselineHash !== currentHash :
+        transaction || generation || (sequence && result !== 'queued' && !VolatileIdleRefusals.includes(result))))
       fail('inconsistent idle state')
   } else {
     if (!transaction || !generation || !sequence || !baselineKnown || !latchHeld || !total || offerHash === ZERO_DIGEST) fail('unbound active journal')

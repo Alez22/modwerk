@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { encodeVolatileBundle, encodeVolatileRequest, parseVolatileStatus, splitVolatileChunks, VOLATILE_HOST_MAX_BYTES,
-  type VolatileRecord, type VolatileRequest } from './volatile-batch-wire.ts'
+  VolatileResult, type VolatileRecord, type VolatileRequest } from './volatile-batch-wire.ts'
 
 const base = '1'.repeat(64), session = '2'.repeat(64), baseline = '3'.repeat(64), digest = '4'.repeat(64)
 const bound = { base, session, transaction: 5, generation: 7, sequence: 9 }
@@ -161,6 +161,19 @@ describe('private cached volatile status validation', () => {
     const bytes = status(); bytes[5] = 1; new DataView(bytes.buffer).setUint32(8, 9)
     expect(parseVolatileStatus(bytes, observed)).toMatchObject({ result: 'queued', phase: 'idle', transaction: 0, generation: 0, baseline: null })
     bytes[5] = 0; expect(() => parseVolatileStatus(bytes, observed)).toThrow('idle state')
+  })
+  it('accepts a definite refused first Begin that leaves Idle without tokens or a baseline', () => {
+    // The board consumes the sequence but issues no transaction for these pre-ownership refusals.
+    for (const result of ['busy', 'state', 'identity', 'stale', 'limit'] as const) {
+      const bytes = status(); bytes[5] = VolatileResult.indexOf(result); new DataView(bytes.buffer).setUint32(8, 9)
+      expect(parseVolatileStatus(bytes, observed)).toMatchObject({ result, phase: 'idle', sequence: 9, transaction: 0,
+        generation: 0, baseline: null, current: baseline, latchHeld: false })
+      new DataView(bytes.buffer).setUint32(12, 1); expect(() => parseVolatileStatus(bytes, observed)).toThrow('idle state')
+    }
+    for (const result of ['ok', 'length', 'conflict', 'hash', 'refused', 'pending', 'quarantined'] as const) {
+      const bytes = status(); bytes[5] = VolatileResult.indexOf(result); new DataView(bytes.buffer).setUint32(8, 9)
+      expect(() => parseVolatileStatus(bytes, observed), result).toThrow('idle state')
+    }
   })
   it('keeps cumulative touched cores distinct from current-operation acknowledgments', () => {
     const bytes = status(4); bytes[192] = 1; bytes[193] = 3; bytes[194] = 1

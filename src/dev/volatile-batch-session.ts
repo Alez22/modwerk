@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Private preparation only. No production USB adapter, public/MCP import or persistent command.
 import { encodeVolatileBundle, encodeVolatileRequest, parseVolatileStatus, splitVolatileChunks, VOLATILE_CAPABILITY,
-  type VolatileRecord, type VolatileRequest, type VolatileStatus } from './volatile-batch-wire.ts'
+  VolatileIdleRefusals, type VolatileRecord, type VolatileRequest, type VolatileStatus } from './volatile-batch-wire.ts'
+
+// A refused Begin leaves the board Idle with that refusal cached until the next command.
+const quiescentIdle = (status: Readonly<VolatileStatus>) =>
+  status.phase === 'idle' && (status.result === 'ok' || VolatileIdleRefusals.includes(status.result))
 
 /** Fixed MWVB submit / MWVS result / MWVS state operations only. No automatic retries.
  * The adapter must serialize whole transfers and stop late replies after cancellation. */
@@ -53,7 +57,7 @@ export class VolatileBatchSession {
     const client = new VolatileBatchSession(transport, Object.freeze({ ...observed }), { ...options })
     await client.bounded('state', async signal => {
       const status = parseVolatileStatus(await transport.state(signal), client.observed)
-      client.expect(!signal.aborted && status.phase === 'idle' && status.result === 'ok', 'Device is not confirmed idle.')
+      client.expect(!signal.aborted && quiescentIdle(status), 'Device is not confirmed idle.')
       client.current = status; client.sequence = status.sequence
     })
     return client
@@ -150,15 +154,17 @@ export class VolatileBatchSession {
       // Recheck the exact whole baseline immediately before Begin; no state read grants ownership.
       const before = await this.bounded('baseline', async signal => parseVolatileStatus(await this.transport.state(signal), this.observed))
       this.sameLimits(before)
-      this.expect(before.phase === 'idle' && before.result === 'ok' && before.current === baseline &&
+      this.expect(quiescentIdle(before) && before.result === this.status.result && before.current === baseline &&
         before.transaction === this.status.transaction && before.generation === this.status.generation &&
         before.sequence === this.status.sequence, 'Baseline changed before Begin.')
       cancelled(); this.used = true
       const sequence = this.next()
       const begun = await this.command({ command: 'begin', ...this.observed, sequence, baseline,
         digest: bundle.sha256, length: bundle.data.length }, (status, pending) => {
-        if (pending && status.phase === 'idle') {
-          this.expect(status.result === 'queued' && status.transaction === 0 && status.generation === 0 &&
+        if (status.phase === 'idle' && (pending || status.result !== 'ok')) {
+          // Queued or definitely refused: nothing owned, so no token or baseline may have moved.
+          this.expect((pending ? status.result === 'queued' : VolatileIdleRefusals.includes(status.result)) &&
+            status.transaction === before.transaction && status.generation === before.generation &&
             status.current === baseline, 'Queued Begin changed unowned state.')
           return
         }
