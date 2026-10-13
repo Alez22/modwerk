@@ -73,7 +73,7 @@ identity/hash receipt. This public-release builder does not bypass beta gates.
 Start the existing USB bridge with permission to access the connected Octatrack:
 
 ```sh
-python -B sdk/machines/octatrack/elekloader/usb_bridge.py /private/path/modwerk-ot.sock
+python -B scripts/octatrack-usb-bridge.py /private/path/modwerk-ot.sock
 node scripts/frontend-mcp.mjs --data-dir /private/path/modwerk-mcp --device-socket /private/path/modwerk-ot.sock
 ```
 
@@ -97,6 +97,14 @@ intermediate changes in a multi-package sync, so the MCP refuses such a trial
 before sending. Full combinations can be prepared and checked without device
 writes; physical trial-only tests add one absent module and Undo before the next.
 This does not prove that a full multi-module set runs simultaneously on hardware.
+
+Use a host adapter that serializes each complete EP0 control transfer; the
+frontend's keepalive can overlap diagnostic reads. A short record is a transport
+failure, never a passed self-test. Read status after recovery and verify the exact
+baseline. A RAM base with a different identity treats the flashed base's saved
+card set as foreign: Undo preserves the RAM baseline, while Keep can replace
+those saved slots. Preserve the original saved set before testing persistence.
+See the [hardware traps](OCTATRACK_HARDWARE_TRAPS.md).
 
 Use `--frontend-root /absolute/candidate/checkout` to test a specific source and
 its package catalogue. This startup-only path is trusted local configuration,

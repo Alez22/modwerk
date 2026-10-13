@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { MODULES } from '../catalog/modules'
 import { lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
 import { BaseUpdateRequired, moduleSetReview } from '../engine/elekloader/module-set'
@@ -10,6 +10,7 @@ import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
 import { Icon } from './Icon'
 import { OctatrackDiagnosticsSettings } from './OctatrackDiagnostics'
+import { OctatrackSamples } from './OctatrackSamples'
 import { MissingNote, type ProjectNeeds } from './OctatrackUpdate'
 import './octatrack-link.css'
 
@@ -29,6 +30,12 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
   onSelect: (id: string) => void; onSync: (id: string) => void; onInstall: () => void
   header: ReactNode; grid: ReactNode; card: ReactNode
 }) {
+  const [view, setView] = useState<'modules' | 'samples'>('modules'), tabs = useRef<(HTMLButtonElement | null)[]>([]), id = useId()
+  function chooseTab(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? 1 - index : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : undefined
+    if (next === undefined) return
+    event.preventDefault(); setView(next === 0 ? 'modules' : 'samples'); tabs.current[next]?.focus()
+  }
   const state = useOctatrackLink(link), { status, identity } = state
   const connected = !!identity?.canSubmit && status === 'ready', busy = BUSY.includes(status), usb = !!link && status !== 'unsupported'
   const last = connected || busy ? undefined : lastInventory()
@@ -57,6 +64,10 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
     : [<>Not connected{last ? <> · Last seen: {lastName ? <b>{lastName}</b> : modules(last.moduleIds.length)} · {when}</> : null}</>, <button key="connect" className="button button-quiet" onClick={() => void link?.connect()}>Connect</button>]
   return <div className="configuration-page octatrack-hub">
     {header}
+    <div className="detail-tabs hub-tabs" role="tablist" aria-label="Octatrack workspace">
+      {(['modules', 'samples'] as const).map((tab, index) => <button key={tab} type="button" role="tab" id={`${id}-${tab}-tab`} aria-controls={`${id}-${tab}-panel`} aria-selected={view === tab} tabIndex={view === tab ? 0 : -1} ref={element => { tabs.current[index] = element }} onClick={() => setView(tab)} onKeyDown={event => chooseTab(event, index)}>{tab === 'modules' ? 'Modules' : <>Samples <span className="samples-wip">Beta WIP</span></>}</button>)}
+    </div>
+    <section className="hub-tab-panel" role="tabpanel" id={`${id}-modules-panel`} aria-labelledby={`${id}-modules-tab`} hidden={view !== 'modules'}>
     <div className="hub-split">
       <section className="hub-sets" aria-labelledby="hub-sets-title">
         <div className="hub-pane-label"><h2 id="hub-sets-title">Module sets</h2><span className="subtle">{sets.length}</span></div>
@@ -97,5 +108,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
       </div>
       <button type="button" className="button button-primary" disabled={!review || !needsBase && (!review.needsSync || !!review.problem)} onClick={() => { onSync(selected.id); if (needsBase) onInstall() }}><Icon name="download" size={16} />{needsBase ? 'Install latest base' : 'Sync to Octatrack'}</button>
     </footer>}
+    </section>
+    <section className="hub-tab-panel" role="tabpanel" id={`${id}-samples-panel`} aria-labelledby={`${id}-samples-tab`} hidden={view !== 'samples'}><OctatrackSamples active={view === 'samples'} /></section>
   </div>
 }

@@ -5,7 +5,6 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 import { randomUUID, createHash } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
-import { format } from 'node:util'
 import { build } from 'vite'
 import { Bench, device, enumerate } from './usb-bench.mjs'
 import { buildAndSave } from './firmware-download.mjs'
@@ -13,6 +12,15 @@ import { buildAndSave } from './firmware-download.mjs'
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 let activeWorkspace = false
 const hash = data => createHash('sha256').update(data).digest('hex')
+/** Frontend errors can contain a megabyte data-URL stack. Log only bounded
+ * messages; objects and error causes may contain account or transport data. */
+export function formatMcpLog(...args) {
+  return args.slice(0, 8).map(value => {
+    const message = value instanceof Error ? value.name + ': ' + value.message
+      : typeof value === 'string' ? value : value !== null && typeof value === 'object' ? '[object]' : String(value)
+    return message.replace(/data:[^\s)]*/g, '[data URL]').slice(0, 1024)
+  }).join(' ').slice(0, 2048)
+}
 const object = (value, keys) => {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) throw new Error('Unexpected arguments.')
   return value
@@ -289,7 +297,8 @@ export function createProtocol(service) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  for (const method of ['log', 'info', 'debug', 'warn', 'error']) console[method] = (...args) => process.stderr.write(format(...args) + '\n')
+  for (const method of ['log', 'info', 'debug', 'warn', 'error']) console[method] = (...args) => process.stderr.write(formatMcpLog(...args) + '\n')
+  try {
   const { values } = parseArgs({ options: { 'data-dir': { type: 'string' }, 'frontend-root': { type: 'string' }, 'api': { type: 'string' }, site: { type: 'string' }, 'session-file': { type: 'string' }, stock: { type: 'string' }, 'device-socket': { type: 'string' }, 'allow-api-writes': { type: 'boolean' }, 'allow-device-writes': { type: 'boolean' } } })
   const service = await createFrontendTools({ root: values['frontend-root'] && resolve(values['frontend-root']), dataDir: values['data-dir'] && resolve(values['data-dir']), apiBase: values.api, site: values.site, sessionFile: values['session-file'], stock: values.stock, deviceSocket: values['device-socket'], allowApiWrites: values['allow-api-writes'], allowDeviceWrites: values['allow-device-writes'] })
   const protocol = createProtocol(service), input = createInterface({ input: process.stdin, crlfDelay: Infinity })
@@ -297,4 +306,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   input.on('line', line => { queue = queue.then(async () => { let reply; try { if (Buffer.byteLength(line) > 64 * 1024) throw new Error('Message too large.'); reply = await protocol(JSON.parse(line)) } catch { reply = { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Invalid JSON-RPC message.' } } } if (reply) process.stdout.write(JSON.stringify(reply) + '\n') }) })
   input.on('close', () => { void queue.finally(() => service.close()) })
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { input.close(); void queue.finally(() => service.close()).finally(() => process.exit(0)) })
+  } catch (error) { process.stderr.write(formatMcpLog(error) + '\n'); process.exitCode = 1 }
 }
