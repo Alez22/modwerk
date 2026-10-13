@@ -77,6 +77,19 @@ describe('private fixed volatile USB transport', () => {
     release({ status: 'ok', data: new DataView(bytes.buffer) }); await reading
     expect(transport.connectionTrusted).toBe(true)
   })
+  it('copies a Buffer-backed frame at a nonzero offset before native USB can observe mutation', async () => {
+    const { device, transport } = fixture(), expected = begin()
+    const backing = Buffer.alloc(expected.length + 47, 0xee), offered = backing.subarray(23, 23 + expected.length)
+    offered.set(expected)
+    let release!: () => void
+    device.controlTransferOut.mockImplementation(async (_setup, data) => {
+      await new Promise<void>(resolve => { release = resolve })
+      expect(data).toEqual(expected); expect(Buffer.isBuffer(data)).toBe(false)
+      expect(data.byteOffset).toBe(0); return { status: 'ok', bytesWritten: data.length }
+    })
+    const sent = transport.submit(offered, signal()); backing.fill(0); release(); await sent
+    expect(device.controlTransferOut).toHaveBeenCalledTimes(1)
+  })
   it('sends nothing for an already canceled operation', async () => {
     const { device, transport } = fixture(), controller = new AbortController(); controller.abort()
     await expect(transport.submit(begin(), controller.signal)).rejects.toThrow()

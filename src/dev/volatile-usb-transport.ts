@@ -34,7 +34,7 @@ export class VolatileUsbTransport {
     // Bound before copying; only fixed MWVB commands, never arbitrary USB packets.
     if (input.byteLength < VOLATILE_COMMAND_BYTES || input.byteLength > VOLATILE_MAX_FRAME || input.byteLength % 64 === 0)
       throw new Error('Invalid private volatile frame length.')
-    const bytes = input.slice(), view = new DataView(bytes.buffer)
+    const bytes = new Uint8Array(input), view = new DataView(bytes.buffer)
     if (view.getUint32(0) !== 0x4d575642 || bytes[4] !== 1 || bytes[5] < 1 || bytes[5] > 8 ||
       view.getUint16(6) || !view.getUint32(8) || view.getUint32(20) !== bytes.length - VOLATILE_COMMAND_BYTES ||
       bytes.subarray(88, 96).some(byte => byte)) throw new Error('Invalid private volatile command header.')
