@@ -38,6 +38,9 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   const connected = !!state.identity?.canSubmit && status === 'ready'
   const review = inventory && moduleSetReview(set, inventory, state.identity?.capabilities)
   const reviewKey = JSON.stringify([set, inventory, state.identity?.base, state.identity?.capabilities])
+  const latestReview = useRef(reviewKey), mounted = useRef(false)
+  useEffect(() => { latestReview.current = reviewKey }, [reviewKey])
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const stopped = stoppedFor === reviewKey
   const changes = review?.changes, updates = review?.updates ?? []
   const problem = preparationError?.review === reviewKey ? preparationError.error : review?.problem
@@ -63,14 +66,25 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
     const last = lastSuccessfulSync(state.identity?.base)
     setUndoName(previousName ?? (last && inventory && sameModules(last.moduleIds, inventory.moduleIds) ? last.name : undefined))
     if (!prepareUpdate || !review?.needsSync || problem) return
+    const preparedFor = link.getState()
+    // Fetching packages may outlive this dialog or the exact set and connection the user reviewed.
+    const stale = () => {
+      if (!mounted.current) return true
+      if (latestReview.current === reviewKey && link.getState() === preparedFor) return false
+      setPreparing(false); setStoppedFor(undefined)
+      setError('Review the sync again; nothing was sent because the module set or Octatrack connection changed.')
+      return true
+    }
     setPreparing(true); setError(''); setPreparationError(undefined)
     let prepared
     try { prepared = await prepareUpdate(set) }
     catch (failure) {
+      if (stale()) return
       console.error(failure); setPreparing(false)
       setPreparationError({ review: reviewKey, error: failure instanceof ModuleSetError ? failure : new ModuleSetError(failure instanceof LinkBusyError ? failure.message : 'This module set couldn’t be prepared, so nothing was sent.') })
       return
     }
+    if (stale()) return
     setPreparing(false); setStarted(true)
     try { await link.update(prepared.name, prepared.changes, stressTest) }
     catch (failure) { console.error(failure); setError(failure instanceof ModuleSetError || failure instanceof LinkBusyError ? failure.message : 'This module set couldn’t be synced.') }
@@ -111,6 +125,7 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
           </div>}
         </>}
       {problem && <p className="file-error" role="alert">{problem.message}</p>}
+      {error && <p className="file-error" role="alert">{error}</p>}
     </> : step === 'done' ? <p className={'base-install-intro ' + (error || notice?.tone === 'error' ? 'file-error' : 'success-note')} role={error || notice?.tone === 'error' ? 'alert' : 'status'}>{error || notice?.text || (status === 'busy' ? 'Another tab or app is using your Octatrack, so nothing was sent.' : 'Done.')}</p>
     : <>
       <ol className="load-steps" aria-label="Steps">{STEPS.map((label, i) => <li key={label} className={i < index ? 'is-complete' : i === index ? 'is-active' : undefined} aria-current={i === index ? 'step' : undefined}>{label}</li>)}</ol>

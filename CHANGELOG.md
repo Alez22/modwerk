@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Fixed beta Octatrack sync work continuing after its review or USB connection ended. Package preparation now returns to review when the selected set or connection changes, and discards results after the dialog closes. Stale USB replies cannot reopen the link, activate a staged package, start a trial or confirm Keep; leaving the last view also releases the trial's tab lock. Synthetic USB and DOM regressions cover these races; physical device recovery and persistence remain unverified by this change.
+
 - Register the portable Octatrack package builder as an imported Python module before executing it. Private preparation entry points can resolve their own builder when forwarding `--prepare-ports`, and Python dataclass declarations can load correctly. The regression uses an isolated stock-free entry point; runtime admission and hardware qualification remain unchanged.
 
 - Fixed the beta Octatrack page still scrolling by a few pixels on desktop: fitting it to the window now converts the app's 90% zoom, so the page never scrolls as a whole (checked from 1024×768 to 1920×1080). Beta-only.
