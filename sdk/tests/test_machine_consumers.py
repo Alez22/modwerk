@@ -4,7 +4,10 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 ADAPTER = Path(__file__).resolve().parents[1] / 'machines/octatrack/module-adapters'
@@ -19,6 +22,34 @@ finally:
 
 
 class ConsumerAssociationTests(unittest.TestCase):
+    def test_retained_observations_bind_actual_tool_sources_and_keep_scope_private(self):
+        report = json.loads((ADAPTER / 'fm-consumer-observations.json').read_text())
+        self.assertEqual({row['memberMask'] for row in report['receipts']}, {4, 5, 6, 7})
+        self.assertTrue(all(report[key] is False for key in ('hardware', 'boot', 'audio', 'publicAdmission')))
+        for row in report['receipts']:
+            self.assertTrue(all(row[key] is False for key in ('hardware', 'boot', 'dsp', 'audio',
+                                                             'exhaustiveConsumerCoverage', 'admission')))
+            for name, digest in row['probeSources'].items():
+                self.assertEqual(hashlib.sha256((ADAPTER / name).read_bytes()).hexdigest(), digest)
+            self.assertEqual({item['observations'][0]['origin'] for item in row['origins']}, {0x47080000, 0x47100000})
+            for item in row['origins']:
+                observed, negatives = item['observations']
+                self.assertEqual((observed['escapedPointers'], observed['resetDescriptorStages'],
+                                  observed['randomizeDescriptorStages']), (0, 40, 40))
+                self.assertTrue(observed['initializedInputLayer'] and observed['stockNotificationTailExecuted'])
+                self.assertTrue(all(negatives.values()))
+
+    def test_actual_known_root_collector_refuses_aliases_and_malformed_lists(self):
+        cc = shutil.which('cc')
+        if not cc: self.skipTest('no C compiler')
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / 'test'
+            subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic',
+                            '-I', str(ADAPTER), str(ADAPTER / 'machine_lifetime.c'),
+                            str(ADAPTER / 'machine_lifetime_fixture.c'), '-o', str(output)],
+                           check=True, capture_output=True)
+            subprocess.run([str(output)], check=True, capture_output=True)
+
     def fixture(self):
         original = bytes(range(32))
         encoded = bytearray(32);encoded[0] = 0x66;encoded[27] = 28

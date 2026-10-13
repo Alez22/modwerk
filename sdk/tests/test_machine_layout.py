@@ -72,6 +72,17 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(checked.package_sha256, sha(self.package))
         self.assertTrue(layout.same_mask_replacement(checked, self.validate()))
 
+    def test_preparation_records_preserve_exact_guards_and_refuse_unbounded_input(self):
+        image, relocations, sites, copies, fills = layout.recipe_records(self.package)
+        self.assertEqual((len(image), relocations, len(sites)), (64, [20], 1))
+        self.assertEqual(sites[0][:1] + sites[0][3:], (0x40005000, [2], 0, 8))
+        self.assertEqual(copies, [(28, 0x40006000, 4, bytes(32))])
+        self.assertEqual(fills, [(32, 4, 255)])
+        for bad in (self.package[:-1], self.package + b'x', b'MWRM\0\6' + self.package[6:]):
+            with self.assertRaises(ValueError): layout.recipe_records(bad)
+        bad = bytearray(self.package);struct.pack_into('>I', bad, 76 + 20, 64)
+        with self.assertRaisesRegex(ValueError, 'image relocation'): layout.recipe_records(bytes(bad))
+
     def test_missing_or_changed_review_is_not_inferred_from_membership(self):
         declaration, recipe, reviewed = self.declaration()
         for doc, trusted in ((None, reviewed), (declaration, None), (declaration, '0' * 64),
