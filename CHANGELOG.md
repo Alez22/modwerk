@@ -4,7 +4,9 @@
 
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.
 - Fixed private runtime-span preparation on Windows using native access-control APIs independently of imported PowerShell security cmdlets, establishing and inspecting protected current-user-only ACLs on new directories and files, and checking inherited parent permissions before writing artifact bytes. Existing output permissions are inspected without alteration; symlinks, junctions, overwrite and unavailable ACL checks are refused. POSIX private modes and the existing stock-free package scanners remain required.
+- Prepared shared base-owned USB descriptors for the existing MIDI dependency and output-audio layouts alongside Modwerk sync. Interface references are renumbered together while authored endpoint, channel and class-entity records stay exact. This is private preparation; public bases still require transport, audio alignment, deadline and host qualification before admission.
 
+- Fixed private runtime-span preparation on Windows using native access-control APIs independently of imported PowerShell security cmdlets, establishing and inspecting protected current-user-only ACLs on new directories and files, and checking inherited parent permissions before writing artifact bytes. Existing output permissions are inspected without alteration; symlinks, junctions, overwrite and unavailable ACL checks are refused. POSIX private modes and the existing stock-free package scanners remain required.
 - Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
 - Documentation: recorded complete EP0 transaction ownership, transient bridge reacquisition, pre-install StockCopy snapshots and foreign saved-set handling for MCP/RAM testing. Observations remain bound to the named private candidate and do not imply audio or persistence qualification.
 
@@ -27,6 +29,8 @@
 - Restored the beta onboarding card’s DSP memory explanation beside USB setup: effects load as needed and share their code between tracks on each DSP core. The explanation stays visible on phones and makes no CPU-speed or unlimited-capacity promise.
 
 - Added a local beta MCP server for catalogue/module inspection, card and USB preflight, isolated module sets, ordinary authenticated community API calls, saved firmware receipts and reviewed USB trials through the frontend client. API and device writes require explicit startup opt-ins; one-change trials never accept automatically. Private workspace leases prevent concurrent set overwrites, and the server preserves existing modules whose exact rollback identity is unavailable. It returns no firmware or raw memory. Domain/API evidence remains separate from visual, audio and physical reboot qualification.
+
+- Prepared guarded runtime table insertion for private USB port development. Authored entries retain their declared position between separately hashed stock-copy spans, with reconstruction checked against an independent native layout oracle. Public packages and table-loading admission remain unchanged; Mute Modes hardware lifecycle and persistence are not qualified by this preparation.
 
 - Prepared the beta Samples work-in-progress component for local file/folder selection, a folder tree and explicit browser audio preview. It keeps selections only in the tab and does not upload, write files, use USB disk mode or transfer samples to an Octatrack; hub tab integration is a separate step.
 
