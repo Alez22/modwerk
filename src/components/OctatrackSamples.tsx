@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { localSamples, sampleSize, sampleTree, type LocalSample, type SampleFolder } from '../config/sample-preview'
 import './octatrack-samples.css'
 
@@ -9,14 +9,17 @@ function Folder({ folder, selected, onSelect }: { folder: SampleFolder; selected
   </ul>
 }
 
-function Preview({ sample }: { sample: LocalSample }) {
+function Preview({ sample, active }: { sample: LocalSample; active: boolean }) {
   const [error, setError] = useState(false)
+  const audio = useRef<HTMLAudioElement>(null)
   const attach = useCallback((element: HTMLAudioElement | null) => {
     if (!element) return
+    audio.current = element
     const url = URL.createObjectURL(sample.file)
     element.src = url
-    return () => { element.pause(); element.removeAttribute('src'); URL.revokeObjectURL(url) }
+    return () => { audio.current = null; element.pause(); element.removeAttribute('src'); URL.revokeObjectURL(url) }
   }, [sample.file])
+  useEffect(() => { if (!active) audio.current?.pause() }, [active])
   return <section className="samples-preview" aria-label="Selected sample preview">
     <strong>{sample.file.name}</strong><p>{sample.path} · {sampleSize(sample.file.size)}</p>
     <audio ref={attach} controls preload="metadata" aria-label={`Preview ${sample.file.name}`} onError={() => setError(true)} />
@@ -25,7 +28,7 @@ function Preview({ sample }: { sample: LocalSample }) {
 }
 
 /** Frontend-only beta workspace. Does not require or access an Octatrack connection. */
-export function OctatrackSamples() {
+export function OctatrackSamples({ active = true }: { active?: boolean }) {
   const [samples, setSamples] = useState<LocalSample[]>([]), [selected, setSelected] = useState<LocalSample>(), [notice, setNotice] = useState('')
   const files = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null)
   function add(input: Iterable<File>) {
@@ -45,6 +48,6 @@ export function OctatrackSamples() {
     </div>
     <p className="samples-local-note">Files stay in this browser tab. Nothing is uploaded, written to disk or sent to your Octatrack. No USB connection is needed.</p>
     <p role="status" className="samples-notice">{notice}</p>
-    {samples.length > 0 && <div className="samples-workspace"><div><div className="samples-list-head"><strong>{samples.length} sample{samples.length === 1 ? '' : 's'}</strong><button type="button" className="button button-quiet" onClick={() => { setSamples([]); setSelected(undefined); setNotice('Local selection cleared. Your files are unchanged.') }}>Clear selection</button></div><Folder folder={sampleTree(samples)} selected={selected?.id} onSelect={setSelected} /></div>{selected ? <Preview key={selected.id} sample={selected} /> : <p className="samples-preview">Select a sample to preview it.</p>}</div>}
+    {samples.length > 0 && <div className="samples-workspace"><div><div className="samples-list-head"><strong>{samples.length} sample{samples.length === 1 ? '' : 's'}</strong><button type="button" className="button button-quiet" onClick={() => { setSamples([]); setSelected(undefined); setNotice('Local selection cleared. Your files are unchanged.') }}>Clear selection</button></div><Folder folder={sampleTree(samples)} selected={selected?.id} onSelect={setSelected} /></div>{selected ? <Preview key={selected.id} sample={selected} active={active} /> : <p className="samples-preview">Select a sample to preview it.</p>}</div>}
   </section>
 }
