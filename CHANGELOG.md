@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Redesigned the beta Octatrack page. A hero with the unit stays above every page; beside it, a list holds the unit's Status, Backups, Samples and Setup pages and your module sets, each with its own menu (rename, duplicate, export, share, delete). Status is one fixed panel: live load meters and graph, the last self-test and card state from the base's existing read-only record, what is on the unit and this browser's sync history. Backups uses the existing read-only saved-file export and says when a base lacks it; Setup holds the base install, the card route and diagnostics. An empty set offers to start from what is on the unit instead of syncing it empty. Beta-only, with no base, transport or server change; live load and backups need a newer base than the qualified tester image.
+
 - Reduced private resident DSP initialization storage by choosing optimal literal/zero-run boundaries in the existing bounded codec. Authored records, the boot and reset decoders, independent core reconstruction and RAM boot limits remain exact. This is source preparation; combined-base boot, audio timing and physical lifecycle qualification remain pending.
 
 - Added private machine/table declaration tooling that requires exact reviewed package, recipe, source and state/parameter layout identities, reconstructs all three table arrays and reserves fixed trust storage without moving package addresses. Native FM consumer tooling executes complete reset/randomize notification tails with an initialized input layer and records observed pointer escapes at two origins. This is preparation only; the public base, USB catalogue and admission gates remain unchanged, and complete boot, consumer coverage, audio and physical persistence qualification remain pending.

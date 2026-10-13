@@ -1,7 +1,6 @@
-.load-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
-.load-heading h2 { display: flex; align-items: center; gap: 10px; margin: 0; }
-.load-heading p { color: var(--muted); margin: 8px 0 20px; }
-.load-heading button { min-height: 44px; flex-shrink: 0; }
+.load-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; }
+.octatrack-load .load-heading h3 { margin: 0; }
+.load-heading button { min-height: 44px; flex-shrink: 0; font-size: 13px; }
 .load-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .load-meter { padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .load-meter span, .load-meter small { display: block; color: var(--muted); }
@@ -10,10 +9,11 @@
 .load-meter-unavailable { height: 16px; background: var(--surface-hover); border-radius: 3px; }
 .load-meter small { margin-top: 8px; }
 .load-chart { margin: 24px 0; }
-.load-chart figcaption { margin-bottom: 14px; }
+.load-chart figcaption { margin-bottom: 14px; color: var(--muted); font-size: 13px; }
+.load-chart figcaption strong { color: var(--text-secondary); font-weight: 600; }
 .load-plot { display: flex; gap: 10px; height: 180px; }
 .load-y-labels { display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0; color: var(--muted); font-size: 13px; }
-.load-chart svg { width: 100%; min-width: 0; overflow: visible; }
+.load-chart svg { flex: 1 1 0; width: 100%; min-width: 0; overflow: visible; }
 .load-time-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin: 8px 0 0 45px; }
 .load-chart path { stroke-width: 2; vector-effect: non-scaling-stroke; }
 .load-grid { stroke: var(--line); stroke-width: 1 !important; }
