@@ -4,20 +4,20 @@
   "evidenceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
   "evidenceModuleVersion": "0.1.2-experimental",
   "approvedMain": "813fe73637dc12db384e6e92ebed08d6746d1780",
-  "validatedCommit": "061742f22fc761e56c15886bd8c7363d78dea075",
+  "validatedCommit": "bc00e5fd833a6974c63ef480151c36add1c9771a",
   "originalOsSha256": "34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad",
   "changes": {
     "src/engine/assets/octatrack-base-fills.json": {
       "before": null,
-      "after": "0dabab52e734b659f17a0510c42859df28d08887ed3d2831e4681c8dcbf105c1"
+      "after": "4593f86f6bc5921ff37968d6aafe8e2441bec774c9d40f5ecdbdef56931914d3"
     },
     "src/engine/assets/octatrack-base-sources.json": {
       "before": null,
-      "after": "f217be70e536e476611e11e321b658b1cbf702893190730f85eb3bcdd1c5a986"
+      "after": "ff3fbaf6e692debc7a7ed5190e6bc8f1c3f40015fbe450c819547244c5094e3a"
     },
     "src/engine/assets/octatrack-base.elemod": {
       "before": null,
-      "after": "50fedb69d2fdf101787ee5f0b98ee33496a063ef788a4d4ab646271274209987"
+      "after": "48db307a4c170e84a1c2a9d9557004c7d5cae299605e5a987bd348aa834ce6e9"
     },
     "src/engine/assets/octatrack-module-packages.json": {
       "before": null,
@@ -178,9 +178,9 @@
     "src/engine/assets/dsp-packages.json": "d87487e3be190f3b8d0975c73dfc37daacf00ffbecc9c3d47fd2fafaef774e1d",
     "src/engine/assets/menu-recipes.json": "a635b64ff5babc2762d69ba835fd90303812dfd8eb6f60f3abf48955b1def347",
     "src/engine/assets/module-build.json": "85f2d338e41bd49c674d0e631f2354dd86a73074931360c8ab435d9a3ac34b56",
-    "src/engine/assets/octatrack-base-fills.json": "0dabab52e734b659f17a0510c42859df28d08887ed3d2831e4681c8dcbf105c1",
-    "src/engine/assets/octatrack-base-sources.json": "f217be70e536e476611e11e321b658b1cbf702893190730f85eb3bcdd1c5a986",
-    "src/engine/assets/octatrack-base.elemod": "50fedb69d2fdf101787ee5f0b98ee33496a063ef788a4d4ab646271274209987",
+    "src/engine/assets/octatrack-base-fills.json": "4593f86f6bc5921ff37968d6aafe8e2441bec774c9d40f5ecdbdef56931914d3",
+    "src/engine/assets/octatrack-base-sources.json": "ff3fbaf6e692debc7a7ed5190e6bc8f1c3f40015fbe450c819547244c5094e3a",
+    "src/engine/assets/octatrack-base.elemod": "48db307a4c170e84a1c2a9d9557004c7d5cae299605e5a987bd348aa834ce6e9",
     "src/engine/assets/octatrack-module-packages.json": "22c03adc00c88100b6c0d09db8172ea1f0b4f6f61145dc3bf83f76fd3cee54ac",
     "src/engine/assets/platform-writes.json": "56720770788c112599dcede88923bafeb162b16cae07f69b5716ea3718deabc6",
     "src/engine/assets/requested-composition-proofs.json": "0626a3534e0f9ca429483ed169946c5fd01c9750ea294f53df23150b728080ff",
@@ -270,10 +270,10 @@
     "src/engine/usb-audio.ts": "7ece1e258553bfc2ef3d9805d9e9db73b27b140e0eff19d1fd3a283122619526",
     "src/engine/utility-modules.ts": "7d4ae4efa92c264f1fd13899c571f1782e054f08f8ef95c16b2afa96db8fd3c3"
   },
-  "protectedInputsSha256": "074f71688dff44d2f5505ce93002af3f6097edc000a3ac3de95d5c46d58ff8ec",
+  "protectedInputsSha256": "70c73e677b7fbab725e80b347b9567205e52172da1285f3dbab25249d7c064d2",
   "approvedProtectedInputsSha256": "9c8c246d1ade1e7756558d6de25ed5f1472691418dcbedf025cfefd27b969542",
   "proof": {
-    "reportSha256": "3d9d64ab60768af0277b213807832fe2359077ce1e7f6137489ef38fe312abdc",
+    "reportSha256": "d88c5ae48a33c4035628e662fff88f0d940cc7d8384617416ebd5c720afb3cd5",
     "runnerSha256": "225ed0b6d0ff8bc469604d80bbc7ff29b46bf8c7d82adf8604524ec7e52fca03"
   }
 }
