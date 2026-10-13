@@ -404,7 +404,7 @@ export default function App() {
       <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus() }}>Skip to content</a>
       <aside className="sidebar" aria-label="App sidebar">
         <div className="sidebar-brand">
-          <a className="app-brand" href={'#' + ALL_MACHINES}><img src={import.meta.env.BASE_URL + 'modwerk-mark.svg'} width="34" height="34" alt="" /><span>Modwerk</span><small>Custom Elektron firmware</small></a>
+          <a className="app-brand" href={'#' + ALL_MACHINES}><img src={import.meta.env.BASE_URL + 'modwerk-mark.svg'} width="34" height="34" alt="" /><span>Modwerk</span><small>Custom Firmware</small></a>
         </div>
         <div className="sidebar-section-label">Library</div>
         <div className="library-nav-row">{phoneLibrary && machinePicker}<nav className="sidebar-nav" aria-label="Module library" ref={libraryNavRef}>
