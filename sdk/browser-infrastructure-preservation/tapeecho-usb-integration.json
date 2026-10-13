@@ -4,7 +4,7 @@
   "evidenceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
   "evidenceModuleVersion": "0.1.2-experimental",
   "approvedMain": "813fe73637dc12db384e6e92ebed08d6746d1780",
-  "validatedCommit": "5fb12416aaa31c185d55bd6534729c47d34557f3",
+  "validatedCommit": "061742f22fc761e56c15886bd8c7363d78dea075",
   "originalOsSha256": "34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad",
   "changes": {
     "src/engine/assets/octatrack-base-fills.json": {
@@ -45,7 +45,7 @@
     },
     "src/engine/elekloader/octatrack-link.ts": {
       "before": null,
-      "after": "bba2a29dd9b8192a6634a6894eaef808dd3675b2fff35a94a6ae7f66f5b3c139"
+      "after": "59cfdb3d17326175184a2283ffb74fa11cd7c59458bd96bc341bdc87995b99b2"
     },
     "src/engine/elekloader/selftest.ts": {
       "before": null,
@@ -225,7 +225,7 @@
     "src/engine/elekloader/machine-build.ts": "c664f904f9b6a428fd583c81c9d67ad80c456b7c4323819edbd0191acfed29d9",
     "src/engine/elekloader/module-set.ts": "11af0bfdffcf4db12f56b86b31d261befedad3a40d2d5c13c88eb4fedb5c22bc",
     "src/engine/elekloader/octatrack-base.ts": "f40b2191f81cc76c7d3079acfcf91ffaec3a79f0a7c8971c9db0aebbc74f30f2",
-    "src/engine/elekloader/octatrack-link.ts": "bba2a29dd9b8192a6634a6894eaef808dd3675b2fff35a94a6ae7f66f5b3c139",
+    "src/engine/elekloader/octatrack-link.ts": "59cfdb3d17326175184a2283ffb74fa11cd7c59458bd96bc341bdc87995b99b2",
     "src/engine/elekloader/protocol.ts": "d430023ccfeb28db98330e40fcb819f1ab7acad9d3ce7d614e58d555d4eecbb2",
     "src/engine/elekloader/selftest.ts": "eed105ba2b001f01b842004705f7d0e4686ee4d6c049d4efbcc811eec4183913",
     "src/engine/elekloader/upload-session.ts": "23be52d0a32599a61e35d2dbaa93f8be5a69b046ea344822adc30513ef20dc7e",
@@ -270,10 +270,10 @@
     "src/engine/usb-audio.ts": "7ece1e258553bfc2ef3d9805d9e9db73b27b140e0eff19d1fd3a283122619526",
     "src/engine/utility-modules.ts": "7d4ae4efa92c264f1fd13899c571f1782e054f08f8ef95c16b2afa96db8fd3c3"
   },
-  "protectedInputsSha256": "9a7270bd5c6dc0f5c7c3076f8b4abcb6acbc886d475a76f8040cfa4d499714a1",
+  "protectedInputsSha256": "074f71688dff44d2f5505ce93002af3f6097edc000a3ac3de95d5c46d58ff8ec",
   "approvedProtectedInputsSha256": "9c8c246d1ade1e7756558d6de25ed5f1472691418dcbedf025cfefd27b969542",
   "proof": {
-    "reportSha256": "54a63f02cc38ee45ac6ace4663f9167e81c9617ec71c72428e734b33ddf93cf1",
+    "reportSha256": "3d9d64ab60768af0277b213807832fe2359077ce1e7f6137489ef38fe312abdc",
     "runnerSha256": "225ed0b6d0ff8bc469604d80bbc7ff29b46bf8c7d82adf8604524ec7e52fca03"
   }
 }

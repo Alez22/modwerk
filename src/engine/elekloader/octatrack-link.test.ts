@@ -184,6 +184,39 @@ describe('sending a module', () => {
     expect(link.getState().status).toBe('trial')
     expect(stages).toBe(2); expect(commits).toBe(2); expect(cancels).toBe(1)
   })
+  it('abandons a busy commit retry when disconnecting during its deferred cancel', async () => {
+    const unit = fakeUnit(), base = fakeSession(unit), entered = deferred(), gate = deferred()
+    let stages = 0, commits = 0, cancels = 0
+    const connect: typeof base = async (...args) => {
+      const session = await base(...args)
+      let refused: typeof session.status | undefined
+      return Object.create(session, {
+        status: { get: () => refused ?? session.status },
+        stage: { value: async (...stageArgs: Parameters<typeof session.stage>) => { stages++; return session.stage(...stageArgs) } },
+        activate: { value: async () => {
+          commits++; unit.refusal = 5
+          throw new UploadDeviceError(refused = { ...session.status, command: 'commit', phase: 'ready', result: 'backend' })
+        } },
+        cancel: { value: async () => {
+          cancels++; entered.resolve(); await gate.promise
+          refused = undefined; return session.cancel()
+        } },
+      })
+    }
+    const link = new OctatrackLink(unit.usb, connect, 300), stop = link.start()
+    await settle(); await settle()
+    const loading = link.update('PREVIEW VOL', one)
+    await entered.promise; unit.unplug()
+    const disconnected = link.getState()
+    gate.resolve(); await loading
+    expect(link.getState()).toBe(disconnected)
+    expect(link.getState().status).toBe('idle')
+    unit.refusal = undefined; unit.plug('base'); await settle(); await settle()
+    expect(link.getState().status).toBe('ready')
+    expect(stages).toBe(1); expect(commits).toBe(1); expect(cancels).toBe(1)
+    expect(unit.active).toBe(FAKE_BASE)
+    stop()
+  })
   it('retries a verified commit without restaging when playback briefly blocks it', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)
     let stages = 0, commits = 0
