@@ -206,9 +206,9 @@ describe('community access and review',()=>{
    const markdown=String(created.body.body)
    expect(markdown).toContain('by [other](https://octamod.test/forum/profile/other/)');expect(markdown).not.toContain('@sambanks');expect(markdown).toContain('| Module version | Not recorded |') // the configuration comes from the attached log, which does not list spectrum
    expect(markdown).toContain('@\u200bsomeone');expect(markdown).toContain('#\u200b12');expect(markdown).not.toContain('<img')
-   expect(markdown).toContain('[open them on Modwerk](https://octamod.test/#developer/report/'+result.id+')')
-   // The configuration, build fingerprint and log stay private.
-   for(const secret of ['c'.repeat(64),'OCTAMOD-LOG','repitch'])expect(markdown).not.toContain(secret)
+   expect(markdown).not.toContain('#developer/report/');expect(markdown).toContain('Everything the reporter submitted is in this issue.')
+   // The reporter agreed to publish the configuration, build fingerprint and log on GitHub.
+   for(const published of ['c'.repeat(64),'<details><summary>OCTAMOD.LOG</summary>','# OCTAMOD-LOG','repitch'])expect(markdown).toContain(published)
    const [row]=await (await call('/admin/issues?status=all','GET',undefined,'',undefined,admin)).json();expect(row).toMatchObject({id:result.id,github_state:'failed',github_error:'GitHub answered 401: Bad credentials.'})
    expect((await call('/admin/issues/'+row.id+'/github','POST',{},reporter)).status).toBe(403)
    const retried=await (await call('/admin/issues/'+row.id+'/github','POST',{},'',undefined,admin)).json();expect(retried).toEqual({state:'synced',url:'https://github.com/repeat98/octamod/issues/41'})
