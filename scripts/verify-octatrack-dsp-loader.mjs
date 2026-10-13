@@ -30,7 +30,8 @@
 // parts (no module: Parts 2, 3, 4 and 1 in turn, so every effect the bank's Parts name runs; for memory censuses).
 // sites (a package with stock-code sites, ABI 8 or earlier, any module: installed, then removed; RAM, read a long at a
 // time, must hold each site's new bytes while it is live (kept bytes as stock, relocated words at one base) and its
-// image's first 64 bytes and every stock copy there, and every site the bytes from before once it is removed).
+// image's first 64 bytes, every relocation word and every original stock copy there,
+// and every site the bytes from before once it is removed).
 // Additional sites packages can be passed in SECOND, comma-separated; each is installed then removed in turn.
 // SCENARIO:MODULE names the module by its catalogue id (src/engine/assets/dsp-packages.json); E-Verb by default.
 // The card needs a project whose Part 1 has no module effect on T1, T2, T5 or T6.
@@ -43,6 +44,7 @@ import { UploadSession } from '../src/engine/elekloader/upload-session.ts'
 import { findVendorInterface, UsbVendorTransport } from '../src/engine/elekloader/upload-usb.ts'
 import { diagnostics, removal } from '../src/dev/octatrack-usb-lifecycle.ts'
 import { Bench, device, enumerate } from './usb-bench.mjs'
+import { captureStockCopies, verifyRuntimeRelocations } from './octatrack-runtime-verifier.mjs'
 
 const [mode, ...args] = process.argv.slice(2)
 const LIVE_FX = 0x80000ec4
@@ -192,6 +194,7 @@ if (mode === 'dumps') {
         console.log(`capabilities: ${caps.toString('hex')}`)
       }
       for (const site of sites) before.push(await peek(site.address, site.length))
+      const originalCopies = await captureStockCopies(copies, peek)
       await keep(data).catch(async error => { // loader.h runtime_refusal: 8, the stock bytes under a site are not the ones it names
         throw new Error(`${error.message} (loader refusal ${(await transport.selftest(false))?.refusal})`)
       })
@@ -209,8 +212,8 @@ if (mode === 'dumps') {
       if (at !== undefined) { // its code, relocated, and the stock bytes it copied
         const code = Buffer.from(image)
         for (const o of relocations) code.writeUInt32BE(code.readUInt32BE(o) + at >>> 0, o)
-        for (const c of copies) {
-          (await peek(c.address, c.length)).copy(code, c.offset)
+        for (const [i, c] of copies.entries()) {
+          originalCopies[i].copy(code, c.offset)
           assert.deepEqual(await peek(at + c.offset, c.length), code.subarray(c.offset, c.offset + c.length), `stock copy of 0x${hex(c.address)}`)
         }
         for (const f of fills) {
@@ -224,6 +227,7 @@ if (mode === 'dumps') {
           code.writeUInt32BE(symbols.pages + 0x1a0 * item.handle, 48)
         }
         assert.deepEqual(await peek(at, Math.min(64, code.length)), code.subarray(0, 64), `code at 0x${hex(at)}`)
+        await verifyRuntimeRelocations(code, relocations, at, peek)
       }
       console.log(`installed: ${sites.length} sites hold, code and ${copies.length} stock copies at 0x${hex(at ?? 0)}; ${fills.length} authored initializers`)
       await keep(removal(base, id).data)

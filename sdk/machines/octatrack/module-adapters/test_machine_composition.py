@@ -90,9 +90,35 @@ class SourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as work, self.assertRaisesRegex(ValueError, 'composition seam drift'):
             adapter.effective_modules([changed, synth], SDK, work)
 
+    def test_changed_quantizer_layout_is_not_silently_supplied_by_fm(self):
+        _, synth = modules()
+        quantizer = registry._load_one(SDK / 'modules/quantizer/manifest.py')
+        table = quantizer.tables[0]
+        changed = replace(quantizer, tables=(replace(table, insert_at=2), *quantizer.tables[1:]))
+        with tempfile.TemporaryDirectory() as work, self.assertRaisesRegex(ValueError, 'bundled quantizer declaration drift'):
+            adapter.effective_modules([synth, changed], SDK, work)
+
 
 @unittest.skipUnless(shutil.which('m68k-elf-gcc'), 'native ColdFire compiler required')
 class ManifestTests(unittest.TestCase):
+    def test_fm_normalizes_only_its_exact_redundant_quantizer(self):
+        vector, synth = modules()
+        quantizer = registry._load_one(SDK / 'modules/quantizer/manifest.py')
+        for selected in ([synth, quantizer], [quantizer, vector, synth]):
+            with tempfile.TemporaryDirectory() as work:
+                result = adapter.effective_modules(selected, SDK, work)
+                normalized = next(m for m in result if m.name == 'quantizer')
+                self.assertEqual(normalized.key, quantizer.key)
+                for field in ('linked', 'detours', 'symbol_refs', 'pokes', 'tables'):
+                    self.assertEqual(getattr(normalized, field), (), field)
+                fm = next(m for m in result if m.name == 'synth')
+                self.assertTrue(any(u.label.startswith('fm_') for u in fm.linked))
+                self.assertEqual(len([m for m in result if m.name == 'machine-bridge']), 1)
+        with tempfile.TemporaryDirectory() as work:
+            result = adapter.effective_modules([vector, quantizer], SDK, work)
+            self.assertIs(next(m for m in result if m.name == 'quantizer'), quantizer)
+        self.assertTrue(quantizer.linked and quantizer.tables)
+
     def test_poly_present_group_preserves_visible_members_and_private_controller(self):
         poly = registry._load_one(SDK / 'modules/poly8/manifest.py')
         with tempfile.TemporaryDirectory() as work:

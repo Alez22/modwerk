@@ -34,7 +34,7 @@ PUBLIC = APP / 'public'
 SEED, LIMIT = 12, 12  # bytes: a shared run worth looking at; its non-zero bytes that fail
 
 
-def build(entry, out, upstream):
+def build(entry, out, upstream, private_stock=None):
     """One package through build.py, as the README's command line makes it."""
     args = [sys.executable, '-B', str(BUILD), '-o', str(out)]
     if entry.get('slots'):
@@ -44,6 +44,8 @@ def build(entry, out, upstream):
         args += ['--buffer', str(entry['buffer'])]
     if entry.get('octabam'):
         args += ['--octabam', entry['id'], '--upstream', str(upstream)] + (['--pinned'] if entry.get('pinned') else [])
+    if private_stock:
+        args += ['--private-port', '--stock', str(private_stock)]
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)
     return out.read_bytes()
 
@@ -101,7 +103,22 @@ def main():
     ap.add_argument('--check', action='store_true', help='rebuild and compare; write nothing, exit 1 on a difference')
     ap.add_argument('--stock', type=Path, help='the stock OS (.bin): fail on any run of it copied into a package')
     ap.add_argument('--upstream', type=Path, default=Path.home() / '.cache/modwerk-upstream/elekloader')
+    ap.add_argument('--prepare-ports', help='comma-separated reviewed private ports; never changes published packages')
+    ap.add_argument('--output-dir', type=Path, help='new private preparation directory outside Git')
+    ap.add_argument('--base-image', type=Path, help='actual private candidate MAIN image')
+    ap.add_argument('--base-symbols', type=Path, help='matching private native symbol map')
+    ap.add_argument('--base-proof', type=Path, help='matching private native build proof')
     a = ap.parse_args()
+    if a.prepare_ports:
+        sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
+        import candidate_packages
+        try:
+            candidate_packages.prepare(a, sys.modules[__name__])
+        except (ValueError, subprocess.CalledProcessError) as error:
+            ap.exit(1, str(error) + '\n')
+        return
+    if any((a.output_dir, a.base_image, a.base_symbols, a.base_proof)):
+        ap.error('Private base/output inputs require --prepare-ports; ordinary publication is unchanged.')
     manifest = json.loads(MANIFEST.read_text())
     versions = {m['id']: m['version'] for m in json.loads((APP / 'sdk/catalog.json').read_text())['modules']}
     dsp = {p['id']: p for p in json.loads(DSP.read_text())['packages']}

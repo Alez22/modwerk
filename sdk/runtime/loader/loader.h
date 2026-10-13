@@ -56,10 +56,25 @@ struct runtime_dsp {
     uint32_t page_bytes;             /* the image's length, all the recipe may reach */
     uint8_t pinned;                  /* flag 2: its ColdFire code names its effect id, so it takes that one or
                                       * none (ABI 6) */
+    uint8_t foreign_roots;           /* trusted board admission only, never an uploaded flag */
+    uint8_t package_sha256[MU_DIGEST_BYTES]; /* exact encoded package, retained across relocation;
+                                            * private board declarations must never hash mutable image bytes */
 };
 enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 /* At the start of the module's pool extent, followed by its sites, code, data, bss and DSP code. */
 struct runtime_module { uint32_t id, size; uintptr_t hook[RUNTIME_EVENTS]; const struct runtime_site *site; uint32_t sites; struct runtime_dsp dsp; }; /* hook 0: none */
+/* Board-owned immutable reconstruction identity, kept outside the module
+ * extent. This does not confer publication, DSP readiness or write authority.
+ * Query/validation callers must retain the stable machine lock throughout the
+ * operation that uses it; a copied snapshot is never a lifetime lease. */
+struct runtime_owner {
+    uint32_t generation, module;
+    uintptr_t owned_extent; /* actual read alias; board canonicalization is a separate checked operation */
+    uint32_t extent_bytes, image_offset, image_bytes;
+    uint8_t package_sha256[MU_DIGEST_BYTES];
+};
+int modwerk_runtime_owner_snapshot(const uint8_t *image,struct runtime_owner *);
+int modwerk_runtime_owner_valid(const struct runtime_owner *);
 /* Why the last package was refused, for diagnostics and the unit's own message. */
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
                        RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
@@ -89,6 +104,7 @@ uint32_t modwerk_runtime_calls(void);
 
 /* Machine glue. */
 struct runtime_span { const uint8_t *from, *to; };
+struct runtime_context { uint32_t registers[16]; }; /* captured at a loader backend entry */
 int modwerk_machine_stopped(void);                 /* nothing plays or records */
 void *modwerk_machine_uncached(void *);            /* the alias module code and data run from */
 void modwerk_machine_invalidate_code(void);        /* instruction and branch caches */
@@ -104,16 +120,23 @@ void modwerk_machine_unmask(uint32_t);
  * the stock-code bytes alone. On the Octatrack: a frame interrupt held off a ring half stops the DSPs. */
 uint32_t modwerk_machine_lock(void);
 void modwerk_machine_unlock(uint32_t);
-/* With the machine locked: the memory every other task would resume from or
- * return into (live stacks, saved registers). More than `max` means unknown. */
-unsigned modwerk_machine_paused(struct runtime_span *, unsigned max);
+/* With the machine locked: every task's live stack and saved registers.
+ * The current context was captured at backend entry, before the loader's
+ * administrative addresses existed. It stays valid through the operation.
+ * More than `max` means unknown. */
+unsigned modwerk_machine_paused(struct runtime_span *, unsigned max, const struct runtime_context *);
 /* Canonical value for reachability comparisons across mapped RAM aliases. */
 uint32_t modwerk_machine_reference(uint32_t);
 /* DSP effects: may `to` take `from`'s place (either may be absent: count 0)?
  * A runtime_refusal; checked at admission and again, masked, at the switch,
  * which then calls dsp_switch. A machine without a DSP loader refuses any. */
-/* Default refuses group metadata; a machine supplies membership and persistent-root admission. */
-int modwerk_machine_metadata_admit(const struct runtime_dsp *from, const struct runtime_dsp *to);
+/* PREPARE sees encoded placeholders; SWITCH sees reconstructed arrays. Both
+ * operations run under the stable machine lock. No public ABI flag. */
+enum runtime_metadata_operation { RUNTIME_METADATA_PREPARE=1, RUNTIME_METADATA_SWITCH=2 };
+/* Default refuses groups; a board assigns foreign_roots only after trusted
+ * declaration and current/paused consumer checks. */
+int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
+    const struct runtime_context *,enum runtime_metadata_operation);
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to); /* may set to->id */
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to);
 #endif

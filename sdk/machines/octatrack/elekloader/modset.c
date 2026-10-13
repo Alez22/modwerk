@@ -13,6 +13,12 @@
 #include <stdint.h>
 #include "upload.h"
 #include "loader.h"
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+#include "journal.h"
+#define VOLATILE_BLOCKED() modwerk_runtime_volatile_busy()
+#else
+#define VOLATILE_BLOCKED() 0
+#endif
 
 #define HEADER 84u
 #define SET_BYTES (RUNTIME_POOL_BYTES + 0x1000u) /* the pool's worth of packages, and the header */
@@ -72,10 +78,10 @@ static void seal(uint32_t count, uint32_t bytes)
 }
 
 /* boot.c, at prepare and accept: what the host staged, and that it stays. */
-void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes) { candidate = package, candidate_bytes = bytes; }
+void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes) { if (!VOLATILE_BLOCKED()) candidate = package, candidate_bytes = bytes; }
 void modwerk_modset_accepted(void)
 {
-    if (!candidate) return;
+    if (VOLATILE_BLOCKED() || !candidate) return;
     uint32_t id = module_of(candidate, candidate_bytes), n = used(), count = be32(set) == 0x4d575354u ? be32(set + 12) : 0;
     /* Drop the module's earlier package, then append the new one unless it removes the module. */
     for (uint32_t at = HEADER; at < n;) {
@@ -98,7 +104,7 @@ void modwerk_modset_accepted(void)
 
 #ifdef MODWERK_HOST
 static int load(unsigned which) { return modwerk_test_file(0, which ? "/MODWERK1.SET" : "/MODWERK0.SET", set, SET_BYTES); }
-static int store(unsigned which) { return modwerk_test_file(1, which ? "/MODWERK1.SET" : "/MODWERK0.SET", set, used()); }
+static int store(unsigned which) { if(VOLATILE_BLOCKED()) return 0; return modwerk_test_file(1, which ? "/MODWERK1.SET" : "/MODWERK0.SET", set, used()); }
 #else
 /* One slot into `set`: its bytes, or 0 when it is absent or unreadable. */
 static int load(unsigned which)
@@ -115,13 +121,14 @@ static int load(unsigned which)
 /* The set into one slot, sector by sector while the gate holds, then read back whole. */
 static int store(unsigned which)
 {
+    if (VOLATILE_BLOCKED()) return 0;
     static uint8_t verify[512];
     const char *path = which ? "/MODWERK1.SET" : "/MODWERK0.SET";
     struct file_object f;
     uint32_t n = (used() + 511u) & ~511u;
     if (olog_stock_open(&f, path, "w", octamod_log_io, 512) < 0) return 0;
     int ok = 1;
-    for (uint32_t at = 0; ok && at < n; at += 512) ok = GATE() && olog_stock_write(&f, set + at, 512) == 1;
+    for (uint32_t at = 0; ok && at < n; at += 512) ok = !VOLATILE_BLOCKED() && GATE() && olog_stock_write(&f, set + at, 512) == 1;
     ok = olog_stock_close(&f) >= 0 && ok;
     if (!ok || olog_stock_open(&f, path, "r", octamod_log_io, 512) < 0) return 0;
     for (uint32_t at = 0; ok && at < n; at += 512) {
@@ -175,10 +182,18 @@ static void restore(void)
 }
 /* ep0.c holds host frames until the restore has run: an install before it would race it, and the restore would undo it. */
 int modwerk_modset_restored(void) { return (int)restored; }
+#ifdef MODWERK_SAVED_SET_EXPORT
+/* A restored baseline without a staged package or any queued/retrying save. */
+int modwerk_modset_export_idle(void) { return restored && !pending && !candidate && !VOLATILE_BLOCKED(); }
+#endif
 /* Engine task, on every return to its receive: the restore once after boot, then any pending save. */
 void modwerk_modset_service(void)
 {
-    if (!GATE()) return;
+#ifdef MODWERK_SAVED_SET_EXPORT
+    int modwerk_saved_set_busy(void);
+    if (modwerk_saved_set_busy()) return;
+#endif
+    if (VOLATILE_BLOCKED() || !GATE()) return;
     if (!restored) { if (TICKS > 180u) restore(); return; } /* three seconds in: the project and the card are up */
     if (!pending || TICKS < retry_at) return;
     slot ^= 1u;

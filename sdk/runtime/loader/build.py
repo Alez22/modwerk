@@ -40,7 +40,9 @@ hash against the stock OS too.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -366,6 +368,62 @@ def octabam_units(name, origin, cross, upstream, dsp=False):
     return image, bss, offsets, sites, copies
 
 
+def private_standalone(args):
+    """Explicit private authored-span preparation; never a publication path."""
+    root = HERE.parents[2]
+    adapters = root / 'sdk/machines/octatrack/module-adapters'
+    sys.path.insert(0, str(adapters))
+    import standalone_runtime
+    if (args.octabam not in standalone_runtime.PORTS or not args.stock or not args.upstream
+            or args.no_page or args.page_from or args.name or args.layout != 1 or args.stock_recipe or args.capture_stock_recipe):
+        raise ValueError('Private standalone ports need their reviewed declaration, original stock and ordinary layout/page.')
+    wanted = standalone_runtime.PORTS[args.octabam]
+    if wanted['slots']:
+        path, separator, key = (args.dsp or '').partition(':')
+        if not separator or Path(path).resolve() != root / 'src/engine/assets/dsp-packages.json' or key != args.octabam:
+            raise ValueError('Private hybrids need their exact catalogue DSP package, not an alternate payload.')
+    actual = dict(slots=args.slots, **dict(cycles=args.cycles, cyclesKind=args.cycles_kind,
+                  state=args.state, buffer=args.buffer, pinned=args.pinned)) if args.slots else dict(slots=None)
+    if (actual != wanted or bool(args.dsp) != bool(wanted['slots']) or not args.slots and
+            (args.cycles is not None or args.state is not None or args.pinned or args.buffer)):
+        raise ValueError('Private standalone resource figures differ from the reviewed declaration.')
+    output = args.output.expanduser().resolve()
+    ancestor = output.parent
+    while not ancestor.exists():
+        ancestor = ancestor.parent
+    if (output.exists() or subprocess.run(['git', '-C', str(ancestor), 'rev-parse', '--show-toplevel'],
+                                         capture_output=True).returncode == 0):
+        raise ValueError('Private standalone output must be new and outside Git.')
+    sys.path.insert(0, str(args.upstream.expanduser().resolve()))
+    from elekloader import formats
+    parsed, device, release = formats.load(str(args.stock))
+    main = formats.main_image(parsed, device)
+    if (device.key != 'octatrack' or release.version != '1.40C'
+            or hashlib.sha256(main).hexdigest() != release.main_sha256):
+        raise ValueError('Private standalone guards require original Octatrack 1.40C.')
+    def stock_at(address, length):
+        at = address - device.main_load
+        if at < 0 or at + length > len(main):
+            raise ValueError('A private reconstruction span lies outside original stock MAIN.')
+        return main[at:at + length]
+    return standalone_runtime, standalone_runtime.sources(root, args.upstream, args.octabam), stock_at, main
+
+
+def private_stock_free(data, stock, main, upstream):
+    """Reuse both unchanged strict scans, including both packed DSP views."""
+    folder = HERE.parents[2] / 'sdk/machines/octatrack/elekloader'
+    loaded = []
+    for name in ('module_packages', 'check_stock_free'):
+        spec = importlib.util.spec_from_file_location('private_' + name, folder / (name + '.py'))
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); loaded.append(module)
+    packages, scanner = loaded
+    if (any(n >= packages.LIMIT for view in [data, *packages.dsp_words(data)]
+            for n in packages.runs(view, main).values())
+            or scanner.stock_runs({'sections': {'package': {'parts': [['hex', data.hex()]]}}},
+                                  scanner.haystacks(stock, upstream), 16)):
+        raise ValueError('An unchanged strict stock-free scanner refused the private package.')
+
+
 def octabam_group(args):
     """One private extent and site owner for an explicitly selected machine subset.
 
@@ -563,8 +621,10 @@ def main():
     parser.add_argument('--stock-recipe', type=Path, help='reviewed source/image hashes and explicit copies/fills')
     parser.add_argument('--capture-stock-recipe', type=Path, help='private hash-only recipe capture; no stock bytes')
     parser.add_argument('--octabam', help='a catalogue module from its Octabam manifest (ABI 7); a hybrid effect adds --dsp')
+    parser.add_argument('--private-port', action='store_true', help='reviewed private standalone StockCopy preparation; requires original stock; never publishes')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     args = parser.parse_args()
+    private = private_standalone(args) if args.private_port else None
     if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) > 1 or not (args.sources or args.elemod or args.dsp)
             and not args.octabam and not args.octabam_group or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group) and not args.upstream)):
         parser.error('Give C sources, --elemod, --dsp, or --octabam with --upstream.')
@@ -597,9 +657,22 @@ def main():
                 check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
         name = pkg.get('id', args.octabam or args.output.stem)
         title = args.name or next((m.get('name') for m in documents.get('modules', []) if m.get('id') == name), '')
+        if private:
+            adapter, inputs, stock_at, _ = private
+            image, extra = adapter.apply(image, relocations, adapter.reviewed(HERE.parents[2], name), inputs,
+                                         HERE.parents[2], stock_at)
+            copies += extra
         data = package(image, bss, [], relocations, sites, name=name, dsp=dsp, flags=flags, hashed=bool(args.octabam),
-                       title=title, layout=args.layout, copies=copies)
-    args.output.write_bytes(data)
+                       title=title, layout=args.layout, copies=copies, abi=8 if private else None)
+    if private:
+        if private[1] != private[0].sources(HERE.parents[2], args.upstream, args.octabam):
+            raise ValueError('A private standalone source changed during compilation.')
+        private_stock_free(data, args.stock, private[3], args.upstream)
+        fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'wb') as output:
+            output.write(data)
+    else:
+        args.output.write_bytes(data)
     image, bss, count, hooks, sites, ident = struct.unpack_from('>IIIIII', data, 8)
     header = {8: 76, 7: 72, 6: 68}.get(data[5], 32)
     print('%s: module %08x, %d bytes of code and data, %d of bss, %d relocations, %d hooks, %d stock-code sites%s' % (

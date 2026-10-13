@@ -2,6 +2,7 @@
  * Host check of modset.c with a pretend card: accepted packages are saved to the two files in turn, a
  * removal drops its module, the newest whole set is installed after a boot, a damaged newer file leaves the
  * older one, and another base's set or a held FUNC installs nothing. */
+#define MODWERK_RUNTIME_VOLATILE_JOURNAL
 #include "sha256.c"
 #include "modset.c"
 #include <stdio.h>
@@ -12,10 +13,13 @@ static unsigned failures;
 const uint8_t modwerk_base_digest[32] = {1, 2, 3};
 static uint8_t card[2][SET_BYTES];
 static int card_bytes[2];
+static int volatile_busy;
+static unsigned writes;
+int modwerk_runtime_volatile_busy(void) { return volatile_busy; }
 int modwerk_test_file(int op, const char *path, uint8_t *data, unsigned n)
 {
     int which = path[8] == '1';
-    if (op == 1) { memcpy(card[which], data, n); card_bytes[which] = (int)n; return 1; }
+    if (op == 1) { ++writes;memcpy(card[which], data, n); card_bytes[which] = (int)n; return 1; }
     if (!card_bytes[which]) return 0;
     memcpy(data, card[which], (size_t)card_bytes[which]);
     return card_bytes[which];
@@ -60,6 +64,22 @@ int main(void)
     CHECK(modwerk_modset_count == 1);
     modwerk_modset_service();
     CHECK(card_bytes[0] && be32(card[0] + 8) > be32(card[1] + 8));                          /* slot 0, newer */
+    /* Every actual saved-set path refuses while the private journal owns
+     * RAM: staged/accepted trial packages do not mutate the saved baseline,
+     * service/direct store cannot issue even a first write, including when
+     * a preceding baseline save was pending. */
+    uint8_t before_set[SET_BYTES];memcpy(before_set,set,sizeof set);
+    uint8_t before_hash[2][32],digest[32];
+    for(unsigned i=0;i<2;i++){mu_sha256(card[i],(uint32_t)card_bytes[i],digest);memcpy(before_hash[i],digest,32);}
+    unsigned written=writes,generation=modwerk_modset_generation;
+    volatile_busy=1;
+    for(unsigned phase=0;phase<7;phase++) {
+        modwerk_modset_candidate(package[0],48);modwerk_modset_accepted();pending=1;
+        modwerk_modset_service();CHECK(!store(0) && !store(1));
+        CHECK(writes==written && modwerk_modset_generation==generation && !memcmp(before_set,set,sizeof set));
+        for(unsigned i=0;i<2;i++){mu_sha256(card[i],(uint32_t)card_bytes[i],digest);CHECK(!memcmp(before_hash[i],digest,32));}
+    }
+    pending=0;volatile_busy=0;
     /* After a boot: the newest set, installed through the loader. */
     boot(); modwerk_modset_service();
     CHECK(modwerk_modset_result == RESTORED && installed == 1 && ids[0] == 0x3cbedc9cu && entered == 1);

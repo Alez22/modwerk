@@ -22,6 +22,9 @@
 #include "usb_base.h"
 #include "runtime.h"
 #include "boot.h"
+#ifdef MODWERK_SAVED_SET_EXPORT
+#include "saved_set_session.h"
+#endif
 
 #define UNCACHED(p) ((void *)((uintptr_t)(p) + 0x08000000u))
 #define REG(a) (*(volatile uint32_t *)(a))
@@ -78,9 +81,56 @@ static const uint8_t wake_message[4] __attribute__((aligned(4))) = {0xff, 0, 0, 
 
 static struct mu_context controller;
 static uint8_t controller_started;
+#ifdef MODWERK_SAVED_SET_EXPORT
+/* Source-linked BSS reservation: ISR and engine use only its uncached alias. */
+struct msx_session modwerk_saved_set_export __attribute__((aligned(4)));
+#define SAVED_SET ((struct msx_session *)UNCACHED(&modwerk_saved_set_export))
+int modwerk_modset_export_idle(void);
+int modwerk_dsp_export_idle(void);
+int octamod_log_can_flush(void);
+int modwerk_saved_set_busy(void) { return msx_session_active(SAVED_SET); }
+static int saved_set_structural_safe(void)
+{
+    if (receiving || held || (controller_started && controller.phase != MU_NORMAL) ||
+        !modwerk_modset_export_idle() || !modwerk_dsp_export_idle() ||
+        !modwerk_machine_stopped() || REG(0x460d1cb8u) != 1u || REG(0x460e76a0u)) return 0;
+#ifdef MODWERK_RESIDENT_STOCK_HOOKS
+    /* Mandatory board-owned ACK/reset state. No permissive weak default. */
+    int modwerk_stock_hook_export_idle(void);
+    if (!modwerk_stock_hook_export_idle()) return 0;
+#endif
+    return 1;
+}
+int modwerk_saved_set_safe(void)
+{
+    uint32_t lock = modwerk_machine_lock();
+    int safe = msx_session_reading(SAVED_SET) && saved_set_structural_safe() && octamod_log_can_flush();
+    modwerk_machine_unlock(lock);
+    return safe;
+}
+#endif
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+/* Called only while the loader retains the real board stable lock. No new
+ * lock, work, logger flush or transport initialization occurs here. */
+int modwerk_machine_journal_begin_safe(void)
+{
+#ifdef MODWERK_SAVED_SET_EXPORT
+    const struct mv_transport *t = UNCACHED(&transport);
+    return started && !wake_posted && t->resets == t->handled && t->lapses == t->lapses_handled &&
+        !modwerk_saved_set_busy() && saved_set_structural_safe();
+#else
+    return 0;
+#endif
+}
+#endif
 /* A host session is open (an install, a trial, its self-test): dsp.c moves no code meanwhile. */
 int modwerk_upload_busy(void);
-int modwerk_upload_busy(void) { return controller_started && controller.phase != MU_NORMAL; }
+int modwerk_upload_busy(void) {
+#ifdef MODWERK_SAVED_SET_EXPORT
+    if (modwerk_saved_set_busy()) return 1;
+#endif
+    return controller_started && controller.phase != MU_NORMAL;
+}
 
 static void wake(void)
 {
@@ -153,6 +203,12 @@ uint32_t modwerk_ep0_dispatch(void)
 {
     struct mv_transport *t = vendor();
     uint8_t *out = UNCACHED(reply);
+#ifdef MODWERK_SAVED_SET_EXPORT
+    /* The export lease freezes controller mutation before SETUP can reserve
+     * a receiving frame. The completed queued frame also blocks export begin. */
+    if (modwerk_saved_set_busy() && SETUP[0] == MV_SUBMIT_TYPE && SETUP[1] == MV_SUBMIT &&
+        SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5]) return MODWERK_EP0_REFUSE;
+#endif
     struct mv_reply r = mv_setup(t, SETUP);
     if (receiving) { /* mv_setup abandoned it; take it off the queue too. */
         receiving = 0;
@@ -180,7 +236,29 @@ uint32_t modwerk_ep0_dispatch(void)
         modwerk_ep0_reply = out;
         return modwerk_runtime_list(out, SETUP[2], 13u);
     }
+#ifdef MODWERK_SAVED_SET_EXPORT
+    if (r.action == MV_STALL && SETUP[1] >= 31u && SETUP[1] <= 33u) {
+        uint32_t lock = modwerk_machine_lock();
+        int begin_safe = !wake_posted && t->resets == t->handled && t->lapses == t->lapses_handled &&
+                         saved_set_structural_safe();
+        unsigned n = msx_session_request(SAVED_SET, SETUP, out, MODWERK_VENDOR_INTERFACE, begin_safe);
+        modwerk_machine_unlock(lock);
+        if (n) {
+            if (SAVED_SET->file.status == MSX_PENDING) wake();
+            modwerk_ep0_reply = out;
+            return n;
+        }
+        return MODWERK_EP0_REFUSE;
+    }
+#endif
 #ifdef MODWERK_DSP_LOADER
+    /* LOAD: one cached snapshot, no meter request or task message. */
+    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 30 && !SETUP[2] && !SETUP[3] &&
+        SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && SETUP[6] == 48u && !SETUP[7]) {
+        unsigned modwerk_status_load(uint8_t *);
+        modwerk_ep0_reply = out;
+        return modwerk_status_load(out);
+    }
     /* MISSING (0xC1, bRequest 14, wValue the first entry, wLength 316): the modules the project names that are not
      * installed (dsp.c modwerk_dsp_missing_list), so the host can offer them; at most 13 a page, so a host asks on
      * from wValue 13 while a page comes back full (page 0 is the reply from before pages). Read-only. */
@@ -194,6 +272,9 @@ uint32_t modwerk_ep0_dispatch(void)
      * TEST), which the site runs on a trial before it is kept; the record either way (selftest.h). */
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 1u && !SETUP[3] &&
         SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && (SETUP[6] | SETUP[7] << 8) == sizeof modwerk_selftest) {
+#ifdef MODWERK_SAVED_SET_EXPORT
+        if (SETUP[2] && modwerk_saved_set_busy()) return MODWERK_EP0_REFUSE;
+#endif
         if (SETUP[2]) (void)modwerk_selftest_start();
         modwerk_selftest_refresh();
         for (unsigned i = 0; i < sizeof modwerk_selftest; ++i) out[i] = ((const volatile uint8_t *)&modwerk_selftest)[i];
@@ -203,6 +284,9 @@ uint32_t modwerk_ep0_dispatch(void)
 #endif
 #ifdef MODWERK_DEV
     if (r.action == MV_STALL) { /* development bases: KEY and SCREEN (dev.c) */
+#ifdef MODWERK_SAVED_SET_EXPORT
+        if (modwerk_saved_set_busy()) return MODWERK_EP0_REFUSE;
+#endif
         uint32_t modwerk_dev_request(const uint8_t *, const uint8_t **, uint8_t *);
         uint32_t n = modwerk_dev_request(SETUP, &modwerk_ep0_reply, out);
         if (n) return n;
@@ -282,6 +366,9 @@ void modwerk_ep0_bus_reset(void)
 {
     struct mv_transport *t = vendor();
     ++resets;
+#ifdef MODWERK_SAVED_SET_EXPORT
+    msx_session_reset(SAVED_SET); /* running latch remains held until engine I/O returns */
+#endif
     if (receiving) {
         receiving = 0;
         flush_receive();
@@ -295,6 +382,9 @@ void modwerk_ep0_bus_reset(void)
 void modwerk_ep0_tick(void);
 void modwerk_ep0_tick(void)
 {
+#ifdef MODWERK_SAVED_SET_EXPORT
+    msx_session_tick(SAVED_SET); /* only export traffic renews this independent lease */
+#endif
     /* A host's first request after 10 s of quiet: the unit says a host is linked (owner, 11 October 2026). */
     static uint8_t heard;
     static uint32_t quiet = HOST_TIMEOUT_TICKS;
@@ -356,6 +446,15 @@ static int settled(void)
 }
 void modwerk_engine_idle(void)
 {
+#ifdef MODWERK_SAVED_SET_EXPORT
+    /* Engine only; no ISR card work. Reader rechecks the complete gate before
+     * each bounded sector and after close. Interrupted publication is fenced. */
+    if (modwerk_saved_set_busy()) {
+        wake_posted = 0; /* consume the coalesced export wake; release can queue a fresh operation */
+        msx_session_service(SAVED_SET, modwerk_saved_set_safe, modwerk_saved_set_read, mu_sha256);
+        return;
+    }
+#endif
     modwerk_modset_service();
     if (!wake_posted) return;
     wake_posted = 0;

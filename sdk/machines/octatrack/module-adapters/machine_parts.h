@@ -3,8 +3,17 @@
 #define MODWERK_MACHINE_PARTS_H
 #include <stdint.h>
 typedef int (*machine_part_read)(void *, uint32_t, uint8_t *, unsigned);
-/* 0 no dropped member named, 1 retained, 2 unknown/unreadable.
+enum machine_part_result {
+    MACHINE_PART_CLEAR=0, MACHINE_PART_RETAINED=1, MACHINE_PART_UNKNOWN=2,
+    MACHINE_PART_FM_LEG=3, MACHINE_PART_FM_MARKER=4
+};
+/* Explicit retained-layout reasons distinguish signed ownership from FM's
+ * ordinary-track LEG byte and legacy FLEX sample-name marker. LEG may be
+ * indistinguishable from a saved stock TRIG value, including the master;
+ * conservative beta removal refuses rather than guessing its meaning.
  * Four working and four saved RAM Parts plus their eight SRAM mirrors.
- * These are exact 1.40C layouts, not a claim that disk-only banks were read. */
+ * RAM accepts either bank alias and preserves it for reads; SRAM addresses
+ * stay fixed. This is a removal check, not an installation/coexistence gate.
+ * These exact 1.40C layouts do not read disk-only banks. */
 int machine_part_lifetime(machine_part_read, void *, uint32_t bank, unsigned dropped);
 #endif

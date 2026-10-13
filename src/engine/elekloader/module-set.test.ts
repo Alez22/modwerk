@@ -31,6 +31,21 @@ describe('the site’s runtime packages', () => {
 })
 
 describe('preparing a module set', () => {
+  it('requires exact observed base identity before fetching a bound forward or Undo package', async () => {
+    const requiredBase = 'a'.repeat(64), entry = { ...manifest.packages[0], requiredBase }
+    const catalogue = createRuntimeCatalogue({ packages: [entry] }), fetched = vi.fn(load)
+    const target = { name: 'Bound', moduleIds: ['everb'] }, current = { ...empty, moduleIds: ['everb'] }
+    for (const base of [undefined, 'b'.repeat(64)]) {
+      await expect(catalogue.prepare(target, empty, fetched, undefined, base)).rejects.toThrow('exact Modwerk base')
+      await expect(catalogue.prepare({ name: 'Remove', moduleIds: [] }, current, fetched, undefined, base)).rejects.toThrow('exact Modwerk base')
+      expect(catalogue.review(target, empty, undefined, base).problem?.message).toContain('exact Modwerk base')
+    }
+    expect(fetched).not.toHaveBeenCalled()
+    expect((await catalogue.prepare(target, empty, fetched, undefined, requiredBase)).changes).toHaveLength(1)
+    expect((await catalogue.prepare({ name: 'Remove', moduleIds: [] }, current, fetched, undefined, requiredBase)).changes[0].undo).toEqual(file(entry.path))
+    expect(() => createRuntimeCatalogue({ packages: [{ ...entry, requiredBase: 'not-an-identity' }] })).toThrow('inconsistent')
+    expect(() => createRuntimeCatalogue({ packages: [{ ...entry, requiredBase: [requiredBase] as unknown as string }] })).toThrow('inconsistent')
+  })
   it('removes first, then installs, each with the package that undoes it', async () => {
     const current = inventoryFrom([{ handle: 27, layout: 1, module: '873d83cc', name: 'E-Verb' }, { handle: 0xff, layout: 0, module: '0000002a', name: '' }])
     expect(current).toEqual({ moduleIds: ['everb', '0000002a'], removedStockFx: [] })

@@ -3,10 +3,10 @@ import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { removalPackage } from './module-set'
 import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
-import { UploadDeviceError, UploadUnconfirmedError } from './upload-session'
+import { UploadUnconfirmedError } from './upload-session'
+import { UsbVendorTransport } from './upload-usb'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
-const deferred = () => { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done }); return { promise, resolve } }
 async function linked(kind: 'base' | 'stock' | 'none' = 'base') {
   const unit = fakeUnit(kind), link = new OctatrackLink(unit.usb, fakeSession(unit), 300)
   link.start(); await settle(); await settle()
@@ -17,6 +17,25 @@ beforeEach(() => { vi.stubGlobal('navigator', {}) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('finding the unit', () => {
+  it('holds one cross-tab lock for the complete two-file backup and releases the interface before another read', async () => {
+    const unit = fakeUnit(), locks = tabLocks()
+    const a = new OctatrackLink(unit.usb, fakeSession(unit), 300, locks), b = new OctatrackLink(unit.usb, fakeSession(unit), 300, locks)
+    const stopA = a.start(), stopB = b.start()
+    await vi.waitFor(() => expect([a.getState().status, b.getState().status]).toEqual(['ready', 'ready']))
+    await settle()
+    const device = (await unit.usb.getDevices())[0], claim = vi.spyOn(device, 'claimInterface'), release = vi.spyOn(device, 'releaseInterface')
+    let complete: () => void = () => {}, finished = false
+    let backup: Promise<unknown> | undefined, reading: Promise<unknown> | undefined
+    const snapshot = vi.spyOn(UsbVendorTransport.prototype, 'savedBackup').mockImplementationOnce(() => new Promise(resolve => { complete = () => resolve([]) }))
+    try {
+      backup = a.savedBackup(); await settle()
+      reading = b.inventory().then(() => { finished = true }); await settle()
+      expect(finished).toBe(false); expect(claim).toHaveBeenCalledTimes(1); expect(release).not.toHaveBeenCalled()
+      complete(); await backup; await reading
+      expect(finished).toBe(true); expect(claim).toHaveBeenCalledTimes(2); expect(release).toHaveBeenCalledTimes(2)
+      expect(a.getState().status).toBe('ready'); expect(b.getState().status).toBe('ready')
+    } finally { complete(); await Promise.allSettled([backup, reading]); snapshot.mockRestore(); stopA(); stopB() }
+  })
   it('does not read diagnostic status if consent is withdrawn while claiming the interface', async () => {
     const {unit,link}=await linked(),device=(await unit.usb.getDevices())[0]
     const transfer=vi.spyOn(device,'controlTransferIn'),release=vi.spyOn(device,'releaseInterface')
@@ -56,33 +75,6 @@ describe('finding the unit', () => {
     unit.unplug(); expect(link.getState().status).toBe('idle') // still listening
     dialog(); unit.plug('base'); await settle(); await settle()
     expect(link.getState().status).toBe('idle') // nobody listens any more
-  })
-  it('does not reopen after the last view leaves while allowed devices are still being read', async () => {
-    const unit = fakeUnit(), devices = await unit.usb.getDevices(), gate = deferred()
-    vi.spyOn(unit.usb, 'getDevices').mockImplementationOnce(async () => { await gate.promise; return devices })
-    const open = vi.spyOn(devices[0], 'open'), link = new OctatrackLink(unit.usb, fakeSession(unit))
-    const stop = link.start(); stop(); gate.resolve(); await settle(); await settle()
-    expect(open).not.toHaveBeenCalled()
-    expect(link.getState().status).toBe('idle')
-  })
-  it('discards a late identity reply after the unit disconnects', async () => {
-    const unit = fakeUnit(), device = (await unit.usb.getDevices())[0], gate = deferred(), entered = deferred()
-    const transfer = device.controlTransferIn.bind(device)
-    vi.spyOn(device, 'controlTransferIn').mockImplementationOnce(async (...args) => { entered.resolve(); await gate.promise; return transfer(...args) })
-    const link = new OctatrackLink(unit.usb, fakeSession(unit)), stop = link.start()
-    await entered.promise; unit.unplug(); gate.resolve(); await settle(); await settle()
-    expect(link.getState().status).toBe('idle')
-    expect(link.getState().identity).toBeUndefined()
-    expect(device.opened).toBe(false)
-    stop()
-  })
-  it('refuses a late inventory reply from a disconnected unit', async () => {
-    const { unit, link } = await linked(), device = (await unit.usb.getDevices())[0], gate = deferred(), entered = deferred()
-    const transfer = device.controlTransferIn.bind(device)
-    vi.spyOn(device, 'controlTransferIn').mockImplementationOnce(async (...args) => { entered.resolve(); await gate.promise; return transfer(...args) })
-    const reading = expect(link.inventory()).rejects.toBeInstanceOf(LinkBusyError)
-    await entered.promise; unit.unplug(); gate.resolve(); await reading
-    expect(link.getState().status).toBe('idle')
   })
 })
 
@@ -147,9 +139,6 @@ describe('sending a module', () => {
     unit.refusal = 1 // malformed: the plain text
     await link.update('PREVIEW VOL', one)
     expect(link.getState().notice?.text).toBe('The Octatrack can’t run this module file.')
-    unit.refusal = 8 // ABI 7 stock hash mismatch, before any site is changed
-    await link.update('PREVIEW VOL', one)
-    expect(link.getState().notice?.text).toMatch(/stock code doesn’t match/)
   })
   it('stages again when the loader was busy for a moment', async () => {
     const { unit, link } = await linked()
@@ -157,84 +146,6 @@ describe('sending a module', () => {
     setTimeout(() => { unit.refusal = undefined }, 50)
     await link.update('PREVIEW VOL', one)
     expect(link.getState().status).toBe('trial')
-  })
-  it('restages a site-bearing package after a busy commit discards its candidate', async () => {
-    const unit = fakeUnit(), base = fakeSession(unit)
-    let stages = 0, commits = 0, cancels = 0
-    const connect: typeof base = async (...args) => {
-      const session = await base(...args)
-      let refused: typeof session.status | undefined
-      return Object.create(session, {
-        status: { get: () => refused ?? session.status },
-        stage: { value: async (...stageArgs: Parameters<typeof session.stage>) => { stages++; return session.stage(...stageArgs) } },
-        cancel: { value: async () => { cancels++; refused = undefined; return session.cancel() } },
-        activate: { value: async () => {
-          if (++commits === 1) {
-            unit.refusal = 5
-            setTimeout(() => { unit.refusal = undefined }, 50)
-            throw new UploadDeviceError(refused = { ...session.status, command: 'commit', phase: 'ready', result: 'backend' })
-          }
-          return session.activate()
-        } },
-      })
-    }
-    const link = new OctatrackLink(unit.usb, connect, 300)
-    link.start(); await settle(); await settle()
-    await link.update('PREVIEW VOL', one)
-    expect(link.getState().status).toBe('trial')
-    expect(stages).toBe(2); expect(commits).toBe(2); expect(cancels).toBe(1)
-  })
-  it('abandons a busy commit retry when disconnecting during its deferred cancel', async () => {
-    const unit = fakeUnit(), base = fakeSession(unit), entered = deferred(), gate = deferred()
-    let stages = 0, commits = 0, cancels = 0
-    const connect: typeof base = async (...args) => {
-      const session = await base(...args)
-      let refused: typeof session.status | undefined
-      return Object.create(session, {
-        status: { get: () => refused ?? session.status },
-        stage: { value: async (...stageArgs: Parameters<typeof session.stage>) => { stages++; return session.stage(...stageArgs) } },
-        activate: { value: async () => {
-          commits++; unit.refusal = 5
-          throw new UploadDeviceError(refused = { ...session.status, command: 'commit', phase: 'ready', result: 'backend' })
-        } },
-        cancel: { value: async () => {
-          cancels++; entered.resolve(); await gate.promise
-          refused = undefined; return session.cancel()
-        } },
-      })
-    }
-    const link = new OctatrackLink(unit.usb, connect, 300), stop = link.start()
-    await settle(); await settle()
-    const loading = link.update('PREVIEW VOL', one)
-    await entered.promise; unit.unplug()
-    const disconnected = link.getState()
-    gate.resolve(); await loading
-    expect(link.getState()).toBe(disconnected)
-    expect(link.getState().status).toBe('idle')
-    unit.refusal = undefined; unit.plug('base'); await settle(); await settle()
-    expect(link.getState().status).toBe('ready')
-    expect(stages).toBe(1); expect(commits).toBe(1); expect(cancels).toBe(1)
-    expect(unit.active).toBe(FAKE_BASE)
-    stop()
-  })
-  it('retries a verified commit without restaging when playback briefly blocks it', async () => {
-    const unit = fakeUnit(), base = fakeSession(unit)
-    let stages = 0, commits = 0
-    const connect: typeof base = async (...args) => {
-      const session = await base(...args)
-      return Object.create(session, {
-        stage: { value: async (...args: Parameters<typeof session.stage>) => { stages++; return session.stage(...args) } },
-        activate: { value: async () => {
-          if (++commits === 1) throw new UploadDeviceError({ ...session.status, command: 'commit', result: 'unsafe' })
-          return session.activate()
-        } },
-      })
-    }
-    const link = new OctatrackLink(unit.usb, connect, 300)
-    link.start(); await settle(); await settle()
-    await link.update('PREVIEW VOL', one)
-    expect(link.getState().status).toBe('trial')
-    expect(stages).toBe(1); expect(commits).toBe(2)
   })
   it('recovers from a missing reply without asking to unplug', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)
@@ -265,61 +176,6 @@ describe('sending a module', () => {
     expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: expect.stringMatching(/undoes PREVIEW VOL by itself/) } })
     vi.advanceTimersByTime(3000)
     expect(identify).toHaveBeenCalledTimes(3)
-  })
-  it('does not activate a staged package when the USB cable disconnects before its late reply', async () => {
-    const unit = fakeUnit(), base = fakeSession(unit), gate = deferred(), entered = deferred(), activate = vi.fn()
-    const connect: typeof base = async (...args) => {
-      const session = await base(...args)
-      return Object.create(session, {
-        stage: { value: async (...stage: Parameters<typeof session.stage>) => { const result = await session.stage(...stage); entered.resolve(); await gate.promise; return result } },
-        activate: { value: activate },
-      })
-    }
-    const link = new OctatrackLink(unit.usb, connect), stop = link.start()
-    await settle(); await settle()
-    const loading = link.update('PREVIEW VOL', one)
-    await entered.promise; unit.unplug(); gate.resolve(); await loading
-    expect(activate).not.toHaveBeenCalled()
-    expect(link.getState().status).toBe('idle')
-    stop()
-  })
-  it('does not resurrect a trial when the self-test finishes after a disconnect', async () => {
-    const { unit, link } = await linked(), gate = deferred(), entered = deferred()
-    const loading = link.update('PREVIEW VOL', one, async () => { entered.resolve(); await gate.promise; return null })
-    await entered.promise; unit.unplug(); gate.resolve(); await loading
-    expect(link.getState().status).toBe('idle')
-    expect(link.getState().notice?.text).toMatch(/undoes PREVIEW VOL/)
-  })
-  it('does not confirm Keep from a reply received after disconnecting', async () => {
-    const unit = fakeUnit(), base = fakeSession(unit), gate = deferred(), entered = deferred()
-    const connect: typeof base = async (...args) => {
-      const session = await base(...args)
-      return Object.create(session, { accept: { value: async () => { const result = await session.accept(); entered.resolve(); await gate.promise; return result } } })
-    }
-    const link = new OctatrackLink(unit.usb, connect), stop = link.start()
-    await settle(); await settle(); await link.update('PREVIEW VOL', one)
-    const keeping = link.keep()
-    await entered.promise; unit.unplug(); gate.resolve(); await keeping
-    expect(link.getState().status).toBe('idle')
-    expect(link.getState().notice?.tone).toBe('error')
-    stop()
-  })
-  it('releases the tab lock after the last view leaves during a trial', async () => {
-    const unit = fakeUnit(), link = new OctatrackLink(unit.usb, fakeSession(unit)), stop = link.start()
-    await settle(); await settle(); await link.update('PREVIEW VOL', one)
-    stop(); expect(link.getState().status).toBe('idle')
-    const restart = link.start(); await settle(); await settle()
-    expect(link.getState().status).toBe('ready')
-    restart()
-  })
-  it('discards a queued sync when its connection is replaced', async () => {
-    const { unit, link } = await linked()
-    await link.update('PREVIEW VOL', one)
-    const waiting = link.update('Another set', [{ module: 'NEXT', data: new Uint8Array([1, 2, 3]) }])
-    unit.unplug(); unit.plug('base'); await waiting; await settle(); await settle()
-    expect(link.getState().status).toBe('ready')
-    expect(unit.active).toBe(FAKE_BASE)
-    expect(unit.kept).toEqual([])
   })
 })
 

@@ -1,5 +1,8 @@
 # Application changelog
 
+- Private resident preparation keeps the exact guarded authored COMP bridge literal when recovering surrounding original-stock DSP fills; unknown word changes refuse. Core B reconstructs its independently owned stock buffers from core A's read-only packed words and exact source-guarded deltas during the existing unpack. Complete native/browser equality and unchanged RAM boot bounds require exact candidate proof; controller admission and physical timing remain unqualified.
+- Private volatile journal preparation retains baseline and candidate allocations through pending DSP work, unknown publication and confirmed rollback. All Modwerk SET persistence paths refuse while its latch is held. Journal CF publication does not start the legacy DSP callback; Begin additionally requires the actual board upload, saved-set export, modset and DSP/controller idle conjunction under the stable lock. The production transition backend, volatile protocol capability and hardware batch qualification remain closed.
+
 ## 13 October 2026
 
 - Reconciled the staged ABI 8 compatibility base with current main and generated USB capability requirements from actual package headers. Preview Vol and Repitch now pass the browser’s intact-package preflight on a capable base; older bases are refused before package fetch or staging. The candidate and additional packages still require exact hardware requalification; unported modules and machine-group admission remain unavailable.

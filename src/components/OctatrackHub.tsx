@@ -51,7 +51,7 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
     if (next === undefined) return
     event.preventDefault(); onSelect(sets[next].id); options.current[next]?.focus()
   }
-  const review = connected && inventory && selected ? moduleSetReview(selected, inventory, identity?.capabilities) : undefined
+  const review = connected && inventory && selected ? moduleSetReview(selected, inventory, identity?.capabilities, identity?.base) : undefined
   const changes = review?.changes, updates = review?.updates ?? []
   const needsBase = review?.problem instanceof BaseUpdateRequired
   const when = last && new Date(last.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })

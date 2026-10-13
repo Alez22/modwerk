@@ -4,6 +4,7 @@
  * Module code never runs. */
 #define MODWERK_RUNTIME_REFERENCE_EXTERNAL
 #define MODWERK_RUNTIME_METADATA_EXTERNAL
+#define MODWERK_RUNTIME_JOURNAL_EXTERNAL
 #include "../loader.c"
 #include "../../upload/sha256.c"
 #include <stdio.h>
@@ -12,7 +13,7 @@
 #define STOCK 0x1000u
 static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
-static uint8_t stock[256], original[256], paused[64];
+static uint8_t stock[256], original[256], paused[64], saved_registers[64];
 static int stopped = 1, masked, locked, flushed, unknown;
 int modwerk_machine_stopped(void) { return stopped; }
 void *modwerk_machine_uncached(void *p) { return p; }
@@ -24,12 +25,14 @@ uint32_t modwerk_machine_mask(void) { CHECK(!masked && locked); masked = 1; retu
 void modwerk_machine_unmask(uint32_t sr) { CHECK(masked && sr == 7); masked = 0; }
 uint32_t modwerk_machine_lock(void) { CHECK(!locked && !masked); locked = 1; return 4; }
 void modwerk_machine_unlock(uint32_t sr) { CHECK(locked && !masked && sr == 4); locked = 0; }
-unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max)
+unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max, const struct runtime_context *context)
 {
+    (void)context;
     CHECK(locked);
     if (unknown) return max + 1u;
     span[0] = (struct runtime_span){paused, paused + sizeof paused};
-    return 1;
+    span[1] = (struct runtime_span){saved_registers, saved_registers + sizeof saved_registers};
+    return 2;
 }
 
 /* DSP glue: refuses with `dsp_why` (masked or not) and records the last switch. */
@@ -47,14 +50,62 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
     CHECK(locked && !masked); dsp_from = *from; dsp_to = *to; ++dsp_switches; /* no task runs; frames may */
 }
 
+static uint32_t alias_image;
 uint32_t modwerk_machine_reference(uint32_t value)
-{ return value >= 0x40010000u && value < 0x40010040u ? value + 0x08000000u : value; }
-static int metadata_allow, metadata_why;
-int modwerk_machine_metadata_admit(const struct runtime_dsp *from, const struct runtime_dsp *to)
 {
+    if (alias_image && value >= 0x48010000u && value < 0x48010040u) return alias_image + value - 0x48010000u;
+    if (value >= 0x40010000u && value < 0x40010040u) return alias_image ? alias_image + value - 0x40010000u : value + 0x08000000u;
+    return value;
+}
+static int metadata_allow, metadata_why;
+int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
+    const struct runtime_context *context,enum runtime_metadata_operation operation)
+{
+    (void)context;(void)operation;
     return (from->flags | to->flags) & RUNTIME_GROUP_METADATA ? (metadata_allow ? metadata_why : RUNTIME_MALFORMED) : RUNTIME_OK;
 }
 
+/* Trusted synthetic adapter: exercises the actual loader journal; it is not
+ * a DSP driver, resource census or physical ACK qualification. */
+static int journal_enabled,journal_begin_safe,journal_admitted,journal_roots=1,journal_commit=1;
+static enum runtime_journal_observation journal_observed=RJ_READY;
+static uint8_t journal_masks[3];
+static unsigned journal_jobs;
+int modwerk_machine_journal_enabled(void) { CHECK(locked);return journal_enabled; }
+int modwerk_machine_journal_begin_safe(void) { CHECK(locked);return journal_begin_safe; }
+int modwerk_machine_journal_admit(const struct runtime_journal_view *rows,unsigned count)
+{
+    CHECK(locked && count && count<=RUNTIME_JOURNAL_ROWS);
+    for(unsigned i=0;i<count;i++) {
+        CHECK(!rows[i].before.generation || modwerk_runtime_owner_valid(&rows[i].before));
+        CHECK(!rows[i].after.generation || modwerk_runtime_owner_valid(&rows[i].after));
+        for(unsigned j=0;j<i;j++) CHECK(rows[i].position!=rows[j].position);
+    }
+    return journal_admitted;
+}
+enum runtime_journal_observation modwerk_machine_journal_transition(const struct runtime_journal_view *row,int reverse,uint8_t masks[3])
+{
+    (void)reverse;CHECK(locked);
+    CHECK(!row->before.generation || modwerk_runtime_owner_valid(&row->before));
+    CHECK(!row->after.generation || modwerk_runtime_owner_valid(&row->after));
+    memcpy(masks,journal_masks,3);++journal_jobs;return journal_observed;
+}
+int modwerk_machine_journal_committed(const struct runtime_journal_view *row,int reverse)
+{
+    CHECK(locked && !masked && row->position<RUNTIME_MODULES);
+    const struct runtime_dsp *actual=dsp_of(live[row->position]);
+    const struct runtime_dsp *expected=reverse?row->from:row->to;
+    CHECK(actual==expected); /* final live pointer, after the site writes */
+    if(live[row->position]) {
+        for(unsigned i=0;i<live[row->position]->sites;i++) {
+            const struct runtime_site *site=&live[row->position]->site[i];
+            CHECK(!memcmp(stock+site->address-STOCK,site->code,site->length));
+        }
+    }
+    return journal_commit;
+}
+int modwerk_machine_journal_roots_clear(const struct runtime_journal_view *row)
+{ (void)row;CHECK(locked);return journal_roots; }
 static const struct mu_backend *b = &modwerk_runtime_backend;
 static uint8_t p[RUNTIME_PACKAGE_BYTES + 64];
 static uint32_t n;
@@ -151,7 +202,9 @@ int main(void)
     alias_group.dsp.flags = RUNTIME_GROUP_METADATA; alias_group.dsp.image = (const uint8_t *)(uintptr_t)0x48010000u;
     alias_group.dsp.image_bytes = 64;
     CHECK(retiring(&alias_group, 0x48010020u) && retiring(&alias_group, 0x40010020u));
-    CHECK(!retiring(&alias_group, 0x40010008u) && !retiring(&alias_group, 0x48010040u));
+    CHECK(retiring(&alias_group, 0x40010008u) && retiring(&alias_group, 0x48010008u));
+    CHECK(retiring(&alias_group, 0x4001003fu) && retiring(&alias_group, 0x4801003fu));
+    CHECK(!retiring(&alias_group, 0x40010007u) && !retiring(&alias_group, 0x48010040u));
 
     /* Refusals before any memory is taken. */
     for (uint32_t bad = 0; bad < 14; ++bad) {
@@ -520,19 +573,159 @@ int main(void)
     begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
     CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_IN_USE && modwerk_runtime_module(0) == group);
     metadata_why = 0;
-    CHECK(b->prepare(0, p, n));
-    put32(paused, (uint32_t)(uintptr_t)group->dsp.image + 20u);
-    CHECK(b->publish(0) == MU_UNCHANGED && modwerk_runtime_module(0) == group && modwerk_runtime_free(0) == free);
-    CHECK(b->discard(0)); memset(paused, 0, sizeof paused);
+    alias_image = (uint32_t)(uintptr_t)group->dsp.image;
+    /* Include the first byte after metadata, the private builder's padded
+     * code entry, the last data byte and an interior pointer in stack/register
+     * spans, through each RAM alias and the host's actual image address. */
+    const uint32_t group_offsets[] = {8u, 16u, 20u, 31u};
+    for (unsigned context = 0; context < 2; ++context)
+        for (unsigned alias = 0; alias < 3; ++alias)
+            for (unsigned offset = 0; offset < sizeof group_offsets / sizeof group_offsets[0]; ++offset) {
+                uint8_t *held = context ? saved_registers : paused;
+                uint32_t base = alias == 0 ? alias_image : alias == 1 ? 0x40010000u : 0x48010000u;
+                put32(held + 2u, base + group_offsets[offset]); /* packed, only two-byte aligned */
+                CHECK(b->prepare(0, p, n) && b->publish(0) == MU_UNCHANGED);
+                CHECK(modwerk_runtime_refusal() == RUNTIME_BUSY && modwerk_runtime_module(0) == group);
+                CHECK(modwerk_runtime_free(0) == free && !memcmp(stock, original, sizeof stock));
+                CHECK(b->discard(0)); memset(held, 0, 64);
+            }
+    unknown = 1;
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_UNCHANGED && b->discard(0));
+    CHECK(modwerk_runtime_module(0) == group && modwerk_runtime_free(0) == free);
+    unknown = 0; alias_image = 0;
     CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
     CHECK(!modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
     metadata_allow = 0;
+
+    /* Real reconstruction issues a board generation in a separate immutable
+     * ledger. Snapshots confer no publication/readiness; reused addresses and
+     * changed pool metadata cannot manufacture an old association. */
+    id = 91; begin(32, 16, 0, 0, 0, 0, 0x91);
+    CHECK(b->prepare(0, p, n) && !modwerk_runtime_active());
+    struct runtime_owner old_owner, current_owner, untouched_owner;
+    memset(&untouched_owner, 0xa5, sizeof untouched_owner);
+    current_owner = untouched_owner;
+    CHECK(!modwerk_runtime_owner_snapshot(p, &current_owner) && !memcmp(&current_owner, &untouched_owner, sizeof current_owner));
+    CHECK(modwerk_runtime_owner_snapshot(candidate->dsp.image, &old_owner));
+    CHECK(old_owner.generation && old_owner.module == 91 && old_owner.owned_extent == (uintptr_t)candidate);
+    CHECK(old_owner.extent_bytes == candidate->size && old_owner.image_bytes == 32 && modwerk_runtime_owner_valid(&old_owner));
+    CHECK(b->discard(0) && !modwerk_runtime_owner_valid(&old_owner));
+    id = 92; begin(32, 16, 0, 0, 0, 0, 0x92);
+    CHECK(b->prepare(0, p, n) && modwerk_runtime_owner_snapshot(candidate->dsp.image, &current_owner));
+    CHECK(current_owner.owned_extent == old_owner.owned_extent && current_owner.generation > old_owner.generation);
+    CHECK(!modwerk_runtime_owner_valid(&old_owner) && modwerk_runtime_owner_valid(&current_owner));
+    for (unsigned bad = 0; bad < 7; ++bad) {
+        struct runtime_owner wrong = current_owner;
+        if (bad == 0) wrong.generation = old_owner.generation;
+        if (bad == 1) ++wrong.module;
+        if (bad == 2) ++wrong.owned_extent;
+        if (bad == 3) ++wrong.extent_bytes;
+        if (bad == 4) ++wrong.image_offset;
+        if (bad == 5) ++wrong.image_bytes;
+        if (bad == 6) wrong.package_sha256[0] ^= 1;
+        CHECK(!modwerk_runtime_owner_valid(&wrong));
+    }
+    candidate->dsp.package_sha256[0] ^= 1;
+    old_owner = untouched_owner;
+    CHECK(!modwerk_runtime_owner_valid(&current_owner) && !modwerk_runtime_owner_snapshot(candidate->dsp.image, &old_owner));
+    CHECK(!memcmp(&old_owner, &untouched_owner, sizeof old_owner));
+    candidate->dsp.package_sha256[0] ^= 1;
+    CHECK(modwerk_runtime_owner_valid(&current_owner));
+    CHECK(b->publish(0) == MU_APPLIED && b->retire(0) && modwerk_runtime_owner_valid(&current_owner));
+    uint32_t saved_generation = owner_generation;
+    owner_generation = UINT32_MAX; id = 93; begin(32, 0, 0, 0, 0, 0, 0x93);
+    free = modwerk_runtime_free(0);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_FULL);
+    CHECK(owner_generation == UINT32_MAX && modwerk_runtime_free(0) == free && modwerk_runtime_active() == 1);
+    id = 92; begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    CHECK(!modwerk_runtime_owner_valid(&current_owner) && !modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
+    owner_generation = saved_generation;
 
     /* Activation only while nothing plays or records. */
     stopped = 0;
     CHECK(!b->enter(0) && !b->safe(0));
     stopped = 1;
     CHECK(b->enter(0) && b->safe(0) && b->leave(0) && !b->safe(0) && !masked && !locked);
+    /* The real pool keeps the whole baseline and staged candidates while
+     * a synthetic adapter pauses, partially ACKs, quarantines and reverses. */
+    id=111;begin(32,0,0,0,0,1,0x11);site(STOCK+32,6);
+    CHECK(b->enter(0) && b->prepare(0,p,n) && b->publish(0)==MU_APPLIED && b->retire(0) && b->leave(0));
+    id=112;begin(32,0,0,0,0,1,0x12);site(STOCK+64,6);
+    CHECK(b->enter(0) && b->prepare(0,p,n) && b->publish(0)==MU_APPLIED && b->retire(0) && b->leave(0));
+    uint32_t baseline_free=modwerk_runtime_free(0);const struct runtime_module *baseline0=live[0],*baseline1=live[1];
+    uint8_t baseline_stock[sizeof stock];memcpy(baseline_stock,stock,sizeof stock);
+    CHECK(modwerk_runtime_journal_begin()==RJ_REFUSED && !modwerk_runtime_volatile_busy());
+    journal_enabled=1;
+    CHECK(modwerk_runtime_journal_begin()==RJ_REFUSED && !modwerk_runtime_volatile_busy());
+    journal_begin_safe=-1;CHECK(modwerk_runtime_journal_begin()==RJ_REFUSED && !modwerk_runtime_volatile_busy());
+    journal_begin_safe=2;CHECK(modwerk_runtime_journal_begin()==RJ_REFUSED && !modwerk_runtime_volatile_busy());
+    journal_begin_safe=1;CHECK(modwerk_runtime_journal_begin()==RJ_OK && modwerk_runtime_volatile_busy());
+    int baseline_switches=dsp_switches;
+    CHECK(!b->enter(0) && !b->leave(0) && !b->discard(0) && !b->retire(0));
+    id=111;begin(64,0,0,0,0,1,0x21);site(STOCK+32,6);
+    CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+    uint32_t staged_free=modwerk_runtime_free(0);
+    CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_REFUSED && modwerk_runtime_free(0)==staged_free);
+    id=113;begin(64,0,0,0,0,1,0x23);site(STOCK+96,6);
+    CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK && journal.row[0].position!=journal.row[1].position);
+    struct runtime_owner staged_owner;CHECK(modwerk_runtime_owner_snapshot(journal.row[0].after->dsp.image,&staged_owner));
+    id=114;begin(64,0,0,0,0,1,0x24);site(STOCK+96,6);
+    CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_REFUSED && refusal==RUNTIME_CONFLICT && journal.progress.records==2);
+    reclaim(0);CHECK(modwerk_runtime_owner_valid(&staged_owner) && live[0]==baseline0 && live[1]==baseline1);
+    CHECK(modwerk_runtime_journal_verify()==RJ_REFUSED);
+    journal_admitted=1;CHECK(modwerk_runtime_journal_verify()==RJ_OK && modwerk_runtime_journal_activate()==RJ_PENDING);
+    journal_observed=RJ_WAIT;journal_masks[0]=3;journal_masks[1]=1;journal_masks[2]=1;
+    CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && !journal.progress.published && live[0]==baseline0 && !memcmp(stock,baseline_stock,sizeof stock));
+    staged_free=modwerk_runtime_free(0);CHECK(modwerk_runtime_journal_abort()==RJ_PENDING);
+    journal_masks[0]=1;journal_masks[2]=0;CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_free(0)==staged_free);
+    journal_observed=RJ_READY;journal_masks[2]=1;CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING);
+    journal_roots=0;CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_free(0)==staged_free);
+    journal_roots=1;CHECK(modwerk_runtime_journal_step(0)==RJ_OK && !modwerk_runtime_volatile_busy() && !modwerk_runtime_owner_valid(&staged_owner));
+    CHECK(modwerk_runtime_free(0)==baseline_free && live[0]==baseline0 && live[1]==baseline1 && !memcmp(stock,baseline_stock,sizeof stock));
+    /* Two actual CF publications, then reverse order and exact rollback. */
+    CHECK(modwerk_runtime_journal_begin()==RJ_OK);
+    id=111;begin(64,0,0,0,0,1,0x31);site(STOCK+32,6);CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+    id=113;begin(64,0,0,0,0,1,0x33);site(STOCK+96,6);CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+    CHECK(modwerk_runtime_journal_verify()==RJ_OK && modwerk_runtime_journal_activate()==RJ_PENDING);
+    journal_masks[0]=journal_masks[1]=journal_masks[2]=3;
+    CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && journal.progress.published==1);
+    CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && journal.progress.published==2);
+    CHECK(modwerk_runtime_journal_step(0)==RJ_OK && journal.progress.phase==RJ_TRIAL && modwerk_runtime_active()==3);
+    reclaim(0);CHECK(modwerk_runtime_owner_valid(&owner_identity[0]) && reachable(baseline0));
+    CHECK(modwerk_runtime_journal_abort()==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_PENDING && journal.progress.published==1);
+    CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_OK);
+    CHECK(modwerk_runtime_free(0)==baseline_free && live[0]==baseline0 && live[1]==baseline1 && !memcmp(stock,baseline_stock,sizeof stock));
+    /* A missing CF commit observation keeps both actual generations after
+     * publication; it cannot become a successful trial or reclaim either. */
+    CHECK(modwerk_runtime_journal_begin()==RJ_OK);
+    id=111;begin(64,0,0,0,0,1,0x39);site(STOCK+32,6);CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+    CHECK(modwerk_runtime_owner_snapshot(journal.row[0].after->dsp.image,&staged_owner));
+    CHECK(modwerk_runtime_journal_verify()==RJ_OK && modwerk_runtime_journal_activate()==RJ_PENDING);
+    journal_commit=0;CHECK(modwerk_runtime_journal_step(0)==RJ_UNCERTAIN && journal.progress.published==1 && journal.progress.phase==RJ_QUARANTINE);
+    staged_free=modwerk_runtime_free(0);reclaim(0);
+    CHECK(live[0]==journal.row[0].after && reachable(baseline0) && modwerk_runtime_owner_valid(&staged_owner));
+    CHECK(modwerk_runtime_free(0)==staged_free && !b->discard(0) && !b->retire(0));
+    journal_commit=1;CHECK(modwerk_runtime_journal_abort()==RJ_PENDING);
+    CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_OK);
+    CHECK(modwerk_runtime_free(0)==baseline_free && !modwerk_runtime_owner_valid(&staged_owner) && !memcmp(stock,baseline_stock,sizeof stock));
+    /* Unknown work cannot discard/reclaim; stale generation never calls the
+     * backend. Exact reverse and roots proof are required for recovery. */
+    CHECK(modwerk_runtime_journal_begin()==RJ_OK);
+    id=111;begin(64,0,0,0,0,1,0x41);site(STOCK+32,6);CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+    CHECK(modwerk_runtime_journal_verify()==RJ_OK && modwerk_runtime_journal_activate()==RJ_PENDING);
+    journal_observed=RJ_UNKNOWN;journal_masks[0]=3;journal_masks[1]=1;journal_masks[2]=0;
+    CHECK(modwerk_runtime_journal_step(0)==RJ_UNCERTAIN && journal.progress.phase==RJ_QUARANTINE);
+    staged_free=modwerk_runtime_free(0);reclaim(0);CHECK(!b->discard(0) && !b->retire(0) && modwerk_runtime_free(0)==staged_free);
+    CHECK(modwerk_runtime_journal_abort()==RJ_PENDING);
+    uint32_t real_generation=journal.row[0].after_generation;--journal.row[0].after_generation;
+    unsigned calls=journal_jobs;CHECK(modwerk_runtime_journal_step(0)==RJ_UNCERTAIN && journal_jobs==calls && modwerk_runtime_free(0)==staged_free);
+    journal.row[0].after_generation=real_generation;CHECK(modwerk_runtime_journal_abort()==RJ_PENDING);
+    journal_observed=RJ_READY;journal_masks[0]=journal_masks[1]=journal_masks[2]=3;
+    CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_OK);
+    CHECK(modwerk_runtime_free(0)==baseline_free && !memcmp(stock,baseline_stock,sizeof stock));
+    CHECK(modwerk_runtime_journal_abort()==RJ_STALE);
+    CHECK(dsp_switches==baseline_switches); /* owned journal ACKs never start legacy DSP work */
     if (failures) { fprintf(stderr, "%u loader checks failed\n", failures); return 1; }
     puts("Loader: refusals, relocation, bss, hooks, stock-code sites (in-flight, stock and changed-code refusals, "
          "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion, DSP sections and ABI 7's "
