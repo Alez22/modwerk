@@ -73,7 +73,7 @@ identity/hash receipt. This public-release builder does not bypass beta gates.
 Start the existing USB bridge with permission to access the connected Octatrack:
 
 ```sh
-python -B sdk/machines/octatrack/elekloader/usb_bridge.py /private/path/modwerk-ot.sock
+python -B scripts/octatrack-usb-bridge.py /private/path/modwerk-ot.sock
 node scripts/frontend-mcp.mjs --data-dir /private/path/modwerk-mcp --device-socket /private/path/modwerk-ot.sock
 ```
 
