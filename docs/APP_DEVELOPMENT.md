@@ -280,6 +280,8 @@ The community runs separately through `worker.ts` and `wrangler.worker.jsonc`, i
 
 ### Public module audio previews
 
+The public audio-preview announcement links to `#faq/audio-previews` with **Show me how**. This opens the expanded upload guide, also available in the searchable FAQ. Preview the exact draft locally with `?preview=previews-announcement`; it does not publish the announcement or record announcement counts. After the frontend is deployed and the guide verified, publish `docs/announcements/audio-previews-2026-10-13.draft.json` through the existing announcement flow.
+
 Declared module recordings play in the card and main detail preview; the screenshots gallery no longer repeats them as standalone audio tiles. Community submissions retain their contributor, caption and removal controls in the Previews tab, and media credits remain available.
 
 Cards with recordings retain the waveform strip on thumbnail hover or keyboard focus. Clicking the waveform seeks and starts playback; playing controls remain visible after pointer exit. Card dimensions and the hover description stay unchanged. The idle play indicator matches the Add button height: 32px on desktop and 40px on phones. Touch users open the module page to play.
