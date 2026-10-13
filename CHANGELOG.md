@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared private source-bound DSP ring placement and saved-set/export lifetime gates. Both buffer maps protect stock staging/mailbox heads, retain current and outgoing generations through acknowledged retirement, and refuse insufficient whole-ring capacity. Imported E-Verb/MiniVerb remain exact and use non-overlaid blocks; unknown source/fixed-resource policy and controller admission remain closed. Native regressions do not establish physical timing, combined-base boot or reboot persistence.
+
 - Prepared a beta saved-module-file backup client and MCP tool for the two fixed Octatrack files. It binds every bounded chunk to an acknowledged immutable snapshot, verifies the full file hash, releases only its own token and saves bytes privately with metadata-only receipts. Unreadable files remain errors rather than being treated as absent, and backing up does not qualify recovery. MCP Keep now refuses to overwrite saved files from another base while exact recovery is unverified; trial Undo remains available. Device export support and physical backup/recovery qualification are separate work.
 
 - Prepared dormant, source-pinned resident Sidechain, Output Matrix and Analog BD DSP engines, bounded reset/CAS frame jobs and controller-generation leases. Authored initialization uses exact-record sharing with independent per-core reconstruction; the core-1 wait counter is moved outside Analog BD's coefficient/state bank. Native receiver execution, transport refusal/timeout tests and ColdFire placement guards precede private composition. Controller admission remains closed pending exact package identity, live/transition buffer ownership, audio headroom and physical lifecycle qualification; public USB availability is unchanged.

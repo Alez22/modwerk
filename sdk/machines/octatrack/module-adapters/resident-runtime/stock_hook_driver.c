@@ -59,6 +59,17 @@ static int next(struct mw_hook_cursor *c,const struct mw_hook_boot_core *b,unsig
        c->fragment_bytes!=b->fragments[c->fragment].bytes || c->at!=b->fragments[c->fragment].end) return -1;
     c->finished=1; return 0;
 }
+int mw_hook_driver_export_idle(const struct mw_hook_driver *d) {
+    if(d->resetting || d->leases.phase || d->leases.known!=3u ||
+       d->leases.inflight[0] || d->leases.inflight[1] ||
+       (d->leases.active[0]&~7u) || (d->leases.active[1]&~5u) || (d->leases.ready&~7u)) return 0;
+    unsigned active=d->leases.active[0]|d->leases.active[1]|d->leases.ready;
+    for(unsigned k=0;k<3;++k) {
+        const struct mw_hook_owner *owner=&d->leases.owners[k];
+        if(!!owner->module!=!!owner->generation || ((active>>k&1u) && !owner->module)) return 0;
+    }
+    return 1;
+}
 void mw_hook_driver_init(struct mw_hook_driver *d,const struct mw_hook_boot_core boot[2]) {
     *d=(struct mw_hook_driver){0}; d->boot=boot; mw_stock_hooks_init(&d->leases);
 }

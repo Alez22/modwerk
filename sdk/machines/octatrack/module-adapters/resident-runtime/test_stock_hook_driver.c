@@ -29,7 +29,9 @@ static void complete(struct mw_hook_driver *d) {
 int main(void) {
     struct mw_hook_driver d;
     clear(); mw_hook_driver_init(&d,modwerk_hook_boot);
+    assert(mw_hook_driver_export_idle(&d));
     assert(mw_hook_driver_begin(&d,1,17,23,1)==MW_HOOK_PENDING);
+    assert(!mw_hook_driver_export_idle(&d));
     assert(mw_hook_driver_retire(&d,1,17,23,1)==MW_HOOK_STATE);
     assert(mw_hook_driver_begin(&d,1,17,24,1)==MW_HOOK_BUSY);
     idle=0; for(unsigned n=0;n<5;++n) mw_hook_driver_tick(&d,&transport);
@@ -39,6 +41,12 @@ int main(void) {
     complete(&d);
     assert(writes[0]==44 && writes[1]==44 && cas[0]==1 && cas[1]==1);
     assert(d.leases.active[0]==1 && d.leases.active[1]==1);
+    assert(mw_hook_driver_export_idle(&d));
+    d.leases.inflight[0]=1; assert(!mw_hook_driver_export_idle(&d)); d.leases.inflight[0]=0;
+    d.leases.known=1; assert(!mw_hook_driver_export_idle(&d)); d.leases.known=3;
+    d.resetting=1; assert(!mw_hook_driver_export_idle(&d)); d.resetting=0;
+    d.leases.owners[0].generation=0; assert(!mw_hook_driver_export_idle(&d)); d.leases.owners[0].generation=23;
+    d.leases.active[1]=2; assert(!mw_hook_driver_export_idle(&d)); d.leases.active[1]=1;
     assert(mw_hook_driver_begin(&d,1,17,24,0)==MW_HOOK_OWNER);
     assert(mw_hook_driver_retire(&d,1,17,23,1)==MW_HOOK_STATE);
     assert(mw_hook_driver_begin(&d,1,17,23,0)==MW_HOOK_PENDING); complete(&d);
@@ -51,6 +59,7 @@ int main(void) {
     mw_hook_driver_tick(&d,&transport); assert(waiting[0] && waiting[1]);
     answer[0]=-1; answer[1]=0;
     assert(mw_hook_driver_tick(&d,&transport)==MW_HOOK_QUARANTINED);
+    assert(!mw_hook_driver_export_idle(&d));
     assert(mw_hook_driver_retire(&d,4,51,61,1)==MW_HOOK_STATE);
     assert(mw_stock_hooks_observed(&d.leases,1,0)==MW_HOOK_STATE);
     answer[1]=1; mw_hook_driver_tick(&d,&transport);

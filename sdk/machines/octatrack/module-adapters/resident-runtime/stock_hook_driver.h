@@ -31,6 +31,8 @@ struct mw_hook_driver_transport {
 };
 /* This driver is called only after exact package/source private admission.
  * It cannot install a controller or widen a catalogue allowlist. */
+/* Read under the existing loader/publication stable lock. */
+int mw_hook_driver_export_idle(const struct mw_hook_driver *);
 void mw_hook_driver_init(struct mw_hook_driver *,const struct mw_hook_boot_core [2]);
 int mw_hook_driver_begin(struct mw_hook_driver *,unsigned feature,uint32_t module,uint32_t generation,int enable);
 int mw_hook_driver_tick(struct mw_hook_driver *,const struct mw_hook_driver_transport *);
