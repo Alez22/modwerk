@@ -1,11 +1,16 @@
 --- a/dsp.c
 +++ b/dsp.c
-@@ -908,6 +908,61 @@
+@@ -908,6 +908,82 @@
  /* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3
   * (132 MHz), to find how long the frame chain survives a held-off frame interrupt. Off the USB request path. */
  volatile uint32_t modwerk_dsp_mask_test;
 +#if defined(MODWERK_RESIDENT_STOCK_HOOKS) && !defined(MODWERK_HOST)
 +#include "stock_hook_driver.h"
++#include "stock_hook_resources.h"
++int modwerk_saved_set_busy(void);
++int dl_hook_buffer_ranges_idle(unsigned);
++int modwerk_stock_hook_fixed_ranges_idle(unsigned);
++int modwerk_stock_hook_buffer_policy(unsigned,unsigned,struct mw_hook_buffer_claim *);
 +extern const struct mw_hook_boot_core modwerk_hook_boot[2];
 +int dl_hook_reset_start(unsigned, unsigned, unsigned, unsigned, const uint32_t *);
 +static struct mw_hook_driver stock_hook_driver;
@@ -23,11 +28,12 @@
 + * A closed gate is deliberate; an idle frame transport proves neither. */
 +static int stock_hook_resources_idle(unsigned feature)
 +{
-+    (void)feature;
-+    return 0;
++    return !modwerk_saved_set_busy() && dl_hook_buffer_ranges_idle(feature) &&
++           modwerk_stock_hook_fixed_ranges_idle(feature);
 +}
 +static int stock_hook_start(unsigned core, unsigned expected, unsigned desired)
 +{
++    if (modwerk_saved_set_busy()) return 0;
 +    if ((desired & ~expected) && !stock_hook_resources_idle(desired & ~expected)) return 0;
 +    return dl_command_start(core, MW_HOOK_CAS, expected, desired, 0);
 +}
@@ -35,10 +41,24 @@
 +    {stock_hook_start, dl_job_status, dl_job_release},
 +    dl_hook_reset_start, stock_hook_resources_idle
 +};
++int modwerk_stock_hook_export_idle(void)
++{
++    stock_hook_init();
++    return mw_hook_driver_export_idle(&stock_hook_driver);
++}
++int modwerk_dsp_buffer_permitted(unsigned core, unsigned kind, unsigned block, unsigned id)
++{
++    struct mw_hook_buffer_claim claim = {0};
++    stock_hook_init();
++    if (modwerk_saved_set_busy()) return 0;
++    if (!modwerk_stock_hook_buffer_policy(core, id, &claim)) return 0;
++    return mw_hook_buffer_permitted(&stock_hook_driver.leases, core, kind, block, &claim);
++}
 +int modwerk_stock_hook_begin(unsigned feature, uint32_t module, uint32_t generation, int enable)
 +{
 +    stock_hook_init();
 +    if (enable != 0 && enable != 1) return MW_HOOK_OWNER;
++    if (modwerk_saved_set_busy()) return MW_HOOK_BUSY;
 +    /* No runtime controller is admitted by this preparation revision. */
 +    if (enable) return MW_HOOK_STATE;
 +    if (!dl_publication_idle() || rebinding || probing >= 0 || peeking >= 0 ||
@@ -48,6 +68,7 @@
 +int modwerk_stock_hook_retire(unsigned feature, uint32_t module, uint32_t generation, int roots_clear)
 +{
 +    stock_hook_init();
++    if (modwerk_saved_set_busy()) return MW_HOOK_BUSY;
 +    return mw_hook_driver_retire(&stock_hook_driver, feature, module, generation, roots_clear);
 +}
 +static int stock_hook_tick(void)
@@ -62,7 +83,7 @@
  void modwerk_dsp_tick(void)
  {
      modwerk_dsp_watch_ticks = modwerk_dsp_watch_ticks + 1; /* the watchdog's heartbeat */
-@@ -920,9 +975,14 @@
+@@ -920,9 +996,14 @@
      }
      static int unpacked;
      if (!unpacked) unpacked = 1, modwerk_dsp_unpack();
@@ -80,7 +101,7 @@
      if (probing >= 0 && dl_job_status((unsigned)probing) != 0) {
          if (dl_job_status((unsigned)probing) > 0) modwerk_dsp_probes_ok = modwerk_dsp_probes_ok + 1;
          else modwerk_dsp_probes_failed = modwerk_dsp_probes_failed + 1;
-@@ -931,7 +991,7 @@
+@@ -931,7 +1012,7 @@
      }
      if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
      else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
