@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Fixed the beta Octatrack page's missing-modules note, which lost its styles in the redesign; it is a one-line band again. The page now fits the window: the hero and list stay put, Status fills the height left (more compact on short windows) and a long page scrolls inside its own pane. The independence notice no longer sits above this page. Beta-only.
+
 - Redesigned the beta Octatrack page. A hero with the unit stays above every page; beside it, a list holds the unit's Status, Backups, Samples and Setup pages and your module sets, each with its own menu (rename, duplicate, export, share, delete). Status is one fixed panel: live load meters and graph, the last self-test and card state from the base's existing read-only record, what is on the unit and this browser's sync history. Backups uses the existing read-only saved-file export and says when a base lacks it; Setup holds the base install, the card route and diagnostics. An empty set offers to start from what is on the unit instead of syncing it empty. Beta-only, with no base, transport or server change; live load and backups need a newer base than the qualified tester image.
 
 - Prepared private volatile USB command, bundle and cached-status framing with exact encoded identities, disjoint canonical participants, immutable hash inputs and bounded Windows control transfers. These developer-only helpers make no device calls; parsed status never grants transaction ownership. Public capabilities, saved files and persistent upload behavior are unchanged. Board source trust, ownership, complete resource admission and physical lifecycle qualification remain pending.

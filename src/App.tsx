@@ -483,7 +483,7 @@ export default function App() {
           {firmwareFeedbackPreview && <Suspense fallback={null}><FirmwareFeedbackPreview/></Suspense>}
           {!accountRoute && <SignupWelcome key={route} />}
           {!accountRoute && !developerRoute && !configuration && machineView !== 'configuration' && !['admin', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route) && <HardwareFeedbackReminder />}
-          {!phoneLayout && projectNotice}
+          {!phoneLayout && !hubRoute && projectNotice}
           {workspace.storageError && <div className="file-error" role="alert">{workspace.storageError} Export important configurations before closing this tab.</div>}
           {workspace.unreadable > 0 && <p className="service-note" role="status">{workspace.unreadable === 1 ? 'One saved ' + w.set + ' uses' : workspace.unreadable + ' saved ' + w.sets + ' use'} a module or setting this version of Modwerk cannot open. {workspace.unreadable === 1 ? 'It stays' : 'They stay'} on this device and will reappear once it can.</p>}
           {projectsRoute ? <ProjectsPage key={`projects-page:${route}`} route={route} /> :  faqRoute ? <FaqPage key={route} /> : route === 'credits' ? <CreditsPage /> : !ready ? <div className="loading-panel" role="status">Opening your workspace…</div> : <>
