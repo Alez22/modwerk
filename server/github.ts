@@ -1,4 +1,4 @@
-import { issueStatusStatements } from './issue-notifications'
+import { issueStatusStatements, publicIssueReplyStatement } from './issue-notifications'
 import { handleGithubCommand } from './github-commands'
 import type { Database, Env } from './platform'
 import { HttpError } from './security'
@@ -216,8 +216,6 @@ export async function handleGithubWebhook(request: Request, env: Env, db: Databa
   if (!issue) return { ok: true, handled: false }
   const delivery = (request.headers.get('X-GitHub-Delivery') ?? '').slice(0, 100) || crypto.randomUUID()
   if(await db.prepare('SELECT id FROM github_webhook_deliveries WHERE id=?').bind(delivery).first())return {ok:true,handled:true}
-  const notify = (kind: string, actor: unknown, excerpt: string | null) => db.prepare(`INSERT INTO notifications(id,user_id,kind,issue_id,module_id,github_actor,excerpt,delivery_id) SELECT lower(hex(randomblob(16))),i.reporter_id,?,i.id,i.module_id,?,?,? FROM issues i JOIN users u ON u.id=i.reporter_id WHERE i.github_number=? AND u.suspended=0 AND NOT EXISTS(SELECT 1 FROM github_webhook_deliveries WHERE id=?) ON CONFLICT DO NOTHING`)
-    .bind(kind, typeof actor === 'string' && GITHUB_LOGIN.test(actor) ? actor : null, excerpt, delivery, number,delivery)
   if (event === 'issue_comment') {
     const comment = payload.comment
     // Bots (CI, release tooling) talk to developers, not reporters.
@@ -239,7 +237,9 @@ export async function handleGithubWebhook(request: Request, env: Env, db: Databa
       await db.prepare('INSERT INTO github_webhook_deliveries(id,issue_id) VALUES(?,?) ON CONFLICT DO NOTHING').bind(delivery,issue.id).run()
       return {ok:true,handled:true}
     }
-    await db.batch([notify('issue_comment', comment.user?.login, comment.body.slice(0, 400)),db.prepare('INSERT INTO github_webhook_deliveries(id,issue_id) VALUES(?,?) ON CONFLICT DO NOTHING').bind(delivery,issue.id)])
+    const login = typeof comment.user?.login === 'string' && GITHUB_LOGIN.test(comment.user.login) ? comment.user.login : null
+    const githubId = Number.isSafeInteger(comment.user?.id) && Number(comment.user?.id) > 0 ? String(comment.user?.id) : null
+    await db.batch([publicIssueReplyStatement(db, issue.id, delivery, comment.body, null, login, githubId),db.prepare('INSERT INTO github_webhook_deliveries(id,issue_id) VALUES(?,?) ON CONFLICT DO NOTHING').bind(delivery,issue.id)])
     return { ok: true, handled: true }
   }
   const status = payload.action === 'closed' ? 'closed' : payload.action === 'reopened' ? 'open' : null
