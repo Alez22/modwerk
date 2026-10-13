@@ -26,17 +26,30 @@ def roll(data):
 
 
 def pack_zeros(data):
-    """128-byte literal/zero runs. No backreferences or stock codec dependency."""
+    """Smallest 128-byte literal/zero stream, with the existing exact decoder.
+
+    A literal may contain zero bytes. Splitting every isolated zero adds run
+    headers; choose complete run boundaries before emitting authored bytes.
+    No backreferences, stock codec or record/resource transformations.
+    """
+    length = len(data)
+    cost, runs = [0] * (length + 1), [0] * length
+    for at in range(length - 1, -1, -1):
+        best, zero = length * 2 + 1, True
+        for count in range(1, min(128, length - at) + 1):
+            zero = zero and data[at + count - 1] == 0
+            size = 1 + (0 if zero else count) + cost[at + count]
+            if size <= best:  # equal sizes use the longest deterministic run
+                best, runs[at] = size, -count if zero else count
+        cost[at] = best
     out, at = bytearray(), 0
-    while at < len(data):
-        zero = data[at] == 0
-        end = at + 1
-        while end < len(data) and end - at < 128 and (data[end] == 0) == zero:
-            end += 1
-        out.append((0x80 if zero else 0) | (end - at - 1))
-        if not zero:
-            out.extend(data[at:end])
-        at = end
+    while at < length:
+        run = runs[at]
+        count = abs(run)
+        out.append((0x80 if run < 0 else 0) | (count - 1))
+        if run > 0:
+            out.extend(data[at:at + count])
+        at += count
     return bytes(out)
 
 
