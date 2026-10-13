@@ -27,11 +27,19 @@ it('shows the risks to visitors and preserves this invitation as their sign-in d
   await render(emptySession)
   expect(container.textContent).toContain('make your device unusable')
   expect(container.textContent).toContain('Recovery is not guaranteed')
-  expect(container.querySelector('a')?.getAttribute('href')).toBe('#account/login?next=beta%2Fjoin%2Fpublic')
+  expect(container.querySelector('a[href^="#account/login"]')?.getAttribute('href')).toBe('#account/login?next=beta%2Fjoin%2Fpublic')
+  expect(container.querySelector('.beta-invitation-discord a')?.getAttribute('href')).toBe(DEVELOPMENT_DISCORD_URL)
   expect(mocks.api).not.toHaveBeenCalled(); expect(mocks.post).not.toHaveBeenCalled()
 })
-it('requires an unchecked risk acknowledgement before posting the current version and showing the Discord CTA', async () => {
+it('prompts for Discord on arrival while risk acceptance remains required before joining', async () => {
   await render()
+  expect(mocks.post).not.toHaveBeenCalled()
+  const discord = container.querySelector<HTMLAnchorElement>('.beta-invitation-discord a')!
+  expect(discord.href).toBe(DEVELOPMENT_DISCORD_URL)
+  expect(discord.target).toBe('_blank')
+  expect(container.textContent).toContain('Join our development Discord')
+  discord.addEventListener('click', event => event.preventDefault())
+  await act(() => discord.click())
   expect(mocks.post).not.toHaveBeenCalled()
   const checkbox = container.querySelector<HTMLInputElement>('input[type=checkbox]')!
   const submit = container.querySelector<HTMLButtonElement>('button[type=submit]')!

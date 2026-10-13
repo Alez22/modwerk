@@ -31,17 +31,19 @@ export function BetaInvitationPage({ campaign }: { campaign: string }) {
       await load().catch(() => {})
     } finally { setBusy(false) }
   }
+  const discordInvitation = <div className="beta-invitation-discord"><h2>Join the beta testers on Discord</h2><p>Join our development Discord to ask questions, share feedback and help us find bugs.</p><a className="button button-primary" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer" onClick={() => { if (invitation?.status === 'active') void post('/auth/beta-discord-invite', {}).catch(() => {}) }}>Join Discord<span className="sr-only"> (opens in a new tab)</span></a></div>
   return <section className="beta-invitation-page">
     <span className="pill">Modwerk beta</span><h1>{invitation?.status === 'active' ? 'You have beta access' : 'Join the Modwerk beta'}</h1>
     {invitation?.status === 'active' ? <>
       <p role="status">Your account can now use beta features. You’ll see a Beta badge beside Modwerk.</p>
-      <div className="beta-invitation-discord"><h2>Join the beta testers on Discord</h2><p>Ask questions, share what works and help us find bugs.</p><a className="button button-primary" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer" onClick={() => { void post('/auth/beta-discord-invite', {}).catch(() => {}) }}>Join Discord<span className="sr-only"> (opens in a new tab)</span></a></div>
+      {discordInvitation}
       <a className="text-button" href="#library">Explore beta modules</a>
     </> : <>
       <p>Try early features, including Octatrack USB loading and beta modules. Some features need an Octatrack and a computer.</p>
       <p>The tester pool is limited to <strong>{BETA_TESTER_LIMIT} people</strong>. Places are first come, first served when you accept.{invitation && ` ${invitation.testers} of ${invitation.limit} places are currently taken.`}</p>
       <div className="beta-invitation-risks"><h2>Before you join</h2><p>Beta features are experimental. Expect bugs and unfinished behavior.</p><p>{FLASHING_RISKS}</p><p>Back up your projects and samples before trying custom firmware. {INDEPENDENCE_NOTICE}</p></div>
-      <p>After joining, meet the beta testers on our development Discord to share feedback. Joining the beta does not enable diagnostics or change your email preferences.</p>
+      {valid && discordInvitation}
+      <p>Joining the beta does not enable diagnostics or change your email preferences.</p>
       {loading ? <p role="status">Checking your account…</p> : !valid ? <p className="file-error" role="alert">This beta invitation is unavailable.</p> : !session.user ? <div className="dialog-actions"><a className="button button-primary" href={accountHref('login', betaInvitationRoute(campaign))}>Sign in to continue</a><a className="button button-quiet" href={accountHref('register', betaInvitationRoute(campaign))}>Create account</a></div> : !verified ? <p>Verify your email and complete your profile in <a className="text-button" href="#account">Account</a> before joining.</p> : invitation?.status === 'full' ? <p role="status">All 50 beta places are taken. Thanks for your interest — the public features are still available.</p> : invitation?.status === 'pending' && invitation.risksVersion === BETA_RISKS_VERSION ? <form onSubmit={event => { event.preventDefault(); void join() }}>
         <label className="beta-invitation-accept"><input type="checkbox" required checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)} /><span>I understand these risks and want to join the experimental beta.</span></label>
         <button type="submit" className="button button-primary" disabled={!accepted || busy}>{busy ? 'Joining…' : 'Accept risks and join beta'}</button>
