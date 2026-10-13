@@ -29,6 +29,8 @@
 
 - Added a Samples tab to the beta Octatrack hub, with local file/folder selection and explicit audio preview. Switching back to Modules pauses preview and keeps the local selection; sample choices do not sync, upload or persist. Tabs support keyboard navigation and 44px touch controls. File drops are supported; dropped-directory recursion and Octatrack sample transfer remain in development.
 
+- Counted active site visitors in the public online total, including people who are signed out. Visible tabs check in once a minute; repeated tabs and signed-in devices are deduplicated, inactive visitors expire after five minutes, and privacy opt-outs and hidden member names are respected. Anonymous visitors are estimated without browser storage; people sharing an IP address and browser signature can share a count.
+
 ## 12 October 2026
 
 - Keep the Octatrack beta publication check valid when release automation stamps the current commit and approval. Authored package contents and qualification fields remain pinned to the validated Git snapshot, and derived package hashes must match the published files.
