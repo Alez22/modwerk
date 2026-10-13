@@ -90,6 +90,7 @@ describe('site visitors online', () => {
   })
 
   it('counts visible site check-ins and names eligible members without exposing account details', async () => {
+    vi.useFakeTimers({now:Date.UTC(2026,9,13,12),toFake:['Date']})
     const f = await fixture(), a = await f.member('alpha'), b = await f.member('bravo')
     // Signing in and the historical member-activity poll do not register site presence.
     expect(await f.online()).toEqual({ online: 0, members: [], more: 0 })
