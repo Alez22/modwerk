@@ -2,13 +2,13 @@ You’re invited to the Modwerk beta
 
 Hi,
 
-I’d love to have you try the Modwerk beta. The tester pool is limited to 50 people.
+I’ve been working on new features for Modwerk, and I’d love to have you try them. Join the beta to test Octatrack USB loading and new modules before they’re available to everyone.
 
-Custom firmware can cause data loss or make your device unusable. Recovery is not guaranteed. Back up first.
+The tester pool is limited to 50 people.
 
 Join the beta (https://modwerk.app/#beta/join/00000000000000000000000000000000)
 
-Review the risks on Modwerk before joining. Afterwards, please join our development Discord to share feedback.
+You’ll find the details and risks on the site. Come say hi on our development Discord and let me know what you think.
 
 See you around,
 Jannik

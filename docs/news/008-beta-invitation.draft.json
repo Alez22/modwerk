@@ -1,5 +1,5 @@
 {
   "subject": "You’re invited to the Modwerk beta",
   "betaInvitation": true,
-  "body": "Hi,\n\nI’d love to have you try the Modwerk beta. The tester pool is limited to 50 people.\n\nCustom firmware can cause data loss or make your device unusable. Recovery is not guaranteed. Back up first.\n\n[Join the beta]({{beta-invitation}})\n\nReview the risks on Modwerk before joining. Afterwards, please join our development Discord to share feedback.\n\nSee you around,\nJannik"
+  "body": "Hi,\n\nI’ve been working on new features for Modwerk, and I’d love to have you try them. Join the beta to test Octatrack USB loading and new modules before they’re available to everyone.\n\nThe tester pool is limited to 50 people.\n\n[Join the beta]({{beta-invitation}})\n\nYou’ll find the details and risks on the site. Come say hi on our development Discord and let me know what you think.\n\nSee you around,\nJannik"
 }

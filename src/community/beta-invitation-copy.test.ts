@@ -8,14 +8,16 @@ import announcement from '../../docs/announcements/beta-2026-10-13.draft.json'
 import { PublicAnnouncementCard } from './PublicAnnouncement'
 import { announcementLink } from '../../server/announcements'
 
-it('preserves the prepared email shell, 50-person limit, current CTA, risk copy and Discord invitation', () => {
+it('preserves the prepared email shell, feature invitation, 50-person limit, CTA and site risk reminder', () => {
   const urls = { app: 'https://modwerk.app/', settings: 'https://modwerk.app/#account/notifications' }
   const message = renderBetaNewsEmail({ ...draft, id: '0'.repeat(32) }, urls)
   expect(message.html + '\n').toBe(readFileSync(new URL('../../docs/news/008-beta-invitation.preview.html', import.meta.url), 'utf8'))
   expect(message.text + '\n').toBe(readFileSync(new URL('../../docs/news/008-beta-invitation.preview.txt', import.meta.url), 'utf8'))
   expect(message.html).toContain('bgcolor="#5f6ac7"')
   expect(message.text).toContain('limited to 50 people')
-  expect(message.text).toContain('Recovery is not guaranteed')
+  expect(message.text).toContain('test Octatrack USB loading and new modules')
+  expect(message.text).toContain('details and risks on the site')
+  expect(message.text).not.toMatch(/data loss|device unusable|Recovery is not guaranteed/)
   expect(message.text).toContain('development Discord')
   expect(message.html).not.toMatch(/<script|<img|<iframe|<form/i)
   const generic = renderNewsEmail({ subject: 'Normal news', body: '[Join the beta](https://modwerk.app/#beta/join/public)' }, urls)
