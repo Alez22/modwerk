@@ -122,6 +122,15 @@ own source-bound hardware qualification. A complete backup does not enable
 Keep on a base reporting a foreign saved set; that refusal remains until exact
 recovery is qualified, while trial Undo remains available.
 
+On 13 October 2026, the private `59ba5f8b` RAM base from source `791435a6`
+exported both fixed files through the actual frontend MCP: slot 0 was 512 bytes
+(generation 28, zero modules), and slot 1 was 7,680 bytes (generation 29, one
+module), with verified local hashes and the flashed `dc1d7a39` file identity.
+Active/inventory stayed unchanged, both snapshots were released, and the cached
+MWXR engine-read record reported no refusal factors after success. This observes
+export on that named private build; it does not qualify recovery, Keep, audio or
+persistence. The cause of the earlier `1829f316` Begin BUSY refusals is unknown.
+
 Enable `--allow-device-writes` only for authorized hardware tests. Review with
 `device_review({"moduleIds":[...]})`, then call `device_trial` with its review ID
 within 60 seconds. The server rechecks base, active digest and inventory before

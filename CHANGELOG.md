@@ -12,7 +12,7 @@
 
 - Reduced private resident DSP initialization storage by choosing optimal literal/zero-run boundaries in the existing bounded codec. Authored records, the boot and reset decoders, independent core reconstruction and RAM boot limits remain exact. This is source preparation; combined-base boot, audio timing and physical lifecycle qualification remain pending.
 
-- Documentation: recorded the fixed-file saved-backup token/privacy/recovery contract, bounded in-memory MCP logs, the separate encoded/native runtime identities, table and machine retirement fences, full descriptor-notification coverage, and the current native Python requirement. No hardware or admission qualification is added.
+- Documentation: recorded the fixed-file saved-backup token/privacy/recovery contract, observed exports on the named private 59ba RAM build, bounded in-memory MCP logs, the separate encoded/native runtime identities, retained UI roots and retirement fences, full descriptor-notification coverage, and the current native Python requirement. Public admission and exact recovery remain unqualified.
 
 - Added private machine/table declaration tooling that requires exact reviewed package, recipe, source and state/parameter layout identities, reconstructs all three table arrays and reserves fixed trust storage without moving package addresses. Native FM consumer tooling executes complete reset/randomize notification tails with an initialized input layer and records observed pointer escapes at two origins. This is preparation only; the public base, USB catalogue and admission gates remain unchanged, and complete boot, consumer coverage, audio and physical persistence qualification remain pending.
 
