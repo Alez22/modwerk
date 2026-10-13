@@ -4,7 +4,7 @@
   "evidenceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
   "evidenceModuleVersion": "0.1.2-experimental",
   "approvedMain": "813fe73637dc12db384e6e92ebed08d6746d1780",
-  "validatedCommit": "ffd75fbffe5c39106207ce4fa0d985e7ba1966ce",
+  "validatedCommit": "49be042da15efbfd3cf9c6271fc7d4bb54c4622f",
   "originalOsSha256": "34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad",
   "changes": {
     "src/engine/assets/octatrack-base-fills.json": {
@@ -21,7 +21,7 @@
     },
     "src/engine/assets/octatrack-module-packages.json": {
       "before": null,
-      "after": "dc9d989c73d87f669c818f1eaebdbc424ab2de8c54240124fa76383fe8706c46"
+      "after": "fc881880f5ff6ec009edc488d53c822caf750fb1acc513318649c4cfde7893a0"
     },
     "src/engine/client.ts": {
       "before": "f49927d069304ca7edbad91211b0497e46690642e5fea762a4d669162093c63f",
@@ -181,7 +181,7 @@
     "src/engine/assets/octatrack-base-fills.json": "494b38ee46f91eb78dccd1608d5f218ab1cf279f81b43e69e9e77128dc7c9133",
     "src/engine/assets/octatrack-base-sources.json": "449f992860123eaca1eb541bcad2f727cbcc4a9016751e90142c9eab318c61b1",
     "src/engine/assets/octatrack-base.elemod": "85fe89b924e393f20221c69d85e049e06cf73bea2bc861024e924dd406a73b30",
-    "src/engine/assets/octatrack-module-packages.json": "dc9d989c73d87f669c818f1eaebdbc424ab2de8c54240124fa76383fe8706c46",
+    "src/engine/assets/octatrack-module-packages.json": "fc881880f5ff6ec009edc488d53c822caf750fb1acc513318649c4cfde7893a0",
     "src/engine/assets/platform-writes.json": "56720770788c112599dcede88923bafeb162b16cae07f69b5716ea3718deabc6",
     "src/engine/assets/requested-composition-proofs.json": "0626a3534e0f9ca429483ed169946c5fd01c9750ea294f53df23150b728080ff",
     "src/engine/assets/requested-link-proofs.json": "b9f451c7285fb8af8a9d0c40af764a6596f742e6422d895f6f4a40cc9fd950de",
@@ -270,10 +270,10 @@
     "src/engine/usb-audio.ts": "7ece1e258553bfc2ef3d9805d9e9db73b27b140e0eff19d1fd3a283122619526",
     "src/engine/utility-modules.ts": "7d4ae4efa92c264f1fd13899c571f1782e054f08f8ef95c16b2afa96db8fd3c3"
   },
-  "protectedInputsSha256": "883298b488e3906807f3af9bb35a3b3f250934ff7ca94222494659e531fb9f98",
+  "protectedInputsSha256": "feb77de9e69dcf26ccb94ff18f0cafd8cbbf11c458154981b93d82037d486f36",
   "approvedProtectedInputsSha256": "9c8c246d1ade1e7756558d6de25ed5f1472691418dcbedf025cfefd27b969542",
   "proof": {
-    "reportSha256": "10cfdae8c8ea3550f64b6ff5e4e1289c8706123bc267f481a10806c8a4b8349d",
+    "reportSha256": "6dfe374cb2d7d43aa831315755dc2d3e5a11fbb4cf07fa65cdb0ddc708744341",
     "runnerSha256": "225ed0b6d0ff8bc469604d80bbc7ff29b46bf8c7d82adf8604524ec7e52fca03"
   }
 }
