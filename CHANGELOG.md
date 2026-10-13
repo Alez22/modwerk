@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Fixed the beta Octatrack page still scrolling by a few pixels on desktop: fitting it to the window now converts the app's 90% zoom, so the page never scrolls as a whole (checked from 1024×768 to 1920×1080). Beta-only.
+
 - Fixed the beta Octatrack page's missing-modules note, which lost its styles in the redesign; it is a one-line band again. The page now fits the window: the hero and list stay put, Status fills the height left (more compact on short windows) and a long page scrolls inside its own pane. The independence notice no longer sits above this page. Beta-only.
 - Prepared an unwired, read-only Analog BD browser retirement helper bound to exact package/source/layout, whole extent and generation. It refuses open or changed menus and current/paused callbacks, then plans restoration of the prior handler, label and list state because closing the stock browser leaves its arrays retained. Host negatives, ColdFire compilation and hash-only native close/callback observations are preparation; real board locks, controller leases, complete descriptor/Part consumers and hardware qualification remain pending. Public runtime admission is unchanged.
 
