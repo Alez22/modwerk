@@ -2,10 +2,15 @@
 
 ## 13 October 2026
 
-- Prepared guarded runtime table insertion for private USB port development. Authored entries retain their declared position between separately hashed stock-copy spans, with reconstruction checked against an independent native layout oracle. Public packages and table-loading admission remain unchanged; Mute Modes hardware lifecycle and persistence are not qualified by this preparation.
+- Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
 
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
+
+- Changed the audio-preview announcement’s “Show me how” action to open Analog BD and highlight its Add preview button with a dismissible upload tip. Existing announcement links follow the same walkthrough, and visitors return there after signing in.
+
 - Prepared a public audio-preview announcement with a “Show me how” action that opens the upload steps, account requirement, file limits, credits, sharing permission and removal instructions. The guide is also searchable in the FAQ; publication follows frontend deployment.
+- Kept the developer USB bridge listening through transient descriptor/claim errors during replug or RAM-boot re-enumeration, and disposed partially opened or disconnected libusb handles. Serialized complete host bench control transfers so keepalive reads cannot replace a pending self-test or write SETUP. Each request makes one acquisition/transfer attempt; failed writes are reported without replay, and bus reset/configuration restrictions remain enforced.
+
 
 - Show the automatic diagnostics invitation only after the signed-in member's first successful compatible Octatrack USB connection. Opening a configuration, signing in or downloading the base no longer triggers it. Existing dialogs finish first, and account/version dismissal and saved consent choices still prevent repeat invitations; manual Account → Diagnostics remains available.
 
@@ -16,6 +21,10 @@
 - Restored the beta onboarding card’s DSP memory explanation beside USB setup: effects load as needed and share their code between tracks on each DSP core. The explanation stays visible on phones and makes no CPU-speed or unlimited-capacity promise.
 
 - Added a local beta MCP server for catalogue/module inspection, card and USB preflight, isolated module sets, ordinary authenticated community API calls, saved firmware receipts and reviewed USB trials through the frontend client. API and device writes require explicit startup opt-ins; one-change trials never accept automatically. Private workspace leases prevent concurrent set overwrites, and the server preserves existing modules whose exact rollback identity is unavailable. It returns no firmware or raw memory. Domain/API evidence remains separate from visual, audio and physical reboot qualification.
+
+- Prepared guarded runtime table insertion for private USB port development. Authored entries retain their declared position between separately hashed stock-copy spans, with reconstruction checked against an independent native layout oracle. Public packages and table-loading admission remain unchanged; Mute Modes hardware lifecycle and persistence are not qualified by this preparation.
+
+- Prepared the beta Samples work-in-progress component for local file/folder selection, a folder tree and explicit browser audio preview. It keeps selections only in the tab and does not upload, write files, use USB disk mode or transfer samples to an Octatrack; hub tab integration is a separate step.
 
 ## 12 October 2026
 
