@@ -207,7 +207,7 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .sidebar-build.is-connection strong { color: var(--accent); }
 .sidebar-build.is-connection:disabled { cursor: wait; }
 /* The Octatrack page: the unit's hero on top, then a list of its pages and your module sets beside the one open. */
-.octatrack-hub { container-type: inline-size; }
+.octatrack-hub { container: hub / inline-size; }
 .hub-split { display: grid; grid-template-columns: minmax(228px, 268px) minmax(0, 1fr); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .hub-hero { grid-column: 1 / -1; display: flex; align-items: center; gap: 28px; padding: 18px 28px; border-bottom: 1px solid var(--line); }
 .hub-hero .device-photo { width: 300px; height: auto; flex: none; }
@@ -243,7 +243,7 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-nav-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: -8px 0 0; padding: 0 10px; }
 .hub-nav-foot .text-button { min-height: 32px; font-size: 13px; }
 .hub-set-picker { display: none; width: 100%; min-width: 0; min-height: 44px; padding: 10px 42px 10px 12px; border: 1px solid var(--control-border); border-radius: 8px; background-color: var(--field); color: var(--text); font: inherit; font-size: 16px; }
-.hub-pane { min-width: 0; padding: 24px 28px 28px; }
+.hub-pane { min-width: 0; padding: 24px 28px 28px; container: hub-pane / inline-size; }
 .hub-view[hidden] { display: none; }
 .hub-view-title { margin: 0; font-size: 22px; letter-spacing: -.3px; overflow-wrap: anywhere; }
 .hub-section, .hub-view .octatrack-diagnostics { margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid var(--line); }
@@ -258,27 +258,14 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-cell { min-width: 0; min-height: 0; overflow: hidden; padding: 14px 18px; background: var(--surface); }
 .hub-cell-cpu { grid-area: cpu; } .hub-cell-dsp1 { grid-area: dsp1; } .hub-cell-dsp2 { grid-area: dsp2; }
 .hub-cell-chart { grid-area: chart; } .hub-cell-health { grid-area: health; } .hub-cell-unit { grid-area: unit; } .hub-cell-history { grid-area: history; }
-.hub-console .load-meter { padding: 14px 18px; border: 0; border-radius: 0; }
-.hub-console .load-meter span { font-size: 12px; }
-.hub-console .load-meter strong { margin: 4px 0 8px; font-size: 1.75rem; line-height: 1.1; }
-.hub-console .load-meter small { margin-top: 6px; font-size: 12px; }
-.hub-console .load-meter-unavailable { height: 16px; background: var(--line); }
-.hub-cell-chart, .hub-cell-unit, .hub-cell-history { display: flex; flex-direction: column; }
-.hub-console .load-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 8px; }
-.hub-console .load-heading h3 { margin: 0; }
-.load-highest { color: var(--text-secondary); font-size: 12px; }
-.hub-console .load-heading .text-button { min-height: 28px; font-size: 12px; }
-.hub-console .load-heading .text-button:first-of-type { margin-left: auto; }
-.hub-console .load-heading [aria-pressed="true"] { color: var(--text); text-decoration: underline; }
-.hub-console .load-chart { display: flex; flex: 1; flex-direction: column; min-height: 0; margin: 0; }
-.hub-console .load-chart[hidden], .hub-console .load-table[hidden] { display: none; }
-.hub-console .load-plot { flex: 1; min-height: 0; height: auto; }
-.hub-console .load-y-labels { font-size: 11px; }
-.hub-console .load-legend { gap: 14px; margin: 6px 0 0; color: var(--muted); font-size: 12px; }
-.load-time { margin-left: auto; }
-.load-legend .load-time::before { display: none; }
-.hub-console .load-table { flex: 1; min-height: 0; max-height: none; font-size: 12px; }
-.load-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+.hub-cell-unit, .hub-cell-history { display: flex; flex-direction: column; }
+/* A narrow pane keeps the meters in one row and gives every other cell a whole row. */
+@container hub-pane (max-width: 640px) {
+  .hub-console { grid-template-rows: auto 280px auto 220px 240px; grid-template-areas: "cpu dsp1 dsp2" "chart chart chart" "health health health" "unit unit unit" "history history history"; }
+  .hub-console .load-meter { padding: 12px 14px; }
+  .hub-console .load-meter strong { font-size: 1.3rem; }
+  .hub-console .load-meter span, .hub-console .load-meter small { font-size: 11px; }
+}
 .hub-cell-health h3:not(:first-child) { margin-top: 16px; }
 .hub-test { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; line-height: 1.4; }
 .hub-peaks { display: grid; gap: 4px; margin: 10px 0 0; }
@@ -321,9 +308,9 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-view .configuration-section, .hub-view .checkout-card { padding: 0; border: 0; background: none; }
 .hub-view .configuration-section { margin-bottom: 20px; }
 .hub-view .configuration-checkout { position: static; max-height: none; overflow: visible; }
-@container (max-width: 980px) { .hub-hero .device-photo { width: 240px; } }
+@container hub (max-width: 980px) { .hub-hero .device-photo { width: 240px; } }
 /* Narrow: the hero gets smaller, the list becomes one picker, the panel one column with the meters side by side. */
-@container (max-width: 760px) {
+@container hub (max-width: 760px) {
   .octatrack-hub .configuration-heading { flex-wrap: wrap; }
   .octatrack-hub .configuration-heading > div:first-child { flex: 1 1 100%; }
   .octatrack-hub .configuration-heading-actions .button { min-height: 44px; }
@@ -341,10 +328,8 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
   .hub-nav-foot { margin: 0; padding: 0; }
   .hub-nav-foot .text-button { min-height: 44px; }
   .hub-pane { padding: 18px 16px 20px; }
-  .hub-console { grid-template-rows: auto 300px auto 220px 240px; grid-template-areas: "cpu dsp1 dsp2" "chart chart chart" "health health health" "unit unit unit" "history history history"; border-radius: 0 0 12px 12px; }
+  .hub-console { border-radius: 0 0 12px 12px; }
   .hub-console .hub-cell { padding: 12px 14px; }
-  .hub-console .load-meter strong { font-size: 1.25rem; }
-  .hub-console .load-meter span, .hub-console .load-meter small { font-size: 11px; }
   .hub-cell-head .text-button, .hub-console .load-heading .text-button, .hub-history .hub-report { min-height: 44px; }
   .hub-set-menu .icon-button, .hub-nav-label .icon-button { min-width: 44px; min-height: 44px; }
   .hub-view-set .module-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -353,7 +338,7 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
   .hub-view-set .module-tile-controls { min-height: 52px; }
   .hub-view-set .module-tile-action { min-width: 44px; height: 44px; }
 }
-@container (max-width: 340px) {
+@container hub (max-width: 340px) {
   .hub-hero { grid-template-columns: minmax(0, 1fr); }
   .hub-hero .device-photo { max-width: 160px; }
   .hub-view-set .module-tiles { grid-template-columns: minmax(0, 1fr); }
