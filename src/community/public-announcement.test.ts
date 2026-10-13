@@ -7,8 +7,9 @@ import type { NotificationLine } from './notification-text'
 import { SUPPORT_URL } from '../config/support'
 import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import audioPreviewAnnouncement from '../../docs/announcements/audio-previews-2026-10-13.draft.json'
-import { AUDIO_PREVIEW_GUIDE_HREF } from '../components/audio-preview-guide'
+import { AUDIO_PREVIEW_GUIDE_HREF, AUDIO_PREVIEW_GUIDE_ROUTE, LEGACY_AUDIO_PREVIEW_GUIDE_HREF } from '../components/audio-preview-guide'
 import { FaqPage } from '../components/FaqPage'
+import { routeFromUrl } from '../routing'
 import { announcementLink } from '../../server/announcements'
 
 let storage: Map<string, string>, news: typeof import('./public-announcement')
@@ -22,7 +23,7 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('quiet public announcements', () => {
-  it('opens the audio upload instructions from the public announcement without requiring sign-in to read them', () => {
+  it('opens a module upload walkthrough from new and already-published announcements', () => {
     expect(audioPreviewAnnouncement.visibility).toBe('public')
     expect(announcementLink(audioPreviewAnnouncement.url)).toBe(AUDIO_PREVIEW_GUIDE_HREF)
     const line = news.publicAnnouncementLine({ ...item('a'), title: audioPreviewAnnouncement.title, excerpt: audioPreviewAnnouncement.body, url: audioPreviewAnnouncement.url, module_id: null })
@@ -30,6 +31,10 @@ describe('quiet public announcements', () => {
     expect(card).toContain('Show me how')
     expect(card).toContain(`href="${AUDIO_PREVIEW_GUIDE_HREF}"`)
     expect(card).not.toContain('target="_blank"')
+    expect(routeFromUrl(new URL('https://modwerk.app/' + LEGACY_AUDIO_PREVIEW_GUIDE_HREF), new URL('https://modwerk.app/'))).toBe(AUDIO_PREVIEW_GUIDE_ROUTE)
+    const oldCard = renderToStaticMarkup(createElement(PublicAnnouncementCard, { line: { ...line, href: LEGACY_AUDIO_PREVIEW_GUIDE_HREF }, onDismiss() {}, onOpen() {} }))
+    expect(oldCard).toContain(`href="${AUDIO_PREVIEW_GUIDE_HREF}"`)
+    expect(oldCard).toContain('Show me how')
     const guide = renderToStaticMarkup(createElement(FaqPage, { previewGuide: true }))
     expect(guide).toContain('Add an audio preview')
     expect(guide).toContain('class="faq-question" open=""')
