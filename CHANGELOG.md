@@ -4,6 +4,7 @@
 
 - Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
 
+- The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
 - Prepared a public audio-preview announcement with a “Show me how” action that opens the upload steps, account requirement, file limits, credits, sharing permission and removal instructions. The guide is also searchable in the FAQ; publication follows frontend deployment.
 
 - Show the automatic diagnostics invitation only after the signed-in member's first successful compatible Octatrack USB connection. Opening a configuration, signing in or downloading the base no longer triggers it. Existing dialogs finish first, and account/version dismissal and saved consent choices still prevent repeat invitations; manual Account → Diagnostics remains available.
