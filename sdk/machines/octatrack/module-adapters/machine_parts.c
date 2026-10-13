@@ -5,6 +5,7 @@
  * Part[0x22+track] < 2 and signature Part[60+30*track]. */
 #include "machine_parts.h"
 #define STRIDE 6322u
+#define UNCACHED 0x08000000u
 #define STOCK_RAM_END 0x47f00000u
 static unsigned member(const uint8_t *signature)
 {
@@ -16,7 +17,11 @@ static unsigned member(const uint8_t *signature)
 int machine_part_lifetime(machine_part_read read, void *context, uint32_t bank, unsigned dropped)
 {
     if (!dropped) return 0;
-    if (!read || (dropped & ~7u) || bank < 0x40000000u || bank > STOCK_RAM_END - (0x9504au + 4u * STRIDE)) return 2;
+    uint32_t physical = bank >= 0x48000000u && bank < STOCK_RAM_END + UNCACHED ? bank - UNCACHED : bank;
+    if (!read || (dropped & ~7u) || (bank & 1u) || physical < 0x40000000u ||
+        physical > STOCK_RAM_END - (0x9504au + 4u * STRIDE)) return 2;
+    /* Validate the physical extent, but read RAM through the caller's alias.
+     * The fixed battery SRAM mirrors retain their reviewed addresses. */
     for (unsigned region = 0; region < 4; ++region) {
         uint32_t base = region == 0 ? bank + 0x8ed80u : region == 1 ? bank + 0x9504au :
                         region == 2 ? 0x100a4eceu : 0x100ab196u;

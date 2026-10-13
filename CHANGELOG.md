@@ -2,8 +2,19 @@
 
 ## 13 October 2026
 
+- Hardened private machine-group preparation so working and saved Part checks accept both RAM aliases while preserving their read addresses and fixed SRAM mirrors. Synthetic lifetime checks now cover owner boundaries, aliased callbacks and overlapping layers before any dereference. An exact redundant Quantizer selection now uses FM’s bundled engine in the private composition, while changed layout claims remain refused. Machine-group admission stays disabled pending complete FM consumer-root, paused-context and physical qualification.
+
 - Reconciled the staged ABI 8 compatibility base with current main and generated USB capability requirements from actual package headers. Preview Vol and Repitch now pass the browser’s intact-package preflight on a capable base; older bases are refused before package fetch or staging. The candidate and additional packages still require exact hardware requalification; unported modules and machine-group admission remain unavailable.
 - Beta USB sync now discards late replies and queued changes when the Octatrack disconnects or the last USB view closes. A completed self-test or Keep reply cannot restore a disconnected unit to a connected state, and closing a trial releases the browser's USB lock. Module preparation returns to review if the selected set or connection changes and sends nothing after its dialog closes.
+
+- Show the automatic diagnostics invitation only after the signed-in member's first successful compatible Octatrack USB connection. Opening a configuration, signing in or downloading the base no longer triggers it. Existing dialogs finish first, and account/version dismissal and saved consent choices still prevent repeat invitations; manual Account → Diagnostics remains available.
+
+- Gave the news campaign integration regression time to complete five real account flows, provider pacing and the hourly scheduler on shared CI runners. All consent, delivery and duplicate-send assertions remain required; production behavior is unchanged.
+- Improved the beta Octatrack layout on phones and tablets: module sets use a compact native chooser when space is limited, the hub collapses before its unit status or actions clip, and module tiles keep readable names and 44px touch controls. Sync sits in a separate sticky footer outside the device card, beside the selected set and its changes, with a full-width phone button and safe-area spacing. Module dialogs respect mobile safe areas and provide labelled Previous/Next controls and 44px tab targets. The desktop split view remains available at wider content widths.
+
+- Restored the beta onboarding card’s DSP memory explanation beside USB setup: effects load as needed and share their code between tracks on each DSP core. The explanation stays visible on phones and makes no CPU-speed or unlimited-capacity promise.
+
+- Added a local beta MCP server for catalogue/module inspection, card and USB preflight, isolated module sets, ordinary authenticated community API calls, saved firmware receipts and reviewed USB trials through the frontend client. API and device writes require explicit startup opt-ins; one-change trials never accept automatically. Private workspace leases prevent concurrent set overwrites, and the server preserves existing modules whose exact rollback identity is unavailable. It returns no firmware or raw memory. Domain/API evidence remains separate from visual, audio and physical reboot qualification.
 
 ## 12 October 2026
 

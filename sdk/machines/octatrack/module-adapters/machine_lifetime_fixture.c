@@ -33,6 +33,15 @@ int main(void)
  reset();assert(scan()==MACHINE_CLEAR);
  /* Every cache halfword and chunk boundary is tested, including the end. */
  for(unsigned at=0;at+4<=sizeof(cache);at+=2){reset();put(cache+at,OLD+12);assert(scan()==MACHINE_RETAINED);}
+ /* Owning extent boundaries are inclusive/exclusive, for either reference
+  * alias. Even an odd data pointer in the final byte retains the owner. */
+ for(unsigned alias=0;alias<2;alias++) {
+  const uint32_t offsets[]={0,8,4095};
+  for(unsigned i=0;i<3;i++){reset();put(cache+2,OLD+alias*0x08000000u+offsets[i]);assert(scan()==MACHINE_RETAINED);}
+  reset();put(cache+2,OLD+alias*0x08000000u+4096);assert(scan()==MACHINE_CLEAR);
+  /* A layer straddling the owner's start must never be dereferenced. */
+  reset();put(root,OLD+alias*0x08000000u-12);assert(scan()==MACHINE_RETAINED);
+ }
  reset();put(root,OLD+12);assert(scan()==MACHINE_RETAINED);
  reset();put(root,OLD+0x08000000u+12);assert(scan()==MACHINE_RETAINED);
  reset();put(root,DATA+0x08000000u);assert(scan()==MACHINE_CLEAR);
@@ -43,6 +52,7 @@ int main(void)
  reset();put(cache+12,DATA);put(data+12,OLD+4);assert(scan()==MACHINE_RETAINED);
  /* A stock layer may contain a definition array with package callbacks. */
  for(unsigned field=2;field<=10;field+=4){reset();put(root,DATA);put(data+4,DATA+128);data[128]=49;put(data+128+field,OLD+8);data[154]=255;assert(scan()==MACHINE_RETAINED);}
+ for(unsigned field=2;field<=10;field+=4){reset();put(root,DATA+0x08000000u);put(data+4,DATA+128+0x08000000u);data[128]=49;put(data+128+field,OLD+8+0x08000000u);data[154]=255;assert(scan()==MACHINE_RETAINED);}
  reset();put(root,DATA);put(data+4,DATA+128);data[128]=49;put(data+142,OLD+8);data[154]=255;assert(scan()==MACHINE_RETAINED);
  reset();put(root,DATA);put(data+8,DATA+128);data[128]=0;put(data+146,OLD+8);data[150]=255;assert(scan()==MACHINE_RETAINED);
  reset();put(root,DATA);put(data+4,DATA+128);data[128]=255;assert(scan()==MACHINE_CLEAR);

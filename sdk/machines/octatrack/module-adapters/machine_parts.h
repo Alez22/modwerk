@@ -5,6 +5,7 @@
 typedef int (*machine_part_read)(void *, uint32_t, uint8_t *, unsigned);
 /* 0 no dropped member named, 1 retained, 2 unknown/unreadable.
  * Four working and four saved RAM Parts plus their eight SRAM mirrors.
- * These are exact 1.40C layouts, not a claim that disk-only banks were read. */
+ * RAM accepts either bank alias and preserves it for reads; SRAM addresses
+ * stay fixed. These exact 1.40C layouts do not read disk-only banks. */
 int machine_part_lifetime(machine_part_read, void *, uint32_t bank, unsigned dropped);
 #endif

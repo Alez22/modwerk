@@ -156,7 +156,12 @@ def effective_modules(selected, sdk_root=None, work=None, cross='m68k-elf-'):
     from remix.schema import Linked, StockCopy
     _read(sdk, 'modules/poly8/manifest.py')
     template = registry._load_one(sdk / 'modules/poly8/manifest.py')
-    composed = policy.effective_modules([template, *[m for m in selected if m.name in ('vector', 'synth')]])
+    # FM bundles the exact reviewed Quantizer. Let the supplied-signature
+    # policy normalize a redundant selection and reject any changed layout;
+    # do not apply POLY-only replacement rules to other companion modules.
+    bundled_quantizer = 'synth' in names and 'quantizer' in names
+    composed = policy.effective_modules([template, *[m for m in selected if m.name in ('vector', 'synth') or
+                                                    (bundled_quantizer and m.name == 'quantizer')]])
     participants = [m for m in composed if m.name != 'poly8']
     # No POLY keyboard bridge replaces FM's octave-number hook. Keep it.
     if 'synth' in names:
@@ -166,7 +171,8 @@ def effective_modules(selected, sdk_root=None, work=None, cross='m68k-elf-'):
             raise ValueError('FM octave-number declaration changed.')
         participants = [replace(m, detours=m.detours + octave) if m.name == 'synth' else m for m in participants]
     # Other modules never inherit POLY-only deduplication in this bridge.
-    participants += [m for m in selected if m.name not in ('vector', 'synth')]
+    participants += [m for m in selected if m.name not in ('vector', 'synth') and
+                    not (bundled_quantizer and m.name == 'quantizer')]
     folder = Path(work).resolve();folder.mkdir(parents=True, exist_ok=True)
     source, compiled, asm = folder / 'vector-fm-controller.c', folder / 'vector-fm-controller.s', folder / 'vector-fm-bridge.s'
     source.write_text(controller_source(sdk))
