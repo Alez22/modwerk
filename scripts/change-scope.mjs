@@ -106,6 +106,7 @@ export function classifyChanges(changes) {
     scope.worker ||= workerChange(change)
     scope.logger ||= change.path.startsWith('sdk/runtime/logging/') && !isDocumentationPath(change.path)
     scope.windows ||= /^src\/catalog\/module-folder\.|^scripts\/(modules|module-qualification)\.mjs$/.test(change.path)
+      || /^scripts\/(prepare-runtime-spans|runtime_private_paths)\.py$|^sdk\/tests\/test_runtime_spans\.py$/.test(change.path)
   }
   scope.windows ||= scope.modules || scope.elemod
   return scope
