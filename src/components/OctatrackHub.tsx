@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { MODULES } from '../catalog/modules'
 import { lastInventory, sameModules, type Inventory } from '../config/inventory'
 import { lastSuccessfulSync } from '../config/octatrack-progress'
@@ -60,6 +60,23 @@ export function OctatrackHub({ view, link, inventory, sets, selectedId, needs, o
   header: ReactNode; grid: ReactNode; card: ReactNode
 }) {
   const state = useOctatrackLink(link), { status, identity } = state
+  // The page fits the window, so it never scrolls as a whole: the split gets the height left in the app's main area.
+  // shortcut: measured when the window or main area resizes and when the page changes, not when a banner above appears.
+  const split = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = split.current, main = element?.closest('main')
+    if (!element || !main || typeof ResizeObserver === 'undefined') return
+    const fit = () => {
+      // Box positions come in zoomed pixels (the desktop app shell has zoom: .9); heights are set in CSS pixels.
+      const box = main.getBoundingClientRect(), scale = box.height / main.offsetHeight || 1
+      const top = (element.getBoundingClientRect().top - box.top) / scale + main.scrollTop
+      element.style.setProperty('--hub-height', Math.max(560, main.clientHeight - top - (parseFloat(getComputedStyle(main).paddingBottom) || 0)) + 'px')
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(main)
+    return () => observer.disconnect()
+  }, [view])
   const connected = !!identity?.canSubmit && status === 'ready', busy = BUSY.includes(status), usb = !!link && status !== 'unsupported'
   const last = connected || busy ? undefined : lastInventory()
   const unitIds = connected ? inventory?.moduleIds : last?.moduleIds
@@ -90,7 +107,7 @@ export function OctatrackHub({ view, link, inventory, sets, selectedId, needs, o
     : <>Connect your Octatrack to sync this set, or <a href="#octatrack/setup">install it from the card</a>.</>
   return <div className="configuration-page octatrack-hub">
     {header}
-    <div className="hub-split">
+    <div className="hub-split" ref={split}>
       <header className="hub-hero">
         <DeviceImage device={DEVICES_BY_ID.octatrack} eager />
         <div><h2 className="hub-view-title">{model}</h2>
