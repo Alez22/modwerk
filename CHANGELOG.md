@@ -2,6 +2,7 @@
 
 ## 13 October 2026
 
+- Fixed the beta Octatrack page's missing-modules note, which lost its styles in the redesign; it is a one-line band again. The page now fits the window: the hero and list stay put, Status fills the height left (more compact on short windows) and a long page scrolls inside its own pane. The independence notice no longer sits above this page. Beta-only.
 - Prepared an unwired, read-only Analog BD browser retirement helper bound to exact package/source/layout, whole extent and generation. It refuses open or changed menus and current/paused callbacks, then plans restoration of the prior handler, label and list state because closing the stock browser leaves its arrays retained. Host negatives, ColdFire compilation and hash-only native close/callback observations are preparation; real board locks, controller leases, complete descriptor/Part consumers and hardware qualification remain pending. Public runtime admission is unchanged.
 
 - Prepare source-pinned Sidechain and Output Matrix controller write leases with strong board imports and native relocation, memory, register and stack regressions. Short write spans preserve the backend IRQ mask without stock calls; Matrix mode changes stay refused pending an interruptible full-bank ownership transaction. Imported modules and public admission remain unchanged. Synthetic lease events do not qualify board identity, physical timing, DSP audio or persistence.
