@@ -207,6 +207,7 @@ describe('community access and review',()=>{
    expect(markdown).toContain('by [other](https://octamod.test/forum/profile/other/)');expect(markdown).not.toContain('@sambanks');expect(markdown).toContain('| Module version | Not recorded |') // the configuration comes from the attached log, which does not list spectrum
    expect(markdown).toContain('@\u200bsomeone');expect(markdown).toContain('#\u200b12');expect(markdown).not.toContain('<img')
    expect(markdown).toContain('[open them on Modwerk](https://octamod.test/#developer/report/'+result.id+')')
+   expect(markdown).toContain('This issue is the whole public report');expect(markdown).toContain('only if the reporter shared them')
    // The configuration, build fingerprint and log stay private.
    for(const secret of ['c'.repeat(64),'OCTAMOD-LOG','repitch'])expect(markdown).not.toContain(secret)
    const [row]=await (await call('/admin/issues?status=all','GET',undefined,'',undefined,admin)).json();expect(row).toMatchObject({id:result.id,github_state:'failed',github_error:'GitHub answered 401: Bad credentials.'})
