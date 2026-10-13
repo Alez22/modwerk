@@ -65,7 +65,7 @@ it('expires current values during a stalled read and resets history on a differe
   unit.load.mockImplementationOnce(() => new Promise(() => {}))
   await act(() => vi.advanceTimersByTimeAsync(8001))
   expect(container.querySelector('.load-meter strong')?.textContent).toBe('—')
-  await act(() => unit.update({ status: 'ready', identity: { base: 'b'.repeat(64), canSubmit: true } }))
+  await act(() => unit.update({ status: 'ready', identity: { base: 'b'.repeat(64), canSubmit: true, model: 'OT' } }))
   expect(container.querySelectorAll('tbody tr')).toHaveLength(0)
 })
 it('breaks graph lines across missing, stale or hidden intervals', () => {
