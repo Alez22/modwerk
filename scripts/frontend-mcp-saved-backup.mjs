@@ -17,7 +17,7 @@ const privateDirectory = async path => {
 }
 
 /** Accept only authenticated bounded snapshots. Neither raw bytes nor paths are tool arguments. */
-export async function saveSavedBackup(dataDir, binding, snapshots) {
+export async function saveSavedBackup(dataDir, binding, snapshots, workspace) {
   if (!binding || !/^[a-f0-9]{64}$/.test(binding.base) || !/^[a-f0-9]{64}$/.test(binding.active) ||
       !Array.isArray(snapshots) || snapshots.length !== 2) throw new Error('Invalid saved-file backup binding.')
   for (const [slot, snapshot] of snapshots.entries()) {
@@ -32,6 +32,7 @@ export async function saveSavedBackup(dataDir, binding, snapshots) {
       throw new Error('An unreadable saved file is not an empty or absent file.')
   }
   const root = await privateDirectory(dataDir)
+  if (!workspace || root.dev !== workspace.dev || root.ino !== workspace.ino) throw new Error('The startup-selected private backup workspace changed.')
   const directory = await mkdtemp(join(dataDir, 'saved-sets-'))
   const owned = await privateDirectory(directory)
   const unchanged = async () => {

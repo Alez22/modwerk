@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, readFile, rm, lstat, readdir } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, lstat, readdir, mkdir, rename } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -149,6 +149,15 @@ describe('frontend MCP reviewed device transactions', () => {
     }
     await expect(service.call('device_saved_backup')).rejects.toThrow()
     expect((await readdir(folder)).filter(name => name.startsWith('saved-sets-'))).toHaveLength(0)
+  })
+  it('refuses a replacement workspace even when it has private permissions', async () => {
+    const moved = folder + '-owned-original'
+    await rename(folder, moved); await mkdir(folder, { mode: 0o700 })
+    try {
+      await expect(service.call('device_saved_backup')).rejects.toThrow('workspace changed')
+      expect(await readdir(folder)).toEqual([])
+      expect(await readdir(moved)).toEqual(['.mcp-lock'])
+    } finally { await rm(folder, { recursive: true }); await rename(moved, folder) }
   })
 
   it('preserves the legacy E-Verb baseline and sends only the verified TapeHead addition with its removal Undo', async () => {

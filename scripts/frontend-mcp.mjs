@@ -176,7 +176,7 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     return { review: catalogue.review(target, current, args.capabilities), changes: prepared.changes.map(change => ({ module: change.module, bytes: change.data.length, sha256: hash(change.data), undoSha256: change.undo && hash(change.undo) })) }
   }
   const handlers = {
-    site_features: async () => ({ beta: true, tools: TOOLS.map(item => item.name), coverage: ['instrument/module catalogue, search and module guides', 'card compatibility and USB package preflight/Undo', 'isolated set CRUD/import/export/current versions', 'community API with normal permissions', 'saved public firmware download receipts', 'real site USB review/trial/self-test/Keep/Undo'], limits: ['Domain/API tests do not measure CSS pixels or audible output.', 'OAuth/browser sign-in and upload file selection use their separate existing workflows.', 'No raw memory, key injection, whole-OS flash or automatic Keep.', 'Local sources and private workspace are distinct from a live signed-in browser.'] }),
+    site_features: async () => ({ beta: true, tools: TOOLS.map(item => item.name), coverage: ['instrument/module catalogue, search and module guides', 'card compatibility and USB package preflight/Undo', 'isolated set CRUD/import/export/current versions', 'community API with normal permissions', 'saved public firmware download receipts', 'real site USB review/trial/self-test/Keep/Undo', 'cached live load and fixed saved-module-file backup receipts'], limits: ['Domain/API tests do not measure CSS pixels or audible output.', 'OAuth/browser sign-in and upload file selection use their separate existing workflows.', 'No raw memory, key injection, whole-OS flash or automatic Keep.', 'Local sources and private workspace are distinct from a live signed-in browser.', 'A saved-module-file backup does not qualify recovery or permit Keep over foreign saved files.'] }),
     site_catalogue: async args => {
       const machine = args.machine ?? 'all', octa = frontend.availableModules(!!args.beta).map(module => ({ ...module, machine: 'octatrack', usb: catalogue.ids.includes(module.id) })), digi = frontend.digiModules.map(module => ({ ...module, name: module.title, description: module.summary, machine: module.device }))
       return { machines: frontend.machines, modules: [...octa, ...digi].filter(module => (machine === 'all' || module.machine === machine) && (!args.category || (module.libraryCategory ?? module.category) === args.category) && (!args.query || (module.name + ' ' + module.description).toLowerCase().includes(args.query.toLowerCase()))) }
@@ -225,7 +225,7 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
           JSON.stringify(after.inventory) !== JSON.stringify(before.inventory) || after.diagnostics?.saved !== before.diagnostics?.saved)
         throw new Error('The device changed during the saved-file backup; no files were saved.')
       if (!snapshots) return { supported: false, complete: false, recoveryVerified: false, base: after.state.identity.base, files: [] }
-      return saveSavedBackup(dataDir, { base: after.state.identity.base, active: after.state.active }, snapshots)
+      return saveSavedBackup(dataDir, { base: after.state.identity.base, active: after.state.active }, snapshots, directory)
     },
     device_review: async args => {
       if (trial) throw new Error('Finish the current trial first.')
