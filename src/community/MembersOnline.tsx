@@ -4,12 +4,13 @@ import { useMembersOnline } from './useMembersOnline'
 
 const onlineLabel = (online: number) => online === 1 ? '1 person online' : online + ' people online'
 
-/** The members who show themselves in the online list, as avatar and name links, then how many more are online unnamed. */
+/** Public member names up to the server's limit, with guests and other people counted separately. */
 export function MembersOnlineList({ presence }: { presence: Presence }) {
-  const unnamed = presence.more === presence.online
+  const guests = presence.guests ?? 0, others = Math.max(0,presence.more - guests)
   return <ul className="members-online-list" aria-label="People online">
     {presence.members.map(member => <li key={member.username}><a href={'#forum/profile/' + encodeURIComponent(member.username)}><ForumAvatar username={member.username} avatar={member.avatar} />@{member.username}</a></li>)}
-    {presence.more > 0 && <li className="members-online-more">{unnamed ? onlineLabel(presence.online) : 'and ' + presence.more + ' more'}</li>}
+    {guests > 0 && <li className="members-online-more">{guests} {guests === 1 ? 'guest' : 'guests'}</li>}
+    {others > 0 && <li className="members-online-more">{presence.guests === undefined ? (!presence.members.length ? onlineLabel(presence.online) : 'and ' + others + ' more') : others + (others === 1 ? ' more member' : ' more members')}</li>}
   </ul>
 }
 
@@ -22,5 +23,5 @@ export function MembersOnlineChip({ presence }: { presence: Presence }) {
 export function ForumOnlineNow() {
   const presence = useMembersOnline(true, false)
   if (!presence?.online) return null
-  return <div className="forum-online-now"><span className="forum-online-now-label"><span className="online-dot" aria-hidden="true" />Online now</span><MembersOnlineList presence={presence} /></div>
+  return <div className="forum-online-now"><span className="forum-online-now-label" title="Active in the last 5 minutes"><span className="online-dot" aria-hidden="true" />{presence.online} online now</span><MembersOnlineList presence={presence} /></div>
 }
