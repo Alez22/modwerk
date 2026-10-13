@@ -44,7 +44,7 @@ const wait = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, r
  * shortcut: a base without the self-test (it stalls the request) passes untested, as updates were before; refuse
  * those once every published base has it. */
 export async function runSelftest(transport: SelftestTransport, options: { signal?: AbortSignal; pollMs?: number; timeoutMs?: number;
-  startMs?: number; progress?: (done: number, total: number) => void } = {}): Promise<string | null> {
+  startMs?: number; progress?: (done: number, total: number) => void; record?: (record: SelftestRecord) => void } = {}): Promise<string | null> {
   const { signal, pollMs = 500, timeoutMs = 180_000, startMs = 3000, progress } = options
   let record = await transport.selftest(true, signal)
   for (const start = Date.now(); record && record.state !== 1 && Date.now() - start < startMs;) {
@@ -52,6 +52,7 @@ export async function runSelftest(transport: SelftestTransport, options: { signa
     record = await transport.selftest(true, signal)
   }
   if (!record) return null
+  options.record?.(record)
   if (record.state !== 1) return 'the Octatrack couldn’t start it; stop playback and try again'
   for (const start = Date.now(); record.state === 1; ) {
     progress?.(record.done, record.total)
@@ -61,6 +62,7 @@ export async function runSelftest(transport: SelftestTransport, options: { signa
     if (!next) return 'the Octatrack stopped answering it'
     record = next
   }
+  options.record?.(record)
   if (record.state === 2) return null
   const failed = record.failed
   const bit = SELFTEST_FAILURES.findIndex((_, i) => failed >> i & 1)

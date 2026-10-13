@@ -64,12 +64,29 @@ def runs(data, stock):
     return found
 
 
+def capabilities(data):
+    """Derive browser preflight requirements from the actual record types, never a handwritten module allowlist."""
+    if len(data) < 68 or data[:4] != b'MWRM':
+        raise ValueError('Not a published runtime package.')
+    abi, flags = struct.unpack_from('>HH', data, 4)
+    if abi not in (6, 7, 8) or len(data) < {6: 68, 7: 72, 8: 76}[abi]:
+        raise ValueError('Not a supported published runtime ABI.')
+    hooks, sites = struct.unpack_from('>II', data, 20)
+    copies = struct.unpack_from('>I', data, 68)[0] if abi >= 7 else 0
+    fills = struct.unpack_from('>I', data, 72)[0] if abi == 8 else 0
+    if hooks or flags & ~(7 if abi == 8 else 3) or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64:
+        raise ValueError('The published runtime package has unsupported hooks, flags or records.')
+    # One machine group needs both table composition and explicit lifetime admission.
+    features = bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0)
+    return dict(abi=abi, features=features, sites=sites, copies=copies, fills=fills)
+
+
 def dsp_words(data):
-    """An ABI 6 package without stock-code sites or hooks, or an ABI 7 one: its DSP words packed big- and little-endian."""
-    image, _, relocations, hooks, sites = struct.unpack_from('>IIIII', data, 8)
-    if data[:4] != b'MWRM' or hooks or data[4:6] not in (b'\0\6', b'\0\7') or data[5] == 6 and sites:
-        raise ValueError('Not an ABI 6 DSP effect without stock-code sites and hooks, or an ABI 7 package without hooks.')
+    """A supported stock-free runtime package: its DSP words packed big- and little-endian."""
+    capabilities(data)
     words, count = struct.unpack_from('>IH', data, 32)
+    if words > 4096 or count > 256 or 4 * words + 2 * count > len(data) - 68:
+        raise ValueError('The runtime DSP section exceeds its bounds.')
     values = struct.unpack_from('>%dI' % words, data, len(data) - 4 * words - 2 * count)
     return [b''.join(v.to_bytes(3, order) for v in values) for order in ('big', 'little')]
 
@@ -114,7 +131,7 @@ def main():
             views = [data] + dsp_words(data)
             path = 'octatrack-modules/%s/%s.mwrm' % (entry['id'], version)
             name = data[50:66].split(b'\0')[0].decode('latin-1')
-            made = dict(entry, version=version, name=name, module=data[28:32].hex(), bytes=len(data),
+            made = dict(entry, **capabilities(data), version=version, name=name, module=data[28:32].hex(), bytes=len(data),
                         sha256=hashlib.sha256(data).hexdigest(), path=path)
             entries.append(made)
             if a.check:

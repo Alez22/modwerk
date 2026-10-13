@@ -68,7 +68,7 @@ export function createFirmwareClient() {
       await recovering
       const response = await send({ id: ++nextId, type: 'base' })
       if (response.type !== 'base') throw new Error('The local firmware worker returned an unexpected result.')
-      return { buffer: response.buffer, sha256: response.sha256 }
+      return { buffer: response.buffer, sha256: response.sha256, base: response.base }
     },
     cancelBuild() {
       const file = rememberedFile; restart('The firmware build was cancelled.')

@@ -38,7 +38,7 @@
   "sdk/machines/octatrack/elekloader/fxpage.c": "0fe83eeec704cc5d8a2ffb5b3bfc50a6a5c0b28d9f61274ef0dac3bd8c94c151",
   "sdk/machines/octatrack/elekloader/fxpage.s": "81695211846406f68b11c503a1d65391bbeb9eb6723a7aa75ace6c2d87d50183",
   "sdk/machines/octatrack/elekloader/modset.c": "cbbfb448d3d81d5dd995e920ad4b9150640935478da8fe28cdfc56118ee269f9",
-  "sdk/machines/octatrack/elekloader/module_packages.py": "e5d16ac037321c6f7e897ee330070a923f0eb5e5be6ecf68b0dfc1a3e8739148",
+  "sdk/machines/octatrack/elekloader/module_packages.py": "77d749c5acbed896e1985124a7d56fdcf587177dfd4d8a8e7c23c262188b6118",
   "sdk/machines/octatrack/elekloader/old_projects.py": "8262ef8fa47fc4aa2354b40699cad960278c5cb998726b0c22ed1d0876ab08de",
   "sdk/machines/octatrack/elekloader/runtime.c": "fbe7d1c92a7deeaf053029ac5400caded32dbd8709ee1e7a76ef6227e6785594",
   "sdk/machines/octatrack/elekloader/runtime.h": "69b2f1008f1b34ee164f413a4a4814a3c14bb82219c3e928dab72eca8158613f",

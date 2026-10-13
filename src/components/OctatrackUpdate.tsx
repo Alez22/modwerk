@@ -11,12 +11,18 @@ export type StressTest = () => Promise<string | null>
  * the ones this set does not have yet (absent when it has them all). */
 export interface ProjectNeeds { names: string[]; unknown: string[]; add?: () => void }
 const list = (items: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(items)
-export function MissingNote({ needs }: { needs?: ProjectNeeds }) {
+export function MissingNote({ needs, onSync }: { needs?: ProjectNeeds; onSync?: () => void }) {
   if (!needs || !needs.names.length && !needs.unknown.length) return null
-  const { names, unknown, add } = needs, verb = (n: number) => n === 1 ? 'isn’t' : 'aren’t'
-  return <p className="usb-missing" role="status">
-    {names.length > 0 && <>Your project uses {list(names)}, which {verb(names.length)} on your Octatrack. {add
-      ? <button className="text-button" onClick={add}>Add to set</button> : `Load onto Octatrack to bring ${names.length === 1 ? 'it' : 'them'} back.`}</>}
-    {unknown.length > 0 && <>{names.length ? ' It also uses ' : 'Your project uses '}{list(unknown)}, which {verb(unknown.length)} in the library.</>}
-  </p>
+  const { names, unknown, add } = needs, count = names.length + unknown.length
+  return <section className="usb-missing" aria-label="Missing modules">
+    <div role="status">
+      <h3>{count} {count === 1 ? 'module missing' : 'modules missing'} from your Octatrack</h3>
+      <ul aria-label="Modules your project needs">{[...names, ...unknown].map(name => <li key={name}>{name}</li>)}</ul>
+      {unknown.length > 0 && <p>{list(unknown)} {unknown.length === 1 ? 'isn’t' : 'aren’t'} in the library yet.</p>}
+    </div>
+    <div className="usb-missing-action"><p>Your project uses {count === 1 ? 'this module' : 'these modules'}.</p>
+      {names.length > 0 && (add ? <button type="button" className="button button-quiet" onClick={add}>Add to set</button>
+        : onSync && <button type="button" className="button button-quiet" onClick={onSync}>Sync to Octatrack</button>)}
+    </div>
+  </section>
 }

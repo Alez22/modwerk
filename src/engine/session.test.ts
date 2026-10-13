@@ -12,7 +12,7 @@ import { buildBase } from './elekloader/octatrack-base'
 // private native checks; no proprietary firmware enters this test or CI.
 vi.mock('./base', () => ({ inspectBaseFirmware: vi.fn().mockResolvedValue({ version: '1.40C' }) }))
 vi.mock('./stock-dsp', () => ({ recoverStockDsp: vi.fn().mockResolvedValue([]) }))
-vi.mock('./elekloader/octatrack-base', () => ({ buildBase: vi.fn(async () => ({ bin: Uint8Array.of(1, 2, 3), sha256: 'b' })) }))
+vi.mock('./elekloader/octatrack-base', () => ({ buildBase: vi.fn(async () => ({ bin: Uint8Array.of(1, 2, 3), sha256: 'b', base: 'c'.repeat(64) })) }))
 vi.mock('./compose-os', () => ({ composeSelection: vi.fn(async (original: Uint8Array) => ({
   bytes: original.slice(), chooser: { fx1: [], fx2: [], hidden: [] },
   runtime: { bytes: 0, reservedBytes: 0 },
@@ -117,7 +117,7 @@ describe('the Modwerk base', () => {
     await handle({ id: 2, type: 'inspect', name: 'synthetic.bin', buffer: input.slice().buffer })
     await handle({ id: 3, type: 'base' })
     const reply = replies.at(-1) as Extract<EngineResponse, { type: 'base' }>
-    expect(reply.type).toBe('base')
+    expect(reply).toMatchObject({ type: 'base', sha256: 'b', base: 'c'.repeat(64) })
     expect([...new Uint8Array(reply.buffer)]).toEqual([1, 2, 3])
     const [stock, fetchedText, fills] = vi.mocked(buildBase).mock.calls[0]
     expect(stock).toEqual(input)

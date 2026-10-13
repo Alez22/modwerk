@@ -1,76 +1,97 @@
+import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { MODULES } from '../catalog/modules'
-import { lastInventory, sameModules, type Inventory } from '../config/inventory'
+import { lastInventory, listboxMove, sameModules, type Inventory } from '../config/inventory'
+import { BaseUpdateRequired, moduleSetReview } from '../engine/elekloader/module-set'
+import { lastSuccessfulSync } from '../config/octatrack-progress'
 import type { Configuration } from '../config/workspace'
+import { DeviceImage } from '../devices/DeviceImage'
+import { DEVICES_BY_ID } from '../devices/registry'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
-import { moduleHref } from '../routing'
 import { Icon } from './Icon'
-import { StateChip } from './ModuleGrid'
-import { ModulePreview } from './ModulePreview'
+import { OctatrackDiagnosticsSettings } from './OctatrackDiagnostics'
 import { MissingNote, type ProjectNeeds } from './OctatrackUpdate'
 import './octatrack-link.css'
 
 const moduleName = (id: string) => MODULES.find(module => module.id === id)?.name ?? id
+const modules = (n: number) => n + (n === 1 ? ' module' : ' modules')
 const BUSY = ['sending', 'testing', 'trial', 'finishing']
 
 /**
- * Your Octatrack: what is on it now (or when this browser last read it), your module sets against it, and the one
- * way to load one, through the guided dialog. Nothing loads from here without that dialog.
+ * Your Octatrack: the configuration page of the beta. A split view with your module sets on the leading side
+ * (selecting one makes it the set you edit, the one the library adds to and the one Sync sends) and, on the trailing
+ * side, the unit and the selected set's modules (`grid`, App's ModuleGrid, with the unit's LED states). The page's
+ * header (`header`) and the card route (`card`: base OS file, checks, build) are App's own parts, so nothing the
+ * configuration page had is lost. Nothing goes onto the unit without the guided sync.
  */
-export function OctatrackHub({ link, inventory, sets, needs, onLoad, onEdit, onCreate, onSaveUnit, onInstall }: {
-  link: OctatrackLink | null; inventory?: Inventory; sets: Configuration[]; needs?: ProjectNeeds
-  onLoad: (id: string) => void; onEdit: (id: string) => void; onCreate: () => void; onSaveUnit: () => void; onInstall: () => void
+export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelect, onSync, onInstall, header, grid, card }: {
+  link: OctatrackLink | null; inventory?: Inventory; sets: Configuration[]; selectedId?: string; needs?: ProjectNeeds
+  onSelect: (id: string) => void; onSync: (id: string) => void; onInstall: () => void
+  header: ReactNode; grid: ReactNode; card: ReactNode
 }) {
   const state = useOctatrackLink(link), { status, identity } = state
-  const connected = !!identity?.canSubmit && status === 'ready', busy = BUSY.includes(status)
+  const connected = !!identity?.canSubmit && status === 'ready', busy = BUSY.includes(status), usb = !!link && status !== 'unsupported'
   const last = connected || busy ? undefined : lastInventory()
-  const shown = connected ? inventory?.moduleIds : last?.moduleIds
-  const match = shown && sets.find(set => sameModules(set.moduleIds, shown))
-  const [line, action] = busy ? ['Loading onto your Octatrack…', null]
-    : connected ? [`Connected · Modwerk base ${identity!.base.slice(0, 8)}`, null]
+  const unitIds = connected ? inventory?.moduleIds : last?.moduleIds
+  const selected = sets.find(set => set.id === selectedId) ?? sets[0]
+  const same = (set: Configuration) => set.moduleIds.length > 0 && !!unitIds && sameModules(set.moduleIds, unitIds)
+  const onUnit = sets.find(same)
+  const lastSync = lastSuccessfulSync(identity?.base ?? last?.base)
+  const lastName = onUnit?.name ?? (last && lastSync && sameModules(last.moduleIds, lastSync.moduleIds) ? lastSync.name : undefined)
+  const options = useRef<(HTMLLIElement | null)[]>([])
+  function move(event: KeyboardEvent, index: number) {
+    const next = listboxMove(event.key, index, sets.length)
+    if (next === undefined) return
+    event.preventDefault(); onSelect(sets[next].id); options.current[next]?.focus()
+  }
+  const review = connected && inventory && selected ? moduleSetReview(selected, inventory, identity?.capabilities) : undefined
+  const changes = review?.changes, updates = review?.updates ?? []
+  const needsBase = review?.problem instanceof BaseUpdateRequired
+  const when = last && new Date(last.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  const [line, action]: [ReactNode, ReactNode] = !usb ? ['This browser can’t use USB. Install from the card below, or open this page in Chrome or Edge on a computer.', null]
+    : busy ? ['Syncing…', null]
+    : connected ? [<>Connected · {inventory ? modules(inventory.moduleIds.length) + ' on it' : 'reading what’s on it…'}{onUnit && <> · same as <b>{onUnit.name}</b></>}</>, null]
     : status === 'connecting' ? ['Looking for your Octatrack…', null]
-    : status === 'unsupported' ? ['This browser can’t use USB. Open this page in Chrome or Edge on a computer.', null]
-    : status === 'busy' ? ['Another tab or app is using your Octatrack.', <button key="retry" className="text-button" onClick={() => void link?.retry()}>Try again</button>]
+    : status === 'busy' ? ['Another tab or app is using your Octatrack.', <button key="retry" className="button button-quiet" onClick={() => void link?.retry()}>Try again</button>]
     : status === 'stock' || status === 'ready' ? [status === 'stock' ? 'Connected · original OS' : 'Connected · a Modwerk base this site can’t talk to', <button key="install" className="button button-primary" onClick={onInstall}>Install the base</button>]
-    : ['Not connected', <button key="connect" className="button button-quiet" onClick={() => void link?.connect()}>Connect</button>]
-  const reason = connected ? '' : busy ? 'A load is running.' : status === 'stock' ? 'Install the base to load module sets.' : 'Connect your Octatrack to load a module set.'
+    : [<>Not connected{last ? <> · Last seen: {lastName ? <b>{lastName}</b> : modules(last.moduleIds.length)} · {when}</> : null}</>, <button key="connect" className="button button-quiet" onClick={() => void link?.connect()}>Connect</button>]
   return <div className="configuration-page octatrack-hub">
-    <header className="page-heading configuration-heading"><div>
-      <h1>Your Octatrack <span className="module-beta-badge">Beta</span></h1>
-      <p>What’s on it, and your module sets. Nothing goes onto it until you load a set and keep it.</p>
-    </div></header>
-    <section className="configuration-section hub-unit" aria-labelledby="hub-unit-title">
-      <div className="section-title">
-        <h2 id="hub-unit-title">{connected ? 'On it now' : last ? 'When last connected' : 'On it'} {shown && <span className="subtle">{shown.length}</span>}</h2>
-        <span className={'unit-strip is-' + (connected ? 'connected' : busy ? 'busy' : 'off')} role="status"><span className={'status-dot' + (connected ? ' verified' : busy ? ' is-live' : '')} />{line}{action}</span>
-      </div>
-      {connected && !inventory ? <p className="link-hint">Reading what’s on it…</p>
-        : shown ? shown.length ? <ul className="module-tiles">{shown.map(id => <li key={id} className="module-tile">
-            <a className="module-tile-open" href={moduleHref(id)}><ModulePreview id={id} compact /><strong>{moduleName(id)}</strong><small>{MODULES.find(module => module.id === id)?.detail ?? 'Not in the library'}</small></a>
-          </li>)}</ul> : <p className="link-hint">No modules on it.</p>
-        : <p className="link-hint">Plug in your Octatrack to see what’s on it.</p>}
-      {last && <p className="link-hint">Read {new Date(last.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}. It may have changed since.</p>}
-      {match && <p className="hub-match">Same modules as your set <b>{match.name}</b>.</p>}
-      {connected && <MissingNote needs={needs} />}
-      {connected && inventory && inventory.moduleIds.length > 0 && !match && <button type="button" className="text-button" onClick={onSaveUnit}>Save what’s on it as a module set <Icon name="plus" size={14} /></button>}
-    </section>
-    <section className="configuration-section hub-sets" aria-labelledby="hub-sets-title">
-      <div className="section-title"><h2 id="hub-sets-title">Your module sets <span className="subtle">{sets.length}</span></h2>
-        <button type="button" className="button button-quiet" onClick={onCreate}><Icon name="plus" size={16} />New module set</button></div>
-      {reason && sets.length > 0 && <p className="link-hint">{reason}</p>}
-      <ul className="hub-set-list">{sets.map(set => {
-        const on = connected && !!inventory && sameModules(set.moduleIds, inventory.moduleIds)
-        return <li key={set.id}>
-          <span className="hub-set-name"><strong>{set.name}</strong><small>{set.moduleIds.map(moduleName).join(', ') || 'No modules yet'}</small></span>
-          {on && <StateChip state="on" className="is-legend">On your Octatrack</StateChip>}
-          <button type="button" className="button button-quiet" onClick={() => onEdit(set.id)}>Edit</button>
-          {!on && <button type="button" className="button button-primary" disabled={!connected || !inventory} onClick={() => onLoad(set.id)}>Load onto Octatrack…</button>}
-        </li>
-      })}</ul>
-      {!sets.length && <p className="link-hint">No module sets yet.</p>}
-    </section>
-    <details className="card-install"><summary>Install from the card instead</summary>
-      <p className="link-hint">No USB here? Build a .bin for the card on your module set’s page, then install it like an OS update. <a href="#configuration">Open your module set <Icon name="arrow" size={14} /></a></p>
-    </details>
+    {header}
+    <div className="hub-split">
+      <section className="hub-sets" aria-labelledby="hub-sets-title">
+        <div className="hub-pane-label"><h2 id="hub-sets-title">Module sets</h2><span className="subtle">{sets.length}</span></div>
+        <ul className="hub-set-list" role="listbox" aria-labelledby="hub-sets-title">
+          {sets.map((set, index) => { const isSelected = set.id === selected?.id, on = same(set)
+            return <li key={set.id} ref={element => { options.current[index] = element }} role="option" aria-selected={isSelected} tabIndex={isSelected ? 0 : -1}
+              className={'hub-set' + (isSelected ? ' is-selected' : '')} onClick={() => onSelect(set.id)} onKeyDown={event => move(event, index)}>
+              <span className={'unit-led is-' + (on && connected ? 'on' : 'off')} aria-hidden="true" />
+              <strong>{set.name}</strong><b>{set.moduleIds.length}</b>
+              <small>{set.moduleIds.map(moduleName).join(' · ') || 'No modules yet'}</small>
+              {on && (connected ? <em>On your Octatrack</em> : <small>Last seen on your Octatrack</small>)}
+            </li> })}
+        </ul>
+      </section>
+      <section className="hub-unit" aria-labelledby="hub-unit-title">
+        <div className="hub-unit-head">
+          <DeviceImage device={DEVICES_BY_ID.octatrack} eager />
+          <div><h2 id="hub-unit-title">{identity?.model ? identity.model.replace('OCTATRACK', 'Octatrack') : 'Octatrack'}</h2>
+            <p role="status"><span className={'unit-led is-' + (connected ? 'on' : busy ? 'load' : 'off')} aria-hidden="true" />{line}</p></div>
+          {action}
+        </div>
+        {lastSync && <p className="hub-last-sync">Last sync from this browser: <b>{lastSync.name}</b> · <time dateTime={lastSync.at}>{new Date(lastSync.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></p>}
+        {selected && usb && <div className="hub-sync-bar" aria-label="Module set sync">
+          <div><strong>{selected.name}</strong>
+            <p>{review?.problem ? <span role="alert">{review.problem.message}</span> : changes ? review?.needsSync ? <>Adds {changes.add.length} · Removes {changes.remove.length}{updates.length > 0 && <> · Updates {updates.length}</>}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
+                : selected.moduleIds.length ? <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span> : 'No modules in this set.'
+              : busy ? 'A sync is running.' : status === 'stock' ? 'Install the base to sync this set.' : connected ? 'Reading what’s on your Octatrack…' : 'Connect your Octatrack to sync this set.'}</p>
+          </div>
+          <button type="button" className="button button-primary" disabled={!review || !needsBase && (!review.needsSync || !!review.problem)} onClick={() => { onSync(selected.id); if (needsBase) onInstall() }}><Icon name="download" size={16} />{needsBase ? 'Install latest base' : 'Sync to Octatrack'}</button>
+        </div>}
+        {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
+        {grid}
+        {card}
+        <details className="hub-diagnostics"><summary>Diagnostics</summary><OctatrackDiagnosticsSettings/></details>
+      </section>
+    </div>
   </div>
 }

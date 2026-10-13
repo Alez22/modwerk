@@ -20,7 +20,7 @@ export type EngineResponse =
   | { id: number; type: 'progress'; phase: BuildProgress }
   | { id: number; type: 'built'; buffer: ArrayBuffer; report: BuildReport; sha256: string }
   | { id: number; type: 'cleared' }
-  | { id: number; type: 'base'; buffer: ArrayBuffer; sha256: string }
+  | { id: number; type: 'base'; buffer: ArrayBuffer; sha256: string; base: string }
   | { id: number; type: 'error'; message: string; conflict?: SelectionConflict }
 // The owner authorized the logger-enabled release on 3 October 2026.
 // The logger exception and remaining measurement limits are in docs/VERIFICATION.md.

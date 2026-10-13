@@ -17,6 +17,16 @@ export const VENDOR_MISSING = 14 // the modules the unit's project names that ar
 export const MISSING_BYTES = 316
 export const MISSING_PAGE = 13 // entries a MISSING reply holds; wValue is the first (elekloader/fxids.h)
 export const VENDOR_INVENTORY = 27 // the modules installed on the unit, in MISSING's form (sdk/runtime/loader/loader.c)
+export const VENDOR_CAPABILITIES = 29 // loader capabilities; older bases stall this read-only request
+export const CAPABILITIES_BYTES = 12
+export const RuntimeFeature = { sites: 1, stockCopies: 2, fills: 4, tables: 8, machineGroups: 16, sidechain: 32 } as const
+export interface RuntimeCapabilities { abi: number; features: number; maxSites: number; maxCopies: number }
+/** MWCP v1. Unknown feature bits are retained: they do not imply features this client requires. */
+export function parseRuntimeCapabilities(view: DataView): RuntimeCapabilities {
+  if (view.byteLength !== CAPABILITIES_BYTES || view.getUint32(0) !== 0x4d574350 || view.getUint8(4) !== 1 || view.getUint8(5) < 3)
+    throw new VendorTransportError('The Octatrack’s loader capabilities could not be read.')
+  return { abi: view.getUint8(5), features: view.getUint16(6), maxSites: view.getUint16(8), maxCopies: view.getUint16(10) }
+}
 /** The device can receive SUBMIT data stages; without it only IDENTIFY answers. */
 export const VENDOR_CAN_SUBMIT = 1
 export const VENDOR_VERSION = 1
@@ -49,7 +59,11 @@ export class VendorTransportError extends Error {
 }
 export interface VendorResult { status: VendorStatusName; sequence: number; response?: Uint8Array }
 
-export interface VendorIdentity { canSubmit: boolean; base: string; model: string }
+export interface VendorIdentity {
+  canSubmit: boolean; base: string; model: string
+  /** Read separately through MWCP after IDENTIFY; absent on older bases. */
+  capabilities?: RuntimeCapabilities
+}
 
 /** IDENTIFY's 64 bytes, refused unless every field is exactly what this client speaks. */
 /** The base's self-test record (selftest.h): its state (0 idle, 1 running, 2 passed, 3 failed), what failed (bits),
@@ -146,6 +160,15 @@ export class UsbVendorTransport implements UploadTransport {
     signal?.throwIfAborted()
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not identify itself.')
     return parseVendorIdentity(new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength))
+  }
+  /** Undefined means an older base, not a transport failure or proof that newer modules can run. */
+  async capabilities(signal?: AbortSignal): Promise<RuntimeCapabilities | undefined> {
+    signal?.throwIfAborted()
+    const reply = await this.device.controlTransferIn(this.setup(VENDOR_CAPABILITIES, 0), CAPABILITIES_BYTES)
+    signal?.throwIfAborted()
+    if (reply.status === 'stall') return undefined
+    if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The Octatrack did not answer the loader capabilities request.')
+    return parseRuntimeCapabilities(reply.data)
   }
   async result(signal?: AbortSignal): Promise<VendorResult> {
     signal?.throwIfAborted()

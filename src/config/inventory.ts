@@ -2,7 +2,11 @@ import { sha } from '../../vendor/elekloader/kit/src/bytes.ts'
 import { STOCK_EFFECTS } from '../catalog/stock-effects'
 
 /** What an Octatrack running the Modwerk base has on it: its modules and the stock effects left out of the menus. */
-export interface Inventory { moduleIds: string[]; removedStockFx: string[] }
+export interface Inventory {
+  moduleIds: string[]; removedStockFx: string[]
+  /** Exact combined machine packages reported by the unit. Never inferred from the displayed member names. */
+  runtimeGroups?: { id: string; layout: number }[]
+}
 /** What a load makes the unit match: a module set, or the device page's edits. */
 export interface InventoryTarget { name: string; moduleIds: string[]; removedStockFx?: string[] }
 export interface InventoryChanges { add: string[]; remove: string[]; stockOff: string[]; stockOn: string[] }
@@ -20,7 +24,7 @@ export function inventoryChanges(current: Inventory, target: InventoryTarget): I
 export const changeCount = (changes: InventoryChanges) => changes.add.length + changes.remove.length + changes.stockOff.length + changes.stockOn.length
 
 export type UnitState = 'on' | 'load' | 'leaving'
-export const UNIT_STATE: Record<UnitState, string> = { on: 'On your Octatrack', load: 'Not loaded yet', leaving: 'Leaves next load' }
+export const UNIT_STATE: Record<UnitState, string> = { on: 'On your Octatrack', load: 'Not on your Octatrack yet', leaving: 'Leaves next sync' }
 /** Where a module stands against the unit: on it, only in the module set, or on it but leaving with the next load. */
 export const unitState = (id: string, setIds: readonly string[], inventory?: Inventory): UnitState | undefined =>
   !inventory ? undefined : inventory.moduleIds.includes(id) ? setIds.includes(id) ? 'on' : 'leaving' : setIds.includes(id) ? 'load' : undefined
@@ -60,4 +64,10 @@ export function lastInventory(base?: string): LastSeen | undefined {
     .filter(([key, seen]) => (!base || key === base) && Array.isArray(seen?.moduleIds) && seen.moduleIds.every(id => typeof id === 'string') && typeof seen.at === 'string')
     .sort((a, b) => b[1].at.localeCompare(a[1].at))
   return found && { base: found[0], moduleIds: found[1].moduleIds, at: found[1].at }
+}
+
+/** A listbox's keys: the option an arrow, Home or End moves to; undefined for any other key. */
+export function listboxMove(key: string, index: number, count: number): number | undefined {
+  if (!count) return undefined
+  return key === 'ArrowDown' ? Math.min(count - 1, index + 1) : key === 'ArrowUp' ? Math.max(0, index - 1) : key === 'Home' ? 0 : key === 'End' ? count - 1 : undefined
 }

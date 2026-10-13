@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import type { Configuration } from '../config/workspace'
 import { FIRMWARE_SHARING_NOTICE, FLASHING_RISKS } from '../firmware-notices'
 import { Icon } from './Icon'
@@ -7,7 +7,7 @@ import { useBetaUi, useSetWords } from '../community/beta-ui'
 type DialogMode = 'create' | 'rename' | 'duplicate' | 'delete'
 
 // The configuration page header: the name is the switcher, New stays in view and the other actions sit in one menu.
-export function ConfigurationHeader({ kicker, meta, emptyTitle, configuration, configurations, onSelect, onDialog, onImport, shareHref, canReport, onReport }: { kicker: string; meta: string; emptyTitle?: string; configuration?: Configuration; configurations: Configuration[]; onSelect: (id: string) => void; onDialog: (mode: DialogMode) => void; onImport: () => void; shareHref: string; canReport: boolean; onReport: () => void }) {
+export function ConfigurationHeader({ kicker, meta, emptyTitle, configuration, configurations, onSelect, onDialog, onImport, shareHref, canReport, onReport, title }: { kicker: string; meta: string; emptyTitle?: string; configuration?: Configuration; configurations: Configuration[]; onSelect: (id: string) => void; onDialog: (mode: DialogMode) => void; onImport: () => void; shareHref: string; canReport: boolean; onReport: () => void; /** A fixed title (the beta's Octatrack page lists the sets beside it) in place of the switcher. */ title?: ReactNode }) {
   const w = useSetWords(), beta = useBetaUi()
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -36,7 +36,7 @@ export function ConfigurationHeader({ kicker, meta, emptyTitle, configuration, c
   return <header className="page-heading configuration-heading">
     <div>
       <p className="page-kicker">{kicker}</p>
-      <h1>{configuration ? <select className="configuration-switcher" aria-label={'Choose ' + w.set} value={configuration.id} onChange={event => onSelect(event.target.value)}>{configurations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : emptyTitle}</h1>
+      <h1>{title ?? (configuration ? <select className="configuration-switcher" aria-label={'Choose ' + w.set} value={configuration.id} onChange={event => onSelect(event.target.value)}>{configurations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : emptyTitle)}</h1>
       <p>{meta}</p>
     </div>
     <div className="configuration-heading-actions">

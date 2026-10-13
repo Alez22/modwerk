@@ -51,6 +51,7 @@ src/community/module-release-notes.ts
 src/community/modules.ts
 src/community/notification-contract.ts
 src/community/notification-text.ts
+src/community/octatrack-diagnostics-contract.ts
 src/community/ot-log.ts
 src/community/profile-links.ts
 src/community/report-closure.ts

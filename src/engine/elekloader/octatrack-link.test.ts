@@ -16,6 +16,16 @@ beforeEach(() => { vi.stubGlobal('navigator', {}) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('finding the unit', () => {
+  it('does not read diagnostic status if consent is withdrawn while claiming the interface', async () => {
+    const {unit,link}=await linked(),device=(await unit.usb.getDevices())[0]
+    const transfer=vi.spyOn(device,'controlTransferIn'),release=vi.spyOn(device,'releaseInterface')
+    let complete:()=>void=()=>{},allowed=true
+    vi.spyOn(device,'claimInterface').mockImplementationOnce(()=>new Promise<void>(resolve=>{complete=resolve}))
+    const controller=new AbortController(),reading=link.health(controller.signal,()=>allowed)
+    const cancelled=expect(reading).rejects.toBeInstanceOf(LinkBusyError)
+    await settle();allowed=false;controller.abort();complete();await cancelled
+    expect(transfer).not.toHaveBeenCalled();expect(release).toHaveBeenCalledTimes(1)
+  })
   it('reports a browser without WebUSB instead of offering a dead button', () => {
     expect(new OctatrackLink(undefined).getState().status).toBe('unsupported')
   })
@@ -255,7 +265,7 @@ describe('loading a module set', () => {
   it('explains an unplug part way through a set', async () => {
     const { unit, link } = await loaded()
     unit.unplug()
-    expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: 'USB disconnected. Your Octatrack is between the two module sets: load one of them again.' } })
+    expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: 'USB disconnected. Your Octatrack is between the two module sets: sync one of them again.' } })
   })
 })
 
@@ -281,7 +291,7 @@ describe('several tabs of the site', () => {
     await a.keep()
     await waiting
     // Tab B planned its load against the unit before A's: it refuses to send it.
-    expect(b.getState().notice?.text).toBe('Another tab changed your Octatrack meanwhile, so nothing was loaded. Review the load again.')
+    expect(b.getState().notice?.text).toBe('Another tab changed your Octatrack meanwhile, so nothing was synced. Review the sync again.')
     expect(unit.active).toBe(sha(data(1)))
   })
   it('lets the waiting tab load once the other tab undid its load', async () => {

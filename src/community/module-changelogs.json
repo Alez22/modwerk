@@ -10,7 +10,9 @@
           "Cover both SRC SETUP commit paths and the main machine chooser; preserve existing Analog BD patches on reselection and leave unsigned tracks and other Parts untouched.",
           "808/909 DSP code is byte-identical to 0.1.4. Existing SRC locks, scene targets and LFO destinations remain assigned to their parameter slots and may require adjustment when changing machines.",
           "Owner reports physical FLEX reboot persistence on exact AB015FIX01 and authorizes this experimental release. Broader hardware/maximum-load, worst-case chip timing and complete memory bounds remain unverified under a new exact-source approval; Output Matrix sequencer halt remains unverified.",
-          "Documentation/media-only: add an offline audio preview rendered through 0.1.5-experimental, with sample credits, settings and provenance; firmware is unchanged."
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.5-experimental, with sample credits, settings and provenance; firmware is unchanged.",
+          "Documentation/media-only (12 October 2026): replace the preview with five isolated 808/909 hits, longer tail windows, clean/attack/long 909 comparisons and one common gain; retain the released 0.1.5 engine source identity. Firmware and its version are unchanged; these offline previews add no physical-hardware or performance qualification.",
+          "Documentation/media-only (12 October 2026): replace the isolated-hit preview with a 22.5-second four-on-the-floor groove at 128 BPM: default 808, one-bar 909 TUNE endpoints and slow TUNE/built-in Mackie SAT sweeps. Keep Tune Depth at default 64 and PITCH at 49; hold 909 ATK at 0 so the envelope bend is clearer. Use a common gain and remove added silence. Include exact trigger/automation/render provenance. Firmware behavior and hardware/performance qualification are unchanged."
         ]
       },
       {
@@ -96,7 +98,8 @@
         "changes": [
           "Protect clock reset when playback starts: preserve the CPU status register and mask interrupts while resetting timing state.",
           "Clear the initialized flag before the reset and publish it after the new state is ready, preventing an interrupt from seeing a partial reset. Existing timing, swing and controls are unchanged.",
-          "Documentation/media-only: add an offline audio preview rendered through 0.1.4-experimental, with sample credits, settings and provenance; firmware is unchanged."
+          "Documentation/media-only: add an offline audio preview rendered through 0.1.4-experimental, with sample credits, settings and provenance; firmware is unchanged.",
+          "Documentation/media-only (12 October 2026): replace the abrupt, short-decay demo with the owner-supplied modpad.wav preview at 128 BPM. Use its eight-bar middle (22.5–37.5 seconds), excluding the render-error ends and preserving its supplied sound/decay. Record source permission, hashes, crop and encoding. Capture setup and recorded module version are unverified; firmware and existing hardware/performance status are unchanged."
         ],
         "sourceCommit": "e027bea0fcaed334ef69c11be4474627814a2e21"
       },
@@ -256,7 +259,8 @@
         "date": "2026-10-02",
         "changes": [
           "First Modwerk catalog release of Sam Banks’s preview-volume patch: Flex/Static sample previews use the default AMP volume even when the active track is turned down.",
-          "Retain the upstream implementation and real UI captures; verify stock bytes from the user’s own local firmware."
+          "Retain the upstream implementation and real UI captures; verify stock bytes from the user’s own local firmware.",
+          "Runtime development (13 October 2026): derive the staged USB package’s ABI and record-feature requirements from its checked header, so the browser accepts it on a capable base and refuses older bases before transfer. This changes package metadata only; the public card build is unchanged and the ABI 8 candidate still requires exact hardware requalification."
         ],
         "sourceCommit": "b98abc5fcefad5e7c180f3746aa740159c19c422"
       }
@@ -301,7 +305,8 @@
         "version": "0.1.2-experimental",
         "date": "2026-10-01",
         "changes": [
-          "Documentation-only: add real emulator screenshots of the selection and control pages, access instructions and capture provenance. The firmware implementation is unchanged."
+          "Documentation-only: add real emulator screenshots of the selection and control pages, access instructions and capture provenance. The firmware implementation is unchanged.",
+          "Runtime development (13 October 2026): derive the staged USB package’s ABI and record-feature requirements from its checked header, so the browser accepts it on a capable base and refuses older bases before transfer. This changes package metadata only; the public card build is unchanged and the ABI 8 candidate still requires exact hardware requalification."
         ],
         "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
       },
@@ -378,7 +383,8 @@
           "correct the MIDI chromatic drawer’s argument stack so changing MIDI trig mode keeps the instrument responsive (#264).",
           "add 18.06 dB of source headroom before mono output and paraphonic summing, preserving envelopes and relative voice levels (#273). Sounds are quieter at unchanged mixer settings; effect and multi-track mix clipping remains possible.",
           "Owner-approved experimental release without current hardware validation. Chip timing and complete memory bounds remain unmeasured; the original static symptom is not hardware-confirmed.",
-          "Runtime development (12 October 2026): prepare a guarded source adapter that relocates FM Synth's page, quantizer mailbox and scale accessor together, and binds helper calls directly to its own engine for a shared machine package. Fresh native links reproduce relocation at two origins; a guarded shared-owner variant keeps descriptor publication inside the package instead of leaving a pointer in the stock table. Standalone descriptor lifetime, USB packaging, composed emulator behavior and new-base hardware qualification remain pending; this does not change the public card build."
+          "Runtime development (12 October 2026): prepare a guarded source adapter that relocates FM Synth's page, quantizer mailbox and scale accessor together, and binds helper calls directly to its own engine for a shared machine package. Fresh native links reproduce relocation at two origins; a guarded shared-owner variant keeps descriptor publication inside the package instead of leaving a pointer in the stock table. Standalone descriptor lifetime, USB packaging, composed emulator behavior and new-base hardware qualification remain pending; this does not change the public card build.",
+          "Documentation/media-only (12 October 2026): add a sample-free melodic preview using VECTOR’s native generator offline to supply FM note locks, with native 128 BPM sequencing, index/feedback sweeps and actual Mini Verb in FX2. Remove boot/edit silence and added gaps; include exact generator, source/image, controls, recording and decoded peak provenance. Firmware and hardware/performance qualification are unchanged."
         ]
       },
       {
@@ -392,6 +398,14 @@
       }
     ],
     "tapeecho": [
+      {
+        "version": "0.1.3-experimental",
+        "date": "2026-10-12",
+        "changes": [
+          "Documentation/media-only: retain the exact 0.1.2-experimental runtime and historical UI, source and test evidence while adding a 7.85-second Legowelt Juno 106 chord-pluck preview: dry, clean eighth-note repeats and worn dotted-eighth echoes at 128 BPM, without added gaps. Include pack permission, source/excerpt hashes and offline render settings; refresh monochrome exports from the existing LCD captures.",
+          "Retain the approved 0.1.2-experimental runtime and evidence. No DSP behavior, hardware freeze mitigation, timing headroom or new physical-hardware qualification is claimed."
+        ]
+      },
       {
         "version": "0.1.2-experimental",
         "date": "2026-10-01",
@@ -516,6 +530,7 @@
         "version": "1.6.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain the shared hooks, machine icons, Digi Mono/Digi Poly integration and refused combinations. Add guide screenshots; pinned firmware code is unchanged."
         ],
         "sourceCommit": "3d437d1747ed0821a132cd6576b8a2fdff01e72c"
@@ -535,6 +550,7 @@
         "version": "1.0.2-experimental",
         "date": "2026-10-11",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Fix page Clear: hold FUNC and LFO, then press PLAY (CLEAR) to restore every EQ band’s default gain, frequency, Q and type. Preserve selected knob modes, global override and other master pages.",
           "Align the left EQ box with the pattern header and center its label. Filter DSP and stored EQ layout are unchanged.",
           "Owner-approved experimental release for this exact source and both D185 images. Native panel regressions and current UI captures pass; hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot and stress remain unverified. Global override preservation is source-reviewed only; page Copy/Paste and Undo Clear are unqualified."
@@ -563,6 +579,7 @@
         "version": "1.0.2-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain FAST AUDIO, top-bar indicators and SYSTEM INFO, with real menu and diagnostics captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "259c2a105d2267c8bad6fc38d832ddfb6059753a"
@@ -581,6 +598,7 @@
         "version": "1.0.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain route source/destination, OWN selection and bipolar depth, with real matrix-page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "a6af902335302572a4623216a167c8ad8e1560e1"
@@ -599,6 +617,7 @@
         "version": "0.13.3-experimental",
         "date": "2026-10-11",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Align MONO PULSE SUB1 and SUB2 with MONO SAW on encoders G and H. PULSE PW, PWAD and PWRS move to D, E and F; TUNE and unison stay on A, B and C.",
           "Reorder the page descriptors without changing saved parameter slots, defaults, synth code, parameter locks or LFO destination meanings. Existing sounds need no parameter migration.",
           "Current-build native encoder and LCD checks are recorded separately from hardware, audio, DSP timing, complete runtime memory bounds, persistence, physical reboot, parameter-lock/LFO execution and stress qualification, which remain unverified.",
@@ -638,6 +657,7 @@
         "version": "0.6.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain source-track selection, pitch/gain, AMP gating and the upstream prototype limitations, with real page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "8fe05a8f9b22e35e409dec99bf99933865d2be13"
@@ -656,6 +676,7 @@
         "version": "2.0.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain NOT1–NOT4, borrowed voice tracks and voice-pool settings, with real page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "0bc09b7a4ef53477b897951fdf851e42a4f140dd"
@@ -674,6 +695,7 @@
         "version": "2.1.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain waveform/slice editing, up to 64 slices, multi-slice loops and trig controls, with real page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "f690e95fdd52a91a9e4f5919d4ad790efe3d7b65"
@@ -692,6 +714,7 @@
         "version": "1.1.13-experimental.2",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: add the model and control guide, including SWEEP, METAL, COLOR, FBK and FOLD, with real page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "c886095a7931e34c8a0e43268ce5d399f092382c"
@@ -718,6 +741,7 @@
         "version": "1.9.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: expand access and display controls, fullscreen/close behaviour and real utility-page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "27995ac9dfcc1fd507a7a47962d6cdf7e06795f4"
@@ -736,6 +760,7 @@
         "version": "1.1.2-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain Digitone-specific load indicators and read-only diagnostics, with real menu/page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "f45b5b7d3271acd363dbe75c60b802b0f9c4a6d5"
@@ -754,6 +779,7 @@
         "version": "1.3.1-experimental",
         "date": "2026-10-07",
         "changes": [
+          "Media-only: match the saved SVG thumbnail to the library’s existing signal illustration, including its grid, palette and typography; update the illustration alt text.",
           "Documentation-only: explain table editing, TBL/SPD, loops and trig/chord controls, with real table-page captures. Pinned firmware code is unchanged."
         ],
         "sourceCommit": "26211d72aa4eb4dd6081be88c0bf63e5ba19cb2e"
@@ -814,6 +840,7 @@
         "version": "0.1.2-experimental",
         "date": "2026-10-09",
         "changes": [
+          "Media-only: redraw the Air Chorus thumbnail with phase-offset signal curves using the library’s shared grid, lavender palette and typography.",
           "Protect stock T3 inter-core mailbox and T7 parameter staging data by keeping the first 72 virtual ring words in safe per-instance X state. Preserve stock track state, full stereo delay range, smoothing, controls and saved parameter layout.",
           "Losslessly pack all original sine values into 256 DSP words and reduce code/table storage from 1,425 to 795 words per core. Air Chorus now combines with E-Verb and Analog BD, including more DSP companions; larger selections remain limited by available program space.",
           "The shared-data corruption is reproduced and checked in software. The tester still reported T3 clicking in 0.1.1; whether this update fixes that audible hardware symptom remains unverified. Current hardware timing, multi-instance audio and Part/project/reboot persistence are owner-waived for this exact beta source/version.",
@@ -845,6 +872,7 @@
         "version": "0.2.7-experimental",
         "date": "2026-10-12",
         "changes": [
+          "Media-only: replace the POLY8 thumbnail with an original eight-voice sample diagram using the library’s shared grid, lavender signal palette and typography.",
           "Release the previous sequenced chord once before the next native sample trig, so finite AMP REL can end its tails even with HOLD INF. Preserve all notes in the new chord and independently owned panel/MIDI notes. Related to https://github.com/repeat98/modwerk/issues/447.",
           "Keep finite HOLD, intentional REL INF sustain and native STOP behavior. Recorded key-up timing remains unsupported; the final chord with HOLD INF sustains until another trig or STOP.",
           "The owner approved this scoped experimental release with current-build hardware, chip worst-case timing and complete memory qualification waived. Native playback tests pass; physical MKI confirmation remains pending. Keep issue 447 open until the exact published download is verified on the affected unit."
@@ -939,7 +967,8 @@
           "Plain turns and every stored value are unchanged: only four editor words in E-Verb's FX2 descriptor change. The DSP code and memory are byte-identical to 0.1.0, so the sound and cycle cost are unchanged, and the knob values a project stores mean the same.",
           "Measured on the ColdFire emulator only: 0.1.1 has not run on hardware. The owner's MKII report (two simultaneous instances, Part/project reload, physical reboot) covers 0.1.0; MKI, full-load chip timing and broader hardware coverage remain unverified.",
           "Documentation/media-only: add an offline audio preview rendered through 0.1.0-experimental, with sample credits, settings and provenance; firmware is unchanged.",
-          "Documentation/media-only (12 October 2026): replace the old preview with an original chord stab at dry, hall and shimmer settings, give shimmer a 7.5-second pass, match first-hit RMS and retain exact 0.1.1 DSP/source provenance. Firmware and its version are unchanged; these offline previews add no physical-hardware or performance qualification."
+          "Documentation/media-only (12 October 2026): replace the old preview with an original chord stab at dry, hall and shimmer settings, give shimmer a 7.5-second pass, match first-hit RMS and retain exact 0.1.1 DSP/source provenance. Firmware and its version are unchanged; these offline previews add no physical-hardware or performance qualification.",
+          "Documentation/media-only (12 October 2026): use Legowelt’s bright Juno 106 chord for an 11.4-second dry/long-hall/sustaining-shimmer comparison, with audible extended tails, stronger settings, 80 ms first-hit matching and no added gaps. Include pack permission, credit, excerpt/settings hashes and decoded peak validation. Firmware and hardware/performance qualification are unchanged."
         ]
       },
       {

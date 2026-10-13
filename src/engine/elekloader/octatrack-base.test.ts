@@ -4,7 +4,7 @@ import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { loadAny } from '../../../vendor/elekloader/kit/src/patch.ts'
 import metadata from '../assets/stock-dsp-metadata.json' with { type: 'json' }
 import type { StockDspCore } from '../stock-dsp.ts'
-import { buildBase, fillBase, type BaseFill } from './octatrack-base.ts'
+import { baseIdentity, buildBase, fillBase, type BaseFill } from './octatrack-base.ts'
 
 const cores = [{ tag: 'A', shared: [{ destination: 0x7d1, words: Uint32Array.of(0x0a0b0c, 0x0d0e0f) }],
   packages: [{ fxId: 4, words: Uint32Array.of(0x123456, 0xabcdef, 0x000001) }] }] as unknown as StockDspCore[]
@@ -14,6 +14,15 @@ const stripped = JSON.stringify({
 })
 
 describe('the Octatrack base from the stock file', () => {
+  it('reads IDENTIFY’s exact configuration digest from authored package bytes, across section parts', () => {
+    const digest = '0123456789abcdef'.repeat(4)
+    const packageText = (parts: unknown[]) => JSON.stringify({ symbols: { modwerk_base_digest: ['.run', 4] }, sections: { '.run': { parts } } })
+    expect(baseIdentity(packageText([['hex', '00'.repeat(4) + digest.slice(0, 20)], ['hex', digest.slice(20) + 'ff']]))).toBe(digest)
+    expect(() => baseIdentity(packageText([['hex', '00'.repeat(4)], ['stock', '0x40000400', 32]]))).toThrow('authored USB identity')
+    expect(() => baseIdentity(packageText([['hex', '00'.repeat(4) + digest.slice(0, 60)]]))).toThrow('invalid USB identity')
+    expect(() => baseIdentity('{}')).toThrow('no USB identity')
+  })
+
   it('puts stock words back where the package left them out, ColdFire copies big-endian, DSP sites little-endian', () => {
     const fills: BaseFill[] = [
       { tag: 'A', fx: 4, first: 1, count: 2, section: '.run', offset: 6 },

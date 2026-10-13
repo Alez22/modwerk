@@ -5,12 +5,13 @@ import { moduleSetKit } from '../engine/elekloader/module-set'
 export { OctatrackHub } from './OctatrackHub'
 export { LoadDialog } from './LoadDialog'
 export { InstrumentItem } from './InstrumentItem'
-export { CardInstall, UnitStrip } from './UnitPanel'
+export { CardInstall } from './UnitPanel'
 export { ModuleGrid, StateChip } from './ModuleGrid'
 export { ModuleDialog } from './ModuleDialog'
-export { OctatrackActivity, OctatrackStatus } from './OctatrackStatus'
+export { OctatrackActivity, OctatrackStatus, OctatrackSidebarStatus } from './OctatrackStatus'
 export { BaseInstallDialog } from './BaseInstallDialog'
 export { BetaModuleSets } from './BetaModuleSets'
+export { OctatrackDiagnosticsCollector, OctatrackDiagnosticsSettings } from './OctatrackDiagnostics'
 
 /** The site's one link to the unit: module set loads from the site's packages, and the base's own self-test. */
 export function createUsbKit() {

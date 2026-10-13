@@ -3,6 +3,7 @@ import importlib.util
 import json
 import pathlib
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -36,7 +37,13 @@ class UpstreamCheckouts(unittest.TestCase):
         self.pins.write_text(json.dumps({"octabam": {"repository": self.url, "commit": self.first, "updated": "x"}}))
 
     def tearDown(self):
-        shutil.rmtree(self.temp)
+        def remove_readonly(function, path, error):
+            # Git pack files carry the read-only attribute on Windows.
+            if not isinstance(error[1], PermissionError):
+                raise error[1]
+            pathlib.Path(path).chmod(stat.S_IWRITE)
+            function(path)
+        shutil.rmtree(self.temp, onerror=remove_readonly)
 
     def commit(self, message):
         git(self.upstream, "add", "-A")

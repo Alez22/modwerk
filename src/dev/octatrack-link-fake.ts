@@ -3,6 +3,7 @@
 // (`?preview=usb-link`, `?preview=base-install`): enumerates like the base, answers IDENTIFY with
 // real bytes, and runs the upload session's phases with no device behind them.
 import type { Inventory, InventoryTarget } from '../config/inventory.ts'
+import { sha } from '../../vendor/elekloader/kit/src/bytes.ts'
 import { OctatrackLink, type LinkDevice, type LinkSession, type LinkUsb } from '../engine/elekloader/octatrack-link.ts'
 import { UploadDeviceError } from '../engine/elekloader/upload-session.ts'
 import { SELFTEST_BYTES, VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
@@ -27,6 +28,8 @@ export interface FakeUnit {
   /** What the unit has, and what a staged load would make it (taken on Keep). */
   installed: Inventory
   pending?: Inventory
+  /** Project references for the missing-module preview; resolved modules disappear after Keep. */
+  project?: { id: string; name: string }[]
   /** A transaction a session left staged when its reply went missing: only a session that adopts it can cancel it. */
   staged?: boolean
   /** The loader refuses the next load with this reason (loader.h runtime_refusal), as the base's record reports it. */
@@ -55,6 +58,16 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
       async controlTransferOut() { return { status: 'stall', bytesWritten: 0 } },
       async controlTransferIn(setup: { request: number; value: number }) {
         if (setup.request === 3) return { status: 'ok', data: new DataView(identity.buffer.slice(0)) }
+        if (setup.request === 14 && unit.project) {
+          const page = unit.project.filter(item => !unit.installed.moduleIds.includes(item.id)).slice(setup.value, setup.value + 13)
+          const data = new Uint8Array(4 + 24 * page.length), view = new DataView(data.buffer)
+          data.set([0x4d, 0x57, 0x4d, page.length])
+          page.forEach((item, i) => {
+            view.setUint32(8 + 24 * i, Number.parseInt(sha(new TextEncoder().encode(item.id)).slice(0, 8), 16))
+            data.set(new TextEncoder().encode(item.name).subarray(0, 16), 12 + 24 * i)
+          })
+          return { status: 'ok', data: view }
+        }
         if (setup.request === 27) { // INVENTORY, 13 a page from wValue: no DSP code, no name
           const page = unit.modules.slice(setup.value, setup.value + 13), list = new DataView(new ArrayBuffer(4 + 24 * page.length))
           ;[0x4d, 0x57, 0x49, page.length].forEach((byte, i) => list.setUint8(i, byte))
@@ -140,15 +153,18 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
 /**
  * Dev previews (`?preview=usb-link|base-install&unit=base|stock|none|unsupported`): the link against a pretend
  * unit, driven from the console through `modwerkUsbPreview`: plug('base' | 'stock'), unplug(),
- * playing = true, taken = true. There is no pretend base build: a preview must never save a file
+ * playing = true, taken = true. Add `inventory=empty` for a freshly installed base and `missing=project` for
+ * a project needing E-Verb, Euclid, Air Chorus and TapeHead.
+ * There is no pretend base build: a preview must never save a file
  * that looks like firmware.
  */
 export function previewKit() {
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-  const kind = new URLSearchParams(window.location.search).get('unit')
+  const params = new URLSearchParams(window.location.search), kind = params.get('unit')
   if (kind === 'unsupported') return { link: new OctatrackLink(null) }
   const unit = fakeUnit(kind === 'stock' || kind === 'none' ? kind : 'base')
-  unit.installed = { moduleIds: ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: [] }
+  unit.installed = { moduleIds: params.get('inventory') === 'empty' ? [] : ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: [] }
+  if (params.get('missing') === 'project') unit.project = [{ id: 'everb', name: 'E-Verb' }, { id: 'euclid', name: 'Euclid' }, { id: 'airwindows-chorus', name: 'Air Chorus' }, { id: 'tapehead', name: 'TapeHead' }]
   Object.assign(window, { modwerkUsbPreview: unit })
   return {
     link: new OctatrackLink(unit.usb, fakeSession(unit, 60)),

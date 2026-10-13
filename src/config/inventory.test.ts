@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { changeCount, inventoryChanges, lastInventory, loadStep, missingFromProject, rememberInventory, sameModules, unitState } from './inventory'
+import { changeCount, inventoryChanges, lastInventory, listboxMove, loadStep, missingFromProject, rememberInventory, sameModules, unitState } from './inventory'
 
 describe('making the unit match a module set', () => {
   it('adds and removes modules and switches stock effects both ways', () => {
@@ -58,5 +58,18 @@ describe('the Octatrack hub', () => {
     expect(loadStep('finishing', true, false)).toBe('trial')
     expect(loadStep('ready', true, false)).toBe('done') // kept, undone or failed: the link's notice says which
     expect(loadStep('idle', true, false)).toBe('done') // unplugged part way
+  })
+})
+
+describe('the Octatrack page’s set list', () => {
+  it('moves the set list selection with the arrow keys, Home and End, and stops at the ends', () => {
+    expect(listboxMove('ArrowDown', 0, 3)).toBe(1)
+    expect(listboxMove('ArrowDown', 2, 3)).toBe(2)
+    expect(listboxMove('ArrowUp', 0, 3)).toBe(0)
+    expect(listboxMove('ArrowUp', 2, 3)).toBe(1)
+    expect(listboxMove('Home', 2, 3)).toBe(0)
+    expect(listboxMove('End', 0, 3)).toBe(2)
+    expect(listboxMove('Enter', 1, 3)).toBeUndefined()
+    expect(listboxMove('ArrowDown', 0, 0)).toBeUndefined()
   })
 })
