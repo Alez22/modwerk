@@ -78,8 +78,8 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   // and an exclusive directory lease prevent credential mixing and lost set writes.
   if (activeWorkspace) throw new Error('Use a separate MCP process for each workspace.')
   const lease = join(dataDir, '.mcp-lock')
-  try { await mkdir(lease, { mode: 0o700 }) } catch (error) { if (error.code === 'EEXIST') throw new Error('This MCP workspace is already locked. Check its owner PID before recovering a stale lock.', { cause: error }); throw error }
   activeWorkspace = true
+  try { await mkdir(lease, { mode: 0o700 }) } catch (error) { activeWorkspace = false; if (error.code === 'EEXIST') throw new Error('This MCP workspace is already locked. Check its owner PID before recovering a stale lock.', { cause: error }); throw error }
   try {
   await writeFile(join(lease, 'owner.json'), JSON.stringify({ pid: process.pid, started: new Date().toISOString() }), { mode: 0o600, flag: 'wx' })
   let frontend = injected
@@ -92,7 +92,11 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   }
   if (!Array.isArray(sets) || sets.length > 100) throw new Error('The local set file is invalid.')
   sets = sets.map(frontend.validateConfiguration)
-  const save = async () => { const temporary = file + '.' + randomUUID(); await writeFile(temporary, JSON.stringify(sets, null, 2), { mode: 0o600, flag: 'wx' }); await rename(temporary, file) }
+  const save = async values => {
+    const temporary = file + '.' + randomUUID()
+    try { await writeFile(temporary, JSON.stringify(values, null, 2), { mode: 0o600, flag: 'wx' }); await rename(temporary, file); sets = values }
+    finally { await rm(temporary, { force: true }) }
+  }
   const manifest = JSON.parse(await readFile(join(root, 'src/engine/assets/octatrack-module-packages.json'), 'utf8'))
   const catalogue = frontend.createRuntimeCatalogue(manifest)
   const load = async entry => {
@@ -173,10 +177,10 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
       if (args.id && !previous) throw new Error('Unknown module set.')
       const item = frontend.newConfiguration(args.name, ids(args.moduleIds), args.keepStockFx2 ?? true, undefined, args.machine ?? 'octatrack', args.usbAudio)
       const value = frontend.validateConfiguration({ ...item, ...(previous ? { id: previous.id, createdAt: previous.createdAt } : {}), removedStockFx: args.removedStockFx })
-      sets = [...sets.filter(entry => entry.id !== value.id), value]; await save(); return value
+      await save([...sets.filter(entry => entry.id !== value.id), value]); return value
     },
-    set_delete: async args => { if (!sets.some(item => item.id === args.id)) throw new Error('Unknown module set.'); sets = sets.filter(item => item.id !== args.id); await save(); return { deleted: args.id } },
-    set_import: async args => { if (!Array.isArray(args.configurations) || args.configurations.length + sets.length > 100) throw new Error('Limit of 100 local module sets.'); const values = args.configurations.map(frontend.validateConfiguration); if (new Set(values.map(item => item.id)).size !== values.length) throw new Error('Duplicate module set IDs.'); sets = [...sets.filter(item => !values.some(value => value.id === item.id)), ...values]; await save(); return { imported: values.length } },
+    set_delete: async args => { if (!sets.some(item => item.id === args.id)) throw new Error('Unknown module set.'); await save(sets.filter(item => item.id !== args.id)); return { deleted: args.id } },
+    set_import: async args => { if (!Array.isArray(args.configurations) || args.configurations.length + sets.length > 100) throw new Error('Limit of 100 local module sets.'); const values = args.configurations.map(frontend.validateConfiguration); if (new Set(values.map(item => item.id)).size !== values.length) throw new Error('Duplicate module set IDs.'); await save([...sets.filter(item => !values.some(value => value.id === item.id)), ...values]); return { imported: values.length } },
     api_request: async args => {
       const path = validateApiPath(args.path), method = args.method ?? 'GET'
       if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(method) || method === 'GET' && args.body) throw new Error('Invalid API request.')

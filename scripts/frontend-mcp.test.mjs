@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, chmod, symlink, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,6 +6,12 @@ import { createFrontendTools, createProtocol, validateApiPath } from './frontend
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
+
+const persistence = vi.hoisted(() => ({ fail: false }))
+vi.mock('node:fs/promises', async importOriginal => {
+  const original = await importOriginal()
+  return { ...original, writeFile: async (path, ...args) => { if (persistence.fail && String(path).includes('/sets.json.')) throw new Error('Disk full'); return original.writeFile(path, ...args) } }
+})
 
 let folder, service
 beforeAll(async () => { folder = await mkdtemp(join(tmpdir(), 'modwerk-mcp-test-')); await chmod(folder, 0o700); service = await createFrontendTools({ dataDir: folder }) }, 30000)
@@ -62,6 +68,14 @@ describe('frontend MCP protocol and isolated site workflows', () => {
     await expect(service.call('firmware_download', { request: {} })).rejects.toThrow('--stock')
     await expect(service.call('firmware_download', { request: {}, stock: '/etc/passwd' })).rejects.toThrow('Unexpected')
     await expect(service.call('set_save', { name: 'Duplicate', moduleIds: ['everb', 'everb'] })).rejects.toThrow('unique')
+  })
+  it('preserves committed and in-memory sets after a failed private save', async () => {
+    const before = await service.call('set_export'), saved = await readFile(join(folder, 'sets.json'), 'utf8')
+    persistence.fail = true
+    try { await expect(service.call('set_save', { name: 'Disk-full test', moduleIds: ['everb'] })).rejects.toThrow('Disk full') }
+    finally { persistence.fail = false }
+    expect(await service.call('set_export')).toEqual(before)
+    expect(await readFile(join(folder, 'sets.json'), 'utf8')).toBe(saved)
   })
   it('allows only frontend API routes on the startup-selected origin', () => {
     expect(validateApiPath('/forum/threads?q=echo+delay')).toBe('/forum/threads?q=echo+delay')
