@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Documentation: recorded native Windows MCP's startup refusal, private firmware build permissions, the owned USB bridge handoff before browser testing, independent resident DSP packing/counter ownership proofs, and the retained browser proof's actual-history requirement. Existing device, stock-free and qualification gates remain required.
+
 - Added a beta Load tab with separate live CPU/DSP readings, recent device peaks, a bounded five-minute graph and an accessible history table. It samples only cached meter windows every two seconds while visible and idle; missing or stale readings remain gaps. The read-only MCP device_load tool uses the same client. Live readings require the matching beta base; older bases report unavailable rather than displaying self-test peaks.
 
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.

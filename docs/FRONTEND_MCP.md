@@ -8,6 +8,10 @@ npm ci
 npm run --silent mcp -- --data-dir /private/path/modwerk-mcp
 ```
 
+Native Windows MCP startup is refused until its owner-only ACL lifecycle is
+implemented. Use macOS, Linux, or WSL with a Linux filesystem; keep the private
+POSIX directory and file modes below.
+
 Choose a dedicated private directory (0700 on Unix). The server stores only
 configuration metadata in `sets.json` (0600); it neither opens nor changes a
 browser profile. Each developer/account runs a separate process and directory.
@@ -82,6 +86,12 @@ package validator as the site, through the bridge's WebUSB-compatible adapter.
 It claims no mass-storage or audio interface. `device_status` reads IDENTIFY,
 inventory, missing modules and bounded diagnostic status. Socket loss invalidates
 the connection; restart the server/bridge to establish a fresh session.
+
+Before handing the instrument to the browser's WebUSB client, finish the
+authorized trial and verify its restored baseline, close the MCP, then stop only
+the bridge process you own. The bridge holds the vendor interface; a competing
+client must not share it during a trial. Reopen it after the browser has released
+the device.
 
 `device_load` reads one cached live CPU/DSP snapshot without starting a
 self-test or meter job. Bases without MWLD request 30 return `supported: false`.

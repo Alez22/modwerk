@@ -31,6 +31,12 @@ change published module versions, catalogue pins or hardware evidence.
 
 ## Actual private build evidence
 
+On POSIX hosts, set `umask 077` before preparing private firmware, including
+`npm run octatrack:base -- --stock PRIVATE_OS --out NEW_PRIVATE_DIRECTORY`.
+The CLI's output directory inherits the shell's permissions. Keep its parent
+private, its output directory at 0700 and firmware files at 0600; save images
+outside every Git checkout.
+
 The upstream source converter was run against Modwerk source `ae8a1d0` and the
 owner's local original OS 1.40C. Its eight successful ColdFire source ports
 were **Preview Vol, Repitch, Scale Quantizer, FM Synth, CC Map, VECTOR,
