@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Fixed the beta Octatrack page still scrolling by a few pixels on desktop: fitting it to the window now converts the app's 90% zoom, so the page never scrolls as a whole (checked from 1024×768 to 1920×1080). Beta-only.
+
 - Fixed the beta Octatrack page's missing-modules note, which lost its styles in the redesign; it is a one-line band again. The page now fits the window: the hero and list stay put, Status fills the height left (more compact on short windows) and a long page scrolls inside its own pane. The independence notice no longer sits above this page. Beta-only.
 - Prepared an unwired, read-only Analog BD browser retirement helper bound to exact package/source/layout, whole extent and generation. It refuses open or changed menus and current/paused callbacks, then plans restoration of the prior handler, label and list state because closing the stock browser leaves its arrays retained. Host negatives, ColdFire compilation and hash-only native close/callback observations are preparation; real board locks, controller leases, complete descriptor/Part consumers and hardware qualification remain pending. Public runtime admission is unchanged.
 
@@ -16,6 +18,8 @@
 - Documented the separate volatile full-set trial requirements for future frontend/MCP integration: engine-acknowledged ownership, no adoption or replay after uncertainty, retained baseline and saved-file write inhibition through confirmed rollback. Existing single-package trial refusals and hardware qualification gates remain. Updated MCP context for the beta hub's Status load panel, Backups and Samples work in progress, and the independent byte copies needed for offset-backed Node Buffer inputs.
 
 - Prepared an isolated board-only controller association contract binding exact encoded-package/source-policy identities, whole reconstructed allocations and monotonic generations to actual operation tickets and wire sequences. Partial/unknown work retains incoming and predecessor leases until exact disable acknowledgments, job release and foreign-root retirement; pending ColdFire publication has a separate guard. Native fixture regressions and ColdFire compilation do not qualify the unwired asynchronous loader backend or hardware behavior. The strong resource-policy bridge has zero entries and public controller admission remains closed.
+
+- Prepare an unwired conservative Analog BD Part retirement predicate using exact FLEX/AB1 semantics across every working/saved bank, current CS1 mirrors and bounded current/paused extra Parts. Unknown reads, layouts and ownership retain the generation. Marker absence grants no package identity or whole-image/UI/DSP retirement authority; synthetic regressions and ColdFire compilation do not qualify board callbacks, timing or persistence. Public admission remains unchanged.
 
 - Saved-file backup now waits briefly when the device explicitly refuses Begin with an unchanged idle token. Each new attempt first rechecks that exact idle ownership, stops after ten attempts or three seconds, and never retries a lost or ambiguous acknowledgment. Pending work still blocks export; this does not relax firmware safety gates or qualify recovery.
 
