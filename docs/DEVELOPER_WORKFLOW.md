@@ -49,6 +49,8 @@ Use `resolve` only after the exact published download and hardware fix have actu
 
 Routine updates to an author's approved modules use the existing automatic PR workflow: prepare the fix, pass CI, personally verify the evidence and check both publication boxes. The bot merges and starts site/API publication without an owner review. First releases, shared code, ownership/licence changes and exceptions still need owner review. See [Author updates](MODULE_AUTHOR_UPDATES.md).
 
+For a specific GitHub reply, check its signed webhook delivery, each intended recipient's bell entry, and that member's email/push preferences and digest due time. A successful webhook response proves processing, not that every participant received a notification; check members who joined through Modwerk separately, and never route by a typed GitHub mention of a Modwerk username. The `emailed` flag also settles read or expired entries and turned-off topics, so it is not a delivery receipt. Aggregate provider-acceptance counters cannot prove that a particular message arrived in an inbox.
+
 Verify GitHub status, Modwerk synchronization and reporter notification. Release completion uses the existing idempotent follower/downloader fanout only when the owner or registered author explicitly selected `announce: true` for that exact version in its changelog. Publication, issue resolution and media edits are quiet by default; reporter status notifications remain separate. Preserve opt-outs and push/email preferences. Report actual queue counts separately from provider acceptance or delivery/digest delays; do not create another scheduler or send a separate blast.
 
 ## Separate catalogues and current builders
