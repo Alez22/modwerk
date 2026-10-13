@@ -1,5 +1,9 @@
 # Application changelog
 
+## 13 October 2026
+
+- Beta USB sync now discards late replies and queued changes when the Octatrack disconnects or the last USB view closes. A completed self-test or Keep reply cannot restore a disconnected unit to a connected state, and closing a trial releases the browser's USB lock. Module preparation returns to review if the selected set or connection changes and sends nothing after its dialog closes.
+
 ## 12 October 2026
 
 - Keep the Octatrack beta publication check valid when release automation stamps the current commit and approval. Authored package contents and qualification fields remain pinned to the validated Git snapshot, and derived package hashes must match the published files.

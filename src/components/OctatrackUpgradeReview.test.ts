@@ -88,6 +88,42 @@ describe('runtime package upgrade review', () => {
     expect((button('Sync to Octatrack') as HTMLButtonElement).disabled).toBe(true)
     expect(prepareUpdate).not.toHaveBeenCalled()
   })
+  it('does not send a package prepared after the sync dialog closes', async () => {
+    let finish!: (value: { name: string; changes: [] }) => void
+    const preparing = new Promise<{ name: string; changes: [] }>(resolve => { finish = resolve })
+    await load(vi.fn(() => preparing))
+    await act(() => container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
+    await act(() => button('Sync to Octatrack').click())
+    expect(container.textContent).toContain('Preparing your modules')
+    await act(() => root.render(null))
+    await act(async () => finish({ name: set.name, changes: [] }))
+    expect(link.update).not.toHaveBeenCalled()
+  })
+  it('returns to review if the selected set changes while fetching packages', async () => {
+    let finish!: (value: { name: string; changes: [] }) => void
+    const preparing = new Promise<{ name: string; changes: [] }>(resolve => { finish = resolve })
+    const prepareUpdate = vi.fn(() => preparing)
+    await load(prepareUpdate)
+    await act(() => container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
+    await act(() => button('Sync to Octatrack').click())
+    const changed = { ...set, moduleIds: ['everb', 'tapehead'] }
+    await act(() => root.render(createElement(LoadDialog, {link,set:changed,inventory,prepareUpdate,onInstallBase(){},onClose(){},onEdit(){},onCard(){},onReport(){}})))
+    await act(async () => finish({ name: set.name, changes: [] }))
+    expect(container.querySelector('[role=alert]')?.textContent).toContain('Review the sync again; nothing was sent')
+    expect(link.update).not.toHaveBeenCalled()
+  })
+  it('returns to review if the USB connection changes while fetching packages', async () => {
+    let finish!: (value: { name: string; changes: [] }) => void
+    const preparing = new Promise<{ name: string; changes: [] }>(resolve => { finish = resolve })
+    await load(vi.fn(() => preparing))
+    await act(() => container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
+    await act(() => button('Sync to Octatrack').click())
+    const replacement: LinkState = { ...link.getState() }
+    vi.spyOn(link, 'getState').mockReturnValue(replacement)
+    await act(async () => finish({ name: set.name, changes: [] }))
+    expect(container.querySelector('[role=alert]')?.textContent).toContain('Review the sync again; nothing was sent')
+    expect(link.update).not.toHaveBeenCalled()
+  })
   it('keeps the hub action enabled for changed packages with unchanged member IDs', async () => {
     const sync = vi.fn(), install = vi.fn()
     await act(() => root.render(createElement(OctatrackHub, { link, inventory, sets: [set], selectedId: set.id, onSync: sync, onInstall: install, onSelect() {}, header: null, grid: null, card: null })))

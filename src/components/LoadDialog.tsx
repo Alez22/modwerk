@@ -36,6 +36,7 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   const connected = !!state.identity?.canSubmit && status === 'ready'
   const review = inventory && moduleSetReview(set, inventory, state.identity?.capabilities)
   const reviewKey = JSON.stringify([set, inventory, state.identity?.base, state.identity?.capabilities])
+  const mounted = useRef(false), currentReview = useRef(reviewKey)
   const stopped = stoppedFor === reviewKey
   const changes = review?.changes, updates = review?.updates ?? []
   const problem = preparationError?.review === reviewKey ? preparationError.error : review?.problem
@@ -43,10 +44,12 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   const stays = inventory ? set.moduleIds.filter(id => inventory.moduleIds.includes(id) && !updates.includes(id)) : []
   const cardOnly = changes ? changes.add.filter(id => !USB_MODULE_IDS.includes(id)) : []
   useEffect(() => {
+    mounted.current = true
     const element = dialog.current, previousFocus = document.activeElement
     element?.showModal()
-    return () => { element?.close(); if (previousFocus instanceof HTMLElement) previousFocus.focus() }
+    return () => { mounted.current = false; element?.close(); if (previousFocus instanceof HTMLElement) previousFocus.focus() }
   }, [])
+  useEffect(() => { currentReview.current = reviewKey }, [reviewKey])
   // The heading takes focus on open and at each step, since the button that moved the step on is gone.
   useEffect(() => { title.current?.focus() }, [step])
 
@@ -54,12 +57,20 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
     const last = lastSuccessfulSync(state.identity?.base)
     setUndoName(previousName ?? (last && inventory && sameModules(last.moduleIds, inventory.moduleIds) ? last.name : undefined))
     if (!prepareUpdate || !review?.needsSync || problem) return
+    const connection = link.getState()
     setPreparing(true); setError(''); setPreparationError(undefined)
     let prepared
     try { prepared = await prepareUpdate(set) }
     catch (failure) {
+      if (!mounted.current) return
       console.error(failure); setPreparing(false)
       setPreparationError({ review: reviewKey, error: failure instanceof ModuleSetError ? failure : new ModuleSetError(failure instanceof LinkBusyError ? failure.message : 'This module set couldn’t be prepared, so nothing was sent.') })
+      return
+    }
+    if (!mounted.current) return
+    if (currentReview.current !== reviewKey || link.getState() !== connection) {
+      setPreparing(false)
+      setPreparationError({ review: currentReview.current, error: new ModuleSetError('Your module set or Octatrack changed while preparing. Review the sync again; nothing was sent.') })
       return
     }
     setPreparing(false); setStarted(true)
