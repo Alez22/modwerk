@@ -25,7 +25,7 @@
     ],
     "usage": [
       "PROJECT > CONTROL > AUDIO: select OUT CFG > MATRIX and press YES.",
-      "On a track, hold CUE: the LEV box shows the destination. Turn LEVEL to change it.",
+      "On a track, the LEV box is labelled with the destination (MN, PHN, ...). Hold CUE and turn LEVEL to change it.",
       "In the MIXER, MIX (labelled PHN) sets the PHONES output level. Choose NORMAL or STUDIO again to return to stock behaviour."
     ]
   },
@@ -304,7 +304,7 @@
     "steps": [
       "Include Output Matrix in your build.",
       "Press PROJ (MKII), open CONTROL > AUDIO, move right into the OUT CFG box, select MATRIX and press YES.",
-      "Select an audio track, hold CUE and turn LEVEL to pick its outputs; the LEV box shows the destination.",
+      "Select an audio track, hold CUE and turn LEVEL to pick its outputs; the LEV box's label always shows the destination.",
       "Open the MIXER: MIX, labelled PHN, sets the headphone output level."
     ],
     "screenshots": [

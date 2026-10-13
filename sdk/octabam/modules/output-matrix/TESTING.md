@@ -329,3 +329,27 @@ Modwerk's packager and browser builder had no path for DSP code reached only thr
 - **Run.** `ot_emu --dsp` on the OUTMTX13 MAIN OS (`eca1152f…ae16`): CUE CFG = MATRIX, MASTER TRACK on, every track on ALL (re-poked every 1,000 frames, since each pattern loads its Part). The firmware's pattern select queued A01 → A02 → A03 → A04 → A01; the playing-pattern byte, dumped every 5,000 frames, shows each.
 - **Result.** 90,000 frames (32.65 s): run ended REACHED; 0 of 69,120,000 DSP read-back words late; MAIN, CUE and PHONES ring words all carry audio; the mixdown at most 4,240 instructions per 16-sample frame, the qualification worst case.
 
+
+## The destination as the LEV box's label (13 Oct 2026, emulator only)
+
+**Request.** Show each track's destination all the time, not only while CUE is held.
+
+**Change.** A detour at `0x4004dcfa`, the push of the plain LEV label in stock's STUDIO path, draws the track's destination name (MN, PHN, …) there in MATRIX, centred as with CUE held (`dest_label`, shared with the CUE-held path). The value shown while turning LEVEL is still the level. XLV (`0x460d1694` set, which pushes its label at `0x4004dcf2` and skips this site), FUNC's MAIN view, NORMAL, STUDIO and MIDI tracks are untouched.
+
+**Checks**, `scripts/capture-module-ui.py` on a static build (OUTPUT MATRIX + the stock effects, SPRING REV given up), MKII panel, empty card:
+
+| State | LEV box label |
+| --- | --- |
+| NORMAL, T1 | LEV (stock) |
+| MATRIX, T1, fresh switch | MN |
+| CUE held | MN; after LEVEL +8, PHN |
+| CUE released, LEVEL −10 | the level while turning (98), as stock |
+| FUNC held | +0 (MAIN level), as stock |
+| T2 | MN |
+| back to T1 | PHN |
+| SCENE A held | XLV, as stock; MN again on release |
+| T8 | MN |
+
+- **Gate.** `verify.py` on this build: 117/117 (it does not read the LCD).
+
+Not tested: hardware, MKI.
