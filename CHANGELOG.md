@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared guarded runtime table insertion for private USB port development. Authored entries retain their declared position between separately hashed stock-copy spans, with reconstruction checked against an independent native layout oracle. Public packages and table-loading admission remain unchanged; Mute Modes hardware lifecycle and persistence are not qualified by this preparation.
+
 - Show the automatic diagnostics invitation only after the signed-in member's first successful compatible Octatrack USB connection. Opening a configuration, signing in or downloading the base no longer triggers it. Existing dialogs finish first, and account/version dismissal and saved consent choices still prevent repeat invitations; manual Account → Diagnostics remains available.
 
 - Gave the news campaign integration regression time to complete five real account flows, provider pacing and the hourly scheduler on shared CI runners. All consent, delivery and duplicate-send assertions remain required; production behavior is unchanged.
