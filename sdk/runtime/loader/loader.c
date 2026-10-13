@@ -12,6 +12,7 @@
  * shortcut: a fixed pool in the base's .bss; take arena pages on demand once
  * the OS's page allocator is audited. */
 #include "loader.h"
+#include "context.h"
 
 #define OWNERS (2u * RUNTIME_MODULES) /* live, the transaction's two and those waiting to be reclaimed */
 static uint8_t pool[RUNTIME_POOL_BYTES] __attribute__((aligned(16)));
@@ -103,11 +104,11 @@ static int reachable(const struct runtime_module *m)
 }
 /* Locked: free every extent that no position, the transaction or a paused
  * task's stack or saved registers can reach. Unknown task state frees nothing. */
-static void reclaim(void)
+static void reclaim(const struct runtime_context *context)
 {
     struct runtime_span span[RUNTIME_PAUSED];
     uint32_t lock = modwerk_machine_lock();
-    unsigned n = modwerk_machine_paused(span, RUNTIME_PAUSED);
+    unsigned n = modwerk_machine_paused(span, RUNTIME_PAUSED, context);
     for (unsigned i = owners; n <= RUNTIME_PAUSED && i--;) {
         uint32_t lo = (uint32_t)(uintptr_t)owned[i], hi = lo + owned[i]->size;
         int reached = reachable(owned[i]);
@@ -138,7 +139,7 @@ static int retiring(const struct runtime_module *m, uint32_t v)
     if (!m || !(m->dsp.flags & RUNTIME_GROUP_METADATA)) return 0;
     uint32_t base = modwerk_machine_reference((uint32_t)(uintptr_t)m->dsp.image);
     v = modwerk_machine_reference(v);
-    return v > base + 8u && v < base + m->dsp.image_bytes;
+    return v >= base + 8u && v < base + m->dsp.image_bytes;
 }
 static int inside(const struct runtime_module *m, uint32_t v)
 {
@@ -149,7 +150,7 @@ static int inside(const struct runtime_module *m, uint32_t v)
 /* Locked: could a paused task resume inside a site of a or b? Starting at a
  * site's first byte runs its whole new instruction; anywhere after it would
  * run the middle of one. Unknown counts as yes. */
-static int in_flight(const struct runtime_module *a, const struct runtime_module *b)
+static int in_flight(const struct runtime_module *a, const struct runtime_module *b, const struct runtime_context *context)
 {
     uint32_t lo = RUNTIME_NONE, hi = 0;
     for (int k = 0; k < 2; ++k)
@@ -165,7 +166,7 @@ static int in_flight(const struct runtime_module *a, const struct runtime_module
     }
     if (lo >= hi) return 0;
     struct runtime_span span[RUNTIME_PAUSED];
-    unsigned n = modwerk_machine_paused(span, RUNTIME_PAUSED);
+    unsigned n = modwerk_machine_paused(span, RUNTIME_PAUSED, context);
     if (n > RUNTIME_PAUSED) return 1;
     for (unsigned i = 0; i < n; ++i)
         for (const uint8_t *p = span[i].from; p + 4 <= span[i].to; p += 2) {
@@ -240,13 +241,13 @@ static const struct runtime_dsp no_dsp;
 static const struct runtime_dsp *dsp_of(const struct runtime_module *m) { return m ? &m->dsp : &no_dsp; }
 /* One position's hooks, sites and DSP effect change together, with no other task running (locked) and the
  * stock-code bytes written masked. On any mismatch its module's sites are put back and nothing changes. */
-static int switch_to(unsigned position, struct runtime_module *to)
+static int switch_to(unsigned position, struct runtime_module *to, const struct runtime_context *context)
 {
     if (!modwerk_machine_stopped()) return 0;
     const struct runtime_module *from = live[position];
     uint32_t lock = modwerk_machine_lock();
     struct runtime_dsp want = *dsp_of(to); /* the machine keeps the effect id it gave at admission */
-    int ok = !in_flight(from, to) && !modwerk_machine_metadata_admit(dsp_of(from), dsp_of(to)) && !modwerk_machine_dsp_admit(dsp_of(from), &want) && want.id == dsp_of(to)->id;
+    int ok = !in_flight(from, to, context) && !modwerk_machine_metadata_admit(dsp_of(from), dsp_of(to)) && !modwerk_machine_dsp_admit(dsp_of(from), &want) && want.id == dsp_of(to)->id;
     if (ok) {
         uint32_t mask = modwerk_machine_mask(); /* the machine's real-time interrupts may run these bytes */
         ok = holds(from, 1);
@@ -314,7 +315,7 @@ static int enter(void *u) { (void)u; if (!modwerk_machine_stopped()) return 0; h
 static int safe(void *u) { (void)u; return held && modwerk_machine_stopped(); }
 static int leave(void *u) { (void)u; held = 0; return 1; }
 /* Admission and relocation, off-line: nothing live changes, refused or not. */
-static int prepare(void *u, const uint8_t *data, uint32_t length)
+static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, uint32_t length, const struct runtime_context *context)
 {
     (void)u;
     candidate = 0; prepared = 0; refusal = RUNTIME_OK;
@@ -430,7 +431,7 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
     if (!why) why = modwerk_machine_dsp_admit(dsp_of(live[slot]), &dsp);
     if (why) return refuse((enum runtime_refusal)why);
     if (image || sites || dsp.count) {
-        reclaim();
+        reclaim(context);
         uint32_t head = ((uint32_t)sizeof(struct runtime_module) + sites * (uint32_t)sizeof(struct runtime_site) + 15u) & ~15u,
                  code = (end + 15u) & ~15u, tail = (4u * dsp.count + 2u * dsp.relocation_count + 15u) & ~15u;
         struct runtime_module *m = take(head + code + tail);
@@ -488,16 +489,33 @@ static int prepare(void *u, const uint8_t *data, uint32_t length)
 }
 /* Never dispatched, so nothing can be running it. */
 static int discard(void *u) { (void)u; if (prepared && candidate) forget(candidate); prepared = 0; candidate = 0; return 1; }
-static enum mu_publication publish(void *u)
+static enum mu_publication __attribute__((used)) publish_context(void *u, const struct runtime_context *context)
 {
     (void)u;
     if (!prepared) return MU_UNCERTAIN;
     struct runtime_module *was = live[slot];
-    if (!switch_to(slot, candidate)) { refusal = RUNTIME_BUSY; return MU_UNCHANGED; } /* the controller discards the candidate */
+    if (!switch_to(slot, candidate, context)) { refusal = RUNTIME_BUSY; return MU_UNCHANGED; } /* the controller discards the candidate */
     previous = was; candidate = 0; prepared = 0;
     return MU_APPLIED;
 }
 /* The trial module is no longer reachable from a position; reclaim frees it once no task holds it. */
-static int restore(void *u) { (void)u; if (!switch_to(slot, previous)) return 0; previous = 0; return 1; }
-static int retire(void *u) { (void)u; previous = 0; reclaim(); return 1; }
-const struct mu_backend modwerk_runtime_backend = {0, enter, safe, leave, prepare, discard, publish, restore, retire};
+static int __attribute__((used)) restore_context(void *u, const struct runtime_context *context)
+{ (void)u; if (!switch_to(slot, previous, context)) return 0; previous = 0; return 1; }
+static int __attribute__((used)) retire_context(void *u, const struct runtime_context *context)
+{ (void)u; previous = 0; reclaim(context); return 1; }
+#ifdef __m68k__
+extern int modwerk_backend_prepare(void *, const uint8_t *, uint32_t);
+extern enum mu_publication modwerk_backend_publish(void *);
+extern int modwerk_backend_restore(void *), modwerk_backend_retire(void *);
+RUNTIME_CONTEXT_WRAPPER(modwerk_backend_prepare, prepare_context, RUNTIME_CONTEXT_THREE, 80);
+RUNTIME_CONTEXT_WRAPPER(modwerk_backend_publish, publish_context, RUNTIME_CONTEXT_ONE, 72);
+RUNTIME_CONTEXT_WRAPPER(modwerk_backend_restore, restore_context, RUNTIME_CONTEXT_ONE, 72);
+RUNTIME_CONTEXT_WRAPPER(modwerk_backend_retire, retire_context, RUNTIME_CONTEXT_ONE, 72);
+#else
+/* Host glue supplies its own synthetic task contexts. */
+static int modwerk_backend_prepare(void *u, const uint8_t *data, uint32_t length) { return prepare_context(u, data, length, 0); }
+static enum mu_publication modwerk_backend_publish(void *u) { return publish_context(u, 0); }
+static int modwerk_backend_restore(void *u) { return restore_context(u, 0); }
+static int modwerk_backend_retire(void *u) { return retire_context(u, 0); }
+#endif
+const struct mu_backend modwerk_runtime_backend = {0, enter, safe, leave, modwerk_backend_prepare, discard, modwerk_backend_publish, modwerk_backend_restore, modwerk_backend_retire};

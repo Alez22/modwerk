@@ -89,6 +89,7 @@ uint32_t modwerk_runtime_calls(void);
 
 /* Machine glue. */
 struct runtime_span { const uint8_t *from, *to; };
+struct runtime_context { uint32_t registers[16]; }; /* captured at a loader backend entry */
 int modwerk_machine_stopped(void);                 /* nothing plays or records */
 void *modwerk_machine_uncached(void *);            /* the alias module code and data run from */
 void modwerk_machine_invalidate_code(void);        /* instruction and branch caches */
@@ -104,9 +105,11 @@ void modwerk_machine_unmask(uint32_t);
  * the stock-code bytes alone. On the Octatrack: a frame interrupt held off a ring half stops the DSPs. */
 uint32_t modwerk_machine_lock(void);
 void modwerk_machine_unlock(uint32_t);
-/* With the machine locked: the memory every other task would resume from or
- * return into (live stacks, saved registers). More than `max` means unknown. */
-unsigned modwerk_machine_paused(struct runtime_span *, unsigned max);
+/* With the machine locked: every task's live stack and saved registers.
+ * The current context was captured at backend entry, before the loader's
+ * administrative addresses existed. It stays valid through the operation.
+ * More than `max` means unknown. */
+unsigned modwerk_machine_paused(struct runtime_span *, unsigned max, const struct runtime_context *);
 /* Canonical value for reachability comparisons across mapped RAM aliases. */
 uint32_t modwerk_machine_reference(uint32_t);
 /* DSP effects: may `to` take `from`'s place (either may be absent: count 0)?

@@ -796,7 +796,7 @@ def main():
     for name in ('upload.c', 'upload.h', 'sha256.c', 'wire.c', 'wire.h', 'vendor.c', 'vendor.h'):
         shutil.copyfile(upload / name, source / name)
     loader = APP / 'sdk/runtime/loader'
-    for name in ('loader.c', 'loader.h', 'modwerk_module.h'):
+    for name in ('loader.c', 'loader.h', 'context.h', 'modwerk_module.h'):
         shutil.copyfile(loader / name, source / name)
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')

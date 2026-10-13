@@ -12,7 +12,7 @@
 #define STOCK 0x1000u
 static unsigned failures;
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
-static uint8_t stock[256], original[256], paused[64];
+static uint8_t stock[256], original[256], paused[64], saved_registers[64];
 static int stopped = 1, masked, locked, flushed, unknown;
 int modwerk_machine_stopped(void) { return stopped; }
 void *modwerk_machine_uncached(void *p) { return p; }
@@ -24,12 +24,14 @@ uint32_t modwerk_machine_mask(void) { CHECK(!masked && locked); masked = 1; retu
 void modwerk_machine_unmask(uint32_t sr) { CHECK(masked && sr == 7); masked = 0; }
 uint32_t modwerk_machine_lock(void) { CHECK(!locked && !masked); locked = 1; return 4; }
 void modwerk_machine_unlock(uint32_t sr) { CHECK(locked && !masked && sr == 4); locked = 0; }
-unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max)
+unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max, const struct runtime_context *context)
 {
+    (void)context;
     CHECK(locked);
     if (unknown) return max + 1u;
     span[0] = (struct runtime_span){paused, paused + sizeof paused};
-    return 1;
+    span[1] = (struct runtime_span){saved_registers, saved_registers + sizeof saved_registers};
+    return 2;
 }
 
 /* DSP glue: refuses with `dsp_why` (masked or not) and records the last switch. */
@@ -47,8 +49,13 @@ void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct run
     CHECK(locked && !masked); dsp_from = *from; dsp_to = *to; ++dsp_switches; /* no task runs; frames may */
 }
 
+static uint32_t alias_image;
 uint32_t modwerk_machine_reference(uint32_t value)
-{ return value >= 0x40010000u && value < 0x40010040u ? value + 0x08000000u : value; }
+{
+    if (alias_image && value >= 0x48010000u && value < 0x48010040u) return alias_image + value - 0x48010000u;
+    if (value >= 0x40010000u && value < 0x40010040u) return alias_image ? alias_image + value - 0x40010000u : value + 0x08000000u;
+    return value;
+}
 static int metadata_allow, metadata_why;
 int modwerk_machine_metadata_admit(const struct runtime_dsp *from, const struct runtime_dsp *to)
 {
@@ -151,7 +158,9 @@ int main(void)
     alias_group.dsp.flags = RUNTIME_GROUP_METADATA; alias_group.dsp.image = (const uint8_t *)(uintptr_t)0x48010000u;
     alias_group.dsp.image_bytes = 64;
     CHECK(retiring(&alias_group, 0x48010020u) && retiring(&alias_group, 0x40010020u));
-    CHECK(!retiring(&alias_group, 0x40010008u) && !retiring(&alias_group, 0x48010040u));
+    CHECK(retiring(&alias_group, 0x40010008u) && retiring(&alias_group, 0x48010008u));
+    CHECK(retiring(&alias_group, 0x4001003fu) && retiring(&alias_group, 0x4801003fu));
+    CHECK(!retiring(&alias_group, 0x40010007u) && !retiring(&alias_group, 0x48010040u));
 
     /* Refusals before any memory is taken. */
     for (uint32_t bad = 0; bad < 14; ++bad) {
@@ -520,10 +529,26 @@ int main(void)
     begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
     CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_IN_USE && modwerk_runtime_module(0) == group);
     metadata_why = 0;
-    CHECK(b->prepare(0, p, n));
-    put32(paused, (uint32_t)(uintptr_t)group->dsp.image + 20u);
-    CHECK(b->publish(0) == MU_UNCHANGED && modwerk_runtime_module(0) == group && modwerk_runtime_free(0) == free);
-    CHECK(b->discard(0)); memset(paused, 0, sizeof paused);
+    alias_image = (uint32_t)(uintptr_t)group->dsp.image;
+    /* Include the first byte after metadata, the private builder's padded
+     * code entry, the last data byte and an interior pointer in stack/register
+     * spans, through each RAM alias and the host's actual image address. */
+    const uint32_t group_offsets[] = {8u, 16u, 20u, 31u};
+    for (unsigned context = 0; context < 2; ++context)
+        for (unsigned alias = 0; alias < 3; ++alias)
+            for (unsigned offset = 0; offset < sizeof group_offsets / sizeof group_offsets[0]; ++offset) {
+                uint8_t *held = context ? saved_registers : paused;
+                uint32_t base = alias == 0 ? alias_image : alias == 1 ? 0x40010000u : 0x48010000u;
+                put32(held + 2u, base + group_offsets[offset]); /* packed, only two-byte aligned */
+                CHECK(b->prepare(0, p, n) && b->publish(0) == MU_UNCHANGED);
+                CHECK(modwerk_runtime_refusal() == RUNTIME_BUSY && modwerk_runtime_module(0) == group);
+                CHECK(modwerk_runtime_free(0) == free && !memcmp(stock, original, sizeof stock));
+                CHECK(b->discard(0)); memset(held, 0, 64);
+            }
+    unknown = 1;
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_UNCHANGED && b->discard(0));
+    CHECK(modwerk_runtime_module(0) == group && modwerk_runtime_free(0) == free);
+    unknown = 0; alias_image = 0;
     CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
     CHECK(!modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
     metadata_allow = 0;
