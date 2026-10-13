@@ -4,6 +4,7 @@ import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { removalPackage } from './module-set'
 import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
 import { UploadUnconfirmedError } from './upload-session'
+import { UsbVendorTransport } from './upload-usb'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 async function linked(kind: 'base' | 'stock' | 'none' = 'base') {
@@ -16,6 +17,25 @@ beforeEach(() => { vi.stubGlobal('navigator', {}) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('finding the unit', () => {
+  it('holds one cross-tab lock for the complete two-file backup and releases the interface before another read', async () => {
+    const unit = fakeUnit(), locks = tabLocks()
+    const a = new OctatrackLink(unit.usb, fakeSession(unit), 300, locks), b = new OctatrackLink(unit.usb, fakeSession(unit), 300, locks)
+    const stopA = a.start(), stopB = b.start()
+    await vi.waitFor(() => expect([a.getState().status, b.getState().status]).toEqual(['ready', 'ready']))
+    await settle()
+    const device = (await unit.usb.getDevices())[0], claim = vi.spyOn(device, 'claimInterface'), release = vi.spyOn(device, 'releaseInterface')
+    let complete: () => void = () => {}, finished = false
+    let backup: Promise<unknown> | undefined, reading: Promise<unknown> | undefined
+    const snapshot = vi.spyOn(UsbVendorTransport.prototype, 'savedBackup').mockImplementationOnce(() => new Promise(resolve => { complete = () => resolve([]) }))
+    try {
+      backup = a.savedBackup(); await settle()
+      reading = b.inventory().then(() => { finished = true }); await settle()
+      expect(finished).toBe(false); expect(claim).toHaveBeenCalledTimes(1); expect(release).not.toHaveBeenCalled()
+      complete(); await backup; await reading
+      expect(finished).toBe(true); expect(claim).toHaveBeenCalledTimes(2); expect(release).toHaveBeenCalledTimes(2)
+      expect(a.getState().status).toBe('ready'); expect(b.getState().status).toBe('ready')
+    } finally { complete(); await Promise.allSettled([backup, reading]); snapshot.mockRestore(); stopA(); stopB() }
+  })
   it('does not read diagnostic status if consent is withdrawn while claiming the interface', async () => {
     const {unit,link}=await linked(),device=(await unit.usb.getDevices())[0]
     const transfer=vi.spyOn(device,'controlTransferIn'),release=vi.spyOn(device,'releaseInterface')

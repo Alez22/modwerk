@@ -9,6 +9,7 @@ import { build } from 'vite'
 import { Bench, device, enumerate } from './usb-bench.mjs'
 import { buildAndSave } from './firmware-download.mjs'
 import { assertMcpPrivateHost } from './frontend-mcp-private-host.mjs'
+import { saveSavedBackup } from './frontend-mcp-saved-backup.mjs'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 let activeWorkspace = false
@@ -47,6 +48,8 @@ const TOOLS = [
   tool('firmware_download', 'Build from exact deployed public inputs using local private stock, save files privately and return only a hash/identity receipt. Never sends firmware to MCP.', { request: { type: 'object' } }, ['request'], true),
   tool('device_status', 'Read the connected base identity, inventory, missing modules and bounded diagnostic status through the real site USB client.'),
   tool('device_load', 'Read one cached CPU/DSP meter snapshot through the real frontend client. Read-only; never runs a self-test. Older bases report unsupported.'),
+  { ...tool('device_saved_backup', 'Read only /MODWERK0.SET and /MODWERK1.SET through the frontend client, save verified bytes in the startup-selected private workspace and return only a metadata receipt. No card writes, memory access, arbitrary paths or recovery qualification. Older bases report unsupported.'),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false } },
   tool('device_review', 'Review a requested set against exact connected base, active digest and verified packages. Returns a short-lived plan; no device changes.', { moduleIds: strings }, ['moduleIds']),
   tool('device_trial', 'Execute a reviewed set through the real frontend link and self-test. A trial requires --allow-device-writes; never accepts automatically.', { review: string }, ['review'], true),
   tool('device_keep', 'Explicitly accept the current successful self-tested trial and save it on the card. Requires --allow-device-writes.', { trial: string }, ['trial'], true),
@@ -173,7 +176,7 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     return { review: catalogue.review(target, current, args.capabilities), changes: prepared.changes.map(change => ({ module: change.module, bytes: change.data.length, sha256: hash(change.data), undoSha256: change.undo && hash(change.undo) })) }
   }
   const handlers = {
-    site_features: async () => ({ beta: true, tools: TOOLS.map(item => item.name), coverage: ['instrument/module catalogue, search and module guides', 'card compatibility and USB package preflight/Undo', 'isolated set CRUD/import/export/current versions', 'community API with normal permissions', 'saved public firmware download receipts', 'real site USB review/trial/self-test/Keep/Undo'], limits: ['Domain/API tests do not measure CSS pixels or audible output.', 'OAuth/browser sign-in and upload file selection use their separate existing workflows.', 'No raw memory, key injection, whole-OS flash or automatic Keep.', 'Local sources and private workspace are distinct from a live signed-in browser.'] }),
+    site_features: async () => ({ beta: true, tools: TOOLS.map(item => item.name), coverage: ['instrument/module catalogue, search and module guides', 'card compatibility and USB package preflight/Undo', 'isolated set CRUD/import/export/current versions', 'community API with normal permissions', 'saved public firmware download receipts', 'real site USB review/trial/self-test/Keep/Undo', 'cached live load and fixed saved-module-file backup receipts'], limits: ['Domain/API tests do not measure CSS pixels or audible output.', 'OAuth/browser sign-in and upload file selection use their separate existing workflows.', 'No raw memory, key injection, whole-OS flash or automatic Keep.', 'Local sources and private workspace are distinct from a live signed-in browser.', 'A saved-module-file backup does not qualify recovery or permit Keep over foreign saved files.'] }),
     site_catalogue: async args => {
       const machine = args.machine ?? 'all', octa = frontend.availableModules(!!args.beta).map(module => ({ ...module, machine: 'octatrack', usb: catalogue.ids.includes(module.id) })), digi = frontend.digiModules.map(module => ({ ...module, name: module.title, description: module.summary, machine: module.device }))
       return { machines: frontend.machines, modules: [...octa, ...digi].filter(module => (machine === 'all' || module.machine === machine) && (!args.category || (module.libraryCategory ?? module.category) === args.category) && (!args.query || (module.name + ' ' + module.description).toLowerCase().includes(args.query.toLowerCase()))) }
@@ -213,6 +216,16 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
       const reading = await unit.liveLoad(), after = unit.getState()
       if (after.status !== 'ready' || after.identity?.base !== before.identity.base || after.active !== before.active) throw new Error('The device changed during the load read.')
       return { base: after.identity.base, supported: reading !== undefined, reading: reading ?? null }
+    },
+    device_saved_backup: async () => {
+      if (trial) throw new Error('Finish the current trial before backing up saved files.')
+      const before = await snapshot(), unit = await connected()
+      const snapshots = await unit.savedBackup(), after = await snapshot()
+      if (after.state.status !== 'ready' || after.state.identity.base !== before.state.identity.base || after.state.active !== before.state.active ||
+          JSON.stringify(after.inventory) !== JSON.stringify(before.inventory) || after.diagnostics?.saved !== before.diagnostics?.saved)
+        throw new Error('The device changed during the saved-file backup; no files were saved.')
+      if (!snapshots) return { supported: false, complete: false, recoveryVerified: false, base: after.state.identity.base, files: [] }
+      return saveSavedBackup(dataDir, { base: after.state.identity.base, active: after.state.active }, snapshots, directory)
     },
     device_review: async args => {
       if (trial) throw new Error('Finish the current trial first.')
@@ -255,6 +268,7 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   async function finish(args, keep) {
     if (!options.allowDeviceWrites || !trial || args.trial !== trial.id) throw new Error('No matching authorized device trial.')
     if (link.getState().status !== 'trial' || link.getState().identity.base !== trial.base || link.getState().active !== trial.active) throw new Error('Trial identity changed; reconnect and recover.')
+    if (keep && trial.before.diagnostics?.saved === 4) throw new Error('Keep would replace saved files from another base. Their backup and exact recovery must be verified first; Undo remains available.')
     const completed = trial
     if (keep) await link.keep(); else await link.undo()
     if (link.getState().status !== 'ready') throw new Error(link.getState().notice?.text ?? 'Device did not finish the trial.')
