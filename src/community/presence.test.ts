@@ -20,7 +20,7 @@ async function fixture() {
     const login = await server.call('/auth/login', 'POST', { email, password })
     return { id: String(server.db.prepare('SELECT id FROM users WHERE username=?').get(username)!.id), session: login.headers.get('X-Octamod-Session')! }
   }
-  const online = async () => (await (await server.call('/community/online')).json()) as { online: number; members: { username: string; avatar: string | null }[]; more: number }
+  const online = async () => (await (await server.call('/community/online')).json()) as { online: number; members: { username: string; avatar: string | null }[]; more: number; guests: number }
   const presence = (id: string) => server.db.prepare('SELECT seen_at FROM member_presence WHERE user_id=?').get(id) as { seen_at: number } | undefined
   const daily = () => server.db.prepare('SELECT day,members FROM member_activity_daily WHERE members>0 ORDER BY day').all()
   async function see(id: string, now: number) { await notePresence(server.env.DB!,id,now); await noteSitePresence(server.env.DB!,id,id,now) }
@@ -41,14 +41,14 @@ describe('site visitors online', () => {
     const f = await fixture(), a = await f.member('alpha')
     expect((await f.visit('browser-a')).status).toBe(200)
     await f.visit('browser-a'); await f.visit('browser-b')
-    expect(await f.online()).toEqual({ online: 2, members: [], more: 2 })
+    expect(await f.online()).toEqual({ online: 2, members: [], more: 2, guests: 2 })
     await f.visit('browser-a',a.session)
-    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1 })
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1, guests: 1 })
     // Two devices signed in to the same account count once, with one public name.
     await f.visit('browser-b',a.session)
-    expect(await f.online()).toEqual({ online: 1, members: [{ username: 'alpha', avatar: null }], more: 0 })
+    expect(await f.online()).toEqual({ online: 1, members: [{ username: 'alpha', avatar: null }], more: 0, guests: 0 })
     await f.visit('browser-a'); await f.visit('browser-b')
-    expect(await f.online()).toEqual({ online: 2, members: [], more: 2 })
+    expect(await f.online()).toEqual({ online: 2, members: [], more: 2, guests: 2 })
     const rows = f.db.prepare('SELECT * FROM site_presence').all()
     expect(rows).toHaveLength(2)
     expect(rows.every(row => /^[a-f0-9]{64}$/.test(String(row.visitor_hash)))).toBe(true)
@@ -60,7 +60,7 @@ describe('site visitors online', () => {
     await f.online()
     await f.visit('private-browser','',{ DNT: '1' })
     await f.visit('private-browser','',{ 'Sec-GPC': '1' })
-    expect(await f.online()).toEqual({ online: 0, members: [], more: 0 })
+    expect(await f.online()).toEqual({ online: 0, members: [], more: 0, guests: 0 })
     expect(f.db.prepare('SELECT COUNT(*) AS n FROM site_presence').get()!.n).toBe(0)
     expect(f.db.prepare('SELECT COUNT(*) AS n FROM rate_limits').get()!.n).toBe(0)
     expect((await f.visit('browser','',{ Origin: 'https://foreign.test' })).status).toBe(403)
@@ -69,6 +69,63 @@ describe('site visitors online', () => {
     await f.visit('browser')
     f.db.prepare('UPDATE rate_limits SET count=600').run()
     expect((await f.visit('browser')).status).toBe(429)
+  })
+
+  it('retains bell-only members, including privacy opt-outs and accounts sharing a visitor signature', async () => {
+    vi.useFakeTimers({ now: Date.UTC(2026,9,13,12), toFake: ['Date'] })
+    const f = await fixture(), a = await f.member('alpha'), b = await f.member('bravo')
+    await f.visit('private-browser',a.session,{ DNT: '1' })
+    await f.call('/notifications/unread','GET',undefined,a.session)
+    expect(await f.online()).toEqual({ online: 1, members: [{ username: 'alpha', avatar: null }], more: 0, guests: 0 })
+    await f.call('/notifications/unread','GET',undefined,b.session)
+    // A shared connection/browser signature can only hold one site row; account polls retain both people.
+    await f.visit('shared-browser',a.session); await f.visit('shared-browser',b.session)
+    await f.visit('guest-browser')
+    expect(await f.online()).toEqual({ online: 3, members: [{ username: 'alpha', avatar: null }, { username: 'bravo', avatar: null }], more: 1, guests: 1 })
+    f.db.prepare('UPDATE users SET show_online=0 WHERE id=?').run(a.id)
+    expect(await f.online()).toEqual({ online: 3, members: [{ username: 'bravo', avatar: null }], more: 2, guests: 1 })
+    vi.setSystemTime(Date.now() + 301000)
+    expect(await f.online()).toEqual({ online: 0, members: [], more: 0, guests: 0 })
+  })
+
+  it('does not double count an old bell poll after sign-out, but keeps other signed-in devices', async () => {
+    const start = Date.UTC(2026,9,13,12)
+    vi.useFakeTimers({ now: start, toFake: ['Date'] })
+    const f = await fixture(), a = await f.member('alpha')
+    await notePresence(f.env.DB!,a.id,start)
+    await noteSitePresence(f.env.DB!,'first-device',a.id,start)
+    await noteSitePresence(f.env.DB!,'second-device',a.id,start)
+    vi.setSystemTime(start + 1000)
+    await noteSitePresence(f.env.DB!,'first-device',null)
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1, guests: 1 })
+    await noteSitePresence(f.env.DB!,'second-device',null)
+    expect(await f.online()).toEqual({ online: 2, members: [], more: 2, guests: 2 })
+    // Another device's newer bell poll restores the member even without its own site check-in.
+    vi.setSystemTime(start + 120000)
+    await notePresence(f.env.DB!,a.id)
+    expect(await f.online()).toEqual({ online: 3, members: [{ username: 'alpha', avatar: null }], more: 2, guests: 2 })
+    vi.setSystemTime(start + 302000)
+    expect(await f.online()).toEqual({ online: 1, members: [{ username: 'alpha', avatar: null }], more: 0, guests: 0 })
+  })
+
+  it('carries sign-out deduplication through midnight and exports and deletes its short-lived account link', async () => {
+    const start = Date.UTC(2026,9,13,23,59,58)
+    vi.useFakeTimers({ now: start, toFake: ['Date'] })
+    const f = await fixture(), a = await f.member('alpha')
+    await notePresence(f.env.DB!,a.id)
+    await f.visit('browser',a.session)
+    vi.setSystemTime(start + 1000); await f.visit('browser')
+    const before = f.db.prepare('SELECT * FROM site_presence').get()!
+    expect(before.signed_out_user_id).toBe(a.id)
+    vi.setSystemTime(start + 3000); await f.visit('browser')
+    const after = f.db.prepare('SELECT * FROM site_presence').get()!
+    expect(after.visitor_hash).not.toBe(before.visitor_hash)
+    expect(after.signed_out_at).toBe(before.signed_out_at)
+    expect(await f.online()).toEqual({ online: 1, members: [], more: 1, guests: 1 })
+    const exported = await (await f.call('/auth/data-export','POST',{ password },a.session)).json()
+    expect(exported.data.sitePresence).toEqual([{ seen_at: new Date(Date.now()).toISOString().replace('.000','') }])
+    expect((await f.call('/auth/account','DELETE',{ confirm: 'DELETE', password },a.session)).status).toBe(200)
+    expect(f.db.prepare('SELECT COUNT(*) AS n FROM site_presence').get()!.n).toBe(0)
   })
 
   it('expires inactive visitors, throttles timestamp writes and rotates digests at midnight without double counting', async () => {
@@ -84,37 +141,37 @@ describe('site visitors online', () => {
     expect(rows[0].visitor_hash).not.toBe(first.visitor_hash)
     expect((await f.online()).online).toBe(1)
     vi.setSystemTime(start + 361000)
-    expect(await f.online()).toEqual({ online: 0, members: [], more: 0 })
+    expect(await f.online()).toEqual({ online: 0, members: [], more: 0, guests: 0 })
     await cleanupPresence(f.env.DB!)
     expect(f.db.prepare('SELECT COUNT(*) AS n FROM site_presence').get()!.n).toBe(0)
   })
 
-  it('counts visible site check-ins and names eligible members without exposing account details', async () => {
+  it('combines bell-only members with site check-ins, naming eligible members without exposing account details', async () => {
     vi.useFakeTimers({now:Date.UTC(2026,9,13,12),toFake:['Date']})
     const f = await fixture(), a = await f.member('alpha'), b = await f.member('bravo')
-    // Signing in and the historical member-activity poll do not register site presence.
-    expect(await f.online()).toEqual({ online: 0, members: [], more: 0 })
+    // Signing in alone does not register presence. Older tabs and privacy opt-outs still use the bell.
+    expect(await f.online()).toEqual({ online: 0, members: [], more: 0, guests: 0 })
     expect((await f.call('/notifications/unread', 'GET', undefined, a.session)).status).toBe(200)
     expect((await f.call('/notifications/unread', 'GET', undefined, b.session)).status).toBe(200)
-    expect(await f.online()).toEqual({ online: 0, members: [], more: 0 })
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }, { username: 'bravo', avatar: null }], more: 0, guests: 0 })
     await f.visit('browser-a', a.session); await f.visit('browser-b', b.session)
     const result = await f.call('/community/online')
     expect(result.status).toBe(200)
     const body = await result.json()
     // Seen in the same second, names are listed alphabetically.
-    expect(body).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }, { username: 'bravo', avatar: null }], more: 0 })
+    expect(body).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }, { username: 'bravo', avatar: null }], more: 0, guests: 0 })
     expect(JSON.stringify(body)).not.toMatch(/@|email|user_id|seen_at|password|token/)
     // The notification bell remains member-only. Ineligible accounts still browse but never appear by name.
     expect((await f.call('/notifications/unread')).status).toBe(401)
     f.db.prepare('UPDATE users SET suspended=1 WHERE id=?').run(b.id)
-    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1 })
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1, guests: 0 })
     // Accounts still signing up contribute to the total but are not named.
     f.db.prepare('UPDATE users SET suspended=0 WHERE id=?').run(b.id)
     f.db.prepare("INSERT INTO social_pending_accounts(user_id,expires) VALUES(?,?)").run(b.id, Math.floor(Date.now() / 1000) + 600)
-    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1 })
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1, guests: 0 })
     f.db.prepare('DELETE FROM social_pending_accounts WHERE user_id=?').run(b.id)
     f.db.prepare('UPDATE users SET email_verified=0 WHERE id=?').run(b.id)
-    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1 })
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1, guests: 0 })
   })
 
   it('lets a member leave the online list through their profile settings while staying in the count', async () => {
@@ -125,7 +182,7 @@ describe('site visitors online', () => {
     expect((await f.call('/auth/profile', 'PATCH', { username: 'bravo', displayName: 'Bravo', bio: '', showOnline: 'no' }, b.session)).status).toBe(400)
     expect((await f.call('/auth/profile', 'PATCH', { username: 'bravo', displayName: 'Bravo', bio: '', showOnline: false }, b.session)).status).toBe(200)
     expect((await (await f.call('/auth/profile', 'GET', undefined, b.session)).json()).showOnline).toBe(false)
-    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1 })
+    expect(await f.online()).toEqual({ online: 2, members: [{ username: 'alpha', avatar: null }], more: 1, guests: 0 })
     // Saving the profile without the field keeps the choice, and the data export lists it.
     expect((await f.call('/auth/profile', 'PATCH', { username: 'bravo', displayName: 'Bravo again', bio: '' }, b.session)).status).toBe(200)
     expect((await (await f.call('/auth/profile', 'GET', undefined, b.session)).json()).showOnline).toBe(false)
@@ -134,13 +191,18 @@ describe('site visitors online', () => {
     expect((await f.online()).members.map(member => member.username)).toEqual(['alpha', 'bravo'])
   })
 
-  it('lists at most twelve names, most recently seen first, and counts the rest as more', async () => {
+  it('lists at most twelve eligible members, most recently seen first, and keeps the rest in the total', async () => {
     const f = await fixture(), now = Math.floor(Date.now() / 1000), seen = f.db.prepare('INSERT INTO site_presence(visitor_hash,user_id,seen_at) VALUES(?,?,?)')
     const add = f.db.prepare('INSERT INTO users(id,display_name,username,email_verified) VALUES(?,?,?,1)')
     for (let index = 0; index < 14; index++) { const name = 'member' + String(index).padStart(2, '0'); add.run(name, name, name); seen.run(name, name, now - index) }
+    // Newer hidden/ineligible accounts must not consume public-name slots.
+    for (const name of ['hidden','suspended']) { add.run(name,name,name); seen.run(name,name,now + 1) }
+    f.db.prepare("UPDATE users SET show_online=0 WHERE id='hidden'").run()
+    f.db.prepare("UPDATE users SET suspended=1 WHERE id='suspended'").run()
     const body = await f.online()
-    expect(body.online).toBe(14)
-    expect(body.more).toBe(2)
+    expect(body.online).toBe(16)
+    expect(body.more).toBe(4)
+    expect(body.guests).toBe(0)
     expect(body.members.map(member => member.username)).toEqual(Array.from({ length: 12 }, (_, index) => 'member' + String(index).padStart(2, '0')))
   })
 
@@ -163,7 +225,7 @@ describe('site visitors online', () => {
     vi.useFakeTimers({ now: siteSeen + 299000, toFake: ['Date'] })
     expect((await f.online()).online).toBe(1)
     vi.setSystemTime(siteSeen + 301000)
-    expect(await f.online()).toEqual({ online: 0, members: [], more: 0 })
+    expect(await f.online()).toEqual({ online: 0, members: [], more: 0, guests: 0 })
   })
 
   it('removes last-seen times after 31 days and with the account, and includes them in the data export', async () => {
