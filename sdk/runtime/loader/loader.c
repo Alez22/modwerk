@@ -155,6 +155,23 @@ int modwerk_runtime_owner_valid(const struct runtime_owner *value)
     }
     return 0;
 }
+int modwerk_runtime_owner_at(uintptr_t address,struct runtime_owner *out)
+{
+    for (unsigned i = 0; out && i < owners; ++i) {
+        const struct runtime_owner *o = &owner_identity[i];
+        uintptr_t image = o->owned_extent + o->image_offset;
+        if (address >= image && address - image < o->image_bytes && owner_intact(i)) { *out = *o; return 1; }
+    }
+    return 0;
+}
+int modwerk_runtime_owner_canonical(const struct runtime_owner *o,uintptr_t *extent)
+{
+    uintptr_t lo = (uintptr_t)first();
+    if (!extent || modwerk_runtime_owner_valid(o) != 1 || o->owned_extent < lo ||
+        o->owned_extent - lo > RUNTIME_POOL_BYTES - o->extent_bytes) return 0;
+    *extent = (uintptr_t)pool + (o->owned_extent - lo);
+    return 1;
+}
 static int reachable(const struct runtime_module *m)
 {
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) if (live[i] == m) return 1;

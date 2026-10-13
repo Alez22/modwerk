@@ -75,6 +75,11 @@ struct runtime_owner {
 };
 int modwerk_runtime_owner_snapshot(const uint8_t *image,struct runtime_owner *);
 int modwerk_runtime_owner_valid(const struct runtime_owner *);
+/* Stable lock held. The intact owner whose image holds `address` in the alias
+ * its code runs from (owned_extent), and that allocation's canonical extent:
+ * the pool's own base plus its offset, checked against the pool's ends. */
+int modwerk_runtime_owner_at(uintptr_t address,struct runtime_owner *);
+int modwerk_runtime_owner_canonical(const struct runtime_owner *,uintptr_t *extent);
 /* Why the last package was refused, for diagnostics and the unit's own message. */
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
                        RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,

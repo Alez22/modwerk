@@ -18,6 +18,9 @@ import sys
 HERE = Path(__file__).resolve().parent
 APP = HERE.parents[3]
 VERSION = '0.3.1-modwerk-dev.1'
+# Resident controller trust: association, the scoped write lease, its resolver and the board-compiled policy table.
+CONTROLLER_POLICY_SOURCES = ('controller_policy.c', 'controller_policy.h', 'controller_association.c', 'controller_association.h',
+                             'controller_write_lease.c', 'controller_write_lease.h', 'controller_write_policy.c')
 # Fixed, default-empty private trust storage; no public admission flags.
 MACHINE_TRUST_SOURCES = ('machine_admission.c', 'machine_admission.h',
     'machine_admission_runtime.c', 'machine_declarations.c',
@@ -1065,7 +1068,7 @@ def main():
             # Explicit strong empty bridge: this size/preparation baseline refuses
             # every unreviewed policy and never starts controller activation.
             policy_root = APP / 'sdk/machines/octatrack/module-adapters/controller-policy'
-            for name in ('controller_policy.c', 'controller_policy.h', 'controller_association.c', 'controller_association.h'):
+            for name in CONTROLLER_POLICY_SOURCES:
                 shutil.copyfile(policy_root / name, source / name)
             # Real caller-owned storage for the compiled association helper.
             # It is zero-initialized and has no backend/authority in this
@@ -1151,7 +1154,7 @@ def main():
             p = resident_source.RUNTIME / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
     if args.resident_stock_hooks:
-        for name in ('controller_policy.c', 'controller_policy.h', 'controller_association.c', 'controller_association.h'):
+        for name in CONTROLLER_POLICY_SOURCES:
             p = APP / 'sdk/machines/octatrack/module-adapters/controller-policy' / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
     inputs.update({'elekloader/' + p.name: sha(p.read_bytes()) for p in original_core.iterdir() if p.is_file()})

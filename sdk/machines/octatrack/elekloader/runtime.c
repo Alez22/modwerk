@@ -137,6 +137,14 @@ unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max, const s
     }
     return n;
 }
+/* The running task's measured stack (the table above): 1 and its bounds, 0 when the task is unknown. */
+int modwerk_machine_stack(uintptr_t *lo, uintptr_t *hi)
+{
+    uint32_t current = U32(CURRENT_TCB);
+    for (unsigned i = 0; i < TASKS; ++i)
+        if (tasks[i].tcb == current) { *lo = tasks[i].stack, *hi = tasks[i].stack + tasks[i].size; return 1; }
+    return 0;
+}
 #endif
 
 #ifndef MODWERK_DSP_LOADER

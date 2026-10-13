@@ -6,7 +6,7 @@
 struct write_record {
     struct runtime_owner owner;
     struct mw_controller_binding binding;
-    uintptr_t storage,cached_image;
+    uintptr_t storage,cached_image,exec_image; /* binding alias; alias the module code runs from */
     uint32_t original_irq,ticket;
     uint16_t policy;
     uint8_t active;
@@ -44,6 +44,21 @@ static uint32_t word(unsigned at) {
     default:return ~writing.ticket;
     }
 }
+/* entry: an address inside an intact owned image, in the alias its code runs
+ * from. The canonical extent comes from the loader's pool geometry only. */
+int modwerk_controller_write_resolve(uintptr_t entry,struct runtime_owner *owner,uintptr_t *cached_image) {
+    uintptr_t canonical;
+    if(!owner || !cached_image || modwerk_runtime_owner_at(entry,owner)!=1 ||
+        modwerk_runtime_owner_canonical(owner,&canonical)!=1) return 0;
+    *cached_image=canonical+owner->image_offset;return 1;
+}
+/* The lease lies wholly in the running task's own stack, at or above the
+ * caller's arguments [sp, sp+frame): the caller's storage, not ours. */
+int modwerk_controller_write_stack(uintptr_t sp,uintptr_t lease,unsigned frame) {
+    uintptr_t lo,hi;
+    return modwerk_machine_stack(&lo,&hi)==1 && sp>=lo && sp<=hi && hi-sp>=frame+sizeof(struct mw_controller_write_lease) &&
+        !(lease&3u) && lease>=sp+frame && lease<=hi-sizeof(struct mw_controller_write_lease);
+}
 /* The assembly entry captures the real return PC/SP. These internal functions
  * are not module imports; native fixtures substitute captured facts only. */
 static int begin_impl(uintptr_t entry,uint32_t feature,struct mw_controller_write_lease *lease,uintptr_t pc,uintptr_t sp)
@@ -61,9 +76,10 @@ static int begin_impl(uintptr_t entry,uint32_t feature,struct mw_controller_writ
         if(!owner_binding(&owner,image,b)) continue;
         for(unsigned n=0;n<modwerk_controller_write_policy_count;++n) {
             const struct mw_controller_write_policy *p=&modwerk_controller_write_policies[n];
-            if(feature!=p->identity.feature || !trusted(p,b) || entry!=image+p->entry || pc!=image+p->begin_return ||
+            uintptr_t exec=owner.owned_extent+owner.image_offset;
+            if(feature!=p->identity.feature || !trusted(p,b) || entry!=exec+p->entry || pc!=exec+p->begin_return ||
                 mw_controller_control_write_allowed(&modwerk_controller_registry,b)!=1) continue;
-            writing=(struct write_record){.owner=owner,.binding=*b,.storage=(uintptr_t)lease,.cached_image=image,
+            writing=(struct write_record){.owner=owner,.binding=*b,.storage=(uintptr_t)lease,.cached_image=image,.exec_image=exec,
                 .original_irq=irq,.ticket=++last_write_ticket,.policy=(uint16_t)n,.active=1};
             for(unsigned k=0;k<8u;++k) lease->opaque[k]=word(k);
             return 1; /* actual stable lock remains held across controller writes */
@@ -81,7 +97,7 @@ static int end_impl(struct mw_controller_write_lease *lease,uintptr_t pc,uintptr
     uint32_t irq=writing.original_irq;
     int ok=lease && (uintptr_t)lease==writing.storage &&
         modwerk_controller_write_stack(sp,(uintptr_t)lease,8u)==1 &&
-        pc==writing.cached_image+modwerk_controller_write_policies[writing.policy].end_return &&
+        pc==writing.exec_image+modwerk_controller_write_policies[writing.policy].end_return &&
         modwerk_runtime_owner_valid(&writing.owner)==1 &&
         mw_controller_control_write_allowed(&modwerk_controller_registry,&writing.binding)==1;
     for(unsigned k=0;ok && k<8u;++k) ok=lease->opaque[k]==word(k);
