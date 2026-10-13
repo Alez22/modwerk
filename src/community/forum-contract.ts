@@ -89,5 +89,5 @@ export type MemberProfile = {username:string;displayName:string;bio:string;avata
 export type ForumMember = {username:string;avatar:string|null}
 export type ForumHighlights = {since:string;topPosts:(ForumReplyItem&ForumMember&{category:ForumCategory;likes:number})[];topMembers:(ForumMember&{likes:number})[];newMembers:ForumMember[]}
 /** All active site visitors, and consenting member names; `more` includes anonymous and unnamed visitors. */
-export type MembersOnline = {online:number;members:ForumMember[];more:number}
+export type MembersOnline = {online:number;members:ForumMember[];more:number;guests?:number}
 export type ThreadDetail = {thread:ForumThread;posts:ForumPost[];configuration:SharedConfiguration|null;issue:{device:string;version:string;steps:string;expected:string;actual:string}|null;following:boolean;bookmarked:boolean;voted:boolean;canSetRequestStatus:boolean;hasMore:boolean;firstUnread?:{id:string;page:number}|null}
