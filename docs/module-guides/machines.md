@@ -16,6 +16,7 @@ A new machine must be a first-class entry wherever the instrument lists machines
 - [ ] **The machine chooser.** The track's machine list opens on your machine for a track that uses it, highlights it, and admits it when the choice is committed (`ab_chooser_open`, `ab_chooser_row`, `ab_main_commit`).
 - [ ] **SRC SETUP.** The same machine is selectable there, with its row highlighted, and every commit path admits it (`ab_src_names`, `ab_setup_open`, `ab_setup_row`, `ab_src_commit`, `ab_src_commit2`, `ab_setup_edit6`, `ab_setup_draw6`).
 - [ ] **Its name everywhere the stock machine names appear,** including the main page (`ab_machine_name`, `ab_name_a`, `ab_name_b`).
+- [ ] **Closing a window does not clear its retained callbacks.** Snapshot the exact original handler, label and destination roots; fence current and paused consumers, then restore those roots before retiring the outgoing image. A null window handle alone is not a lifetime proof.
 - [ ] **A model list** if you have several engines, drawn in the stock pool layout (`ab_pool_open`, `ab_list_draw`, `ab_pool_title`).
 - [ ] **Its parameter pages are published through the descriptor,** so the page the panel draws is the page the DSP reads (`ab_tick_hook`).
 - [ ] **Other tracks are untouched.** Analog BD resolves its page "without changing other FLEX tracks" (`ab_resolve_pb`). Prove that a neighbouring Flex track plays and edits as stock.
