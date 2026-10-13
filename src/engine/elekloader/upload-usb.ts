@@ -3,6 +3,7 @@
 // The interface has no endpoints, so EP3 OUT stays free for USB Audio In.
 import { UPLOAD_HEADER, UPLOAD_MAX_FRAME, UPLOAD_RESPONSE, UPLOAD_VERSION } from './upload-wire.ts'
 import type { UploadTransport } from './upload-session.ts'
+import { LOAD_BYTES, parseLoadReading, type LoadReading } from './upload-wire.ts'
 
 export const VENDOR_CLASS = 0xff
 export const VENDOR_SUBCLASS = 0x4d // 'M'; must match the base's interface descriptor.
@@ -169,6 +170,15 @@ export class UsbVendorTransport implements UploadTransport {
     if (reply.status === 'stall') return undefined
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The Octatrack did not answer the loader capabilities request.')
     return parseRuntimeCapabilities(reply.data)
+  }
+  /** Cached, read-only live meters. Older bases explicitly stall this request. */
+  async load(signal?: AbortSignal): Promise<LoadReading | undefined> {
+    signal?.throwIfAborted()
+    const reply = await this.device.controlTransferIn(this.setup(30, 0), LOAD_BYTES)
+    signal?.throwIfAborted()
+    if (reply.status === 'stall') return undefined
+    if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The Octatrack did not answer the load request.')
+    return parseLoadReading(reply.data)
   }
   async result(signal?: AbortSignal): Promise<VendorResult> {
     signal?.throwIfAborted()

@@ -78,7 +78,7 @@ it('keeps local samples across keyboard tab switches and pauses preview without 
     await act(() => tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })))
     expect(document.activeElement).toBe(tabs[0]); expect(panels[0].hidden).toBe(false); expect(pause).toHaveBeenCalledTimes(1)
     expect(revokeURL).not.toHaveBeenCalled()
-    await act(() => tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })))
+    await act(() => tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
     expect(panels[1].textContent).toContain('kick.wav'); expect(createURL).toHaveBeenCalledTimes(1)
     expect(select).not.toHaveBeenCalled(); expect(sync).not.toHaveBeenCalled(); expect(install).not.toHaveBeenCalled(); expect(update).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
