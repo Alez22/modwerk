@@ -1,5 +1,9 @@
 # Application changelog
 
+## 13 October 2026
+
+- The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
+
 ## 12 October 2026
 
 - Keep the Octatrack beta publication check valid when release automation stamps the current commit and approval. Authored package contents and qualification fields remain pinned to the validated Git snapshot, and derived package hashes must match the published files.
