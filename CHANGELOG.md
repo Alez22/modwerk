@@ -3,6 +3,7 @@
 ## 13 October 2026
 
 - Reconciled the staged ABI 8 compatibility base with current main and generated USB capability requirements from actual package headers. Preview Vol and Repitch now pass the browser’s intact-package preflight on a capable base; older bases are refused before package fetch or staging. The candidate and additional packages still require exact hardware requalification; unported modules and machine-group admission remain unavailable.
+- Beta USB sync now discards late replies and queued changes when the Octatrack disconnects or the last USB view closes. A completed self-test or Keep reply cannot restore a disconnected unit to a connected state, and closing a trial releases the browser's USB lock. Module preparation returns to review if the selected set or connection changes and sends nothing after its dialog closes.
 
 ## 12 October 2026
 
