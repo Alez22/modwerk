@@ -226,7 +226,25 @@ export class UsbVendorTransport implements UploadTransport {
     try {
       // If Begin's reply is lost, its ownership is unknown. Do not repeat or
       // release it: the device's export-only timeout safely expires the job.
+      const beginDeadline = Date.now() + 3000
       let metadata = await this.savedMetadata(slot + 1)
+      let attempts = 1
+      while (metadata?.status === 'busy' && metadata.token === baseline.token && metadata.slot === baseline.slot) {
+        // A valid BUSY echoes the unchanged idle token and never begins a
+        // snapshot. Confirm that same idle baseline before another attempt;
+        // a changed token, ambiguous reply or another client's lease stops us.
+        if (attempts >= 10 || Date.now() >= beginDeadline)
+          throw new VendorTransportError('The Octatrack is busy; finish pending work before backing up saved files.', true)
+        await wait(100, stopped)
+        const idle = await this.savedMetadata(0)
+        stopped.throwIfAborted()
+        if (!idle || idle.status !== 'idle' || idle.token !== baseline.token || idle.slot !== baseline.slot)
+          throw new VendorTransportError('The saved-file snapshot changed while waiting; no backup was taken.')
+        if (Date.now() >= beginDeadline)
+          throw new VendorTransportError('The Octatrack is busy; finish pending work before backing up saved files.', true)
+        ++attempts
+        metadata = await this.savedMetadata(slot + 1)
+      }
       if (!metadata || metadata.status === 'busy' || metadata.status === 'idle' || metadata.token !== baseline.token + 1 || metadata.slot !== slot)
         throw new VendorTransportError('The Octatrack did not acknowledge this saved-file snapshot; no backup was taken.')
       owned = metadata.token
