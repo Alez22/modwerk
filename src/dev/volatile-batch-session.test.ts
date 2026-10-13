@@ -15,12 +15,12 @@ type Facts=Omit<VolatileStatus,'base'|'session'>
 function initial(): Facts {
  return {sequence:0,result:'ok',phase:'idle',transaction:0,generation:0,received:0,total:0,records:0,published:0,
   baseline:null,current:baseline,offer:null,latchHeld:false,required:0,touched:0,confirmed:0,
-  limits:{stageBytes:100000,records:20,participants:20},poolBytes:786432}
+  limits:{stageBytes:100000,records:20,participants:20},poolBytes:786432,saving:false,saveFailed:false}
 }
 function wire(f:Facts): Uint8Array {
  const data=new Uint8Array(212), view=new DataView(data.buffer)
  data.set([0x4d,0x57,0x56,0x53,1,VolatileResult.indexOf(f.result),VolatilePhase.indexOf(f.phase),
-  8+(f.baseline?1:0)+(f.current?2:0)+(f.latchHeld?4:0)])
+  8+(f.baseline?1:0)+(f.current?2:0)+(f.latchHeld?4:0)+(f.saving?16:0)+(f.saveFailed?32:0)])
  for(const [at,value] of [[8,f.sequence],[12,f.transaction],[16,f.generation],[20,f.received],[24,f.total],
   [196,f.limits.stageBytes],[200,f.poolBytes]]) view.setUint32(at,value)
  for(const [at,value] of [[28,f.records],[30,f.published],[204,f.limits.records],[206,f.limits.participants]]) view.setUint16(at,value)
@@ -57,10 +57,10 @@ class Board implements VolatileTransport {
    case 6: case 7:
     this.facts={...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline};break
    case 8:break
-   case 9: // Keep: the published set becomes the idle baseline (synthetic; a board may refuse or expire first)
+   case 9: // Keep: the published set becomes the idle baseline and the unsaved saved set (synthetic; a board may refuse or expire first)
     this.facts=this.keep==='refused'?{...this.facts,result:'refused'}:
      this.keep==='expired'?{...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline}:
-     {...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline:published,current:published};break
+     {...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline:published,current:published,saving:true};break
    default:throw new Error('Unexpected command')
   }
  })
@@ -270,10 +270,15 @@ describe('private volatile session authority',()=>{
   const board=new Board(),client=await connect(board);await client.stage([record()])
   await expect(client.keep()).rejects.toThrow('stopped trial');expect(board.frames.map(f=>f[5])).toEqual([1,2,3])
   await client.activate()
-  expect(await client.keep()).toMatchObject({phase:'idle',result:'ok',baseline:published,current:published,latchHeld:false})
+  expect(await client.keep()).toMatchObject({phase:'idle',result:'ok',baseline:published,current:published,latchHeld:false,saving:true})
   expect(client.ownsTransaction).toBe(false);expect(client.connectionTrusted).toBe(true)
   expect(board.frames.map(f=>f[5])).toEqual([1,2,3,4,9]);expect(board.frames.at(-1)?.length).toBe(96)
   await expect(client.keep()).rejects.toThrow('no acknowledged');expect(board.frames).toHaveLength(5)
+  // A fresh session sees the unsaved set and waits rather than sending a Begin the board would refuse.
+  const next=await connect(board);expect(next.status).toMatchObject({saving:true,saveFailed:false})
+  await expect(next.stage([record(2)])).rejects.toThrow('still saving');expect(board.frames).toHaveLength(5)
+  expect(next.connectionTrusted).toBe(true)
+  board.facts={...board.facts,saving:false};expect((await connect(board)).status.saving).toBe(false)
  })
  it('a refused Keep (replace or removal) leaves the trial owned for an explicit rollback',async()=>{
   const board=new Board(),client=await connect(board);board.keep='refused'

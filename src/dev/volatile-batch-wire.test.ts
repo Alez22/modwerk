@@ -190,6 +190,15 @@ describe('private cached volatile status validation', () => {
     expect(parseVolatileStatus(bytes, observed)).toMatchObject({ result: 'quarantined', current: null, latchHeld: true })
     bytes[160] = 1; expect(() => parseVolatileStatus(bytes, observed)).toThrow('unknown digest')
   })
+  it('reports an unsaved or failed saved-set write only in Idle, never a failure without the save', () => {
+    const bytes = status(); bytes[7] = 10 | 16
+    expect(parseVolatileStatus(bytes, observed)).toMatchObject({ phase: 'idle', saving: true, saveFailed: false })
+    bytes[7] = 10 | 16 | 32; expect(parseVolatileStatus(bytes, observed)).toMatchObject({ saving: true, saveFailed: true })
+    expect(parseVolatileStatus(status(), observed)).toMatchObject({ saving: false, saveFailed: false })
+    bytes[7] = 10 | 32; expect(() => parseVolatileStatus(bytes, observed)).toThrow('saved-set state')
+    const trial = status(5); trial[7] |= 16; expect(() => parseVolatileStatus(trial, observed)).toThrow('saved-set state')
+    for (const bit of [64, 128]) { const reserved = status(); reserved[7] |= bit; expect(() => parseVolatileStatus(reserved, observed)).toThrow('header') }
+  })
   it('refuses missing capability, changed boot/base, reserved bytes, unknown enums and partial records', () => {
     expect(() => parseVolatileStatus(status(), { ...observed, capabilities: 7 })).toThrow('capability')
     for (const offset of [0, 4, 5, 6, 7, 32, 64, 195, 208]) {

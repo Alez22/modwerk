@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Private framing preparation only: no USB calls, public imports or persistence commands.
-// Keep (9) accepts a stopped trial in device RAM only; nothing is written to the card.
+// Keep (9) accepts a stopped trial only as the board's whole saved set; the board then writes it to the card.
+// MWVS flag bits 4/5 (Idle only): that set is not yet confirmed on the card / its last card write failed.
 // The board must independently verify package/source associations and all lifetime/resource gates.
 import { digestBytes, ZERO_DIGEST } from '../engine/elekloader/upload-wire.ts'
 
@@ -32,6 +33,10 @@ export interface VolatileStatus extends VolatileBinding {
   baseline: string | null; current: string | null; offer: string | null; latchHeld: boolean
   received: number; total: number; records: number; published: number
   required: number; touched: number; confirmed: number; limits: VolatileLimits; poolBytes: number
+  /** The saved set's last change is not yet read back from the card; a reboot now restores the previous set. */
+  saving: boolean
+  /** Its last card write failed; the board retries it every ten seconds. Never a claim that the card has it. */
+  saveFailed: boolean
 }
 
 function fail(message: string): never { throw new Error('Private volatile framing: ' + message) }
@@ -98,7 +103,7 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
   if (!(observed.capabilities & VOLATILE_CAPABILITY)) fail('service capability is unavailable')
   if (input.byteLength !== VOLATILE_STATUS_BYTES) fail('incomplete status')
   const bytes = new Uint8Array(input), view = new DataView(bytes.buffer)
-  if (view.getUint32(0) !== 0x4d575653 || view.getUint8(4) !== 1 || view.getUint8(7) & ~15 ||
+  if (view.getUint32(0) !== 0x4d575653 || view.getUint8(4) !== 1 || view.getUint8(7) & ~63 ||
     view.getUint8(195) || view.getUint32(208)) fail('unsupported status header')
   const result = VolatileResult[view.getUint8(5)], phase = VolatilePhase[view.getUint8(6)], flags = view.getUint8(7)
   if (!result || !phase || !(flags & 8) || result === 'unsupported') fail('service status is unavailable')
@@ -108,6 +113,9 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
   const received = view.getUint32(20), total = view.getUint32(24), records = view.getUint16(28), published = view.getUint16(30)
   const baselineHash = hex(bytes.subarray(96, 128)), offerHash = hex(bytes.subarray(128, 160)), currentHash = hex(bytes.subarray(160, 192))
   const baselineKnown = !!(flags & 1), currentKnown = !!(flags & 2), latchHeld = !!(flags & 4)
+  const saving = !!(flags & 16), saveFailed = !!(flags & 32)
+  // A Begin waits for a pending save, so a saving set exists only while the service is Idle.
+  if ((saveFailed && !saving) || (saving && phase !== 'idle')) fail('inconsistent saved-set state')
   if (baselineKnown !== (baselineHash !== ZERO_DIGEST) || currentKnown !== (currentHash !== ZERO_DIGEST)) fail('unknown digest is not zero')
   const available = limits({ stageBytes: view.getUint32(196), records: view.getUint16(204), participants: view.getUint16(206) })
   const poolBytes = uint(view.getUint32(200), 0xffffffff, true)
@@ -128,7 +136,8 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
   }
   return Object.freeze({ base, session, sequence, transaction, generation, result, phase, received, total, records, published,
     baseline: baselineKnown ? baselineHash : null, current: currentKnown ? currentHash : null,
-    offer: total ? offerHash : null, latchHeld, required, touched, confirmed, limits: Object.freeze(available), poolBytes })
+    offer: total ? offerHash : null, latchHeld, required, touched, confirmed, limits: Object.freeze(available), poolBytes,
+    saving, saveFailed })
 }
 
 async function sha256(bytes: Uint8Array): Promise<string> {

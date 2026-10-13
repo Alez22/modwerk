@@ -156,6 +156,8 @@ export class VolatileBatchSession {
       // Recheck the exact whole baseline immediately before Begin; no state read grants ownership.
       const before = await this.bounded('baseline', async signal => parseVolatileStatus(await this.transport.state(signal), this.observed))
       this.sameLimits(before)
+      // The board refuses Begin while its saved set is unsaved; wait (a fresh connect reads it) instead of losing the channel.
+      if (before.saving) throw new Error('The device is still saving its module set to the card.')
       this.expect(quiescentIdle(before) && before.result === this.status.result && before.current === baseline &&
         before.transaction === this.status.transaction && before.generation === this.status.generation &&
         before.sequence === this.status.sequence, 'Baseline changed before Begin.')
@@ -251,9 +253,12 @@ export class VolatileBatchSession {
     this.offer = undefined; return result
   }
   async rollback() { return this.exclusive(() => this.rollbackInternal()) }
-  /** Keep a complete stopped trial in device RAM as the new baseline. The board accepts only fresh installs:
-   * a replace or removal has no roots proof yet and is refused with the trial unchanged (roll back instead).
-   * Nothing is written to the card, so a reboot loses the kept set; physical persistence is a separate gate. */
+  /** Keep a complete stopped trial as the new baseline and the board's saved set. The board accepts only fresh
+   * installs whose set its saved set can take exactly: a replace or removal (no roots proof yet), or a saved set
+   * that is not the live baseline, is refused with the trial unchanged (roll back instead). The kept result is
+   * `saving` until the board reads the card write back; `saveFailed` means a write failed and is retried. Read a
+   * fresh connect() for that state; a reboot before it restores the previous set. Physical reboot persistence
+   * remains a hardware gate. */
   async keep() {
     return this.exclusive(async () => {
       const offer = this.owned(), before = this.status
