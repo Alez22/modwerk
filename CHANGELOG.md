@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepare source-pinned Sidechain and Output Matrix controller write leases with strong board imports and native relocation, memory, register and stack regressions. Short write spans preserve the backend IRQ mask without stock calls; Matrix mode changes stay refused pending an interruptible full-bank ownership transaction. Imported modules and public admission remain unchanged. Synthetic lease events do not qualify board identity, physical timing, DSP audio or persistence.
+
 - Prepared private volatile USB command, bundle and cached-status framing with exact encoded identities, disjoint canonical participants, immutable hash inputs and bounded Windows control transfers. These developer-only helpers make no device calls; parsed status never grants transaction ownership. Public capabilities, saved files and persistent upload behavior are unchanged. Board source trust, ownership, complete resource admission and physical lifecycle qualification remain pending.
 
 - Prepared an isolated board-only controller association contract binding exact encoded-package/source-policy identities, whole reconstructed allocations and monotonic generations to actual operation tickets and wire sequences. Partial/unknown work retains incoming and predecessor leases until exact disable acknowledgments, job release and foreign-root retirement; pending ColdFire publication has a separate guard. Native fixture regressions and ColdFire compilation do not qualify the unwired asynchronous loader backend or hardware behavior. The strong resource-policy bridge has zero entries and public controller admission remains closed.
