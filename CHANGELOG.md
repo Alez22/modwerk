@@ -3,6 +3,7 @@
 ## 13 October 2026
 
 - Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
+- Documentation: recorded complete EP0 transaction ownership, transient bridge reacquisition, pre-install StockCopy snapshots and foreign saved-set handling for MCP/RAM testing. Observations remain bound to the named private candidate and do not imply audio or persistence qualification.
 
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
 
