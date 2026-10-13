@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util'
 import { build } from 'vite'
 import { Bench, device, enumerate } from './usb-bench.mjs'
 import { buildAndSave } from './firmware-download.mjs'
+import { assertMcpPrivateHost } from './frontend-mcp-private-host.mjs'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 let activeWorkspace = false
@@ -60,6 +61,7 @@ export function validateApiPath(path) {
 }
 
 export async function createFrontendTools(options, injected, dependencies = {}) {
+  assertMcpPrivateHost()
   const { root = ROOT, dataDir, apiBase = 'http://127.0.0.1:8788/api', site = 'https://modwerk.app/' } = options
   if (!dataDir) throw new Error('--data-dir is required; choose a private MCP workspace.')
   const api = new URL(apiBase), deployment = new URL(site)
@@ -67,18 +69,18 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   if (deployment.username || deployment.password || deployment.search || deployment.hash || !(deployment.protocol === 'https:' || deployment.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(deployment.hostname))) throw new Error('Invalid deployment URL.')
   await mkdir(dataDir, { recursive: true, mode: 0o700 })
   const directory = await lstat(dataDir)
-  if (!directory.isDirectory() || directory.isSymbolicLink() || process.platform !== 'win32' && directory.mode & 0o077) throw new Error('Use a private directory (mode 0700), not a symlink.')
+  if (!directory.isDirectory() || directory.isSymbolicLink() || directory.mode & 0o077) throw new Error('Use a private directory (mode 0700), not a symlink.')
   const file = join(dataDir, 'sets.json')
   let sets = []
   try {
     const info = await lstat(file)
-    if (!info.isFile() || info.isSymbolicLink() || info.size > 256 * 1024 || process.platform !== 'win32' && info.mode & 0o077) throw new Error('The set file must be private regular JSON (0600), not a symlink.')
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 256 * 1024 || info.mode & 0o077) throw new Error('The set file must be private regular JSON (0600), not a symlink.')
     sets = JSON.parse(await readFile(file, 'utf8'))
   } catch (error) { if (error.code !== 'ENOENT') throw error }
   let credentials
   if (options.sessionFile) {
     const info = await lstat(options.sessionFile)
-    if (!info.isFile() || info.isSymbolicLink() || info.size > 4096 || process.platform !== 'win32' && info.mode & 0o077) throw new Error('Session credentials must be a private regular file (mode 0600).')
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 4096 || info.mode & 0o077) throw new Error('Session credentials must be a private regular file (mode 0600).')
     credentials = object(JSON.parse(await readFile(options.sessionFile, 'utf8')), ['session', 'developer'])
     for (const value of Object.values(credentials)) if (typeof value !== 'string' || value.length > 600) throw new Error('Invalid session credentials.')
   }
