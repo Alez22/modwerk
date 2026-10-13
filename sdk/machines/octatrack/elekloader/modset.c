@@ -175,9 +175,17 @@ static void restore(void)
 }
 /* ep0.c holds host frames until the restore has run: an install before it would race it, and the restore would undo it. */
 int modwerk_modset_restored(void) { return (int)restored; }
+#ifdef MODWERK_SAVED_SET_EXPORT
+/* A restored baseline without a staged package or any queued/retrying save. */
+int modwerk_modset_export_idle(void) { return restored && !pending && !candidate; }
+#endif
 /* Engine task, on every return to its receive: the restore once after boot, then any pending save. */
 void modwerk_modset_service(void)
 {
+#ifdef MODWERK_SAVED_SET_EXPORT
+    int modwerk_saved_set_busy(void);
+    if (modwerk_saved_set_busy()) return;
+#endif
     if (!GATE()) return;
     if (!restored) { if (TICKS > 180u) restore(); return; } /* three seconds in: the project and the card are up */
     if (!pending || TICKS < retry_at) return;

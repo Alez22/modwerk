@@ -7,12 +7,17 @@
 #include <stdint.h>
 #include "upload.h"
 #include "modwerk_module.h"
-#define RUNTIME_HEADER_BYTES 68u        /* ABI 6 (DSP code, its name and layout); ABI 5 50, ABI 4 32, ABI 3 28 (module 0) */
+#define RUNTIME_ABI 8u
+#define RUNTIME_GROUP_METADATA 4u       /* ABI8 MWMG prefix; machine must explicitly admit its lifetime */
+#define RUNTIME_CAPABILITY_FLAGS 7u     /* CF sites, hash-backed stock copies, authored constant fills */
+#define RUNTIME_HEADER_BYTES 76u        /* ABI 8: ABI 7 (72) plus constant-fill count; older headers: 68, 50, 32, 28 */
 #define RUNTIME_IMAGE_BYTES 131072u      /* one module's image and bss (Tape Echo's tone table is 86 KiB) */
 #define RUNTIME_RELOCATIONS 2048u
-#define RUNTIME_SITES 64u
+#define RUNTIME_SITES 128u
 #define RUNTIME_SITE_BYTES 32u
 #define RUNTIME_SITE_RELOCATIONS 8u
+#define RUNTIME_COPIES 128u               /* ABI 7: stock bytes copied into the image, each at most RUNTIME_SITE_BYTES */
+#define RUNTIME_FILLS 64u                /* ABI 8: bounded authored constant initializers, no bytes carried */
 #define RUNTIME_DSP_WORDS 4096u          /* one module's DSP code and tables, 24-bit words */
 #define RUNTIME_DSP_RELOCATIONS 256u
 /* A machine may raise these (the Octatrack: 128 modules in 768 KiB, build_core.py). */
@@ -37,6 +42,10 @@ struct runtime_dsp {
     uint16_t relocation_count, init, proc, cycles; /* cycles: worst case per sample and instance */
     uint16_t buffer;               /* Y words of the slot's delay buffer it reads from its base; 0 none */
     uint8_t id, slots, kind, state;  /* effect id; 1 FX1, 2 FX2; cycles' evidence; state words per instance */
+    const uint8_t *image;           /* whole CF image, staging at admission then owned pool memory */
+    uint32_t image_bytes;
+    uint8_t flags;                  /* header flags; metadata bit requires machine-specific admission */
+    uint8_t present;                /* 1 install/replace; 0 empty removal; module identity is still supplied */
     uint32_t module;                 /* the module's id: its identity. The package's effect id is only its
                                       * preferred one; the machine's admission gives the one it gets. */
     uint16_t layout;                 /* what its stored parameter values mean; a change that reads them
@@ -47,16 +56,21 @@ struct runtime_dsp {
     uint32_t page_bytes;             /* the image's length, all the recipe may reach */
     uint8_t pinned;                  /* flag 2: its ColdFire code names its effect id, so it takes that one or
                                       * none (ABI 6) */
+    uint8_t foreign_roots;           /* trusted board admission only, never an uploaded flag */
+    uint8_t package_sha256[MU_DIGEST_BYTES]; /* exact encoded package, retained across relocation;
+                                            * private board declarations must never hash mutable image bytes */
 };
 enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 /* At the start of the module's pool extent, followed by its sites, code, data, bss and DSP code. */
 struct runtime_module { uint32_t id, size; uintptr_t hook[RUNTIME_EVENTS]; const struct runtime_site *site; uint32_t sites; struct runtime_dsp dsp; }; /* hook 0: none */
 /* Why the last package was refused, for diagnostics and the unit's own message. */
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
-                       RUNTIME_IN_USE /* a track runs the effect it would replace or remove */ };
+                       RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
+                       RUNTIME_STOCK /* ABI 7: the bytes under a site are not the stock bytes its hash names */ };
+/* ABI 7's site record (a 32-byte hash for the stock bytes) is never longer than ABI 6's (the stock bytes). */
 #define RUNTIME_PACKAGE_BYTES (RUNTIME_HEADER_BYTES + 4u * RUNTIME_EVENTS + RUNTIME_IMAGE_BYTES + 4u * RUNTIME_RELOCATIONS + \
                                RUNTIME_SITES * (8u + 2u * RUNTIME_SITE_BYTES + 2u * RUNTIME_SITE_RELOCATIONS) + \
-                               4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
+                               RUNTIME_COPIES * (12u + 32u) + RUNTIME_FILLS * 12u + 4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
 
 /* The controller's staging buffer is the machine's; it must hold RUNTIME_PACKAGE_BYTES. */
 extern const struct mu_backend modwerk_runtime_backend;
@@ -71,12 +85,14 @@ uint32_t modwerk_runtime_broken(void);               /* the first live module wh
 uint32_t modwerk_runtime_free(uint32_t *largest);    /* pool bytes free, and the largest free run */
 unsigned modwerk_runtime_list(uint8_t *out, unsigned first, unsigned most); /* INVENTORY: 4 + 24 x entries bytes */
 enum runtime_refusal modwerk_runtime_refusal(void);
+unsigned modwerk_runtime_capabilities(uint8_t *out); /* MWCP v1: 12 bytes, read-only */
 extern volatile uint32_t modwerk_runtime_ticks; /* advanced by the glue's tick, for diagnostics */
 uint32_t modwerk_runtime_value(void);
 uint32_t modwerk_runtime_calls(void);
 
 /* Machine glue. */
 struct runtime_span { const uint8_t *from, *to; };
+struct runtime_context { uint32_t registers[16]; }; /* captured at a loader backend entry */
 int modwerk_machine_stopped(void);                 /* nothing plays or records */
 void *modwerk_machine_uncached(void *);            /* the alias module code and data run from */
 void modwerk_machine_invalidate_code(void);        /* instruction and branch caches */
@@ -92,12 +108,23 @@ void modwerk_machine_unmask(uint32_t);
  * the stock-code bytes alone. On the Octatrack: a frame interrupt held off a ring half stops the DSPs. */
 uint32_t modwerk_machine_lock(void);
 void modwerk_machine_unlock(uint32_t);
-/* With the machine locked: the memory every other task would resume from or
- * return into (live stacks, saved registers). More than `max` means unknown. */
-unsigned modwerk_machine_paused(struct runtime_span *, unsigned max);
+/* With the machine locked: every task's live stack and saved registers.
+ * The current context was captured at backend entry, before the loader's
+ * administrative addresses existed. It stays valid through the operation.
+ * More than `max` means unknown. */
+unsigned modwerk_machine_paused(struct runtime_span *, unsigned max, const struct runtime_context *);
+/* Canonical value for reachability comparisons across mapped RAM aliases. */
+uint32_t modwerk_machine_reference(uint32_t);
 /* DSP effects: may `to` take `from`'s place (either may be absent: count 0)?
  * A runtime_refusal; checked at admission and again, masked, at the switch,
  * which then calls dsp_switch. A machine without a DSP loader refuses any. */
+/* PREPARE sees encoded placeholders; SWITCH sees reconstructed arrays. Both
+ * operations run under the stable machine lock. No public ABI flag. */
+enum runtime_metadata_operation { RUNTIME_METADATA_PREPARE=1, RUNTIME_METADATA_SWITCH=2 };
+/* Default refuses groups; a board assigns foreign_roots only after trusted
+ * declaration and current/paused consumer checks. */
+int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
+    const struct runtime_context *,enum runtime_metadata_operation);
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to); /* may set to->id */
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to);
 #endif

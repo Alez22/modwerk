@@ -18,6 +18,53 @@ import sys
 HERE = Path(__file__).resolve().parent
 APP = HERE.parents[3]
 VERSION = '0.3.1-modwerk-dev.1'
+# Fixed, default-empty private trust storage; no public admission flags.
+MACHINE_TRUST_SOURCES = ('machine_admission.c', 'machine_admission.h',
+    'machine_admission_runtime.c', 'machine_declarations.c',
+    'machine_lifetime.c', 'machine_lifetime.h', 'machine_parts.c', 'machine_parts.h',
+    'table_admission.c', 'table_admission.h', 'table_declarations.c', 'table_declarations.h')
+
+
+def check_trust_storage(main_image, mapping, layout, main_load):
+    """Verify the real linked default-empty trust reservations before handoff.
+
+    Private declaration filling is separate: this compiled baseline always has
+    zero admitted records, with storage inside the appended initialized .run.
+    """
+    ddr, run = layout.get('ddr'), layout.get('run_load')
+    if (not isinstance(ddr, list) or len(ddr) != 2 or
+            any(type(v) is not int for v in (*ddr, run, main_load)) or
+            ddr[0] >= ddr[1] or run < main_load):
+        raise ValueError('Private trust storage needs the actual linked run layout.')
+    spans, proof = [], {}
+    for name, magic, length in (('modwerk_machine_declarations', b'MWMD', 720),
+                                ('modwerk_table_declarations', b'MWTD', 976)):
+        address = mapping.get(name)
+        if (type(address) is not int or address & 3 or address < ddr[0] or
+                address + length > ddr[1]):
+            raise ValueError('Missing or out-of-bounds private trust reservation: ' + name)
+        at = run - main_load + address - ddr[0]
+        expected = magic + bytes((1, 0, 16)) + bytes(length - 7)
+        if at < 0 or at + length > len(main_image) or main_image[at:at + length] != expected:
+            raise ValueError('Private trust reservation is not the exact empty baseline: ' + name)
+        if any(address < end and start < address + length for start, end in spans):
+            raise ValueError('Private trust reservations overlap.')
+        spans.append((address, address + length))
+        proof[name] = dict(address=hex(address), bytes=length, count=0,
+                          sha256=hashlib.sha256(expected).hexdigest())
+    return proof
+
+
+def check_saved_set_storage(mapping, layout):
+    """Bound the exact cold-boot-cleared snapshot plus its engine lease latch."""
+    address, bss = mapping.get('modwerk_saved_set_export'), layout.get('bss')
+    length = RUNTIME_POOL_BYTES + 0x1000 + 48 + 12
+    if (type(address) is not int or address & 3 or not isinstance(bss, list) or len(bss) != 2 or
+            any(type(v) is not int for v in bss) or not 0x40000400 <= bss[0] < bss[1] <= 0x47f00000 or
+            address < bss[0] or address + length > bss[1]):
+        raise ValueError('Saved-set snapshot is not the exact bounded linked BSS reservation.')
+    return dict(address=address, uncachedAddress=address + 0x08000000, bytes=length,
+                snapshotCapacity=RUNTIME_POOL_BYTES + 0x1000, initializedAtBoot=True, hardware=False)
 FIELDS = {'build': 17, 'os': 17, 'modules': 4096, 'configuration': 65,
           'source': 65, 'fx1': 1024, 'fx2': 1024, 'hidden': 1024}
 # RAM boot (boot.s): the gate replaces the OS entry's `movea.l #0x48000000,%sp`.
@@ -715,6 +762,11 @@ def main():
     parser.add_argument('--cross', default='m68k-elf-', help='Use Modwerk\'s reviewed GNU toolchain.')
     parser.add_argument('--dev', action='store_true',
                         help='Development base: drive and watch the unit over USB (dev.c) and stream MAIN/CUE as USB audio. Never for users.')
+    parser.add_argument('--usb-midi', action='store_true',
+                        help='Private composite-base preparation: bounded USB MIDI receive/transmit plus vendor and MSC.')
+    parser.add_argument('--usb-audio', choices=('USB AUDIO OUT TRACKS MAIN CUE', 'USB AUDIO OUT TRACKS',
+                        'USB AUDIO OUT MASTER', 'USB AUDIO OUT MAIN CUE', 'USB AUDIO OUT MAIN'),
+                        help='Private composite-base preparation: one authored output layout, with internal USB MIDI. Requires exact new-base qualification.')
     parser.add_argument('--dsp-hook', choices=tuple(DSP_HOOK_EDITS), default='guard',
                         help="with --dsp-loader: the state-7 entry, guard (default); usbin, pretend, noflags, long: hardware bisect variants")
     parser.add_argument('--dsp-probe', choices=('A', 'B', 'S', 'W', 'M', 'X'),
@@ -723,6 +775,10 @@ def main():
                              'W full loader, but one word per upload packet to pinpoint a rejected word; '
                              'M (emulator check) a wrong sum on the upload chunk at word 48, so the receiver keeps a record and the tick reads it; '
                              'X the full loader, and the receivers watch X:$7a92-$7fff for anything that writes it (dev request 26).')
+    parser.add_argument('--saved-set-export', action='store_true',
+                        help='Private fixed-two-file read-only recovery snapshot. No card writes.')
+    parser.add_argument('--resident-stock-hooks', action='store_true',
+                        help='Private dormant resident SC/Matrix/Analog BD packing. Does not admit their runtime controllers.')
     parser.add_argument('--dsp-loader', action='store_true',
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
@@ -731,6 +787,10 @@ def main():
                         help='with --dsp-loader: the base\'s effect ids (fxids.h, the dispatch and chooser tables; '
                              'docs/OCTATRACK_MORE_EFFECT_IDS.md). 32, the old width, only to bisect a fault.')
     args = parser.parse_args()
+    if args.saved_set_export and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
+        parser.error('Private saved-set export requires the ordinary DSP loader without probes/burn.')
+    if args.resident_stock_hooks and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
+        parser.error('Private resident stock hooks require the ordinary DSP loader, without probes/burn.')
     global FX_IDS, FX_WORDS
     FX_IDS, FX_WORDS = args.fx_ids, (args.fx_ids + 31) // 32
     os.environ['ELEKLOADER_CROSS'] = args.cross
@@ -747,6 +807,16 @@ def main():
     image = formats.main_image(stock, device)
     if sha(image) != release.main_sha256:
         parser.error('Original, unmodified MAIN image required.')
+    saved_set_proof, saved_set_wiring, saved_set_root = None, None, None
+    saved_set_files = ('saved_set_export.c', 'saved_set_export.h', 'saved_set_reader.c',
+        'saved_set_session.c', 'saved_set_session.h', 'saved_set_source.py', 'saved_set_wiring.py')
+    if args.saved_set_export:
+        saved_set_root = APP / 'sdk/machines/octatrack/module-adapters/saved-set-export'
+        for name in ('saved_set_source', 'saved_set_wiring'):
+            spec = importlib.util.spec_from_file_location(name, saved_set_root / (name + '.py'))
+            module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+            if name == 'saved_set_source': saved_set_proof = module.verify_saved_set_source(image)
+            else: saved_set_wiring = module
     stock_sha = sha(args.stock.read_bytes())
     out = private_output(args.output)
     source = out / 'source'; source.mkdir()
@@ -796,11 +866,25 @@ def main():
     for name in ('upload.c', 'upload.h', 'sha256.c', 'wire.c', 'wire.h', 'vendor.c', 'vendor.h'):
         shutil.copyfile(upload / name, source / name)
     loader = APP / 'sdk/runtime/loader'
-    for name in ('loader.c', 'loader.h', 'modwerk_module.h'):
+    for name in ('loader.c', 'loader.h', 'modwerk_module.h', 'context.h'):
         shutil.copyfile(loader / name, source / name)
+    if saved_set_root:
+        for name in saved_set_files:
+            if Path(name).suffix in ('.c', '.h'):
+                shutil.copyfile(saved_set_root / name, source / name)
+    machine_trust = APP / 'sdk/machines/octatrack/module-adapters'
+    for name in MACHINE_TRUST_SOURCES:
+        shutil.copyfile(machine_trust / name, source / name)
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')
     usb = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb)
+    usb_functions = None
+    if args.usb_midi or args.usb_audio:
+        spec = importlib.util.spec_from_file_location('modwerk_base_usb_functions',
+            APP / 'sdk/machines/octatrack/module-adapters/base_usb_functions.py')
+        usb_functions = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_functions)
+        spec = importlib.util.spec_from_file_location('modwerk_authored_usb_descriptors', usb.AUDIO_DESCRIPTORS)
+        usb_descriptors = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_descriptors)
     for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s') + (('dev.c',) if args.dev else ()):
         shutil.copyfile(HERE / name, source / name)
     # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.
@@ -808,9 +892,23 @@ def main():
     base_art = importlib.util.module_from_spec(spec); spec.loader.exec_module(base_art)
     (source / 'boot_art.h').write_text(base_art.header(VERSION.split('-')[0]))
     dsp_sites, dsp_layout, rows = [], None, None
+    resident_boot_prepared, resident_boot_helper, resident_factory = None, None, None
+    if args.resident_stock_hooks:
+        sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
+        import resident_dsp
+        import resident_driver
+        import resident_source
+        import resident_boot as resident_boot_helper
+        import dsp_packages
+        from elekloader.sdk.octabam import Octabam
+        resident_ob = Octabam(str(APP / 'sdk/octabam'))
+        resident_factory = lambda tag, hi: resident_dsp.place_resident(
+            resident_ob, tag, hi, str(source), dsp_packages.assemble)
     if args.dsp_loader:
         spec = importlib.util.spec_from_file_location('modwerk_dsp_loader', HERE/'dsp_loader.py')
         loader_dsp = importlib.util.module_from_spec(spec); spec.loader.exec_module(loader_dsp)
+        if args.resident_stock_hooks:
+            loader_dsp = resident_source.load_loader(APP)
         for name in DYNLOAD_SOURCES + ('hooks.s',):
             text = (DYNLOAD / name).read_text()
             edits = DSP_EDITS.get(name, ()) + WIDTH_EDITS.get(name, ()) + DSP_HOOK_EDITS[args.dsp_hook].get(name, ())
@@ -827,16 +925,40 @@ def main():
                 if text.count(old) != 1:
                     raise ValueError('Octabam DSP loader seam changed in %s; review the port.' % name)
                 text = text.replace(old, new)
+            if args.resident_stock_hooks and name == 'transfer.c':
+                text = resident_driver.transport(text)
+            if saved_set_wiring and name == 'transfer.c':
+                text = saved_set_wiring.transfer(text, args.resident_stock_hooks)
+            elif saved_set_wiring and name == 'selection.c':
+                text = saved_set_wiring.selection(text)
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
-        shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
+        if args.resident_stock_hooks:
+            for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h'):
+                shutil.copyfile(resident_source.RUNTIME / name, source / name)
+            (source / 'dsp.c').write_text(resident_source.sources(APP)['dsp.c'])
+        else:
+            shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
+        if saved_set_wiring:
+            (source / 'dsp.c').write_text(saved_set_wiring.dsp((source / 'dsp.c').read_text()))
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
-        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'selftest.h'):
+        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'load_wire.h', 'selftest.h'):
             shutil.copyfile(HERE / name, source / name)
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
                 raise ValueError('An FX selector no longer reads its chooser list at %#x.' % lea)
         dsp_sites, dsp_layout = loader_dsp.recipe(image, device, dsp, lambda path: sdk.dsp_assemble(path, str(source)), str(source),
-                                                  args.dsp_probe if args.dsp_probe in ('A', 'B', 'X') else None, args.dsp_burn, FX_IDS)
+                                                  args.dsp_probe if args.dsp_probe in ('A', 'B', 'X') else None, args.dsp_burn, FX_IDS,
+                                                  **({'resident': resident_factory} if args.resident_stock_hooks else {}))
+        if args.resident_stock_hooks:
+            resident_boot_prepared = resident_boot_helper.prepare(image, device, dsp, dsp_layout)
+            (source / 'resident-dsp-boot.s').write_text(resident_boot_prepared['assembly'])
+            bootstrap = (source / 'core-ot.s').read_text()
+            seam = '        jsr     BOOT_CONTINUE'
+            if bootstrap.count(seam) != 1:
+                raise ValueError('Pinned pre-DSP-boot seam changed; review the private resident port.')
+            (source / 'core-ot.s').write_text(bootstrap.replace(seam, '        jsr     mw_resident_dsp_boot\n' + seam))
+            (source / 'resident-dsp-driver.c').write_text(resident_driver.controller_c(resident_boot_prepared))
+            dsp_sites += resident_boot_prepared['sites']
         chooser_sites, chooser_lists = loader_dsp.choosers(image, FX_IDS)
         # The Part validator (0x40002318; bank load, battery restore) clears an id that reads negative and clamps one
         # above 31 to 31: four `moveq #31` (docs/OCTATRACK_MORE_EFFECT_IDS.md). Past 32 ids they clamp to the last.
@@ -847,8 +969,16 @@ def main():
             chooser_sites.append(dict(addr=hex(at), stock=word.hex(), op='bytes', new=bytes((word[0], FX_IDS - 1)).hex()))
         dsp_sites += chooser_sites
     (source/'usb_base.h').write_text(usb.header())
-    (source/'usb_base.s').write_text(usb.assembly(args.dev))
-    if args.dev:  # USB AUDIO OUT MAIN CUE (usb_base.py): Octabam's source with our interface numbers
+    (source/'usb_base.s').write_text(usb_functions.assembly(usb, usb_descriptors, args.usb_audio)
+                                   if usb_functions else usb.assembly(args.dev))
+    if usb_functions:
+        (source/'usbmidi.s').write_text(usb_functions.midi_source((usb.OCTABAM / 'platform/usb-midi/usbmidi.s').read_text()))
+        (source/'usbmidi_rx.s').write_text((usb.OCTABAM / 'modules/usb-audio-out-tracks-main-cue/usbmidi_rx.s').read_text())
+        if args.usb_audio:
+            (source/'usbaudio.s').write_text(usb_functions.audio_storage_source(
+                usb_functions.audio_source(usb.AUDIO_SOURCE.read_text())))
+            (source/'remix.inc').write_text(usb_functions.audio_include(args.usb_audio))
+    elif args.dev:  # USB AUDIO OUT MAIN CUE (usb_base.py): Octabam's source with our interface numbers
         (source/'usbaudio.s').write_text(usb.audio_assembly())
         (source/'remix.inc').write_text(usb.AUDIO_INC)
     # Identity describes this core-only private base. Later selections need
@@ -856,13 +986,33 @@ def main():
     folders = (logger, upload, loader, HERE) + ((DYNLOAD,) if args.dsp_loader else ())
     inputs = {str(p.relative_to(APP)): sha(p.read_bytes()) for folder in folders
               for p in sorted(folder.iterdir()) if p.is_file() and p.suffix in ('.c', '.h', '.s', '.asm', '.py', '.json')}
+    for name in MACHINE_TRUST_SOURCES:
+        path = machine_trust / name
+        inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
+    if saved_set_root:
+        for name in saved_set_files:
+            path = saved_set_root / name
+            inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if args.dev:
         for path in (usb.AUDIO_SOURCE, usb.AUDIO_DESCRIPTORS):
+            inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
+    if usb_functions:
+        for path in (Path(usb_functions.__file__), usb.AUDIO_DESCRIPTORS,
+                     usb.OCTABAM / 'platform/usb-midi/usbmidi.s',
+                     usb.OCTABAM / 'modules/usb-audio-out-tracks-main-cue/usbmidi_rx.s') + ((usb.AUDIO_SOURCE,) if args.usb_audio else ()):
             inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if args.dsp_loader:
         for name in ('src/engine/assets/stock-dsp-metadata.json', 'src/engine/assets/chooser-metadata.json',
                      'scripts/octatrack-module-page.mjs'):
             inputs[name] = sha((APP / name).read_bytes())
+    if args.resident_stock_hooks:
+        for name in ('resident_dsp.py', 'resident_boot.py', 'resident_driver.py', 'resident_source.py', 'resident_base.patch', 'resident_base_sources.json'):
+            p = APP / 'sdk/machines/octatrack/module-adapters' / name
+            inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
+        inputs.update({'sdk/octabam/' + p: h for p, h in resident_dsp.verify_sources(resident_ob.root).items()})
+        for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h'):
+            p = resident_source.RUNTIME / name
+            inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
     inputs.update({'elekloader/' + p.name: sha(p.read_bytes()) for p in original_core.iterdir() if p.is_file()})
     artwork = APP / 'sdk/runtime/startup/artwork.json'
     inputs['sdk/runtime/startup/artwork.json'] = sha(artwork.read_bytes())
@@ -878,6 +1028,15 @@ def main():
     if args.dsp_loader:
         configuration.update(dsp=dict(loader='dsp-dynload-3', stock='on-demand', rows='runtime',
                                       allowance=DSP_ALLOWANCE, reserve=DSP_RESERVE, probe=args.dsp_probe, burn=args.dsp_burn, hook=args.dsp_hook, arena=[dsp_layout[t]['tableWords'] - loader_dsp.SAVED for t in 'AB']))
+    if usb_functions:
+        configuration['usb'].update(interfaces=['msc', 'modwerk-vendor', 'midi-control', 'midi-streaming'] +
+            (['audio-control', 'audio-streaming'] if args.usb_audio else []),
+            midi='bounded-rx-1', audio=args.usb_audio)
+        if args.dev:
+            configuration['dev'] = ['key', 'panel', 'state', 'screen']
+    if resident_boot_prepared:
+        configuration['dsp']['residentStockHooks'] = dict(schema=1, dormant=True, controllersAdmitted=False,
+            receiptSha256=sha(json.dumps(resident_boot_prepared['receipt'], sort_keys=True, separators=(',', ':')).encode()))
     identity = sha(json.dumps(configuration, separators=(',', ':')).encode())
     values = dict(build=identity[:16], os='1.40C', modules='', configuration=identity,
                   source=source_hash, fx1=';'.join(configuration['fx1']),
@@ -950,16 +1109,23 @@ modwerk_retained_end:
                   license='GPL-3.0-or-later',
                   description='Private core-only Elekloader base with logger/startup, a USB vendor interface and a runtime module loader (hooks and stock-code sites); NOT a flash candidate.')
     recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s', 'crash.s'] + (
-        ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s', 'status.s'] if args.dsp_loader else []) + (['usbaudio.s'] if args.dev else [])
+        ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s', 'status.s'] if args.dsp_loader else []) + (
+        ['usbmidi.s', 'usbmidi_rx.s'] + (['usbaudio.s'] if args.usb_audio else []) if usb_functions else ['usbaudio.s'] if args.dev else [])
+    if resident_boot_prepared:
+        recipe['sources'].append('resident-dsp-boot.s')
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
-                        '-Wall', '-Wextra', '-Werror', '-DMODWERK_FX_IDS=%du' % FX_IDS] + (['-DMODWERK_DSP_XWATCH'] if args.dsp_probe == 'X' else []) + [
+                        '-Wall', '-Wextra', '-Werror', '-DMODWERK_RUNTIME_METADATA_EXTERNAL', '-DMODWERK_FX_IDS=%du' % FX_IDS] + (['-DMODWERK_DSP_XWATCH'] if args.dsp_probe == 'X' else []) + [
                         '-DRUNTIME_MODULES=%du' % RUNTIME_MODULES, '-DRUNTIME_POOL_BYTES=%du' % RUNTIME_POOL_BYTES] + (['-DMODWERK_DEV'] if args.dev else []) + (
         ['-DMODWERK_DSP_LOADER', '-DMODWERK_DSP_ALLOWANCE0=%d' % DSP_ALLOWANCE[0], '-DMODWERK_DSP_ALLOWANCE1=%d' % DSP_ALLOWANCE[1],
          '-DMODWERK_DSP_RESERVE=%d' % DSP_RESERVE] +
         ['-DMODWERK_DSP_%s%d=%d' % (key, n, dsp_layout[t][field]) for n, t in enumerate('AB')
          for key, field in (('TABLE', 'table'), ('WORDS', 'tableWords'), ('MISS', 'miss'), ('METER', 'meter'))] if args.dsp_loader else [])
+    if args.saved_set_export:
+        recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
+    if args.resident_stock_hooks:
+        recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
     for key in ('idle', 'job', 'transport', 'open', 'read', 'write', 'close'):
         guard = guards[key]; n = guard.get('patchLength', guard['length'])
         at = guard['address'] - device.main_load
@@ -967,7 +1133,8 @@ modwerk_retained_end:
         target = usb.IDLE_HOOK if key == 'idle' else 'olog_' + key + '_hook'
         recipe['sites'].append(dict(addr=hex(guard['address']), stock=image[at:at+n].hex(),
                                     op='jmp', target=target))
-    recipe['sites'] += usb.sites(lambda addr, n: image[addr-device.main_load:addr-device.main_load+n], args.dev)
+    stock_at = lambda addr, n: image[addr-device.main_load:addr-device.main_load+n]
+    recipe['sites'] += usb_functions.sites(usb, stock_at, args.usb_audio) if usb_functions else usb.sites(stock_at, args.dev)
     # RAM boot: the gate at the OS entry, and the DSP park in both payloads.
     at = BOOT_GATE[0] - device.main_load
     if image[at:at+6].hex() != BOOT_GATE[1]:
@@ -1066,20 +1233,28 @@ modwerk_retained_end:
     if args.dsp_loader and any(mapping[name] % 16 for name in ('dl_tx', 'dl_rx')):
         raise ValueError('The DSP loader packet buffers must be 16-byte aligned for eDMA channel 0.')
     (out/'symbols.json').write_text(json.dumps(mapping, indent=2)+'\n')
+    if resident_boot_prepared:
+        linked = manifest['link']['layout']
+        resident_boot_helper.check_linked(resident_boot_prepared['receipt'], mapping, linked['ddr'], linked['bss'], linked['boot'])
     stage = mapping['modwerk_boot_stage']
     if stage % 16 or not BOOT_RESERVE[0] <= stage <= BOOT_RESERVE[1] - 320 - BOOT_IMAGE_BYTES:
         raise ValueError('The RAM boot stage at %#x is outside the reserve the gate scans.' % stage)
     # The unpacked image a RAM boot sends (`npm run device -- boot`); private like the rest.
     main_out = formats.main_image(formats.parse(str(out/'NOT_FLASH_CANDIDATE.bin'), device), device)
+    trust_storage = check_trust_storage(main_out, mapping, manifest['link']['layout'], device.main_load)
+    if saved_set_proof:
+        saved_set_proof['storage'] = check_saved_set_storage(mapping, manifest['link']['layout'])
     if (int.from_bytes(main_out[:4], 'big') != OS_FIRST or len(main_out) > BOOT_IMAGE_BYTES or
             main_out[OS_VEROFF:OS_VEROFF+2] != image[OS_VEROFF:OS_VEROFF+2]):
         raise ValueError('The built MAIN image cannot be booted from RAM.')
     (out/'MAIN.raw').write_bytes(main_out)
     report = dict(schema=1, kind='modwerk-elekloader-base-prototype', coreVersion=VERSION,
                   upstream=pin, sources=inputs, configuration=configuration, configurationHash=identity,
-                  dspLoader={t: {k: (hex(v) if isinstance(v, int) else v) for k, v in dsp_layout[t].items() if k not in ('words', 'shared')} for t in dsp_layout} if dsp_layout else None,  # no stock words in proofs
+                  dspLoader={t: {k: (hex(v) if isinstance(v, int) else v) for k, v in dsp_layout[t].items() if k not in ('words', 'shared', 'residentUploadRecords')} for t in dsp_layout} if dsp_layout else None,  # no stock words in proofs
+                  residentDspBoot=resident_boot_prepared['receipt'] if resident_boot_prepared else None,
+                  savedSetExport=saved_set_proof,
                   packageSha256=sha(Path(path).read_bytes()), manifest=manifest,
-                  savedHashes={ext:sha(data) for ext,data in outputs.items()},
+                  savedHashes={ext:sha(data) for ext,data in outputs.items()}, trustStorage=trust_storage,
                   productionReady=False, hardware='not tested', emulator='not tested',
                   limitations=['Up to 128 ColdFire runtime modules at once (hooks on ev_tick, ev_draw, ev_key and ev_enc, stock-code sites that no two modules share) in a 768 KiB pool reclaimed once no task can reach a module; no data-table sites, MIDI or frame hooks, or DSP modules and DSP resource ledger yet.',
                                'The base owns the USB configuration: USB MIDI/Audio cannot be combined with it yet.',

@@ -2,6 +2,9 @@
 
 ## 13 October 2026
 
+- Prepare a separate MIDI/20-channel USB Audio, live Load and fixed saved-module-set export base from authored source. The export is engine-owned, read-only on the card, bounded to the two existing files, and expires after ten seconds; interrupted reads keep the mutation latch until they finish.
+- Compile empty machine/table trust reservations and retain package identities and paused-context fences without enabling their admission. The private image and receipts remain outside Git. Public base metadata and downloads remain unchanged; fresh exact-source native/browser checks and physical boot, backup, recovery, audio and persistence qualification are still required.
+
 - Prepared a beta saved-module-file backup client and MCP tool for the two fixed Octatrack files. It binds every bounded chunk to an acknowledged immutable snapshot, verifies the full file hash, releases only its own token and saves bytes privately with metadata-only receipts. Unreadable files remain errors rather than being treated as absent, and backing up does not qualify recovery. MCP Keep now refuses to overwrite saved files from another base while exact recovery is unverified; trial Undo remains available. Device export support and physical backup/recovery qualification are separate work.
 
 - Prepared dormant, source-pinned resident Sidechain, Output Matrix and Analog BD DSP engines, bounded reset/CAS frame jobs and controller-generation leases. Authored initialization uses exact-record sharing with independent per-core reconstruction; the core-1 wait counter is moved outside Analog BD's coefficient/state bank. Native receiver execution, transport refusal/timeout tests and ColdFire placement guards precede private composition. Controller admission remains closed pending exact package identity, live/transition buffer ownership, audio headroom and physical lifecycle qualification; public USB availability is unchanged.
