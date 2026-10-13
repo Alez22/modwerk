@@ -1,5 +1,9 @@
 # Application changelog
 
+## 13 October 2026
+
+- Gave the news campaign integration regression time to complete five real account flows, provider pacing and the hourly scheduler on shared CI runners. All consent, delivery and duplicate-send assertions remain required; production behavior is unchanged.
+
 ## 12 October 2026
 
 - Keep the Octatrack beta publication check valid when release automation stamps the current commit and approval. Authored package contents and qualification fields remain pinned to the validated Git snapshot, and derived package hashes must match the published files.
