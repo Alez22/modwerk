@@ -106,7 +106,7 @@ ELEKLOADER_DSP_ASM=/path/to/dsp_asm python3 -B sdk/machines/octatrack/elekloader
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:everb \
   --slots fx2 --cycles 382 --cycles-kind executed --state 132 --buffer 16384 -o /private/everb.mwrm
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:miniverb \
-  --slots fx2 --cycles 411 --cycles-kind modeled --state 64 --buffer 16384 -o /private/miniverb.mwrm
+  --slots fx2 --cycles 415 --cycles-kind modeled --state 64 --buffer 16384 -o /private/miniverb.mwrm
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:tapehead \
   --slots both --cycles 295 --cycles-kind modeled --state 54 -o /private/tapehead.mwrm
 python3 -B sdk/runtime/loader/build.py --dsp src/engine/assets/dsp-packages.json:airwindows-chorus \

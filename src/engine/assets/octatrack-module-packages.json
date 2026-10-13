@@ -17,7 +17,7 @@
     {
       "id": "miniverb",
       "slots": "fx2",
-      "cycles": 411,
+      "cycles": 415,
       "cyclesKind": "modeled",
       "state": 64,
       "buffer": 16384,
@@ -25,7 +25,7 @@
       "name": "Mini Verb",
       "module": "3cbedc9c",
       "bytes": 2762,
-      "sha256": "d40a7deb698cbf8bab6a4dcc160ebdc8fbcab70682ab38359d289dec0530277e",
+      "sha256": "f230ca39730d2c10d8d3e40db7786fc6db7def89f4b6c841ca4b5a3a3e9de2d4",
       "path": "octatrack-modules/miniverb/0.2.1-experimental.mwrm"
     },
     {
