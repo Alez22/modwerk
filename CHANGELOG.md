@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared private volatile USB command, bundle and cached-status framing with exact encoded identities, disjoint canonical participants, immutable hash inputs and bounded Windows control transfers. These developer-only helpers make no device calls; parsed status never grants transaction ownership. Public capabilities, saved files and persistent upload behavior are unchanged. Board source trust, ownership, complete resource admission and physical lifecycle qualification remain pending.
+
 - Saved-file backup now waits briefly when the device explicitly refuses Begin with an unchanged idle token. Each new attempt first rechecks that exact idle ownership, stops after ten attempts or three seconds, and never retries a lost or ambiguous acknowledgment. Pending work still blocks export; this does not relax firmware safety gates or qualify recovery.
 
 - Restore active signed-in members from notification-bell polls alongside guest check-ins, deduplicating accounts across both sources and avoiding stale member counts after sign-out. Preserve the twelve-name limit while showing the online total, guests and remaining members separately on the forum home.
