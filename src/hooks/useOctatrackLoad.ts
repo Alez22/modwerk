@@ -52,5 +52,5 @@ export function useOctatrackLoad(link: OctatrackLink | null, active: boolean) {
     document.addEventListener('visibilitychange', visibility); void read()
     return () => { live = false; clearTimeout(timer); clearTimeout(expiry); controller?.abort(); document.removeEventListener('visibilitychange', visibility) }
   }, [link, base, active, ready, unsupported])
-  return { points: current?.points ?? [], notice: current?.notice ?? '', now: current?.now ?? 0, visible: current?.visible ?? false, ready, clear: () => setHistory(old => old && { ...old, points: [] }) }
+  return { points: current?.points ?? [], notice: current?.notice ?? '', now: current?.now ?? 0, visible: current?.visible ?? false, ready, unsupported, clear: () => setHistory(old => old && { ...old, points: [] }) }
 }

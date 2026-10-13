@@ -148,6 +148,22 @@ names and automatically selected files outside the supplied pins.
 `--combined` additionally compares the complete explicitly supplied selection;
 `--pairs` compares each pair. Neither admits unpinned dependencies.
 
+### Runtime recipe identity and lifetime
+
+Guarded StockCopies and authored fills encode zero placeholders, so the encoded
+package hash and independently reconstructed native image hash are different
+identities. Pin both, the reviewed recipe and its exact source map; never relabel
+one hash as the other. A guard over an arena word proves that resource binding,
+not the complete base identity. Runtime card rehydration must independently
+refuse a foreign full base identity before restoring packages.
+
+Table-owner preparation and replacement must fence current and paused
+stock table, menu and callback consumers, including cached/uncached references
+to the entire outgoing image from byte zero. Undo restores all three original
+arrays, their count and every stock site before retirement. Empty compiled
+trust reservations remain closed; package preparation or native fixtures do
+not grant admission or hardware qualification.
+
 ## Existing upstream DSP work to extend
 
 The inspected current Elekloader `main` is the kit-pinned commit. Pina has

@@ -16,6 +16,7 @@ A new machine must be a first-class entry wherever the instrument lists machines
 - [ ] **The machine chooser.** The track's machine list opens on your machine for a track that uses it, highlights it, and admits it when the choice is committed (`ab_chooser_open`, `ab_chooser_row`, `ab_main_commit`).
 - [ ] **SRC SETUP.** The same machine is selectable there, with its row highlighted, and every commit path admits it (`ab_src_names`, `ab_setup_open`, `ab_setup_row`, `ab_src_commit`, `ab_src_commit2`, `ab_setup_edit6`, `ab_setup_draw6`).
 - [ ] **Its name everywhere the stock machine names appear,** including the main page (`ab_machine_name`, `ab_name_a`, `ab_name_b`).
+- [ ] **Closing a window does not clear its retained callbacks.** Snapshot the exact original handler, label and destination roots; fence current and paused consumers, then restore those roots before retiring the outgoing image. A null window handle alone is not a lifetime proof.
 - [ ] **A model list** if you have several engines, drawn in the stock pool layout (`ab_pool_open`, `ab_list_draw`, `ab_pool_title`).
 - [ ] **Its parameter pages are published through the descriptor,** so the page the panel draws is the page the DSP reads (`ab_tick_hook`).
 - [ ] **Other tracks are untouched.** Analog BD resolves its page "without changing other FLEX tracks" (`ab_resolve_pb`). Prove that a neighbouring Flex track plays and edits as stock.
@@ -35,6 +36,8 @@ Test in layers, as Analog BD does: the DSP engine, the ColdFire glue, the port (
 - [ ] **Shared audio/MIDI drawers keep their calling convention.** Before replacing a ColdFire span, inspect every branch target inside it, including MIDI paths that enter after an audio-only load. Reproduce the displaced argument pushes on every entry path. Exercise FUNC+UP/DOWN on MIDI tracks while holding the popup through a redraw; brief taps can miss stack corruption. Quantizer 0.1.3 moves its octave detour to the common argument push for this reason ([#181](https://github.com/repeat98/modwerk/issues/181)).
 - [ ] It acts on everything that makes pitch, not only live edits. Scale Quantizer snaps the PTCH knob, chromatic trig keys **and parameter locks** to the scale. **Verify** locked values at both ends of the range.
 - [ ] **Persistence.** A setting and its defaults survive Part Save and project save and load, or the README says they do not. Settings storage today is "nowhere, or a private file" ([MODULES.md](../../sdk/octabam/docs/remixer/MODULES.md#settings-on-the-card)); do not invent a file format.
+- [ ] **Runtime retirement.** Before a physical machine Trial, read-only preflight must show that the dropped-Part guard permits Undo. Retained LEG/legacy SYNTH references, including conservative stock TRIG matches, can hold an outgoing image; never clear the owner's Parts to make a trial pass. Admission and retirement also check current/paused consumers and RAM aliases.
+- [ ] **Full descriptor notifications.** A reset/randomize observation stopped before its notification tail does not verify the complete list/window path. Execute that tail and preserve the stock input layer and window baseline. A bounded stock window pool does not by itself prove full boot, resource exhaustion or hardware UI behavior.
 
 ## Integrate
 

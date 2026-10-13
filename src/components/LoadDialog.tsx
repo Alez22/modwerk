@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadStep, sameModules, type Inventory, type InventoryTarget } from '../config/inventory'
-import { lastSuccessfulSync, rememberSuccessfulSync } from '../config/octatrack-progress'
+import { lastSuccessfulSync, recordSync, rememberSuccessfulSync } from '../config/octatrack-progress'
 import { LinkBusyError, type OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { BaseUpdateRequired, ModuleSetError, moduleSetReview, USB_MODULE_IDS } from '../engine/elekloader/module-set'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
@@ -32,6 +32,8 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   const [error, setError] = useState(''), [leaving, setLeaving] = useState(false)
   const [preparationError, setPreparationError] = useState<{ review: string; error: ModuleSetError }>()
   const [undoName, setUndoName] = useState<string>()
+  // How the trial ended, for this browser's sync history; written once when the dialog reaches its result.
+  const ending = useRef<'kept' | 'undone'>(undefined), logged = useRef(false)
   const step = loadStep(status, started, preparing)
   const connected = !!state.identity?.canSubmit && status === 'ready'
   const review = inventory && moduleSetReview(set, inventory, state.identity?.capabilities)
@@ -49,6 +51,13 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   }, [])
   // The heading takes focus on open and at each step, since the button that moved the step on is gone.
   useEffect(() => { title.current?.focus() }, [step])
+  useEffect(() => {
+    if (step !== 'done' || !started || logged.current) return
+    const failure = error || (notice?.tone === 'error' ? notice.text : '')
+    if (!failure && !ending.current) return
+    logged.current = true
+    recordSync({ name: set.name, modules: set.moduleIds.length, outcome: failure ? 'failed' : ending.current!, ...(failure ? { message: failure.slice(0, 300) } : {}) })
+  }, [step, started, error, notice, set])
 
   async function load() {
     const last = lastSuccessfulSync(state.identity?.base)
@@ -68,6 +77,7 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   }
   async function keep() {
     if (link.getState().status !== 'trial') return
+    ending.current = 'kept'
     await link.keep()
     const kept = link.getState()
     if (kept.status === 'ready' && kept.notice?.tone === 'success' && kept.identity && kept.active)
@@ -120,7 +130,7 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
           {needsBase ? <button type="button" className="button button-primary" onClick={onInstallBase}><Icon name="download" size={16} />Install latest base</button>
             : <button type="button" className="button button-primary" disabled={!connected || !review?.needsSync || !!problem || cardOnly.length > 0 || !stopped || !prepareUpdate} onClick={() => void load()}><Icon name="download" size={16} />Sync to Octatrack</button>}</>}
         {step === 'loading' && !preparing && progress < 1 && <button type="button" className="button button-quiet" onClick={() => link.cancel()}>Cancel</button>}
-        {step === 'trial' && <><button type="button" className="button button-quiet load-undo" disabled={status === 'finishing'} onClick={() => void link.undo()}>Undo → {undoName ?? 'Previous modules'}</button>
+        {step === 'trial' && <><button type="button" className="button button-quiet load-undo" disabled={status === 'finishing'} onClick={() => { ending.current = 'undone'; void link.undo() }}>Undo → {undoName ?? 'Previous modules'}</button>
           <button type="button" className="button button-primary" disabled={status === 'finishing'} onClick={() => void keep()}><Icon name="check" size={16} />Keep</button></>}
         {step === 'done' && (error || notice?.tone === 'error') && <button type="button" className="button button-quiet" aria-haspopup="dialog" onClick={onReport}><Icon name="message" size={16} />Report a problem</button>}
         {step === 'done' && <button type="button" className="button button-primary" onClick={onClose}>Done</button>}
