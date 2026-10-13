@@ -3,6 +3,8 @@
 ## 13 October 2026
 
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.
+- Fixed private runtime-span preparation on Windows using native access-control APIs independently of imported PowerShell security cmdlets, establishing and inspecting protected current-user-only ACLs on new directories and files, and checking inherited parent permissions before writing artifact bytes. Existing output permissions are inspected without alteration; symlinks, junctions, overwrite and unavailable ACL checks are refused. POSIX private modes and the existing stock-free package scanners remain required.
+
 - Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
 - Documentation: recorded complete EP0 transaction ownership, transient bridge reacquisition, pre-install StockCopy snapshots and foreign saved-set handling for MCP/RAM testing. Observations remain bound to the named private candidate and do not imply audio or persistence qualification.
 
@@ -29,6 +31,8 @@
 - Prepared the beta Samples work-in-progress component for local file/folder selection, a folder tree and explicit browser audio preview. It keeps selections only in the tab and does not upload, write files, use USB disk mode or transfer samples to an Octatrack; hub tab integration is a separate step.
 
 - Added a Samples tab to the beta Octatrack hub, with local file/folder selection and explicit audio preview. Switching back to Modules pauses preview and keeps the local selection; sample choices do not sync, upload or persist. Tabs support keyboard navigation and 44px touch controls. File drops are supported; dropped-directory recursion and Octatrack sample transfer remain in development.
+
+- Counted active site visitors in the public online total, including people who are signed out. Visible tabs check in once a minute; repeated tabs and signed-in devices are deduplicated, inactive visitors expire after five minutes, and privacy opt-outs and hidden member names are respected. Anonymous visitors are estimated without browser storage; people sharing an IP address and browser signature can share a count.
 
 ## 12 October 2026
 
