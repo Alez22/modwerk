@@ -3,6 +3,7 @@
 ## 13 October 2026
 
 - Gave the news campaign integration regression time to complete five real account flows, provider pacing and the hourly scheduler on shared CI runners. All consent, delivery and duplicate-send assertions remain required; production behavior is unchanged.
+- Improved the beta Octatrack layout on phones and tablets: module sets use a compact native chooser when space is limited, the hub collapses before its unit status or actions clip, and module tiles keep readable names and 44px touch controls. Sync sits in a separate sticky footer outside the device card, beside the selected set and its changes, with a full-width phone button and safe-area spacing. Module dialogs respect mobile safe areas and provide labelled Previous/Next controls and 44px tab targets. The desktop split view remains available at wider content widths.
 
 ## 12 October 2026
 

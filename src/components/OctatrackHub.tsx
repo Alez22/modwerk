@@ -60,6 +60,10 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
     <div className="hub-split">
       <section className="hub-sets" aria-labelledby="hub-sets-title">
         <div className="hub-pane-label"><h2 id="hub-sets-title">Module sets</h2><span className="subtle">{sets.length}</span></div>
+        <select className="hub-set-picker" aria-labelledby="hub-sets-title" value={selected?.id ?? ''} disabled={!sets.length} onChange={event => onSelect(event.target.value)}>
+          {!sets.length && <option value="">No module sets yet</option>}
+          {sets.map(set => <option key={set.id} value={set.id}>{set.name} · {modules(set.moduleIds.length)}</option>)}
+        </select>
         <ul className="hub-set-list" role="listbox" aria-labelledby="hub-sets-title">
           {sets.map((set, index) => { const isSelected = set.id === selected?.id, on = same(set)
             return <li key={set.id} ref={element => { options.current[index] = element }} role="option" aria-selected={isSelected} tabIndex={isSelected ? 0 : -1}
@@ -79,19 +83,19 @@ export function OctatrackHub({ link, inventory, sets, selectedId, needs, onSelec
           {action}
         </div>
         {lastSync && <p className="hub-last-sync">Last sync from this browser: <b>{lastSync.name}</b> · <time dateTime={lastSync.at}>{new Date(lastSync.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></p>}
-        {selected && usb && <div className="hub-sync-bar" aria-label="Module set sync">
-          <div><strong>{selected.name}</strong>
-            <p>{review?.problem ? <span role="alert">{review.problem.message}</span> : changes ? review?.needsSync ? <>Adds {changes.add.length} · Removes {changes.remove.length}{updates.length > 0 && <> · Updates {updates.length}</>}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
-                : selected.moduleIds.length ? <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span> : 'No modules in this set.'
-              : busy ? 'A sync is running.' : status === 'stock' ? 'Install the base to sync this set.' : connected ? 'Reading what’s on your Octatrack…' : 'Connect your Octatrack to sync this set.'}</p>
-          </div>
-          <button type="button" className="button button-primary" disabled={!review || !needsBase && (!review.needsSync || !!review.problem)} onClick={() => { onSync(selected.id); if (needsBase) onInstall() }}><Icon name="download" size={16} />{needsBase ? 'Install latest base' : 'Sync to Octatrack'}</button>
-        </div>}
         {connected && <MissingNote needs={needs} onSync={selected ? () => onSync(selected.id) : undefined} />}
         {grid}
         {card}
         <details className="hub-diagnostics"><summary>Diagnostics</summary><OctatrackDiagnosticsSettings/></details>
       </section>
     </div>
+    {selected && usb && <footer className="hub-sync-bar" aria-label="Module set sync">
+      <div><strong>{selected.name}</strong>
+        <p>{review?.problem ? <span role="alert">{review.problem.message}</span> : changes ? review?.needsSync ? <>Adds {changes.add.length} · Removes {changes.remove.length}{updates.length > 0 && <> · Updates {updates.length}</>}{!!(changes.stockOff.length + changes.stockOn.length) && <> · Stock effects change</>}</>
+            : selected.moduleIds.length ? <span className="hub-insync"><span className="unit-led is-on" aria-hidden="true" />Already on your Octatrack</span> : 'No modules in this set.'
+          : busy ? 'A sync is running.' : status === 'stock' ? 'Install the base to sync this set.' : connected ? 'Reading what’s on your Octatrack…' : 'Connect your Octatrack to sync this set.'}</p>
+      </div>
+      <button type="button" className="button button-primary" disabled={!review || !needsBase && (!review.needsSync || !!review.problem)} onClick={() => { onSync(selected.id); if (needsBase) onInstall() }}><Icon name="download" size={16} />{needsBase ? 'Install latest base' : 'Sync to Octatrack'}</button>
+    </footer>}
   </div>
 }
