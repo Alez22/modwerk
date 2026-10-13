@@ -4,9 +4,11 @@ import remarkGfm from 'remark-gfm'
 import { escape } from './account-email-template'
 import { SUPPORT_EMAIL } from '../src/support'
 import { forumLink } from '../src/community/forum-links'
+import { betaInvitationRoute, BETA_INVITATION_PLACEHOLDER } from '../src/config/beta-invitation'
 
 /** Bump when the layout changes; a campaign keeps the version it was written with. */
 export const NEWS_EMAIL_VERSION = 'modwerk-news-001'
+export const BETA_NEWS_EMAIL_VERSION = 'modwerk-news-beta-001'
 
 type Node = { type: string; value?: string; url?: string; depth?: number; ordered?: boolean; start?: number | null; children?: Node[] }
 const TEXT = 'color:#c4c4ce;font-size:15px;line-height:25px;'
@@ -42,8 +44,11 @@ function inlineText(node: Node): string {
     default: return inner()
   }
 }
-function block(node: Node, last: boolean): string {
+function block(node: Node, last: boolean, cta?: string): string {
   const gap = last ? '0' : '18px'
+  if (cta && node.type === 'paragraph' && node.children?.length === 1 && node.children[0].type === 'link' && node.children[0].url === cta) {
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 24px;"><tr><td bgcolor="#5f6ac7" style="border-radius:7px;"><a href="${escape(cta)}" style="display:inline-block;padding:15px 22px;border:1px solid #727dde;border-radius:7px;color:#ffffff;font-size:15px;font-weight:bold;line-height:20px;text-decoration:none;">Join the beta</a></td></tr></table>`
+  }
   switch (node.type) {
     case 'paragraph': return `<p style="margin:0 0 ${gap};${TEXT}">${(node.children ?? []).map(inline).join('')}</p>`
     case 'heading': return node.depth === 1 || node.depth === 2
@@ -60,9 +65,9 @@ function block(node: Node, last: boolean): string {
   }
 }
 /** Inside a list item a single paragraph is unwrapped, so bullets read as one line. */
-function blocks(nodes: Node[], tight = false): string {
+function blocks(nodes: Node[], tight = false, cta?: string): string {
   if (tight && nodes.length === 1 && nodes[0].type === 'paragraph') return (nodes[0].children ?? []).map(inline).join('')
-  return nodes.map((node, index) => block(node, index === nodes.length - 1)).join('\n')
+  return nodes.map((node, index) => block(node, index === nodes.length - 1, cta)).join('\n')
 }
 function blockText(node: Node, indent = ''): string {
   const line = (children: Node[]) => children.map(inlineText).join('').split('\n').map(text => indent + text).join('\n')
@@ -85,7 +90,7 @@ function blockText(node: Node, indent = ''): string {
 }
 
 /** Same scriptless, image-free shell as the welcome news and account emails. */
-export function renderNewsEmail(campaign: { subject: string; body: string }, urls: { app: string; settings: string }) {
+export function renderNewsEmail(campaign: { subject: string; body: string }, urls: { app: string; settings: string }, cta?: string) {
   const tree = parseNews(campaign.body), children = tree.children ?? []
   const subject = campaign.subject.replace(/[\r\n]+/g, ' ').trim().slice(0, 150)
   const preheader = (children.find(node => node.type === 'paragraph') ? plain(children.find(node => node.type === 'paragraph')!) : subject).replace(/\s+/g, ' ').trim().slice(0, 140)
@@ -104,7 +109,7 @@ export function renderNewsEmail(campaign: { subject: string; body: string }, url
 <tr><td bgcolor="#232327" style="padding:32px 28px;border:1px solid #36363e;border-top:0;border-radius:0 0 12px 12px;">
 <p style="margin:0 0 16px;color:#c7a16c;font-size:11px;line-height:18px;font-weight:bold;letter-spacing:1.8px;text-transform:uppercase;">Modwerk news</p>
 <h1 style="margin:0 0 22px;color:#f4f4f8;font-size:28px;line-height:36px;font-weight:bold;letter-spacing:-0.5px;">${escape(subject)}</h1>
-${blocks(children)}
+${blocks(children, false, cta)}
 </td></tr>
 <tr><td style="padding:24px 8px 8px;color:#90909e;font-size:12px;line-height:21px;">
 <p style="margin:0 0 8px;">You’re receiving this because you opted in to Modwerk news. You can turn news emails off in your <a href="${escape(urls.settings)}" style="color:#b9bdd7;text-decoration:underline;">account settings</a> at any time.</p>
@@ -113,4 +118,11 @@ ${blocks(children)}
 <!--[if mso]></td></tr></table><![endif]-->
 </td></tr></table></body></html>`
   return { subject, text, html }
+}
+
+/** A separate, immutable beta template version keeps queued generic news payloads unchanged. */
+export function renderBetaNewsEmail(campaign: { id: string; subject: string; body: string }, urls: { app: string; settings: string }) {
+  if (!/^[a-f0-9]{32}$/.test(campaign.id)) throw new Error('Invalid beta invitation campaign.')
+  const destination = new URL(urls.app); destination.search = ''; destination.hash = betaInvitationRoute(campaign.id)
+  return renderNewsEmail({ ...campaign, body: campaign.body.replaceAll(BETA_INVITATION_PLACEHOLDER, destination.href) }, urls, destination.href)
 }

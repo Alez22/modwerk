@@ -1,0 +1,24 @@
+You’re invited to the Modwerk beta
+
+Hi,
+
+I’d love to have you try the Modwerk beta. It gives you early access to features we’re still working on, including Octatrack USB loading and beta modules.
+
+The beta tester pool is limited to 50 people. Places are first come, first served when you join on the site.
+
+It’s still experimental, so expect bugs. Custom firmware can make your device unusable, cause data loss, affect warranty coverage and prevent future official updates. Recovery is not guaranteed. Back up your projects and samples before trying it.
+
+The button below takes you to Modwerk. Sign in with the account receiving this email, read the risks once more and choose whether to join. Nothing changes until you accept. Some beta features need an Octatrack and a computer.
+
+Join the beta (https://modwerk.app/#beta/join/00000000000000000000000000000000)
+
+Please join the beta testers on our development Discord to ask questions and share what works and what doesn’t. You’ll find the invitation on Modwerk after joining. That helps me make Modwerk better for everyone.
+
+See you around,
+Jannik
+
+You’re receiving this because you opted in to Modwerk news. You can turn news emails off in your account settings at any time.
+https://modwerk.app/#account/notifications
+
+Modwerk · https://modwerk.app/
+Need help? support@modwerk.app

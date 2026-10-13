@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared an unsent beta invitation in the existing news email style and a separate unpublished public announcement, both explaining the 50-person tester pool. Joining requires a verified account and explicit acceptance of the current firmware risks. Admission is capped at 50 across email, public joining and administrator grants; public joining starts closed. Revocation blocks reuse of prior invitations. Beta access appears beside the Modwerk branding, and testers receive a once-per-account Discord invitation. Consent preferences remain unchanged; invitation acknowledgements are exported and removed with the account.
+
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
 
 - Changed the audio-preview announcement’s “Show me how” action to open Analog BD and highlight its Add preview button with a dismissible upload tip. Existing announcement links follow the same walkthrough, and visitors return there after signing in.
