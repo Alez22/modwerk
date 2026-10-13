@@ -16,7 +16,7 @@ const sortedIds = values => {
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item)
 const inventory = value => ({ ...value, moduleIds: sortedIds(value.moduleIds), removedStockFx: sortedIds(value.removedStockFx ?? []) })
 function ready(value) {
-  assert.equal(value.state?.status, 'ready', 'The Octatrack must be idle before verification.')
+  assert.equal(value.state?.status, 'ready', 'The Octatrack connection must be ready before verification.')
   assert.equal(value.state.identity?.canSubmit, true, 'The connected unit cannot accept module trials.')
   assert.ok(digest(value.state.identity.base) && digest(value.state.active), 'The connected base and active identity must be known.')
   inventory(value.inventory)
