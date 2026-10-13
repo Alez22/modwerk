@@ -210,6 +210,10 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .sidebar-build.is-connection:disabled { cursor: wait; }
 /* The hub: your module sets beside the unit, as a split view. */
 .octatrack-hub { container-type: inline-size; }
+.hub-tabs { margin: 0 0 18px; gap: 24px; }
+.hub-tabs button { min-height: 44px; padding: 8px 2px 10px; }
+.hub-tab-panel { min-width: 0; }
+.hub-tab-panel[hidden] { display: none; }
 .hub-split { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .hub-sets { display: flex; flex-direction: column; min-width: 0; padding: 12px 8px; border-right: 1px solid var(--line); }
 .hub-pane-label { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 10px 10px; }
