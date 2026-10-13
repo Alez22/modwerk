@@ -111,7 +111,8 @@ export class VolatileBatchSession {
       (!offer.verified || status.records === offer.records),
     'Transaction, baseline or complete offer changed.')
   }
-  private async command(request: VolatileRequest, validate: (status: Readonly<VolatileStatus>, pending: boolean) => void) {
+  private async command(request: VolatileRequest, validate: (status: Readonly<VolatileStatus>, pending: boolean) => void,
+    refusals: readonly string[] = []) {
     const frame = encodeVolatileRequest(request)
     return this.bounded(request.command, async signal => {
       // An uncertain OUT is never followed by result adoption, even for Begin.
@@ -126,7 +127,8 @@ export class VolatileBatchSession {
         if (status.sequence === request.sequence) {
           const pending = status.result === 'queued' || status.result === 'pending'
           validate(status, pending)
-          this.expect(pending || status.result === 'ok', 'Device refused the owned command: ' + status.result)
+          // Only a caller-named definite refusal (validated above) is a result; any other refusal is unknown.
+          this.expect(pending || status.result === 'ok' || refusals.includes(status.result), 'Device refused the owned command: ' + status.result)
           if (!pending) { this.current = status; return status }
         }
         await new Promise<void>((resolve, reject) => {
@@ -138,7 +140,7 @@ export class VolatileBatchSession {
       }
     })
   }
-  private ownerRequest(command: 'verify' | 'activate' | 'startTrial' | 'rollback' | 'abort' | 'touch'): VolatileRequest {
+  private ownerRequest(command: 'verify' | 'activate' | 'startTrial' | 'rollback' | 'abort' | 'touch' | 'keep'): VolatileRequest {
     const offer = this.owned()
     return { command, ...this.observed, transaction: offer.transaction, generation: offer.generation, sequence: this.next() }
   }
@@ -249,6 +251,30 @@ export class VolatileBatchSession {
     this.offer = undefined; return result
   }
   async rollback() { return this.exclusive(() => this.rollbackInternal()) }
+  /** Keep a complete stopped trial in device RAM as the new baseline. The board accepts only fresh installs:
+   * a replace or removal has no roots proof yet and is refused with the trial unchanged (roll back instead).
+   * Nothing is written to the card, so a reboot loses the kept set; physical persistence is a separate gate. */
+  async keep() {
+    return this.exclusive(async () => {
+      const offer = this.owned(), before = this.status
+      if (before.phase !== 'stoppedTrial' || !before.current) throw new Error('A complete stopped trial is required.')
+      if (!this.options.visible() || performance.now() >= this.expires) return this.rollbackInternal()
+      const result = await this.command(this.ownerRequest('keep'), (status, pending) => {
+        if (pending || status.result === 'refused') {
+          // Queued, refused unchanged, or the board's expiry won and its rollback is under way.
+          this.sameOffer(status, offer)
+          this.expect(status.phase === 'stoppedTrial' ? status.current === before.current && status.records === offer.records :
+            pending && status.phase === 'rollingBack', 'Keep changed the trial.')
+        } else this.expect(status.phase === 'idle' && status.transaction === offer.transaction &&
+          status.generation === offer.generation && status.baseline === status.current &&
+          (status.current === before.current || status.current === offer.baseline), 'The kept set is not the new baseline.')
+      }, ['refused'])
+      if (result.phase !== 'idle') return result
+      this.offer = undefined
+      if (result.current !== before.current) throw new Error('The trial expired before Keep; the baseline was restored.')
+      return result
+    })
+  }
   async abort() {
     return this.exclusive(() => {
       if (!['receiving', 'verified'].includes(this.status.phase) || this.status.touched)

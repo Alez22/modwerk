@@ -37,10 +37,13 @@ describe('private volatile command framing', () => {
     expect([...data.slice(88, 96)]).toEqual(Array(8).fill(0)); expect(view.getUint32(160)).toBe(7000)
     expect(view.getUint32(164)).toBe(0)
   })
-  it.each(['verify', 'activate', 'startTrial', 'rollback', 'abort', 'touch'] as const)('encodes %s without payload or persistence mode', command => {
+  it.each(['verify', 'activate', 'startTrial', 'rollback', 'abort', 'touch', 'keep'] as const)('encodes %s without payload or persistence mode', command => {
     const data = encodeVolatileRequest({ ...bound, command }), view = new DataView(data.buffer)
     expect(data.byteLength).toBe(96); expect(view.getUint32(12)).toBe(5); expect(view.getUint32(16)).toBe(7)
     expect(view.getUint32(20)).toBe(0)
+  })
+  it('encodes RAM-only Keep as command 9 on the existing 96-byte header', () => {
+    expect([...encodeVolatileRequest({ ...bound, command: 'keep' }).slice(4, 8)]).toEqual([1, 9, 0, 0])
   })
   it.each([0, -1, 0x100000000, 1.5, NaN])('refuses invalid sequence %s', sequence => {
     expect(() => encodeVolatileRequest({ ...bound, command: 'touch', sequence })).toThrow()
@@ -48,7 +51,7 @@ describe('private volatile command framing', () => {
   it('refuses missing bindings, unknown commands, excessive chunks and 64-byte-multiple frames', () => {
     for (const request of [
       { ...bound, command: 'touch', transaction: 0 }, { ...bound, command: 'touch', generation: 0 },
-      { ...bound, command: 'keep' }, { ...bound, command: 'touch', session: '0'.repeat(64) },
+      { ...bound, command: 'persist' }, { ...bound, command: 'touch', session: '0'.repeat(64) },
       { ...bound, command: 'chunk', offset: 0, data: new Uint8Array(3996) },
       { ...bound, command: 'chunk', offset: 0, data: new Uint8Array(28) },
       { ...bound, command: 'chunk', offset: VOLATILE_HOST_MAX_BYTES, data: new Uint8Array(1) },

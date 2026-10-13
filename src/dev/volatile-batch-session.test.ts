@@ -37,6 +37,7 @@ class Board implements VolatileTransport {
  bundle=new Uint8Array(0)
  command=0
  reads=0
+ keep:'kept'|'refused'|'expired'='kept'
  transform:(facts:Facts,command:number,read:number)=>Facts = facts=>facts
  submit=vi.fn(async (frame:Uint8Array,signal:AbortSignal)=>{
   if(signal.aborted) throw new Error('Cancelled synthetic transfer')
@@ -56,6 +57,10 @@ class Board implements VolatileTransport {
    case 6: case 7:
     this.facts={...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline};break
    case 8:break
+   case 9: // Keep: the published set becomes the idle baseline (synthetic; a board may refuse or expire first)
+    this.facts=this.keep==='refused'?{...this.facts,result:'refused'}:
+     this.keep==='expired'?{...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline}:
+     {...initial(),sequence:this.facts.sequence,transaction:9,generation:11,baseline:published,current:published};break
    default:throw new Error('Unexpected command')
   }
  })
@@ -260,5 +265,46 @@ describe('private volatile session authority',()=>{
   await expect(client.stage([record()])).rejects.toThrow('exhausted');expect(board.frames).toEqual([])
   for(const options of [{timeoutMs:0},{timeoutMs:10000},{trialMs:120001},{trialMs:NaN}])
    await expect(connect(new Board(),options)).rejects.toThrow('bounded')
+ })
+ it('keeps a complete stopped trial as the new RAM baseline exactly once',async()=>{
+  const board=new Board(),client=await connect(board);await client.stage([record()])
+  await expect(client.keep()).rejects.toThrow('stopped trial');expect(board.frames.map(f=>f[5])).toEqual([1,2,3])
+  await client.activate()
+  expect(await client.keep()).toMatchObject({phase:'idle',result:'ok',baseline:published,current:published,latchHeld:false})
+  expect(client.ownsTransaction).toBe(false);expect(client.connectionTrusted).toBe(true)
+  expect(board.frames.map(f=>f[5])).toEqual([1,2,3,4,9]);expect(board.frames.at(-1)?.length).toBe(96)
+  await expect(client.keep()).rejects.toThrow('no acknowledged');expect(board.frames).toHaveLength(5)
+ })
+ it('a refused Keep (replace or removal) leaves the trial owned for an explicit rollback',async()=>{
+  const board=new Board(),client=await connect(board);board.keep='refused'
+  await client.stage([record()]);await client.activate()
+  expect(await client.keep()).toMatchObject({phase:'stoppedTrial',result:'refused',current:published})
+  expect(client.ownsTransaction).toBe(true);expect(client.connectionTrusted).toBe(true)
+  expect(await client.rollback()).toMatchObject({phase:'idle',baseline,current:baseline})
+  expect(board.frames.map(f=>f[5])).toEqual([1,2,3,4,9,6])
+ })
+ it('reports a Keep that lost to board expiry as the restored baseline, never as kept',async()=>{
+  const board=new Board(),client=await connect(board);board.keep='expired'
+  await client.stage([record()]);await client.activate();const trial={...board.facts}
+  board.transform=(facts,command,read)=>command===9&&read===1?{...trial,sequence:facts.sequence,result:'pending',phase:'rollingBack',current:null}:facts
+  await expect(client.keep()).rejects.toThrow('baseline was restored')
+  expect(board.reads).toBe(2) // pending rollback first, then the restored Idle
+  expect(client.ownsTransaction).toBe(false);expect(client.connectionTrusted).toBe(true)
+ })
+ it('Keep needs a visible stopped trial; a running trial is not kept and a hidden one rolls back',async()=>{
+  let visible=true
+  const board=new Board(),client=await connect(board,{visible:()=>visible})
+  await client.stage([record()]);await client.activate();await client.startTrial()
+  await expect(client.keep()).rejects.toThrow('stopped trial');expect(board.frames.at(-1)?.[5]).toBe(5)
+  const hidden=new Board(),other=await connect(hidden,{visible:()=>visible});await other.stage([record()]);await other.activate()
+  visible=false;expect(await other.keep()).toMatchObject({phase:'idle',current:baseline})
+  expect(hidden.frames.map(f=>f[5])).toEqual([1,2,3,4,6])
+ })
+ it.each(['quarantine','notBaseline','otherSet','changedTrial'] as const)('retains unknown work and forbids further commands after a Keep %s',async(mode)=>{
+  const board=new Board(),client=await connect(board);await client.stage([record()]);await client.activate()
+  board.transform=(facts,command)=>command!==9?facts:mode==='quarantine'?{...facts,result:'quarantined',phase:'quarantined',current:null}:
+   mode==='notBaseline'?{...facts,baseline}:mode==='otherSet'?{...facts,baseline:'5'.repeat(64),current:'5'.repeat(64)}:{...facts,result:'refused',phase:'stoppedTrial',current:baseline,offer:published,total:1,received:1,records:1}
+  await expect(client.keep()).rejects.toThrow();expect(client.connectionTrusted).toBe(false)
+  await expect(client.rollback()).rejects.toThrow('unconfirmed')
  })
 })

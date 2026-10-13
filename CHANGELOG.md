@@ -6,6 +6,7 @@
 ## 13 October 2026
 
 - Fixed the private volatile USB host refusing the board's real reply to a refused first Begin (Idle, sequence consumed, no transaction or baseline) as an inconsistent framing error. Definite Idle refusals now parse, close only that session, and leave the unit connectable for a fresh session; a queued Begin after an earlier rollback no longer expects zero tokens, and Idle after a rollback is no longer refused once a later legacy upload moves the live set off the rolled-back baseline. Synthetic host tests only; no device, hardware or capability-64 admission.
+- Added Keep (command 9) to the private volatile USB host: only from a stopped, visible trial; a refused Keep stays owned so the session can still roll back, an expired Keep reports the restored baseline, and any other answer poisons the channel. RAM only; the board keeps only fresh-install sets and nothing persists across a reboot yet. Synthetic host tests only; no device, hardware or capability-64 admission.
 
 - Fixed beta Octatrack sync work continuing after its review or USB connection ended. Package preparation now returns to review when the selected set or connection changes, and discards results after the dialog closes. Stale USB replies cannot reopen the link, activate a staged package, start a trial or confirm Keep; leaving the last view also releases the trial's tab lock. Synthetic USB and DOM regressions cover these races; physical device recovery and persistence remain unverified by this change.
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Private framing preparation only: no USB calls, public imports or persistence commands.
+// Keep (9) accepts a stopped trial in device RAM only; nothing is written to the card.
 // The board must independently verify package/source associations and all lifetime/resource gates.
 import { digestBytes, ZERO_DIGEST } from '../engine/elekloader/upload-wire.ts'
 
@@ -10,7 +11,7 @@ export const VOLATILE_MAX_FRAME = 4096
 export const VOLATILE_HOST_CHUNK = 3995 // Avoid a full 64-byte multiple on the Windows control data stage.
 export const VOLATILE_HOST_MAX_BYTES = 2097152 // Host allocation bound; never proof of board stage/pool fit.
 export const VolatileCommand = Object.freeze({ begin: 1, chunk: 2, verify: 3, activate: 4,
-  startTrial: 5, rollback: 6, abort: 7, touch: 8 } as const)
+  startTrial: 5, rollback: 6, abort: 7, touch: 8, keep: 9 } as const)
 export type VolatileCommandName = keyof typeof VolatileCommand
 export interface VolatileBinding { base: string; session: string; transaction: number; generation: number }
 type OwnedRequest = VolatileBinding & { sequence: number }
