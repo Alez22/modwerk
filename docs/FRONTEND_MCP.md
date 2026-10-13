@@ -32,6 +32,12 @@ Node must resolve to version 24. No HTTP listener, browser extension, cloud MCP
 endpoint or administrator key is installed. The transport implements the
 [MCP stdio protocol](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports).
 
+The frontend is imported through an in-memory Vite bundle. Route
+`console.error`, `warn`, `info` and `debug` through `formatMcpLog(...args)` and
+keep protocol output on stdout. Sanitizing only exceptions leaves warnings
+able to print large data-URL stacks; bounded messages must omit stacks,
+causes, object dumps, credentials and firmware bytes.
+
 ## Site tools first
 
 `site_features` reports tools and evidence limits. `site_catalogue` searches and
@@ -99,6 +105,32 @@ Unavailable or stale meter windows return null rather than zero load. The hub
 keeps at most 150 readings, samples every two seconds, and pauses outside the
 visible Load tab or during USB sync.
 
+`device_saved_backup` takes no arguments and reads only the base's two fixed
+saved module-set files. MWSE request 31 acknowledges a fresh immutable-snapshot
+token; MWSC request 32 carries at most 448 file bytes inside a 480-byte record;
+request 33 releases only the acknowledged token. The client holds one link
+ownership across both files, verifies full size/hash/header identity and final
+stable metadata, and never adopts or repeats a lost Begin. An unreadable file
+is an error, not evidence that it is absent.
+
+Backup bytes stay in the startup-selected private workspace. The writer binds
+its directory inode, creates exclusive 0600 files, fsyncs and reads them back;
+the tool returns metadata only, including `recoveryVerified: false`. Its MCP
+read-only hint is false because it creates local files, although it writes
+nothing to the card. Export endpoints and exact recovery still require their
+own source-bound hardware qualification. A complete backup does not enable
+Keep on a base reporting a foreign saved set; that refusal remains until exact
+recovery is qualified, while trial Undo remains available.
+
+On 13 October 2026, the private `59ba5f8b` RAM base from source `791435a6`
+exported both fixed files through the actual frontend MCP: slot 0 was 512 bytes
+(generation 28, zero modules), and slot 1 was 7,680 bytes (generation 29, one
+module), with verified local hashes and the flashed `dc1d7a39` file identity.
+Active/inventory stayed unchanged, both snapshots were released, and the cached
+MWXR engine-read record reported no refusal factors after success. This observes
+export on that named private build; it does not qualify recovery, Keep, audio or
+persistence. The cause of the earlier `1829f316` Begin BUSY refusals is unknown.
+
 Enable `--allow-device-writes` only for authorized hardware tests. Review with
 `device_review({"moduleIds":[...]})`, then call `device_trial` with its review ID
 within 60 seconds. The server rechecks base, active digest and inventory before
@@ -118,8 +150,9 @@ Use a host adapter that serializes each complete EP0 control transfer; the
 frontend's keepalive can overlap diagnostic reads. A short record is a transport
 failure, never a passed self-test. Read status after recovery and verify the exact
 baseline. A RAM base with a different identity treats the flashed base's saved
-card set as foreign: Undo preserves the RAM baseline, while Keep can replace
-those saved slots. Preserve the original saved set before testing persistence.
+card set as foreign: Undo preserves the RAM baseline. The MCP refuses Keep
+while those saved slots are foreign, even after a complete backup. Qualify
+exact original-set recovery before testing persistence.
 See the [hardware traps](OCTATRACK_HARDWARE_TRAPS.md).
 
 Use `--frontend-root /absolute/candidate/checkout` to test a specific source and
