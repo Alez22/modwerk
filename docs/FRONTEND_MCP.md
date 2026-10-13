@@ -38,6 +38,12 @@ keep protocol output on stdout. Sanitizing only exceptions leaves warnings
 able to print large data-URL stacks; bounded messages must omit stacks,
 causes, object dumps, credentials and firmware bytes.
 
+For immutable byte inputs, use `new Uint8Array(input)` before asynchronous work
+or parsing `DataView(copy.buffer)`. Node Buffer is a Uint8Array subclass whose
+`slice()` shares bytes and retains the parent's offset; calling `slice()` alone
+does not establish an immutable plain array. Keep offset-backed Buffer mutation
+regressions when adding host-side firmware or USB helpers.
+
 ## Site tools first
 
 `site_features` reports tools and evidence limits. `site_catalogue` searches and
