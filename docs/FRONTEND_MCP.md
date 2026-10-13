@@ -45,8 +45,9 @@ current-version normalization as the browser. Backups include no firmware.
 accounts, creator/developer and admin API surfaces. The API is fixed at startup
 with `--api` (default `http://127.0.0.1:8788/api`). It must be HTTPS or localhost;
 requests cannot select hosts, credentials, arbitrary headers or filesystem paths.
-Normal session/build-access/base-install-prompt reads are supported;
-authentication and secret-management mutations are excluded. OAuth/sign-in and
+Normal session and base-install-prompt reads are supported. The frontend's
+build-access check uses POST, so it also needs the API-write opt-in and confirmation.
+Authentication and secret-management mutations are excluded. OAuth/sign-in and
 file-upload UI are separate workflows.
 
 For authenticated tests, supply `--session-file /private/path/session.json` with
