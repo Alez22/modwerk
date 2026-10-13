@@ -4,7 +4,15 @@
 
 - Added a beta Load tab with separate live CPU/DSP readings, recent device peaks, a bounded five-minute graph and an accessible history table. It samples only cached meter windows every two seconds while visible and idle; missing or stale readings remain gaps. The read-only MCP device_load tool uses the same client. Live readings require the matching beta base; older bases report unavailable rather than displaying self-test peaks.
 
+- Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.
+- Made consent-renewal and online-member ordering fixtures use deterministic timestamps. They check that equal-time enables cannot replace prior consent, later opt-ins succeed, and member check-ins in the same second sort alphabetically. Production consent, privacy and ordering checks remain unchanged.
+
+- Fixed private runtime-span preparation on Windows using native access-control APIs independently of imported PowerShell security cmdlets, establishing and inspecting protected current-user-only ACLs on new directories and files, and checking inherited parent permissions before writing artifact bytes. Existing output permissions are inspected without alteration; symlinks, junctions, overwrite and unavailable ACL checks are refused. POSIX private modes and the existing stock-free package scanners remain required.
+- Prepared shared base-owned USB descriptors for the existing MIDI dependency and output-audio layouts alongside Modwerk sync. Interface references are renumbered together while authored endpoint, channel and class-entity records stay exact. This is private preparation; public bases still require transport, audio alignment, deadline and host qualification before admission.
+
+- Fixed private runtime-span preparation on Windows using native access-control APIs independently of imported PowerShell security cmdlets, establishing and inspecting protected current-user-only ACLs on new directories and files, and checking inherited parent permissions before writing artifact bytes. Existing output permissions are inspected without alteration; symlinks, junctions, overwrite and unavailable ACL checks are refused. POSIX private modes and the existing stock-free package scanners remain required.
 - Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
+- Documentation: recorded complete EP0 transaction ownership, transient bridge reacquisition, pre-install StockCopy snapshots and foreign saved-set handling for MCP/RAM testing. Observations remain bound to the named private candidate and do not imply audio or persistence qualification.
 
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
 
@@ -13,8 +21,9 @@
 - Prepared a public audio-preview announcement with a “Show me how” action that opens the upload steps, account requirement, file limits, credits, sharing permission and removal instructions. The guide is also searchable in the FAQ; publication follows frontend deployment.
 - Kept the developer USB bridge listening through transient descriptor/claim errors during replug or RAM-boot re-enumeration, and disposed partially opened or disconnected libusb handles. Serialized complete host bench control transfers so keepalive reads cannot replace a pending self-test or write SETUP. Each request makes one acquisition/transfer attempt; failed writes are reported without replay, and bus reset/configuration restrictions remain enforced.
 
-
 - Added private preparation for guarded CC Map and Recorder Loop Fix runtime adapters, preserving imported source. CC Map uses a complete code-entry replay instead of changing the MIDI table; recorder caves bind their null-block literals to the exact private base arena. Native oracle checks, actual pool-address assembly comparisons, bounded relocation negatives and the existing strict stock scan precede package output. Public USB availability, catalogue versions and base qualification are unchanged; audio, MIDI, timing and physical reboot behavior remain unverified for these adapters.
+- Added a private runtime preparation tool for Play Modes, Tape Echo and Euclid that uses an explicitly pinned ABI 8 builder, reviewed source/image/span guards, unchanged strict stock-free scans and native reconstruction at two origins. Private recipes and packages stay outside Git; public USB availability, resource admission and hardware qualification remain unchanged.
+
 - Show the automatic diagnostics invitation only after the signed-in member's first successful compatible Octatrack USB connection. Opening a configuration, signing in or downloading the base no longer triggers it. Existing dialogs finish first, and account/version dismissal and saved consent choices still prevent repeat invitations; manual Account → Diagnostics remains available.
 
 - Gave the news campaign integration regression time to complete five real account flows, provider pacing and the hourly scheduler on shared CI runners. All consent, delivery and duplicate-send assertions remain required; production behavior is unchanged.
@@ -25,9 +34,13 @@
 
 - Added a local beta MCP server for catalogue/module inspection, card and USB preflight, isolated module sets, ordinary authenticated community API calls, saved firmware receipts and reviewed USB trials through the frontend client. API and device writes require explicit startup opt-ins; one-change trials never accept automatically. Private workspace leases prevent concurrent set overwrites, and the server preserves existing modules whose exact rollback identity is unavailable. It returns no firmware or raw memory. Domain/API evidence remains separate from visual, audio and physical reboot qualification.
 
+- Prepared guarded runtime table insertion for private USB port development. Authored entries retain their declared position between separately hashed stock-copy spans, with reconstruction checked against an independent native layout oracle. Public packages and table-loading admission remain unchanged; Mute Modes hardware lifecycle and persistence are not qualified by this preparation.
+
 - Prepared the beta Samples work-in-progress component for local file/folder selection, a folder tree and explicit browser audio preview. It keeps selections only in the tab and does not upload, write files, use USB disk mode or transfer samples to an Octatrack; hub tab integration is a separate step.
 
 - Added a Samples tab to the beta Octatrack hub, with local file/folder selection and explicit audio preview. Switching back to Modules pauses preview and keeps the local selection; sample choices do not sync, upload or persist. Tabs support keyboard navigation and 44px touch controls. File drops are supported; dropped-directory recursion and Octatrack sample transfer remain in development.
+
+- Counted active site visitors in the public online total, including people who are signed out. Visible tabs check in once a minute; repeated tabs and signed-in devices are deduplicated, inactive visitors expire after five minutes, and privacy opt-outs and hidden member names are respected. Anonymous visitors are estimated without browser storage; people sharing an IP address and browser signature can share a count.
 
 ## 12 October 2026
 
