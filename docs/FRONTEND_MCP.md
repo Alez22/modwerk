@@ -38,6 +38,12 @@ keep protocol output on stdout. Sanitizing only exceptions leaves warnings
 able to print large data-URL stacks; bounded messages must omit stacks,
 causes, object dumps, credentials and firmware bytes.
 
+For immutable byte inputs, use `new Uint8Array(input)` before asynchronous work
+or parsing `DataView(copy.buffer)`. Node Buffer is a Uint8Array subclass whose
+`slice()` shares bytes and retains the parent's offset; calling `slice()` alone
+does not establish an immutable plain array. Keep offset-backed Buffer mutation
+regressions when adding host-side firmware or USB helpers.
+
 ## Site tools first
 
 `site_features` reports tools and evidence limits. `site_catalogue` searches and
@@ -103,7 +109,10 @@ the device.
 self-test or meter job. Bases without MWLD request 30 return `supported: false`.
 Unavailable or stale meter windows return null rather than zero load. The hub
 keeps at most 150 readings, samples every two seconds, and pauses outside the
-visible Load tab or during USB sync.
+visible load panel or during USB sync. The beta hub now places this panel on
+Status, alongside the cached self-test/card record; `device_status` reads that
+same diagnostic record. Its Backups page uses the fixed saved-file export
+below, and Samples remains a local frontend work in progress.
 
 `device_saved_backup` takes no arguments and reads only the base's two fixed
 saved module-set files. MWSE request 31 acknowledges a fresh immutable-snapshot
@@ -145,6 +154,24 @@ intermediate changes in a multi-package sync, so the MCP refuses such a trial
 before sending. Full combinations can be prepared and checked without device
 writes; physical trial-only tests add one absent module and Undo before the next.
 This does not prove that a full multi-module set runs simultaneously on hardware.
+
+Private volatile-batch helpers under `src/dev` prepare a separate capability-64
+protocol; they are not wired into the site or these MCP tools. Keep the
+single-package refusal until the actual board service, resource admission and
+physical lifecycle are qualified. A full set must use one immutable bundle
+and retained baseline journal, inhibit every saved-set write throughout the
+trial, and confirm complete rollback before returning the device.
+
+Only an acknowledged engine Begin grants the host the new board transaction
+and generation. Cached state and queued Begin do not grant ownership. Submit
+each command once; a lost or ambiguous submit/result permanently stops that
+client. Never adopt or release unknown work, or translate partial publication
+into unchanged state. The board must independently retain and restore its
+journal after timeout/disconnect. Read-only status never renews the lease;
+visible owner renewal is bounded and cannot extend the absolute trial limit.
+The [private framing contract](../dev/volatile-batch-wire.md) describes the
+proposed service. Synthetic host or native fixtures are preparation evidence,
+not proof of the actual board's acknowledgments, audio, recovery or persistence.
 
 Use a host adapter that serializes each complete EP0 control transfer; the
 frontend's keepalive can overlap diagnostic reads. A short record is a transport
