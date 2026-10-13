@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Fixed activity digest emails being sent faster than the mail provider's two requests per second, which could make later digests in a busy hour fail and retry. They are now spaced like welcome and news emails. The module page and the creator settings page also make fewer database queries; their results do not change. Limit: spacing was verified with a test, not against the provider's live limit.
+
 - Fixed beta Octatrack sync work continuing after its review or USB connection ended. Package preparation now returns to review when the selected set or connection changes, and discards results after the dialog closes. Stale USB replies cannot reopen the link, activate a staged package, start a trial or confirm Keep; leaving the last view also releases the trial's tab lock. Synthetic USB and DOM regressions cover these races; physical device recovery and persistence remain unverified by this change.
 
 - Documented, in the guides a developer opens for the task, that new Octatrack modules deliver the base/USB lifecycle alongside card builds (companion and DSP ownership on both cores, browser-package and lifecycle evidence, owner review of unavoidable limits), the separation of card and USB compatibility, the Analog BD lifetime gate, the disassembler's exclusive DO-loop endpoint, the Vitest discovery suffix and the GCC/MinGW host C test trap. Corrected the guides' stale blanket "Analog BD refuses every effect" rule. Documentation only.

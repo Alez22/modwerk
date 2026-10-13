@@ -213,6 +213,9 @@ describe('maintainers of every module in the configuration', () => {
     expect(await (await f.request('/developer/issues', 'GET', undefined, '', tim)).json()).toEqual([])
     const modules = await (await f.request('/developer/modules', 'GET', undefined, '', repeat)).json()
     expect(modules.find((item: { id: string }) => item.id === 'miniverb').reports).toMatchObject({ total: 1, open: 1 })
+    // A module with no ratings or reports still answers with zero counts, not missing fields.
+    expect(modules.find((item: { id: string }) => item.id === 'miniverb')).toMatchObject({ ratings: { count: 0, average: null }, claimed: true, blocked: false })
+    expect(modules.find((item: { id: string }) => item.id === 'miniverb').threads).toEqual(expect.any(Number))
   })
 
   it('can close the report from Modwerk, with the reporter told once', async () => {

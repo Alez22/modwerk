@@ -38,7 +38,7 @@ export async function sendActivityDigests(env: Env, db: Database, now = new Date
     AND EXISTS(SELECT 1 FROM notifications n WHERE n.emailed=0 AND n.created_at<=? AND (n.kind<>'module_update' OR a.updates_due=1 OR a.updates=0) AND n.user_id IN (SELECT a.id UNION SELECT d.id FROM users d JOIN auth_accounts g ON g.providerId='github' AND g.accountId=d.github_id WHERE g.userId=a.id AND d.github_id IS NOT NULL))
     ORDER BY a.last_digest_at IS NOT NULL,a.last_digest_at LIMIT ?`).bind(hoursBefore(now, DIGEST_HOURS.daily), hoursBefore(now, DIGEST_HOURS.daily), hoursBefore(now, DIGEST_HOURS.hours), settled, MEMBERS_PER_RUN).all<Candidate>()).results
   const app = new URL(env.APP_URL)
-  let sent = 0
+  let sent = 0, requested = false
   for (const member of candidates) {
     const pending = (await db.prepare(`SELECT id,created_at FROM notifications WHERE user_id IN (${RECIPIENTS}) AND emailed=0 ORDER BY created_at DESC,rowid DESC LIMIT 500`).bind(member.id, member.id).all<{ id: string; created_at: string }>()).results
     const rows = (await db.prepare(`${ITEM_SQL} WHERE n.user_id IN (${RECIPIENTS}) AND n.emailed=0 AND ${VISIBLE} ORDER BY n.created_at DESC,n.rowid DESC LIMIT 500`).bind(member.id, member.id).all<Parameters<typeof toItem>[0]>()).results
@@ -74,6 +74,9 @@ export async function sendActivityDigests(env: Env, db: Database, now = new Date
     }))
     const message = renderActivityEmail(mailItems, { app: app.href, notifications: inbox.href, settings: settings.href, unsubscribe: page.href }, bundled.length - included.length)
     const oneClick = env.AUTH_BASE_URL ? new URL('/api/notifications/unsubscribe?token=' + encodeURIComponent(token), env.AUTH_BASE_URL).href : null
+    // Stay below the provider's default two requests per second, as the welcome and news mailers do.
+    if (requested) await new Promise(resolve => setTimeout(resolve, 550))
+    requested = true
     const result = await fetch('https://api.resend.com/emails', {
       method: 'POST', signal: AbortSignal.timeout(10000),
       headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json', 'Idempotency-Key': 'activity-' + await digest(member.id + ':' + included.map(item => item.id).join(',')) },
