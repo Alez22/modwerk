@@ -3,6 +3,7 @@
 ## 13 October 2026
 
 - Bounded the beta frontend MCP's stderr logs and kept error messages without stack, cause or object dumps. USB failures no longer print the bundled frontend's large data URL; JSON-RPC remains on stdout.
+- Documentation: recorded complete EP0 transaction ownership, transient bridge reacquisition, pre-install StockCopy snapshots and foreign saved-set handling for MCP/RAM testing. Observations remain bound to the named private candidate and do not imply audio or persistence qualification.
 
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
 
@@ -11,6 +12,8 @@
 - Prepared a public audio-preview announcement with a “Show me how” action that opens the upload steps, account requirement, file limits, credits, sharing permission and removal instructions. The guide is also searchable in the FAQ; publication follows frontend deployment.
 - Kept the developer USB bridge listening through transient descriptor/claim errors during replug or RAM-boot re-enumeration, and disposed partially opened or disconnected libusb handles. Serialized complete host bench control transfers so keepalive reads cannot replace a pending self-test or write SETUP. Each request makes one acquisition/transfer attempt; failed writes are reported without replay, and bus reset/configuration restrictions remain enforced.
 
+- Added private preparation for guarded CC Map and Recorder Loop Fix runtime adapters, preserving imported source. CC Map uses a complete code-entry replay instead of changing the MIDI table; recorder caves bind their null-block literals to the exact private base arena. Native oracle checks, actual pool-address assembly comparisons, bounded relocation negatives and the existing strict stock scan precede package output. Public USB availability, catalogue versions and base qualification are unchanged; audio, MIDI, timing and physical reboot behavior remain unverified for these adapters.
+- Added a private runtime preparation tool for Play Modes, Tape Echo and Euclid that uses an explicitly pinned ABI 8 builder, reviewed source/image/span guards, unchanged strict stock-free scans and native reconstruction at two origins. Private recipes and packages stay outside Git; public USB availability, resource admission and hardware qualification remain unchanged.
 
 - Show the automatic diagnostics invitation only after the signed-in member's first successful compatible Octatrack USB connection. Opening a configuration, signing in or downloading the base no longer triggers it. Existing dialogs finish first, and account/version dismissal and saved consent choices still prevent repeat invitations; manual Account → Diagnostics remains available.
 
@@ -25,6 +28,8 @@
 - Prepared guarded runtime table insertion for private USB port development. Authored entries retain their declared position between separately hashed stock-copy spans, with reconstruction checked against an independent native layout oracle. Public packages and table-loading admission remain unchanged; Mute Modes hardware lifecycle and persistence are not qualified by this preparation.
 
 - Prepared the beta Samples work-in-progress component for local file/folder selection, a folder tree and explicit browser audio preview. It keeps selections only in the tab and does not upload, write files, use USB disk mode or transfer samples to an Octatrack; hub tab integration is a separate step.
+
+- Added a Samples tab to the beta Octatrack hub, with local file/folder selection and explicit audio preview. Switching back to Modules pauses preview and keeps the local selection; sample choices do not sync, upload or persist. Tabs support keyboard navigation and 44px touch controls. File drops are supported; dropped-directory recursion and Octatrack sample transfer remain in development.
 
 ## 12 October 2026
 
