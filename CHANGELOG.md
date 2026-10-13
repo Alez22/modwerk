@@ -3,6 +3,8 @@
 ## 13 October 2026
 
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.
+- Made consent-renewal and online-member ordering fixtures use deterministic timestamps. They check that equal-time enables cannot replace prior consent, later opt-ins succeed, and member check-ins in the same second sort alphabetically. Production consent, privacy and ordering checks remain unchanged.
+
 - Fixed private runtime-span preparation on Windows using native access-control APIs independently of imported PowerShell security cmdlets, establishing and inspecting protected current-user-only ACLs on new directories and files, and checking inherited parent permissions before writing artifact bytes. Existing output permissions are inspected without alteration; symlinks, junctions, overwrite and unavailable ACL checks are refused. POSIX private modes and the existing stock-free package scanners remain required.
 - Prepared shared base-owned USB descriptors for the existing MIDI dependency and output-audio layouts alongside Modwerk sync. Interface references are renumbered together while authored endpoint, channel and class-entity records stay exact. This is private preparation; public bases still require transport, audio alignment, deadline and host qualification before admission.
 
