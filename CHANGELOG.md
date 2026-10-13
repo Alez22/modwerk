@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Register the portable Octatrack package builder as an imported Python module before executing it. Private preparation entry points can resolve their own builder when forwarding `--prepare-ports`, and Python dataclass declarations can load correctly. The regression uses an isolated stock-free entry point; runtime admission and hardware qualification remain unchanged.
+
 - Fixed the beta Octatrack page still scrolling by a few pixels on desktop: fitting it to the window now converts the app's 90% zoom, so the page never scrolls as a whole (checked from 1024×768 to 1920×1080). Beta-only.
 
 - Fixed the beta Octatrack page's missing-modules note, which lost its styles in the redesign; it is a one-line band again. The page now fits the window: the hero and list stay put, Status fills the height left (more compact on short windows) and a long page scrolls inside its own pane. The independence notice no longer sits above this page. Beta-only.
