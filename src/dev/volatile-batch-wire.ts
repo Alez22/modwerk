@@ -84,7 +84,7 @@ export function splitVolatileChunks(bytes: Uint8Array): readonly { offset: numbe
     let count = Math.min(VOLATILE_HOST_CHUNK, bytes.byteLength - offset)
     if ((VOLATILE_COMMAND_BYTES + 4 + count) % 64 === 0) --count
     if (!count) fail('empty chunk')
-    chunks.push({ offset, data: bytes.slice(offset, offset + count) }); offset += count
+    chunks.push({ offset, data: new Uint8Array(bytes.subarray(offset, offset + count)) }); offset += count
   }
   return chunks
 }
@@ -94,7 +94,7 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
   digest(observed.base); digest(observed.session); uint(observed.capabilities)
   if (!(observed.capabilities & VOLATILE_CAPABILITY)) fail('service capability is unavailable')
   if (input.byteLength !== VOLATILE_STATUS_BYTES) fail('incomplete status')
-  const bytes = input.slice(), view = new DataView(bytes.buffer)
+  const bytes = new Uint8Array(input), view = new DataView(bytes.buffer)
   if (view.getUint32(0) !== 0x4d575653 || view.getUint8(4) !== 1 || view.getUint8(7) & ~15 ||
     view.getUint8(195) || view.getUint32(208)) fail('unsupported status header')
   const result = VolatileResult[view.getUint8(5)], phase = VolatilePhase[view.getUint8(6)], flags = view.getUint8(7)
@@ -128,7 +128,7 @@ export function parseVolatileStatus(input: Uint8Array, observed: { base: string;
 }
 
 async function sha256(bytes: Uint8Array): Promise<string> {
-  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes.slice().buffer))
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes).buffer))
   return hex(hash)
 }
 
@@ -153,7 +153,7 @@ export async function encodeVolatileBundle(base: string, baseline: string, offer
     if (boundedTotal + 4 * boundedParticipants.size > bounded.stageBytes) fail('bundle exceeds stage bound')
   }
   // Capture immutable copies before async hashes; callers cannot race later package mutation.
-  const records = offered.map(record => ({ ...record, data: record.data.slice(), participants: [...record.participants] }))
+  const records = offered.map(record => ({ ...record, data: new Uint8Array(record.data), participants: [...record.participants] }))
   const modules = new Set<number>(), digests = new Set<string>(), participantSet = new Set<number>()
   let total = 88
   for (const record of records) {

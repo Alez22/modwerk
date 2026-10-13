@@ -66,6 +66,12 @@ describe('private volatile command framing', () => {
       expect(restored).toEqual(bytes)
     }
   })
+  it('copies Buffer-backed chunk bytes instead of sharing their parent allocation', () => {
+    const backing = Buffer.alloc(100, 7), input = backing.subarray(17, 77), chunks = splitVolatileChunks(input)
+    const expected = new Uint8Array(input); backing.fill(0)
+    expect(chunks).toHaveLength(1); expect(chunks[0].data).toEqual(expected)
+    expect(Buffer.isBuffer(chunks[0].data)).toBe(false); expect(chunks[0].data.byteOffset).toBe(0)
+  })
 })
 
 describe('private volatile bundle framing', () => {
@@ -86,6 +92,15 @@ describe('private volatile bundle framing', () => {
     record.data.fill(0); (record.participants as number[])[0] = 20
     const bundle = await pending
     expect(bundle.participants).toEqual([3]); expect(bundle.data.slice(140)).toEqual(expected)
+  })
+  it('captures exact Buffer-backed package bytes at nonzero offsets before async hashing', async () => {
+    const record = packageRecord(1, [3]), expected = new Uint8Array(record.data)
+    const backing = Buffer.alloc(79, 0xee), input = backing.subarray(17, 49); input.set(record.data)
+    const pending = encodeVolatileBundle(base, baseline, [{ ...record, data: input }], limits)
+    backing.fill(0)
+    const bundle = await pending
+    expect(bundle.data.slice(140)).toEqual(expected)
+    expect(bundle.sha256).toBe(createHash('sha256').update(bundle.data).digest('hex'))
   })
   it('refuses duplicate, overlapping, invalid unsigned and empty participant declarations', async () => {
     for (const offered of [[], [packageRecord(1, [1]), packageRecord(1, [2])],
@@ -125,6 +140,13 @@ describe('private volatile bundle framing', () => {
 })
 
 describe('private cached volatile status validation', () => {
+  it('parses exactly the copied bytes of an offset Buffer without reading its parent slab', () => {
+    const expected = status(5), backing = Buffer.alloc(expected.length + 57, 0xee)
+    const input = backing.subarray(23, 23 + expected.length); input.set(expected)
+    const parsed = parseVolatileStatus(input, observed); backing.fill(0)
+    expect(parsed).toMatchObject({ phase: 'stoppedTrial', transaction: 5, generation: 7,
+      current: baseline, baseline, records: 2, published: 2 })
+  })
   it('parses every specified phase without conferring ownership', () => {
     for (let phase = 0; phase <= 8; ++phase) expect(parseVolatileStatus(status(phase), observed).phase).toBeTruthy()
     expect(parseVolatileStatus(status(), observed)).toMatchObject({ phase: 'idle', transaction: 0, baseline: null, current: baseline, offer: null })

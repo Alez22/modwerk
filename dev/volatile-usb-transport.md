@@ -11,6 +11,8 @@ qualified device connection. A supplied capability is not board qualification.
 Unsupported capability, zero/malformed identity or invalid configuration is
 refused before any USB call. Only bounded, immutable MWVB frames bound to those
 identities reach request 34; structural status parsing grants no ownership.
+Copies use plain `Uint8Array` construction so Node Buffer inputs cannot retain
+their parent slab or share mutable bytes through Buffer's `slice()` behavior.
 
 One complete EP0 transfer runs at a time. Concurrent calls are refused before
 a second packet is sent. There is no internal queue, automatic retry, cached
