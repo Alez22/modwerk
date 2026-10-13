@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared shared base-owned USB descriptors for the existing MIDI dependency and output-audio layouts alongside Modwerk sync. Interface references are renumbered together while authored endpoint, channel and class-entity records stay exact. This is private preparation; public bases still require transport, audio alignment, deadline and host qualification before admission.
+
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
 - Prepared a public audio-preview announcement with a “Show me how” action that opens the upload steps, account requirement, file limits, credits, sharing permission and removal instructions. The guide is also searchable in the FAQ; publication follows frontend deployment.
 
