@@ -76,7 +76,8 @@ int main(void)
         assert(mw_ab_part_roots_extra(&s,0,&value)==1 && value==0x460c8122);
         assert(mw_ab_part_roots_extra(&s,1,&value)==1 && value==0x460bf218);
         assert(mw_ab_part_roots_extra(&s,2,&value)==-1); /* never complete0 */
-        if(s.total_reads>max_reads)max_reads=s.total_reads;++cases;
+        if(s.total_reads>max_reads)max_reads=s.total_reads;
+        ++cases;
     }
     for(unsigned which=0;which<2;++which)for(unsigned alias=0;alias<2;++alias)
         for(unsigned reg=0;reg<15;++reg)for(unsigned offset=0;offset<3;++offset){
