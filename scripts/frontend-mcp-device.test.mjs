@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, lstat, readdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +9,12 @@ import { createFrontendTools } from './frontend-mcp.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const base = 'a'.repeat(64), active = 'b'.repeat(64), candidate = 'c'.repeat(64)
+const savedSnapshots = () => [0, 1].map(slot => {
+  const data = new Uint8Array(513).fill(slot + 17)
+  data.set([0x4d, 0x57, 0x53, 0x54])
+  return { status: 'ready', slot, token: slot + 1, length: data.length,
+    sha256: createHash('sha256').update(data).digest('hex'), fileBase: Buffer.from(data.subarray(20, 52)).toString('hex'), data }
+})
 let frontend, manifest, tapehead
 
 beforeAll(async () => {
@@ -43,6 +50,7 @@ class FakeLink {
     return this.diagnostics && structuredClone(this.diagnostics)
   }
   liveLoad = async () => ({ ticks: 120, frames: 1000, cpu: 123, tracks1to4: 234, tracks5to8: 345, peak1to4: 456, peak5to8: 567 })
+  savedBackup = async () => savedSnapshots()
   subscribeDiagnostics = listener => { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   selftest = async () => {
     if (this.finalReading) for (const listener of this.listeners) listener({ event: 'selftest', reading: structuredClone(this.finalReading) })
@@ -99,6 +107,48 @@ describe('frontend MCP reviewed device transactions', () => {
     expect(await service.call('device_load')).toEqual({ base, supported: false, reading: null })
     link.liveLoad = async () => { link.state = { ...link.state, identity: { ...link.state.identity, base: 'd'.repeat(64) } }; return {} }
     await expect(service.call('device_load')).rejects.toThrow('changed during')
+  })
+  it('saves verified files privately without device-write permission and returns only a metadata receipt', async () => {
+    await service.close()
+    service = await createFrontendTools({ dataDir: folder, deviceSocket: 'test-only' }, frontend, { openLink: async () => link })
+    await expect(service.call('device_saved_backup', { path: '/anywhere' })).rejects.toThrow('Unexpected')
+    const receipt = await service.call('device_saved_backup')
+    expect(receipt).toMatchObject({ base, active, supported: true, complete: true, recoveryVerified: false, cardWrites: false })
+    expect(receipt.directory.startsWith(folder + '/saved-sets-')).toBe(true)
+    expect((await lstat(receipt.directory)).mode & 0o077).toBe(0)
+    for (const [slot, record] of receipt.files.entries()) {
+      expect(await readFile(record.path)).toEqual(Buffer.from(savedSnapshots()[slot].data))
+      expect((await lstat(record.path)).mode & 0o077).toBe(0)
+      expect(record).not.toHaveProperty('data')
+    }
+    expect((await lstat(join(receipt.directory, 'receipt.json'))).mode & 0o077).toBe(0)
+    expect(JSON.parse(await readFile(join(receipt.directory, 'receipt.json'), 'utf8'))).toEqual(receipt)
+    expect(service.tools.find(tool => tool.name === 'device_saved_backup').annotations.destructiveHint).toBe(false)
+    expect(link.updates).toHaveLength(0); expect(link.keeps).toBe(0); expect(link.undos).toBe(0)
+  })
+  it('does not infer absent files from an old base or a read failure', async () => {
+    link.savedBackup = async () => undefined
+    expect(await service.call('device_saved_backup')).toMatchObject({ supported: false, complete: false, recoveryVerified: false, files: [] })
+    expect((await readdir(folder)).filter(name => name.startsWith('saved-sets-'))).toHaveLength(0)
+    link.savedBackup = async () => [{ status: 'read-failed', slot: 0, token: 1, length: 0, sha256: '0'.repeat(64), fileBase: '0'.repeat(64) }, savedSnapshots()[1]]
+    const receipt = await service.call('device_saved_backup')
+    expect(receipt.complete).toBe(false)
+    expect(receipt.files[0]).toEqual({ slot: 0, name: 'MODWERK0.SET', status: 'read-failed', absent: false })
+    expect(receipt.files[1].status).toBe('ready')
+    expect(await readdir(receipt.directory)).toEqual(['MODWERK1.SET', 'receipt.json'])
+  })
+  it.each(['identity', 'hash', 'slot', 'size', 'base-header'])('rejects altered %s before creating private backup files', async field => {
+    link.savedBackup = async () => {
+      const snapshots = savedSnapshots()
+      if (field === 'identity') link.state = { ...link.state, active: 'd'.repeat(64) }
+      if (field === 'hash') snapshots[0].data[60] ^= 1
+      if (field === 'slot') snapshots[0].slot = 1
+      if (field === 'size') snapshots[0].length++
+      if (field === 'base-header') snapshots[0].fileBase = '0'.repeat(64)
+      return snapshots
+    }
+    await expect(service.call('device_saved_backup')).rejects.toThrow()
+    expect((await readdir(folder)).filter(name => name.startsWith('saved-sets-'))).toHaveLength(0)
   })
 
   it('preserves the legacy E-Verb baseline and sends only the verified TapeHead addition with its removal Undo', async () => {
@@ -201,6 +251,15 @@ describe('frontend MCP reviewed device transactions', () => {
     expect(link.keeps).toBe(1)
     await expect(service.call('device_keep', { trial: result.trial })).rejects.toThrow('matching authorized')
     expect(link.keeps).toBe(1)
+  })
+  it('refuses Keep over foreign saved files while leaving the exact trial Undo available', async () => {
+    link.diagnostics = { state: 0, failed: 0, saved: 4 }
+    const result = await trial()
+    await expect(service.call('device_saved_backup')).rejects.toThrow('Finish the current trial')
+    await expect(service.call('device_keep', { trial: result.trial })).rejects.toThrow('saved files from another base')
+    expect(link.keeps).toBe(0); expect(link.state.status).toBe('trial')
+    await service.call('device_undo', { trial: result.trial })
+    expect(link.undos).toBe(1); expect(link.state.active).toBe(active)
   })
 
   it('requires startup write authorization even with a valid reviewed plan', async () => {

@@ -41,6 +41,43 @@ export function parseLoadReading(view: DataView): LoadReading {
     tracks1to4: core1 ? values[3] : null, peak1to4: core1 ? values[4] : null }
 }
 
+/** Private beta saved-file export. Only the two fixed MODWERK slots, never arbitrary memory or paths. */
+export const SAVED_SET_CAPACITY = 786432 + 4096
+export const SAVED_SET_METADATA_BYTES = 80
+export const SAVED_SET_CHUNK_BYTES = 480
+export const SAVED_SET_CHUNK_DATA = 448
+export const SavedSetStatus = ['idle', 'pending', 'ready', 'busy', 'unsafe', 'read-failed', 'invalid'] as const
+export type SavedSetStatusName = typeof SavedSetStatus[number]
+export interface SavedSetMetadata {
+  status: SavedSetStatusName; slot: 0 | 1; token: number; length: number; sha256: string; fileBase: string
+}
+export type SavedSetSnapshot =
+  | (SavedSetMetadata & { status: 'ready'; data: Uint8Array })
+  | (SavedSetMetadata & { status: 'unsafe' | 'read-failed' | 'invalid' })
+
+export function parseSavedSetMetadata(view: DataView): SavedSetMetadata {
+  const fail = (): never => { throw new UploadWireError('The saved module-file snapshot metadata is malformed.') }
+  if (view.byteLength !== SAVED_SET_METADATA_BYTES || view.getUint32(0) !== 0x4d575345 || view.getUint8(4) !== 1 || view.getUint8(7)) fail()
+  const status = SavedSetStatus[view.getUint8(5)], slot = view.getUint8(6), token = view.getUint32(8), length = view.getUint32(12)
+  const sha256 = digestHex(new Uint8Array(view.buffer, view.byteOffset + 16, 32)), fileBase = digestHex(new Uint8Array(view.buffer, view.byteOffset + 48, 32))
+  if (!status || slot > 1 || token > 65535 || (!['idle', 'busy'].includes(status) && !token) ||
+      (status === 'ready' ? !length || length > SAVED_SET_CAPACITY || sha256 === ZERO_DIGEST : length || sha256 !== ZERO_DIGEST || fileBase !== ZERO_DIGEST)) fail()
+  return { status, slot: slot as 0 | 1, token, length, sha256, fileBase }
+}
+
+/** Every chunk is bound to one immutable snapshot, including zeroed header and tail padding. */
+export function parseSavedSetChunk(view: DataView, snapshot: SavedSetMetadata, index: number): Uint8Array {
+  const fail = (): never => { throw new UploadWireError('The saved module-file chunk does not match its immutable snapshot.') }
+  const offset = index * SAVED_SET_CHUNK_DATA
+  if (snapshot.status !== 'ready' || !Number.isInteger(index) || index < 0 || offset >= snapshot.length ||
+      view.byteLength !== SAVED_SET_CHUNK_BYTES || view.getUint32(0) !== 0x4d575343 || view.getUint8(4) !== 1 ||
+      view.getUint8(5) !== 2 || view.getUint8(6) !== snapshot.slot || view.getUint8(7) || view.getUint32(8) !== snapshot.token ||
+      view.getUint32(12) !== offset || view.getUint32(16) !== snapshot.length || view.getUint32(20) !== Math.min(SAVED_SET_CHUNK_DATA, snapshot.length - offset)) fail()
+  const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength), length = view.getUint32(20)
+  if (bytes.subarray(24, 32).some(byte => byte) || bytes.subarray(32 + length).some(byte => byte)) fail()
+  return bytes.slice(32, 32 + length)
+}
+
 type BoundRequest = { transaction: number; session: string }
 export type UploadRequest =
   | { command: 'hello' }

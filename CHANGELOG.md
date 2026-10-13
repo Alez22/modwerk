@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Prepared a beta saved-module-file backup client and MCP tool for the two fixed Octatrack files. It binds every bounded chunk to an acknowledged immutable snapshot, verifies the full file hash, releases only its own token and saves bytes privately with metadata-only receipts. Unreadable files remain errors rather than being treated as absent, and backing up does not qualify recovery. MCP Keep now refuses to overwrite saved files from another base while exact recovery is unverified; trial Undo remains available. Device export support and physical backup/recovery qualification are separate work.
+
 - Added a beta Load tab with separate live CPU/DSP readings, recent device peaks, a bounded five-minute graph and an accessible history table. It samples only cached meter windows every two seconds while visible and idle; missing or stale readings remain gaps. The read-only MCP device_load tool uses the same client. Live readings require the matching beta base; older bases report unavailable rather than displaying self-test peaks.
 
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.

@@ -9,6 +9,7 @@ import { build } from 'vite'
 import { Bench, device, enumerate } from './usb-bench.mjs'
 import { buildAndSave } from './firmware-download.mjs'
 import { assertMcpPrivateHost } from './frontend-mcp-private-host.mjs'
+import { saveSavedBackup } from './frontend-mcp-saved-backup.mjs'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 let activeWorkspace = false
@@ -47,6 +48,8 @@ const TOOLS = [
   tool('firmware_download', 'Build from exact deployed public inputs using local private stock, save files privately and return only a hash/identity receipt. Never sends firmware to MCP.', { request: { type: 'object' } }, ['request'], true),
   tool('device_status', 'Read the connected base identity, inventory, missing modules and bounded diagnostic status through the real site USB client.'),
   tool('device_load', 'Read one cached CPU/DSP meter snapshot through the real frontend client. Read-only; never runs a self-test. Older bases report unsupported.'),
+  { ...tool('device_saved_backup', 'Read only /MODWERK0.SET and /MODWERK1.SET through the frontend client, save verified bytes in the startup-selected private workspace and return only a metadata receipt. No card writes, memory access, arbitrary paths or recovery qualification. Older bases report unsupported.'),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false } },
   tool('device_review', 'Review a requested set against exact connected base, active digest and verified packages. Returns a short-lived plan; no device changes.', { moduleIds: strings }, ['moduleIds']),
   tool('device_trial', 'Execute a reviewed set through the real frontend link and self-test. A trial requires --allow-device-writes; never accepts automatically.', { review: string }, ['review'], true),
   tool('device_keep', 'Explicitly accept the current successful self-tested trial and save it on the card. Requires --allow-device-writes.', { trial: string }, ['trial'], true),
@@ -214,6 +217,16 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
       if (after.status !== 'ready' || after.identity?.base !== before.identity.base || after.active !== before.active) throw new Error('The device changed during the load read.')
       return { base: after.identity.base, supported: reading !== undefined, reading: reading ?? null }
     },
+    device_saved_backup: async () => {
+      if (trial) throw new Error('Finish the current trial before backing up saved files.')
+      const before = await snapshot(), unit = await connected()
+      const snapshots = await unit.savedBackup(), after = await snapshot()
+      if (after.state.status !== 'ready' || after.state.identity.base !== before.state.identity.base || after.state.active !== before.state.active ||
+          JSON.stringify(after.inventory) !== JSON.stringify(before.inventory) || after.diagnostics?.saved !== before.diagnostics?.saved)
+        throw new Error('The device changed during the saved-file backup; no files were saved.')
+      if (!snapshots) return { supported: false, complete: false, recoveryVerified: false, base: after.state.identity.base, files: [] }
+      return saveSavedBackup(dataDir, { base: after.state.identity.base, active: after.state.active }, snapshots)
+    },
     device_review: async args => {
       if (trial) throw new Error('Finish the current trial first.')
       const before = await snapshot(), target = { name: 'MCP reviewed set', moduleIds: ids(args.moduleIds), removedStockFx: [] }
@@ -255,6 +268,7 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   async function finish(args, keep) {
     if (!options.allowDeviceWrites || !trial || args.trial !== trial.id) throw new Error('No matching authorized device trial.')
     if (link.getState().status !== 'trial' || link.getState().identity.base !== trial.base || link.getState().active !== trial.active) throw new Error('Trial identity changed; reconnect and recover.')
+    if (keep && trial.before.diagnostics?.saved === 4) throw new Error('Keep would replace saved files from another base. Their backup and exact recovery must be verified first; Undo remains available.')
     const completed = trial
     if (keep) await link.keep(); else await link.undo()
     if (link.getState().status !== 'ready') throw new Error(link.getState().notice?.text ?? 'Device did not finish the trial.')
