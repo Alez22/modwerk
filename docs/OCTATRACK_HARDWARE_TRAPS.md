@@ -136,6 +136,21 @@ copies and removal against those snapshots.
 
 ## RAM boot
 
+**Private resident DSP packing needs an execution oracle.** In preparation
+`2f66d5d6`, each original upload stream was extended with source-pinned authored
+initialization records, preserving its stock prefix, terminator and trailer.
+An independent ColdFire execution check verified both complete streams,
+linked blob/scratch bounds and saved registers. Share initialization storage only
+when complete typed-record bytes are equal, then verify each core independently.
+This proves the packing shim, not a complete base boot, audio, timing or
+persistence.
+
+That preparation reserves the core 1 wait/meter counter at X:$7fff, outside
+Analog BD's initialization and reset ranges. Preserve that ownership boundary
+and exclude the counter from X probes; the older X:$2840 location overlaps
+Analog BD's authored tables. This is a private native proof, not hardware
+qualification of resident modules.
+
 **Only the flashed base's gate decides a RAM boot.** After the soft reset
 the bootloader always unpacks the flashed image, so its gate reads the
 mailbox. Each build puts its stage at another address, so a boot armed by a
