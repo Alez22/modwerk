@@ -4,6 +4,8 @@
 
 - Prepared a bounded read-only backup helper for the Octatrack’s two fixed saved module files. It retains one immutable private snapshot, serves only bounded cached chunks, checks the existing stopped-engine/card gate around reads, closes every opened descriptor and refuses upload/save/publication conflicts at its integration seam. This preparation has no wired USB endpoint or public admission; physical export and exact original-set recovery remain unverified.
 
+- Documentation: recorded native Windows MCP's startup refusal, private firmware build permissions, the owned USB bridge handoff before browser testing, independent resident DSP packing/counter ownership proofs, and the retained browser proof's actual-history requirement. Existing device, stock-free and qualification gates remain required.
+
 - Added a beta Load tab with separate live CPU/DSP readings, recent device peaks, a bounded five-minute graph and an accessible history table. It samples only cached meter windows every two seconds while visible and idle; missing or stale readings remain gaps. The read-only MCP device_load tool uses the same client. Live readings require the matching beta base; older bases report unavailable rather than displaying self-test peaks.
 
 - Changed the site tagline to “Custom Firmware” to leave room for future device support beyond Elektron.
