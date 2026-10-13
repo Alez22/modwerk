@@ -444,6 +444,8 @@ public/licenses/  licenses for adapted source and documentation
 sdk/              pinned native source, eleven module folders, internal dependencies, templates and SDK guide
 ```
 
+## Testing
+
 `npm run check` runs lint, small domain / API tests, type checks and a production build. API tests use an in-memory SQLite database and synthetic media, never real firmware. Native emulator, stress and audio-render checks require separate qualification and are not part of this command or the configuration flow.
 
 Checks first validate licence-notice and catalog freshness, then finish notice/catalog/media generation before readers start. SDK checks, lint, tests and the production build run concurrently, and every stage must pass; type errors prevent bundling. Test files retain isolation and use up to four workers, including the release tests under `scripts/`. ESLint caches results by file contents and configuration under `node_modules/.cache/eslint/`; TypeScript keeps incremental app, tooling and server state under `node_modules/.tmp/`. Licence and catalog/qualification validation, SDK checks, all tests and production bundling still run every time. `npm run typecheck` checks all three TypeScript projects, and `npm run lint -- --no-cache` performs an uncached lint run.
@@ -455,6 +457,17 @@ For a constrained machine or concurrent emulator work, use
 The default still uses up to four workers. This changes concurrency only;
 every test, assertion, metadata/SDK check, type check and build still runs.
 
+### Testing through the developer MCP
+
+Test source/domain behavior, HTTP/API contracts and MCP/DOM interactions before connecting hardware. Do not use computer-use, browser-control or Playwright automation to test the site. Review supplied or retained screenshots for layout changes and state any remaining rendered-layout limit. Neither domain/API results nor DOM assertions prove CSS geometry, audible quality, hardware timing, saved-project survival or physical reboot persistence.
+
+The beta [frontend and device MCP](FRONTEND_MCP.md) calls the site's real catalogue, configuration, API and USB code. Start with Node 24 and `npm run --silent mcp -- --data-dir PRIVATE_DIR`, using a dedicated private directory (0700 on Unix) for isolated local state. Register a client with Node 24 and the absolute `scripts/frontend-mcp.mjs` path directly; npm's startup banner is not MCP JSON. Each account/developer uses a separate process and state directory. Keep API/site URLs, stock-file paths, session-file paths and the device socket fixed at startup rather than tool-call choices.
+
+Use the existing normal member/developer session file and permissions; the MCP grants no membership, role, ownership or release authority and accepts no administrator key bypass. Authentication and secret-management routes are excluded. API writes require `--allow-api-writes` and per-call confirmation; device writes require `--allow-device-writes`. Use disposable local Worker state for test posts, reports and notification effects unless the human authorized those live effects.
+
+For authorized hardware work, review the exact device/base/module identities and catalogue versions, start the reviewed trial, require its actual passed device self-test, and explicitly choose Keep or Undo while the trial identity still matches. MCP trials support one changed package at a time: the frontend currently accepts intermediate steps in a multiple-package sync, so such a trial is refused before sending. Older inventories lack exact package hashes: preserve already-installed modules rather than guessing their Undo images; an absent package may be tested as an addition, then undone. Saved-download verification retains the existing builder's published-source and approval stamping; MCP access must not relabel unpublished packages as approved. The MCP returns saved download identity/hash receipts, never raw firmware or memory. Stock firmware and built images stay in private local files and never enter Git or CI.
+
+Record real device outcomes against the exact source, base, package hashes and versions after software regressions pass. Device self-test does not replace audible, timing, simultaneous-module or Part/project/physical-reboot qualification. Beta tooling does not establish whole-catalogue USB compatibility or persistence; unavailable packages and unobserved behavior remain explicit gaps. Existing module-release and issue-resolution gates still apply.
 
 ## Documentation validation and deployment scope
 
