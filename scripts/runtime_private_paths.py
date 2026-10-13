@@ -7,6 +7,7 @@ existing directories are inspected without changing their permissions.
 """
 import json
 import os
+import re
 from pathlib import Path
 import stat
 import subprocess
@@ -15,11 +16,15 @@ WINDOWS = os.name == 'nt'
 FULL_CONTROL = 0x1f01ff
 ACL_SCRIPT = r'''
 $ErrorActionPreference = 'Stop'
+$stage = 'identity'
+try {
 $path = $env:MODWERK_RUNTIME_PRIVATE_PATH
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$stage = 'item'
 $item = Get-Item -Force -LiteralPath $path
 if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Reparse output refused' }
 if ($env:MODWERK_RUNTIME_PRIVATE_ACTION -eq 'protect') {
+    $stage = 'create-rule'
     if ($item.PSIsContainer) {
         $acl = New-Object System.Security.AccessControl.DirectorySecurity
         $inheritance = 'ContainerInherit,ObjectInherit'
@@ -29,10 +34,15 @@ if ($env:MODWERK_RUNTIME_PRIVATE_ACTION -eq 'protect') {
     }
     $acl.SetOwner($sid)
     $acl.SetAccessRuleProtection($true, $false)
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', $inheritance, 'None', 'Allow')
+    $rule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+        $sid, [System.Security.AccessControl.FileSystemRights]::FullControl,
+        [System.Security.AccessControl.InheritanceFlags]$inheritance,
+        [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Allow)
     $acl.AddAccessRule($rule)
+    $stage = 'apply'
     Set-Acl -LiteralPath $path -AclObject $acl
 }
+$stage = 'inspect'
 $acl = Get-Acl -LiteralPath $path
 $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object {
     @{ sid = $_.IdentityReference.Value; kind = $_.AccessControlType.ToString(); rights = [int]$_.FileSystemRights;
@@ -40,6 +50,10 @@ $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.Security
 })
 @{ owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; user = $sid.Value;
    protected = $acl.AreAccessRulesProtected; directory = [bool]$item.PSIsContainer; rules = $rules } | ConvertTo-Json -Compress -Depth 4
+} catch {
+    [Console]::Error.WriteLine('PRIVATE_ACL:' + $stage + ':' + $_.Exception.GetType().FullName)
+    exit 1
+}
 '''
 
 
@@ -55,7 +69,13 @@ def windows_acl(path, protect=False):
             raise ValueError('Unbounded ACL response')
         value = json.loads(result.stdout)
     except (OSError, subprocess.SubprocessError, ValueError) as error:
-        raise ValueError('Cannot establish or inspect the Windows private-output DACL.') from error
+        # Never expose native error text, commands, private paths or causes.
+        detail = ''
+        if isinstance(error, subprocess.CalledProcessError) and isinstance(error.stderr, str):
+            safe = re.fullmatch(r'PRIVATE_ACL:(identity|item|create-rule|apply|inspect):([A-Za-z][A-Za-z0-9_.]{0,127})\s*', error.stderr)
+            if safe:
+                detail = f' ({safe[1]}: {safe[2]})'
+        raise ValueError('Cannot establish or inspect the Windows private-output DACL.' + detail) from None
     if not isinstance(value, dict):
         raise ValueError('Invalid Windows private-output DACL response.')
     return value

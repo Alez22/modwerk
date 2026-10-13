@@ -103,6 +103,25 @@ class ProvenanceTests(unittest.TestCase):
                 prep.save(self.source, b'overwrite')
             self.assertEqual(self.source.read_bytes(), b'original')
 
+    def test_native_acl_errors_retain_only_fixed_stage_and_exception_type(self):
+        paths = prep.private_paths
+        for native, expected in (
+                ('PRIVATE_ACL:apply:System.UnauthorizedAccessException\n', 'apply: System.UnauthorizedAccessException'),
+                ('PRIVATE_ACL:inspect:System.IO.IOException private/path', None),
+                ('private/path contains artifact data', None)):
+            error = subprocess.CalledProcessError(1, ['private command'], stderr=native)
+            with self.subTest(native=native), mock.patch.object(paths.subprocess, 'run', side_effect=error):
+                with self.assertRaises(ValueError) as raised:
+                    paths.windows_acl(self.root)
+                message = str(raised.exception)
+                self.assertNotIn('private/path', message)
+                self.assertNotIn('private command', message)
+                self.assertTrue(raised.exception.__suppress_context__)
+                if expected:
+                    self.assertIn(expected, message)
+                else:
+                    self.assertEqual(message, 'Cannot establish or inspect the Windows private-output DACL.')
+
     def test_windows_acl_requires_owner_only_protected_inheritable_full_control(self):
         sid = 'S-1-5-21-1-2-3-1001'
         rule = dict(sid=sid, kind='Allow', rights=prep.private_paths.FULL_CONTROL, inheritance=3, propagation=0)
