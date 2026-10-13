@@ -67,7 +67,9 @@ export function OctatrackHub({ view, link, inventory, sets, selectedId, needs, o
     const element = split.current, main = element?.closest('main')
     if (!element || !main || typeof ResizeObserver === 'undefined') return
     const fit = () => {
-      const top = element.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
+      // Box positions come in zoomed pixels (the desktop app shell has zoom: .9); heights are set in CSS pixels.
+      const box = main.getBoundingClientRect(), scale = box.height / main.offsetHeight || 1
+      const top = (element.getBoundingClientRect().top - box.top) / scale + main.scrollTop
       element.style.setProperty('--hub-height', Math.max(560, main.clientHeight - top - (parseFloat(getComputedStyle(main).paddingBottom) || 0)) + 'px')
     }
     fit()
