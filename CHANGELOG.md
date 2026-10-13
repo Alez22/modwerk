@@ -9,6 +9,8 @@
 
 - Restored the beta onboarding card’s DSP memory explanation beside USB setup: effects load as needed and share their code between tracks on each DSP core. The explanation stays visible on phones and makes no CPU-speed or unlimited-capacity promise.
 
+- Added a local beta MCP server for catalogue/module inspection, card and USB preflight, isolated module sets, ordinary authenticated community API calls, saved firmware receipts and reviewed USB trials through the frontend client. API and device writes require explicit startup opt-ins; one-change trials never accept automatically. Private workspace leases prevent concurrent set overwrites, and the server preserves existing modules whose exact rollback identity is unavailable. It returns no firmware or raw memory. Domain/API evidence remains separate from visual, audio and physical reboot qualification.
+
 ## 12 October 2026
 
 - Keep the Octatrack beta publication check valid when release automation stamps the current commit and approval. Authored package contents and qualification fields remain pinned to the validated Git snapshot, and derived package hashes must match the published files.
