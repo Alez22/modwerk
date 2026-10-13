@@ -3,6 +3,9 @@
 ## 13 October 2026
 
 - The Octatrack module-set verifier now defaults to read-only package and capability preflight through the frontend MCP service. Explicit trials require the connected base identity, add one package beside the installed baseline, self-test and Undo before the next test. It refuses multiple changes because the loader would Keep intermediate packages. The six-package set is preflight only; audio, coexistence and reboot persistence still require separate physical qualification.
+
+- Changed the audio-preview announcement’s “Show me how” action to open Analog BD and highlight its Add preview button with a dismissible upload tip. Existing announcement links follow the same walkthrough, and visitors return there after signing in.
+
 - Prepared a public audio-preview announcement with a “Show me how” action that opens the upload steps, account requirement, file limits, credits, sharing permission and removal instructions. The guide is also searchable in the FAQ; publication follows frontend deployment.
 - Kept the developer USB bridge listening through transient descriptor/claim errors during replug or RAM-boot re-enumeration, and disposed partially opened or disconnected libusb handles. Serialized complete host bench control transfers so keepalive reads cannot replace a pending self-test or write SETUP. Each request makes one acquisition/transfer attempt; failed writes are reported without replay, and bus reset/configuration restrictions remain enforced.
 

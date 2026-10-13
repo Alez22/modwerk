@@ -280,7 +280,7 @@ The community runs separately through `worker.ts` and `wrangler.worker.jsonc`, i
 
 ### Public module audio previews
 
-The public audio-preview announcement links to `#faq/audio-previews` with **Show me how**. This opens the expanded upload guide, also available in the searchable FAQ. Preview the exact draft locally with `?preview=previews-announcement`; it does not publish the announcement or record announcement counts. After the frontend is deployed and the guide verified, publish `docs/announcements/audio-previews-2026-10-13.draft.json` through the existing announcement flow.
+The public audio-preview announcement’s **Show me how** action opens `#module/analog-bassdrum?preview-upload=1`, an ordinary module page with a dismissible tip beside the highlighted **Add preview** control. The button receives focus and uses the existing verified-member sign-in/upload flow; sign-in returns to the walkthrough. Previously published `#faq/audio-previews` links open the same example. Full instructions remain searchable in the FAQ. Preview the draft locally with `?preview=previews-announcement`; publication uses the existing announcement flow after deployment.
 
 Declared module recordings play in the card and main detail preview; the screenshots gallery no longer repeats them as standalone audio tiles. Community submissions retain their contributor, caption and removal controls in the Previews tab, and media credits remain available.
 
