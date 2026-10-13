@@ -2,7 +2,7 @@
 
 ## 13 October 2026
 
-- Prepared private source-bound DSP ring placement and saved-set/export lifetime gates. Both buffer maps protect stock staging/mailbox heads, retain current and outgoing generations through acknowledged retirement, and refuse insufficient whole-ring capacity. Imported E-Verb/MiniVerb remain exact and use non-overlaid blocks; unknown source/fixed-resource policy and controller admission remain closed. Native regressions do not establish physical timing, combined-base boot or reboot persistence.
+- Prepared private source-bound DSP ring placement and saved-set/export lifetime gates. Both buffer maps protect stock staging/mailbox heads, retain current and outgoing generations through acknowledged retirement, and refuse insufficient whole-ring capacity. Imported E-Verb/MiniVerb remain exact and use non-overlaid blocks; unknown source/fixed-resource policy and controller admission remain closed. Native entry fixtures use exact guarded source bodies across POSIX and Windows, independently of linker pruning. Native regressions do not establish physical timing, combined-base boot or reboot persistence.
 
 - Prepared a beta saved-module-file backup client and MCP tool for the two fixed Octatrack files. It binds every bounded chunk to an acknowledged immutable snapshot, verifies the full file hash, releases only its own token and saves bytes privately with metadata-only receipts. Unreadable files remain errors rather than being treated as absent, and backing up does not qualify recovery. MCP Keep now refuses to overwrite saved files from another base while exact recovery is unverified; trial Undo remains available. Device export support and physical backup/recovery qualification are separate work.
 
