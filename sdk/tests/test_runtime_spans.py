@@ -141,11 +141,11 @@ class ProvenanceTests(unittest.TestCase):
         script = r'''
 $ErrorActionPreference = 'Stop'
 $path = $env:MODWERK_TEST_PRIVATE_PATH
-$acl = Get-Acl -LiteralPath $path
+$acl = [IO.Directory]::GetAccessControl($path)
 $everyone = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0')
 $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($everyone, 'Read', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
 $acl.AddAccessRule($rule)
-Set-Acl -LiteralPath $path -AclObject $acl
+[IO.Directory]::SetAccessControl($path, $acl)
 '''
         exe = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
         subprocess.run([str(exe), '-NoProfile', '-NonInteractive', '-Command', script],

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Private developer artifacts using POSIX modes or actual Windows DACLs.
 
-Windows chmod bits do not establish privacy. New directories receive a
+Windows chmod bits do not establish privacy. Native .NET access-control APIs
+avoid depending on whichever PowerShell cmdlet modules the caller imported. New directories receive a
 protected current-user-only inheritable DACL through ordinary owner access;
 existing directories are inspected without changing their permissions.
 """
@@ -21,11 +22,12 @@ try {
 $path = $env:MODWERK_RUNTIME_PRIVATE_PATH
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
 $stage = 'item'
-$item = Get-Item -Force -LiteralPath $path
-if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Reparse output refused' }
+$attributes = [IO.File]::GetAttributes($path)
+$isDirectory = ($attributes -band [IO.FileAttributes]::Directory) -ne 0
+if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Reparse output refused' }
 if ($env:MODWERK_RUNTIME_PRIVATE_ACTION -eq 'protect') {
     $stage = 'create-rule'
-    if ($item.PSIsContainer) {
+    if ($isDirectory) {
         $acl = New-Object System.Security.AccessControl.DirectorySecurity
         $inheritance = 'ContainerInherit,ObjectInherit'
     } else {
@@ -40,16 +42,18 @@ if ($env:MODWERK_RUNTIME_PRIVATE_ACTION -eq 'protect') {
         [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Allow)
     $acl.AddAccessRule($rule)
     $stage = 'apply'
-    Set-Acl -LiteralPath $path -AclObject $acl
+    if ($isDirectory) { [IO.Directory]::SetAccessControl($path, $acl) }
+    else { [IO.File]::SetAccessControl($path, $acl) }
 }
 $stage = 'inspect'
-$acl = Get-Acl -LiteralPath $path
+if ($isDirectory) { $acl = [IO.Directory]::GetAccessControl($path) }
+else { $acl = [IO.File]::GetAccessControl($path) }
 $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object {
     @{ sid = $_.IdentityReference.Value; kind = $_.AccessControlType.ToString(); rights = [int]$_.FileSystemRights;
        inheritance = [int]$_.InheritanceFlags; propagation = [int]$_.PropagationFlags }
 })
 @{ owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; user = $sid.Value;
-   protected = $acl.AreAccessRulesProtected; directory = [bool]$item.PSIsContainer; rules = $rules } | ConvertTo-Json -Compress -Depth 4
+   protected = $acl.AreAccessRulesProtected; directory = [bool]$isDirectory; rules = $rules } | ConvertTo-Json -Compress -Depth 4
 } catch {
     [Console]::Error.WriteLine('PRIVATE_ACL:' + $stage + ':' + $_.Exception.GetType().FullName)
     exit 1
