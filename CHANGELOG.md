@@ -2,6 +2,8 @@
 
 ## 13 October 2026
 
+- Saved-file backup now waits briefly when the device explicitly refuses Begin with an unchanged idle token. Each new attempt first rechecks that exact idle ownership, stops after ten attempts or three seconds, and never retries a lost or ambiguous acknowledgment. Pending work still blocks export; this does not relax firmware safety gates or qualify recovery.
+
 - Restore active signed-in members from notification-bell polls alongside guest check-ins, deduplicating accounts across both sources and avoiding stale member counts after sign-out. Preserve the twelve-name limit while showing the online total, guests and remaining members separately on the forum home.
 
 - Reduced private resident DSP initialization storage by choosing optimal literal/zero-run boundaries in the existing bounded codec. Authored records, the boot and reset decoders, independent core reconstruction and RAM boot limits remain exact. This is source preparation; combined-base boot, audio timing and physical lifecycle qualification remain pending.
