@@ -66,6 +66,9 @@ def runs(data, stock):
     return found
 
 
+RUNTIME_SITE_EVENT_LIMIT = 64  # hook words past the core four a package may carry; the base refuses more than it has
+
+
 def capabilities(data):
     """Derive browser preflight requirements from the actual record types, never a handwritten module allowlist."""
     if len(data) < 68 or data[:4] != b'MWRM':
@@ -76,10 +79,15 @@ def capabilities(data):
     hooks, sites = struct.unpack_from('>II', data, 20)
     copies = struct.unpack_from('>I', data, 68)[0] if abi >= 7 else 0
     fills = struct.unpack_from('>I', data, 72)[0] if abi == 8 else 0
-    if hooks or flags & ~(7 if abi == 8 else 3) or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64:
+    header = {6: 68, 7: 72, 8: 76}[abi]
+    words = struct.unpack_from('>%dI' % hooks, data, header) if abi == 8 and len(data) >= header + 4 * hooks else None
+    if ((hooks and (words is None or hooks > 4 + RUNTIME_SITE_EVENT_LIMIT)) or flags & ~(7 if abi == 8 else 3)
+            or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64):
         raise ValueError('The published runtime package has unsupported hooks, flags or records.')
-    # One machine group needs both table composition and explicit lifetime admission.
-    features = bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0)
+    # One machine group needs both table composition and explicit lifetime admission. A hook word past the four core
+    # events subscribes to (or raises) a site event: the base must report events (MWCP 128, loader.h).
+    features = (bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0)
+                | (128 if words and any(w != 0xffffffff for w in words[4:]) else 0))
     return dict(abi=abi, features=features, sites=sites, copies=copies, fills=fills)
 
 

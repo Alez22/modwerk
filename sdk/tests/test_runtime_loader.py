@@ -240,6 +240,13 @@ class SiteEventTests(unittest.TestCase):
         with self.assertRaises(ValueError):  # one tick handler
             build.subscribe([build.NONE] * 4, doc['subscribe'] * 2, {'f': 0x12})
         build.unevented([(0x40000000, b'', b'\0' * 6, [], 0, 6)])  # a raised event's empty span meets nothing
+        spec = importlib.util.spec_from_file_location('module_packages_caps', ROOT / 'sdk/machines/octatrack/elekloader/module_packages.py')
+        packages = importlib.util.module_from_spec(spec); spec.loader.exec_module(packages)
+        image = bytes(8)
+        tick = build.package(image, 0, [0], [], hashed=True, title='t', abi=8)
+        evented = build.package(image, 0, [0] + [build.NONE] * 6 + [build.RAISE << 24 | 4], [], hashed=True, title='t', abi=8)
+        self.assertEqual(packages.capabilities(tick)['features'], 0)      # a core tick needs nothing new of the base
+        self.assertEqual(packages.capabilities(evented)['features'], 128)  # a site event (or a raise) needs MWCP 128
 
     def test_dispatch_assembles_without_the_displaced_stock_bytes(self):
         asm = shutil.which('m68k-elf-as')
