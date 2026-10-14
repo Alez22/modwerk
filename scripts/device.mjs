@@ -5,7 +5,8 @@
 //
 //   ~/.cache/modwerk-upstream/venv/bin/python -B scripts/octatrack-usb-bridge.py /tmp/modwerk-ot.sock &
 //   npm run device -- status
-//   while :; do npm run device -- serve; sleep 1; done   # one long-lived link (starts the bridge if needed); send it
+//   while :; do npm run device -- serve [--share /tmp/modwerk-share.sock]; sleep 1; done   # one long-lived link (starts the bridge
+//       if needed; --share lets the frontend MCP use the unit through it, --device-socket that path); send it
 //       scripts/device-send.py part2 pick:T1:FX2:E-Verb stats png:/tmp/s.png   # or 'try FILE', 'remove FILE', 'boot DIR'
 //   npm run device -- try MODULE.mwrm [--seconds 5] [--accept]
 //   npm run device -- remove [MODULE.mwrm] [--accept]   # that file's module, else module 0
@@ -42,7 +43,7 @@ import { sha } from '../vendor/elekloader/kit/src/bytes.ts'
 import { UploadSession } from '../src/engine/elekloader/upload-session.ts'
 import { findVendorInterface, UsbVendorTransport } from '../src/engine/elekloader/upload-usb.ts'
 import { diagnostics, removal, runLifecycle } from '../src/dev/octatrack-usb-lifecycle.ts'
-import { Bench, benchEndpoint, device, enumerate } from './usb-bench.mjs'
+import { Bench, benchEndpoint, device, enumerate, shareBench } from './usb-bench.mjs'
 
 const { values, positionals: [command, file] } = parseArgs({ allowPositionals: true, options: {
   socket: { type: 'string', default: '/tmp/modwerk-ot.sock' },
@@ -51,6 +52,7 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   emulator: { type: 'boolean', default: false },
   png: { type: 'string' },
   scale: { type: 'string', default: '2' },
+  share: { type: 'string' }, // serve: a second bench socket for the frontend MCP (shareBench)
   chunk: { type: 'string' }, // boot: bytes a frame (4096 for the flashed usbtest9 on macOS; docs/OCTATRACK_HARDWARE_TRAPS.md)
 } })
 let seconds = Number(values.seconds)
@@ -456,6 +458,9 @@ if (command === 'serve') {
       })
     })
   }).listen(path, () => console.log('serving on ' + path))
+  // --share PATH: the bench for one more client, such as the frontend MCP (--device-socket PATH), its transfers between
+  // this session's (test plan T1). Only one of them may stage or try modules at a time; the session reads and presses keys.
+  if (values.share) { if (!/^\d+$/.test(values.share)) rmSync(values.share, { force: true }); shareBench(bench, values.share).on('listening', () => console.log('sharing the unit on ' + values.share)) }
   setInterval(() => serial(() => devIn(6, 0, 2).catch(() => {})), 4000) // a request every 4 s: MODWERK CONNECTED shows once
 } else try {
   if (command === 'key') { await keys(file); process.exit(0) }

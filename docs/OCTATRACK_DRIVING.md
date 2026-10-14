@@ -35,7 +35,10 @@ while :; do npm run device -- serve; sleep 1; done
 
 Run it in a terminal of the owner's, or in a background task: those stop after two hours. It starts the USB
 bridge, keeps one connection open, pings every 4 s (so MODWERK CONNECTED shows once) and comes back after a
-RAM boot. One process at a time: a second `serve` or a one-shot `npm run device` fights it for the bridge.
+RAM boot. One process at a time: a second `serve` or a one-shot `npm run device` fights it for the bridge. To let the
+frontend MCP use the unit beside the session, start it with `serve --share /tmp/modwerk-share.sock` and the MCP with
+`--device-socket /tmp/modwerk-share.sock`: each MCP control transfer runs between the session's. Then only one of them
+stages modules at a time (the MCP's sync, or the session's `try`/`remove`); the session reads and presses keys.
 After an unplug, a crash restart or a RAM boot, the bridge can hold a dead handle; `pkill -f usb_bridge;
 pkill -f '^node scripts/device.mjs serve'` and the loop starts both again. Anchor the pattern: without `^` it also
 matches any shell whose command line contains it (the loop's, or the one running `pkill`), and kills that.
