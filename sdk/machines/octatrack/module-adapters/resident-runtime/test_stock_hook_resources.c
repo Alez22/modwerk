@@ -89,5 +89,17 @@ int main(void) {
     span.address=0x3ffff; span.words=2; assert(!mw_hook_ranges_idle(1,&span,1,0,0,3));
     span.address=0x2ffff; assert(!mw_hook_ranges_idle(1,&span,1,0,0,3));
     assert(!mw_hook_ranges_idle(3,0,0,0,0,3));
+    /* Default claims: stock's own effect stops at +0x3DA2 and shares the head as stock does; anything else is whole. */
+    const struct mw_hook_buffer_claim stock2=mw_hook_default_claim(1,1),other2=mw_hook_default_claim(1,0),stock1=mw_hook_default_claim(0,1);
+    assert(stock2.words==0x3da3u && stock2.complete==1 && stock2.head_safe==1);
+    assert(other2.words==16384u && other2.complete==1 && !other2.head_safe && stock1.words==3072u);
+    assert(mw_hook_buffer_permitted_held(MW_HOOK_SIDECHAIN|MW_HOOK_MATRIX|MW_HOOK_ANALOG_BD,0,1,2,&stock2));
+    assert(mw_hook_buffer_permitted_held(MW_HOOK_SIDECHAIN,1,1,2,&stock2));
+    assert(!mw_hook_buffer_permitted_held(0,0,1,2,&other2) && mw_hook_buffer_permitted_held(0,0,1,3,&other2));
+    for(unsigned c=0;c<2;++c) {
+        span=(struct mw_hook_span){c ? 0x38000u : 0x30000u,stock2.words,(uint8_t)c,MW_HOOK_Y};
+        assert(mw_hook_ranges_idle(1,&span,1,&span,1,3));
+        span.words=0x3dffu; assert(!mw_hook_ranges_idle(1,&span,1,0,0,3)); /* one word into the key window */
+    }
     return 0;
 }
