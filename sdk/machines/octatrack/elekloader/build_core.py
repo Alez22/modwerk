@@ -21,7 +21,7 @@ VERSION = '0.3.1-modwerk-dev.1'
 # Resident controller trust: association, the scoped write lease, its resolver and the board-compiled policy table.
 CONTROLLER_POLICY_SOURCES = ('controller_policy.c', 'controller_policy.h', 'controller_association.c', 'controller_association.h',
                              'controller_write_lease.c', 'controller_write_lease.h', 'controller_write_policy.c',
-                             'controller_transport.c', 'controller_transport.h')
+                             'controller_transport.c', 'controller_transport.h', 'controller_board.c', 'controller_board.h')
 # Built for size (RAM boot keeps MAIN under 1.25 MiB): engine-task and boot-only units, never reached from the USB
 # or frame interrupts or with interrupts masked. boot_anim.c is paced by DTIM3, not by instruction counts, so it
 # can only draw fewer frames in its 3.5 s. Units an interrupt reaches (ep0, vendor, transfer, manager, selection,
@@ -977,6 +977,11 @@ def main():
                         help='own the stock sites of sdk/machines/octatrack/events.json and dispatch their events to subscribed modules')
     parser.add_argument('--resident-stock-hooks', action='store_true',
                         help='Private dormant resident SC/Matrix/Analog BD packing. Does not admit their runtime controllers.')
+    parser.add_argument('--controller-policies', type=Path,
+                        help='Private: reviewed controller trust rows (stock_hook_controllers.py) for this exact base link. '
+                             'Needs --resident-stock-hooks and --controller-layout.')
+    parser.add_argument('--controller-layout', type=Path,
+                        help='symbols.json of the empty-row build the rows were encoded against; refused if any symbol moved.')
     parser.add_argument('--dsp-loader', action='store_true',
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
@@ -989,6 +994,8 @@ def main():
         parser.error('Private saved-set export requires the ordinary DSP loader without probes/burn.')
     if args.resident_stock_hooks and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
         parser.error('Private resident stock hooks require the ordinary DSP loader, without probes/burn.')
+    if bool(args.controller_policies) != bool(args.controller_layout) or (args.controller_policies and not args.resident_stock_hooks):
+        parser.error('Controller trust rows need --resident-stock-hooks and the layout their packages were encoded against.')
     global FX_IDS, FX_WORDS
     FX_IDS, FX_WORDS = args.fx_ids, (args.fx_ids + 31) // 32
     os.environ['ELEKLOADER_CROSS'] = args.cross
@@ -1153,6 +1160,17 @@ def main():
             policy_root = APP / 'sdk/machines/octatrack/module-adapters/controller-policy'
             for name in CONTROLLER_POLICY_SOURCES:
                 shutil.copyfile(policy_root / name, source / name)
+            if args.controller_policies:
+                # Fixed-capacity storage: filled rows move no symbol the packages name (checked after the link).
+                sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
+                import stock_hook_controllers
+                rows = stock_hook_controllers.policies_c(json.loads(args.controller_policies.read_text()))
+                text = (source / 'controller_write_policy.c').read_text()
+                marker = '#ifndef MW_REVIEWED_CONTROLLER_POLICIES\n'
+                if text.count(marker) != 1:
+                    raise ValueError('The controller trust table seam changed; review build_core.py.')
+                (source / 'controller_write_policy.c').write_text(text.replace(
+                    marker, '#define MW_REVIEWED_CONTROLLER_POLICIES \\\n' + rows + '\n' + marker))
             # Real caller-owned storage for the compiled association helper.
             # It is zero-initialized and has no backend/authority in this
             # default-closed preparation; no fixture event initializes it.
@@ -1240,6 +1258,8 @@ def main():
         for name in CONTROLLER_POLICY_SOURCES:
             p = APP / 'sdk/machines/octatrack/module-adapters/controller-policy' / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
+        if args.controller_policies:
+            inputs['private:controller-policies'] = sha(args.controller_policies.read_bytes())
     inputs.update({'elekloader/' + p.name: sha(p.read_bytes()) for p in original_core.iterdir() if p.is_file()})
     artwork = APP / 'sdk/runtime/startup/artwork.json'
     inputs['sdk/runtime/startup/artwork.json'] = sha(artwork.read_bytes())
@@ -1415,6 +1435,8 @@ modwerk_retained_end:
     if args.dsp_loader:  # the DSP manager's UI work (its own hook was the UI tick, 0x4005221e) and its ColdFire hooks
         recipe['subscribe'].append(dict(event='ev_tick', fn='modwerk_dsp_tick', order=92))  # dsp.c's test picks
         recipe['subscribe'].append(dict(event='ev_tick', fn='dl_ui', order=93))
+        if args.resident_stock_hooks:  # controller_board.c: activation and retirement of trusted controllers
+            recipe['subscribe'].append(dict(event='ev_tick', fn='modwerk_controller_tick', order=95))
         # The status modal (status.c): CUE + PROJ before stock and the modules see it, drawn under the dev capture.
         recipe['subscribe'] += [dict(event='ev_key', fn='modwerk_status_key', order=89),
                                 dict(event='ev_enc', fn='modwerk_status_enc', order=89),
@@ -1520,6 +1542,8 @@ modwerk_retained_end:
     if args.dsp_loader and any(mapping[name] % 16 for name in ('dl_tx', 'dl_rx')):
         raise ValueError('The DSP loader packet buffers must be 16-byte aligned for eDMA channel 0.')
     (out/'symbols.json').write_text(json.dumps(mapping, indent=2)+'\n')
+    if args.controller_layout and json.loads(args.controller_layout.read_text()) != mapping:
+        raise ValueError('Controller trust rows moved a linked symbol: their packages name the other layout.')
     if resident_boot_prepared:
         linked = manifest['link']['layout']
         resident_boot_helper.check_linked(resident_boot_prepared['receipt'], mapping, linked['ddr'], linked['bss'], linked['boot'])

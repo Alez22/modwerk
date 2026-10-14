@@ -30,7 +30,8 @@ int main(int argc,char **argv) {
     auto read=[&](uint32_t at,unsigned n) { std::vector<uint8_t>b(n);for(unsigned i=0;i<n;++i)b[i]=m.read8(at+i);return b; };
     auto write=[&](uint32_t at,const std::vector<uint8_t>&b) { for(unsigned i=0;i<b.size();++i)m.write8(at+i,b[i]); };
     auto cpu=m.getCpuState(); unsigned calls=0,instructions=0,maxHeld=0,maxMode=0;
-    unsigned gateCase=0,begins=0,ends=0,heldInstructions=0,redraws=0;bool held=false,modeEntry=false;
+    unsigned gateCase=0,begins=0,ends=0,heldInstructions=0,redraws=0,modeLeases=0;bool held=false,modeEntry=false;
+    std::string modeLease="matrix_leave";
     std::vector<std::array<uint32_t,3>> notifications;
     uint32_t lease=0;std::array<uint32_t,15> endOutputs{};uint16_t endCcr=0;
     auto get=[&](unsigned r) {return m68k_get_reg(cpu,m68k_register_t(M68K_REG_D0+r));};
@@ -46,9 +47,9 @@ int main(int argc,char **argv) {
             const uint32_t pc=m.pc(),sp=m68k_get_reg(cpu,M68K_REG_SP);
             if(guarded && pc==0x47410000) {
                 ++begins;assert(!held);
-                assert(m.read32(sp+4)==symbols.at(module=="sidechain-compressor"?"sc_norm":"page_levels"));
+                assert(m.read32(sp+4)==symbols.at(module=="sidechain-compressor"?"sc_norm":modeEntry?modeLease:"page_levels"));
                 assert(m.read32(sp+8)==(module=="sidechain-compressor"?1u:2u));
-                lease=m.read32(sp+12);assert((lease&3)==0 && lease==stack-104);
+                lease=m.read32(sp+12);assert((lease&3)==0 && lease==stack-(modeEntry?112u:104u));
                 held=gateCase==1 || gateCase==2;heldInstructions=0;
                 if(held){for(unsigned i=0;i<8;++i)m.write32(lease+4*i,0xa5a50000+i);m68k_set_reg(cpu,M68K_REG_SR,0x241f);}
                 for(unsigned r:{1u,8u,9u})m68k_set_reg(cpu,m68k_register_t(M68K_REG_D0+r),0xdead0000+r);
@@ -78,8 +79,9 @@ int main(int argc,char **argv) {
         assert(m.pc()==stop && m.unmappedCount()==unmapped);
         assert(m68k_get_reg(cpu,M68K_REG_SP)==stack+4 && !held);
         assert((m68k_get_reg(cpu,M68K_REG_SR)&0x700)==0);
-        if(guarded){assert(begins==unsigned(!modeEntry) && ends==unsigned(!modeEntry && (gateCase==1 || gateCase==2)));
-            if(ends){for(unsigned r=0;r<15;++r)assert(get(r)==endOutputs[r]);assert((m68k_get_reg(cpu,M68K_REG_SR)&31)==endCcr);}}
+        const unsigned leases=modeEntry?modeLeases:1u;
+        if(guarded){assert(begins==leases && ends==unsigned(leases && (gateCase==1 || gateCase==2)));
+            if(ends && !modeEntry){for(unsigned r=0;r<15;++r)assert(get(r)==endOutputs[r]);assert((m68k_get_reg(cpu,M68K_REG_SR)&31)==endCcr);}}
         if(modeEntry)maxMode=std::max(maxMode,instructions-started);
         ++calls;
     };
@@ -143,11 +145,17 @@ int main(int argc,char **argv) {
                 assert((get(3)&255u)==phones);
             }
         }
-        // Independent whole-bank conversion oracle, separate from the short
-        // scoped page lease. No audio, timing or runtime retirement claim.
+        // Independent whole-bank conversion oracle. Scoped: a switch into or
+        // out of MATRIX runs the same conversion under one lease (granted:
+        // gates 1/2; refused: 0, nothing changes); NORMAL <-> STUDIO stores
+        // without a lease. CC 51 only after a successful End; redraw always.
+        // No audio, timing or runtime retirement claim.
         for(unsigned oldMode=0;oldMode<3;++oldMode)for(unsigned newMode=0;newMode<3;++newMode)
         for(unsigned master=0;master<2;++master)for(unsigned mute=0;mute<2;++mute)
-        for(unsigned currentBank:{0u,7u,15u}) {
+        for(unsigned currentBank:{0u,7u,15u})for(unsigned gate=0;gate<(guarded?3u:1u);++gate) {
+            const bool involves=oldMode!=newMode && (oldMode==2 || newMode==2);
+            const bool applies=!guarded || !involves || gate==1 || gate==2;
+            modeLease=newMode==2?"matrix_enter":"matrix_leave";modeLeases=guarded && involves;
             struct Range{uint32_t at;std::vector<uint8_t> expected;};std::vector<Range> ranges;
             constexpr uint32_t bankStride=0x9b340,partStride=6322;
             const uint32_t cueBefore=0x00a50055;
@@ -170,7 +178,7 @@ int main(int argc,char **argv) {
                 const unsigned start=live?0:0x12;
                 for(unsigned t=0;t<8;++t){before[start+2*t]=uint8_t((seed+31*t)%128);before[start+2*t+1]=uint8_t(oldMode==2?(seed+3*t)%16:(seed+17*t)%128);}
                 auto expected=before;
-                if(!guarded)for(unsigned t=0;t<8;++t){auto pair=convert(before[start+2*t],before[start+2*t+1],t);expected[start+2*t]=pair[0];expected[start+2*t+1]=pair[1];}
+                if(applies)for(unsigned t=0;t<8;++t){auto pair=convert(before[start+2*t],before[start+2*t+1],t);expected[start+2*t]=pair[0];expected[start+2*t+1]=pair[1];}
                 if(expected!=before){if(cs1)currentChanged=true;else if(!live)changed[bankIndex]=true;}
                 write(at,before);ranges.push_back({at,std::move(expected)});
             };
@@ -181,20 +189,19 @@ int main(int argc,char **argv) {
             m.write8(0x80000034,uint8_t(master));m.write32(0x8000009c,mute);m.write32(0x80000008,cueBefore);m.write32(0x100b14d4,cueBefore);m.write32(0x100f8598,0);
             uint32_t cueExpected=cueBefore;
             std::vector<std::array<uint32_t,3>> expectedNotifications;
-            if(!guarded && oldMode==2 && newMode==0){uint32_t bits=0;const auto live=read(0x80000c50,16);
+            if(applies && oldMode==2 && newMode==0){uint32_t bits=0;const auto live=read(0x80000c50,16);
                 for(unsigned t=0;t<8;++t)if(!(master && t==7) && live[2*t+1]<=13 && (0x066au&(1u<<live[2*t+1])))bits|=1u<<(16+t);
                 cueExpected=(cueBefore&0xff00ffff)|bits;
+                if(!(guarded && gate==2))
                 for(unsigned t=0;t<8;++t)if((cueExpected^cueBefore)&(1u<<(16+t)))expectedNotifications.push_back({t,51,unsigned(bool(cueExpected&(1u<<(16+t))))});}
-            gateCase=0;begins=ends=redraws=0;notifications.clear();enter("set_mode");m68k_set_reg(cpu,M68K_REG_D0,newMode);
-            // set_mode is a refused prepared entry, with no lease or writes.
-            const bool wasGuarded=guarded;
+            gateCase=gate;begins=ends=redraws=0;notifications.clear();enter("set_mode");m68k_set_reg(cpu,M68K_REG_D0,newMode);
             run();
             for(const auto &range:ranges)assert(read(range.at,unsigned(range.expected.size()))==range.expected);
             for(unsigned b=0;b<16;++b)assert(m.read32(bank+b*bankStride+0x9b332)==unsigned(changed[b] || (b==currentBank && currentChanged)));
             assert(m.read32(0x100f8598)==unsigned(changed[currentBank] || currentChanged));
-            assert(m.read8(0x80000037)==(wasGuarded?oldMode:newMode) && m.read8(0x100b1497)==(wasGuarded?oldMode:newMode));
+            assert(m.read8(0x80000037)==(applies?newMode:oldMode) && m.read8(0x100b1497)==(applies?newMode:oldMode));
             assert(m.read32(0x80000008)==cueExpected && m.read32(0x100b14d4)==cueExpected);
-            assert(notifications==expectedNotifications && redraws==unsigned(!wasGuarded));
+            assert(notifications==expectedNotifications && redraws==1u);
             for(unsigned r:{2u,3u,4u,5u,6u,7u,10u,11u,12u,13u,14u})assert(get(r)==0x47070000+4*r);
         }
     }

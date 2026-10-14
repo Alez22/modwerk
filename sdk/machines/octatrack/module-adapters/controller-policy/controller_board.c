@@ -1,0 +1,316 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Octatrack controller board (controller_board.h). Every entry runs under the
+ * stable lock; the providers are also reached from the frame interrupt through
+ * the write lease, so they only read. */
+#include "controller_board.h"
+#include "journal.h"
+#include "machine_lifetime.h"
+
+int modwerk_saved_set_busy(void);
+int dl_hook_buffer_ranges_idle(unsigned);
+unsigned modwerk_controller_policy_entries(void);
+
+#define MATRIX_MODE 0x80000037u     /* CUE CFG, 2 is MATRIX (output-matrix/matrix.s) */
+#define MATRIX_MODE_CS1 0x100b1497u /* its power-cycle mirror */
+#define QUIESCE_TICKS 600u          /* a disable for a removal nobody completes: ~10 s of UI ticks */
+#ifdef MW_CONTROLLER_BOARD_TEST
+uint8_t mw_controller_board_test_read8(uint32_t);
+int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi);
+#define READ8(a) mw_controller_board_test_read8(a)
+#define UI_CLEAR(lo, hi) mw_controller_board_test_ui(lo, hi)
+#else
+#define READ8(a) (*(volatile const uint8_t *)(uintptr_t)(a))
+static int board_read(void *context, uint32_t address, void *out, uint32_t length)
+{
+    (void)context;
+    uint32_t physical = address >= 0x48000400u && address < 0x4ff00000u ? address - 0x08000000u : address;
+    if (!(physical >= 0x40000400u && physical < 0x47f00000u && length <= 0x47f00000u - physical)) return 0;
+    const volatile uint8_t *from = (const volatile uint8_t *)(uintptr_t)address; uint8_t *to = out;
+    for (uint32_t i = 0; i < length; i++) to[i] = from[i];
+    return 1;
+}
+static int UI_CLEAR(uintptr_t lo, uintptr_t hi)
+{ return hi <= UINT32_MAX && machine_ui_lifetime(board_read, 0, (uint32_t)lo, (uint32_t)hi) == MACHINE_CLEAR; }
+#endif
+
+static struct mw_controller_transport transport;
+static uint32_t ticks, verified[MW_CONTROLLER_SLOTS]; /* verified: the generation whose ENABLE checked resources */
+static struct { uint32_t generation, since; uint8_t quiesce; } want[MW_CONTROLLER_SLOTS];
+static uint8_t started, closed, mask[2], mask_known;
+#define REGISTRY modwerk_controller_registry
+
+static int same(const void *a, const void *b, unsigned n)
+{ const uint8_t *x = a, *y = b; while (n--) if (*x++ != *y++) return 0; return 1; }
+static int nonzero(const uint8_t *p, unsigned n) { while (n--) if (*p++) return 1; return 0; }
+static unsigned cores(unsigned feature) { return feature == 1u ? 3u : feature == 2u ? 1u : 0u; }
+/* stock_hooks reset totals: SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A. */
+static unsigned total(unsigned feature, unsigned c) { return !(cores(feature) >> c & 1u) ? 0u : feature == 1u ? 1042u : 193u; }
+static int same_identity(const struct mw_controller_identity *a, const struct mw_controller_identity *b)
+{
+    return same(a->package_sha256, b->package_sha256, 32) && same(a->source_policy_sha256, b->source_policy_sha256, 32) &&
+        a->module == b->module && a->feature == b->feature && a->required_cores == b->required_cores &&
+        a->policy_revision == b->policy_revision && a->state_revision == b->state_revision &&
+        a->parameter_revision == b->parameter_revision;
+}
+static int held(const struct mw_controller_slot *s) { return s->state != MW_CTL_EMPTY && s->state != MW_CTL_RELEASED; }
+static int jobs(const struct mw_controller_slot *s) { return s->job_state[0] || s->job_state[1]; }
+
+/* The compiled rows, whole: one identity and image per package, valid entries. */
+static int rows_valid(void)
+{
+    unsigned n = modwerk_controller_write_policy_count;
+    if (n > MW_CONTROLLER_WRITE_POLICY_CAPACITY) return 0;
+    for (unsigned i = 0; i < n; ++i) {
+        const struct mw_controller_write_policy *p = &modwerk_controller_write_policies[i];
+        const struct mw_controller_identity *a = &p->identity;
+        if (p->version != 1u || !cores(a->feature) || a->required_cores != cores(a->feature) || !a->module ||
+            !nonzero(a->package_sha256, 32) || !nonzero(a->source_policy_sha256, 32) || !a->policy_revision ||
+            !a->state_revision || !a->parameter_revision || !p->image_bytes || p->entry >= p->image_bytes ||
+            p->begin_return >= p->image_bytes || p->end_return >= p->image_bytes ||
+            ((p->entry | p->begin_return | p->end_return) & 1u) || p->begin_return == p->end_return) return 0;
+        for (unsigned j = 0; j < i; ++j) {
+            const struct mw_controller_write_policy *q = &modwerk_controller_write_policies[j];
+            if (same(q->identity.package_sha256, a->package_sha256, 32) &&
+                (!same_identity(&q->identity, a) || q->image_bytes != p->image_bytes || q->entry == p->entry)) return 0;
+        }
+    }
+    return 1;
+}
+static const struct mw_controller_write_policy *row_for(const uint8_t *sha, uint32_t module, uint32_t image_bytes)
+{
+    for (unsigned i = 0; !closed && sha && i < modwerk_controller_write_policy_count; ++i) {
+        const struct mw_controller_write_policy *p = &modwerk_controller_write_policies[i];
+        if (p->identity.module == module && p->image_bytes == image_bytes && same(p->identity.package_sha256, sha, 32)) return p;
+    }
+    return 0;
+}
+static int binding_of(const struct runtime_owner *o, const struct mw_controller_write_policy *p, struct mw_controller_binding *b)
+{
+    uintptr_t canonical;
+    if (modwerk_runtime_owner_canonical(o, &canonical) != 1) return 0;
+    *b = (struct mw_controller_binding){p->identity, o->generation, canonical, o->extent_bytes, o->image_offset, o->image_bytes};
+    return 1;
+}
+static unsigned slot_of(const struct mw_controller_binding *b)
+{
+    for (unsigned i = 0; i < MW_CONTROLLER_SLOTS; ++i) {
+        const struct mw_controller_binding *s = &REGISTRY.slots[i].binding;
+        if (REGISTRY.slots[i].state != MW_CTL_EMPTY && same_identity(&s->identity, &b->identity) &&
+            s->generation == b->generation && s->canonical_extent == b->canonical_extent && s->extent_bytes == b->extent_bytes &&
+            s->image_offset == b->image_offset && s->image_bytes == b->image_bytes) return i;
+    }
+    return MW_CONTROLLER_SLOTS;
+}
+/* Published at a position, as this exact owner generation. */
+static int live(const struct mw_controller_binding *b)
+{
+    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
+        const struct runtime_module *m = modwerk_runtime_module(i);
+        struct runtime_owner o; uintptr_t canonical;
+        if (m && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && o.generation == b->generation &&
+            o.module == b->identity.module && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
+            canonical == b->canonical_extent) return 1;
+    }
+    return 0;
+}
+
+/* Providers (controller_transport.h). */
+static int owns_image(void *u, const struct mw_controller_binding *b)
+{
+    (void)u;
+    const struct mw_controller_write_policy *p = b ? row_for(b->identity.package_sha256, b->identity.module, b->image_bytes) : 0;
+    struct runtime_owner o; uintptr_t canonical;
+    if (!p || !same_identity(&p->identity, &b->identity) || !b->canonical_extent) return 0;
+    uintptr_t exec = (uintptr_t)modwerk_machine_uncached((void *)b->canonical_extent) + b->image_offset;
+    return modwerk_runtime_owner_at(exec, &o) == 1 && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
+        canonical == b->canonical_extent && o.generation == b->generation && o.module == b->identity.module &&
+        o.extent_bytes == b->extent_bytes && o.image_offset == b->image_offset && o.image_bytes == b->image_bytes &&
+        same(o.package_sha256, b->identity.package_sha256, 32);
+}
+/* While no buffer policy exists (every DSP buffer claim refused), no buffer can
+ * reach a held range, so the ENABLE-time check stays true for that generation;
+ * otherwise the manager's live and target buffers are checked each time. */
+static int resources_idle(void *u, const struct mw_controller_binding *b)
+{
+    (void)u;
+    unsigned at = slot_of(b);
+    if (at < MW_CONTROLLER_SLOTS && verified[at] == b->generation && !modwerk_controller_policy_entries() &&
+        (REGISTRY.slots[at].state == MW_CTL_PUBLISHING || REGISTRY.slots[at].state == MW_CTL_ACTIVE)) return 1;
+    return dl_hook_buffer_ranges_idle(b->identity.feature) == 1;
+}
+static int writes_blocked(void *u) { (void)u; return modwerk_saved_set_busy() != 0; }
+static int publication_confirmed(void *u, const struct mw_controller_binding *b)
+{ (void)u; return live(b) && !modwerk_runtime_broken(); }
+/* Nothing can resume or point into the image: unpublished, no journal that
+ * could roll back to it, no reviewed UI root, and for Matrix no destination
+ * codes left for stock to read as cue levels. */
+static int roots_clear(void *u, const struct mw_controller_binding *b)
+{
+    (void)u;
+    if (modwerk_runtime_volatile_busy() || live(b)) return 0;
+    if (b->identity.feature == 2u && (READ8(MATRIX_MODE) == 2u || READ8(MATRIX_MODE_CS1) == 2u)) return 0;
+    return b->canonical_extent <= UINTPTR_MAX - b->extent_bytes && UI_CLEAR(b->canonical_extent, b->canonical_extent + b->extent_bytes);
+}
+/* The authored initialization of both engines is zero (resident_dsp.initialization_records). */
+static int reset_source(void *u, const struct mw_controller_binding *b, unsigned c, uint32_t offset, const uint32_t **words, unsigned *count)
+{
+    static const uint32_t zeros[24];
+    (void)u;
+    unsigned f = b->identity.feature, n = c < 2u ? total(f, c) : 0u;
+    if (!n || offset >= n || !words || !count) return 0;
+    unsigned k = n - offset > 24u ? 24u : n - offset;
+    if (f == 1u && offset < 528u && k > 528u - offset) k = 528u - offset; /* one owned range per chunk */
+    *words = zeros; *count = k; return 1;
+}
+/* Known from the dormant boot upload and every ACKed owned CAS since; any
+ * uncertain job on a core makes it unknown for the rest of the boot. */
+static int receiver_mask(void *u, const struct mw_controller_binding *b, unsigned c, uint32_t *out)
+{
+    (void)u; (void)b;
+    if (c > 1u || !(mask_known >> c & 1u) || !out) return 0;
+    *out = mask[c]; return 1;
+}
+static const struct mw_controller_transport_policy providers = {
+    owns_image, resources_idle, writes_blocked, publication_confirmed, roots_clear, reset_source, receiver_mask};
+
+static void poll(void)
+{
+    for (unsigned c = 0; c < 2u; ++c) {
+        if (!transport.held[c]) continue;
+        unsigned op = transport.jobs[c].operation, desired = transport.jobs[c].desired;
+        int r = mw_controller_transport_poll(&transport, &REGISTRY.slots[transport.slot[c]].binding, c);
+        if (transport.closed[c]) mask_known &= (uint8_t)~(1u << c);
+        else if (r == MW_CTL_OK && (op == MW_CTL_ENABLE || op == MW_CTL_DISABLE)) mask[c] = (uint8_t)desired;
+    }
+}
+static void begin(unsigned at, unsigned c, unsigned op)
+{
+    struct mw_controller_slot *s = &REGISTRY.slots[at];
+    if (transport.held[c] || s->job_state[c]) return;
+    if (mw_controller_transport_begin(&transport, &s->binding, c, op) == MW_CTL_PENDING && op == MW_CTL_ENABLE)
+        verified[at] = s->binding.generation;
+}
+/* A live trusted controller with no slot: reserve and bind its owner generation.
+ * At most one other held slot of the feature, a disabled predecessor. */
+static void bind_live(void)
+{
+    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
+        const struct runtime_module *m = modwerk_runtime_module(i);
+        struct runtime_owner o; struct mw_controller_binding b;
+        const struct mw_controller_write_policy *p;
+        if (!m || modwerk_runtime_owner_snapshot(m->dsp.image, &o) != 1 ||
+            !(p = row_for(o.package_sha256, o.module, o.image_bytes)) || !binding_of(&o, p, &b) ||
+            slot_of(&b) < MW_CONTROLLER_SLOTS) continue;
+        const struct mw_controller_slot *previous = 0; unsigned others = 0;
+        for (unsigned k = 0; k < MW_CONTROLLER_SLOTS; ++k) {
+            const struct mw_controller_slot *s = &REGISTRY.slots[k];
+            if (held(s) && s->binding.identity.feature == p->identity.feature) { ++others; previous = s; }
+        }
+        if (others > 1u || (previous && previous->state != MW_CTL_RETIRING)) continue; /* wait for its disable */
+        struct mw_controller_declaration d = {p->identity, {total(p->identity.feature, 0), total(p->identity.feature, 1)}};
+        unsigned at;
+        if (mw_controller_reserve(&REGISTRY, &d, &d.identity, previous ? &previous->binding : 0, &at) != MW_CTL_OK) continue;
+        if (mw_controller_bind(&REGISTRY, at, &b) != MW_CTL_OK) { (void)mw_controller_cancel(&REGISTRY, &REGISTRY.slots[at].binding); continue; }
+        want[at].generation = b.generation; want[at].since = ticks; want[at].quiesce = 0; verified[at] = 0;
+    }
+}
+static void advance(unsigned at)
+{
+    struct mw_controller_slot *s = &REGISTRY.slots[at];
+    const struct mw_controller_binding *b = &s->binding;
+    unsigned need = b->identity.required_cores, published = live(b);
+    int quiesce = !published || (want[at].generation == b->generation && want[at].quiesce);
+    switch (s->state) {
+    case MW_CTL_RESERVED:
+        (void)mw_controller_cancel(&REGISTRY, b); break;
+    case MW_CTL_BOUND: case MW_CTL_INITIALIZING: case MW_CTL_READY:
+        if (quiesce) {
+            if (s->state == MW_CTL_BOUND && !s->touched) { (void)mw_controller_cancel(&REGISTRY, b); break; }
+            if (!jobs(s)) for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) { begin(at, c, MW_CTL_DISABLE); break; }
+            break;
+        }
+        for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) {
+            if (s->state != MW_CTL_READY && s->acknowledged_words[c] < s->reset_words[c]) begin(at, c, MW_CTL_RESET);
+            else if (s->state == MW_CTL_READY && !jobs(s)) begin(at, c, MW_CTL_ENABLE);
+        }
+        break;
+    case MW_CTL_PUBLISHING: case MW_CTL_ACTIVE:
+        if (quiesce) {
+            if (!jobs(s)) for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) { begin(at, c, MW_CTL_DISABLE); break; }
+        } else if (s->state == MW_CTL_PUBLISHING) {
+            if (s->enable_acks == need && !jobs(s)) (void)mw_controller_publish(&REGISTRY, b);
+            else for (unsigned c = 0; c < 2u; ++c) if ((need >> c & 1u) && !(s->enable_acks >> c & 1u)) begin(at, c, MW_CTL_ENABLE);
+        }
+        break;
+    case MW_CTL_DISABLING:
+        for (unsigned c = 0; c < 2u; ++c) if ((need >> c & 1u) && !(s->disable_acks >> c & 1u)) begin(at, c, MW_CTL_DISABLE);
+        break;
+    case MW_CTL_RETIRING:
+        if (!published) { want[at].quiesce = 0; (void)mw_controller_retire(&REGISTRY, b); } /* republished: restore at once */
+        else if ((!want[at].quiesce || ticks - want[at].since > QUIESCE_TICKS) && mw_controller_restore(&REGISTRY, b) == MW_CTL_OK) {
+            want[at].generation = b->generation; want[at].quiesce = 0; want[at].since = ticks; verified[at] = 0;
+        }
+        break;
+    default: break; /* QUARANTINED holds everything; nothing is retried */
+    }
+}
+void modwerk_controller_tick(void)
+{
+    uint32_t irq = modwerk_machine_lock();
+    ++ticks;
+    if (!started) {
+        started = 1; mask[0] = mask[1] = 0; mask_known = 3u; /* the resident boot uploads dormant stubs */
+        closed = !rows_valid() || !modwerk_controller_write_policy_count ||
+            !mw_controller_transport_init(&transport, &REGISTRY, &providers, 0);
+    }
+    if (!closed) {
+        poll();
+        bind_live();
+        for (unsigned at = 0; at < MW_CONTROLLER_SLOTS; ++at) if (held(&REGISTRY.slots[at])) advance(at);
+    }
+    modwerk_machine_unlock(irq);
+}
+
+int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtime_dsp *to,
+                             enum runtime_metadata_operation operation)
+{
+    if (!started || closed) return RUNTIME_OK; /* nothing bound: every package is an ordinary one */
+    const struct mw_controller_write_policy *incoming = to && to->present ? row_for(to->package_sha256, to->module, to->image_bytes) : 0;
+    const struct mw_controller_write_policy *outgoing = from && from->present ? row_for(from->package_sha256, from->module, from->image_bytes) : 0;
+    if (incoming) {
+        /* One module per resident engine; a quarantined engine admits nobody. */
+        for (unsigned k = 0; k < MW_CONTROLLER_SLOTS; ++k) {
+            const struct mw_controller_slot *s = &REGISTRY.slots[k];
+            if (held(s) && s->binding.identity.feature == incoming->identity.feature &&
+                (s->state == MW_CTL_QUARANTINED || s->binding.identity.module != to->module)) return RUNTIME_CONFLICT;
+        }
+    }
+    if (!outgoing) return RUNTIME_OK;
+    struct runtime_owner o; struct mw_controller_binding b;
+    if (modwerk_runtime_owner_snapshot(from->image, &o) != 1 || !binding_of(&o, outgoing, &b)) return RUNTIME_CONFLICT;
+    unsigned at = slot_of(&b);
+    if (outgoing->identity.feature == 2u && (READ8(MATRIX_MODE) == 2u || READ8(MATRIX_MODE_CS1) == 2u))
+        return RUNTIME_IN_USE; /* leave MATRIX on the AUDIO page first: the leased conversion */
+    if (at == MW_CONTROLLER_SLOTS) return RUNTIME_OK; /* never bound: nothing reached a DSP */
+    struct mw_controller_slot *s = &REGISTRY.slots[at];
+    if (s->state == MW_CTL_QUARANTINED) return RUNTIME_CONFLICT;
+    if (s->state == MW_CTL_RELEASED) return RUNTIME_OK;
+    if ((s->state == MW_CTL_RESERVED || s->state == MW_CTL_BOUND) && !s->touched) {
+        if (operation == RUNTIME_METADATA_SWITCH) (void)mw_controller_cancel(&REGISTRY, &s->binding);
+        return RUNTIME_OK;
+    }
+    if (s->state == MW_CTL_RETIRING)
+        return UI_CLEAR(b.canonical_extent, b.canonical_extent + b.extent_bytes) ? RUNTIME_OK : RUNTIME_IN_USE;
+    if (!want[at].quiesce || want[at].generation != b.generation) {
+        want[at].generation = b.generation; want[at].quiesce = 1; want[at].since = ticks;
+    }
+    return operation == RUNTIME_METADATA_PREPARE ? RUNTIME_OK : RUNTIME_BUSY;
+}
+
+unsigned modwerk_controller_held(void)
+{
+    unsigned features = 0;
+    for (unsigned k = 0; k < MW_CONTROLLER_SLOTS; ++k)
+        if (held(&REGISTRY.slots[k])) features |= REGISTRY.slots[k].binding.identity.feature;
+    return features;
+}
