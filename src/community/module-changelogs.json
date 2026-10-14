@@ -810,6 +810,15 @@
     ],
     "mute-modes": [
       {
+        "version": "0.2.1-experimental",
+        "date": "2026-10-14",
+        "changes": [
+          "Runtime package only: one package now works with or without Sidechain Compressor. Instead of a separate SC_KEY build, the package asks the base's ev_mute_keep event once per frame in OTFX, OTFX-T and DT-T which tracks another installed module reads while muted (a side-chain KEY), and mutes those as stock does, as the SC_KEY build did for Sidechain's KEY. With no module answering it behaves exactly as the plain build. Mute Modes no longer names Sidechain; the module that owns the KEY answers.",
+          "Runtime package only: MUTE MODE survives a power cycle on a Modwerk base. The loader installs the kept module after boot has already restored the PERSONALIZE settings, so on the first UI tick after an install the package takes MUTE MODE from its battery copy, as the native build's widened boot restore does.",
+          "Limits: needs a base built with site events that raises ev_mute_keep, and the package is built for that exact base. Until Sidechain Compressor answers ev_mute_keep, a muted Sidechain KEY track goes silent in the soft modes beside it. Native octabam builds are byte-identical to the author's references (plain, SC_KEY and menu). Emulator evidence only, with synthetic mute/mode words, DSP records and a stand-in provider; physical audio, power-cycle persistence and current-build hardware remain untested. Prepared, not released."
+        ]
+      },
+      {
         "version": "0.2.0-experimental",
         "date": "2026-10-14",
         "changes": [
