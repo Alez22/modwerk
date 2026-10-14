@@ -1,44 +1,52 @@
-# Private stock-hook controller preparation
+# Stock-hook controllers: Sidechain Compressor and Output Matrix
 
-`stock_hook_controllers.py` prepares source-pinned derivatives of the exact
-imported Sidechain normalizer and Output Matrix page producer. It does not
-publish packages, modify the public base, register controller identities or
-admit any runtime module. Original SDK sources remain byte-exact.
+`stock_hook_controllers.py` derives each controller from its exact imported
+source (pins refuse drift) and encodes it as one stock-site package per base:
 
-The strong ABI in `stock_hook_write_lease.h` requires the actual board backend
-to resolve the reviewed controller entry to its complete immutable owned image,
-encoded/source hashes and generation. Only actual ACKed and released PUBLISHING
-or CF-confirmed ACTIVE bindings can acquire a write lease. An unlocked boolean
-query is insufficient. Backend identity, lock, generation, job and retirement
-facts cannot come from a host or uploaded ready bit.
+```sh
+python3 -B sdk/machines/octatrack/module-adapters/stock_hook_controllers.py \
+  --base-symbols EMPTY_ROW_BASE/symbols.json --upstream PINNED_ELEKLOADER --out NEW_PRIVATE_DIR
+build_core.py ... --resident-stock-hooks --controller-policies NEW_PRIVATE_DIR/controller-policies.json \
+  --controller-layout EMPTY_ROW_BASE/symbols.json
+```
 
-The wrappers use caller-stack opaque storage and save all input registers.
-After successful Begin they restore only CCR, retaining the backend interrupt
-mask across source-owned writes. They preserve the actual authored output
-registers/CCR around End. Refused Begin replays only the displaced stock LEA or
-phone-byte load; failed End exits without replay, retry or notification. The
-backend must refuse nested/reused active leases and restore IRQ state from its
-independent active record even if caller storage is corrupt. Neither wrapper
-contains a stock call, wait, redraw or notification in its held span.
+A package names the base's strong lease entries by absolute address, so it
+belongs to one base link. The trust rows (encoded package and source-policy
+SHA-256, module id, revisions, feature, cores, entry and Begin/End return
+offsets) go into the fixed-capacity table of `controller_write_policy.c`;
+build_core refuses a rebuilt base whose symbols moved. Without rows (the
+default) every package is ordinary and nothing activates.
 
-Only `sc_norm` and `page_levels` are prepared write entries. The original
-formatter, descriptor, menu, encoder and project-load functions have no new
-runtime authority. They need their own source and retained-root contracts.
-There is no encoded SHA, board association or production lease implementation.
-The fixture supplies synthetic ABI events at fixed private test addresses.
-Returned refusal events are not a test of the production backend's nesting or
-reuse implementation.
+Leased entries: Sidechain `sc_norm` (frame interrupt); Output Matrix
+`page_levels` (frame interrupt), `matrix_leave` and `matrix_enter` (the
+AUDIO page). The wrappers use caller-stack opaque storage and save all input
+registers; after Begin they restore only CCR, keeping the backend's level-4
+lock across the authored writes; refused Begin replays only the displaced
+stock instruction (or, for a mode switch, changes nothing); failed End exits
+without replay or notification. No stock call, wait, redraw or notification
+runs in a held span.
 
-Output Matrix mode changes are refused in the scoped derivative. Its original
-conversion writes all sixteen banks' working and saved Parts, current CS1
-copies, live levels, dirty flags and mode/cue mirrors. Disabling/unpatching a
-mode-2 project before a verified complete conversion and all current/paused/
-saved/CUE root fences would reinterpret destination codes as stock cue levels.
-A host mode-off flag or a shortened conversion cannot authorize retirement.
-The separate original-source oracle proves conversion semantics, not a runtime
-transaction. Its MIDI notifications/redraw must also remain outside any held
-span. Before enabling a full conversion, implement an interruptible board-owned
-transaction that retains source/image/resources while safely yielding to frames.
+Output Matrix mode switch: NORMAL <-> STUDIO stores as authored, with no
+lease. A switch into or out of MATRIX runs the authored whole-bank conversion
+unchanged under one lease (executed instructions in the native fixture: at
+most 38,632 held); CC 51 notifications and the redraw run after End. The
+default rows trust `matrix_leave` only: entering MATRIX stays refused until
+the base owns the project-load clamp and CS1 power-up widenings
+(`--authorize-matrix-entry` is the owner's switch), because a runtime-installed
+package is not present when stock boot runs them. Retirement refuses while
+MATRIX is selected (live or CS1 mirror): leave it on the AUDIO page first.
+
+Sidechain answers the base's raised `ev_mute_keep` (order 50, `sc_mute_keep`,
+Mute Modes' native SC_KEY scan) when the base it is encoded for raises it.
+COMPRESSOR's page-2 KEY/KFLT/KGN/MON descriptor is not in the package: a
+`replaces` page needs the base (scripts/octatrack-module-page.mjs), so KEY
+stays OFF until that exists.
+
+`controller-policy/controller_board.c` is the board side: providers for
+`controller_transport.c`, the tick that activates a live trusted controller
+(reserve, bind its owner generation, zero-reset its DSP state, enable its
+dormant hooks, publish), and metadata admission that disables the hooks
+before any removal or replacement unpublishes the sites. See its header.
 
 Run source-only SDK tests normally. Run actual emulator evidence locally with
 the owner's exact original MAIN and built native Octabam archives:
@@ -54,7 +62,8 @@ Git output directories and nonempty outputs. It compares fresh native links at
 two origins to relocation replay, then executes original and scoped controllers
 against independent memory/register/stack oracles. Outputs and logs are private;
 never commit them or use firmware in CI. The receipt records exact authored,
-compiler-input and native-archive hashes plus unbound identities.
+compiler-input and native-archive hashes. The scoped fixture runs the leased
+derivatives with synthetic Begin/End events, not the board's lease.
 
 Executed instructions are distinct from modeled cycles and physical timing.
 See `docs/OCTATRACK_HARDWARE_TRAPS.md`: work masking level 5 or above must remain
