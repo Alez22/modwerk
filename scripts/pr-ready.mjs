@@ -9,7 +9,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const GENERATORS = ['licenses:generate', 'machines:generate', 'modules:generate']
+const GENERATORS = [['licenses:generate'], ['machines:generate'], ['modules:generate'], ['modules:pairs', '--', '--write']]
 
 /** The verdict from what was found; every problem says what to do. */
 export function readiness({ dirty = [], behind = false, remote = 'upstream', regenerated = [], checkPassed = true, author = null, scope = null }) {
@@ -47,7 +47,7 @@ async function main(argv) {
   // Each step runs only when the ones before it passed, so the first problem is the one to fix.
   let regenerated = [], checkPassed = true, scope = null
   if (!dirty.length && !behind) {
-    for (const name of GENERATORS) if (!npm(name)) throw new Error('npm run ' + name + ' failed')
+    for (const args of GENERATORS) if (!npm(...args)) throw new Error('npm run ' + args.join(' ') + ' failed')
     regenerated = tracked()
     if (!regenerated.length) checkPassed = npm('check', '--', '--base', base)
   }
