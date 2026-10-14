@@ -1,6 +1,68 @@
 # Modwerk Octatrack startup — 8 October 2026
 
+## Docking for every member — 14 October 2026
+
+New Octatrack card builds for every member play the docking startup, not only
+beta testers'. It ends on the mark and MODWERK. The NEW / BETA labels are gone,
+and so are the shockwave's solid outline and dotted echo (the `3.0.0-beta.2`
+refinement below). The mark's flight plays the base's schedule 10/7 as fast and
+has landed by 0.89 s instead of 1.27 s. The socket blink and the module's run keep
+their lengths, so the module docks at 1.86 s instead of 2.26 s. The wave expands
+more slowly, (dt / 55 ms)² px instead of (dt / 40 ms)². It bends the screen for
+0.58 s instead of 0.42 s, and the complete MODWERK stands for about 1.2 s instead
+of 0.9 s. The startup still lasts 3.5 seconds. The bending frames are the costly
+ones (about 520k–565k executed instructions each, measured on the base): their
+cost per frame is unchanged, but they now last 0.16 s longer.
+
+![Host render of the docking startup's screen from the authored source](media/startup/docking-preview.gif)
+
+The preview is a host build of `boot_anim.c` on the simulated clock
+(`sdk/runtime/startup/preview.py`). It shows the LCD only, without the panel
+lamps, and holds the last frame for 1.5 s. It is not a firmware capture.
+
+A configuration can choose **Classic startup** on the configuration page to keep
+the 2.8-second graphic-table startup. If a selection composes only without the
+docking hooks, its build keeps the classic startup and the build panel says so.
+Nothing that builds with the classic startup is refused for the docking one.
+Beta membership still gates beta modules; it no longer selects the startup.
+`/api/auth/build-access` ignores the former `betaStartup` flag from cached pages.
+
+The art comes from `sdk/runtime/startup/public_art.py`. It reads the base's
+`base.json` through `base_art.py` and leaves out the labels. The Elekloader base
+builds its own startup, still marked NEW / BETA, from those two unchanged files.
+
+### Release gate
+
+The source, app and server changes are prepared; the release is not. Before this
+startup reaches members, the owner completes these steps for the exact package:
+
+1. Rebuild `src/engine/assets/beta-startup.json` with the pinned toolchain
+   (`package.py`, m68k-elf GCC 16.2.0). The cloud session that prepared the change
+   had no m68k-elf toolchain, so the committed package is still `3.0.0-beta.2` and
+   the SDK provenance test fails until it is rebuilt as `3.0.0`.
+2. Run the native matrix (`scripts/verify-startup-beta-native.mjs`) and replace
+   `beta-docking-native.json`.
+3. Boot core-only and standalone MIDI Scenes images in the emulator on MKI and MKII
+   (`scripts/verify-startup-beta.py`) and replace the two capture records and the
+   GIF. The records below still describe `3.0.0-beta.2`, with labels and the
+   earlier timing.
+4. Refresh Tape Echo's retained-evidence binding, which pins the startup package.
+   That is handled separately.
+5. Flash the exact build on an MKII, and on an MKI if one is available. Watch the
+   startup, confirm the normal screen and stock lamp colours afterwards, and
+   power-cycle with a project loaded. Repeat once with **Classic startup**.
+6. Run `npm run check -- --base origin/main`.
+
+Checked in the preparing session: the host choreography test on MKI and MKII (one
+LED channel, bounded levels, lamps dark at the end, colour restore, exact final
+frame of 792 pixels), the session fallback and startup choice, configuration
+persistence, the server's build access, and the TypeScript check. Not checked
+there: the compiled package, native/browser parity, emulator boots and any
+hardware.
+
 ## Beta docking edition — 12 October 2026
+
+This beta edition stays in place until the docking edition above is released.
 
 New Octatrack builds for beta testers and verified administrators include the
 Elekloader migration's docking startup, ported independently of its new base.
@@ -63,7 +125,7 @@ evidence review. SDK tests, lint and TypeScript checks passed independently.
 hashes and results only. Firmware and raw memory remain private.
 
 Source, package regeneration and private-check commands are in the
-[startup SDK](../sdk/runtime/startup/README.md#beta-docking-edition).
+[startup SDK](../sdk/runtime/startup/README.md#docking-edition).
 
 ## Public graphic-table edition
 
