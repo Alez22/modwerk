@@ -7,10 +7,11 @@
 
 Generates the base's dispatch (elekloader/runtime_events.s), the loader's
 table header (elekloader/runtime_events.h), the SDK header modules include
-(include/modwerk_events.h), the reference table (EVENTS.md) and the site's
-package check (src/engine/elekloader/octatrack-site-events.json). The base patches
-each site with a jmp to its dispatch; a runtime package subscribes (loader.h's
-hook words past RUNTIME_ENC, build.py) and never patches the site. An event with
+(include/modwerk_events.h), the reference table (EVENTS.md) and the hook
+kinds the site checks packages against (site-events.json, read by
+src/engine/elekloader/module-set.ts). The base patches each site with a jmp to
+its dispatch; a runtime package subscribes (loader.h's hook words past
+RUNTIME_ENC, build.py) and never patches the site. An event with
 no site ("site": null) is raised by a module instead: it calls the base's
 modwerk_raise_<event>(), which runs every handler and returns their answers OR'd.
 Its package asks for the entry by the event's hook index (runtime.json "raise"): the
@@ -39,7 +40,7 @@ REGISTERS = {'d0': 0, 'd1': 4, 'a0': 8, 'a1': 12, 'a2': 16}  # in the dispatch's
 ROOM = 16  # a take event's or table's subscribers, unless it says (call events: every module)
 OUTPUTS = {'elekloader/runtime_events.s': 'asm', 'elekloader/runtime_events.h': 'loader',
            'include/modwerk_events.h': 'sdk', 'EVENTS.md': 'markdown',
-           '../../../src/engine/elekloader/octatrack-site-events.json': 'browser'}
+           'site-events.json': 'browser'}
 
 
 def load(path=REGISTRY):

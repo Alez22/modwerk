@@ -3,7 +3,7 @@
 // publishes as runtime packages (public/octatrack-modules, made from source by `npm run octatrack:module-packages`)
 // are installed from them; anything the set leaves out is removed with an empty package naming its module.
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
-import siteEvents from './octatrack-site-events.json' with { type: 'json' }
+import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { MODULES } from '../../catalog/modules.ts'
 import { inventoryChanges, type Inventory, type InventoryTarget } from '../../config/inventory.ts'
@@ -55,7 +55,7 @@ const MACHINE_BITS: Record<string, number> = { poly8: 1, vector: 2, synth: 4 }
  * subscriber may carry after the core four, by hook index. */
 export const SITE_EVENTS = siteEvents.events.length
 const SITE_KINDS = siteEvents.events.map((event, i) => {
-  if (event.index !== 4 + i) throw new Error('octatrack-site-events.json is out of order: run events.py --write')
+  if (event.index !== 4 + i) throw new Error('sdk/machines/octatrack/site-events.json is out of order: run events.py --write')
   return { kind: event.kind, record: (event as { record?: number }).record ?? 0 }
 })
 /** loader.h RUNTIME_RAISE: a raised event's hook word with this order points at a zero slot for the base's entry. */
