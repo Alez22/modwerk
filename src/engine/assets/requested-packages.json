@@ -23,7 +23,7 @@
     "sidechain-compressor": "0.1.2-experimental",
     "vector": "0.2.4-experimental",
     "playmodes": "0.1.1-experimental",
-    "mute-modes": "0.2.0-experimental",
+    "mute-modes": "0.2.1-experimental",
     "recorder-loop-fix": "0.1.0-experimental",
     "poly8": "0.3.0-experimental",
     "output-matrix": "0.1.0-experimental"
@@ -508,7 +508,7 @@
     {
       "label": "mm_softmute",
       "moduleId": "mute-modes",
-      "version": "0.2.0-experimental",
+      "version": "0.2.1-experimental",
       "key": "MUTE_MODES",
       "author": "Zac-Kyoti",
       "nativeAuthor": "Zac-Kyoti",
@@ -517,7 +517,7 @@
       "caveAddress": null,
       "source": "modules/mute-modes/patch_softmute.s",
       "sources": {
-        "modules/mute-modes/patch_softmute.s": "d7da7506d30ae7e85f4abf778021c0175b7e8a40aa017939bce431dc9aa6f14b",
+        "modules/mute-modes/patch_softmute.s": "21fa011e7d118f98eafa9373c89732cf12840abcb28f2cd945514223e0b4a2bb",
         "modules/mute-modes/manifest.py": "ad7468c3aa9b48780cc881feffbbeb0ce7b4b3cf7cb963a2453b22f88fe85e5f"
       },
       "bytes": 2896,
@@ -564,7 +564,7 @@
     {
       "label": "mm_menu",
       "moduleId": "mute-modes",
-      "version": "0.2.0-experimental",
+      "version": "0.2.1-experimental",
       "key": "MUTE_MODES",
       "author": "Zac-Kyoti",
       "nativeAuthor": "Zac-Kyoti",
@@ -573,7 +573,7 @@
       "caveAddress": null,
       "source": "modules/mute-modes/patch_mutemode.s",
       "sources": {
-        "modules/mute-modes/patch_mutemode.s": "5acfc7c9d7fb3f11f81b6bdf54b7f13851f276ba87880dfb4ab069e471d30321",
+        "modules/mute-modes/patch_mutemode.s": "85b0be45d2ec5540a89d97d8e87884590cc1feb1b6719087acff686e83aba100",
         "modules/mute-modes/manifest.py": "ad7468c3aa9b48780cc881feffbbeb0ce7b4b3cf7cb963a2453b22f88fe85e5f"
       },
       "bytes": 1292,
