@@ -2127,7 +2127,7 @@
           "value": "MIX"
         }
       ],
-      "sourceSha256": "e83c639b3a6d51946b6cb5ae2af72d9376f2ff9cad75502396287c95c751927b"
+      "sourceSha256": "ee36a706791ea858b0fc3c4bf47b4f6eb3a067cf28bce223b112a75a0adc7379"
     },
     {
       "id": "tapehead",
@@ -3385,13 +3385,13 @@
       ]
     }
   ],
-  "sourceCommit": null,
+  "sourceCommit": "8a24b082cc550bf105dc5766cf4706c32fdf4a19",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
     "character": "0.1.1-experimental",
     "miniverb": "0.2.2-experimental",
-    "tapeecho": "0.1.3-experimental",
+    "tapeecho": "0.1.4-experimental",
     "euclid": "0.1.4-experimental",
     "repitch": "0.2.0-experimental",
     "tapehead": "0.1.2-experimental",

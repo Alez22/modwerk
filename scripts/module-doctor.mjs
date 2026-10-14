@@ -40,21 +40,6 @@ const rulesProblem = rules.status === 0 ? '' : (rules.stderr.trim().split('\n').
 const compat = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-B', 'scripts/module-compat.py', '--json'], { cwd: root, encoding: 'utf8' })
 const compatResult = (() => { try { return JSON.parse(compat.stdout) } catch { return null } })(), compatProblems = compatResult?.problems
 
-// native-metadata.json holds one ledger check per module combination (hundreds of thousands): parse it and count
-// each module's pairs once, not once per module.
-let nativeChecksCache
-function nativeChecks() {
-  if (!nativeChecksCache) {
-    const checks = json('src/catalog/native-metadata.json').checks, pairs = new Map()
-    for (const key of Object.keys(checks)) {
-      const ids = key.split('+')
-      if (ids.length === 2) for (const id of ids) pairs.set(id, (pairs.get(id) ?? 0) + 1)
-    }
-    nativeChecksCache = { checks, pairs }
-  }
-  return nativeChecksCache
-}
-
 // The qualification source hash is async; compute it once per module before the checks run.
 const nativeHashes = new Map()
 
@@ -127,9 +112,13 @@ function octatrack(id) {
     else fail('native comparison', 'no current comparison with native octabam', 'npm run module:verify -- ' + id + ' --os <your OCTATRACK_OS1.40C.bin>')
   }
 
-  const { checks, pairs: pairCounts } = nativeChecks(), pairs = pairCounts.get(id) ?? 0
-  if (!(id in checks)) fail('declaration checks', 'the module alone has no recorded ledger check, so a build of it is refused', 'npm run module:verify -- ' + id + ' --os <your OCTATRACK_OS1.40C.bin> (it records them)')
-  else ok('declaration checks', 'recorded alone and beside ' + pairs + ' other modules')
+  // The card builder's native pair checks (npm run modules:pairs): what the ledger refuses beside this module, in any context.
+  const pairTable = json('src/catalog/compatibility-pairs.json')
+  const collisions = [...new Set(Object.entries(pairTable.clashes).flatMap(([context, found]) => Object.keys(found).filter(key => key.split('+').includes(id))
+    .map(key => (key.split('+').find(other => other !== id) ?? 'alone') + (context ? ' (with ' + context + ')' : ''))))]
+  if (NOT_COMPOSED.includes(id)) info('declaration checks', 'builds only on its own, so it has no pairs')
+  else if (!pairTable.modules.includes(id)) fail('declaration checks', 'the native pair table lacks it, so a build of it is refused', 'npm run modules:pairs -- --write')
+  else ok('declaration checks', 'checked beside ' + (pairTable.modules.length - 1) + ' modules' + (collisions.length ? '; the ledger refuses it beside ' + collisions.join(', ') + ' (each flagged in compatibility.conflicts: npm run modules:pairs)' : '; no collisions'))
 
   const clashes = compatProblems?.filter(problem => problem.modules.includes(id)) ?? []
   if (!compatProblems) fail('cross-compatibility', 'the gate did not run: ' + ((compat.stderr || compat.error?.message || '').trim().split('\n').pop() || 'no output'), 'install Python 3.10+, then npm run modules:compat')
