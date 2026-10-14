@@ -3,10 +3,12 @@ import { Icon } from './Icon'
 import { assetUrl } from '../hosting'
 import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { SUPPORT_URL } from '../config/support'
+import { api, post } from '../community/api'
+import { useCommunity } from '../community/context'
 import { pageBusy } from '../community/public-announcement'
 import { trackUsage } from '../community/usage'
 
-// A new note needs a new key, so everyone sees it once.
+// A new note needs a new id here and in server/auth.ts (OWNER_NOTE).
 const KEY = 'modwerk.owner-note:2026-10-14'
 const WAIT = 10
 let closedThisVisit = false
@@ -55,13 +57,23 @@ export function OwnerNote({ onClose }: { onClose: () => void }) {
   </dialog>
 }
 
-/** Opens once per browser, when no other dialog, menu or text field is in use. */
+/** Once per verified account on every device, once per browser for visitors; opens when no other dialog, menu or text field is in use. */
 export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
-  const [open, setOpen] = useState(false)
+  const { session, loading } = useCommunity(), memberId = session.user?.verified ? session.user.id : null
+  const [open, setOpen] = useState(false), [serverDue, setServerDue] = useState<boolean>()
+  const ask = !loading && !!memberId && !ownerNoteSeen()
   useEffect(() => {
-    if (!enabled || open || ownerNoteSeen()) return
+    if (!ask) return
+    const controller = new AbortController()
+    // A Worker without this route yet falls back to this browser's marker.
+    void api<{ show: boolean }>('/auth/owner-note', { signal: controller.signal }).then(result => { if (!controller.signal.aborted) setServerDue(result.show) }).catch(() => { if (!controller.signal.aborted) setServerDue(true) })
+    return () => controller.abort()
+  }, [ask, memberId])
+  const due = !loading && !ownerNoteSeen() && (!memberId || serverDue === true)
+  useEffect(() => {
+    if (!enabled || open || !due) return
     const timer = window.setInterval(() => { if (!pageBusy()) setOpen(true) }, 3000)
     return () => window.clearInterval(timer)
-  }, [enabled, open])
-  return open ? <OwnerNote onClose={() => { closeOwnerNote(); setOpen(false) }} /> : null
+  }, [enabled, open, due])
+  return open ? <OwnerNote onClose={() => { closeOwnerNote(); setOpen(false); if (memberId) void post('/auth/owner-note', {}).catch(() => {}) }} /> : null
 }
