@@ -818,6 +818,14 @@
     ],
     "mute-modes": [
       {
+        "version": "0.2.0-experimental",
+        "date": "2026-10-14",
+        "changes": [
+          "Runtime package only: on a Modwerk base that owns the fresh-voice-bind site 0x40006820 (sdk/machines/octatrack/events.json), the fresh-bind gate is an ev_voice_bind subscriber (order 50) instead of a raw detour, so it installs beside POLY8 and any other subscriber. The subscriber runs the same fresh_bind code; only its two exits answer the base instead of jumping into stock. Native octabam builds, plain and SC_KEY, assemble byte-identical to the author's references.",
+          "Limits: needs a base built with site events; older bases refuse this package, and Undo keeps 0.1.0-experimental for them. The other five detours, including mt_trig at 0x40006844, stay as they were. Emulator evidence only (synthetic mute/mode words); physical audio and current-build hardware remain untested."
+        ]
+      },
+      {
         "version": "0.1.0-experimental",
         "date": "2026-10-07",
         "changes": [
