@@ -57,7 +57,7 @@ def board_entries(source):
                    'static int peeking = -1;', 'volatile struct selftest modwerk_selftest;',
                    'int dl_publication_idle(void);'):
         at=unique(marker); globals.append(source[at:source.index('\n',at)+1])
-    return '#include "selftest.h"\n'+''.join(globals)+source[start:setup_end]+source[entries:end]+'#endif\n'
+    return '#include "fxids.h"\n#include "selftest.h"\n'+''.join(globals)+source[start:setup_end]+source[entries:end]+'#endif\n'
 
 
 class ResidentPlacement(unittest.TestCase):
@@ -132,7 +132,7 @@ class ResidentPlacement(unittest.TestCase):
         self.assertIn('if (modwerk_saved_set_busy()) return MW_HOOK_BUSY;',source)
         self.assertIn('if (modwerk_saved_set_busy()) return 0;',source)
         self.assertIn('!modwerk_saved_set_busy() && dl_hook_buffer_ranges_idle(feature)',source)
-        self.assertIn('struct mw_hook_buffer_claim claim = {kind ? 16384u : 3072u, 1, 0}, exact = {0};',source)
+        self.assertIn('struct mw_hook_buffer_claim claim = mw_hook_default_claim(kind, id < 32u && !fx_in(modwerk_fx_modules, id)), exact = {0};',source)
         self.assertIn('if (modwerk_stock_hook_buffer_policy(core, id, &exact)) claim = exact;',source)
         self.assertIn('mw_hook_buffer_permitted_held(mw_stock_hooks_held(&stock_hook_driver.leases) | modwerk_controller_held(),',source)
         self.assertIn('if (enable) return MW_HOOK_STATE;',source) # preparation never opens controller admission

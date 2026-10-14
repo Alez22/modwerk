@@ -54,6 +54,7 @@ int modwerk_stock_hook_export_idle(void) { return 1; }
 int modwerk_saved_set_busy(void) { return 0; }
 uint32_t modwerk_dsp_source_charge(unsigned c) { (void)c;return 0; }
 int modwerk_dsp_buffer_permitted(unsigned c,unsigned k,unsigned b,unsigned id) { (void)c;(void)k;(void)b;(void)id;return 1; }
+int modwerk_stock_hook_buffer_policy(unsigned c,unsigned id,struct mw_hook_buffer_claim *out) { (void)c;(void)id;(void)out;return 0; }
 unsigned modwerk_dsp_flags(unsigned c) { return flags[c]; }
 void dl_selection_tick(void) {}
 void dl_show_message(const char *s,unsigned n) { (void)s;(void)n; }

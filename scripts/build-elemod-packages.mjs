@@ -105,6 +105,9 @@ for (const machine of machines.filter(item => item.sdk?.platform === 'elemod')) 
         else run('as', ['-mcpu=54455', '-I', resolve(folder, 'src'), ...defines, '-o', object, path])
         inputs.push(object)
       }
+      // GCC 16.2's late-combine miscompile: refuse any C object that steps a register its destination reuses.
+      const compiled = inputs.filter((_, index) => build.sources[index].endsWith('.c'))
+      if (compiled.length) execFileSync('python3', ['-B', resolve(root, 'sdk/runtime/m68k_codegen.py'), '--objdump', cross + 'objdump', ...compiled], { stdio: 'inherit' })
       const generated = []
       if (build.derive) {
         if (build.derive.kind !== 'fast_audio') throw new Error('Unsupported local derivation: ' + build.derive.kind)

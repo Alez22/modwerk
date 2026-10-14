@@ -81,6 +81,10 @@ int mw_controller_publish(struct mw_controller_registry *,const struct mw_contro
 /* Pure pending-journal query; production resolves the reviewed entry to this
  * exact board binding. This is not a public/host readiness interface. */
 int mw_controller_control_write_allowed(struct mw_controller_registry *,const struct mw_controller_binding *);
+/* The same query for slot `at` (in that slot's own binding), less the owner check (the backend's owns_image):
+ * its state, completed jobs and the backend's per-call facts. Only for a caller that has already proved
+ * owns_image for this exact binding and owner ledger (the write lease's cached decision). */
+int mw_controller_slot_write_allowed(struct mw_controller_registry *,unsigned at);
 int mw_controller_cancel(struct mw_controller_registry *,const struct mw_controller_binding *);
 /* A disabled (RETIRING) generation whose image is published again (an
  * abandoned removal, a rolled-back replacement) re-arms its complete reset:

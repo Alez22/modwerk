@@ -12,6 +12,11 @@ unsigned mw_stock_hooks_held(const struct mw_stock_hooks *s) {
     }
     return held;
 }
+struct mw_hook_buffer_claim mw_hook_default_claim(unsigned kind,unsigned stock) {
+    struct mw_hook_buffer_claim claim={kind ? 16384u : 3072u,1,0};
+    if(stock) { claim.head_safe=1; if(kind) claim.words=MW_HOOK_STOCK_FX2_WORDS; }
+    return claim;
+}
 static int valid(const struct mw_hook_span *r) {
     if(r->core>1 || r->space>2 || !r->words || r->address>=0x40000u || r->words>0x40000u-r->address) return 0;
     /* A span cannot straddle private memory and the physical shared aliases. */

@@ -186,6 +186,10 @@ _spec = importlib.util.spec_from_file_location('modwerk_runtime_builder', APP / 
 RUNTIME_BUILDER = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(RUNTIME_BUILDER)
 _spec = importlib.util.spec_from_file_location('modwerk_site_events', APP / 'sdk/machines/octatrack/events.py')
 EVENTS = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(EVENTS)
+# GCC 16.2's late-combine miscompile: the base's C compiles turn the pass off, and every C object is checked
+# before packaging (sdk/runtime/m68k_codegen.py).
+_spec = importlib.util.spec_from_file_location('modwerk_m68k_codegen', APP / 'sdk/runtime/m68k_codegen.py')
+CODEGEN = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(CODEGEN)
 # Catalogue modules allowed to patch what this base owns, and why (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configuration',
              'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port',
@@ -1358,6 +1362,7 @@ def main():
     folders = (logger, upload, loader, HERE) + ((DYNLOAD,) if args.dsp_loader else ())
     inputs = {str(p.relative_to(APP)): sha(p.read_bytes()) for folder in folders
               for p in sorted(folder.iterdir()) if p.is_file() and p.suffix in ('.c', '.h', '.s', '.asm', '.py', '.json')}
+    inputs['sdk/runtime/m68k_codegen.py'] = sha((APP / 'sdk/runtime/m68k_codegen.py').read_bytes())  # its flag and gate
     for name in MACHINE_TRUST_SOURCES:
         path = machine_trust / name
         inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
@@ -1516,7 +1521,7 @@ modwerk_retained_end:
     if args.resident_stock_hooks:
         shutil.copyfile(resident_source.RUNTIME / 'cue_cfg.s', source / 'cue_cfg.s')
         recipe['sources'].append('cue_cfg.s')
-    recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
+    recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common', *CODEGEN.FLAGS,
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
                         '-Wall', '-Wextra', '-Werror', '-DMODWERK_RUNTIME_METADATA_EXTERNAL', '-DMODWERK_RUNTIME_VOLATILE_JOURNAL', '-DMODWERK_FX_IDS=%du' % FX_IDS] + (['-DMODWERK_DSP_XWATCH'] if args.dsp_probe == 'X' else []) + [
@@ -1638,6 +1643,9 @@ modwerk_retained_end:
         raise ValueError('Base sites overlap what these catalogue modules patch: ' + ', '.join(locked))
     (source/'mod.json').write_text(json.dumps(recipe, indent=2)+'\n')
     path, _ = sdk.build(str(source), str(args.stock), str(out/'package'))
+    # Every C object of the base, before anything is packaged (sdk/runtime/m68k_codegen.py).
+    if not CODEGEN.check(sorted((out/'package').glob('*.work/*.c.o')), args.cross + 'objdump'):
+        raise ValueError('The base build left no C objects to check.')
     document = json.loads(Path(path).read_text())
     for key in ('idle', 'job', 'transport', 'open', 'read', 'write', 'close'):
         section, offset = document['symbols']['olog_replay_' + key]

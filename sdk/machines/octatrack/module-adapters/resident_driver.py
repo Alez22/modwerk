@@ -64,8 +64,9 @@ OWNED_HEADER = '''
  * generation comes from its owned-image ledger. No caller supplies a ticket
  * or wire sequence. Uploaded arrays must remain immutable through release.
  * The private receiver signals HF2/HF3, not a returned sequence. A timeout,
- * abort, failed release or any global wire wrap closes owned reservations until
- * cold initialization; this API does not qualify a hardware ACK. */
+ * abort, failed owned job or any global wire wrap closes owned reservations
+ * until cold initialization; an answered legacy refusal (HF3: a PEEK 1 bit, a
+ * SUM mismatch) does not. This API does not qualify a hardware ACK. */
 struct dl_owned_job {
     uint32_t generation, ticket;
     uint16_t first_sequence, last_sequence, offset, count, id, init, proc;
@@ -127,8 +128,15 @@ def owned_transport(text):
 static struct dl_owned_job owned_jobs[2];
 static uint32_t owned_ticket;
 static uint8_t owned_closed[2];
+/* Diagnostic only, never an ABI: the first path that closed each core (see owned_close callers). */
+static uint8_t owned_close_why[2];
 static uint16_t owned_sent[2];
 static uint32_t owned_lease;
+enum { OWNED_WHY_WRAP=1, OWNED_WHY_AGE=2, OWNED_WHY_ABORT=3, OWNED_WHY_POLL=4, OWNED_WHY_RELEASE=5, OWNED_WHY_BOARD=6 };
+static void owned_close(unsigned c,unsigned why) {
+    if(!owned_closed[c]) owned_close_why[c]=(uint8_t)why;
+    owned_closed[c]=1;
+}
 ''')
     # Share the real validation with reservations. Word/relocation validation
     # stays outside the short full interrupt mask used for the sole-slot claim.
@@ -148,22 +156,26 @@ static uint32_t owned_lease;
               '    jobs[c].upload.words=words;', 'owned_reset_valid', 'c,feature,offset,count,words')
     change('    unsigned state=jobs[c].state;',
            '    if(owned_jobs[c].ticket) return -2;\n    unsigned state=jobs[c].state;')
+    # A legacy job in state 4 was either refused by an answer, which is a complete
+    # HF2 round trip (every PEEK 1 bit and SUM mismatch ends so: the status page's
+    # meter reads did, closing both cores at boot), or it timed out or was
+    # aborted, and those close the owned core where they happen, below.
     change('    if(c<2 && jobs[c].state>=3) { publish(); jobs[c].state=0; }',
-           '    if(c<2 && !owned_jobs[c].ticket && jobs[c].state>=3) {\n'
-           '        if(jobs[c].state==4) owned_closed[c]=1;\n'
-           '        publish(); jobs[c].state=0;\n    }')
+           '    if(c<2 && !owned_jobs[c].ticket && jobs[c].state>=3) { publish(); jobs[c].state=0; }')
     change('    if(++sequence[c]==0) ++sequence[c];',
            '    uint16_t wire_sequence;\n'
            '    if(owned_jobs[c].ticket) wire_sequence=owned_jobs[c].first_sequence+owned_sent[c]++;\n'
-           '    else { if(++sequence[c]==0) { ++sequence[c]; owned_closed[c]=1; } wire_sequence=sequence[c]; }')
+           '    else { if(++sequence[c]==0) { ++sequence[c]; owned_close(c,OWNED_WHY_WRAP); } wire_sequence=sequence[c]; }')
     change('t[1]=sequence[c];', 't[1]=wire_sequence;')
     change('+sequence[c]+c)&0xffffffu;', '+wire_sequence+c)&0xffffffu;')
     change('    pending[c]=sequence[c]; age[c]=0;', '    pending[c]=wire_sequence; age[c]=0;')
     change('            } else if(++age[c]>=64) {',
-           '            } else if(++age[c]>=64) {\n                owned_closed[c]=1;')
-    # Watchdog abort is also uncertain, including a standalone legacy probe.
+           '            } else if(++age[c]>=64) {\n                owned_close(c,OWNED_WHY_AGE);')
+    # Timeouts and watchdog aborts stay uncertain with no owned job in flight: the ACK is
+    # an unsequenced HF2 toggle, so a late toggle for the lost packet would read as the
+    # ACK of the next owned packet sent before it arrived.
     change('    for(unsigned c=0;c<2;++c) if(pending[c] || jobs[c].state==2) {',
-           '    for(unsigned c=0;c<2;++c) if(pending[c] || jobs[c].state==2) {\n        owned_closed[c]=1;')
+           '    for(unsigned c=0;c<2;++c) if(pending[c] || jobs[c].state==2) {\n        owned_close(c,OWNED_WHY_ABORT);')
     # The journal lease also holds the self-test's SUM and every queued probe/stage request.
     change('    if(c>1 || jobs[c].state || !count || count>256 ||', '    if(c>1 || jobs[c].state || owned_lease || !count || count>256 ||')
     change('    if(dl_request_probe!=requests && !pending[0]', '    if(dl_request_probe!=requests && !owned_lease && !pending[0]')
@@ -257,16 +269,16 @@ int dl_owned_job_poll(const struct dl_owned_job *v,struct dl_owned_progress *out
         unsigned n=jobs[c].opcode==DL_WRITE ? (jobs[c].position+DL_DATA-1u)/DL_DATA : 0;
         out->acknowledged_sequence=state==3 ? v->last_sequence : n ? (uint16_t)(v->first_sequence+n-1u) : 0;
     }
-    if(state==4 || !state) { owned_closed[c]=1; return -1; }
+    if(state==4 || !state) { owned_close(c,OWNED_WHY_POLL); return -1; }
     return state==3 ? 1 : 0;
 }
 int dl_owned_job_release(const struct dl_owned_job *v) {
     if(!owned_matches(v) || (jobs[v->core].state!=3 && jobs[v->core].state!=4)) return 0;
     unsigned c=v->core;
-    if(jobs[c].state==4) owned_closed[c]=1;
+    if(jobs[c].state==4) owned_close(c,OWNED_WHY_RELEASE);
     owned_jobs[c].ticket=0; publish(); jobs[c].state=0; return 1;
 }
-void dl_owned_fail_closed(unsigned c) { if(c<2) owned_closed[c]=1; }
+void dl_owned_fail_closed(unsigned c) { if(c<2) owned_close(c,OWNED_WHY_BOARD); }
 static int owned_idle(void) {
     return !jobs[0].state && !jobs[1].state && !pending[0] && !pending[1] && !owned_jobs[0].ticket && !owned_jobs[1].ticket;
 }

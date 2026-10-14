@@ -2,13 +2,17 @@
  * Host check of the scoped write lease's resolver against the actual loader
  * ledger: a real prepared owner, its geometry-derived canonical extent, a
  * synthetic ACKed association and one trusted policy row. Host addresses have
- * one alias, so the cached/uncached split itself is not exercised here. */
+ * one alias, so the cached/uncached split itself is not exercised here. The
+ * loader's private owner ledger is reached through test_controller_write_lease.py's
+ * ledger unit, which includes loader.c. */
 #define MODWERK_HOST
 #include "controller_association.c"
 #include "controller_write_lease.c"
 #include <assert.h>
 #include <string.h>
 
+struct runtime_owner *test_owner_identity(unsigned);
+struct runtime_module *test_owned(unsigned);
 static int depth;
 int modwerk_machine_stopped(void) { return 1; }
 void *modwerk_machine_uncached(void *p) { return p; }
@@ -91,6 +95,35 @@ int main(void)
     assert(begin_impl(exec + 8, 2, lease, exec + 16, sp) == 1 && depth == 1 && writing.active);
     assert(!begin_impl(exec + 8, 2, lease, exec + 16, sp) && depth == 1);    /* nested */
     assert(end_impl(lease, exec + 24, sp) == 1 && !depth && !writing.active);
+    /* Begin's decision is kept, but every call still checks the owner ledger entry and the owner's header:
+     * a changed identity or digest refuses at once, without any ledger change. */
+    uint32_t epoch = modwerk_runtime_owner_epoch();
+    struct runtime_owner *identity = test_owner_identity(0);
+    struct runtime_module *header = test_owned(0);
+    identity->package_sha256[9] ^= 1u;
+    assert(!begin_impl(exec + 8, 2, lease, exec + 16, sp) && !depth);
+    identity->package_sha256[9] ^= 1u;
+    identity->extent_bytes += 16u;
+    assert(!begin_impl(exec + 8, 2, lease, exec + 16, sp) && !depth);
+    identity->extent_bytes -= 16u;
+    identity->generation += 1u;
+    assert(!begin_impl(exec + 8, 2, lease, exec + 16, sp) && !depth);
+    identity->generation -= 1u;
+    header->dsp.package_sha256[30] ^= 1u;
+    assert(!begin_impl(exec + 8, 2, lease, exec + 16, sp) && !depth);
+    header->dsp.package_sha256[30] ^= 1u;
+    header->dsp.image_bytes += 2u;
+    assert(!begin_impl(exec + 8, 2, lease, exec + 16, sp) && !depth);
+    header->dsp.image_bytes -= 2u;
+    assert(modwerk_runtime_owner_epoch() == epoch && !(epoch & 1u));
+    /* ... and the same in End, while the lease is held: refused, the lock restored. Restored, the next pair holds. */
+    assert(begin_impl(exec + 8, 2, lease, exec + 16, sp) == 1 && depth == 1);
+    identity->package_sha256[17] ^= 1u;
+    struct mw_controller_slot kept = modwerk_controller_registry.slots[slot];
+    assert(!end_impl(lease, exec + 24, sp) && !depth && !writing.active);
+    identity->package_sha256[17] ^= 1u;
+    modwerk_controller_registry.slots[slot] = kept; /* undo the quarantine for the rest of this test */
+    assert(begin_impl(exec + 8, 2, lease, exec + 16, sp) == 1 && end_impl(lease, exec + 24, sp) == 1 && !depth);
     /* A corrupt End still restores the original lock state and quarantines. */
     assert(begin_impl(exec + 8, 2, lease, exec + 16, sp) == 1 && depth == 1);
     lease->opaque[1] ^= 1u;
