@@ -162,7 +162,10 @@ static int live(const struct mw_controller_binding *b)
 /* A trusted image may begin with an MWPP record (stock_hook_controllers.page_record):
  * its page extends a stock effect's own descriptor in place. Staged from the
  * descriptor as it is now, checked against the record's stock SHA-256, into
- * `staged`; `saved` gets the bytes before. Returns the descriptor's address. */
+ * `staged`; `saved` gets the bytes before. An integer entry whose fourth byte is
+ * 1 is an inherit: its value is a mask, and the descriptor's own bits under it
+ * come back over what the integers before it wrote (the stock enable nibbles of
+ * the slots the page keeps). Returns the descriptor's address. */
 static uint32_t be16(const uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
 static uint32_t be32(const uint8_t *p) { return be16(p) << 16 | be16(p + 2); }
 static uint32_t page_stage(const struct mw_controller_binding *b, uint8_t saved[PAGE_BYTES])
@@ -179,8 +182,12 @@ static uint32_t page_stage(const struct mw_controller_binding *b, uint8_t saved[
     if (!same(digest, r + 12, 32)) return 0;
     for (unsigned i = 0; i < r[5]; ++i, at += 8u) {
         uint32_t off = at + 8u <= n ? be16(r + at) : PAGE_BYTES, w = at + 8u <= n ? r[at + 2] : 0, v = at + 8u <= n ? be32(r + at + 4) : 0;
-        if ((w != 1u && w != 2u && w != 4u) || r[at + 3] || off + w > PAGE_BYTES) return 0;
-        for (unsigned k = 0; k < w; ++k) staged[off + k] = (uint8_t)(v >> (8u * (w - 1u - k)));
+        unsigned inherit = at + 8u <= n ? r[at + 3] : 2u;
+        if ((w != 1u && w != 2u && w != 4u) || inherit > 1u || off + w > PAGE_BYTES) return 0;
+        for (unsigned k = 0; k < w; ++k) {
+            uint8_t byte = (uint8_t)(v >> (8u * (w - 1u - k)));
+            staged[off + k] = inherit ? (uint8_t)((staged[off + k] & ~byte) | (saved[off + k] & byte)) : byte;
+        }
     }
     for (unsigned i = 0; i < r[6]; ++i) {
         if (at + 4u > n) return 0;

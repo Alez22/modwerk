@@ -346,9 +346,13 @@ mw_matrix_mode_body:
 def page_record(name):
     """The MWPP record (GNU as) for a module whose page extends a stock effect in
     place: magic, version 1, integer/text/pointer counts, the stock descriptor and
-    the SHA-256 of its PAGE_BYTES, then (offset, width, 0, value) integers,
-    (offset, width, length, text) strings padded to 4, and (offset, 0, image
-    offset) pointers to the module's own formatters. No stock bytes."""
+    the SHA-256 of its PAGE_BYTES, then (offset, width, 0, value) integers and
+    (offset, 4, 1, mask) inherits, (offset, width, length, text) strings padded
+    to 4, and (offset, 0, image offset) pointers to the module's own formatters.
+    An inherit puts the donor's own bits under its mask back after the integers:
+    the recipe's inheritedEnable slots keep the stock enable nibble, as the
+    browser's descriptor clone does (src/engine/descriptors.ts). The board reads
+    them from the running descriptor, so the record carries no stock bytes."""
     if name not in PAGE_RECIPES:
         return ''
     recipes = json.loads((_ROOT / PAGE_RECIPES[name]).read_text())['recipes']
@@ -356,16 +360,23 @@ def page_record(name):
     if recipe.get('sourceSha256') != SOURCE_PINS['modules/%s/manifest.py' % name] or not recipe.get('replaces'):
         raise ValueError('The page recipe is not the pinned in-place source: ' + name)
     ints, texts, pointers = recipe['integers'], recipe['strings'], recipe['rawPointers']
-    if (len(ints) > 64 or len(texts) > 16 or len(pointers) > 8 or
+    inherited = recipe.get('inheritedEnable', [])
+    if any(type(slot) is not int or not 0 <= slot <= 11 for slot in inherited):
+        raise ValueError('Invalid inherited descriptor control: ' + name)
+    masks = {offset: sum(0xf << (slot % 8) * 4 for slot in inherited if (slot < 8) == (offset == 0x18e))
+             for offset in (0x18e, 0x18a)}  # the enable words: slots 0-7, then 8-11 (descriptors.ts)
+    inherits = [dict(offset=offset, mask=mask) for offset, mask in masks.items() if mask]
+    if (len(ints) + len(inherits) > 64 or len(texts) > 16 or len(pointers) > 8 or
             any(i['width'] not in (1, 2, 4) or i['offset'] + i['width'] > PAGE_BYTES for i in ints) or
             any(len(s['value'].encode('latin-1')) >= s['width'] or s['offset'] + s['width'] > PAGE_BYTES for s in texts) or
             any(p['offset'] + 4 > PAGE_BYTES for p in pointers)):
         raise ValueError('The page recipe exceeds the board record bounds: ' + name)
     lines = ['        .text', '        .balign 4', 'mw_page:', '        .ascii "MWPP"',
-             '        .byte 1, %d, %d, %d' % (len(ints), len(texts), len(pointers)),
+             '        .byte 1, %d, %d, %d' % (len(ints) + len(inherits), len(texts), len(pointers)),
              '        .long 0x%08x' % recipe['donorAddress'],
              '        .byte ' + ', '.join('0x%02x' % b for b in bytes.fromhex(recipe['donorSha256']))]
     lines += ['        .word %d\n        .byte %d, 0\n        .long 0x%x' % (i['offset'], i['width'], i['value'] & 0xffffffff) for i in ints]
+    lines += ['        .word %d\n        .byte 4, 1\n        .long 0x%08x' % (i['offset'], i['mask']) for i in inherits]
     for s in texts:
         text = s['value'].encode('latin-1')
         lines += ['        .word %d\n        .byte %d, %d' % (s['offset'], s['width'], len(text)),

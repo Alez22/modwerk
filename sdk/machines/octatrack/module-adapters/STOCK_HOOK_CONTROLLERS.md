@@ -43,7 +43,9 @@ Mute Modes' native SC_KEY scan) when the base it is encoded for raises it.
 COMPRESSOR's page-2 KEY/KFLT/KGN/MON: the image begins with an MWPP record,
 the catalogue's in-place descriptor recipe (descriptor-recipes.json: stock
 descriptor and its SHA-256, integer and text patches, pointers to the
-package's own formatters). The board applies it in place while the controller
+package's own formatters, and inherits that keep the stock enable nibbles of
+the recipe's `inheritedEnable` slots, as the browser's descriptor clone does;
+a board older than inherits refuses the record and runs without the page). The board applies it in place while the controller
 is ACTIVE, only over the exact stock bytes, and writes the saved bytes back
 before it disables the hooks; a page that changed meanwhile quarantines.
 
