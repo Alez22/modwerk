@@ -21,6 +21,8 @@ import { judgeRecord, ownerWaivedPerformanceRow } from './perf-audit-analysis.mj
 
 // Modules first listed on or after this day carry a measured performance record (docs/module-guides/README.md, "Performance"); earlier ones keep their qualification evidence.
 const PERFORMANCE_REQUIRED_FROM = '2026-10-07'
+// Modules first listed on or after this day declare the key gestures and screens they take (compatibility.uiClaims).
+const UI_CLAIMS_REQUIRED_FROM = '2026-10-14'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2), all = args.includes('--all'), ids = args.filter(arg => !arg.startsWith('--'))
 if ((all && ids.length) || (!all && ids.length !== 1)) throw new Error('Usage: npm run module:doctor -- <module-id>   or   npm run module:doctor -- --all')
@@ -135,6 +137,11 @@ function octatrack(id) {
   else if (clashes.length) fail('cross-compatibility', clashes.length + ' clash(es), first: ' + clashes[0].text, clashes[0].fix + ' (' + clashes[0].guide + '); npm run modules:compat -- ' + id + ' lists every one')
   else ok('cross-compatibility', 'installs beside every other active module and the base (npm run modules:compat)')
   for (const pending of compatResult?.summary.pending.filter(row => row.modules.includes(id)) ?? []) info('event migration', 'still patches the site of ' + pending.event + ', allowed until: ' + pending.until + ' (docs/module-guides/README.md#events)')
+
+  const uiClaims = document.compatibility.uiClaims
+  if (uiClaims) ok('ui claims', uiClaims.length ? uiClaims.join(', ') : 'none')
+  else if (!entry || (entry.addedAt ?? '').slice(0, 10) >= UI_CLAIMS_REQUIRED_FROM) fail('ui claims', 'compatibility.uiClaims is missing', 'list the key gestures and stock screens it takes, or [] for none (docs/module-guides/README.md#ui-claims)')
+  else info('ui claims', 'not declared (not required before ' + UI_CLAIMS_REQUIRED_FROM + '), so the gate cannot compare its key gestures and screens')
 
   const conflicts = document.compatibility.conflicts ?? []
   info('conflicts', (document.compatibility.effectId != null ? 'effect id ' + document.compatibility.effectId + ': ' + (ANALOG_BD_DSP_COMPANIONS.includes(document.id) ? 'reviewed beside Analog BD, subject to DSP space; ' : 'refused beside Analog BD automatically; ') : '') + (conflicts.length ? 'declared: ' + conflicts.join(', ') : 'none declared') + '. Are they complete? (guide: Integrate)')
