@@ -45,6 +45,13 @@ def load(path=REGISTRY):
         at = int(s['site'], 16)
         if at in sites or at & 1 or s['length'] < 6 or s['length'] & 1 or not re.fullmatch('[0-9a-f]{64}', s['guard']):
             raise ValueError('events.json: site %s needs an even length of 6 or more and a SHA-256 guard' % s['site'])
+        for action in ('head', 'tail', 'done'):
+            lines = s[action] or []
+            if any(not isinstance(x, str) for x in lines[1:]) or (lines and not isinstance(lines[0], str) and not (
+                    action != 'head' and set(lines[0]) == {'stock'} and type(lines[0]['stock']) is int
+                    and 2 <= lines[0]['stock'] <= s['length'] and not lines[0]['stock'] & 1)):
+                raise ValueError('events.json: site %s %s is instructions; a tail or done may start with {"stock": n}: '
+                                 'the site\'s first n stock bytes, copied from the user\'s OS at the base build' % (s['site'], action))
         sites[at] = dict(s, site=at)
     events, owned = [], []
     for i, e in enumerate(doc['events']):
@@ -172,8 +179,17 @@ def _take(out, name, e, k, at):
         out.append('        move.l  %%d0,%d(%%sp)\n        movem.l (%%sp),%%d0-%%d1/%%a0-%%a2\n        lea     %d(%%sp),%%sp\n'
                    '        rts\n' % (SAVED + 4, SAVED + 4))
     else:
-        out.append('        move.l  %%d0,%d(%%sp)\n        move.l  #%#010x,%d(%%sp)\n        movem.l (%%sp),%%d0-%%d1/%%a0-%%a2\n'
+        out.append('        move.l  %%d0,%d(%%sp)\n        lea     %#010x,%%a0\n        move.l  %%a0,%d(%%sp)\n        movem.l (%%sp),%%d0-%%d1/%%a0-%%a2\n'
                    '        lea     %d(%%sp),%%sp\n        rts\n' % (SAVED, at + e['length'], SAVED + 4, SAVED))
+
+
+def _line(at, line):
+    """A tail's line; {"stock": n}: a zero placeholder the base build fills with the site's own first n stock bytes
+    (build_core.py: every global modwerk_stock_<address>_<n> is a stock reference, so no stock byte is carried)."""
+    if isinstance(line, str):
+        return '        %s\n' % line
+    label = 'modwerk_stock_%08x_%d' % (at, line['stock'])
+    return '        .globl  %s\n%s:\n        .space  %d | the site\'s own stock bytes\n' % (label, label, line['stock'])
 
 
 def asm(reg):
@@ -199,7 +215,7 @@ def asm(reg):
         for action in ('tail', 'done'):
             if s[action]:
                 out.append('.L%s_%s:\n        movem.l (%%sp),%%d0-%%d1/%%a0-%%a2\n        lea     %d(%%sp),%%sp\n' % (name, action, frame))
-                out += ['        %s\n' % line for line in s[action]]
+                out += [_line(at, line) for line in s[action]]
     out.append('modwerk_events_code_end:\n')
     return ''.join(out)
 

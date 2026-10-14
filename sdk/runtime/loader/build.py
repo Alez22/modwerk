@@ -312,62 +312,125 @@ def site_events():
 
 
 def runtime_declaration(folder):
-    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}. With it
-    the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
-    `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out."""
+    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}],
+    "contribute": [{"to", "order", "data", "replaces"}]}. With it the package subscribes or contributes (needs a base
+    with those events and tables) and its units assemble with MODWERK_EVENTS defined. `replaces` names what its native
+    octabam build patches there instead, which the package leaves out: a detour's symbol, or (a list for a take event
+    or a table) detour symbols and 0x addresses of pokes, symbol references and table references."""
     path = Path(folder) / 'runtime.json'
     if not path.is_file():
         return None
     doc = json.loads(path.read_text())
-    if (doc.get('schema') != 1 or set(doc) != {'schema', 'subscribe'} or not doc['subscribe'] or
-            any(set(e) - {'event', 'fn', 'order', 'replaces'} or not {'event', 'fn', 'order'} <= set(e) for e in doc['subscribe'])):
-        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}' % path)
+    replaces = lambda e: 'replaces' not in e or isinstance(e['replaces'], str) or (
+        isinstance(e['replaces'], list) and e['replaces'] and all(isinstance(r, str) for r in e['replaces']))
+    if (doc.get('schema') != 1 or not {'schema'} < set(doc) <= {'schema', 'subscribe', 'contribute'}
+            or not isinstance(doc.get('subscribe', []), list) or not isinstance(doc.get('contribute', []), list)
+            or not doc.get('subscribe', []) + doc.get('contribute', [])
+            or any(set(e) - {'event', 'fn', 'order', 'replaces'} or not {'event', 'fn', 'order'} <= set(e) or not replaces(e)
+                   for e in doc.get('subscribe', []))
+            or any(set(e) - {'to', 'data', 'order', 'replaces'} or not {'to', 'data', 'order'} <= set(e) or not replaces(e)
+                   for e in doc.get('contribute', []))):
+        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], '
+                         '"contribute": [{"to", "order", "data", "replaces"}]}' % path)
+    doc.setdefault('subscribe', [])
     return doc
+
+
+def entries(declared):
+    """A runtime declaration's subscriptions and contributions as hook entries {event, fn, order, replaces}."""
+    return list(declared.get('subscribe', [])) + [dict(event=c['to'], fn=c['data'], order=c['order'],
+                                                       **({'replaces': c['replaces']} if 'replaces' in c else {}))
+                                                  for c in declared.get('contribute', [])]
 
 
 def subscribe(hooks, entries, symbols, registry=None):
     """`hooks` (the core events' words) with each subscription's word after them, by the event's hook index: its order
-    (0-255) in the top byte and the handler's image offset below (loader.h). Trailing empty words are left out."""
+    (0-255) in the top byte and the handler's (a take event's record's, a table's record's) image offset below
+    (loader.h). Trailing empty words are left out."""
     events = {e['event']: e for e in (registry or site_events())['events']}
     words = list(hooks) + [NONE] * (len(HANDLERS) + len(events) - len(hooks))
     for entry in entries:
         e = events.get(entry['event'])
         if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < 256
-                or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000):
-            raise ValueError('A subscription names an event of sdk/machines/octatrack/events.json, one of the module\'s own '
-                             'functions and an order 0-255, one per event: %r' % (entry,))
+                or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000 or symbols[entry['fn']] & 1):
+            raise ValueError('A subscription names an event or table of sdk/machines/octatrack/events.json, one of the '
+                             'module\'s own even symbols and an order 0-255, one per event: %r' % (entry,))
         words[e['index']] = entry['order'] << 24 | symbols[entry['fn']]
     while words and words[-1] == NONE:
         words.pop()
     return words
 
 
-def replaced(detours, entries, registry=None):
-    """The detours a subscribing package keeps: each `replaces` must be a detour at its event's site with that
-    site's length and stock guard, and goes."""
+def _names(entry):
+    r = entry.get('replaces', [])
+    return [r] if isinstance(r, str) else list(r)
+
+
+def replaced(detours, entries, registry=None, pokes=(), refs=()):
+    """What a subscribing package keeps of its detours (and, given, its pokes and symbol references): each name a
+    subscription `replaces` goes. A call event's detour sits exactly on its site with that length and stock guard; a
+    take event's starts at its site and covers at least the site; a table's detour, poke or reference is one of the
+    sites the table owns. Returns the kept detours, or (detours, pokes, refs) when pokes or refs are given."""
     reg = registry or site_events()
     events = {e['event']: e for e in reg['events']}
-    names = {e['replaces']: events[e['event']] for e in entries if 'replaces' in e and e['event'] in events}
-    kept = [d for d in detours if d.symbol not in names]
+    owned = {s['site']: s for s in reg.get('owned', [])}
+    named = {}
+    for entry in entries:
+        e = events.get(entry['event'])
+        for name in _names(entry) if e else ():
+            if name in named:
+                raise ValueError('%s is replaced twice.' % name)
+            named[name] = e
+    used = set()
+    def check(name, site, length, expect, what):
+        e = named[name]
+        if e['kind'] == 'call':
+            if what != 'detour' or site != e['site'] or length != e['length'] or (
+                    stock_digest(expect) != (bytes.fromhex(reg['sites'][e['site']]['guard']), e['length'])):
+                raise ValueError('%s does not replace the detour at %s\'s site %#x exactly.' % (name, e['event'], e['site']))
+        elif e['kind'] == 'take':
+            if what != 'detour' or site != e['site'] or length < e['length']:
+                raise ValueError('%s does not start at %s\'s site %#x and cover it.' % (name, e['event'], e['site']))
+        elif not any(o['table'] == e['event'] and o['site'] <= site < o['site'] + o['length'] for o in owned.values()):
+            raise ValueError('%s at %#x is not a site %s owns.' % (name, site, e['event']))
+        used.add(name)
+    kept = []
     for d in detours:
-        e = names.get(d.symbol)
-        if e and (d.site != e['site'] or (d.pad_to or 6) != e['length'] or
-                  stock_digest(d.expect) != (bytes.fromhex(reg['sites'][e['site']]['guard']), e['length'])):
-            raise ValueError('%s does not replace the detour at %s\'s site %#x exactly.' % (d.symbol, e['event'], e['site']))
-    if len(detours) - len(kept) != len(names):
-        raise ValueError('A runtime.json replaces a detour the module does not have.')
-    return kept
+        if d.symbol in named:
+            check(d.symbol, d.site, d.pad_to or 6, d.expect, 'detour')
+        else:
+            kept.append(d)
+    kept_pokes = []
+    for p in pokes:
+        name = '%#010x' % p.addr
+        if name in named:
+            check(name, p.addr, len(p.write), p.expect, 'poke')
+        else:
+            kept_pokes.append(p)
+    kept_refs = []
+    for r in refs:
+        name = '%#010x' % r.addr
+        if name in named:
+            check(name, r.addr, 4, None, 'ref')
+        else:
+            kept_refs.append(r)
+    missing = set(named) - used
+    if missing:
+        raise ValueError('A runtime.json replaces what the module does not have: ' + ', '.join(sorted(missing)))
+    return (kept, kept_pokes, kept_refs) if pokes or refs else kept
 
 
 def unevented(sites, copies=(), registry=None):
-    """Refuse a write or stock copy on a base-owned event's bytes, naming the event: subscribe to it instead."""
-    events = (registry or site_events())['events']
+    """Refuse a write or stock copy on a base-owned event's or table's bytes, naming it: subscribe or contribute."""
+    reg = registry or site_events()
     spans = [(s[0], max(len(s[2]), s[5] if len(s) > 5 else 0)) for s in sites] + [(c[1], c[2]) for c in copies]
+    owned = [(e['site'], e['length'], e['event'], 'subscribe to') for e in reg['events'] if e['site'] is not None]
+    owned += [(o['site'], o['length'], o['table'], 'contribute to') for o in reg.get('owned', [])]
     for address, n in spans:
-        for e in events:
-            if address < e['site'] + e['length'] and e['site'] < address + n:
-                raise ValueError('The write at %#x meets %s\'s site %#x, which the base owns: subscribe to %s.'
-                                 % (address, e['event'], e['site'], e['event']))
+        for at, length, name, how in owned:
+            if address < at + length and at < address + n:
+                raise ValueError('The write at %#x meets %s\'s site %#x, which the base owns: %s %s.'
+                                 % (address, name, at, how, name))
 
 
 def stock_digest(expect):

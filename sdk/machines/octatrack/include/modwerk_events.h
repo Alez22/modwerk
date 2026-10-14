@@ -12,6 +12,12 @@
 #define MODWERK_EV_DROP 1  /* ev_voice_bind: stock does nothing */
 #define MODWERK_EV_STOCK 2 /* ev_voice_bind: stock now, no later handler */
 
+/* A take event's subscription names one of these. claims (C convention) 0: it takes every call;
+ * otherwise it takes the calls it returns nonzero for. entry: the code that gets the site, with every
+ * register and the stack as there (it replays what the site held and returns to stock itself; a jsr
+ * entry returns with rts); 0: stock runs at once and no later record is asked. */
+struct modwerk_take { int (*claims)(unsigned arg); const void *entry; };
+
 /* ev_play_increment (0x40004100): the increment builder recomputes a track's playback increment (Q26, 0x04000000 = unity), after stock applied PTCH and RATE and before it stores it; when the builder reuses the stored increment no handler runs. The audio render, at interrupt level: short, no firmware call that can block, the EMAC kept as found. Change *increment to change what the track plays at. Return nonzero to take the track: no later handler runs. The base stores *increment either way. The builder's d2-d7/a2-a6 are intact in a handler (a3 the track's 40-byte state, d6 the shift just applied) and must be kept, as C keeps them. */
 #define MODWERK_EV_PLAY_INCREMENT 4
 typedef int modwerk_ev_play_increment(uint32_t *increment, unsigned track);
@@ -23,5 +29,102 @@ typedef int modwerk_ev_voice_bind(unsigned track);
 /* ev_voice_bind_run (0x40006820): every ev_voice_bind handler passed: stock's reset runs next. As ev_voice_bind. A notification: every handler runs; none can stop the reset. d2-d7/a2-a6 are the caller's and must be kept. */
 #define MODWERK_EV_VOICE_BIND_RUN 6
 typedef void modwerk_ev_voice_bind_run(unsigned track);
+
+/* ev_midi_note_on (0x4000e746, take: subscribe a struct modwerk_take): a MIDI chromatic note-on reaches a listening track (d2), before stock posts its trigger and PTCH. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_MIDI_NOTE_ON 7
+
+/* ev_midi_note_off (0x4000dfd4, take: subscribe a struct modwerk_take): a MIDI chromatic note-off reaches a listening track (d2), before stock compares it with the track's one held note. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_MIDI_NOTE_OFF 8
+
+/* ev_octave_key (0x40045918, take: subscribe a struct modwerk_take): FUNC + LEFT or RIGHT in CHROMATIC mode, before stock toggles its octave word; the argument is the current track. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_OCTAVE_KEY 9
+
+/* ev_octave_number (0x400449be, take: subscribe a struct modwerk_take): the keyboard drawer pushes the octave it prints (d0); the argument is the current track. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_OCTAVE_NUMBER 10
+
+/* ev_settings_sanitise (0x40010212, take: subscribe a struct modwerk_take): boot, while stock sanitises the battery-RAM settings block. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock with rts; it must not jump into the site's bytes. */
+#define MODWERK_EV_SETTINGS_SANITISE 11
+
+/* ev_project_defaults (0x40025ac2, take: subscribe a struct modwerk_take): stock resets a project's settings to their defaults. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock with rts; it must not jump into the site's bytes. */
+#define MODWERK_EV_PROJECT_DEFAULTS 12
+
+/* ev_keyboard_draw (0x40044968, take: subscribe a struct modwerk_take): the CHROMATIC drawer reads stock's octave word. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_KEYBOARD_DRAW 13
+
+/* ev_chromatic_release (0x4004fbde, take: subscribe a struct modwerk_take): a CHROMATIC key is released. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_RELEASE 14
+
+/* ev_chromatic_held (0x4004fbfe, take: subscribe a struct modwerk_take): a CHROMATIC key is pressed while another is held. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_HELD 15
+
+/* ev_chromatic_pitch (0x4004fc58, take: subscribe a struct modwerk_take): a CHROMATIC key index becomes a raw pitch. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock with rts; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_PITCH 16
+
+/* ev_chromatic_trig (0x4004fc94, take: subscribe a struct modwerk_take): a CHROMATIC key trigs the voice. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_TRIG 17
+
+/* ev_chromatic_record (0x4004fce0, take: subscribe a struct modwerk_take): a CHROMATIC key goes to the live recorder. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_RECORD 18
+
+/* ev_chromatic_recorded (0x4004fd06, take: subscribe a struct modwerk_take): a CHROMATIC key was recorded. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_RECORDED 19
+
+/* ev_chromatic_locked (0x4004fd20, take: subscribe a struct modwerk_take): a recorded CHROMATIC key got its PTCH lock. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_LOCKED 20
+
+/* ev_chromatic_index (0x40050254, take: subscribe a struct modwerk_take): a CHROMATIC key's index is computed from stock's octave. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_CHROMATIC_INDEX 21
+
+/* ev_plock_store (0x40050e60, take: subscribe a struct modwerk_take): the p-lock editor stores a lock byte. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock with rts; it must not jump into the site's bytes. */
+#define MODWERK_EV_PLOCK_STORE 22
+
+/* ev_knob_store (0x40055170, take: subscribe a struct modwerk_take): a knob turn stores a Part byte. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock with rts; it must not jump into the site's bytes. */
+#define MODWERK_EV_KNOB_STORE 23
+
+/* ev_project_load (0x400866cc, take: subscribe a struct modwerk_take): a project load starts. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_PROJECT_LOAD 24
+
+/* ev_project_line (0x400867a2, take: subscribe a struct modwerk_take): the project loader meets a line. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_PROJECT_LINE 25
+
+/* ev_project_write (0x400888aa, take: subscribe a struct modwerk_take): the project writer writes the settings lines. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
+#define MODWERK_EV_PROJECT_WRITE 26
+
+/* ot_machines (table, contribute {"to": "ot_machines", "order", "data"}): the machine chooser, SRC SETUP, the page resolver, the Part validator, the UI tick, pool navigation and the FLEX renderer ask the contributed machines, in row order: chooser rows 5 on. The UI task and the audio render (render only): short, no firmware call that can block. Contribute one struct modwerk_machine (every field but abi, sig and label optional, 0). A Part keeps its signature when the machine is absent and reads as stock. Removal is refused while a Part, a UI root or a paused task still holds the machine. */
+#define MODWERK_OT_MACHINES 27
+struct modwerk_machine {
+    uint32_t abi;                       /* MODWERK_MACHINE_ABI */
+    uint8_t sig[2], sig_lo, sig_hi;     /* the Part signature at 60 + 30 * track: two letters and a version range */
+    const char *label;                  /* its chooser and SRC SETUP name */
+    uint32_t flags;                     /* MODWERK_MACHINE_* */
+    uint32_t page;                      /* its parameter page without track_page; 0: stock's FLEX page */
+    const uint8_t *defaults;            /* without assign: the 12 FLEX bytes a track takes when it becomes this machine */
+    unsigned (*assign)(volatile uint8_t *part, unsigned track, unsigned on); /* it signs and unsigns its tracks itself */
+    unsigned (*admit_track)(const volatile uint8_t *part, unsigned track);  /* 0 refuses the track */
+    unsigned (*chooser_type)(unsigned type, const volatile uint8_t *slot);  /* 5: its row is the track's */
+    uint32_t (*track_page)(const volatile uint8_t *slot);
+    void (*ui_tick)(void);
+    void (*leave)(unsigned track);      /* the track becomes another machine */
+    void (*pool_open)(void);            /* RIGHT or double-tap TRACK on its row; 0: stock's sample pool */
+    void (*pool_left)(unsigned key, unsigned edge);
+    void (*choice_left)(unsigned key, unsigned edge);
+    const void *list_draw;              /* its pool list drawer, entered as stock's 0x4006d784 */
+    int (*render)(unsigned track, unsigned ping, unsigned start, unsigned end);
+    int (*validate)(uint8_t *part, int (*next)(uint8_t *part));
+};
+#define MODWERK_MACHINE_ABI 1u
+#define MODWERK_MACHINE_PROTECT 1u      /* stock's validator never sees its tracks' 12 FLEX bytes */
+#define MODWERK_MACHINE_POOL 2u         /* its row has a pool or engine list (the title's chevron) */
+#define MODWERK_MACHINE_RENDER_FLEX 4u  /* its render is also offered FLEX tracks no machine owns */
+#define MODWERK_MACHINE_BACKING 8u      /* its page is STATIC's when its track's backing pool is STATIC */
+
+/* ot_sequencer_rows (table, contribute {"to": "ot_sequencer_rows", "order", "data"}): PROJECT > CONTROL > SEQUENCER lists stock's three rows, then one per contributed label. The UI task. Contribute one struct modwerk_sequencer_rows: its rows, in order. The window shows stock's three rows and up to eight more; a row with a label an earlier row has is not shown; the getter and setter follow stock's rows' convention (CHAIN AFTER's 0x400659ec). */
+#define MODWERK_OT_SEQUENCER_ROWS 28
+struct modwerk_sequencer_row {
+    const char *label;                  /* one row per label: the first contribution's */
+    const void *get;                    /* as stock's rows: returns the value's string in d0 */
+    const void *set;                    /* as stock's rows: (delta, wrap) on the stack */
+};
+struct modwerk_sequencer_rows { uint32_t count; struct modwerk_sequencer_row row[]; };
 
 #endif

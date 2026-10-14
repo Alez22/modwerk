@@ -106,7 +106,9 @@ static const uint32_t event_span[RUNTIME_SITE_EVENTS][2] = RUNTIME_SITE_EVENT_SP
  * spans. Each event or table holds at most its room of subscribers; rows share one store. */
 static const uint32_t event_room[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_ROOM;
 static const uint8_t event_table[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_TABLES;
-static const uint32_t owned_span[RUNTIME_OWNED_SITES ? RUNTIME_OWNED_SITES : 1u][3] = RUNTIME_OWNED_SPANS;
+#if RUNTIME_OWNED_SITES
+static const uint32_t owned_span[RUNTIME_OWNED_SITES][3] = RUNTIME_OWNED_SPANS;
+#endif
 static uintptr_t volatile event_words[RUNTIME_SITE_EVENT_WORDS];
 uintptr_t volatile *const modwerk_runtime_event_row[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_ROWS(event_words);
 static uintptr_t staged_words[RUNTIME_SITE_EVENT_WORDS];
@@ -116,8 +118,10 @@ static int evented(uint32_t address, uint32_t n)
 {
     for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e)
         if (address < event_span[e][0] + event_span[e][1] && event_span[e][0] < address + n) { refused_event = RUNTIME_EVENTS + e; return 1; }
+#if RUNTIME_OWNED_SITES
     for (unsigned k = 0; k < RUNTIME_OWNED_SITES; ++k)
         if (address < owned_span[k][0] + owned_span[k][1] && owned_span[k][0] < address + n) { refused_event = RUNTIME_EVENTS + owned_span[k][2]; return 1; }
+#endif
     return 0;
 }
 /* Would `hook` past each event's room once `position` holds the candidate? Other positions' live modules and the

@@ -192,10 +192,16 @@ class SiteEventTests(unittest.TestCase):
             for d in module.detours:
                 for at, site in reg['sites'].items():
                     if d.site < at + site['length'] and at < d.site + max(d.pad_to or 6, d.expect.length):
-                        self.assertEqual((d.site, d.pad_to, d.expect.length, d.expect.sha256), (at, site['length'], site['length'], site['guard']),
-                                         '%s %s' % (module.name, d.symbol))
+                        kind = next(e['kind'] for e in reg['events'] if e['site'] == at)
+                        if kind == 'take':  # a taker's detour starts on the site and covers it; the base keeps the guard
+                            self.assertTrue(d.site == at and max(d.pad_to or 6, d.expect.length) >= site['length'],
+                                            '%s %s' % (module.name, d.symbol))
+                        else:
+                            self.assertEqual((d.site, d.pad_to, d.expect.length, d.expect.sha256), (at, site['length'], site['length'], site['guard']),
+                                             '%s %s' % (module.name, d.symbol))
                         met.add((module.name, d.symbol))
-        self.assertTrue({('repitch', 'rate_hook'), ('mute-modes', 'fresh_bind'), ('poly8', 'mr_rate_hook'), ('poly8', 'mr_stop_voice')} <= met)
+        self.assertTrue({('repitch', 'rate_hook'), ('mute-modes', 'fresh_bind'), ('poly8', 'mr_rate_hook'), ('poly8', 'mr_stop_voice'),
+                         ('poly8', 'mr_note_on'), ('synth', 'po_mon'), ('quantizer', 'qz_boot'), ('synth', 'qz_boot')} <= met)
 
     def test_dispatch_assembles_without_the_displaced_stock_bytes(self):
         asm = shutil.which('m68k-elf-as')
