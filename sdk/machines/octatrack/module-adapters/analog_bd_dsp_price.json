@@ -8,7 +8,7 @@
  "perVoiceBasis": "engine-only peak per 909 voice, ceil(6563/16), from sdk/octabam/modules/analog-bassdrum/evidence/909-reference-costs.json",
  "perCoreWhileEnabled": 3,
  "perCoreBasis": "seam path on non-AB tracks measured +2.00 (AB image vs original, same chain), plus the resident dormant-branch jmp, 4 tracks x 1 instruction per 16-sample block = 0.25 (static count)",
- "replaces": "the stock source stage of its own track (measured above THRU); FX1/FX2 of that track stay ordinary slots",
+ "replaces": "the stock source stage of its own track (measured above THRU and above FLEX); FX1/FX2 of that track stay ordinary slots",
  "voicesPerCore": 4,
  "measuredIncrements": [
   {
@@ -34,6 +34,14 @@
    "core": 0,
    "meanPerVoice": 382.3786,
    "peakPerVoice": 384.5
+  },
+  {
+   "case": "eq-909pair-flex",
+   "baseline": "eq-stock-flex",
+   "voices": 2,
+   "core": 1,
+   "meanPerVoice": 379.6337,
+   "peakPerVoice": 379.75
   },
   {
    "case": "dark-808pair",
@@ -78,10 +86,16 @@
   "sdk/octabam/modules/analog-bassdrum/evidence/909-reference-costs.json": "292991dce859c0cbff2527d1946d2b911e84d70707faea5b5ef6e119524c57a3"
  },
  "chains": {
-  "analogBd": {
-   "sha256": "86b78bc6df045be80639aed2aa0ec998626de702466ca55bbcd85c936c12679d",
-   "imageSha256": "3eec2a5995ffd28effe7cad61e588db3dd822d3bb253db84d888e709e2f3d2e4"
-  },
+  "analogBd": [
+   {
+    "sha256": "86b78bc6df045be80639aed2aa0ec998626de702466ca55bbcd85c936c12679d",
+    "imageSha256": "3eec2a5995ffd28effe7cad61e588db3dd822d3bb253db84d888e709e2f3d2e4"
+   },
+   {
+    "sha256": "b380507e9f791af06274efdf4c3a12c9965ef5e2b3e9c755bac4bef9be865115",
+    "imageSha256": "3eec2a5995ffd28effe7cad61e588db3dd822d3bb253db84d888e709e2f3d2e4"
+   }
+  ],
   "original": {
    "sha256": "18ebcefdb66acef06d73bffffe62b0b68e3bc803840a5cf5b8ebc87543957df9",
    "imageSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e"

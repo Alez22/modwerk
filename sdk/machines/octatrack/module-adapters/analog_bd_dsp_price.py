@@ -21,7 +21,7 @@ ENGINE_PEAK = ('sdk/octabam/modules/analog-bassdrum/evidence/909-reference-costs
 VOICE = 411       # ceil(6563 / 16): the dearer model; MODEL is a knob, so one price
 FEATURE = 3       # per core while the engine is on: measured seam path + resident stub
 PAIRS = (('dark-909pair', 'dark-stock', 2), ('dark-909eight-core1', 'dark-stock', 4),
-         ('eq-909pair-core0', 'eq-stock-core0', 2), ('dark-808pair', 'dark-stock', 2),
+         ('eq-909pair-core0', 'eq-stock-core0', 2), ('eq-909pair-flex', 'eq-stock-flex', 2), ('dark-808pair', 'dark-stock', 2),
          ('dark-808eight-core1', 'dark-stock', 4))
 
 
@@ -30,7 +30,7 @@ def sha(path):
 
 
 def declaration(ab_chains, stock_chains):
-    ab = {r['case']: r for r in json.loads(Path(ab_chains).read_text())['rows']}
+    ab = {r['case']: r for path in ab_chains for r in json.loads(Path(path).read_text())['rows']}
     stock = {r['case']: r for r in json.loads(Path(stock_chains).read_text())['rows']}
     increments = []
     for case, base, voices in PAIRS:
@@ -51,13 +51,13 @@ def declaration(ab_chains, stock_chains):
         perCoreBasis='seam path on non-AB tracks measured +%.2f (AB image vs original, same chain), plus the resident '
                      'dormant-branch jmp, 4 tracks x 1 instruction per 16-sample block = 0.25 (static count)'
                      % max(max(row['mean'], row['peak']) for row in seam),
-        replaces='the stock source stage of its own track (measured above THRU); FX1/FX2 of that track stay ordinary slots',
+        replaces='the stock source stage of its own track (measured above THRU and above FLEX); FX1/FX2 of that track stay ordinary slots',
         voicesPerCore=4,
         measuredIncrements=increments, measuredSeam=seam,
         sourcePins={**{'sdk/octabam/modules/analog-bassdrum/' + n: sha(ROOT / 'sdk/octabam/modules/analog-bassdrum' / n) for n in SOURCES},
                     **{'sdk/octabam/' + n: sha(ROOT / 'sdk/octabam' / n) for n in BUILD},
                     ENGINE_PEAK[0]: sha(ROOT / ENGINE_PEAK[0])},
-        chains={'analogBd': dict(sha256=sha(ab_chains), imageSha256=next(iter(ab.values()))['image_sha256']),
+        chains={'analogBd': [dict(sha256=sha(path), imageSha256=json.loads(Path(path).read_text())['rows'][0]['image_sha256']) for path in ab_chains],
                 'original': dict(sha256=sha(stock_chains), imageSha256=next(iter(stock.values()))['image_sha256'])},
         limits=['ot_emu executed instructions over the four-track window, 850 frames after 50 warm-up, 300 BPM retriggers; '
                 'not modeled chip cycles, physical timing or hardware headroom.',
@@ -69,7 +69,7 @@ def declaration(ab_chains, stock_chains):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--ab-chains', type=Path, required=True)
+    parser.add_argument('--ab-chains', type=Path, required=True, action='append')
     parser.add_argument('--original-chains', type=Path, required=True)
     parser.add_argument('--out', type=Path, default=Path(__file__).with_name('analog_bd_dsp_price.json'))
     args = parser.parse_args()
