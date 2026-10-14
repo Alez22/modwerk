@@ -31,6 +31,7 @@ const { values: args } = parseArgs({ options: {
   'table-owners': { type: 'boolean', default: false },
   'resident-stock-hooks': { type: 'boolean', default: false },
   'saved-set-export': { type: 'boolean', default: false },
+  'slot-meter': { type: 'boolean', default: false }, // the per-slot DSP cycle meter (build_core.py --slot-meter)
   controllers: { type: 'boolean', default: false },
 } })
 if (!args.stock) throw new Error('Usage: npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]')
@@ -52,7 +53,7 @@ const build = (output, ...rest) => python('build_core.py', '--stock', args.stock
   ...(args['site-events'] ? ['--site-events'] : []),
   ...(args['table-owners'] ? ['--table-owners', join(adapters, 'table-owners.json')] : []),
   ...(args['resident-stock-hooks'] ? ['--resident-stock-hooks'] : []),
-  ...(args['saved-set-export'] ? ['--saved-set-export'] : []), ...rest)
+  ...(args['saved-set-export'] ? ['--saved-set-export'] : []), ...(args['slot-meter'] ? ['--slot-meter'] : []), ...rest)
 if (args.controllers) {
   // Sidechain, Output Matrix and Analog BD call the base's lease entries by address, and the base admits them by their
   // hashes: build it with empty trust rows, encode the packages against that link (base_bound.py rows), then build it

@@ -11,6 +11,16 @@
 .load-meter meter { width: 100%; accent-color: var(--accent); }
 .load-meter-unavailable { height: 16px; background: var(--line); border-radius: 3px; }
 .load-meter small { margin-top: 6px; }
+/* A base with the slot meter: each running FX slot's share of its core, under the core's meter. */
+.load-slots { margin: 8px 0 0; padding: 6px 0 0; list-style: none; border-top: 1px solid var(--line); font-size: 12px; }
+.load-slots li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 2px 0; }
+.load-meter .load-slots span { font-size: 12px; }
+.load-meter .load-slot-name, .load-meter .load-slot-value { color: var(--text); }
+.load-slot-where { color: var(--muted); font-variant-numeric: tabular-nums; }
+.load-slot-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.load-slot-value { font-variant-numeric: tabular-nums; text-align: right; }
+.load-meter .load-slot-value small { display: inline; margin: 0; }
+.load-slots-none { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .octatrack-load { display: flex; flex-direction: column; }
 .load-chart { display: flex; flex: 1; flex-direction: column; min-height: 0; margin: 0; }
 .load-chart[hidden], .load-table[hidden] { display: none; }

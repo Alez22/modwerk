@@ -77,8 +77,17 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
           return { status: 'ok', data: list }
         }
         if (setup.request === 30 && unit.status) { // MWLD v1: CPU, tracks 5-8 and its peak, tracks 1-4 and its peak, per mille
-          const load = new DataView(new ArrayBuffer(48)), ticks = Math.floor(Date.now() / 20) >>> 0, wave = (phase: number) => Math.round(80 * Math.sin(Date.now() / 9000 + phase))
-          load.setUint32(0, 0x4d574c44); load.setUint8(4, 1); load.setUint8(5, 7); load.setUint16(6, 48); load.setUint32(8, ticks); load.setUint32(12, ticks * 3)
+          // v2 (wValue 1): and the slot meter's 16 slots, here Plate Reverb on T1 FX2 and Filter on T5 FX1
+          const v2 = setup.value === 1, bytes = v2 ? 184 : 48
+          const load = new DataView(new ArrayBuffer(bytes)), ticks = Math.floor(Date.now() / 20) >>> 0, wave = (phase: number) => Math.round(80 * Math.sin(Date.now() / 9000 + phase))
+          load.setUint32(0, 0x4d574c44); load.setUint8(4, v2 ? 2 : 1); load.setUint8(5, 7); load.setUint16(6, bytes); load.setUint32(8, ticks); load.setUint32(12, ticks * 3)
+          if (v2) {
+            load.setUint32(48, 72520); load.setUint8(52, 16); load.setUint8(53, 2)
+            for (const [slot, id, mean, peak] of [[8, 20, 3600 + 10 * wave(1), 5200], [4, 4, 700, 900]]) {
+              load.setUint8(56 + 8 * slot, id); load.setUint8(57 + 8 * slot, 1); load.setUint16(58 + 8 * slot, 90)
+              load.setUint16(60 + 8 * slot, mean); load.setUint16(62 + 8 * slot, peak)
+            }
+          }
           ;[16, 20, 24].forEach(offset => load.setUint32(offset, ticks))
           ;[380 + wave(0), 520 + wave(2), 640, 260 + wave(4), 410].forEach((value, i) => load.setUint32(28 + 4 * i, value))
           return { status: 'ok', data: load }

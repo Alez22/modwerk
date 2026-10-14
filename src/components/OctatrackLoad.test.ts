@@ -75,6 +75,31 @@ it('breaks graph lines across missing, stale or hidden intervals', () => {
   expect(path.match(/M/g)).toHaveLength(3); expect(path).not.toContain('L')
   expect(loadPath([{ at: 0, reading: sample }], 'cpu', 300001)).toBe('')
 })
+it('lists each core\'s running FX slots with their share of it, only when the base measures slots', async () => {
+  const slots: LoadReading['slots'] = [
+    { track: 1, fx: 2, core: 1, id: 20, state: 'measured', mean: 100, peak: 150, meanCycles: 453.3, peakCycles: 679.9, age: 2 },
+    { track: 6, fx: 1, core: 0, id: 40, state: 'measured', mean: 123, peak: 200, meanCycles: 557.4, peakCycles: 906.4, age: 1 },
+    { track: 7, fx: 2, core: 0, id: 41, state: 'waiting', mean: null, peak: null, meanCycles: null, peakCycles: null, age: null },
+  ]
+  const unit = device(async () => ({ ...reading(), slots }))
+  const inventory = vi.fn(async () => [{ handle: 40, layout: 0, module: '0000abcd', name: 'E-Verb' }, { handle: 0xff, layout: 0, module: '0000abce', name: 'No DSP' }])
+  Object.assign(unit.link, { inventory })
+  await render(unit.link); await act(() => vi.advanceTimersByTimeAsync(0))
+  const [core1, core0] = [...container.querySelectorAll<HTMLUListElement>('.load-slots')]
+  expect(core1.getAttribute('aria-label')).toBe('Tracks 1–4 · DSP effects')
+  expect(core1.textContent).toBe('T1 FX2Plate Reverb10.0% · peak 15.0%')
+  expect([...core0.querySelectorAll('li')].map(li => li.textContent)).toEqual(['T6 FX1E-Verb12.3% · peak 20.0%', 'T7 FX2Effect 41Measuring…'])
+  expect(inventory).toHaveBeenCalledTimes(1) // module names: once per base
+  await act(() => vi.advanceTimersByTimeAsync(4000)); expect(inventory).toHaveBeenCalledTimes(1)
+  // A base without the slot meter (v1): no breakdown at all.
+  unit.load.mockImplementation(async () => reading()); await act(() => vi.advanceTimersByTimeAsync(2000))
+  expect(container.querySelector('.load-slots')).toBeNull(); expect(container.textContent).not.toContain('No effects running')
+})
+it('says so when a core runs no effect', async () => {
+  const unit = device(async () => ({ ...reading(), slots: [] }))
+  await render(unit.link)
+  expect([...container.querySelectorAll('.load-slots-none')].map(p => p.textContent)).toEqual(['No effects running', 'No effects running'])
+})
 it('shows one line instead of empty meters while no unit is connected', async () => {
   const unit = device(); unit.update({ status: 'idle' }); await render(unit.link)
   expect(unit.load).not.toHaveBeenCalled()

@@ -3,7 +3,7 @@
 // The interface has no endpoints, so EP3 OUT stays free for USB Audio In.
 import { UPLOAD_HEADER, UPLOAD_MAX_FRAME, UPLOAD_RESPONSE, UPLOAD_VERSION } from './upload-wire.ts'
 import type { UploadTransport } from './upload-session.ts'
-import { LOAD_BYTES, parseLoadReading, type LoadReading, SAVED_SET_METADATA_BYTES, SAVED_SET_CHUNK_BYTES,
+import { LOAD_BYTES, LOAD_SLOTS_BYTES, parseLoadReading, type LoadReading, SAVED_SET_METADATA_BYTES, SAVED_SET_CHUNK_BYTES,
   SAVED_SET_CHUNK_DATA, parseSavedSetMetadata, parseSavedSetChunk, ZERO_DIGEST, type SavedSetMetadata, type SavedSetSnapshot } from './upload-wire.ts'
 import { sha, toHex } from '../../../vendor/elekloader/kit/src/bytes.ts'
 
@@ -173,9 +173,19 @@ export class UsbVendorTransport implements UploadTransport {
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The Octatrack did not answer the loader capabilities request.')
     return parseRuntimeCapabilities(reply.data)
   }
-  /** Cached, read-only live meters. Older bases explicitly stall this request. */
+  /** false once the base stalled MWLD v2 (no slot meter): it is not asked again on this transport. */
+  private slotLoad = true
+  /** Cached, read-only live meters: with each FX slot's cost from a base with the slot meter (v2), else v1. Older
+   * bases explicitly stall these requests. */
   async load(signal?: AbortSignal): Promise<LoadReading | undefined> {
     signal?.throwIfAborted()
+    if (this.slotLoad) {
+      const reply = await this.device.controlTransferIn(this.setup(30, 1), LOAD_SLOTS_BYTES)
+      signal?.throwIfAborted()
+      if (reply.status === 'ok' && reply.data) return parseLoadReading(reply.data)
+      if (reply.status !== 'stall') throw new VendorTransportError('The Octatrack did not answer the load request.')
+      this.slotLoad = false
+    }
     const reply = await this.device.controlTransferIn(this.setup(30, 0), LOAD_BYTES)
     signal?.throwIfAborted()
     if (reply.status === 'stall') return undefined

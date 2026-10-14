@@ -22,23 +22,63 @@ export const ZERO_DIGEST = '0'.repeat(64)
 
 /** Public MWLD v1, request 30: cached hardware meters, never self-test peaks. */
 export const LOAD_BYTES = 48
+/** MWLD v2 (request 30, wValue 1): v1 and each FX slot's measured DSP cost, from a base built with the slot meter
+ * (build_core.py --slot-meter). Older bases stall it; asking keeps the base's slot meter running for 10 s. */
+export const LOAD_SLOTS_BYTES = 184
+/** One running FX slot: what its effect really cost its DSP core over the base's last 1,024-frame window. */
+export interface SlotLoad {
+  track: number; fx: 1 | 2; core: 0 | 1; id: number
+  /** measured: mean and peak are a window's; waiting: not measured yet; unmeasurable: the core runs nothing there */
+  state: 'measured' | 'waiting' | 'unmeasurable'
+  /** Per mille of the core's frame (as tracks1to4/tracks5to8), and chip cycles a sample. */
+  mean: number | null; peak: number | null; meanCycles: number | null; peakCycles: number | null
+  /** Seconds since the reading (the base's 60 Hz ticks), null when there is none. */
+  age: number | null
+}
 export interface LoadReading {
   ticks: number; frames: number
   cpu: number | null; tracks1to4: number | null; tracks5to8: number | null
   peak1to4: number | null; peak5to8: number | null
+  /** Only from a base with the slot meter: the slots that run an effect, FX1 T1-T8 then FX2. */
+  slots?: SlotLoad[]
 }
+const SLOT_STATES = [undefined, 'measured', 'waiting', 'unmeasurable'] as const
 export function parseLoadReading(view: DataView): LoadReading {
-  if (view.byteLength !== LOAD_BYTES || view.getUint32(0) !== 0x4d574c44 || view.getUint8(4) !== 1 ||
-    view.getUint8(5) & ~7 || view.getUint16(6) !== LOAD_BYTES) throw new Error('The Octatrack load record is unsupported or incomplete.')
+  const version = view.byteLength >= 5 ? view.getUint8(4) : 0, length = version === 2 ? LOAD_SLOTS_BYTES : LOAD_BYTES
+  if (view.byteLength !== length || view.getUint32(0) !== 0x4d574c44 || (version !== 1 && version !== 2) ||
+    view.getUint8(5) & ~7 || view.getUint16(6) !== length) throw new Error('The Octatrack load record is unsupported or incomplete.')
   const ticks = view.getUint32(8), flags = view.getUint8(5)
   const values = Array.from({ length: 5 }, (_, i) => view.getUint32(28 + 4 * i))
   if (values.some(value => value > 1000)) throw new Error('The Octatrack load reading is outside its meter range.')
   // Ticks wrap at uint32. Uninitialized or old meter windows are gaps, never zero load.
   const fresh = (bit: number, offset: number) => !!(flags & bit) && ((ticks - view.getUint32(offset)) >>> 0) <= 600
   const cpu = fresh(1, 16), core0 = fresh(2, 20), core1 = fresh(4, 24)
-  return { ticks, frames: view.getUint32(12), cpu: cpu ? values[0] : null,
+  const reading: LoadReading = { ticks, frames: view.getUint32(12), cpu: cpu ? values[0] : null,
     tracks5to8: core0 ? values[1] : null, peak5to8: core0 ? values[2] : null,
     tracks1to4: core1 ? values[3] : null, peak1to4: core1 ? values[4] : null }
+  if (version === 2) reading.slots = parseSlots(view)
+  return reading
+}
+function parseSlots(view: DataView): SlotLoad[] {
+  const frameCycles = view.getUint32(48), count = view.getUint8(52), perCount = view.getUint8(53)
+  if (count !== 16 || !perCount || frameCycles < 16000 || frameCycles > 200000 || view.getUint16(54))
+    throw new Error('The Octatrack slot load record is unsupported.')
+  const slots: SlotLoad[] = []
+  for (let i = 0; i < 16; i++) {
+    const at = 56 + 8 * i, id = view.getUint8(at), code = view.getUint8(at + 1), age = view.getUint16(at + 2)
+    const state = SLOT_STATES[code]
+    if (code > 3 || (!code && id)) throw new Error('The Octatrack slot load record is unsupported.')
+    if (!state) continue
+    const measured = state === 'measured', track = (i & 7) + 1
+    const cycles = (counts: number) => counts * perCount
+    const permille = (counts: number) => Math.min(1000, Math.round(cycles(counts) * 1000 / frameCycles))
+    const mean = view.getUint16(at + 4), peak = view.getUint16(at + 6)
+    slots.push({ track, fx: i < 8 ? 1 : 2, core: track <= 4 ? 1 : 0, id, state,
+      mean: measured ? permille(mean) : null, peak: measured ? permille(peak) : null,
+      meanCycles: measured ? +(cycles(mean) / 16).toFixed(1) : null, peakCycles: measured ? +(cycles(peak) / 16).toFixed(1) : null,
+      age: measured && age !== 0xffff ? +(age / 60).toFixed(1) : null })
+  }
+  return slots
 }
 
 /** Private beta saved-file export. Only the two fixed MODWERK slots, never arbitrary memory or paths. */

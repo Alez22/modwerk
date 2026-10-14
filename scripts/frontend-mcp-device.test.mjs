@@ -181,6 +181,11 @@ describe('frontend MCP reviewed device transactions', () => {
     expect(result).toMatchObject({ base, supported: true, reading: { cpu: 123, tracks1to4: 234, tracks5to8: 345 } })
     expect(service.tools.find(tool => tool.name === 'device_load').annotations.readOnlyHint).toBe(true)
     expect(link.updates).toHaveLength(0); expect(link.keeps).toBe(0); expect(link.undos).toBe(0)
+    // A base with the slot meter (MWLD v2): each running FX slot's measured cost passes through unchanged.
+    const slots = [{ track: 5, fx: 2, core: 0, id: 20, state: 'measured', mean: 100, peak: 150, meanCycles: 453.3, peakCycles: 679.9, age: 2 }]
+    const original = link.liveLoad
+    link.liveLoad = async () => ({ ...(await original.call(link)), slots })
+    expect((await service.call('device_load')).reading.slots).toEqual(slots)
     link.liveLoad = async () => undefined
     expect(await service.call('device_load')).toEqual({ base, supported: false, reading: null })
     link.liveLoad = async () => { link.state = { ...link.state, identity: { ...link.state.identity, base: 'd'.repeat(64) } }; return {} }

@@ -190,6 +190,16 @@ installed module's share of each core's frame from its own cycle figure, `~` whe
 the meters see only each core's sum), MISSING and SELF TEST. SYSTEM stays stock. A DSP core's load is its idle passes times their calibrated cycles (20.0 on core 0, 14.5 on core 1)
 of a 72,520-cycle frame; recalibrate with `build_core.py --dsp-burn 1000` (core 0) or `-1000` (core 1).
 
+**What each FX slot really costs** (`build_core.py --slot-meter`, off by default; `dsp_slot_meter.py` has the
+design). Each core times one running FX slot at a time with its timer 0 (core clock / 2, so 2-cycle resolution)
+around that slot's proc: mean and peak cycles a frame over the load meter's 1,024-frame window. It runs only while a
+host reads MWLD v2 (request 30, wValue 1: the Status tab, the MCP's `device_load`, `npm run device -- slots`),
+moving to the next slot of the core after each reading, and stops 10 s after the last read. Its cost while watching
+is about 35 cycles a call of the watched effect id on that core and 30 a frame; 7 a frame otherwise; nothing on
+other slots or on the ColdFire's frame path. It takes 210 words of each core's code arena. Not yet run on a unit:
+the timer write and the memory form of `movep` have no stock precedent, and the wrapper adds a stack level under the
+proc. The site shows the slots under each core's meter, and a base without the meter stalls v2 so the site uses v1.
+
 
 **Optimising a DSP effect.** `dspbench/` compares two builds of an effect on the dsp56300 emulator core,
 called with stock's convention: bit-identical output under knob automation and every split position, and the

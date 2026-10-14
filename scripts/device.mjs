@@ -22,6 +22,7 @@
 //   npm run device -- stats                         # CPU and DSP load, DSP arena, delay buffers, module pool (status.c; the modal is CUE + PROJ)
 //   npm run device -- probe 0|1                     # one no-op loader packet to a DSP core
 //   npm run device -- meter 0|1                     # the DSP load meter's last 1024-frame window (core 0's idle iterations)
+//   npm run device -- slots [--seconds 40]          # each running FX slot's measured DSP cost (a base built with --slot-meter)
 //   npm run device -- missing                       # the modules the project names that are not installed (MISSING request)
 //   npm run device -- enc A+3 | LEVEL-1 | fader 128 # encoders A-F and LEVEL, the crossfader
 //
@@ -54,10 +55,10 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   chunk: { type: 'string' }, // boot: bytes a frame (4096 for the flashed usbtest9 on macOS; docs/OCTATRACK_HARDWARE_TRAPS.md)
 } })
 let seconds = Number(values.seconds)
-if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
-  (['serve', 'status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
+if (!['serve', 'status', 'stats', 'slots', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
+  (['serve', 'status', 'stats', 'slots', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
   !Number.isInteger(seconds) || seconds < 1 || seconds > 3600 || (values.chunk && !(Number(values.chunk) >= 1 && Number(values.chunk) <= 4096 && Number.isInteger(Number(values.chunk))))) {
-  console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR [--chunk 1-4096] | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
+  console.error('Usage: device.mjs status | stats | slots [--seconds N] | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR [--chunk 1-4096] | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
   process.exit(2)
 }
 
@@ -222,7 +223,8 @@ async function missing() {
 }
 
 /** One connection for a whole sequence: KEY or KEY+KEY (with *N to repeat), w300 (wait ms), encC+3, fader128, ui, screen, state,
- * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
+ * stats (one line: CPU, each core's mean/peak per mille and idle passes a frame), slots (each FX slot's measured DSP cost, a
+ * --slot-meter base: the first read starts the meter, so read again after ~10 s per slot of a core), png:FILE, mem:0xADDR:LEN, part1-4, pick:T1:FX2:NAME,
  * +KEY / -KEY (press, release), crash (the last crash's record), crashtest (development bases: crash on purpose),
  * stall (the last DSP stall's record), stalltest (development bases: write one now), selftest (PROJ > MODWERK > SELF TEST, about 15 s)
  * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
@@ -230,6 +232,14 @@ async function missing() {
  * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
  * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed)
  * (spaces in NAME as _; it waits until the track runs it). */
+/** MWLD v2's slots: track, slot, core, effect id, mean and peak cycles a sample and share of the core, age. */
+function slotTable(slots) {
+  if (!slots.length) return 'no FX slot runs an effect'
+  const pc = permille => permille == null ? '-' : (permille / 10).toFixed(1) + '%'
+  return slots.map(s => `T${s.track} FX${s.fx} core ${s.core} id ${String(s.id).padStart(3)}  ` + (s.state === 'measured'
+    ? `mean ${String(s.meanCycles).padStart(6)} peak ${String(s.peakCycles).padStart(6)} cycles/sample  (${pc(s.mean)} / ${pc(s.peak)} of the core, ${s.age} s ago)`
+    : s.state)).join('\n')
+}
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
     if (Date.now() > until) throw new Error('stopped at the time limit before ' + step)
@@ -339,6 +349,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
     else if ((m = /^pick:T([1-8]):FX([12]):(\S+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), m[3].replace(/_/g, ' '))
     else if ((m = /^pickid:T([1-8]):FX([12]):(\d+)$/i.exec(step))) await pick(Number(m[1]) - 1, Number(m[2]), Number(m[3])) // by effect id
     else if (step === 'state') { const [s, r] = await devIn(6, 0, 2); console.log(s ? 'stopped' : 'playing', r ? 'recording' : '') }
+    else if (step === 'slots') { const reading = await transport.load(); console.log(reading?.slots ? slotTable(reading.slots) : 'slots: not a --slot-meter base') }
     else if (step === 'stats') { const w = await statusWords(); console.log(`stats cpu ${w(66)} T1-4 ${w(69)}/${w(70)} T5-8 ${w(67)}/${w(68)} passes ${(w(76) / 1024).toFixed(1)} ${(w(77) / 1024).toFixed(1)}`) }
     else { const [, spec, times] = /^(.+?)(?:\*(\d+))?$/.exec(step); for (let i = 0; i < Number(times ?? 1); i++) await keys(spec) }
     await wait(60)
@@ -488,6 +499,20 @@ if (command === 'serve') {
     process.exit(0)
   }
   if (command === 'missing') { console.log(await missing()); process.exit(0) }
+  if (command === 'slots') { // MWLD v2, every 2 s: the base measures one slot per core at a time, while asked
+    const until = Date.now() + 1000 * Math.max(seconds, 5)
+    let reading
+    do {
+      reading = await transport.load()
+      if (!reading?.slots) throw new Error('This base does not measure slots: build it with build_core.py --slot-meter.')
+      const done = reading.slots.filter(slot => slot.state !== 'waiting').length
+      console.log(`${new Date().toLocaleTimeString()} ${done}/${reading.slots.length} slots measured`)
+      if (reading.slots.length && done === reading.slots.length) break
+      await wait(2000)
+    } while (Date.now() < until)
+    console.log(slotTable(reading.slots))
+    process.exit(0)
+  }
   if (command === 'meter') { // dsp_receiver.asm's load meter, read back a bit a frame (66 report words, version 10)
     if (!['0', '1'].includes(file)) throw new Error('Use meter 0 or meter 1.')
     if (!(await devIn(13, Number(file), 1))[0]) throw new Error('A meter read is already waiting.')

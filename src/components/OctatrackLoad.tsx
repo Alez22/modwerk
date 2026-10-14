@@ -1,14 +1,45 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
-import type { LoadReading } from '../engine/elekloader/upload-wire'
+import type { LoadReading, SlotLoad } from '../engine/elekloader/upload-wire'
+import metadata from '../engine/assets/chooser-metadata.json'
+import { STOCK_EFFECT_NAMES } from '../catalog/stock-effects'
 import { useOctatrackLoad } from '../hooks/useOctatrackLoad'
 import { loadPath } from '../config/octatrack-load'
 import './octatrack-load.css'
 
 const percent = (value: number | null | undefined) => value == null ? '—' : `${(value / 10).toFixed(1)}%`
-function Meter({ area, title, value, peak }: { area: string; title: string; value?: number | null; peak?: number | null }) {
-  return <div className={'load-meter hub-cell ' + area}><span>{title}</span><strong>{percent(value)}</strong>{value == null ? <div className="load-meter-unavailable" aria-hidden="true" /> : <meter min={0} max={1000} value={value} aria-label={`${title} load`} aria-valuetext={percent(value)} />}<small>{peak != null ? `Recent device peak ${percent(peak)}` : ' '}</small></div>
+const STOCK_IDS = new Map(metadata.stockEffects.map(effect => [effect.fxId, STOCK_EFFECT_NAMES[effect.key] ?? effect.key]))
+/** A base with the slot meter: what each running FX slot of this core costs it, measured one slot at a time. */
+function Slots({ title, slots, names }: { title: string; slots: SlotLoad[]; names: Map<number, string> }) {
+  if (!slots.length) return <p className="load-slots-none">No effects running</p>
+  return <ul className="load-slots" aria-label={`${title} effects`}>{slots.map(slot => <li key={`${slot.track}-${slot.fx}`}>
+    <span className="load-slot-where">T{slot.track} FX{slot.fx}</span>
+    <span className="load-slot-name">{names.get(slot.id) ?? STOCK_IDS.get(slot.id) ?? `Effect ${slot.id}`}</span>
+    <span className="load-slot-value">{slot.state === 'measured' ? <>{percent(slot.mean)}<small> · peak {percent(slot.peak)}</small></> : slot.state === 'waiting' ? 'Measuring…' : 'Not measurable'}</span>
+  </li>)}</ul>
 }
+function Meter({ area, title, value, peak, slots, names }: { area: string; title: string; value?: number | null; peak?: number | null; slots?: SlotLoad[]; names?: Map<number, string> }) {
+  return <div className={'load-meter hub-cell ' + area}><span>{title}</span><strong>{percent(value)}</strong>{value == null ? <div className="load-meter-unavailable" aria-hidden="true" /> : <meter min={0} max={1000} value={value} aria-label={`${title} load`} aria-valuetext={percent(value)} />}<small>{peak != null ? `Recent device peak ${percent(peak)}` : ' '}</small>
+    {slots && <Slots title={title} slots={slots} names={names ?? new Map()} />}</div>
+}
+/** Module effect names by effect id (the unit's INVENTORY), asked once per base, only when a slot runs a module. */
+function useModuleNames(link: OctatrackLink | null, slots: SlotLoad[] | undefined) {
+  const base = link?.getState().identity?.base
+  const [names, setNames] = useState<{ base?: string; map: Map<number, string> }>({ map: new Map() })
+  const asked = useRef<string | undefined>(undefined)
+  const wanted = !!slots?.some(slot => !STOCK_IDS.has(slot.id))
+  useEffect(() => {
+    if (!link || !base || !wanted || asked.current === base) return
+    asked.current = base
+    let live = true
+    link.inventory().then(list => {
+      if (live && list) setNames({ base, map: new Map(list.filter(module => module.handle !== 0xff).map(module => [module.handle, module.name])) })
+    }, () => { if (live) asked.current = undefined }) // busy: ask again with a later reading
+    return () => { live = false }
+  }, [link, base, wanted])
+  return names.base === base ? names.map : NO_NAMES
+}
+const NO_NAMES = new Map<number, string>()
 const SERIES: { key: keyof Pick<LoadReading, 'cpu' | 'tracks1to4' | 'tracks5to8'>; title: string; className: string }[] = [
   { key: 'cpu', title: 'CPU', className: 'load-cpu' }, { key: 'tracks1to4', title: 'Tracks 1–4', className: 'load-core1' }, { key: 'tracks5to8', title: 'Tracks 5–8', className: 'load-core0' },
 ]
@@ -20,6 +51,8 @@ export function OctatrackLoad({ link, active }: { link: OctatrackLink | null; ac
   const [table, setTable] = useState(false)
   const last = points.at(-1)
   const latest = active && ready && visible && last && now - last.at <= 6000 ? last.reading : null
+  const names = useModuleNames(link, latest?.slots)
+  const core = (n: 0 | 1) => latest?.slots?.filter(slot => slot.core === n)
   const observed = points.filter(point => point.reading)
   const off = !link?.getState().identity?.canSubmit || unsupported
   // The chart's takeaway: the highest reading still in the window, and where it was.
@@ -30,8 +63,8 @@ export function OctatrackLoad({ link, active }: { link: OctatrackLink | null; ac
   }
   return <>
     <Meter area="hub-cell-cpu" title="CPU" value={latest?.cpu} />
-    <Meter area="hub-cell-dsp1" title="Tracks 1–4 · DSP" value={latest?.tracks1to4} peak={latest?.peak1to4} />
-    <Meter area="hub-cell-dsp2" title="Tracks 5–8 · DSP" value={latest?.tracks5to8} peak={latest?.peak5to8} />
+    <Meter area="hub-cell-dsp1" title="Tracks 1–4 · DSP" value={latest?.tracks1to4} peak={latest?.peak1to4} slots={core(1)} names={names} />
+    <Meter area="hub-cell-dsp2" title="Tracks 5–8 · DSP" value={latest?.tracks5to8} peak={latest?.peak5to8} slots={core(0)} names={names} />
     <section className="octatrack-load hub-cell hub-cell-chart" aria-labelledby={`${id}-title`}>
       <div className="load-heading"><h3 id={`${id}-title`}>Last five minutes</h3>
         {highest && <span className="load-highest">Highest {percent(highest.value)} · {highest.title} · {new Date(highest.at).toLocaleTimeString()}</span>}
