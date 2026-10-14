@@ -120,16 +120,20 @@ describe('frontend MCP reviewed device transactions', () => {
     const extra = { id: 'cc-map', version, module: bytes.subarray(28, 32).toString('hex'), name: 'CC Map',
       abi: 8, features: 0, sites: 0, copies: 0, fills: 0, bytes: bytes.length, requiredBase: base,
       sha256: createHash('sha256').update(bytes).digest('hex'), path: `octatrack-modules/cc-map/${version}.mwrm` }
-    for (const entry of [...manifest.packages, extra]) {
+    // Every reviewed port is published now: prepare CC Map against a published list (the tools' root) without it.
+    const published = { ...manifest, packages: manifest.packages.filter(entry => entry.id !== 'cc-map') }, unpublished = join(folder, 'root')
+    await mkdir(join(unpublished, 'src/engine/assets'), { mode: 0o700, recursive: true })
+    await writeFile(join(unpublished, 'src/engine/assets/octatrack-module-packages.json'), JSON.stringify(published), { mode: 0o600 })
+    for (const entry of [...published.packages, extra]) {
       const path = join(preparedModules, entry.path)
       await mkdir(join(path, '..'), { mode: 0o700, recursive: true })
       if (entry === extra) await writeFile(path, bytes, { mode: 0o600 })
       else { await copyFile(join(root, 'public', entry.path), path); await chmod(path, 0o600) }
     }
     await writeFile(join(preparedModules, 'candidate-packages.json'), JSON.stringify({ schema: 1, preparation: true,
-      base: { identity: base }, packages: [...manifest.packages, extra], held: [{ id: 'mute-modes', admission: false }] }), { mode: 0o600 })
+      base: { identity: base }, packages: [...published.packages, extra], held: [{ id: 'mute-modes', admission: false }] }), { mode: 0o600 })
     link.state.identity.capabilities = { abi: 8, features: 7, maxSites: 128, maxCopies: 128 }
-    const open = allowDeviceWrites => createFrontendTools({ dataDir: folder, deviceSocket: 'test-only', preparedModules,
+    const open = allowDeviceWrites => createFrontendTools({ root: unpublished, dataDir: folder, deviceSocket: 'test-only', preparedModules,
       allowDeviceWrites }, frontend, { openLink: async () => link, now: () => clock })
     service = await open(false)
     const selected = ['everb', 'cc-map']

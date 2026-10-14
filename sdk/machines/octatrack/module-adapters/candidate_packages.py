@@ -146,11 +146,12 @@ def authored(root, upstream, module, builder, binding, stock_at, work, cross):
         proofs, title = {name: result[name] for name in ('referenceProofs', 'tableOracle', 'origins')}, 'Mute Modes'
     else:
         raise ValueError('No reviewed private native adapter for ' + module)
-    # Validate every original guard against both original stock and actual base.
-    for address, guard, _, _, _, n in sites:
+    # Validate every original guard against original stock when it is given (publication without firmware leaves
+    # it to the base, which checks every guard against its running code before it writes anything).
+    for address, guard, _, _, _, n in sites if stock_at else ():
         if digest(stock_at(address, n)) != guard.hex():
             raise ValueError('An authored runtime site differs from original stock.')
-    for _, address, n, guard in copies:
+    for _, address, n, guard in copies if stock_at else ():
         if digest(stock_at(address, n)) != guard.hex():
             raise ValueError('An authored runtime copy differs from original stock.')
     if module == 'recorder-loop-fix':

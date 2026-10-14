@@ -1382,8 +1382,10 @@ def main():
         for name in CONTROLLER_POLICY_SOURCES:
             p = APP / 'sdk/machines/octatrack/module-adapters/controller-policy' / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
-        if args.controller_policies:
-            inputs['private:controller-policies'] = sha(args.controller_policies.read_bytes())
+        if args.controller_policies:  # the committed reviewed rows by their path; a private file by its hash only
+            policies = args.controller_policies.resolve()
+            inputs[str(policies.relative_to(APP)) if policies.is_relative_to(APP) else 'private:controller-policies'] = \
+                sha(policies.read_bytes())
     inputs.update({'elekloader/' + p.name: sha(p.read_bytes()) for p in original_core.iterdir() if p.is_file()})
     artwork = APP / 'sdk/runtime/startup/artwork.json'
     inputs['sdk/runtime/startup/artwork.json'] = sha(artwork.read_bytes())
@@ -1412,7 +1414,7 @@ def main():
         if args.dev:
             configuration['dev'] = ['key', 'panel', 'state', 'screen']
     if resident_boot_prepared:
-        configuration['dsp']['residentStockHooks'] = dict(schema=1, dormant=True, controllersAdmitted=False,
+        configuration['dsp']['residentStockHooks'] = dict(schema=1, dormant=True, controllersAdmitted=bool(args.controller_policies),
             receiptSha256=sha(json.dumps(resident_boot_prepared['receipt'], sort_keys=True, separators=(',', ':')).encode()))
     identity = sha(json.dumps(configuration, separators=(',', ':')).encode())
     values = dict(build=identity[:16], os='1.40C', modules='', configuration=identity,

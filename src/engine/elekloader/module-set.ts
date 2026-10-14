@@ -4,6 +4,7 @@
 // are installed from them; anything the set leaves out is removed with an empty package naming its module.
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
 import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
+import baseBinding from '../assets/octatrack-base-binding.json' with { type: 'json' }
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { MODULES } from '../../catalog/modules.ts'
 import { inventoryChanges, type Inventory, type InventoryTarget } from '../../config/inventory.ts'
@@ -233,8 +234,9 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
   function requireBase(steps: Step[], capabilities?: RuntimeCapabilities, base?: string) {
     for (const step of steps) for (const entry of [step.add, step.undo]) {
       if (!entry) continue
-      if (entry.requiredBase && entry.requiredBase !== base)
-        throw new ModuleSetError('This module package needs the exact Modwerk base it was prepared for. Reconnect that base before syncing.')
+      // A published package bound to the published base (octatrack-base-binding.json) needs that base: an older one is an update.
+      if (entry.requiredBase && entry.requiredBase !== base) throw entry.requiredBase === baseBinding.identity ? new BaseUpdateRequired() :
+        new ModuleSetError('This module package needs the exact Modwerk base it was prepared for. Reconnect that base before syncing.')
       const { abi, features, sites, copies } = requirements(entry, step.group)
       if ((!capabilities && (abi > 6 || features)) || capabilities && (abi > capabilities.abi || (features & capabilities.features) !== features || sites > capabilities.maxSites || copies > capabilities.maxCopies))
         throw new BaseUpdateRequired()

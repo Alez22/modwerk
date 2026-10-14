@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
 import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
+import baseBinding from '../assets/octatrack-base-binding.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
 import { BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
 
@@ -12,16 +13,18 @@ const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
   it('publishes each listed module with its checked runtime identity, ABI and record counts', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'playmodes', 'mute-modes'])
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'recorder-loop-fix'])
     for (const entry of manifest.packages) {
       const data = file(entry.path), view = new DataView(data.buffer), abi = view.getUint16(4)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)
       expect([data.length, sha(data), view.getUint32(28).toString(16).padStart(8, '0')]).toEqual([entry.bytes, entry.sha256, runtimeId(entry.id)])
       expect(String.fromCharCode(...data.subarray(0, 4))).toBe('MWRM')
-      if (!('octabam' in entry) && !('machine' in entry) && !('tables' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([6, 0, 0]) // ABI 6 DSP effects carry no stock-code bytes
+      if (!('octabam' in entry) && !('machine' in entry) && !('tables' in entry) && !('base' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([6, 0, 0]) // ABI 6 DSP effects carry no stock-code bytes
       if ('machine' in entry) expect([abi, view.getUint16(6) & 4]).toEqual([8, 0]) // an independent machine package, never a group
       expect([entry.abi, entry.sites, entry.copies, entry.fills]).toEqual([abi, view.getUint32(24), abi >= 7 ? view.getUint32(68) : 0, abi === 8 ? view.getUint32(72) : 0])
       expect(view.getUint32(20) > 0).toBe((entry.features & 128) !== 0) // only a site-event subscriber has hook words
+      // A package bound to a base names exactly the published one (octatrack:base writes its binding).
+      expect((entry as { requiredBase?: string }).requiredBase).toBe('base' in entry ? baseBinding.identity : undefined)
     }
   })
   it('lets a package subscribe to at most the base’s site events', () => {
@@ -72,8 +75,9 @@ describe('preparing a module set', () => {
     await expect(prepareModuleSet(target, empty, fetched, { ...events, features: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired) // Repitch subscribes
     await expect(prepareModuleSet(target, empty, fetched, { ...events, abi: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired)
     await expect(prepareModuleSet(target, empty, fetched, { ...events, maxSites: 1 })).rejects.toBeInstanceOf(BaseUpdateRequired)
+    await expect(prepareModuleSet(target, empty, fetched, events, 'b'.repeat(64))).rejects.toBeInstanceOf(BaseUpdateRequired) // an older base
     expect(fetched).not.toHaveBeenCalled()
-    const result = await prepareModuleSet(target, empty, fetched, events)
+    const result = await prepareModuleSet(target, empty, fetched, events, baseBinding.identity)
     expect(result.changes.map(change => change.module)).toEqual(manifest.packages.map(entry => entry.name))
     expect(result.changes.every(change => change.undo?.length === 32)).toBe(true)
   })

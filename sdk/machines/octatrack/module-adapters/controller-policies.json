@@ -1,0 +1,78 @@
+[
+ {
+  "module": "sidechain-compressor",
+  "moduleId": 2513434262,
+  "packageSha256": "783440d5f2fad73fca39c2680ca050c063a78b4737656174b7540b0f57d3c444",
+  "sourcePolicySha256": "a3097ade0a37e3f5c636096667188714b74e7bee0642d488b26fa5135aefecd0",
+  "revisions": [
+   1,
+   1,
+   1
+  ],
+  "feature": 1,
+  "requiredCores": 3,
+  "version": 1,
+  "imageBytes": 844,
+  "entryName": "sc_norm",
+  "entry": 624,
+  "beginReturn": 658,
+  "endReturn": 708
+ },
+ {
+  "module": "output-matrix",
+  "moduleId": 3404814517,
+  "packageSha256": "5238c38446f387712c5450a88649d798dd544b6580278a891a81c9a6994d7e55",
+  "sourcePolicySha256": "6c8b204a611a7c5137386866ee68516da3b599015e9cf36feb8c8b99a097663a",
+  "revisions": [
+   1,
+   1,
+   1
+  ],
+  "feature": 2,
+  "requiredCores": 1,
+  "version": 1,
+  "imageBytes": 2188,
+  "entryName": "page_levels",
+  "entry": 1564,
+  "beginReturn": 1598,
+  "endReturn": 1648
+ },
+ {
+  "module": "output-matrix",
+  "moduleId": 3404814517,
+  "packageSha256": "5238c38446f387712c5450a88649d798dd544b6580278a891a81c9a6994d7e55",
+  "sourcePolicySha256": "6c8b204a611a7c5137386866ee68516da3b599015e9cf36feb8c8b99a097663a",
+  "revisions": [
+   1,
+   1,
+   1
+  ],
+  "feature": 2,
+  "requiredCores": 1,
+  "version": 1,
+  "imageBytes": 2188,
+  "entryName": "matrix_leave",
+  "entry": 1720,
+  "beginReturn": 1754,
+  "endReturn": 1804
+ },
+ {
+  "module": "output-matrix",
+  "moduleId": 3404814517,
+  "packageSha256": "5238c38446f387712c5450a88649d798dd544b6580278a891a81c9a6994d7e55",
+  "sourcePolicySha256": "6c8b204a611a7c5137386866ee68516da3b599015e9cf36feb8c8b99a097663a",
+  "revisions": [
+   1,
+   1,
+   1
+  ],
+  "feature": 2,
+  "requiredCores": 1,
+  "version": 1,
+  "imageBytes": 2188,
+  "entryName": "matrix_enter",
+  "entry": 1876,
+  "beginReturn": 1910,
+  "endReturn": 1960
+ }
+]

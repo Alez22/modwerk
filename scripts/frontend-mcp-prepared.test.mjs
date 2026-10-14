@@ -17,6 +17,8 @@ beforeAll(async () => {
   }, build: { ssr: join(root, 'scripts/frontend-mcp-bridge.ts'), write: false } })
   frontend = await import('data:text/javascript;base64,' + Buffer.from(bundle.output.find(item => item.isEntry).code).toString('base64'))
   manifest = JSON.parse(await readFile(join(root, 'src/engine/assets/octatrack-module-packages.json'), 'utf8'))
+  // Every reviewed port is published now: prepare CC Map against a published list that does not have it yet.
+  manifest.packages = manifest.packages.filter(entry => entry.id !== 'cc-map')
 }, 30000)
 afterAll(async () => { for (const folder of folders) await rm(folder, { recursive: true, force: true }) })
 

@@ -24,7 +24,12 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
   --standalone; owner decision 14 Oct 2026);
 - an entry with "tables" (Mute Modes): its units and grown stock tables (build.py --octabam-tables) from the reviewed
   table recipes in module-adapters/candidate-recipes.json; the base admits it through its reviewed table declaration
-  (module-adapters/table-owners.json, built into the base).
+  (module-adapters/table-owners.json, built into the base);
+- an entry with "base" (Sidechain Compressor, Output Matrix, CC Map, Recorder Loop Fix): bound to the exact public
+  base, whose IDENTIFY digest its manifest entry names as requiredBase (module-adapters/base_bound.py). The controller
+  packages call the base's write-lease entries and the base admits them through the trust rows built into it; the
+  cave ports are linked for its arena and runtime pool. They link against src/engine/assets/octatrack-base-binding.json,
+  which `npm run octatrack:base` writes from the base it built. Same tools as "octabam".
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
@@ -46,8 +51,14 @@ SEED, LIMIT = 12, 12  # bytes: a shared run worth looking at; its counted (not f
 FILL = 4  # 0xFF bytes in a stretch this long count as filler: a whole unused hook word (the loader's RUNTIME_NONE)
 
 
-def build(entry, out, upstream, private_stock=None):
-    """One package through build.py, as the README's command line makes it."""
+def build(entry, out, upstream, private_stock=None, stock_at=None):
+    """One package through build.py, as the README's command line makes it (a base-bound one through base_bound.py)."""
+    if entry.get('base'):
+        sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
+        import base_bound
+        data, _ = base_bound.build(entry['id'], upstream, out.parent / (entry['id'] + '-work'), stock_at)
+        out.write_bytes(data)
+        return data
     args = [sys.executable, '-B', str(BUILD), '-o', str(out)]
     if entry.get('slots'):
         args += ['--dsp', '%s:%s' % (DSP, entry['id']), '--slots', entry['slots'], '--cycles', str(entry['cycles']),
@@ -144,7 +155,7 @@ def dsp_words(data):
 
 def tools(entry, upstream):
     """Whether this machine can build the entry: an Octabam or machine one needs m68k-elf binutils and Elekloader's checkout."""
-    return not (entry.get('octabam') or entry.get('machine') or entry.get('tables')) or bool(
+    return not (entry.get('octabam') or entry.get('machine') or entry.get('tables') or entry.get('base')) or bool(
         shutil.which('m68k-elf-as') and (upstream / 'elekloader/sdk/octabam.py').is_file())
 
 
@@ -172,12 +183,13 @@ def main():
     manifest = json.loads(MANIFEST.read_text())
     versions = {m['id']: m['version'] for m in json.loads((APP / 'sdk/catalog.json').read_text())['modules']}
     dsp = {p['id']: p for p in json.loads(DSP.read_text())['packages']}
-    stock, upstream = None, a.upstream.expanduser().resolve()
+    stock, stock_at, upstream = None, None, a.upstream.expanduser().resolve()
     if a.stock:
         sys.path.insert(0, str(upstream))
         from elekloader import formats
         parsed, device, _ = formats.load(str(a.stock))
         stock = formats.main_image(parsed, device)
+        stock_at = lambda address, n: stock[address - device.main_load:address - device.main_load + n]
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import check_stock_free
         haystacks = check_stock_free.haystacks(a.stock, upstream)
@@ -194,12 +206,14 @@ def main():
                 print('%-18s skipped: no m68k-elf binutils or Elekloader checkout here' % entry['id'])
                 entries.append(entry)
                 continue
-            data = build(entry, Path(work) / 'p.mwrm', upstream)
+            data = build(entry, Path(work) / 'p.mwrm', upstream, stock_at=stock_at)
             views = [data] + dsp_words(data)
             path = 'octatrack-modules/%s/%s.mwrm' % (entry['id'], version)
             name = data[50:66].split(b'\0')[0].decode('latin-1')
             made = dict(entry, **capabilities(data), version=version, name=name, module=data[28:32].hex(), bytes=len(data),
                         sha256=hashlib.sha256(data).hexdigest(), path=path)
+            if entry.get('base'):
+                made['requiredBase'] = json.loads((APP / 'src/engine/assets/octatrack-base-binding.json').read_text())['identity']
             entries.append(made)
             if a.check:
                 same = made == entry and (PUBLIC / path).is_file() and (PUBLIC / path).read_bytes() == data

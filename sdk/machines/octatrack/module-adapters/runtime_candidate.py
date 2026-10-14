@@ -56,9 +56,13 @@ def bind_base(main, symbols, proof):
         raise ValueError('Candidate IDENTIFY digest lies outside its actual image or is empty.')
     if plain[at:at + 32].hex() != proof.get('configurationHash'):
         raise ValueError('Candidate authored IDENTIFY bytes differ from its native proof.')
-    return dict(identity=plain[at:at + 32].hex(), arena=arena, pool=pool,
-                poolOrigins=(pool + 0x08001000, pool + 0x08004000),
+    return dict(identity=plain[at:at + 32].hex(), arena=arena, pool=pool, poolOrigins=pool_origins(pool),
                 imageSha256=hashlib.sha256(main).hexdigest())
+
+
+def pool_origins(pool):
+    """The two origins a pool unit is linked at to prove it relocates (uncached aliases inside the pool)."""
+    return (pool + 0x08001000, pool + 0x08004000)
 
 
 def guarded_arena_literals(image, relocations, arena, expected):
