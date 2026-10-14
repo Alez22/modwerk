@@ -257,7 +257,9 @@ static int owns_image(void *u, const struct mw_controller_binding *b)
 static int resources_idle(void *u, const struct mw_controller_binding *b)
 {
     (void)u;
-    unsigned at = slot_of(b);
+    unsigned at = 0;
+    while (at < MW_CONTROLLER_SLOTS && b != &REGISTRY.slots[at].binding) ++at; /* a slot's own binding: no lookup */
+    if (at == MW_CONTROLLER_SLOTS || REGISTRY.slots[at].state == MW_CTL_EMPTY) at = slot_of(b);
     if (at < MW_CONTROLLER_SLOTS && verified[at] == b->generation && !modwerk_controller_policy_entries() &&
         (REGISTRY.slots[at].state == MW_CTL_PUBLISHING || REGISTRY.slots[at].state == MW_CTL_ACTIVE)) return 1;
     return dl_hook_buffer_ranges_idle(b->identity.feature) == 1;

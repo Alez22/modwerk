@@ -1,6 +1,7 @@
 """Exact imported source and real native controller relocation preparation."""
 import importlib.util
 from pathlib import Path
+import re
 import shutil
 import struct
 import subprocess
@@ -62,6 +63,24 @@ class StockHookControllers(unittest.TestCase):
                 for entry in controllers.UNITS[name][2]:
                     self.assertEqual(text.count('\n%s:\n' % entry), 1)
                     self.assertIn(entry + '_begun:', text); self.assertIn(entry + '_ended:', text)
+                # A frame hook leases only when its body would write: its precheck reads, writes only
+                # its own stack frame and registers, and returns before Begin.
+                entry = {'sidechain-compressor': 'sc_norm', 'output-matrix': 'page_levels'}[name]
+                precheck = text[text.index('\n%s:\n' % entry):text.index('jsr modwerk_controller_write_begin',
+                                                                          text.index('\n%s:\n' % entry))]
+                self.assertEqual(precheck.count('        rts'), 1)
+                for line in precheck.splitlines():
+                    code = line.split('|')[0].split()
+                    if not code or code[0].endswith(':') or code[0].startswith(('b', 'cmp', 'tst', 'jsr', 'rts', 'pea', '.')):
+                        continue
+                    operands, depth, part = [], 0, ''
+                    for ch in ' '.join(code[1:]):
+                        depth += ch == '('; depth -= ch == ')'
+                        if ch == ',' and not depth: operands.append(part); part = ''
+                        else: part += ch
+                    operands.append(part)
+                    target = operands[-1].strip()
+                    self.assertTrue(re.fullmatch(r'%(?:[ad][0-7]|sp|ccr)(?:[-/]%[ad][0-7])*|-?\d*\(%sp\)', target), line)
                 if name=='output-matrix':
                     # The authored conversion runs only through the leased entries; its CC
                     # notification and the redraw are outside every held span.

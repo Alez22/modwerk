@@ -94,6 +94,13 @@ int modwerk_runtime_owner_valid(const struct runtime_owner *);
  * the pool's own base plus its offset, checked against the pool's ends. */
 int modwerk_runtime_owner_at(uintptr_t address,struct runtime_owner *);
 int modwerk_runtime_owner_canonical(const struct runtime_owner *,uintptr_t *extent);
+/* Stable lock held. modwerk_runtime_owner_valid, trying the entry *hint first and leaving where it was found
+ * there: one check while the ledger is unchanged. */
+int modwerk_runtime_owner_held(const struct runtime_owner *,unsigned *hint);
+/* Changes with every change of the owner ledger or of a position (install, discard, reclaim, publish, restore,
+ * journal switch); odd while one is under way. A result derived from owners while it was even and unchanged still
+ * holds, apart from each owner's own header, which modwerk_runtime_owner_held checks. */
+uint32_t modwerk_runtime_owner_epoch(void);
 /* Why the last package was refused, for diagnostics and the unit's own message. */
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
                        RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
