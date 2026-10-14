@@ -84,6 +84,12 @@ An entry fails once a named module is no longer active or nothing meets at a lis
 
 The gate does not prove runtime behaviour, DSP placement, cycles or hardware compatibility. `module:verify` and the qualification steps still cover those.
 
+### Every other machine
+
+The same rules hold on the Digitakt, the Digitone and every other machine with an elemod SDK, and the same gate checks them. It compares each mod with every other mod of its machine and with the core, from `modwerk.module.json` and `build.json`: the stock sites of each OS release both support, the reserved regions, the core-table entries and `platform.claims`. A mod may not claim a resource the core claims (`claims` in the core's `interface.json`). Problems name mods as `<machine>/<id>`, so `npm run modules:compat -- digitakt/digisophie` lists one mod's.
+
+The only exceptions are the reviewed `pending-event` entries in `sdk/machines/<machine>/compatibility.json`. Each one names the pair, the sites, a reason, the planned core events and `until`. Today the Digitakt has six: the SRC page, the SRC parameter ranges, the render step that injects an added machine's voice, the LFO page's DEST names and the SRC key handler are patched by several mods (digichain, Digi Mono, NEIGHBOR, DIGISLICER, SOPHIE). digichain shows the dispatch the core needs, owning those sites once and passing each call to the mod whose machine it is for. A new mod that needs one of those sites waits for the core event; it does not add a seventh exception.
+
 ### Events
 
 Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md), "Do not patch the shared sites: subscribe"). The base owns each event's stock site and calls every subscribed handler in a fixed order. A module adds a handler with `subscribe` entries of `event`, `fn` and `order`, for example `{"event": "ev_play_increment", "fn": "mymod_rate", "order": 50}`. Lower `order` runs first. Each event's registry entry gives its C prototype and says what a return value means, for example whether a handler can take the event so that later handlers do not see it.
@@ -102,6 +108,8 @@ Propose an event when the gate says two behaviour hooks meet, or when you need a
 2. Say which modules patch that site today. Until they subscribe, list each such pair in `compatibility.json` as `pending-migration`, with the event and `until`.
 3. The owner reviews the entry. Every later module subscribes to it instead of patching.
 
+On an elemod machine an event is part of the core: one entry in the core's `interface.json` (name, when it runs, the handler's prototype and what its result means), the core code that owns the site, and a new core version. The Digitakt and Digitone run elekloader's core, so propose the event upstream as well. Until the core has it, list each pair that meets at the site in `sdk/machines/<machine>/compatibility.json` as `pending-event`.
+
 ### Read the gate's message
 
 Each problem is one line naming the modules, the byte ranges and what each one patches, followed by a `fix:` line with the route and a link to this section. `npm run modules:compat -- <id>` lists only what involves your module.
@@ -117,6 +125,8 @@ Each problem is one line naming the modules, the byte ranges and what each one p
 | `fx2 id: X and Y both claim 0x…` | Pick another chooser row (a free effect ID) |
 | `core-private Y`, `DSP data range`, `FX2 instance buffers` | Claim free words, or request a base-owned region |
 | `relation …` | Correct `compatibility.json`; every entry needs owner review |
+| `M/X (site …) and M/Y (site …) both patch A in OS …` | Two mods meet at a stock site: [propose a core event](#propose-an-event) |
+| `M/X and M/Y both claim R`, or `M/X claims R, which the M core owns` | A named resource has one owner: claim another one |
 
 ## Performance
 
@@ -134,4 +144,4 @@ The limits are audit defaults, a judgement and not a repository rule: `--usable`
 
 ## Digitakt and Digitone
 
-Mods there are linked by one core per machine and built by elekloader's builder in the browser, so there is no native octabam comparison. Each guide has a short section on what applies. Start from [the Digitakt guide](../../sdk/machines/digitakt/README.md) for the core events, budgets and claims, and test a two-mod build, since combinations are the point.
+Mods there are linked by one core per machine and built by elekloader's builder in the browser, so there is no native octabam comparison. Each guide has a short section on what applies. Start from [the Digitakt guide](../../sdk/machines/digitakt/README.md) for the core events, budgets and claims, and test a two-mod build, since combinations are the point. [Every other machine](#every-other-machine) says what the cross-compatibility gate checks there.

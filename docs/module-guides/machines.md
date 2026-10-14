@@ -50,4 +50,4 @@ Test in layers, as Analog BD does: the DSP engine, the ColdFire glue, the port (
 
 ## Digitakt and Digitone
 
-New SRC machines go in slots 4–7 through the core's `core_machines` table, and the OS treats them "like the stock machine they stand in for", so the machine list comes from the OS. Claim the slot in `platform.claims`. There are four slots for the whole machine: test your mod beside another that also adds a machine ([Digitakt guide](../../sdk/machines/digitakt/README.md)).
+New SRC machines go in slots 4–7 through the core's `core_machines` table, and the OS treats them "like the stock machine they stand in for", so the machine list comes from the OS. Claim the slot in `platform.claims`. The SRC page, its parameter ranges and the render step are not core events yet, so a new SRC machine that needs them meets SOPHIE, NEIGHBOR, DIGISLICER and digichain there: [propose the core event](README.md#propose-an-event) instead of patching those sites. There are four slots for the whole machine: test your mod beside another that also adds a machine ([Digitakt guide](../../sdk/machines/digitakt/README.md)).

@@ -5,7 +5,7 @@ Every Elektron machine has a page on Modwerk. A machine gets mods by moving thro
 1. **Firmware file understood.** The OS file's container, packing and checksums are documented.
 2. **Stock file rebuilt exactly.** A writer rebuilds the stock OS file byte for byte from its own contents.
 3. **Modified OS boots.** A changed OS starts in an emulator or on a real unit, and the stock file recovers it.
-4. **Core with hooks.** A small core reserves memory and gives mods shared events, so several mods run together.
+4. **Core with hooks.** A small core reserves memory and gives mods shared events, so several mods run together. Every site more than one mod would need belongs to the core: mods subscribe to its events, add entries to its tables and claim named resources, and never patch what another mod patches.
 5. **First mods.** Reviewed modules with documentation, licences and evidence.
 
 ## Never share firmware
@@ -31,7 +31,8 @@ When steps 1–4 are done:
    - `firmware`: every supported OS release with its stock file names and SHA-256.
    - `flash` and `recovery` text users can follow.
    - `sdk`: platform, module folder, guide, core release and source path, toolchain, and every budget (memory, fast memory, slots) that combinations of mods must fit.
-3. **Add the guide** at `sdk/machines/<id>/README.md`: the core's events and their C prototypes, memory areas, budgets, how to build and how to recover.
+3. **Add the guide** at `sdk/machines/<id>/README.md`: the core's events and their C prototypes, memory areas, budgets, how to build and how to recover. The core's `interface.json` lists the same events, its tables and the resources the core claims; `npm run modules:check` refuses a mod that uses anything else, and `npm run modules:compat` compares every pair of the machine's mods from then on ([cross-compatibility](module-guides/README.md#every-other-machine)).
+   - **Loading without a reflash (optional).** The [runtime loader](../sdk/runtime/loader/README.md) does not depend on a machine: a ColdFire machine with a hook bus needs only the glue its "Porting to another machine" section lists. The Octatrack is the first machine with glue.
 4. **Create the module folder** (`sdk/<id>/modules/`) and a first module with `npm run module:new -- <mod> --machine <id> --author <login>`.
 5. **Set the status.** Set `status` to `preview` and every step to `done` when the first module validates. The status becomes `available` once Modwerk's engine builds and verifies firmware for the machine.
 

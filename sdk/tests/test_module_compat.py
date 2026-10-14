@@ -119,5 +119,59 @@ class GateTests(unittest.TestCase):
         self.assertEqual(gate.check(windows, **inputs), gate.check(modules, **inputs))
 
 
+
+def mod(name, *sites, release='1.0', claims=(), regions=()):
+    """A synthetic elemod mod patching 6 bytes at each site in one OS release (placeholder hashes, not stock)."""
+    build = dict(releases={release: dict(sites=[dict(addr=f'0x{a:08x}', len=6, stockSha256='0' * 64) for a in sites])},
+                 regions=[dict(name=n, lo=f'0x{lo:08x}', hi=f'0x{hi:08x}') for n, lo, hi in regions])
+    return gate.elemod_declarations('dt', dict(id=name, platform=dict(claims=list(claims))), build)
+
+
+class ElemodGateTests(unittest.TestCase):
+    def routes(self, problems):
+        return sorted((tuple(p['modules']), p['route']) for p in problems)
+
+    def test_clean_pair(self):
+        self.assertEqual(gate.check_elemod('dt', [mod('a', 0x40001000), mod('b', 0x40001006)]), [])
+
+    def test_shared_stock_bytes_route_to_a_core_event(self):
+        problems = gate.check_elemod('dt', [mod('a', 0x40001000), mod('b', 0x40001004)])
+        self.assertEqual(self.routes(problems), [(('dt/a', 'dt/b'), 'core-event')])
+        self.assertIn('0x40001004', problems[0]['text'])
+
+    def test_different_os_releases_never_meet(self):
+        self.assertEqual(gate.check_elemod('dt', [mod('a', 0x40001000), mod('b', 0x40001000, release='2.0')]), [])
+
+    def test_claims_are_exclusive_and_core_claims_belong_to_the_core(self):
+        problems = gate.check_elemod('dt', [mod('a', claims=['machine:4', 'timer:DTIM0']), mod('b', claims=['machine:4'])],
+                                     core=dict(claims=['timer:DTIM0']))
+        self.assertEqual(self.routes(problems), [(('dt/a',), 'claim'), (('dt/a', 'dt/b'), 'claim')])
+
+    def test_regions_meet_in_every_release(self):
+        problems = gate.check_elemod('dt', [mod('a', regions=[('copy', 0x80000000, 0x80000100)]),
+                                            mod('b', release='2.0', regions=[('buffer', 0x800000f0, 0x80000200)])])
+        self.assertEqual(self.routes(problems), [(('dt/a', 'dt/b'), 'other')])
+
+    def test_pending_event_allows_listed_sites_and_goes_stale(self):
+        relation = dict(modules=['a', 'b'], kind='pending-event', event=['ev_test'], until='the core owns it',
+                        reason='synthetic review', sites=['0x40001000'])
+        pair = [mod('a', 0x40001000), mod('b', 0x40001000)]
+        self.assertEqual(gate.check_elemod('dt', pair, relations=[relation]), [])
+        problems = gate.check_elemod('dt', [mod('a', 0x40001000), mod('b', 0x40002000)], relations=[relation])
+        self.assertEqual(self.routes(problems), [(('dt/a', 'dt/b'), 'relation')])
+        self.assertIn('nothing meets', problems[0]['text'])
+        for broken in (dict(relation, kind='group-owned'), dict(relation, until=''), dict(relation, modules=['a', 'gone'])):
+            with self.subTest(broken=broken):
+                self.assertTrue(any(p['route'] == 'relation' for p in gate.check_elemod('dt', pair, relations=[broken])))
+
+    def test_repository_passes(self):
+        machines = gate.elemod_inputs()
+        self.assertIn('digitakt', [m['machine'] for m in machines])
+        self.assertGreaterEqual(sum(len(m['mods']) for m in machines), 10)
+        for m in machines:
+            with self.subTest(machine=m['machine']):
+                self.assertEqual(gate.check_elemod(m['machine'], m['mods'], m['core'], m['relations']), [])
+
+
 if __name__ == '__main__':
     unittest.main()
