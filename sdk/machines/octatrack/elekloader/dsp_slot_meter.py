@@ -25,7 +25,7 @@ Not proven on a unit yet: the timer setting ran on hardware in Octabam's probe 5
 the effect's proc."""
 
 METER_OPCODE = 12
-X_WORDS = 10  # THEN, KEY, FRAME, MAX, SUMHI, SUMLO, WKEY, PROC, ID, R7
+X_WORDS = 12  # THEN, KEY, FRAME, MAX, SUMHI, SUMLO, WKEY, PROC, ID, R7, RET, SAVE
 PUB_WORDS = 2  # P words after the load meter's five (status.c reads them as words 5 and 6)
 
 IDLEPUB = ('idlepub:                            ; then the published window: serial, least, most, sum, missed\n'
@@ -35,14 +35,14 @@ IDLEPUB = ('idlepub:                            ; then the published window: ser
 def words(table_home, ids):
     """The X words the meter keeps on each core: just past the dispatch tables (init[ids], proc[ids])."""
     base = table_home + 2 * ids
-    names = ('THEN', 'KEY', 'FRAME', 'MAX', 'SUMHI', 'SUMLO', 'WKEY', 'PROC', 'ID', 'R7')
+    names = ('THEN', 'KEY', 'FRAME', 'MAX', 'SUMHI', 'SUMLO', 'WKEY', 'PROC', 'ID', 'R7', 'RET', 'SAVE')
     return {name: base + i for i, name in enumerate(names)}
 
 
 def receiver(text, null_proc, ids, table_home, table_end):
     """The receiver (dsp_receiver.asm, after dsp_loader.receiver_source's substitutions) with the meter."""
     x = words(table_home, ids)
-    if x['R7'] >= table_end:
+    if x['SAVE'] >= table_end:
         raise ValueError('The slot meter\'s X words do not fit past the dispatch tables.')
     a = {k: '$%x' % v for k, v in x.items()}
     a.update(PROCTAB='$%x' % (table_home + ids), IDMAX=str(ids - 1), NULLPROC='$%x' % null_proc)
@@ -181,17 +181,27 @@ zqoff:
         move    x1,x:(r1)
 zqkept:
         rts
-; The watched id's proc, as the dispatch calls it (jsr (r2), the id in r1, r7 the instance block). Before its own
-; proc only X memory changes, so that proc starts as stock's dispatch starts it (r2 its own address); after it a,
-; x0, x1 and the flags change, which no caller of a proc can rely on (every effect writes them).
+; The watched id's proc, as the dispatch calls it (jsr (r2), the id in r1, r7 the instance block). It takes the
+; dispatcher's return address off the system stack before calling the proc and puts it back after, so the proc runs
+; exactly as deep as stock runs it: core 0 has no level to spare (the first hardware run, 14 October 2026, stalled core
+; 0 the moment FILTER on T5 went through a wrapper that called it one level deeper). The stack moves use the forms
+; core 0's stock code uses (move ssh,x0 and move x0,ssh), x0 kept in X memory around the pop. Before its own proc
+; only X memory changes, so that proc starts as stock's dispatch starts it (r2 its own address); after it a, x0, x1
+; and the flags change, which no caller of a proc can rely on (every effect writes them).
 zqwrap:
         movep   x:<<$ffff8c,x:>{THEN}   ; TCR0
         move    r7,x:>{R7}
+        move    x0,x:>{SAVE}
+        move    ssh,x0                  ; the dispatcher's return address, off the stack
+        move    x0,x:>{RET}
+        move    x:>{SAVE},x0
         move    x:>{PROC},r2
         jsr     (r2)
         movep   x:<<$ffff8c,a
         move    x:>{THEN},x0
         sub     x0,a
+        move    x:>{RET},x0
+        move    x0,ssh                  ; and back, for the rts below
         move    a1,x0                   ; the call's counts (CLK/2), mod 2^24
         move    x:>{R7},x1
         move    x:>{KEY},a
