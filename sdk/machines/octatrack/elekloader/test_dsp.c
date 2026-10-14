@@ -224,7 +224,7 @@ int main(void)
     slot_cycles[13] = 427; dl_residency_words[0] = 1200;
     CHECK(modwerk_dsp_budget(13, &budget) && budget.core == 0 && budget.allowance == 3120 && budget.effect_cycles == 427 &&
           budget.charge == 7u * MODWERK_DSP_RESERVE + 427u + modwerk_dsp_source_charge(0) && budget.words == 1200 &&
-          budget.arena == 2320 && budget.effect_words == dl_codes[0][26].count && !memcmp(budget.name, loads[0].name, 16));
+          budget.arena == 2320 && !memcmp(budget.name, loads[0].name, 16));
     CHECK(!modwerk_dsp_budget(5, &budget) && !modwerk_dsp_budget(16, &budget)); /* a slot with no module; past the slots */
     slot_cycles[13] = 0; dl_residency_words[0] = 0;
     modwerk_test_live_fx[13] = 4; idle = 0;

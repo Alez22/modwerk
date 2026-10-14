@@ -200,6 +200,10 @@ extern uint8_t modwerk_test_live_fx[16];
 extern volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
 static unsigned memory_left; /* ticks the box still shows */
 static int budget_slot = -1; /* the slot the pick put a module on; -1: an accept over USB (memory only) */
+/* Each core's code words before the pick: what it took is the change, so a second instance on the core or a module
+ * another Part already holds takes +0% (one copy of the code per core), and a swap for a smaller one shows minus.
+ * shortcut: a second pick within the box's 1.5 s counts from before the first, until the box closes. */
+static uint32_t words_before[2];
 static void memory_tick(void)
 {
     static uint32_t completed, accepted;
@@ -215,6 +219,7 @@ static void memory_tick(void)
     completed = dl_selection_completed, accepted = modwerk_boot_accepted;
     if ((picked || over_usb) && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
     if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
+    if (open != MEMORY) words_before[0] = dl_residency_words[0], words_before[1] = dl_residency_words[1];
 }
 /* MODULE LOAD (owner, 12 October 2026: "load per module"): each installed module effect, with what its instances
  * cost on each core as a share of the frame, as the LOAD page's bars count. The cores' meters see only their sum, so
@@ -474,10 +479,10 @@ static void share_bar(unsigned char *frame, unsigned x, unsigned y, unsigned w, 
     for (unsigned px = x + 1u + n - k; px < x + 1u + n; ++px)
         for (unsigned py = y + 1u; py + 2u <= y + h; ++py) if ((px + py) & 1u) fill(frame, px, py, px, py, 0);
 }
-static void plus(unsigned x, unsigned top, uint32_t permille)
+static void plus(unsigned x, unsigned top, uint32_t permille, int minus)
 {
     char t[8], *s = t;
-    *s++ = '+', s = number(s, (permille + 5u) / 10u), *s++ = '%', *s = 0;
+    *s++ = minus ? '-' : '+', s = number(s, (permille + 5u) / 10u), *s++ = '%', *s = 0;
     label(x, top, t);
 }
 static void memory_box(unsigned char *frame)
@@ -498,9 +503,10 @@ static void memory_box(unsigned char *frame)
         label(23u, 15u, b.name), label((unsigned)(105 - TEXT_WIDTH(FONT, -1, where)), 15u, where);
         fill(frame, 18u, 22u, 109u, 22u, 1);
         const uint32_t dsp = share(b.charge, b.allowance), dsp_part = share(b.effect_cycles, b.allowance),
-                       mem = share(b.words, b.arena), mem_part = share(b.effect_words, b.arena);
-        label(23u, 26u, "DSP"), share_bar(frame, 45u, 26u, 40, 6, dsp, dsp_part), plus(89u, 26u, dsp_part);
-        label(23u, 34u, "MEM"), share_bar(frame, 45u, 34u, 40, 6, mem, mem_part), plus(89u, 34u, mem_part);
+                       mem = share(b.words, b.arena), before = share(words_before[b.core], b.arena);
+        label(23u, 26u, "DSP"), share_bar(frame, 45u, 26u, 40, 6, dsp, dsp_part), plus(89u, 26u, dsp_part, 0);
+        label(23u, 34u, "MEM"), share_bar(frame, 45u, 34u, 40, 6, mem, mem > before ? mem - before : 0);
+        plus(89u, 34u, mem > before ? mem - before : before - mem, mem < before);
         label(23u, 42u, "POOL"), bar(frame, 45u, 42u, 40, 6, used[2], 0), percent(89u, 42u, used[2]);
         return;
     }

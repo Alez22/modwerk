@@ -103,9 +103,11 @@ int main(void)
     missing_check(); missing_check(); CHECK(open == CLOSED);           /* so NO closes it for good (12 October 2026) */
     listed = 0; missing_check(); CHECK(open == CLOSED);                /* all installed: it closes */
     /* The memory box: after a pick that puts a module on one slot, or an accept; not after a Part change. */
-    memory_tick();
-    modwerk_test_live_fx[8] = 27; ++dl_selection_completed; memory_tick();
+    dl_residency_words[1] = 441; memory_tick();
+    CHECK(words_before[1] == 441);                                     /* closed: it follows the core */
+    dl_residency_words[1] = 2029; modwerk_test_live_fx[8] = 27; ++dl_selection_completed; memory_tick();
     CHECK(open == MEMORY);                                             /* E-Verb picked on T1 FX2 */
+    CHECK(words_before[1] == 441);                                     /* open: what it took is 2029 - 441 */
     CHECK(!modwerk_status_key(YES, 0) && open == MEMORY);              /* the pick's YES release: it stays */
     CHECK(budget_slot == 8);                                           /* the box shows that slot's core */
     CHECK(!modwerk_status_key(0, 1) && open == CLOSED);                /* a press closes it and goes on to stock */

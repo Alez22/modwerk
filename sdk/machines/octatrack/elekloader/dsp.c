@@ -475,7 +475,7 @@ unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)
     return n;
 }
 
-/* The budget box (status.c) for slot (FX1 T1-T8, then FX2): its core's ledger and code memory, the effect's share. */
+/* The budget box (status.c) for slot (FX1 T1-T8, then FX2): its core's ledger and code memory, the effect's time. */
 extern volatile uint32_t dl_residency_words[2];
 int modwerk_dsp_budget(unsigned slot, struct modwerk_dsp_budget *out)
 {
@@ -483,7 +483,7 @@ int modwerk_dsp_budget(unsigned slot, struct modwerk_dsp_budget *out)
     if (slot >= 16u || id >= MODWERK_FX_IDS || !owner[id]) return 0;
     out->core = (uint8_t)c, out->allowance = c ? MODWERK_DSP_ALLOWANCE1 : MODWERK_DSP_ALLOWANCE0;
     out->charge = slot_charge(c) + modwerk_dsp_source_charge(c), out->effect_cycles = dl_slot_cycles(slot);
-    out->words = dl_residency_words[c], out->arena = modwerk_dsp_arena[c], out->effect_words = dl_codes[c][id].count;
+    out->words = dl_residency_words[c], out->arena = modwerk_dsp_arena[c];
     for (unsigned i = 0; i < 16u; ++i) out->name[i] = owner_name[id][i];
     return 1;
 }
