@@ -127,6 +127,7 @@ int main(int argc,char **argv) {
         else if(mode==3) dl_abort();
         else answer(0,1);
         assert(dl_owned_job_poll(&a,0)==-1 && !dl_owned_cancel(&a));
+        assert(owned_close_why[0]==(mode==2 ? OWNED_WHY_AGE : mode==3 ? OWNED_WHY_ABORT : OWNED_WHY_POLL));
         assert(!dl_owned_command_reserve(0,11,10,0,1,0,&b));
         answer(0,0); /* late old completion cannot rehabilitate an uncertain job */
         assert(dl_owned_job_poll(&a,0)==-1 && dl_owned_job_release(&a));
@@ -136,8 +137,8 @@ int main(int argc,char **argv) {
         assert(!dl_owned_command_reserve(0,12,10,0,1,0,&b));
     } else if(mode==5) {
         for(unsigned i=0;i<65535;i++) legacy(0);
-        assert(sequence[0]==65535 && !dl_owned_command_reserve(0,1,10,0,1,0,&a));
-        legacy(0);assert(sequence[0]==1); /* legacy still wraps nonzero */
+        assert(sequence[0]==65535 && !dl_owned_command_reserve(0,1,10,0,1,0,&a) && !owned_closed[0]);
+        legacy(0);assert(sequence[0]==1 && owned_close_why[0]==OWNED_WHY_WRAP); /* legacy still wraps nonzero */
         assert(!dl_owned_command_reserve(0,1,10,0,1,0,&a));
         assert(dl_owned_command_reserve(1,1,10,0,1,0,&a));assert(dl_owned_cancel(&a));
     } else if(mode==6) {
@@ -147,8 +148,10 @@ int main(int argc,char **argv) {
     } else if(mode==7) {
         assert(dl_command_start(0,DL_PROBE,0,0,0));dl_frame();
         for(unsigned i=0;i<64;i++) dl_frame();
-        assert(dl_job_status(0)==-1);dl_job_release(0);
+        assert(dl_job_status(0)==-1 && owned_close_why[0]==OWNED_WHY_AGE);dl_job_release(0);
+        /* No owned job was in flight, yet the late toggle below would read as the next packet's ACK. */
         answer(0,0);assert(!dl_owned_command_reserve(0,1,10,0,1,0,&a));
+        assert(dl_owned_command_reserve(1,1,10,0,1,0,&a) && dl_owned_cancel(&a));
     } else if(mode==8) {
         assert(dl_owned_command_reserve(0,1,10,0,1,0,&a));assert(dl_owned_submit(&a));
         assert(dl_owned_command_reserve(1,2,10,0,5,0,&b));assert(dl_owned_submit(&b));dl_frame();
@@ -194,6 +197,51 @@ int main(int argc,char **argv) {
         assert(dl_owned_job_release(&a) && dl_owned_lease_release(5) && !dl_owned_lease_release(5));
         dl_frame();assert(pending[0] && pending[1] && dl_tx[0][2]==DL_PROBE);answer(0,0);answer(1,0);
         legacy(0);
+    } else if(mode==12) {
+        /* Answered legacy refusals (HF3) are complete round trips: a PEEK 1 bit, a SUM mismatch, a refused
+         * probe or upload leave the owned channel open, with no owned job outstanding. */
+        uint32_t errors=dl_errors,rejected=dl_rejected[0];
+        assert(dl_command_start(0,DL_PEEK,0,100,1) && !dl_owned_command_reserve(0,1,10,0,1,0,&a));
+        dl_frame();answer(0,1);
+        assert(dl_job_status(0)==-1 && dl_errors==errors && dl_rejected[0]==rejected); /* a 1 bit is no error */
+        dl_job_release(0);assert(!owned_closed[0] && !owned_close_why[0]);
+        assert(dl_sum_start(0,64,1,5));dl_frame();answer(0,1);assert(dl_job_status(0)==-1);dl_job_release(0);
+        assert(dl_command_start(0,DL_PROBE,0,0,0));dl_frame();answer(0,1);assert(dl_job_status(0)==-1);dl_job_release(0);
+        struct dl_upload u={words,0,49,0,64};
+        assert(dl_upload_start(0,&u));dl_frame();answer(0,0);answer(0,1);
+        assert(dl_job_status(0)==-1 && dl_errors==errors+2);dl_job_release(0);
+        assert(!owned_closed[0] && !owned_closed[1]);
+        assert(dl_owned_reset_reserve(0,3,1,0,24,words,&a) && dl_owned_submit(&a));dl_frame();
+        check_packet(0,11,a.first_sequence);answer(0,0);
+        assert(dl_owned_job_poll(&a,&p)==1 && p.acknowledged_sequence==a.last_sequence && dl_owned_job_release(&a));
+        /* An owned job refused by the same HF3 answer still closes its core. */
+        assert(dl_owned_command_reserve(0,3,10,0,1,0,&a) && dl_owned_submit(&a));dl_frame();answer(0,1);
+        assert(dl_owned_job_poll(&a,0)==-1 && owned_close_why[0]==OWNED_WHY_POLL && dl_owned_job_release(&a));
+        assert(!dl_owned_command_reserve(0,4,10,0,1,0,&a));
+        assert(dl_owned_command_reserve(1,4,10,0,1,0,&a) && dl_owned_cancel(&a));
+    } else if(mode==13) {
+        /* Boot-like: dormant probes and a resident upload, then the status page's meter read on both cores
+         * (120 PEEK bits each, ones answered HF3, as dsp.c's peek_tick), then a controller RESET per core. */
+        dl_request_probe++;dl_frame();answer(0,0);answer(1,0);
+        struct dl_upload u={words,0,49,0,64};
+        for(unsigned c=0;c<2;++c) { assert(dl_upload_start(c,&u));dl_frame();answer(c,0);answer(c,0);answer(c,0);
+            assert(dl_job_status(c)==1);dl_job_release(c); }
+        for(unsigned c=0;c<2;++c) for(unsigned bit=0;bit<120;++bit) {
+            assert(dl_command_start(c,DL_PEEK,0,200+bit/24u,1u<<(bit%16u)));dl_frame();
+            answer(c,(bit*7u+c)%3u==0);assert(dl_job_status(c)!=0);dl_job_release(c);
+        }
+        assert(!owned_closed[0] && !owned_closed[1] && !owned_close_why[0] && !owned_close_why[1] && !dl_errors);
+        assert(dl_owned_reset_reserve(0,9,1,0,24,words,&a) && dl_owned_reset_reserve(1,9,1,0,24,words,&b));
+        assert(dl_owned_submit(&a) && dl_owned_submit(&b));dl_frame();answer(0,0);answer(1,0);
+        assert(dl_owned_job_poll(&a,0)==1 && dl_owned_job_poll(&b,0)==1);
+        assert(dl_owned_job_release(&a) && dl_owned_job_release(&b));
+        /* A watchdog abort with nothing in flight closes nothing; with a legacy packet in flight it closes
+         * that core only, first cause kept, even with no owned job outstanding. */
+        dl_abort();assert(!owned_closed[0] && !owned_closed[1]);
+        assert(dl_command_start(1,DL_PEEK,0,200,1));dl_frame();dl_abort();
+        assert(!owned_closed[0] && owned_closed[1] && owned_close_why[1]==OWNED_WHY_ABORT);
+        dl_job_release(1);dl_owned_fail_closed(1);assert(owned_close_why[1]==OWNED_WHY_ABORT);
+        dl_owned_fail_closed(0);assert(owned_close_why[0]==OWNED_WHY_BOARD && !dl_owned_command_reserve(0,9,10,0,1,0,&a));
     } else assert(0);
     return 0;
 }
@@ -236,7 +284,7 @@ class OwnedTransfer(unittest.TestCase):
                 '-DMODWERK_DSP_WORDS0=2000', '-DMODWERK_DSP_WORDS1=2000', '-I' + str(work),
                 str(work / 'fixture.c'), '-o', str(executable)], capture_output=True, text=True)
             self.assertEqual(compile_result.returncode, 0, compile_result.stderr)
-            for mode in range(12):
+            for mode in range(14):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(executable), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
