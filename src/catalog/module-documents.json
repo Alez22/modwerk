@@ -1446,7 +1446,7 @@
       "id": "repitch",
       "key": "REPITCH",
       "name": "Repitch",
-      "version": "0.1.2-experimental",
+      "version": "0.2.0-experimental",
       "category": "playback",
       "access": {
         "location": "STATIC or FLEX track SRC SETUP: TSTR = RPCH. The sample attribute route also offers TIMESTRETCH = REPITCH.",
@@ -5724,7 +5724,7 @@
       "id": "mute-modes",
       "key": "MUTE_MODES",
       "name": "Mute Modes",
-      "version": "0.1.0-experimental",
+      "version": "0.2.0-experimental",
       "category": "system",
       "source": {
         "repository": "https://github.com/sambanks/octabam",
@@ -6149,7 +6149,7 @@
       "id": "poly8",
       "key": "POLY8",
       "name": "POLY8",
-      "version": "0.2.7-experimental",
+      "version": "0.3.0-experimental",
       "category": "machines",
       "source": {
         "repository": "https://github.com/repeat98/octamad",

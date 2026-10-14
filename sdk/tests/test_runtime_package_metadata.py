@@ -27,14 +27,10 @@ class PackageMetadataTests(unittest.TestCase):
     def test_site_event_subscribers_require_the_events_feature(self):
         data = self.header(hooks=5, sites=13) + struct.pack('>5I', *[0xffffffff] * 4, 50 << 24 | 0x40)
         self.assertEqual(builder.capabilities(data), dict(abi=8, features=129, sites=13, copies=0, fills=0))
-        for words in ([0x40] + [0xffffffff] * 4, [0xffffffff] * 5):  # a core handler; no subscription at all
-            with self.subTest(words=words), self.assertRaises(ValueError):
-                builder.capabilities(self.header(hooks=5) + struct.pack('>5I', *words))
-        for hooks, abi in ((5, 7), (builder.HOOKS + 1, 8)):
-            with self.subTest(hooks=hooks, abi=abi), self.assertRaises(ValueError):
-                builder.capabilities(self.header(abi=abi, hooks=hooks) + struct.pack('>%dI' % hooks, *[0xffffffff] * (hooks - 1), 0x40))
-        with self.assertRaises(ValueError):  # truncated hook words
-            builder.capabilities(self.header(hooks=5))
+        for data in (self.header(abi=7, hooks=5) + struct.pack('>5I', *[0xffffffff] * 4, 0x40),  # ABI 8 only
+                     self.header(hooks=5)):  # truncated hook words
+            with self.subTest(data=bytes(data[:8])), self.assertRaises(ValueError):
+                builder.capabilities(data)
 
     def test_unsupported_or_truncated_headers_fail_closed(self):
         for data in (self.header(abi=4), self.header()[:71], self.header(abi=6, sites=1),
@@ -42,14 +38,6 @@ class PackageMetadataTests(unittest.TestCase):
                      self.header(sites=129), self.header(copies=129), self.header(fills=65), bytes(76)):
             with self.subTest(data=data[:8]), self.assertRaises(ValueError):
                 builder.capabilities(data)
-
-    def test_scan_reads_empty_hook_words_as_empty_fields_only(self):
-        hooks = struct.pack('>5I', *[0xffffffff] * 4, 50 << 24 | 0x40)
-        data = bytes(self.header(hooks=5, sites=1)) + hooks + b'\xff' * 16
-        scanned = builder.views(data)[0]
-        self.assertEqual(scanned[76:92], bytes(16))  # the four empty core slots
-        self.assertEqual(scanned[92:], data[92:])  # the subscription word and every later byte stay scanned
-        self.assertEqual(builder.views(bytes(self.header(abi=6)))[0], bytes(self.header(abi=6)))
 
     def test_dsp_scan_accepts_abi8_but_refuses_impossible_lengths(self):
         self.assertEqual(builder.dsp_words(self.header()), [b'', b''])

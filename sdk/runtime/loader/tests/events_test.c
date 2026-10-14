@@ -19,6 +19,7 @@ static int masked, locked, unknown, rows_written_unmasked;
 static uintptr_t row_copy[RUNTIME_SITE_EVENTS][4];
 /* The base's dispatch, as far as the loader knows it: an address range. */
 const uint8_t modwerk_events_code[64] = {0}, modwerk_events_code_end[1] = {0};
+const unsigned char modwerk_raise_test[4] = {0}; /* the base's entry for the raised event */
 static void snapshot(void) { for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < 4; ++k) row_copy[e][k] = modwerk_runtime_event_row[e][k]; }
 static int rows_same(void)
 {
@@ -236,12 +237,25 @@ int main(void)
         CHECK(!modwerk_runtime_volatile_busy() && kept());
     }
     CHECK(row_is(0, (const uint32_t[]){0xdb769930u, 20, 30}, 3) && row_is(1, (const uint32_t[]){50, 60}, 2));
+    /* A raised event (no site): RUNTIME_RAISE asks for the base's entry in a zero word of the image; it is no
+     * handler. A plain order subscribes as at a site; a slot that is not zero, or reaches past the image, is refused. */
+    uint32_t raise[RUNTIME_HOOKS]; memcpy(raise, none, sizeof raise);
+    raise[RUNTIME_EVENTS + 3] = RUNTIME_RAISE << 24 | 8u;
+    pkg(90, raise, RUNTIME_HOOKS, 0, 0); CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
+    pkg(90, raise, RUNTIME_HOOKS, 0, 0); memset(p + n - 64 + 8, 0, 4); CHECK(install());
+    CHECK(be32(live_id(90)->dsp.image + 8) == (uint32_t)(uintptr_t)modwerk_raise_test && !live_id(90)->hook[RUNTIME_EVENTS + 3]);
+    CHECK(row_is(3, 0, 0));
+    raise[RUNTIME_EVENTS + 3] = RUNTIME_RAISE << 24 | 62u;
+    pkg(91, raise, RUNTIME_HOOKS, 0, 0); memset(p + n - 2, 0, 2); CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
+    subscriber(92, RUNTIME_EVENTS + 3, 50, 4); CHECK(install() && row_is(3, (const uint32_t[]){92}, 1));
+    CHECK(removal(90) && removal(92) && row_is(3, 0, 0));
     /* Removing every subscriber empties every row and frees the pool. */
     for (const uint32_t *id = (const uint32_t[]){0xdb769930u, 20, 30, 50, 60, 70, 0}; *id; ++id) CHECK(removal(*id));
     CHECK(row_is(0, 0, 0) && row_is(1, 0, 0) && row_is(2, 0, 0) && !modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
     CHECK(!memcmp(stock, original, sizeof stock) && !rows_written_unmasked && !masked && !locked);
     if (failures) { fprintf(stderr, "%u event checks failed\n", failures); return 1; }
     puts("Site events: refusals naming the event, ordered rows in every install order, removal, replacement and "
-         "restore, two events at one site, the paused-dispatch fence, groups, and journal commit/rollback passed.");
+         "restore, two events at one site, the paused-dispatch fence, groups, journal commit/rollback and a raised event's "
+         "entry slot passed.");
     return 0;
 }

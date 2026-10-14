@@ -312,27 +312,49 @@ def site_events():
 
 
 def runtime_declaration(folder):
-    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}. With it
-    the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
-    `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out."""
+    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}.
+    With it the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
+    `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out. A core
+    event (module_tick, module_draw, module_key, module_enc) takes {"event", "fn"} alone. `raise` names events with no
+    site that the module raises: its zero word raise_<event> receives the base's entry at install (RUNTIME_RAISE)."""
     path = Path(folder) / 'runtime.json'
     if not path.is_file():
         return None
     doc = json.loads(path.read_text())
-    if (doc.get('schema') != 1 or set(doc) != {'schema', 'subscribe'} or not doc['subscribe'] or
-            any(set(e) - {'event', 'fn', 'order', 'replaces'} or not {'event', 'fn', 'order'} <= set(e) for e in doc['subscribe'])):
-        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}' % path)
+    entry = lambda e: (set(e) == {'event', 'fn'} if e.get('event') in HANDLERS else
+                       not set(e) - {'event', 'fn', 'order', 'replaces'} and {'event', 'fn', 'order'} <= set(e))
+    if (doc.get('schema') != 1 or not {'schema', 'subscribe'} <= set(doc) <= {'schema', 'subscribe', 'raise'}
+            or not doc['subscribe'] or not all(isinstance(e, dict) and entry(e) for e in doc['subscribe'])
+            or not isinstance(doc.get('raise', []), list) or not all(isinstance(e, str) for e in doc.get('raise', []))
+            or len(set(doc.get('raise', []))) != len(doc.get('raise', []))):
+        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}' % path)
     return doc
 
 
-def subscribe(hooks, entries, symbols, registry=None):
+RAISE = 255  # loader.h RUNTIME_RAISE: on a raised event's word, the offset of the zero slot for the base's entry
+
+
+def subscribe(hooks, entries, symbols, registry=None, raises=()):
     """`hooks` (the core events' words) with each subscription's word after them, by the event's hook index: its order
-    (0-255) in the top byte and the handler's image offset below (loader.h). Trailing empty words are left out."""
+    (0-254) in the top byte and the handler's image offset below (loader.h). Each event in `raises` (a raised event,
+    no site) takes RAISE and the offset of the module's zero word raise_<event>, which the loader points at the base's
+    entry. Trailing empty words are left out."""
     events = {e['event']: e for e in (registry or site_events())['events']}
     words = list(hooks) + [NONE] * (len(HANDLERS) + len(events) - len(hooks))
+    for name in raises:
+        e, slot = events.get(name), 'raise_' + name
+        if not e or e['site'] is not None or slot not in symbols or symbols[slot] & 1 or words[e['index']] != NONE:
+            raise ValueError('A raise names an event of sdk/machines/octatrack/events.json with no site, once, and the '
+                             'module defines its zero word %s: %r' % (slot, name))
+        words[e['index']] = RAISE << 24 | symbols[slot]
     for entry in entries:
+        if entry['event'] in HANDLERS:  # a core event: the handler's offset, no order
+            if set(entry) != {'event', 'fn'} or entry['fn'] not in symbols or words[HANDLERS.index(entry['event'])] != NONE:
+                raise ValueError('A core-event handler names one of the module\'s own functions, once: %r' % (entry,))
+            words[HANDLERS.index(entry['event'])] = symbols[entry['fn']]
+            continue
         e = events.get(entry['event'])
-        if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < 256
+        if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < RAISE
                 or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000):
             raise ValueError('A subscription names an event of sdk/machines/octatrack/events.json, one of the module\'s own '
                              'functions and an order 0-255, one per event: %r' % (entry,))
@@ -347,7 +369,8 @@ def replaced(detours, entries, registry=None):
     site's length and stock guard, and goes."""
     reg = registry or site_events()
     events = {e['event']: e for e in reg['events']}
-    names = {e['replaces']: events[e['event']] for e in entries if 'replaces' in e and e['event'] in events}
+    names = {e['replaces']: events[e['event']] for e in entries if 'replaces' in e and e['event'] in events
+             and events[e['event']]['site'] is not None}
     kept = [d for d in detours if d.symbol not in names]
     for d in detours:
         e = names.get(d.symbol)
@@ -365,7 +388,7 @@ def unevented(sites, copies=(), registry=None):
     spans = [(s[0], max(len(s[2]), s[5] if len(s) > 5 else 0)) for s in sites] + [(c[1], c[2]) for c in copies]
     for address, n in spans:
         for e in events:
-            if address < e['site'] + e['length'] and e['site'] < address + n:
+            if e['site'] is not None and address < e['site'] + e['length'] and e['site'] < address + n:
                 raise ValueError('The write at %#x meets %s\'s site %#x, which the base owns: subscribe to %s.'
                                  % (address, e['event'], e['site'], e['event']))
 
@@ -437,7 +460,7 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
               for unit in m.linked for c in getattr(unit, 'stock_copies', ())]
     if declared:
         unevented(sites, copies)
-        hooks[:] = subscribe([NONE] * len(HANDLERS), declared['subscribe'], symbols)
+        hooks[:] = subscribe([NONE] * len(HANDLERS), declared['subscribe'], symbols, raises=declared.get('raise', ()))
     return image, bss, offsets, sites, copies
 
 
@@ -490,7 +513,7 @@ def private_stock_free(data, stock, main, upstream):
         spec = importlib.util.spec_from_file_location('private_' + name, folder / (name + '.py'))
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); loaded.append(module)
     packages, scanner = loaded
-    if (any(n >= packages.LIMIT for view in packages.views(data)
+    if (any(n >= packages.LIMIT for view in [data, *packages.dsp_words(data)]
             for n in packages.runs(view, main).values())
             or scanner.stock_runs({'sections': {'package': {'parts': [['hex', data.hex()]]}}},
                                   scanner.haystacks(stock, upstream), 16)):
@@ -627,7 +650,8 @@ def octabam_group(args):
             copies += extra
         if args.stock:
             check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
-        hooks = subscribe([NONE] * len(HANDLERS), entries, symbols) if entries else []
+        raises = [r for m in modules if declared.get(m.name) for r in declared[m.name].get('raise', ())]
+        hooks = subscribe([NONE] * len(HANDLERS), entries, symbols, raises=raises) if entries or raises else []
         return package(image, bss, hooks, offsets, sites, name=args.module_id or 'octatrack-machines', hashed=True,
                        title=args.name or 'Machines', layout=args.layout, copies=copies, fills=fills, abi=8, flags=4)
 
@@ -684,7 +708,7 @@ def build_elemod(args):
     # Subscribers need ABI 8, whose sites carry their stock bytes' hash instead of the bytes.
     unevented(sites)
     symbols = {name: value for name, (where, value) in doc['symbols'].items() if where == '.run'}
-    hooks = subscribe([NONE] * len(HANDLERS), doc['subscribe'], symbols)
+    hooks = subscribe([NONE] * len(HANDLERS), doc['subscribe'], symbols, raises=doc.get('raise', ()))
     sites = [(a, hashlib.sha256(stock).digest(), code, local, 0, len(stock)) for a, stock, code, local in sites]
     return package(image, 0, hooks, offsets, sites, name=doc['id'], hashed=True, title=doc['id'][:15], abi=8)
 

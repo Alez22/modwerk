@@ -14,7 +14,7 @@ const evidence = '32ac46b0c7e8c11e48ebc41674695e033142b46e'
 const originalOs = '34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad'
 const prefixes = ['sdk/octabam/platform', 'sdk/octabam/dsp', 'sdk/octabam/tools/build', 'sdk/octabam/tools/remix', 'src/engine', 'scripts/build-module-packages.py', 'scripts/module-source.mjs']
 const allowed = ['src/engine/client.ts', 'src/engine/protocol.ts', 'src/engine/session.ts', 'src/engine/elekloader/digi-build.ts',
-  ...['machine-build', 'module-set', 'octatrack-base', 'octatrack-link', 'selftest', 'upload-session', 'upload-usb', 'upload-wire'].map(name => 'src/engine/elekloader/' + name + '.ts'),
+  ...['machine-build', 'module-set', 'octatrack-base', 'octatrack-link', 'run-pack', 'selftest', 'upload-session', 'upload-usb', 'upload-wire'].map(name => 'src/engine/elekloader/' + name + '.ts'),
   ...['octatrack-base-fills.json', 'octatrack-base-sources.json', 'octatrack-base.elemod', 'octatrack-module-packages.json'].map(name => 'src/engine/assets/' + name)].sort()
 const profiles = [['tapeecho'], ['tapeecho', 'repitch'], ['tapeecho', 'tapehead'], ['tapeecho', 'miniverb', 'euclid', 'repitch'], ['tapeecho', 'sidechain-compressor', 'analog-bassdrum'], ['tapeecho', 'miniverb', 'euclid', 'repitch', 'tapehead', 'sidechain-compressor']]
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')

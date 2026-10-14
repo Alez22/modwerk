@@ -24,4 +24,9 @@ typedef int modwerk_ev_voice_bind(unsigned track);
 #define MODWERK_EV_VOICE_BIND_RUN 6
 typedef void modwerk_ev_voice_bind_run(unsigned track);
 
+/* ev_mute_keep (raised by a module): a module that silences muted and soloed-out tracks asks, once per frame while one of its silencing modes is on, which tracks' audio another module still takes as an input (a side-chain key); no stock site: the asking module calls the base's modwerk_raise_ev_mute_keep(), which returns every handler's answer OR'd, 0 with none. The frame builder (0x40004dbc), once per frame: short, no firmware call that can block. Return the tracks whose audio this module reads while they may be muted: bit t for track t+1, bits 0-7; higher bits are ignored. Every handler runs. A silencer mutes these tracks as stock does (the post-FX cut) in every mode and lets their trigs and voices run, so the audio keeps reaching the module that reads it. d2-d7/a2-a6 must be kept. */
+#define MODWERK_EV_MUTE_KEEP 7
+typedef unsigned modwerk_ev_mute_keep(void);
+/* Raise it: define `modwerk_ev_mute_keep *raise_ev_mute_keep` as a zero word in your image (initialized data, not bss), list "ev_mute_keep" under "raise" in runtime.json and call through it; every handler's answer, OR'd. */
+
 #endif

@@ -96,7 +96,7 @@ def validate_review(image, relocations, recipe, sources, root, stock_at):
 
 
 def stock_free(data, main, haystacks, packages, scanner):
-    views = packages.views(data)
+    views = [data, *packages.dsp_words(data)]
     blocked = [{"view": i, "offset": at, "nonzero": n} for i, view in enumerate(views)
                for at, n in packages.runs(view, main).items() if n >= packages.LIMIT]
     legacy = scanner.stock_runs({'sections': {'package': {'parts': [['hex', data.hex()]]}}}, haystacks, 16)

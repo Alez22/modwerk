@@ -4,24 +4,24 @@
   "evidenceCommit": "32ac46b0c7e8c11e48ebc41674695e033142b46e",
   "evidenceModuleVersion": "0.1.2-experimental",
   "approvedMain": "813fe73637dc12db384e6e92ebed08d6746d1780",
-  "validatedCommit": "ffd75fbffe5c39106207ce4fa0d985e7ba1966ce",
+  "validatedCommit": "9acf45dc8199e15fbfaa0180d799eeb86b108785",
   "originalOsSha256": "34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad",
   "changes": {
     "src/engine/assets/octatrack-base-fills.json": {
       "before": null,
-      "after": "494b38ee46f91eb78dccd1608d5f218ab1cf279f81b43e69e9e77128dc7c9133"
+      "after": "5cc03599224f8b6a7a020b153b2f55b2b4d2582f91089ab8513aec215bceee73"
     },
     "src/engine/assets/octatrack-base-sources.json": {
       "before": null,
-      "after": "449f992860123eaca1eb541bcad2f727cbcc4a9016751e90142c9eab318c61b1"
+      "after": "71317ed000b964e4ba21f1e17886ce721c07a75e791ba7a55b7f749d7b1d26d3"
     },
     "src/engine/assets/octatrack-base.elemod": {
       "before": null,
-      "after": "85fe89b924e393f20221c69d85e049e06cf73bea2bc861024e924dd406a73b30"
+      "after": "00aea5b275cf5f3b4c7dcca50d948931d535120a08a95a4322bb88f3990bc9b5"
     },
     "src/engine/assets/octatrack-module-packages.json": {
       "before": null,
-      "after": "dc9d989c73d87f669c818f1eaebdbc424ab2de8c54240124fa76383fe8706c46"
+      "after": "048fb2367a7aeab717bcc4d8ee6773f95c9fb4d7703d7e898e86b2be6cde774c"
     },
     "src/engine/client.ts": {
       "before": "f49927d069304ca7edbad91211b0497e46690642e5fea762a4d669162093c63f",
@@ -37,15 +37,19 @@
     },
     "src/engine/elekloader/module-set.ts": {
       "before": null,
-      "after": "11af0bfdffcf4db12f56b86b31d261befedad3a40d2d5c13c88eb4fedb5c22bc"
+      "after": "5b3f998ca52af3a838b31febbc67ce2c3159fc6df898cd4444551559260a2fbd"
     },
     "src/engine/elekloader/octatrack-base.ts": {
       "before": null,
-      "after": "f40b2191f81cc76c7d3079acfcf91ffaec3a79f0a7c8971c9db0aebbc74f30f2"
+      "after": "d7bf19f56a66827939f7156ddc22e02d12a9ac7512be8080d6edcb162ee2f188"
     },
     "src/engine/elekloader/octatrack-link.ts": {
       "before": null,
-      "after": "5b6e823beca24d005ebf812626dab506015c7b76a152ac96fb0f365bce0b9194"
+      "after": "53d06e62986a01037bd675c45a9c2449b656f8187f56e74cb76118eefd25f44e"
+    },
+    "src/engine/elekloader/run-pack.ts": {
+      "before": null,
+      "after": "8e7493e8211dba6e03bd5e512b8ca3d284fc90ce0a23d900355e7a033b80ce90"
     },
     "src/engine/elekloader/selftest.ts": {
       "before": null,
@@ -178,10 +182,10 @@
     "src/engine/assets/dsp-packages.json": "d87487e3be190f3b8d0975c73dfc37daacf00ffbecc9c3d47fd2fafaef774e1d",
     "src/engine/assets/menu-recipes.json": "a635b64ff5babc2762d69ba835fd90303812dfd8eb6f60f3abf48955b1def347",
     "src/engine/assets/module-build.json": "85f2d338e41bd49c674d0e631f2354dd86a73074931360c8ab435d9a3ac34b56",
-    "src/engine/assets/octatrack-base-fills.json": "494b38ee46f91eb78dccd1608d5f218ab1cf279f81b43e69e9e77128dc7c9133",
-    "src/engine/assets/octatrack-base-sources.json": "449f992860123eaca1eb541bcad2f727cbcc4a9016751e90142c9eab318c61b1",
-    "src/engine/assets/octatrack-base.elemod": "85fe89b924e393f20221c69d85e049e06cf73bea2bc861024e924dd406a73b30",
-    "src/engine/assets/octatrack-module-packages.json": "dc9d989c73d87f669c818f1eaebdbc424ab2de8c54240124fa76383fe8706c46",
+    "src/engine/assets/octatrack-base-fills.json": "5cc03599224f8b6a7a020b153b2f55b2b4d2582f91089ab8513aec215bceee73",
+    "src/engine/assets/octatrack-base-sources.json": "71317ed000b964e4ba21f1e17886ce721c07a75e791ba7a55b7f749d7b1d26d3",
+    "src/engine/assets/octatrack-base.elemod": "00aea5b275cf5f3b4c7dcca50d948931d535120a08a95a4322bb88f3990bc9b5",
+    "src/engine/assets/octatrack-module-packages.json": "048fb2367a7aeab717bcc4d8ee6773f95c9fb4d7703d7e898e86b2be6cde774c",
     "src/engine/assets/platform-writes.json": "56720770788c112599dcede88923bafeb162b16cae07f69b5716ea3718deabc6",
     "src/engine/assets/requested-composition-proofs.json": "0626a3534e0f9ca429483ed169946c5fd01c9750ea294f53df23150b728080ff",
     "src/engine/assets/requested-link-proofs.json": "b9f451c7285fb8af8a9d0c40af764a6596f742e6422d895f6f4a40cc9fd950de",
@@ -223,10 +227,11 @@
     "src/engine/elek.ts": "ea4a942157571ef03e6cfc9410053ee8433a1c9903a5d99fae7b2ce64773eb27",
     "src/engine/elekloader/digi-build.ts": "080702bf63bc24f00f3155b55bf0378d978a1bc0c00b60564c03463706c4262f",
     "src/engine/elekloader/machine-build.ts": "c664f904f9b6a428fd583c81c9d67ad80c456b7c4323819edbd0191acfed29d9",
-    "src/engine/elekloader/module-set.ts": "11af0bfdffcf4db12f56b86b31d261befedad3a40d2d5c13c88eb4fedb5c22bc",
-    "src/engine/elekloader/octatrack-base.ts": "f40b2191f81cc76c7d3079acfcf91ffaec3a79f0a7c8971c9db0aebbc74f30f2",
-    "src/engine/elekloader/octatrack-link.ts": "5b6e823beca24d005ebf812626dab506015c7b76a152ac96fb0f365bce0b9194",
+    "src/engine/elekloader/module-set.ts": "5b3f998ca52af3a838b31febbc67ce2c3159fc6df898cd4444551559260a2fbd",
+    "src/engine/elekloader/octatrack-base.ts": "d7bf19f56a66827939f7156ddc22e02d12a9ac7512be8080d6edcb162ee2f188",
+    "src/engine/elekloader/octatrack-link.ts": "53d06e62986a01037bd675c45a9c2449b656f8187f56e74cb76118eefd25f44e",
     "src/engine/elekloader/protocol.ts": "d430023ccfeb28db98330e40fcb819f1ab7acad9d3ce7d614e58d555d4eecbb2",
+    "src/engine/elekloader/run-pack.ts": "8e7493e8211dba6e03bd5e512b8ca3d284fc90ce0a23d900355e7a033b80ce90",
     "src/engine/elekloader/selftest.ts": "eed105ba2b001f01b842004705f7d0e4686ee4d6c049d4efbcc811eec4183913",
     "src/engine/elekloader/upload-session.ts": "23be52d0a32599a61e35d2dbaa93f8be5a69b046ea344822adc30513ef20dc7e",
     "src/engine/elekloader/upload-usb.ts": "d134d8a526aeec13f8d05fb68750f5357de162ba6dae8a459e70b82cac28896a",
@@ -270,10 +275,10 @@
     "src/engine/usb-audio.ts": "7ece1e258553bfc2ef3d9805d9e9db73b27b140e0eff19d1fd3a283122619526",
     "src/engine/utility-modules.ts": "7d4ae4efa92c264f1fd13899c571f1782e054f08f8ef95c16b2afa96db8fd3c3"
   },
-  "protectedInputsSha256": "883298b488e3906807f3af9bb35a3b3f250934ff7ca94222494659e531fb9f98",
+  "protectedInputsSha256": "cd7e913a310485da15cea71e9bc168d69d27ef78417be3ef0fd6fdf8b99d2815",
   "approvedProtectedInputsSha256": "9c8c246d1ade1e7756558d6de25ed5f1472691418dcbedf025cfefd27b969542",
   "proof": {
-    "reportSha256": "10cfdae8c8ea3550f64b6ff5e4e1289c8706123bc267f481a10806c8a4b8349d",
+    "reportSha256": "ebfeebadecbf570a9c4032909385d14a3bb2297b17806a3bf114825feff6b4c2",
     "runnerSha256": "225ed0b6d0ff8bc469604d80bbc7ff29b46bf8c7d82adf8604524ec7e52fca03"
   }
 }

@@ -15,6 +15,7 @@ everything else kept, the result in d0. C modules include `include/modwerk_event
 | `ev_play_increment` | 0x40004100 | the increment builder recomputes a track's playback increment (Q26, 0x04000000 = unity), after stock applied PTCH and RATE and before it stores it; when the builder reuses the stored increment no handler runs | `int f(uint32_t *increment, unsigned track)` | Change *increment to change what the track plays at. Return nonzero to take the track: no later handler runs. The base stores *increment either way. The builder's d2-d7/a2-a6 are intact in a handler (a3 the track's 40-byte state, d6 the shift just applied) and must be kept, as C keeps them. | lower first, then module id. 10-29: a machine that owns its tracks' increment and takes them; 40-69: tempo and rate changes on other tracks. | the audio render, at interrupt level: short, no firmware call that can block, the EMAC kept as found |
 | `ev_voice_bind` | 0x40006820 | before stock stops a track's voice and binds it fresh; track 8 or more means every track, and stock then comes back here once per track | `int f(unsigned track)` | Return 0 to pass. 1 drops this reset: stock does nothing and the call returns. 2 runs stock's reset at once: no later ev_voice_bind handler and no ev_voice_bind_run handler. Any other nonzero acts as 2. d2-d7/a2-a6 are the caller's and must be kept. | lower first, then module id. 10-29: a machine that renders voices itself and redirects the resets its renderer causes; 30-69: gates on ordinary tracks (mute modes). | the frame interrupt or a task: short, no firmware call that can block |
 | `ev_voice_bind_run` | 0x40006820 | every ev_voice_bind handler passed: stock's reset runs next | `void f(unsigned track)` | A notification: every handler runs; none can stop the reset. d2-d7/a2-a6 are the caller's and must be kept. | lower first, then module id; 10-90. | as ev_voice_bind |
+| `ev_mute_keep` | none: a module calls the base's `modwerk_raise_ev_mute_keep` through a word the loader fills | a module that silences muted and soloed-out tracks asks, once per frame while one of its silencing modes is on, which tracks' audio another module still takes as an input (a side-chain key); no stock site: the asking module calls the base's modwerk_raise_ev_mute_keep(), which returns every handler's answer OR'd, 0 with none | `unsigned f(void)` | Return the tracks whose audio this module reads while they may be muted: bit t for track t+1, bits 0-7; higher bits are ignored. Every handler runs. A silencer mutes these tracks as stock does (the post-FX cut) in every mode and lets their trigs and voices run, so the audio keeps reaching the module that reads it. d2-d7/a2-a6 must be kept. | lower first, then module id; every handler runs and the answers are OR'd, so the order does not change the answer. 10-90. | the frame builder (0x40004dbc), once per frame: short, no firmware call that can block |
 
 ## Reviewed subscribers
 
@@ -26,11 +27,20 @@ everything else kept, the result in d0. C modules include `include/modwerk_event
 | `ev_voice_bind` | mute-modes | `mm_voice_bind` | 50 | in OTFX-T and DT-T a single muted or soloed-out track's reset is dropped, so no new voice starts (a SIDE-CHAIN key track keeps it) | sdk/octabam/modules/mute-modes/patch_softmute.s fresh_bind (hook 10) |
 | `ev_voice_bind_run` | poly8 | `poly_voice_bind_run` | 50 | discards the track's extension voices, held keys and queued presses, interrupts masked | sdk/octabam/modules/poly8/polyphony.s poly_stop_voice .psv_stock (pm_clear_extensions) |
 
+## Reviewed raisers
+
+A raised event has no stock site: these modules call the base's entry and act on the answer.
+
+| event | module | where | what it does with the answer | evidence |
+|---|---|---|---|---|
+| `ev_mute_keep` | mute-modes | `p1_key` | in OTFX, OTFX-T and DT-T, takes the answer's tracks out of the silenced set and gives them stock's own mute bit back (OT's post-FX cut); its trig, rebind, fresh-bind and trig-flag hooks let their trigs through (KEYMASK) | sdk/octabam/modules/mute-modes/patch_softmute.s p1_key (Session 116); natively the SC_KEY build reads SIDECHAIN_COMPRESSOR's KEY slots itself |
+
 ## Why this order
 
 - `ev_play_increment`: sdk/octabam/modules/poly8/composition.json replaces Repitch's 0x40004100 detour with POLY8's mr_rate_hook, which takes POLY tracks first and passes the others to rate_hook. POLY8 also forces a POLY track's live TSTR off (poly_config_tstr), so REPITCH never acts on one.
 - `ev_voice_bind`: POLY8's mr_stop_voice checks its renderer state before anything else, then Mute Modes' gate (its mr_mute_suppressed, a copy of fresh_bind's test, when fresh_bind is linked), and only then discards the track's extension voices (ev_voice_bind_run).
 - `ev_voice_bind_run`: In POLY8 + Mute Modes the extension voices are discarded only when the reset is not dropped (mr_mute_suppressed returns first).
+- `ev_mute_keep`: The answer is an OR: no handler can take or hide another's tracks. Natively the only provider is SIDECHAIN_COMPRESSOR's KEY (COMPRESSOR, FX id 0x18, page-2 slot 8: OFF or T1-T8), which the SC_KEY build of Mute Modes scans itself; here the module that owns the key answers for it.
 
 ## The sites
 

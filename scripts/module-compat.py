@@ -146,12 +146,12 @@ def check(modules, base_sites=(), events=(), copies=None, relations=(), base_own
     by_event = {e['event']: e for e in events}
     for m in modules:
         for entry in (subscriptions or {}).get(m.name, ()):
+            if 'replaces' not in entry:  # nothing it patched goes (a raised event owns no stock bytes either)
+                continue
             e = by_event.get(entry.get('event'))
             if not e:
-                problems.append(dict(modules=[m.name], text=f'{m.name} subscribes to {entry.get("event")}, which is '
-                                     f'not in {EVENTS}', route='event'))
-                continue
-            if 'replaces' not in entry:
+                problems.append(dict(modules=[m.name], text=f'{m.name} replaces {entry["replaces"]} for '
+                                     f'{entry.get("event")}, which is not a site event in {EVENTS}', route='event'))
                 continue
             site = int(e['site'], 16)
             if not any(d.symbol == entry['replaces'] and d.site == site and (d.pad_to or 6) == e['length']
@@ -235,7 +235,8 @@ def active_ids():
 def read_events():
     if not (APP / EVENTS).exists():
         return PLANNED_EVENTS
-    events = json.loads((APP / EVENTS).read_text())['events']
+    # an event a module raises (site null) owns no stock bytes: nothing to compare
+    events = [e for e in json.loads((APP / EVENTS).read_text())['events'] if e.get('site') is not None]
     if not all(isinstance(e.get('event'), str) and re.fullmatch(r'0x[0-9a-fA-F]{8}', str(e.get('site')))
                and type(e.get('length')) is int and e['length'] > 0 for e in events):
         raise SystemExit(f'{EVENTS}: every event needs event (its name), site (0x… stock address) and length; '
