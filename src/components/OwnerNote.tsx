@@ -8,6 +8,7 @@ import { trackUsage } from '../community/usage'
 
 // A new note needs a new key, so everyone sees it once.
 const KEY = 'modwerk.owner-note:2026-10-14'
+const WAIT = 10
 let closedThisVisit = false
 export function ownerNoteSeen() {
   if (closedThisVisit) return true
@@ -19,28 +20,38 @@ export function closeOwnerNote() {
 }
 
 export function OwnerNote({ onClose }: { onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null), [wait, setWait] = useState(WAIT)
   useEffect(() => {
     const element = dialog.current, previousFocus = document.activeElement
-    element?.showModal()
+    element?.showModal(); element?.querySelector('h2')?.focus()
     return () => { element?.close(); if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus() }
   }, [])
-  return <dialog ref={dialog} className="app-dialog support-dialog owner-note" aria-labelledby="owner-note-title" aria-describedby="owner-note-message" onCancel={event => { event.preventDefault(); onClose() }}>
-    <h2 id="owner-note-title">Hey guys,</h2>
-    <div id="owner-note-message">
-      <p>the response to this project has been immense, and I'm super grateful for everything that has happened over the past weeks.</p>
-      <p>But I really need to slow down. Honestly, I'm feeling burnt out. I can't keep up with the demand and all the new issue reports coming in. Many module maintainers aren't fixing the bugs in their modules, so I've ended up fixing most of them myself. At the same time I'm working on a big Octatrack update that brings a new way to flash over USB and changes how FX get loaded onto the DSP chip.</p>
-      <p>A big thank you to the developers who have been helping so far! It's just not enough to cover the demand. At this rate I simply <strong>CANNOT</strong> continue without more active helpers on the Discord server. This is a community project and I'd like it to stay that way.</p>
-      <p>Also important: the modules are <strong>NOT</strong> safe to use in a live setting (yet). Flashing itself is known to be quite safe with the instrument's own bootloader, but the modules can still crash or misbehave.</p>
-      <p>And to be clear: I'm not integrating any mods that clone products other companies still sell, or mods that would hurt Elektron's sales. These mods are mostly meant to be additive and to integrate well into the instruments' existing UI.</p>
-      <p>If you like my work over the last weeks, I'd be grateful for a small donation. I've been covering all the hosting costs myself.</p>
-      <p>Thank you,<br />Jannik</p>
+  useEffect(() => {
+    if (!wait) return
+    const timer = window.setTimeout(() => setWait(wait - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [wait])
+  // The note stays up for a few seconds so it gets read; the links still open meanwhile.
+  const close = () => { if (!wait) onClose() }
+  return <dialog ref={dialog} className="app-dialog owner-note" aria-labelledby="owner-note-title" aria-describedby="owner-note-message" onCancel={event => { event.preventDefault(); close() }}>
+    <header className="owner-note-head"><img src={assetUrl('modwerk-mark.svg')} width={28} height={28} alt="" /><span>Modwerk</span></header>
+    <div className="owner-note-body">
+      <h2 id="owner-note-title" tabIndex={-1}>Hey guys,</h2>
+      <div id="owner-note-message">
+        <p>the response I've been getting for this project is immense – and I'm super grateful for everything that has been happening the past week(s). However, I really need to slow down. I'm honestly feeling burnt out, since I just can't keep up with the demand and all the new issue reports coming in.</p>
+        <p>I've been mostly fixing stuff myself – also in modules whose maintainers haven't gotten to their bugs yet – and working on a big Octatrack update that brings a new way to flash over USB and changes how FX get loaded onto the DSP chip.</p>
+        <p>A big thank you to the developers who have been helping so far! But it's not enough to keep up with the demand, and at this rate I can't continue without more active helpers in the Discord server. I've laid the groundwork for a platform that is available for free, but now it's up to the developers and the community to make it work. This is a community project and I'd like it to stay that way – it won't work without you guys.</p>
+        <p className="owner-note-warning"><Icon name="warn" size={18} /><span>One important thing: the modules are <strong>not safe to use in a live setting (yet)</strong>. Flashing the firmware is known to be quite safe with the provided bootloader, but the modules themselves can still crash.</span></p>
+        <p>Also, I'm not integrating any mods that clone products that are still on sale or that would affect Elektron's sales negatively – the mods are mostly meant to be additive and integrate well into the existing UI.</p>
+        <p>If you like and support my work over the last weeks, I'd be grateful for a small donation – I've been covering all the hosting costs myself.</p>
+        <p className="owner-note-sign">Thank you,<br /><strong>Jannik</strong></p>
+      </div>
     </div>
-    <div className="dialog-actions">
-      <button type="button" className="button button-quiet" autoFocus onClick={onClose}>Close</button>
-      <a className="button button-quiet" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noopener noreferrer" onClick={onClose} aria-label="Join Discord (opens in a new tab)"><img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />Join Discord</a>
-      <a className="button button-primary" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" onClick={() => { trackUsage('support_link_opened'); onClose() }} aria-label="Support on Ko-fi (opens in a new tab)"><Icon name="heart" size={15} />Support on Ko-fi</a>
-    </div>
+    <footer className="owner-note-actions">
+      <button type="button" className="owner-note-close" disabled={!!wait} onClick={close}>{wait ? `Close in ${wait}` : 'Close'}</button>
+      <a className="button button-quiet" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noopener noreferrer" onClick={close} aria-label="Join Discord (opens in a new tab)"><img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />Join Discord</a>
+      <a className="button button-primary" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" onClick={() => { trackUsage('support_link_opened'); close() }} aria-label="Support on Ko-fi (opens in a new tab)"><Icon name="heart" size={15} />Support on Ko-fi</a>
+    </footer>
   </dialog>
 }
 

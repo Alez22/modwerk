@@ -7,12 +7,13 @@ import { SUPPORT_URL } from '../config/support'
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules() })
 
 describe('owner note', () => {
-  it('links the Discord and Ko-fi pages and warns against live use', async () => {
+  it('links the Discord and Ko-fi pages, warns against live use and cannot be closed at first', async () => {
     const { OwnerNote } = await import('./OwnerNote')
     const html = renderToStaticMarkup(createElement(OwnerNote, { onClose() {} }))
     expect(html).toContain(`href="${DEVELOPMENT_DISCORD_URL}"`)
     expect(html).toContain(`href="${SUPPORT_URL}"`)
-    expect(html).toContain('safe to use in a live setting')
+    expect(html).toContain('not safe to use in a live setting (yet)')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Close in 10<\/button>/)
   })
 
   it('shows once per browser, and once per visit when storage is blocked', async () => {
