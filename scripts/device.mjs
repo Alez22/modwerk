@@ -85,7 +85,9 @@ const KEYS = { DOWN: 0x20, RIGHT: 0x21, SRC: 0x22, AMP: 0x23, LFO: 0x24, FX1: 0x
   ...Object.fromEntries(['A', 'B', 'C', 'D', 'E', 'F'].map((e, i) => ['PUSH' + e, 0x38 + i])) }
 async function devIn(request, value, length) {
   const reply = await unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request, value, index }, length)
-  if (reply.status !== 'ok' || reply.data?.byteLength !== length) throw new Error('This base does not answer development requests: build it with --dev.')
+  if (reply.status !== 'ok' || reply.data?.byteLength !== length) throw new Error(request === 16 ?
+    'The base refused this MEM read: development bases read 0x40000400-0x40cfffff, 0x46000000-0x46ffffff, 0x80000000-0x8000ffff and 0x100f0000-0x100fffff only (dev.c).' :
+    'This base does not answer development requests: build it with --dev.')
   return new Uint8Array(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength)
 }
 /** FUNC+PLAY: hold every key but the last, tap the last, release the held ones. */
@@ -358,6 +360,18 @@ async function stopping(step) {
 }
 
 /** Stage, publish and run `pkg` in a trial for `seconds`, then accept or roll back. */
+/** A step the loader refused as busy (refusal 5: DSP code moving, a resident controller quiescing before it leaves) is
+ * tried again for 5 s, as the site does; any other refusal is named (loader.h runtime_refusal: 7 a track plays it). */
+async function retried(step) {
+  for (const start = Date.now(); ; await wait(300)) {
+    try { return await step() } catch (error) {
+      const refusal = /rejected|backend/.test(error.message) ? (await transport.selftest(false).catch(() => undefined))?.refusal : undefined
+      if (refusal === 5 && Date.now() - start < 5000) continue
+      if (refusal !== undefined) error.message += ` (loader refusal ${refusal})`
+      throw error
+    }
+  }
+}
 async function trial(session, pkg) {
   await stopping(() => session.stage(pkg, { signal: interrupt.signal })); await session.activate(); await session.startTrial()
   console.log(`trial: ${pkg.sha256.slice(0, 16)}… running`)
@@ -416,11 +430,7 @@ if (command === 'serve') {
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const view = arg ? new DataView(new Uint8Array(readFileSync(arg)).buffer) : undefined, data = verb === 'try' ? new Uint8Array(readFileSync(arg)) : undefined
         values.accept = true; seconds = 1 // the session accepts at once; `try` from the shell keeps its trial
-        try { console.log(state(await trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined)))) }
-        catch (error) { // why the loader rejected it (loader.h runtime_refusal: 5 busy, 7 a track plays the effect)
-          if (/rejected/.test(error.message)) error.message += ` (loader refusal ${(await transport.selftest(false).catch(() => undefined))?.refusal})`
-          throw error
-        }
+        console.log(state(await retried(() => trial(session, data ? { base: identity.base, data, sha256: sha(data) } : removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined)))))
       } else await run(line, until)
     } catch (error) { out.push('error: ' + error.message + (error.cause ? ' (cause: ' + (error.cause.message ?? error.cause) + ')' : '')) } finally { console.log = log }
     return out.join('\n') + '\n'
@@ -512,13 +522,13 @@ if (command === 'serve') {
     // An ABI 4 file names its module (sdk/runtime/loader/README.md); ABI 3 modules are module 0.
     const view = file ? new DataView(new Uint8Array(readFileSync(file)).buffer) : undefined
     if (view && (view.byteLength < 32 || view.getUint32(0) !== 0x4d57524d)) throw new Error(file + ' is not a runtime module.')
-    console.log(state(await trial(session, removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined))))
+    console.log(state(await retried(() => trial(session, removal(identity.base, view?.getUint16(4) >= 4 ? view.getUint32(28) : undefined)))))
   }
   if (command === 'try') {
     const data = new Uint8Array(readFileSync(file))
     // shortcut: runtime module files do not name their base yet, so any file is offered to the connected base,
     // whose loader validates it; bind the base once the hook ABI defines module files.
-    console.log(state(await trial(session, { base: identity.base, data, sha256: sha(data) })))
+    console.log(state(await retried(() => trial(session, { base: identity.base, data, sha256: sha(data) }))))
   }
   if (command === 'boot') {
     const image = new Uint8Array(readFileSync(join(file, 'MAIN.raw')))
