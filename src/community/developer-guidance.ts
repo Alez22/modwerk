@@ -35,6 +35,7 @@ export function developerWorkflowPrompt(task: DeveloperTask) {
     'Follow the workflow in ' + (task === 'update' ? 'AGENTS.md, docs/DEVELOPER_WORKFLOW.md and docs/MODULE_AUTHOR_UPDATES.md' : 'AGENTS.md and docs/DEVELOPER_WORKFLOW.md') + ', in these stages:',
     ...RELEASE_STEPS[task].map((step, index) => `${index + 1}. ${step.title}: ${step.summary}`),
     STAGE_RULES[task],
+    'Before every push, and after merging main, run `npm run pr:ready' + (task === 'update' ? ' -- --author <my login>' : '') + '` until it says Ready, then watch the PR checks until they are green ("Make it mergeable" in docs/DEVELOPER_WORKFLOW.md).',
     'Give me concrete steps to test the exact build on my unit and record only results I actually report. My stock OS stays on my computer; never commit firmware, extracted stock code or built images.',
     'When you learn something every later developer needs, add it to the matching guide in its own docs-only PR and tell me (Share what you learn in docs/DEVELOPER_WORKFLOW.md).',
   ].join('\n')
