@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { parseSavedSetMetadata, parseSavedSetChunk, SAVED_SET_CAPACITY } from './upload-wire'
 import { UsbVendorTransport, type ControlDevice } from './upload-usb'
 
@@ -57,7 +57,7 @@ class ExportDevice implements ControlDevice {
   state = 0; token = 0; slot = 0; polls = 0; commands: { request: number; value: number }[] = []
   files = [file(), file(52)]
   mutate?: (request: number, value: number, reply: DataView) => DataView
-  failBegin = false; lostRelease = false; unsupported = false; busy = false; slot0Failure = false
+  failBegin = false; lostRelease = false; unsupported = false; busy = false; busyFor = 0; slot0Failure = false
   controller?: AbortController
   async controlTransferOut(): Promise<never> { throw new Error('Backup must never submit data or upload frames') }
   async controlTransferIn(setup: Parameters<ControlDevice['controlTransferIn']>[0], length: number) {
@@ -67,7 +67,7 @@ class ExportDevice implements ControlDevice {
     if (this.unsupported) return { status: 'stall' }
     if (request === 31 && value) {
       expect([1, 2]).toContain(value)
-      if (this.busy) return { status: 'ok', data: metadata(3, this.token, this.slot) }
+      if (this.busy || this.busyFor-- > 0) return { status: 'ok', data: metadata(3, this.token, this.slot) }
       this.slot = value - 1; this.token++; this.state = 1; this.polls = 0
       if (this.failBegin) throw new Error('Begin reply lost')
       this.controller?.abort(new Error('cancel after acknowledged Begin'))
@@ -106,7 +106,7 @@ describe('saved-file transport lease lifecycle', () => {
     const result = await new UsbVendorTransport(device, 1).savedBackup()
     expect(result?.[0].status === 'ready' && result[0].data).toEqual(device.files[0])
     expect(device.commands.filter(command => command.request === 32)).toHaveLength(Math.ceil(SAVED_SET_CAPACITY / 448) + 1)
-  })
+  }, 15000) // 1,765 bounded transfers plus byte comparison can exceed 5s on the shared CI runner.
   it('stalls on old bases without Begin, chunks or release', async () => {
     const device = new ExportDevice(); device.unsupported = true
     expect(await new UsbVendorTransport(device, 1).savedBackup()).toBeUndefined()
@@ -117,10 +117,90 @@ describe('saved-file transport lease lifecycle', () => {
     await expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toThrow('Begin reply lost')
     expect(device.commands).toEqual([{ request: 31, value: 0 }, { request: 31, value: 1 }])
   })
-  it('does not release another client’s refused snapshot', async () => {
-    const device = new ExportDevice(); device.busy = true
-    await expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toThrow('did not acknowledge')
-    expect(device.commands.filter(command => command.request === 33)).toHaveLength(0)
+  it('waits through explicit unchanged-token busy replies and still owns/releases each file only once', async () => {
+    vi.useFakeTimers()
+    try {
+      const device = new ExportDevice(); device.busyFor = 2
+      const result = new UsbVendorTransport(device, 1).savedBackup()
+      await vi.runAllTimersAsync()
+      expect((await result)?.map(record => record.token)).toEqual([1, 2])
+      expect(device.commands.slice(0, 6)).toEqual([
+        { request: 31, value: 0 }, { request: 31, value: 1 },
+        { request: 31, value: 0 }, { request: 31, value: 1 },
+        { request: 31, value: 0 }, { request: 31, value: 1 },
+      ])
+      expect(device.commands.filter(command => command.request === 33)).toEqual([{ request: 33, value: 1 }, { request: 33, value: 2 }])
+    } finally { vi.useRealTimers() }
+  })
+  it('bounds persistent busy to ten attempts without owning or releasing a token', async () => {
+    vi.useFakeTimers()
+    try {
+      const device = new ExportDevice(); device.busy = true
+      const result = expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toMatchObject({ notExecuted: true, message: expect.stringContaining('busy') })
+      await vi.runAllTimersAsync(); await result
+      expect(device.commands.filter(command => command.request === 31 && command.value === 1)).toHaveLength(10)
+      expect(device.commands.filter(command => command.request === 33)).toHaveLength(0)
+      expect(device.token).toBe(0)
+    } finally { vi.useRealTimers() }
+  })
+  it.each(['active', 'changed-token', 'changed-slot', 'lost-poll'])('never repeats Begin after a %s ownership recheck', async change => {
+    vi.useFakeTimers()
+    try {
+      const device = new ExportDevice(); device.busy = true
+      const read = device.controlTransferIn.bind(device)
+      device.controlTransferIn = async (setup, length) => {
+        if (setup.request === 31 && setup.value === 0 && device.commands.length >= 2) {
+          if (change === 'lost-poll') throw new Error('Poll reply lost')
+          const status = change === 'active' ? 1 : 0
+          return { status: 'ok', data: metadata(status, change === 'changed-token' || status === 1 ? 1 : 0, change === 'changed-slot' ? 1 : 0) }
+        }
+        return read(setup, length)
+      }
+      const result = expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toThrow()
+      await vi.runAllTimersAsync(); await result
+      expect(device.commands.filter(command => command.request === 31 && command.value === 1)).toHaveLength(1)
+      expect(device.commands.filter(command => command.request === 33)).toHaveLength(0)
+    } finally { vi.useRealTimers() }
+  })
+  it('checks the busy deadline after a completed poll before attempting another Begin', async () => {
+    vi.useFakeTimers()
+    try {
+      const device = new ExportDevice(); device.busy = true
+      const read = device.controlTransferIn.bind(device)
+      device.controlTransferIn = async (setup, length) => {
+        const reply = await read(setup, length)
+        if (setup.request === 31 && setup.value === 0 && device.commands.length >= 3) vi.setSystemTime(Date.now() + 3000)
+        return reply
+      }
+      const result = expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toThrow('busy')
+      await vi.runAllTimersAsync(); await result
+      expect(device.commands.filter(command => command.request === 31 && command.value === 1)).toHaveLength(1)
+      expect(device.commands.filter(command => command.request === 33)).toHaveLength(0)
+    } finally { vi.useRealTimers() }
+  })
+  it.each(['token', 'slot', 'malformed'])('never retries a busy acknowledgment with a changed %s', async change => {
+    const device = new ExportDevice(), read = device.controlTransferIn.bind(device)
+    device.controlTransferIn = async (setup, length) => {
+      const reply = await read(setup, length)
+      if (setup.request === 31 && setup.value) {
+        const view = metadata(3, change === 'token' ? 1 : 0, change === 'slot' ? 1 : 0)
+        if (change === 'malformed') view.setUint8(7, 1)
+        return { status: 'ok', data: view }
+      }
+      return reply
+    }
+    await expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toThrow()
+    expect(device.commands).toEqual([{ request: 31, value: 0 }, { request: 31, value: 1 }])
+  })
+  it('never repeats a lost Begin after waiting through a proven busy refusal', async () => {
+    vi.useFakeTimers()
+    try {
+      const device = new ExportDevice(); device.busyFor = 1; device.failBegin = true
+      const result = expect(new UsbVendorTransport(device, 1).savedBackup()).rejects.toThrow('Begin reply lost')
+      await vi.runAllTimersAsync(); await result
+      expect(device.commands).toEqual([{ request: 31, value: 0 }, { request: 31, value: 1 }, { request: 31, value: 0 }, { request: 31, value: 1 }])
+      expect(device.commands.filter(command => command.request === 33)).toHaveLength(0)
+    } finally { vi.useRealTimers() }
   })
   it('releases an acknowledged Begin even if cancellation arrives with its reply', async () => {
     const device = new ExportDevice(); device.controller = new AbortController()

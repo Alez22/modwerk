@@ -23,7 +23,6 @@ struct Probe {
     unsigned escapes=0,calls=0,writes=0,private_reads=0,pixelwrites=0,widgets=0,max_pixels=0,raster_collisions=0;
     uint32_t stock_pixels=0;
     bool expected_escape=false;
-    uint32_t consumer_boundary=0;
     unsigned reset_stages=0,random_stages=0;
     std::set<uint32_t> private_consumers;
     std::string current;
@@ -79,11 +78,11 @@ struct Probe {
         for(unsigned i=0;i<args.size();i++)m.write32(sp+4+4*i,args[i]);
         auto before=m.unmappedCount();active=true;m68k_set_reg(cpu,M68K_REG_PC,entry);
         unsigned budget=1000000;
-        while(m.pc()!=stop&&m.pc()!=consumer_boundary&&budget--){if(!m.step())break;}
+        while(m.pc()!=stop&&budget--){if(!m.step())break;}
         active=false;calls++;
-        if(m.pc()!=stop&&m.pc()!=consumer_boundary)std::fprintf(stderr,"%s failed to reach its checked boundary pc=%x reason=%s\n",name.c_str(),m.pc(),m.why().c_str());
+        if(m.pc()!=stop)std::fprintf(stderr,"%s failed to return pc=%x reason=%s\n",name.c_str(),m.pc(),m.why().c_str());
         if(m.unmappedCount()!=before)std::fprintf(stderr,"%s used unmapped memory (%llu new)\n",name.c_str(),static_cast<unsigned long long>(m.unmappedCount()-before));
-        assert(m.pc()==stop||m.pc()==consumer_boundary);consumer_boundary=0;
+        assert(m.pc()==stop);
         assert(m.unmappedCount()==before);assert(expected_escape||!escapes);
         unsigned pixels=0;for(unsigned i=0;i<1024;i++)pixels+=m.read8(window+0x100+i)!=0;
         if(pixels>max_pixels)max_pixels=pixels;
@@ -112,19 +111,29 @@ int main(int argc,char **argv) {
         }
     }
     p.m.write8(0x100b14cc,0);p.m.write8(0x80000000,0);p.m.write32(0x46c7dd26,0);
-    // Execute every audio-page reset/randomize descriptor consumer. Stop
-    // before the stock notification UI: its heap/list context needs a full
-    // boot fixture. The remaining private-descriptor drawer is exercised
-    // above, and live paused pointers are separately fenced by the loader.
-    // This explicitly does not claim full notification/allocator execution.
+    // Execute complete reset/randomize calls, including their notification
+    // tails. Stock toast removal requires an initialized permanent input
+    // layer even when the timed toast did not register its own modal map.
+    // Register an authored empty baseline through the actual stock function;
+    // preserve its list across calls and close through the stock callback.
+    // This initialized UI fixture is not a full boot or heap qualification.
+    assert(!p.m.read32(0x460d1e70));p.m.write32(0x460d165c,0);
+    constexpr uint32_t permanent=0x47070400,empty_keys=permanent+32,empty_enc=permanent+64;
+    for(unsigned i=0;i<28;i++)p.m.write8(permanent+i,0);
+    p.m.write32(permanent+4,empty_keys);p.m.write32(permanent+8,empty_enc);
+    p.m.write16(empty_keys,0xff00);p.m.write16(empty_enc,0xff00);
+    p.call("stock base layer register",0x40031494,{permanent});
+    assert(p.m.read32(0x460d165c)==permanent);
     for(uint32_t track=0;track<8;track++)for(uint32_t page=0;page<5;page++) {
         p.m.write8(0x100b14cc,track);p.m.write8(0x80000000,track);p.call("mr_ui_tick");
-        p.m.write32(0x460d1684,page);p.m.write8(0x46c7d8d8,page);p.m.write32(0x460d165c,0);
-        p.consumer_boundary=0x4005df1c;p.call("stock reset descriptor stage",0x4005cbd8);p.reset_stages++;
-        p.m.write32(0x460d165c,0);
-        p.consumer_boundary=0x4005cb90;p.call("stock randomize descriptor stage",0x4005b9c0);p.random_stages++;
+        p.m.write32(0x460d1684,page);p.m.write8(0x46c7d8d8,page);
+        p.call("stock complete reset",0x4005cbd8);p.reset_stages++;
+        p.call("stock complete randomize",0x4005b9c0);p.random_stages++;
+        assert(p.m.read32(0x460d165c)==permanent);
     }
     p.m.write8(0x100b14cc,0);p.m.write8(0x80000000,0);
+    p.call("stock notification close",0x40056bec);
+    assert(!p.m.read32(0x460d1e70)&&p.m.read32(0x460d165c)==permanent);
     constexpr uint32_t layer=0x47070000,definitions=layer+0x100;
     p.m.write32(0x460d165c,layer);p.m.write32(layer,0);p.m.write32(layer+4,0);p.m.write32(layer+8,definitions);p.m.write32(layer+12,0);
     for(unsigned slot=0;slot<6;slot++) {
@@ -159,7 +168,7 @@ int main(int argc,char **argv) {
     p.m.write32(layer,layer);assert(retained()==2);p.m.write32(layer,0);
     p.m.write32(0x460d165c,layer+1);assert(retained()==2);p.m.write32(0x460d165c,layer);
     assert(retained()==0);
-    std::printf("{\"origin\":%u,\"calls\":%u,\"widgets\":%u,\"writes\":%u,\"privateReads\":%u,\"consumerPCs\":%zu,\"escapedPointers\":%u,\"maxNonzeroPixelBytes\":%u,\"numericRasterCollisions\":%u,\"resetDescriptorStages\":%u,\"randomizeDescriptorStages\":%u,\"stockNotificationTailExecuted\":false}",origin,p.calls,p.widgets,p.writes,p.private_reads,p.private_consumers.size(),p.escapes,p.max_pixels,p.raster_collisions,p.reset_stages,p.random_stages);
+    std::printf("{\"origin\":%u,\"calls\":%u,\"widgets\":%u,\"writes\":%u,\"privateReads\":%u,\"consumerPCs\":%zu,\"escapedPointers\":%u,\"maxNonzeroPixelBytes\":%u,\"numericRasterCollisions\":%u,\"resetDescriptorStages\":%u,\"randomizeDescriptorStages\":%u,\"initializedInputLayer\":true,\"stockNotificationTailExecuted\":true}",origin,p.calls,p.widgets,p.writes,p.private_reads,p.private_consumers.size(),p.escapes,p.max_pixels,p.raster_collisions,p.reset_stages,p.random_stages);
     // Authored negative: MOVE.L #privatePointer,global followed by RTS.
     // It executes on the CPU, rather than invoking the watch from the host.
     constexpr uint32_t negative=0x47310000,sink=0x460d1800;

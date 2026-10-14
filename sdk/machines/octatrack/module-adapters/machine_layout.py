@@ -100,7 +100,8 @@ def _envelope(package, *, group=True):
     if group and (image[:5] != b'MWMG\x01' or not 1 <= image[5] <= 7 or any(image[6:16])):
         _fail('Invalid group metadata or private entry padding.')
     relocations = list(struct.unpack('>%dI' % reloc_count, take(4 * reloc_count)))
-    if any(r < (16 if group else 0) or r & 1 or r > image_size - 4 or (i and r < relocations[i - 1] + 4)
+    if any(r < (16 if group else 0) or r & 1 or r > image_size - 4 or
+           struct.unpack_from('>I', image, r)[0] >= image_size or (i and r < relocations[i - 1] + 4)
            for i, r in enumerate(relocations)):
         _fail('Invalid group image relocation.')
     occupied_sites, reconstructed = [], []
@@ -144,6 +145,32 @@ def _envelope(package, *, group=True):
     if at != len(package):
         _fail('Trailing bytes in group package.')
     return image, image[5] if group else 0, layout, module
+
+
+def recipe_records(package, *, group=True):
+    """Decode only an already validated private ABI8 preparation envelope.
+
+    This does not broaden the shipped loader or its canonical package tools.
+    Callers still verify original stock guards and exact source associations.
+    """
+    image, _, _, _ = _envelope(package, group=group)
+    count, sites = struct.unpack_from('>I', package, 16)[0], struct.unpack_from('>I', package, 24)[0]
+    copies, fills = struct.unpack_from('>II', package, 68)
+    at = 76 + len(image)
+    relocations = list(struct.unpack_from('>%dI' % count, package, at));at += 4 * count
+    patched, copied, filled = [], [], []
+    for _ in range(sites):
+        address, n, keep, checked, r = struct.unpack_from('>IBBBB', package, at)
+        digest, code = package[at + 8:at + 40], package[at + 40:at + 40 + n]
+        local = list(struct.unpack_from('>%dH' % r, package, at + 40 + n))
+        patched.append((address, digest, code, local, keep, checked));at += 40 + n + 2 * r
+    for _ in range(copies):
+        offset, address, n = struct.unpack_from('>IIH', package, at)
+        copied.append((offset, address, n, package[at + 12:at + 44]));at += 44
+    for _ in range(fills):
+        offset, n, value = struct.unpack_from('>IIB', package, at)
+        filled.append((offset, n, value));at += 12
+    return image, relocations, patched, copied, filled
 
 
 @dataclass(frozen=True)

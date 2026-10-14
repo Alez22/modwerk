@@ -1,5 +1,6 @@
 """Bounded authored pre-boot packing and linked scratch regressions."""
 import importlib.util
+from itertools import product
 from pathlib import Path
 import random
 import shutil
@@ -18,6 +19,27 @@ import resident_dsp
 
 
 class ResidentBoot(unittest.TestCase):
+    def test_packing_minimizes_exact_codec_size_without_splitting_isolated_zeros(self):
+        # Exhaustive token partitions are an independent small-input oracle.
+        def lengths(data):
+            if not data:
+                yield 0
+                return
+            for count in range(1, min(128, len(data)) + 1):
+                for tail in lengths(data[count:]):
+                    yield 1 + count + tail
+                    if not any(data[:count]): yield 1 + tail
+        for size in range(7):
+            for values in product((0, 65), repeat=size):
+                data = bytes(values)
+                packed = boot.pack_zeros(data)
+                self.assertEqual(len(packed), min(lengths(data)))
+                if data: self.assertEqual(boot.unpack_zeros(packed, len(data)), data)
+        for data in (b'A\0B\0C', (b'A\0B') * 43, b'\0' * 127 + b'A\0B'):
+            packed = boot.pack_zeros(data)
+            self.assertLessEqual(len(packed), len(data) + (len(data) + 127) // 128)
+            self.assertEqual(boot.unpack_zeros(packed, len(data)), data)
+
     def test_authored_literal_zero_stream_round_trip_and_boundaries(self):
         rng = random.Random(223)
         for data in (bytes(1), bytes(128), bytes(129), bytes(4096), bytes(range(256)),

@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import re
+import struct
 from pathlib import Path
 import shutil
 import subprocess
@@ -25,9 +26,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
-sys.path.insert(0, str(ROOT / 'sdk/runtime/loader'))
-from verify_static import unpack_recipe, placed
-from machine_layout import _envelope
+from machine_layout import _envelope, recipe_records
 
 STOCK_SHA256 = '34695b606eb00e1b4dded5fd0c4b66f3a460522a632e47d7416dbd220599e1ad'
 ARCHIVES = ('libot_machine.a', 'mc68k/lib68kEmu.a', 'dsp56300/dsp56kEmu/libdsp56kEmu.a',
@@ -36,6 +35,13 @@ ARCHIVES = ('libot_machine.a', 'mc68k/lib68kEmu.a', 'dsp56300/dsp56kEmu/libdsp56
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def placed(data, offsets, base):
+    output = bytearray(data)
+    for at in offsets:
+        struct.pack_into('>I', output, at, struct.unpack_from('>I', output, at)[0] + base)
+    return bytes(output)
 
 
 def command(argv):
@@ -103,7 +109,7 @@ def main():
         raise ValueError('The private group does not include FM.')
     captured = args.capture.read_bytes()
     capture = json.loads(captured)
-    image, relocs, sites, copies, fills = unpack_recipe(package)
+    image, relocs, sites, copies, fills = recipe_records(package)
     recipe_bytes = args.recipe.read_bytes() if args.recipe else None
     if bool(args.recipe) != bool(args.reviewed_recipe_sha):
         raise ValueError('Supply both the reviewed recipe and its independent SHA256.')
@@ -164,7 +170,10 @@ def main():
         if result.returncode:
             raise ValueError('Consumer probe refused at %#x: %s' % (origin, result.stderr[-2000:]))
         observations = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
-        if len(observations) != 2 or observations[0]['escapedPointers'] or not all(observations[1].values()):
+        if (len(observations) != 2 or observations[0]['escapedPointers'] or
+                observations[0].get('resetDescriptorStages') != 40 or observations[0].get('randomizeDescriptorStages') != 40 or
+                observations[0].get('initializedInputLayer') is not True or
+                observations[0].get('stockNotificationTailExecuted') is not True or not all(observations[1].values())):
             raise ValueError('Incomplete native consumer observations.')
         receipts.append(dict(observations=observations, stockImageSha256=sha(memory), runtimeImageSha256=sha(runtime)))
     receipt = dict(schema=1, scope='FM consumers and known UI-root native observation',
@@ -176,7 +185,7 @@ def main():
                                  (HERE / 'fm_consumer_fixture.cpp', HERE / 'fm_consumer_scanner.c',
                                   HERE / 'probe_fm_consumers.py', adapter / 'machine_lifetime.c',
                                   adapter / 'machine_lifetime.h', HERE / 'machine_layout.py',
-                                  ROOT / 'sdk/runtime/loader/verify_static.py')},
+                                  HERE / 'stock_recipe.py')},
                    nativeArchives={str(path.relative_to(native)): sha(path.read_bytes()) for path in archives},
                    origins=receipts, hardware=False, boot=False, dsp=False, audio=False,
                    exhaustiveConsumerCoverage=False, admission=False)

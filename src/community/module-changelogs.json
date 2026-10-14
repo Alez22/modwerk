@@ -259,8 +259,7 @@
         "date": "2026-10-02",
         "changes": [
           "First Modwerk catalog release of Sam Banks’s preview-volume patch: Flex/Static sample previews use the default AMP volume even when the active track is turned down.",
-          "Retain the upstream implementation and real UI captures; verify stock bytes from the user’s own local firmware.",
-          "Runtime development (13 October 2026): derive the staged USB package’s ABI and record-feature requirements from its checked header, so the browser accepts it on a capable base and refuses older bases before transfer. This changes package metadata only; the public card build is unchanged and the ABI 8 candidate still requires exact hardware requalification."
+          "Retain the upstream implementation and real UI captures; verify stock bytes from the user’s own local firmware."
         ],
         "sourceCommit": "b98abc5fcefad5e7c180f3746aa740159c19c422"
       }
@@ -305,8 +304,7 @@
         "version": "0.1.2-experimental",
         "date": "2026-10-01",
         "changes": [
-          "Documentation-only: add real emulator screenshots of the selection and control pages, access instructions and capture provenance. The firmware implementation is unchanged.",
-          "Runtime development (13 October 2026): derive the staged USB package’s ABI and record-feature requirements from its checked header, so the browser accepts it on a capable base and refuses older bases before transfer. This changes package metadata only; the public card build is unchanged and the ABI 8 candidate still requires exact hardware requalification."
+          "Documentation-only: add real emulator screenshots of the selection and control pages, access instructions and capture provenance. The firmware implementation is unchanged."
         ],
         "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
       },
@@ -383,7 +381,6 @@
           "correct the MIDI chromatic drawer’s argument stack so changing MIDI trig mode keeps the instrument responsive (#264).",
           "add 18.06 dB of source headroom before mono output and paraphonic summing, preserving envelopes and relative voice levels (#273). Sounds are quieter at unchanged mixer settings; effect and multi-track mix clipping remains possible.",
           "Owner-approved experimental release without current hardware validation. Chip timing and complete memory bounds remain unmeasured; the original static symptom is not hardware-confirmed.",
-          "Runtime development (12 October 2026): prepare a guarded source adapter that relocates FM Synth's page, quantizer mailbox and scale accessor together, and binds helper calls directly to its own engine for a shared machine package. Fresh native links reproduce relocation at two origins; a guarded shared-owner variant keeps descriptor publication inside the package instead of leaving a pointer in the stock table. Standalone descriptor lifetime, USB packaging, composed emulator behavior and new-base hardware qualification remain pending; this does not change the public card build.",
           "Documentation/media-only (12 October 2026): add a sample-free melodic preview using VECTOR’s native generator offline to supply FM note locks, with native 128 BPM sequencing, index/feedback sweeps and actual Mini Verb in FX2. Remove boot/edit silence and added gaps; include exact generator, source/image, controls, recording and decoded peak provenance. Firmware and hardware/performance qualification are unchanged."
         ]
       },
@@ -511,8 +508,7 @@
         "date": "2026-10-09",
         "changes": [
           "Prevent packed VECTOR settings from making stock Part validation reject the saved bank at startup, which reset machines to STATIC and left PLAY stuck on the first step. Preserve existing S2 version 1/2 settings while retaining stock validation of other data.",
-          "Two-instance Part/project save-reload, saved-card fresh load and battery-RAM-only restart pass in the emulator. Physical reboot/audio remain unverified under the owner-approved exception for this exact version. Already reset projects require restoration from a backup.",
-          "Development-only USB adapter: split three VECTOR pointer-minus-stock-address expressions into bounded self-references and fixed address arithmetic, and prepare a shared VECTOR/FM chooser without adding POLY8. Imported 0.2.4 sources and public card downloads remain exact. Fresh source/host/native relocation checks do not extend the old hardware exception; runtime packaging, removal, Keep/Undo and physical timing remain unqualified."
+          "Two-instance Part/project save-reload, saved-card fresh load and battery-RAM-only restart pass in the emulator. Physical reboot/audio remain unverified under the owner-approved exception for this exact version. Already reset projects require restoration from a backup."
         ]
       },
       {

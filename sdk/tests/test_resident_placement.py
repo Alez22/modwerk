@@ -38,6 +38,28 @@ def generated():
     return result
 
 
+def board_entries(source):
+    """Exact guarded entry functions, without unrelated board MMIO services.
+
+    PE linkers retain unrelated exports/refptrs despite section collection.
+    The complete board translation unit is still compiled for ColdFire by
+    test_resident_driver; this native fixture exercises these entries only.
+    """
+    def unique(marker):
+        if source.count(marker) != 1: raise AssertionError('Changed board fixture seam: '+marker)
+        return source.index(marker)
+    start=unique('#if defined(MODWERK_RESIDENT_STOCK_HOOKS) && !defined(MODWERK_HOST)\n')
+    setup_end=unique('/* This base only prepares dormant authored engines.')
+    entries=unique('int modwerk_stock_hook_export_idle(void)\n')
+    end=unique('static int stock_hook_tick(void)\n')
+    globals=[]
+    for marker in ('static unsigned rebinding;', 'static int probing = -1;',
+                   'static int peeking = -1;', 'volatile struct selftest modwerk_selftest;',
+                   'int dl_publication_idle(void);'):
+        at=unique(marker); globals.append(source[at:source.index('\n',at)+1])
+    return '#include "selftest.h"\n'+''.join(globals)+source[start:setup_end]+source[entries:end]+'#endif\n'
+
+
 class ResidentPlacement(unittest.TestCase):
     @unittest.skipUnless(shutil.which('cc'),'Native C compiler unavailable')
     def test_real_buffer_capacity_kept_targets_outgoing_and_generation_retirement(self):
@@ -59,10 +81,10 @@ class ResidentPlacement(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             work=Path(tmp)
             for name,text in generated().items(): (work/name).write_text(text)
-            (work/'dsp.c').write_text(resident_source.sources()['dsp.c'])
+            (work/'dsp.c').write_text(board_entries(resident_source.sources()['dsp.c']))
             shutil.copyfile(ELEK/'fxids.h',work/'fxids.h')
-            # Only adapter entry points are retained. Unreachable board MMIO
-            # uses 32-bit addresses on this 64-bit host; no MMIO is executed.
+            # Exact adapter entry bodies and their actual initial state are
+            # compiled without unrelated MMIO functions or linker pruning.
             flags=['-std=c11','-Os','-Wall','-Wextra','-Werror','-Wno-int-to-pointer-cast','-ffunction-sections','-fdata-sections',
                    '-DMODWERK_RESIDENT_STOCK_HOOKS','-DMODWERK_FX_IDS=64',
                    '-DMODWERK_DSP_ALLOWANCE0=3120','-DMODWERK_DSP_ALLOWANCE1=3565','-DMODWERK_DSP_RESERVE=342']
@@ -75,8 +97,7 @@ class ResidentPlacement(unittest.TestCase):
                 result=subprocess.run(['cc',*flags,*includes,'-c',str(source),'-o',str(out)],capture_output=True,text=True)
                 self.assertEqual(result.returncode,0,result.stderr); objects.append(out)
             out=work/'binding'
-            dead_strip='-Wl,-dead_strip' if sys.platform=='darwin' else '-Wl,--gc-sections'
-            result=subprocess.run(['cc',dead_strip,*map(str,objects),'-o',str(out)],capture_output=True,text=True)
+            result=subprocess.run(['cc',*map(str,objects),'-o',str(out)],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             result=subprocess.run([str(out)],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
@@ -113,6 +134,12 @@ class ResidentPlacement(unittest.TestCase):
         self.assertIn('!modwerk_saved_set_busy() && dl_hook_buffer_ranges_idle(feature)',source)
         self.assertIn('if (!modwerk_stock_hook_buffer_policy(core, id, &claim)) return 0;',source)
         self.assertIn('if (enable) return MW_HOOK_STATE;',source) # preparation never opens controller admission
+        entries=board_entries(source)
+        self.assertNotIn('static int stock_hook_tick',entries)
+        self.assertIn('static int probing = -1;',entries)
+        self.assertIn('static int peeking = -1;',entries)
+        with self.assertRaisesRegex(AssertionError,'fixture seam'):
+            board_entries(source.replace('int modwerk_stock_hook_export_idle(void)', 'int changed_export_idle(void)'))
 
     @unittest.skipUnless(shutil.which('m68k-elf-gcc'),'ColdFire compiler unavailable')
     def test_actual_guarded_manager_and_resources_compile_for_mcf54455(self):

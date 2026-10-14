@@ -42,25 +42,8 @@ def load(name, path):
     return module
 
 
-def private_directory(path):
-    path = path.expanduser().resolve()
-    ancestor = path
-    while not ancestor.exists():
-        ancestor = ancestor.parent
-    if subprocess.run(['git', '-C', str(ancestor), 'rev-parse', '--show-toplevel'],
-                      capture_output=True).returncode == 0:
-        raise ValueError('Runtime preparation artifacts must stay outside Git worktrees.')
-    path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if path.is_symlink() or path.stat().st_mode & 0o077:
-        raise ValueError('Use a private output directory (0700).')
-    return path
-
-
-def save(path, data):
-    # Refuse symlinks and accidental overwrite, including stock/source inputs.
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, 'wb') as output:
-        output.write(data if isinstance(data, bytes) else (json.dumps(data, indent=2) + '\n').encode())
+private_paths = load('runtime_private_paths', Path(__file__).with_name('runtime_private_paths.py'))
+private_directory, save = private_paths.private_directory, private_paths.save
 
 
 def source_hashes(root, upstream):

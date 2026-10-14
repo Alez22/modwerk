@@ -12,12 +12,7 @@
       "module": "873d83cc",
       "bytes": 7398,
       "sha256": "050ccc3ed85815521342285df4a2423bcfcd5a4bd45c3da67055afcf41d70ab7",
-      "path": "octatrack-modules/everb/0.1.1-experimental.mwrm",
-      "abi": 6,
-      "features": 0,
-      "sites": 0,
-      "copies": 0,
-      "fills": 0
+      "path": "octatrack-modules/everb/0.1.1-experimental.mwrm"
     },
     {
       "id": "miniverb",
@@ -31,12 +26,7 @@
       "module": "3cbedc9c",
       "bytes": 2762,
       "sha256": "d40a7deb698cbf8bab6a4dcc160ebdc8fbcab70682ab38359d289dec0530277e",
-      "path": "octatrack-modules/miniverb/0.2.1-experimental.mwrm",
-      "abi": 6,
-      "features": 0,
-      "sites": 0,
-      "copies": 0,
-      "fills": 0
+      "path": "octatrack-modules/miniverb/0.2.1-experimental.mwrm"
     },
     {
       "id": "tapehead",
@@ -49,12 +39,7 @@
       "module": "bcf0d674",
       "bytes": 2250,
       "sha256": "980fb1ceda23837b3cb121e42372ccc21e5068ce03cacb1f371c7d53f5150554",
-      "path": "octatrack-modules/tapehead/0.1.2-experimental.mwrm",
-      "abi": 6,
-      "features": 0,
-      "sites": 0,
-      "copies": 0,
-      "fills": 0
+      "path": "octatrack-modules/tapehead/0.1.2-experimental.mwrm"
     },
     {
       "id": "airwindows-chorus",
@@ -68,42 +53,7 @@
       "module": "496d848e",
       "bytes": 3710,
       "sha256": "3be09ec1b69cd50ee439a368a05d73d76a2ca02a8bea597993cbece42a36fc00",
-      "path": "octatrack-modules/airwindows-chorus/0.1.2-experimental.mwrm",
-      "abi": 6,
-      "features": 0,
-      "sites": 0,
-      "copies": 0,
-      "fills": 0
-    },
-    {
-      "id": "previewvol",
-      "octabam": true,
-      "version": "0.1.2-experimental",
-      "name": "Preview Vol",
-      "module": "8e791a15",
-      "bytes": 204,
-      "sha256": "9fd95d9a9a5a1c5932892ab1af36b39994650a51161df3903f36fa8afa6cb1c2",
-      "path": "octatrack-modules/previewvol/0.1.2-experimental.mwrm",
-      "abi": 7,
-      "features": 1,
-      "sites": 2,
-      "copies": 0,
-      "fills": 0
-    },
-    {
-      "id": "repitch",
-      "octabam": true,
-      "version": "0.1.2-experimental",
-      "name": "Repitch",
-      "module": "5c49f0f0",
-      "bytes": 1358,
-      "sha256": "d7c28a9fedd22ca3fe35e460e05e5493e30069d6256f1992d1c9ef4d3ab0a3ba",
-      "path": "octatrack-modules/repitch/0.1.2-experimental.mwrm",
-      "abi": 7,
-      "features": 1,
-      "sites": 15,
-      "copies": 0,
-      "fills": 0
+      "path": "octatrack-modules/airwindows-chorus/0.1.2-experimental.mwrm"
     }
   ]
 }
