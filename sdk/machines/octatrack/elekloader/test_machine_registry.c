@@ -73,16 +73,22 @@ static uintptr_t volatile *const host_rows[RUNTIME_SITE_EVENTS] = {
 #include "machine_registry.c"
 #undef modwerk_runtime_event_row
 
-/* The DSP budget's source stage (dsp.c, synthetic): a core carries `room` voices. */
-static unsigned room = 1, claims_made, releases, engine_offs; static uint8_t voices;
-int modwerk_dsp_source_claim(unsigned track, uint32_t voice, uint32_t engine, uint8_t kind)
+/* The DSP budget's source stage (dsp.c, synthetic): a core carries `room` voices; a claim replaces the track's voice,
+ * and an engine off frees its machine's engine and every voice it held. */
+static unsigned room = 1, claims_made, releases, engine_offs; static uint8_t voices; static uint32_t voice_of[8], last_off;
+int modwerk_dsp_source_claim(unsigned track, uint32_t module, uint32_t voice, uint32_t engine, uint8_t kind)
 {
-    CHECK(voice == 411 && engine == 3 && kind == 1); ++claims_made;
+    CHECK(module && voice == 411 && engine == 3 && kind == 1 && track < 8); ++claims_made;
     unsigned used = 0; for (unsigned t = 0; t < 8; ++t) used += t != track && voices & 1u << t;
     if (used >= room) return 6; /* RUNTIME_CYCLES */
-    voices |= (uint8_t)(1u << track); return 0;
+    voices |= (uint8_t)(1u << track); voice_of[track] = module; return 0;
 }
-void modwerk_dsp_source_release(unsigned track, int engine_off) { voices &= (uint8_t)~(1u << track); ++releases; engine_offs += engine_off != 0; }
+void modwerk_dsp_source_release(unsigned track) { voices &= (uint8_t)~(1u << track); voice_of[track] = 0; ++releases; }
+void modwerk_dsp_source_engine_off(uint32_t module)
+{
+    for (unsigned t = 0; t < 8; ++t) if (voice_of[t] == module) voices &= (uint8_t)~(1u << t), voice_of[t] = 0;
+    ++engine_offs; last_off = module;
+}
 
 /* Synthetic machines (the descriptor ABI; no module code). */
 static int a_admit = 1, a_renders, f_renders, left, v_wraps;
@@ -103,7 +109,9 @@ static const struct modwerk_machine F = {MODWERK_MACHINE_ABI, {'F', 'M'}, 1, 1, 
                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_f, 0, 0, 0, 0, {0}};
 static const struct modwerk_machine X = {2u, {'X', 'X'}, 1, 1, "FUTURE", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0}};
 static const struct modwerk_machine D = {MODWERK_MACHINE_ABI, {'D', 'V'}, 1, 1, "PRICED", MODWERK_MACHINE_PROTECT, 0, a_defaults,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_a, 0, 411, 3, 1, {0}};
+                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_a, 0, 411, 3, 1, {0}},
+                             E = {MODWERK_MACHINE_ABI, {'E', '2'}, 1, 1, "PRICED 2", MODWERK_MACHINE_PROTECT, 0, a_defaults,
+                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_f, 0, 411, 3, 1, {0}};
 static const struct { uint32_t count; struct modwerk_sequencer_row row[3]; } FMQ = {3, {{"SCALE", 0, 0}, {"ROOT", 0, 0}, {"GLIDE", 0, 0}}},
     QZ = {3, {{"SCALE", (void *)1, 0}, {"ROOT", (void *)1, 0}, {"GLIDE", (void *)1, 0}}}, MORE = {1, {{"SWING", 0, 0}}};
 static void rows(const void *const *m, unsigned n, const void *const *s, unsigned k)
@@ -187,6 +195,28 @@ int main(void)
     CHECK(voices == (1u << 4 | 1u << 5) && mw_source_render_impl(5, 0, 0, 1) == 3);
     CHECK(mw_assign(part0(), 4, 1) == 1 && voices == 1u << 5 && releases == 1 && engine_offs == 0);
     CHECK(mw_assign(part0(), 5, 1) == 1 && !voices && releases == 2 && engine_offs == 1);
+    /* Another priced machine takes a charged track: charged in place of the first, whose engine goes with its last
+     * voice. A project load that signs the track as the other moves the charge; when the move is refused the track's
+     * charge is freed and it renders silence. A machine that leaves frees its voice and engine. */
+    const void *de[] = {&D, &E};
+    rows(de, 2, 0, 0);
+    room = 1;
+    CHECK(mw_assign(part0(), 4, 5) == 1 && voice_of[4] == key(&D));
+    CHECK(mw_assign(part0(), 4, 6) == 1 && voice_of[4] == key(&E) && engine_offs == 2 && last_off == key(&D) && releases == 2);
+    CHECK(mw_source_render_impl(4, 0, 0, 1) > 100);
+    part0()[60 + 120] = 'D'; part0()[61 + 120] = 'V'; mw_ui_tick();          /* a project load signs track 4 D */
+    CHECK(voice_of[4] == key(&D) && engine_offs == 3 && last_off == key(&E) && mw_source_render_impl(4, 0, 0, 1) < 100);
+    room = 0; part0()[60 + 120] = 'E'; part0()[61 + 120] = '2'; mw_ui_tick(); /* its core cannot carry E */
+    CHECK(!voices && releases == 3 && engine_offs == 4 && last_off == key(&D));
+    int silent = silent_renders;
+    CHECK(mw_source_render_impl(4, 0, 0, 1) == -9 && silent_renders == silent + 1);
+    room = 1; mw_ui_tick();
+    CHECK(voice_of[4] == key(&E));
+    const void *d_only[] = {&D};
+    rows(d_only, 1, 0, 0);                                                    /* E leaves */
+    CHECK(!voices && releases == 4 && engine_offs == 5 && last_off == key(&E));
+    part0()[60 + 120] = part0()[61 + 120] = part0()[62 + 120] = 0; mw_ui_tick();
+    CHECK(!voices && releases == 4);
 
     /* SEQUENCER: FM's quantizer rows, then Scale Quantizer's with the same labels: one set, FM's; QZ alone: QZ's. */
     const void *both[] = {&FMQ, &QZ, &MORE};
