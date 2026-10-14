@@ -152,7 +152,7 @@ The more of these the base owns, the more modules combine. Each is an event or a
 | Site | Today |
 | --- | --- |
 | Track machine list (SRC SETUP) | Base table `ot_machines`; on the card, POLY8's shared machine list |
-| Effect lists (FX1, FX2) | USB: the base gives each module effect a per-project handle; card: pinned effect ids, 32 in all ([wider ids](../OCTATRACK_MORE_EFFECT_IDS.md)) |
+| Effect lists (FX1, FX2) | USB: the base has 128 effect ids, 109 of them for modules, and gives each installed effect module its own ([wider ids](../OCTATRACK_MORE_EFFECT_IDS.md)); card: stock's 32, 13 of them for modules, pinned |
 | SEQUENCER rows | Base table `ot_sequencer_rows` |
 | MIDI generators on a MIDI track's SRC SETUP | Not built: a base table of MIDI sources, as `ot_machines` is for audio tracks |
 | Stock DSP effects a module hooks (Sidechain Compressor, Output Matrix) | Not built: DSP-side taps, one owner per stock site |
