@@ -1098,8 +1098,16 @@ dt_pass:
 | free to clobber. %d3 is not read by the displaced code or by 0x40006844's own per-track
 | work (checked directly in the disassembly) -- also free, and only touched on the
 | track<8 path (the track>=8 early-out never reaches it).
+    .ifdef MODWERK_EVENTS
+| On a Modwerk base that owns 0x40006820 (sdk/machines/octatrack/events.json) this
+| hook is the ev_voice_bind subscriber mm_voice_bind (below, runtime.json): its two
+| exits answer it instead of going on into stock.
+    .equ FB_BACK,     mm_bind_pass
+    .equ FB_EPILOGUE, mm_bind_drop
+    .else
     .equ FB_BACK,     0x40006828      | right after the displaced track-number load
     .equ FB_EPILOGUE, 0x40006888      | stock's own shared epilogue: pop %d2/%a2, rts
+    .endif
     .global fresh_bind
 fresh_bind:
     move.l  %a2,-(%sp)                  | displaced 1
@@ -1151,6 +1159,26 @@ fb_pass:
     jmp     FB_BACK                     | %d0 is reloaded fresh by stock's own very next
                                          | instruction either way, so it does not matter
                                          | here whether this hook has already clobbered it
+
+    .ifdef MODWERK_EVENTS
+| ev_voice_bind, order 50: int mm_voice_bind(unsigned track). fresh_bind runs on the
+| frame stock's 0x40006820 has -- (sp) the return, 4(sp) the track -- and answers
+| 1 where it would skip the bind (FB_EPILOGUE), 0 where stock would go on (FB_BACK),
+| after popping its displaced pushes as stock's epilogue does: d2/a2 are kept.
+    .global mm_voice_bind
+mm_voice_bind:
+    bra     fresh_bind
+mm_bind_pass:
+    move.l  (%sp)+,%d2
+    movea.l (%sp)+,%a2
+    moveq   #0,%d0
+    rts
+mm_bind_drop:
+    move.l  (%sp)+,%d2
+    movea.l (%sp)+,%a2
+    moveq   #1,%d0
+    rts
+    .endif
 
 | ============================ hook 11: 0x4000d0ba (THE REL_STATE RACE, FIXED SAFELY) ====
 | Session 58 continued again -- user clarification: "first cycle" means the first full
