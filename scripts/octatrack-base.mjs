@@ -10,10 +10,10 @@
 // Private transport candidates may add --usb-midi and --usb-audio "USB AUDIO OUT TRACKS MAIN CUE". --site-events builds the
 // base that owns sdk/machines/octatrack/events.json's sites and tables and dispatches them to subscribed packages;
 // --table-owners also fills its table-owner storage from module-adapters/table-owners.json (the reviewed table owners).
-// --resident-stock-hooks --controllers adds the resident Sidechain, Output Matrix and Analog BD engines and admits their packages
+// --cached-modules runs installed module code from the pool's cached alias (cache maintenance on install). --resident-stock-hooks --controllers adds the resident Sidechain, Output Matrix and Analog BD engines and admits their packages
 // through committed trust rows (module-adapters/controller-policies.json). Every build also writes
 // sdk/machines/octatrack/base-binding.json, which the base-bound packages link against (module_packages.py). The beta base:
-//   npm run octatrack:base -- --stock OS.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners --resident-stock-hooks --controllers
+//   npm run octatrack:base -- --stock OS.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners --resident-stock-hooks --controllers --cached-modules
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -32,6 +32,7 @@ const { values: args } = parseArgs({ options: {
   'resident-stock-hooks': { type: 'boolean', default: false },
   'saved-set-export': { type: 'boolean', default: false },
   controllers: { type: 'boolean', default: false },
+  'cached-modules': { type: 'boolean', default: false },
 } })
 if (!args.stock) throw new Error('Usage: npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]')
 const root = resolve(import.meta.dirname, '..'), here = join(root, 'sdk/machines/octatrack/elekloader')
@@ -49,7 +50,7 @@ const same = (fresh, path) => {
 const work = mkdtempSync(join(tmpdir(), 'modwerk-base-')), core = join(work, 'core')
 const build = (output, ...rest) => python('build_core.py', '--stock', args.stock, '--upstream', args.upstream, '--output', output, '--dsp-loader',
   ...(args['usb-midi'] ? ['--usb-midi'] : []), ...(args['usb-audio'] ? ['--usb-audio', args['usb-audio']] : []),
-  ...(args['site-events'] ? ['--site-events'] : []),
+  ...(args['site-events'] ? ['--site-events'] : []), ...(args['cached-modules'] ? ['--cached-modules'] : []),
   ...(args['table-owners'] ? ['--table-owners', join(adapters, 'table-owners.json')] : []),
   ...(args['resident-stock-hooks'] ? ['--resident-stock-hooks'] : []),
   ...(args['saved-set-export'] ? ['--saved-set-export'] : []), ...rest)
