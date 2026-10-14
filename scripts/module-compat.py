@@ -12,7 +12,9 @@ as in Elekloader (docs/ADAPTING.md, rule 4): the base owns each event's stock si
 to it. Two owners may meet on stock bytes only where sdk/machines/octatrack/compatibility.json names both
 modules and the address with a reason; the base's own exceptions are build_core.py's BASE_OWNS. Everything
 else octabam's ledger refuses (FX ids, DSP hooks, core-private Y, buffer regions, data ranges) is checked
-for every pair and for the whole active set.
+for every pair and for the whole active set. Two modules may not claim the same key gesture or stock screen
+(compatibility.uiClaims in octamod.module.json) unless one lists the other in compatibility.conflicts, which the
+configurator enforces.
 """
 import ast
 import importlib.util
@@ -54,12 +56,17 @@ ROUTES = {
     'copy': ('copy these stock bytes from an unpatched location (identical bytes elsewhere in stock)',
              '#cross-compatibility'),
     'row': ('pick another chooser row (a free effect ID)', '#cross-compatibility'),
+    'ui': ('change one so both work together; if the clash is deliberate, add the other module to compatibility.conflicts '
+           'in your octamod.module.json, and the configurator never builds the two together', '#ui-claims'),
     'other': ('claim a resource nobody else uses, or request a base-owned region or event for shared state',
               '#cross-compatibility'),
     'relation': (f'correct {RELATIONS}; every entry needs owner review', '#cross-compatibility'),
 }
 # octabam ledger findings this gate already compares by exact byte range (with relations), not by message.
 SPAN_FINDINGS = ('ColdFire cave', 'hook site', 'poke site', 'kept bytes', 'grown table')
+# shortcut: gestures of modules listed before compatibility.uiClaims existed; their package recipes pin the manifest, so
+# each moves into its octamod.module.json at its next version, and then leaves this list.
+LISTED_UI_CLAIMS = {'playmodes': ['key:TRACK+UP', 'key:TRACK+DOWN'], 'output-matrix': ['key:CUE+LEVEL']}
 HOOKS = ('detour', 'hook', 'base code')  # code sites: behaviour hooks
 NOT_WRITES = ('keep', 'copy')
 
@@ -128,6 +135,29 @@ def describe(a, x, b, y, at, way):
     return f'{a} ({x[0]} {x[3]}, {span(x[1], x[2])}) and {b} ({y[0]} {y[3]}, {span(y[1], y[2])}) both claim 0x{at:08x}'
 
 
+def ui_claim(claim):
+    """(kind, what, page) of one uiClaims entry; a key gesture's held keys in any order, then the key it presses."""
+    kind, _, rest = claim.partition(':')
+    rest, _, page = rest.partition('@')
+    if kind == 'key':
+        *held, last = rest.split('+')
+        return kind, (frozenset(held), last), page or None
+    return kind, rest, None
+
+
+def ui_clashes(manifests):
+    """(a, claim, b, claim) for two modules taking the same key gesture or screen, unless one lists the other in
+    compatibility.conflicts. A gesture without @PAGE takes it on every page. manifests: {id: its compatibility}."""
+    for a, b in itertools.combinations(sorted(manifests), 2):
+        if b in manifests[a].get('conflicts', ()) or a in manifests[b].get('conflicts', ()):
+            continue
+        for x in manifests[a].get('uiClaims', ()):
+            for y in manifests[b].get('uiClaims', ()):
+                (kx, wx, px), (ky, wy, py) = ui_claim(x), ui_claim(y)
+                if kx == ky and wx == wy and (px is None or py is None or px == py):
+                    yield a, x, b, y
+
+
 def ledger_findings(selected, platform):
     """octabam's ledger on these modules (+ the platform modules they bridge), minus byte-range findings."""
     from dataclasses import replace
@@ -145,14 +175,15 @@ def ledger_findings(selected, platform):
 
 
 def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None, natives=None,
-          subscriptions=None):
+          subscriptions=None, manifests=None):
     """Problems for these active modules: [{'modules': [...], 'text': str, 'route': str}].
 
     modules: octabam Module objects (all active); base_sites: (start, length, kind) the base patches;
     events: registry entries {event, site, length}; copies: {module name: [(address, length, label)]}
     from port recipes and packages; relations: the reviewed entries; base_owns: modules allowed on base sites;
     natives: {name: manifest module} for octabam's own ledger, which judges native compositions (default: modules);
-    subscriptions: {module name: its runtime.json entries}. A detour a subscription `replaces` stays out of the
+    subscriptions: {module name: its runtime.json entries}; manifests: {module name: its octamod.module.json
+    compatibility}, for the key gestures and screens it claims. A detour a subscription `replaces` stays out of the
     module's loader package (sdk/runtime/loader/build.py replaced()), so it claims nothing here."""
     problems, names = [], {m.name for m in modules}
     owners = {m.name: claims(m) for m in modules}
@@ -221,6 +252,8 @@ def check(modules, base_sites=(), events=(), copies=None, relations=(), base_own
         if key not in used:
             problem(key[0], f'relation {"+".join(entry["modules"])}: nothing meets at 0x{key[1]:08x} any more; '
                             f'remove the site', 'relation')
+    for a, x, b, y in ui_clashes(manifests or {}):
+        problem((a, b), f'{a} ({x}) and {b} ({y}) take the same {"key gesture" if x.startswith("key:") else "screen"}', 'ui')
     native = [(natives or {}).get(m.name, m) for m in modules]
     for a, b in itertools.combinations(native, 2):
         for text in ledger_findings([a, b], platform or {}):
@@ -318,7 +351,9 @@ def repository_inputs():
     inputs = dict(base_sites=[(int(s['addr'], 16), s['len'], s['kind']) for s in base['sites']], events=read_events(),
                   subscriptions=subscriptions,
                   copies=copies, relations=json.loads((APP / RELATIONS).read_text())['relations'],
-                  base_owns=ast.literal_eval(owns), platform=platform)
+                  base_owns=ast.literal_eval(owns), platform=platform,
+                  manifests={i: {'uiClaims': LISTED_UI_CLAIMS.get(i, []), **json.loads(p.read_text())['compatibility']}
+                             for i in ids if (p := APP / 'sdk/octabam/modules' / i / 'octamod.module.json').is_file()})
     natives = [by_name[i] for i in ids if i in by_name]
     modules, mismatched = ported(natives)
     inputs['natives'] = {m.name: m for m in natives}
