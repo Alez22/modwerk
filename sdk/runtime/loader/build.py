@@ -695,6 +695,64 @@ def octabam_group(args):
                        title=args.name or 'Machines', layout=args.layout, copies=copies, fills=fills, abi=8, flags=4)
 
 
+def octabam_machine(args):
+    """One catalogue machine module as an independent ABI 8 package: what it shares with other modules goes through
+    the base's events and tables (its runtime.json, or its machine port in module-adapters/machine-ports.json), so it
+    installs alone or beside any other module. No group metadata, no composition, no other member."""
+    sys.path.insert(0, str(args.upstream.expanduser().resolve()))
+    from elekloader.sdk import octabam as port
+    sdk = Path(__file__).resolve().parents[2] / 'octabam'
+    adapters = Path(__file__).resolve().parents[2] / 'machines/octatrack/module-adapters'
+    sys.path.insert(0, str(adapters))
+    import machine_ports
+    ob = port.Octabam(str(sdk))
+    if args.octabam_machine not in ob.modules or not machine_ports.declaration(args.octabam_machine):
+        raise ValueError('%s is no catalogue module with a runtime.json or machine port.' % args.octabam_machine)
+    with tempfile.TemporaryDirectory() as folder:
+        work = Path(folder)
+        m, entries = machine_ports.effective(ob.modules[args.octabam_machine], sdk, work / 'port')
+        if m.requires or m.keeps or m.dram_regions or m.overrides or m.cf_patches or m.dsp or m.tables:
+            raise ValueError(m.name + ': the package still has a resource a runtime package cannot carry (requires, keeps, '
+                             'DRAM regions, overrides, caves, DSP code or a grown table).')
+        objects, units = [], []
+        for unit in m.linked:
+            if unit.include or unit.defsyms or unit.cave_addr is not None:
+                raise ValueError(unit.label + ': a generated or pinned unit.')
+            obj = work / ('unit%d.o' % len(objects))
+            subprocess.run([args.cross + 'as', '-mcpu=54455', '--defsym', 'MODWERK_EVENTS=1', unit.source, '-o', str(obj)],
+                           cwd=sdk, check=True, capture_output=True)
+            for name in unit.exports:
+                subprocess.run([args.cross + 'objcopy', '--globalize-symbol=' + name, str(obj)], check=True, capture_output=True)
+            objects.append(obj); units.append(unit)
+        image, symbols, bss, offsets = link_units(objects, args.cross, 0, work, anywhere=True)
+    def pointer(symbol, addend=0):
+        if symbol not in symbols:
+            raise ValueError('%s names %s, which its units do not define.' % (m.name, symbol))
+        return struct.pack('>I', symbols[symbol] + addend)
+    sites = []
+    for d in m.detours:
+        n = d.pad_to or 6
+        if d.kind not in OPCODES or d.target is not None or n < 6 or n % 2:
+            raise ValueError('Detour at %#x: only jmp, jsr or lea to the module\'s own symbol.' % d.site)
+        digest, checked = stock_digest(d.expect)
+        sites.append((d.site, digest, OPCODES[d.kind] + pointer(d.symbol) + b'\x4e\x71' * ((n - 6) // 2), [2], 2 if d.kind == 'lea' else 0, checked))
+    for poke in m.pokes:
+        digest, checked = stock_digest(poke.expect)
+        sites.append((poke.addr, digest, bytes(poke.write), [], 0, checked))
+    for ref in m.symbol_refs:
+        digest, checked = stock_digest(ref.expect.to_bytes(4, 'big'))
+        sites.append((ref.addr, digest, pointer(ref.symbol, ref.addend), [0], 0, checked))
+    copies = [(symbols[c.symbol], c.span.address, c.span.length, stock_digest(c.span)[0]) for u in units for c in u.stock_copies]
+    unevented(sites, copies)
+    if args.stock:
+        check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
+    hooks = subscribe([NONE] * len(HANDLERS), entries, symbols)
+    documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
+    title = args.name or next((d.get('name') for d in documents.get('modules', []) if d.get('id') == m.name), '')
+    return package(image, bss, hooks, offsets, sites, name=m.name, hashed=True, title=title, layout=args.layout,
+                   copies=copies, abi=8)
+
+
 def check_stock(sites, stock, upstream):
     """Each ABI 7 site's hash against the stock OS: a manifest that names the wrong bytes fails here, not on a unit."""
     sys.path.insert(0, str(upstream.expanduser().resolve()))
@@ -777,6 +835,8 @@ def main():
     parser.add_argument('--stock-recipe', type=Path, help='reviewed source/image hashes and explicit copies/fills')
     parser.add_argument('--capture-stock-recipe', type=Path, help='private hash-only recipe capture; no stock bytes')
     parser.add_argument('--octabam', help='a catalogue module from its Octabam manifest (ABI 7); a hybrid effect adds --dsp')
+    parser.add_argument('--octabam-machine', help='a catalogue machine module as one independent package: its shared sites '
+                                                  'through the base\'s events and tables (runtime.json or machine port)')
     parser.add_argument('--private-port', action='store_true', help='reviewed private standalone StockCopy preparation; requires original stock; never publishes')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     parser.add_argument('--subscribe', action='append', default=[], metavar='EVENT:FN:ORDER',
@@ -785,8 +845,9 @@ def main():
     private = private_standalone(args) if args.private_port else None
     if args.subscribe and not args.sources:
         parser.error('--subscribe is for C sources; an octabam module subscribes in its runtime.json, an elemod in its "subscribe".')
-    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) > 1 or not (args.sources or args.elemod or args.dsp)
-            and not args.octabam and not args.octabam_group or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group) and not args.upstream)):
+    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) + bool(args.octabam_machine) > 1
+            or not (args.sources or args.elemod or args.dsp) and not args.octabam and not args.octabam_group and not args.octabam_machine
+            or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group or args.octabam_machine) and not args.upstream)):
         parser.error('Give C sources, --elemod, --dsp, or --octabam with --upstream.')
     dsp, pkg = None, {}
     documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
@@ -801,6 +862,8 @@ def main():
                           args.name or named or pkg.get('key', ''), args.layout)
     if args.octabam_group:
         data = octabam_group(args)
+    elif args.octabam_machine:
+        data = octabam_machine(args)
     elif args.elemod:
         data = build_elemod(args)
     elif args.sources:
