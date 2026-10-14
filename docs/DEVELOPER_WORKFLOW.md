@@ -23,11 +23,32 @@ Most work runs through three things: the developer MCP for the site, the instrum
 **On the instrument (recommended).** Working on the unit is a little riskier than an emulator, but more rewarding: it is the real behaviour, and only results from a real unit qualify a module. It has been safe so far. Modules load into RAM, a power cycle restores the stock state, and the safety rules below (no saving over the owner's project, ask before a power cycle or a flash) have kept every development unit intact.
 
 - *Octatrack:* with the Modwerk base on the unit and its USB connected, start the USB bridge and give the MCP its socket (`--device-socket`; [Then test the connected device](FRONTEND_MCP.md#then-test-the-connected-device)). The agent can read the unit's status, inventory and load, and with `--allow-device-writes` review, trial, Keep or Undo one module at a time, without a card copy or a reboot. [Driving the Octatrack](OCTATRACK_DRIVING.md) has the session, panel steps and safety rules, and the [hardware traps](OCTATRACK_HARDWARE_TRAPS.md) say what has gone wrong on real units.
-- *Digitakt, Digitone and every other machine:* there is no live link yet. Build the firmware, send the `.syx` with Elektron Transfer, and test on the unit ([Digitakt guide](../sdk/machines/digitakt/README.md#flash-and-recover)). Building a USB interface for the machine is recommended and is the bigger win: the [runtime loader](../sdk/runtime/loader/README.md#porting-to-another-machine) does not depend on a machine, so a ColdFire machine needs its glue and a USB transport like the Octatrack base's, and then the MCP device tools can drive it the same way. That is shared SDK work and needs owner review.
+- *Digitakt, Digitone and every other machine:* there is no live link yet, and the aim is to give each one [the Octatrack's interface](ADD_A_MACHINE.md#aim-for-the-octatracks-interface). Build the firmware, send the `.syx` with Elektron Transfer, and test on the unit ([Digitakt guide](../sdk/machines/digitakt/README.md#flash-and-recover)). Building a USB interface for the machine is recommended and is the bigger win: the [runtime loader](../sdk/runtime/loader/README.md#porting-to-another-machine) does not depend on a machine, so a ColdFire machine needs its glue and a USB transport like the Octatrack base's, and then the MCP device tools can drive it the same way. That is shared SDK work and needs owner review.
 
 **In the emulators.** Emulators only approximate the instrument. Use them for fast iteration without a unit, or for UI captures: `ot_emu` for the Octatrack, built from the octabam checkout that `npm run upstream:tools` keeps outside Git, and digiemu for the Digitakt and Digitone mk1 at the revision [the capture guide](MODULE_UI_CAPTURES.md) pins. Both run your own stock OS, which stays on your computer. An emulator run proves the code paths it exercised, never audio, timing, saved-project survival or a physical reboot; record it as emulator evidence and keep the hardware checks open.
 
-## Submit a first release
+## Make it mergeable
+
+Submit only what the owner can merge as it is, and what the bot merges on its own for an author update. Run this before every push, and again after you merge `main`:
+
+```sh
+npm run pr:ready                       # a new module or any other change
+npm run pr:ready -- --author <login>   # a registered author's update: also the bot's merge scope
+```
+
+It fetches Modwerk's `main` (from `upstream` when your fork has it, else `origin`), refuses uncommitted changes and a branch that does not contain current `main`, regenerates the catalogues and licence notices, and runs the same `npm run check -- --base <main>` CI runs. With `--author` it also runs the scope inspection the author-update bot runs and says whether the bot can merge the update, and if not, why. Fix what it names until it says **Ready**, then push and watch the PR with `gh pr checks <number> --watch` until every check is green.
+
+These stumbling blocks have each cost a contributor and the owner a repair round:
+
+- **main moved.** An author update merges automatically only when its CI ran against the current `main`; the scope job's name records both commits. When `main` moves first, merge it, run `pr:ready` again and push.
+- **Stale generated files.** `src/catalog/module-documents.json` and the compatibility files go stale whenever `main` moves under your branch. `pr:ready` regenerates them; commit what it names. Never edit them by hand.
+- **Letter case.** macOS and Windows find `Foo.s` when you wrote `foo.s`; Linux CI does not. `modules:check` refuses a manifest path in the wrong case, but not an `.include` line inside an assembly source, so check those yourself.
+- **A merge that breaks the code.** Merging `main` can leave a duplicate declaration or a stale call without any conflict marker. `pr:ready` runs the full check after the merge for exactly this reason.
+- **Two pieces of work in one PR.** A guide edit, shared code or another module inside an author update takes it off the automatic path; send a finding as its own docs-only PR ([Share what you learn](#share-what-you-learn)).
+- **The first failure hides the next.** CI and `npm run check` stop at the first failing stage, so one fix can uncover another. Run `pr:ready` until it is Ready instead of pushing after each fix.
+- **Compiled packages.** The `octatrack-source` and `elemod-source` jobs rebuild packages in the pinned Docker toolchain and require the committed ones to match. Reproduce them before you push: `bash scripts/build-modules-isolated.sh <clean checkout> <new dir> <image id>` for the Octatrack, `bash scripts/build-elemod-isolated.sh` and `node scripts/verify-elemod-release-exports.mjs <dir>` for the Digitakt and Digitone, from a clean, committed tree.
+- **Your first PR waits for the owner.** GitHub holds a first-time contributor's CI runs until the owner approves them, after every push. Run `pr:ready` locally and push once, rather than often, so each approval counts.
+
 
 1. **Prepare:** fork Modwerk, branch from current `main`, and build or port the module. Keep source pins, credits and licences; prepare the manifest/version/catalog, README/tutorial, release notes, real UI captures and matching stock-free packages.
 2. **Verify:** follow the machine/category guide, regenerate metadata, run `module:doctor` and `npm run check -- --base origin/main`, and qualify the exact private source/build. Give the contributor concrete hardware steps and record only their actual results. Test different simultaneous instances and track/FX-slot/DSP-core isolation and Part/project/physical-reboot persistence where applicable. Emulator project loading is not physical reboot evidence.
