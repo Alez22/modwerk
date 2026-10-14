@@ -134,6 +134,20 @@ class GateTests(unittest.TestCase):
         problems = gate.check([module('a', fx=0x1e), module('b', fx=0x1e)])
         self.assertEqual(self.routes(problems), [(('a', 'b'), 'row')])
 
+    def test_same_key_gesture_or_screen_clashes_unless_declared_incompatible(self):
+        ui = lambda **claims: {k: dict(uiClaims=v, conflicts=[]) for k, v in claims.items()}
+        problems = gate.check([module('a', 0x40001000), module('b', 0x40001008)],
+                              manifests=ui(a=['key:UP+TEMPO'], b=['key:UP+TEMPO@PART']))
+        self.assertEqual(self.routes(problems), [(('a', 'b'), 'ui')])
+        self.assertIn('key:UP+TEMPO', problems[0]['text'])
+        for a, b in ((['key:FUNC+UP+TEMPO'], ['key:UP+FUNC+TEMPO']), (['screen:TEMPO'], ['screen:TEMPO'])):
+            self.assertEqual(len(list(gate.ui_clashes(ui(a=a, b=b)))), 1, (a, b))
+        for a, b in ((['key:UP+TEMPO'], ['key:TEMPO+UP']), (['key:FUNC+LEFT@CHROMATIC'], ['key:FUNC+LEFT@PART']),
+                     (['key:TEMPO'], ['screen:TEMPO'])):
+            self.assertEqual(list(gate.ui_clashes(ui(a=a, b=b))), [], (a, b))
+        declared = ui(a=['screen:TEMPO'], b=['screen:TEMPO']); declared['b']['conflicts'] = ['a']
+        self.assertEqual(list(gate.ui_clashes(declared)), [])
+
     def test_repository_passes(self):
         ids, modules, inputs, problems = gate.repository_inputs()
         self.assertEqual(problems + gate.check(modules, **inputs), [])
