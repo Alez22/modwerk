@@ -35,7 +35,7 @@ builds its own startup, still marked NEW / BETA, from those two unchanged files.
 
 The source, app and server changes are prepared; the release is not. Before this
 startup reaches members, the owner completes these steps for the exact package.
-Steps 1 to 3 were run on 14 October 2026; steps 4 to 6 are open.
+Steps 1 to 3 were run on 14 October 2026, step 5 in part; steps 4 and 6 are open.
 
 1. Done: `src/engine/assets/beta-startup.json` is rebuilt as `3.0.0`
    (10,948 bytes, SHA-256 `62dbceb8…`) in the pinned `modwerk-source-tools` container
@@ -55,9 +55,12 @@ Steps 1 to 3 were run on 14 October 2026; steps 4 to 6 are open.
    are replaced.
 4. Refresh Tape Echo's retained-evidence binding, which pins the startup package.
    That is handled separately.
-5. Flash the exact build on an MKII, and on an MKI if one is available. Watch the
-   startup, confirm the normal screen and stock lamp colours afterwards, and
-   power-cycle with a project loaded. Repeat once with **Classic startup**.
+5. Partly done on 14 October 2026: the exact core-only docking image (the one the
+   emulator verified, MAIN SHA-256 `6f309847…`) was RAM-booted on the owner's MKII
+   development unit, which plays it from RAM without flashing; the owner watched it
+   and reported that it worked. Not run: the **Classic startup** build, an MKI, a
+   flashed (not RAM-booted) install, and a power-cycle with a project loaded. The
+   owner did not itemise the lamp colours or the handover to the normal screen.
 6. Run `npm run check -- --base origin/main`.
 
 Checked in the preparing session: the host choreography test on MKI and MKII (one
@@ -65,7 +68,7 @@ LED channel, bounded levels, lamps dark at the end, colour restore, exact final
 frame of 792 pixels), the session fallback and startup choice, configuration
 persistence, the server's build access, and the TypeScript check. Not checked
 there: the compiled package, native/browser parity, emulator boots and any
-hardware. The first three have since been run (steps 1 to 3); hardware has not.
+hardware. The first three have since been run (steps 1 to 3); one RAM boot on an MKII is the only hardware result.
 
 ## Beta docking edition — 12 October 2026
 
