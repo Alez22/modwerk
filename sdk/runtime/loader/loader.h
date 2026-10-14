@@ -40,6 +40,8 @@ enum runtime_event { RUNTIME_TICK, RUNTIME_DRAW, RUNTIME_KEY, RUNTIME_ENC, RUNTI
 #define RUNTIME_SITE_EVENTS 0u
 #endif
 #define RUNTIME_HOOKS (RUNTIME_EVENTS + RUNTIME_SITE_EVENTS)
+#define RUNTIME_RAISE 255u /* a raised event's hook word with this order: the image offset of a zero 4-byte slot the
+                            * loader fills with the base's entry for that event (modwerk_raise_<event>); not a handler */
 struct runtime_site { uint32_t address, length; uint8_t stock[RUNTIME_SITE_BYTES], code[RUNTIME_SITE_BYTES]; };
 /* A module's DSP effect (README.md, "DSP code"): relocatable code the machine
  * loads into a DSP when a track picks the effect, and what it needs there. */

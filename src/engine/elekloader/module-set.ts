@@ -51,7 +51,7 @@ export async function fetchPackage(entry: RuntimePackage): Promise<Uint8Array> {
 
 const MACHINE_BITS: Record<string, number> = { poly8: 1, vector: 2, synth: 4 }
 /** The Octatrack base's site events (sdk/machines/octatrack/events.json): hook words a subscriber may carry after the core four. */
-export const SITE_EVENTS = 3
+export const SITE_EVENTS = 4
 const invalidPackage = () => new ModuleSetError('The site’s module package list is inconsistent. Reload the page before syncing.')
 const bounded = (n: unknown, max: number) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= max
 function requirements(entry: RuntimePackage, group = false) {

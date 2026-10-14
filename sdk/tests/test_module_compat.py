@@ -85,11 +85,17 @@ class GateTests(unittest.TestCase):
         subs = {'a': [dict(event='ev_test', fn='f', order=20, replaces='hook')],
                 'b': [dict(event='ev_test', fn='g', order=50, replaces='hook')]}
         self.assertEqual(gate.check(modules, events=[EVENT], subscriptions=subs), [])
+        pending = relation(('a', 'b'), 'pending-migration', (0x40004100,), event='ev_test', until='both subscribe')
+        stale = gate.check(modules, events=[EVENT], relations=[pending], subscriptions=subs)
+        self.assertEqual([p['route'] for p in stale], ['relation'])  # nothing patches there any more: the entry must go
+        self.assertIn('nothing meets at 0x40004100', stale[0]['text'])
+        raised = {'a': [dict(event='ev_raised', fn='f', order=50)]}  # a raised event owns no stock bytes
+        self.assertEqual(self.routes(gate.check(modules[:1], events=[EVENT], subscriptions=raised)), [(('a',), 'subscribe')])
         # One still patching: it alone meets the base's event site.
         self.assertEqual(self.routes(gate.check(modules, events=[EVENT], subscriptions={'a': subs['a']})),
                          [(('b',), 'subscribe')])
         for entry, text in ((dict(subs['a'][0], replaces='nothing'), 'which is not its detour'),
-                            (dict(subs['a'][0], event='ev_unknown'), 'not in')):
+                            (dict(subs['a'][0], event='ev_unknown'), 'not a site event')):
             with self.subTest(text=text):
                 problems = gate.check([module('a', 0x40004100)], events=[EVENT], subscriptions={'a': [entry]})
                 self.assertTrue(any(text in p['text'] for p in problems))

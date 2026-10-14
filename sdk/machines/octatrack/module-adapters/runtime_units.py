@@ -17,13 +17,15 @@ def run(*args, cwd=None):
     return subprocess.run(args, cwd=cwd, check=True, capture_output=True)
 
 
-def compile_linked(module, sdk_root, builder, work, cross, selected, guards, stock_at):
+def compile_linked(module, sdk_root, builder, work, cross, selected, guards, stock_at, events=True):
     """Compile the exact authored units and insertion tables at two origins.
 
     `builder` is the explicitly trusted loader builder; manifests and callbacks
     are trusted repository source, never MCP arguments. `guards` contains one
     reviewed runtime_tables.capture recipe per declared table. The caller keeps
-    this newly created, private output outside Git. No module dependencies, DSP
+    this newly created, private output outside Git. `events=False` keeps the
+    native build's raw detours (comparison evidence only: a base with site
+    events refuses that package). No module dependencies, DSP
     claims or runtime state contracts are inferred from a successful compile.
     """
     sdk_root, work = Path(sdk_root).resolve(), Path(work).resolve()
@@ -38,7 +40,7 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
                       capture_output=True).returncode == 0:
         raise ValueError('Private compilation outputs must stay outside Git.')
     work.mkdir(mode=0o700)
-    declared = builder.runtime_declaration(sdk_root / 'modules' / module.name)
+    declared = builder.runtime_declaration(sdk_root / 'modules' / module.name) if events else None
     objects, references = [], []
     labels = {unit.label for unit in module.linked}
     for unit in module.linked:
@@ -127,6 +129,7 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
     hooks = []
     if declared:
         builder.unevented(sites, copies)
-        hooks = builder.subscribe([builder.NONE] * len(builder.HANDLERS), declared['subscribe'], symbols)
+        hooks = builder.subscribe([builder.NONE] * len(builder.HANDLERS), declared['subscribe'], symbols,
+                                  raises=declared.get('raise', ()))
     return dict(image=image, bss=bss, offsets=offsets, sites=sites, copies=copies, symbols=symbols, hooks=hooks,
                 referenceProofs=references, tableOracle=True, origins=[0, builder.SHIFT])

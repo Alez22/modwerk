@@ -178,7 +178,6 @@ class StrictScannerTests(unittest.TestCase):
             LIMIT = packages.LIMIT
             runs = staticmethod(packages.runs)
             dsp_words = staticmethod(lambda _: dsp)
-            views = staticmethod(lambda data: [data, *dsp])  # module_packages.views: the package, then its DSP words
         prep.stock_free(data, stock, [('MAIN', stock)], PackageView, scanner)
 
     def test_both_existing_scanner_thresholds_stay_enforced(self):

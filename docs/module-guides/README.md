@@ -78,7 +78,7 @@ Every Octatrack module must install beside every other active module and the Mod
 The only exceptions are the reviewed entries in `sdk/machines/octatrack/compatibility.json`. Each names both modules, the exact addresses and a reason:
 
 - `group-owned`: one module's reviewed composition owns every listed site. Today this is the machine group that POLY8 composes (POLY8, VECTOR, FM Synth, Scale Quantizer, Analog BD).
-- `pending-migration`: two modules still patch the site of a planned event and may do so only `until` both subscribe. None today: POLY8, Repitch and Mute Modes subscribe (their `runtime.json` `replaces` the detours their loader packages leave out).
+- `pending-migration`: two modules still patch the site of a planned event and may do so only `until` both subscribe. None today: Repitch, POLY8 and Mute Modes subscribe, and a detour a module's `runtime.json` names in `replaces` is not in its runtime package, so the gate no longer counts it.
 
 An entry fails once a named module is no longer active or nothing meets at a listed site, so the file stays exact. A new entry needs owner review, and is the last resort: propose an event instead. The base's own exceptions are `BASE_OWNS` in `sdk/machines/octatrack/elekloader/build_core.py`.
 

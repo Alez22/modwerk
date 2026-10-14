@@ -86,6 +86,25 @@
      "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_stop_voice .psv_stock (pm_clear_extensions)"}
    ],
    "orderEvidence": "In POLY8 + Mute Modes the extension voices are discarded only when the reset is not dropped (mr_mute_suppressed returns first)."
+  },
+  {
+   "event": "ev_mute_keep",
+   "index": 7,
+   "site": null,
+   "prototype": "unsigned f(void)",
+   "args": [],
+   "results": "or",
+   "when": "a module that silences muted and soloed-out tracks asks, once per frame while one of its silencing modes is on, which tracks' audio another module still takes as an input (a side-chain key); no stock site: the asking module calls the base's modwerk_raise_ev_mute_keep(), which returns every handler's answer OR'd, 0 with none",
+   "context": "the frame builder (0x40004dbc), once per frame: short, no firmware call that can block",
+   "contract": "Return the tracks whose audio this module reads while they may be muted: bit t for track t+1, bits 0-7; higher bits are ignored. Every handler runs. A silencer mutes these tracks as stock does (the post-FX cut) in every mode and lets their trigs and voices run, so the audio keeps reaching the module that reads it. d2-d7/a2-a6 must be kept.",
+   "order": "lower first, then module id; every handler runs and the answers are OR'd, so the order does not change the answer. 10-90.",
+   "subscribers": [],
+   "raisers": [
+    {"module": "mute-modes", "fn": "p1_key",
+     "does": "in OTFX, OTFX-T and DT-T, takes the answer's tracks out of the silenced set and gives them stock's own mute bit back (OT's post-FX cut); its trig, rebind, fresh-bind and trig-flag hooks let their trigs through (KEYMASK)",
+     "evidence": "sdk/octabam/modules/mute-modes/patch_softmute.s p1_key (Session 116); natively the SC_KEY build reads SIDECHAIN_COMPRESSOR's KEY slots itself"}
+   ],
+   "orderEvidence": "The answer is an OR: no handler can take or hide another's tracks. Natively the only provider is SIDECHAIN_COMPRESSOR's KEY (COMPRESSOR, FX id 0x18, page-2 slot 8: OFF or T1-T8), which the SC_KEY build of Mute Modes scans itself; here the module that owns the key answers for it."
   }
  ]
 }

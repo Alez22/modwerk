@@ -76,4 +76,24 @@ modwerk_site_40006820:
         movem.l (%sp),%d0-%d1/%a0-%a2
         lea     20(%sp),%sp
         rts | the call returns as stock's does when it has nothing to do
+
+| ---- raised by a module: ev_mute_keep: unsigned f(void); every handler runs, the answers OR'd
+        .globl  modwerk_raise_ev_mute_keep
+modwerk_raise_ev_mute_keep:
+        lea     -8(%sp),%sp
+        movem.l %d2/%a2,(%sp)
+        moveq   #0,%d2
+        movea.l modwerk_runtime_event_row+12,%a2
+.Lraise_ev_mute_keep:
+        move.l  (%a2)+,%d0
+        beq     .Lraise_ev_mute_keep_end
+        movea.l %d0,%a0
+        jsr     (%a0)
+        or.l    %d0,%d2
+        bra     .Lraise_ev_mute_keep
+.Lraise_ev_mute_keep_end:
+        move.l  %d2,%d0
+        movem.l (%sp),%d2/%a2
+        lea     8(%sp),%sp
+        rts
 modwerk_events_code_end:
