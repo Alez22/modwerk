@@ -52,6 +52,17 @@ only the actual publication callback establishes ACTIVE. This query is not a
 public readiness interface. Production must resolve a reviewed controller entry
 to its exact owned image/package/policy/generation binding.
 
+The write lease runs on every frame a leased hook fires, installed or active.
+Begin therefore keeps its resolution of each call site (the owner, its bound
+slot, the trusted row and the backend's `owns_image` result) while the loader's
+owner epoch (`modwerk_runtime_owner_epoch`: every install, discard, reclaim,
+publish, restore and journal switch, odd while one is under way) and the
+registry's last bound generation stay unchanged. Every Begin and End still
+checks the caller's stack, the slot's state and jobs, `writes_blocked`,
+`resources_idle` and the owner's ledger entry and header
+(`modwerk_runtime_owner_held`); a slot that is not writing costs no owner check.
+`test_controller_board.py` (mode 11) counts those checks.
+
 Cancellation, timeout, partial acknowledgment or unknown submission retains both
 incoming and predecessor images/resources. Late ACKs can drain owned jobs but
 cannot make a quarantined generation ready. Retirement requires exact disable

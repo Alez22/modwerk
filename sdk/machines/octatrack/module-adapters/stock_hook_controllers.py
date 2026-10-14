@@ -117,18 +117,25 @@ def sources(name, sdk):
     return result
 
 
-def write_wrapper(entry, feature, body, denied='', before='', capture='', after=''):
+def write_wrapper(entry, feature, body, denied='', before='', capture='', after='', precheck=''):
     """Source-only strong board lease wrapper. No caller readiness inputs.
 
     The 104-byte caller frame has the opaque lease, complete register/CCR
     snapshots and two source-owned notification snapshots. Begin's retained
     interrupt mask must survive: only CCR is restored until End. Failed End
     returns immediately without a stock/custom replay or notification.
+
+    `precheck` runs first, reading only: when the body would write nothing it
+    returns exactly as a refused lease does (every register and CCR as on
+    entry, then `denied`); otherwise it falls through to Begin with every
+    register and CCR as on entry, and the body checks again under the lease.
+    The lease guards writes; a frame hook that writes nothing takes none.
     """
     return f'''
         .balign 4
         .global {entry}
 {entry}:
+{precheck}
         lea -104(%sp),%sp
         movem.l %d0-%d7/%a0-%a6,32(%sp)
         move.w %sr,%d0
@@ -175,6 +182,87 @@ def write_wrapper(entry, feature, body, denied='', before='', capture='', after=
         lea 104(%sp),%sp
 {denied}
         rts
+'''
+
+
+# Sidechain's frame hook writes only to reset a COMPRESSOR whose KEY is above 8 (sc_norm, sn_fix): the same
+# checks, reading only, in the same two copies (the working store and the live lane, each by its own FX id).
+_SC_NORM_PRECHECK = '''        lea     -32(%sp),%sp
+        movem.l %d0/%d2-%d4/%a0-%a3,(%sp)
+        move.w  %sr,%d4
+        moveq   #0,%d0
+        move.b  CUR_PART,%d0
+        mulu.w  #0x18b2,%d0
+        movea.l DBPTR,%a0
+        adda.l  %d0,%a0
+        adda.l  #0x8ed80,%a0                | the current part's working store: FX ids at +0 / +8
+        lea     (0x2f2+14,%a0),%a1          | track 0's FX1 KEY there (FX2's at +6), 30 bytes a track
+        lea     LIVE_IDS,%a2                | live FX ids at +0 / +8
+        lea     LANE,%a3                    | track 0's lane (KEY at +0x34 / +0x3a), 72 bytes a track
+        moveq   #8,%d3
+        moveq   #0,%d2                      | the track
+mw_sn_scan:
+        move.b  (0,%a0,%d2.l),%d0
+        cmpi.b  #COMP_ID,%d0
+        bne.s   mw_sn_s2
+        mvz.b   (%a1),%d0
+        cmp.l   %d3,%d0
+        bhi.s   mw_sn_write
+mw_sn_s2:
+        move.b  (8,%a0,%d2.l),%d0
+        cmpi.b  #COMP_ID,%d0
+        bne.s   mw_sn_l1
+        mvz.b   (6,%a1),%d0
+        cmp.l   %d3,%d0
+        bhi.s   mw_sn_write
+mw_sn_l1:
+        move.b  (0,%a2,%d2.l),%d0
+        cmpi.b  #COMP_ID,%d0
+        bne.s   mw_sn_l2
+        mvz.b   (0x34,%a3),%d0
+        cmp.l   %d3,%d0
+        bhi.s   mw_sn_write
+mw_sn_l2:
+        move.b  (8,%a2,%d2.l),%d0
+        cmpi.b  #COMP_ID,%d0
+        bne.s   mw_sn_next
+        mvz.b   (0x3a,%a3),%d0
+        cmp.l   %d3,%d0
+        bhi.s   mw_sn_write
+mw_sn_next:
+        lea     (30,%a1),%a1
+        lea     (72,%a3),%a3
+        addq.l  #1,%d2
+        cmp.l   %d3,%d2
+        bne.s   mw_sn_scan
+        move.w  %d4,%ccr                    | nothing to reset: as a refused lease, without one
+        movem.l (%sp),%d0/%d2-%d4/%a0-%a3
+        lea     32(%sp),%sp
+        lea     0x80000a50,%a3              | displaced
+        rts
+mw_sn_write:
+        move.w  %d4,%ccr
+        movem.l (%sp),%d0/%d2-%d4/%a0-%a3
+        lea     32(%sp),%sp
+'''
+# Output Matrix's frame hook writes, outside MATRIX, only $3b's clear: with it already clear, nothing.
+_PAGE_LEVELS_PRECHECK = '''        lea     -8(%sp),%sp
+        movem.l %d0-%d1,(%sp)
+        move.w  %sr,%d1
+        mvs.b   CUE_CFG,%d0
+        cmpi.l  #2,%d0
+        beq.s   mw_pl_write
+        tst.w   PG_MATRIX(%a2)
+        bne.s   mw_pl_write
+        move.w  %d1,%ccr                    | nothing to write: as a refused lease, without one
+        movem.l (%sp),%d0-%d1
+        lea     8(%sp),%sp
+        move.b  0x80000032,%d3              | the displaced load
+        rts
+mw_pl_write:
+        move.w  %d1,%ccr
+        movem.l (%sp),%d0-%d1
+        lea     8(%sp),%sp
 '''
 
 
@@ -258,9 +346,13 @@ mw_matrix_mode_body:
 def page_record(name):
     """The MWPP record (GNU as) for a module whose page extends a stock effect in
     place: magic, version 1, integer/text/pointer counts, the stock descriptor and
-    the SHA-256 of its PAGE_BYTES, then (offset, width, 0, value) integers,
-    (offset, width, length, text) strings padded to 4, and (offset, 0, image
-    offset) pointers to the module's own formatters. No stock bytes."""
+    the SHA-256 of its PAGE_BYTES, then (offset, width, 0, value) integers and
+    (offset, 4, 1, mask) inherits, (offset, width, length, text) strings padded
+    to 4, and (offset, 0, image offset) pointers to the module's own formatters.
+    An inherit puts the donor's own bits under its mask back after the integers:
+    the recipe's inheritedEnable slots keep the stock enable nibble, as the
+    browser's descriptor clone does (src/engine/descriptors.ts). The board reads
+    them from the running descriptor, so the record carries no stock bytes."""
     if name not in PAGE_RECIPES:
         return ''
     recipes = json.loads((_ROOT / PAGE_RECIPES[name]).read_text())['recipes']
@@ -268,16 +360,23 @@ def page_record(name):
     if recipe.get('sourceSha256') != SOURCE_PINS['modules/%s/manifest.py' % name] or not recipe.get('replaces'):
         raise ValueError('The page recipe is not the pinned in-place source: ' + name)
     ints, texts, pointers = recipe['integers'], recipe['strings'], recipe['rawPointers']
-    if (len(ints) > 64 or len(texts) > 16 or len(pointers) > 8 or
+    inherited = recipe.get('inheritedEnable', [])
+    if any(type(slot) is not int or not 0 <= slot <= 11 for slot in inherited):
+        raise ValueError('Invalid inherited descriptor control: ' + name)
+    masks = {offset: sum(0xf << (slot % 8) * 4 for slot in inherited if (slot < 8) == (offset == 0x18e))
+             for offset in (0x18e, 0x18a)}  # the enable words: slots 0-7, then 8-11 (descriptors.ts)
+    inherits = [dict(offset=offset, mask=mask) for offset, mask in masks.items() if mask]
+    if (len(ints) + len(inherits) > 64 or len(texts) > 16 or len(pointers) > 8 or
             any(i['width'] not in (1, 2, 4) or i['offset'] + i['width'] > PAGE_BYTES for i in ints) or
             any(len(s['value'].encode('latin-1')) >= s['width'] or s['offset'] + s['width'] > PAGE_BYTES for s in texts) or
             any(p['offset'] + 4 > PAGE_BYTES for p in pointers)):
         raise ValueError('The page recipe exceeds the board record bounds: ' + name)
     lines = ['        .text', '        .balign 4', 'mw_page:', '        .ascii "MWPP"',
-             '        .byte 1, %d, %d, %d' % (len(ints), len(texts), len(pointers)),
+             '        .byte 1, %d, %d, %d' % (len(ints) + len(inherits), len(texts), len(pointers)),
              '        .long 0x%08x' % recipe['donorAddress'],
              '        .byte ' + ', '.join('0x%02x' % b for b in bytes.fromhex(recipe['donorSha256']))]
     lines += ['        .word %d\n        .byte %d, 0\n        .long 0x%x' % (i['offset'], i['width'], i['value'] & 0xffffffff) for i in ints]
+    lines += ['        .word %d\n        .byte 4, 1\n        .long 0x%08x' % (i['offset'], i['mask']) for i in inherits]
     for s in texts:
         text = s['value'].encode('latin-1')
         lines += ['        .word %d\n        .byte %d, %d' % (s['offset'], s['width'], len(text)),
@@ -301,8 +400,8 @@ def adapted_source(name, sdk):
     if name == 'sidechain-compressor':
         source = _replace_once(source, '    .text\n', '    .text\n' + page_record(name), )
         source = _replace_once(source, 'sc_norm:\n', 'mw_sc_norm_body:\n')
-        return source + write_wrapper('sc_norm', 1, 'mw_sc_norm_body',
-                                     denied='        lea 0x80000a50,%a3') + _MUTE_KEEP_SOURCE
+        return source + write_wrapper('sc_norm', 1, 'mw_sc_norm_body', denied='        lea 0x80000a50,%a3',
+                                     precheck=_SC_NORM_PRECHECK) + _MUTE_KEEP_SOURCE
     source = _replace_once(source, 'page_levels:\n', 'mw_matrix_page_body:\n')
     source = _replace_once(source, 'set_mode:\n', _MATRIX_FRONT)
     source = _replace_once(source, _MATRIX_MODE_TAIL, _MATRIX_MODE_TAIL.replace(
@@ -333,7 +432,7 @@ mw_matrix_cc:   .long 0, 0                | changed, new cue bits
         .text
 ''')
     return (source + notify + write_wrapper('page_levels', 2, 'mw_matrix_page_body',
-                                            denied='        move.b 0x80000032,%d3')
+                                            denied='        move.b 0x80000032,%d3', precheck=_PAGE_LEVELS_PRECHECK)
             + write_wrapper('matrix_leave', 2, 'mw_matrix_mode_body', after='        bsr mw_matrix_notify')
             + write_wrapper('matrix_enter', 2, 'mw_matrix_mode_body', after='        bsr mw_matrix_notify'))
 

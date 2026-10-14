@@ -276,8 +276,8 @@ def manager(text):
            'void dl_residency_tick(void) {\n    if(!dl_residency_enabled || journal_generation) return;')
     change('int dl_publication_ready(const uint8_t ids[16]) {\n',
            'int dl_publication_ready(const uint8_t ids[16]) {\n    if(journal_generation) return 0;\n')
-    change('    if(!initialized || phase || waiting || queued_token || buffers.open) return 0;',
-           '    if(journal_generation || !initialized || phase || waiting || queued_token || buffers.open) return 0;')
+    change('    if(phase || waiting || queued_token || buffers.open) return 0;',
+           '    if(journal_generation || phase || waiting || queued_token || buffers.open) return 0;')
     change('int dl_publication_idle(void) { return phase==0; }',
            'int dl_publication_idle(void) { return phase==0 && !journal_generation; }')
     return text + JOURNAL

@@ -152,12 +152,17 @@ int mw_controller_publish(struct mw_controller_registry *r,const struct mw_contr
     if(confirmed!=1) { quarantine(r,s); return MW_CTL_PENDING; }
     s->state=MW_CTL_ACTIVE; return MW_CTL_OK;
 }
-int mw_controller_control_write_allowed(struct mw_controller_registry *r,const struct mw_controller_binding *b) {
-    struct mw_controller_slot *s=find(r,b);
-    if(!s || (s->state!=MW_CTL_PUBLISHING && s->state!=MW_CTL_ACTIVE) || s->enable_acks!=cores(b->identity.feature) || jobs(s)) return 0;
+int mw_controller_slot_write_allowed(struct mw_controller_registry *r,unsigned at) {
+    if(at>=MW_CONTROLLER_SLOTS) return 0;
+    const struct mw_controller_slot *s=&r->slots[at];
+    if((s->state!=MW_CTL_PUBLISHING && s->state!=MW_CTL_ACTIVE) || s->enable_acks!=cores(s->binding.identity.feature) || jobs(s)) return 0;
     const struct mw_controller_backend *t=r->backend;
     return t && t->owns_image && t->resources_idle && t->writes_blocked && !t->writes_blocked(r->context) &&
-        t->owns_image(r->context,b)==1 && t->resources_idle(r->context,b)==1;
+        t->resources_idle(r->context,&s->binding)==1;
+}
+int mw_controller_control_write_allowed(struct mw_controller_registry *r,const struct mw_controller_binding *b) {
+    struct mw_controller_slot *s=find(r,b);
+    return s && mw_controller_slot_write_allowed(r,(unsigned)(s-r->slots))==1 && r->backend->owns_image(r->context,b)==1;
 }
 int mw_controller_cancel(struct mw_controller_registry *r,const struct mw_controller_binding *b) {
     struct mw_controller_slot *s=find(r,b);
