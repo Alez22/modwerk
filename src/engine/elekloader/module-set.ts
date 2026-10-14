@@ -50,6 +50,8 @@ export async function fetchPackage(entry: RuntimePackage): Promise<Uint8Array> {
 }
 
 const MACHINE_BITS: Record<string, number> = { poly8: 1, vector: 2, synth: 4 }
+/** The Octatrack base's site events (sdk/machines/octatrack/events.json): hook words a subscriber may carry after the core four. */
+export const SITE_EVENTS = 3
 const invalidPackage = () => new ModuleSetError('The site’s module package list is inconsistent. Reload the page before syncing.')
 const bounded = (n: unknown, max: number) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= max
 function requirements(entry: RuntimePackage, group = false) {
@@ -74,7 +76,10 @@ function checkPackage(entry: RuntimePackage, data: Uint8Array, id: string, varia
       view.getUint32(28) !== Number.parseInt(runtimeId(id), 16) || view.getUint32(24) !== want.sites ||
       (abi >= 7 ? view.getUint32(68) : 0) !== want.copies || (abi === 8 ? view.getUint32(72) : 0) !== want.fills) fail()
   const flags = view.getUint16(6), image = view.getUint32(8), bss = view.getUint32(12), relocations = view.getUint32(16), hooks = view.getUint32(20)
-  if (flags & ~(abi === 8 ? 7 : 3) || image + bss > 131072 || relocations > 2048 || hooks > 4 ||
+  // Hooks 0-3 are the core handlers; an ABI 8 package that subscribes to the base's site events (feature 128) adds one
+  // word per event of sdk/machines/octatrack/events.json after them: its order in the top byte, its handler below.
+  const subscriber = abi === 8 && (want.features & RuntimeFeature.siteEvents) !== 0
+  if (flags & ~(abi === 8 ? 7 : 3) || image + bss > 131072 || relocations > 2048 || hooks > (subscriber ? 4 + SITE_EVENTS : 4) ||
       view.getUint32(32) > 4096 || view.getUint16(36) > 256 || header + 4 * hooks + image + 4 * relocations > data.length) fail()
   if (variant) {
     const mask = variant.members.reduce((value, member) => value | MACHINE_BITS[member.id], 0), start = header + 4 * hooks
@@ -84,10 +89,13 @@ function checkPackage(entry: RuntimePackage, data: Uint8Array, id: string, varia
   } else if (flags & 4) fail() // a group cannot masquerade as one ordinary module
   const imageStart = header + 4 * hooks, imageRelocations: number[] = [], changedSpans: [number, number][] = []
   const overlaps = (start: number, size: number, spans: [number, number][]) => spans.some(([at, length]) => start < at + length && at < start + size)
+  let subscribed = false
   for (let i = 0; i < hooks; i++) {
-    const hook = view.getUint32(header + 4 * i)
-    if (hook !== 0xffffffff && (hook >= image || hook % 2)) fail()
+    const hook = view.getUint32(header + 4 * i), handler = i < 4 ? hook : hook & 0xffffff
+    if (hook !== 0xffffffff && (handler >= image || handler % 2)) fail()
+    subscribed ||= i >= 4 && hook !== 0xffffffff
   }
+  if (subscribed !== subscriber) fail() // the manifest names the base feature its subscriptions need
   for (let i = 0; i < relocations; i++) {
     const at = view.getUint32(imageStart + image + 4 * i)
     if (at % 2 || at + 4 > image || (abi >= 7 ? i > 0 && at < imageRelocations[i - 1] + 4 :

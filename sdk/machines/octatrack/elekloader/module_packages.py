@@ -32,6 +32,7 @@ DSP = APP / 'src/engine/assets/dsp-packages.json'
 MANIFEST = APP / 'src/engine/assets/octatrack-module-packages.json'
 PUBLIC = APP / 'public'
 SEED, LIMIT = 12, 12  # bytes: a shared run worth looking at; its non-zero bytes that fail
+NONE, HOOKS = 0xffffffff, 4 + len(json.loads((APP / 'sdk/machines/octatrack/events.json').read_text())['events'])  # loader.h RUNTIME_HOOKS
 
 
 def build(entry, out, upstream, private_stock=None):
@@ -76,11 +77,28 @@ def capabilities(data):
     hooks, sites = struct.unpack_from('>II', data, 20)
     copies = struct.unpack_from('>I', data, 68)[0] if abi >= 7 else 0
     fills = struct.unpack_from('>I', data, 72)[0] if abi == 8 else 0
-    if hooks or flags & ~(7 if abi == 8 else 3) or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64:
+    # Hooks only as an ABI 8 site-event subscriber: the core handlers (0-3) stay empty, each later word is one
+    # events.json event's (order << 24 | handler offset), and the base must own those events (MWCP bit 128).
+    words = struct.unpack_from('>%dI' % hooks, data, {6: 68, 7: 72, 8: 76}[abi]) if 0 < hooks <= HOOKS and \
+        len(data) >= {6: 68, 7: 72, 8: 76}[abi] + 4 * hooks else ()
+    if (hooks and (abi != 8 or len(words) != hooks or any(w != NONE for w in words[:4]) or words[-1] == NONE)
+            or flags & ~(7 if abi == 8 else 3) or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64):
         raise ValueError('The published runtime package has unsupported hooks, flags or records.')
     # One machine group needs both table composition and explicit lifetime admission.
-    features = bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0)
+    features = bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0) | (128 if hooks else 0)
     return dict(abi=abi, features=features, sites=sites, copies=copies, fills=fills)
+
+
+def views(data):
+    """What the stock-run scan reads: the package with its empty hook words (NONE, the format's "no handler", which a
+    site-event subscriber must put in the four core slots) counted as empty header fields, like zeros; then its DSP
+    words packed both ways. No image, record or DSP byte is masked."""
+    abi = capabilities(data)['abi']
+    hooks, at, package = struct.unpack_from('>I', data, 20)[0], {6: 68, 7: 72, 8: 76}[abi], bytearray(data)
+    for i in range(hooks):
+        if package[at + 4 * i:at + 4 * i + 4] == b'\xff' * 4:
+            package[at + 4 * i:at + 4 * i + 4] = bytes(4)
+    return [bytes(package)] + dsp_words(data)
 
 
 def dsp_words(data):
@@ -145,7 +163,7 @@ def main():
                 entries.append(entry)
                 continue
             data = build(entry, Path(work) / 'p.mwrm', upstream)
-            views = [data] + dsp_words(data)
+            scanned = views(data)
             path = 'octatrack-modules/%s/%s.mwrm' % (entry['id'], version)
             name = data[50:66].split(b'\0')[0].decode('latin-1')
             made = dict(entry, **capabilities(data), version=version, name=name, module=data[28:32].hex(), bytes=len(data),
@@ -162,7 +180,7 @@ def main():
                 (PUBLIC / path).write_bytes(data)
             if stock is not None:
                 longest = 0
-                for view in views:
+                for view in scanned:
                     for start, n in sorted(runs(view, stock).items()):
                         longest = max(longest, n)
                         if n >= LIMIT:

@@ -553,7 +553,7 @@ def private_stock_free(data, stock, main, upstream):
         spec = importlib.util.spec_from_file_location('private_' + name, folder / (name + '.py'))
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); loaded.append(module)
     packages, scanner = loaded
-    if (any(n >= packages.LIMIT for view in [data, *packages.dsp_words(data)]
+    if (any(n >= packages.LIMIT for view in packages.views(data)
             for n in packages.runs(view, main).values())
             or scanner.stock_runs({'sections': {'package': {'parts': [['hex', data.hex()]]}}},
                                   scanner.haystacks(stock, upstream), 16)):

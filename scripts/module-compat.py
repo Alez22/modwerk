@@ -143,15 +143,36 @@ def ledger_findings(selected, platform):
     return [p for p in problems if p.split(':', 1)[0] not in SPAN_FINDINGS]
 
 
-def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None, natives=None):
+def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None, natives=None,
+          subscriptions=None):
     """Problems for these active modules: [{'modules': [...], 'text': str, 'route': str}].
 
     modules: octabam Module objects (all active); base_sites: (start, length, kind) the base patches;
     events: registry entries {event, site, length}; copies: {module name: [(address, length, label)]}
     from port recipes and packages; relations: the reviewed entries; base_owns: modules allowed on base sites;
-    natives: {name: manifest module} for octabam's own ledger, which judges native compositions (default: modules)."""
+    natives: {name: manifest module} for octabam's own ledger, which judges native compositions (default: modules);
+    subscriptions: {module name: its runtime.json entries}. A detour a subscription `replaces` stays out of the
+    module's loader package (sdk/runtime/loader/build.py replaced()), so it claims nothing here."""
     problems, names = [], {m.name for m in modules}
     owners = {m.name: claims(m) for m in modules}
+    by_event = {e['event']: e for e in events}
+    for m in modules:
+        for entry in (subscriptions or {}).get(m.name, ()):
+            e = by_event.get(entry.get('event'))
+            if not e:
+                problems.append(dict(modules=[m.name], text=f'{m.name} subscribes to {entry.get("event")}, which is '
+                                     f'not in {EVENTS}', route='event'))
+                continue
+            if 'replaces' not in entry:
+                continue
+            site = int(e['site'], 16)
+            native = (natives or {}).get(m.name, m)  # a ported module no longer has the detours it replaced
+            if not any(d.symbol == entry['replaces'] and d.site == site and (d.pad_to or 6) == e['length']
+                       for d in native.detours):
+                problems.append(dict(modules=[m.name], text=f'{m.name}\'s runtime.json replaces {entry["replaces"]}, '
+                                     f'which is not its detour at {e["event"]}\'s site 0x{site:08x}', route='subscribe'))
+                continue
+            owners[m.name] = [c for c in owners[m.name] if not (c[0] == 'detour' and c[1] == site)]
     for name, items in (copies or {}).items():
         if name in owners:
             owners[name] += [('copy', a, n, label) for a, n, label in items]
@@ -288,7 +309,13 @@ def repository_inputs():
             (c['source'], c['bytes'], f'{o["label"]}:{c["section"]}') for o in layout['objects'] for c in o.get('stockCopies', []))
     owns = next(node.value for node in ast.parse((APP / 'sdk/machines/octatrack/elekloader/build_core.py').read_text()).body
                 if isinstance(node, ast.Assign) and any(getattr(t, 'id', '') == 'BASE_OWNS' for t in node.targets))
+    subscriptions = {}
+    for i in ids:
+        path = APP / 'sdk/octabam/modules' / i / 'runtime.json'
+        if path.is_file():
+            subscriptions[i] = json.loads(path.read_text()).get('subscribe', [])
     inputs = dict(base_sites=[(int(s['addr'], 16), s['len'], s['kind']) for s in base['sites']], events=read_events(),
+                  subscriptions=subscriptions,
                   copies=copies, relations=json.loads((APP / RELATIONS).read_text())['relations'],
                   base_owns=ast.literal_eval(owns), platform=platform)
     natives = [by_name[i] for i in ids if i in by_name]
