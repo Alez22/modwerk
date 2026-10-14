@@ -59,7 +59,8 @@
         "date": "2026-10-01",
         "changes": [
           "First Modwerk catalog release of the native 808/909 bass-drum track machine, with synthesis before the stock AMP and FX stages.",
-          "Current engine-browser and eight-track behaviour still require hardware qualification."
+          "Current engine-browser and eight-track behaviour still require hardware qualification.",
+          "USB package rebuilt for the fixed beta base (beta test run 1, 14 Oct 2026); its reviewed recipe was recaptured because the base's lease entries moved, with the same sources and copies. Its controller now reaches ACTIVE on the unit (before, the base's owned DSP job channel closed at boot), and the base's Part restore no longer writes one byte high (GCC 16.2 miscompile). Known open on the unit: with trigs it rendered silence on one build and stalled the DSP on another; a second track in the same Part is refused without a message. Do not use it for music in the beta until those are resolved."
         ],
         "sourceCommit": "d1136ce4c65ea7e1a00c4516cd4aa41c4b0c0d56"
       }
@@ -373,7 +374,8 @@
         "version": "0.1.0-experimental",
         "date": "2026-10-05",
         "changes": [
-          "First Modwerk catalog release as standalone firmware, with COMPRESSOR key-source selection and sidechain monitoring controls."
+          "First Modwerk catalog release as standalone firmware, with COMPRESSOR key-source selection and sidechain monitoring controls.",
+          "USB package rebuilt for the fixed beta base (beta test run 1, 14 Oct 2026). On the unit its controller never started before, so the KEY page was missing: the base's owned DSP job channel closed at boot, and a stock delay on T3 or T7 FX2 kept it waiting. Both are fixed, and its page record now keeps stock's page-1 enables and no longer lands one byte high (a GCC 16.2 miscompile that crashed the unit when COMPRESSOR's SETUP opened). Its frame hook takes the write lease only when a COMPRESSOR needs resetting. Seen on a development twin of the fixed base: KEY, KFLT, KGN and MON on SETUP, and T4 ducked 27 dB keyed from T3 on the same core. Not yet tested: keying across cores, MON, Mute Modes keeping the key track, the tester image and a power cycle."
         ],
         "sourceCommit": "8cce62689c269a5d6d70bfc8e087a843eb3a8caf"
       }
@@ -873,7 +875,8 @@
           "Correct the upstream arm/q phase drift: all 13,279 long-run cases, 555,008 early cases and 1,244,352 fractional-tempo/uint32-boundary cases pass. Fixed RLEN 1–64 at 30–300 BPM is supported; other ranges retain stock length.",
           "Guard all eight detours and relocate eleven pool-base literals with the sample arena. Consecutive-arm arithmetic is tested; physical audio continuity, non-consecutive arm history and current-build hardware remain unmeasured. The owner approved missing hardware evidence.",
           "Presentation: show repeating recorder segments and tempo boundaries using the library's shared signal artwork, grid, palette and typography.",
-          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on the Modwerk beta base. Its pool-base literals are linked for that base’s moved sample arena, and the base’s own arena word is checked at install, so it needs that exact base; with an older base the site asks for a base update first. Its compiled bytes that coincide with stock are copied at install from bytes the base checks against its running stock, so the package carries no stock bytes. Host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version’s USB package for the beta."
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on the Modwerk beta base. Its pool-base literals are linked for that base’s moved sample arena, and the base’s own arena word is checked at install, so it needs that exact base; with an older base the site asks for a base update first. Its compiled bytes that coincide with stock are copied at install from bytes the base checks against its running stock, so the package carries no stock bytes. Host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version’s USB package for the beta.",
+          "USB package rebuilt for the fixed beta base (beta test run 1, 14 Oct 2026): it is linked for that base's arena and runtime pool, and its code is unchanged. It installed and kept on the unit; its recorder behaviour was not exercised in run 1."
         ]
       }
     ],
@@ -1043,7 +1046,8 @@
           "Switching to or from MATRIX converts every Part's LEVEL and cue bytes by documented rules, and switching into NORMAL also sets the project's cue settings.",
           "Builds with the stock DSP code built in: its core-0 code takes a given-up stock reverb's space (SPRING REV first), which leaves the FX2 menu. It cannot be combined with Analog BD yet.",
           "Author's functional MKII report (7–9 Oct 2026) covers routing, levels, everyday flows, saving and power; no timed stress run or chip timing.",
-          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on the Modwerk beta base, which carries Output Matrix’s DSP engine resident and dormant, owns its boot widenings and admits this exact package through a trust row built into it. Its compiled bytes that coincide with stock are copied at install from bytes the base checks against its running stock, so the package carries no stock bytes. It needs that exact base; with an older base the site asks for a base update first. Removing it is refused while MATRIX is selected: switch the AUDIO page back first. Host tests only: the emulator controllers scenario has not run, and there is no hardware run of this package. The owner waived hardware evidence for this exact version’s USB package for the beta."
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on the Modwerk beta base, which carries Output Matrix’s DSP engine resident and dormant, owns its boot widenings and admits this exact package through a trust row built into it. Its compiled bytes that coincide with stock are copied at install from bytes the base checks against its running stock, so the package carries no stock bytes. It needs that exact base; with an older base the site asks for a base update first. Removing it is refused while MATRIX is selected: switch the AUDIO page back first. Host tests only: the emulator controllers scenario has not run, and there is no hardware run of this package. The owner waived hardware evidence for this exact version’s USB package for the beta.",
+          "USB package rebuilt for the fixed beta base (beta test run 1, 14 Oct 2026). Its controller never started before (the base's owned DSP job channel closed at boot), so MATRIX could not be chosen. Fixed; outside MATRIX its frame hook no longer takes the write lease. Seen on a development twin of the fixed base: MATRIX entered, T3 routed to MN and PHN as expected in USB recordings, and left with levels unchanged. Not yet tested: the tester image, mono jacks and a power cycle."
         ]
       }
     ],
