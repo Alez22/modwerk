@@ -838,8 +838,11 @@ def stock_reference(parts, offset, length, address, stock_at=None):
     return before + [['stock', hex(address), length]] + after
 
 
-def replace_literal(parts, offset, old, new):
-    """Replace authored literal bytes (hex parts only) at a section offset: layout, relocations and stock parts stay."""
+def replace_literal(parts, offset, old, new, stock_at=None):
+    """Replace authored literal bytes at a section offset: layout and relocations stay. A span the builder stored as a
+    stock reference (the reservation's bytes coincide with stock, as its zeros and capacity byte do) becomes literal only
+    inside the replaced span, and only when stock_at(address, n) shows the reference reproduces exactly `old` there;
+    the rest of that reference stays a stock reference."""
     if len(old) != len(new) or not isinstance(offset, int) or offset < 0:
         raise ValueError('A literal replacement keeps its exact length.')
     out, at, seen, end = [], 0, bytearray(), offset + len(old)
@@ -848,9 +851,19 @@ def replace_literal(parts, offset, old, new):
         lo, hi = max(at, offset), min(at + size, end)
         if lo >= hi:
             out.append(part)
+        elif part[0] == 'stock':
+            address = int(part[1], 16)
+            if stock_at is None or stock_at(address + lo - at, hi - lo) != old[lo - offset:hi - offset]:
+                raise ValueError('A stock reference inside the reserved storage is not the empty reservation.')
+            if lo > at:
+                out.append(['stock', part[1], lo - at])
+            seen += old[lo - offset:hi - offset]
+            out.append(['hex', new[lo - offset:hi - offset].hex()])
+            if hi < at + size:
+                out.append(['stock', '0x%08x' % (address + hi - at), at + size - hi])
         else:
             if part[0] != 'hex':
-                raise ValueError('Reserved storage holds a stock or fill part.')
+                raise ValueError('Reserved storage holds a fill part.')
             data = bytearray(bytes.fromhex(part[1]))
             seen += data[lo - at:hi - at]
             data[lo - at:hi - at] = new[lo - offset:hi - offset]
@@ -861,7 +874,7 @@ def replace_literal(parts, offset, old, new):
     return out
 
 
-def fill_table_owners(document, owners):
+def fill_table_owners(document, owners, stock_at):
     """The reviewed table owners (owner decision 14 Oct 2026, module-adapters/table-owners.json): each declaration is
     validated against its exact published package (table_declarations.validate) and the records go into the base's
     fixed table-owner storage before the image is built, so the base admits those packages and no other. Returns the
@@ -887,7 +900,7 @@ def fill_table_owners(document, owners):
     table = declarations.generate(entries)
     section, offset = document['symbols']['modwerk_table_declarations']
     document['sections'][section]['parts'] = replace_literal(document['sections'][section]['parts'], offset,
-                                                             declarations.empty(), table)
+                                                             declarations.empty(), table, stock_at)
     return table, read
 
 
@@ -1624,7 +1637,8 @@ modwerk_retained_end:
                 lambda a, n: image[a - device.main_load:a - device.main_load + n])
     table_storage = None
     if args.table_owners:  # the reviewed table owners' records, in the storage the base reserved (no relink)
-        table_storage, read = fill_table_owners(document, args.table_owners.resolve())
+        table_storage, read = fill_table_owners(document, args.table_owners.resolve(),
+                                                lambda a, n: image[a - device.main_load:a - device.main_load + n])
         if any(inputs.get(name) != digest for name, digest in read.items()):
             raise ValueError('A table owner file changed during the base build.')
     Path(path).write_text(json.dumps(document, indent=1)+'\n')

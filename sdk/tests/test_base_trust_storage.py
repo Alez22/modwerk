@@ -49,5 +49,34 @@ class TrustStorage(unittest.TestCase):
                 builder.check_trust_storage(image, mapping, changed, load)
 
 
+class ReplaceLiteral(unittest.TestCase):
+    """Synthetic parts: a reservation the builder partly stored as a stock reference, as an empty one can be."""
+    stock = bytes(range(16)) + bytes(4) + bytes((0x18, 0, 0, 0)) + bytes(range(100, 116))
+
+    def stock_at(self, address, n):
+        return self.stock[address - 0x1000:address - 0x1000 + n]
+
+    def test_a_stock_reference_that_reproduces_the_reservation_splits_around_it(self):
+        parts = [['hex', 'aabb'], ['stock', '0x00001010', 8], ['hex', 'ccdd']]
+        empty = self.stock_at(0x1010, 8)
+        self.assertEqual(builder.replace_literal(parts, 2, empty, bytes(range(1, 9)), self.stock_at),
+                         [['hex', 'aabb'], ['hex', '0102030405060708'], ['hex', 'ccdd']])
+        self.assertEqual(builder.replace_literal(parts, 4, empty[2:6], b'\1\2\3\4', self.stock_at),
+                         [['hex', 'aabb'], ['stock', '0x00001010', 2], ['hex', '01020304'],
+                          ['stock', '0x00001016', 2], ['hex', 'ccdd']])
+        across = [['hex', '0000']] + parts[1:]
+        self.assertEqual(builder.replace_literal(across, 0, bytes(2) + empty, bytes(range(1, 11)), self.stock_at),
+                         [['hex', '0102'], ['hex', '030405060708090a'], ['hex', 'ccdd']])
+
+    def test_a_stock_reference_that_differs_or_cannot_be_read_is_refused(self):
+        parts = [['stock', '0x00001000', 8]]
+        with self.assertRaises(ValueError):
+            builder.replace_literal(parts, 0, bytes(8), bytes(range(8)), self.stock_at)
+        with self.assertRaises(ValueError):
+            builder.replace_literal([['stock', '0x00001010', 8]], 0, bytes(8), bytes(8), None)
+        with self.assertRaises(ValueError):
+            builder.replace_literal([['fill', 'x', 8]], 0, bytes(8), bytes(8), self.stock_at)
+
+
 if __name__ == '__main__':
     unittest.main()

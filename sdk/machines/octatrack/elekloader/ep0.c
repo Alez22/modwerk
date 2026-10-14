@@ -119,6 +119,10 @@ int modwerk_saved_set_safe(void)
     modwerk_machine_unlock(lock);
     return safe;
 }
+#elif defined(MODWERK_RESIDENT_STOCK_HOOKS)
+/* No saved-set export in this base, so no export session is ever busy. The resident stock hooks and the controller
+ * board ask before their writes (resident_base.patch, controller_board.c). */
+int modwerk_saved_set_busy(void) { return 0; }
 #endif
 #ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
 /* Called only while the loader retains the real board stable lock. No new
