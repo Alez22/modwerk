@@ -1,13 +1,13 @@
 {
   "kind": "modwerk-beta-startup-native",
-  "packageSha256": "244f158db9debb596150a2d1e610f2b185f6a2760e151d1584873665f6f2e9d3",
+  "packageSha256": "62dbceb8a9264b9b477dcf96b507773c74854d9ca22c1e9f9ec3b233c7ac9fb1",
   "nativeLinkParity": "passed at both runtime bases",
   "proofs": [
     {
       "modules": [],
-      "mainBytes": 1121454,
-      "mainSha256": "3e3b477df6b510207d71e2f18add7de9c4e7b911547e5d93d7a2da60ec5a1736",
-      "updateSha256": "39665e37873789e67d45c0dc84c9e07b910eed32e48fe5de3d5a63251621c81c",
+      "mainBytes": 1121073,
+      "mainSha256": "6f30984720e8aeac55db7731a148f5fa5b5644cee3dc85bd7a058e280e067f64",
+      "updateSha256": "8ad6529cab46a34d015ad01ba93804337b12ae53f9e278b9470358cc99346c1f",
       "reservedBytes": 98304,
       "roundTrip": "passed"
     },
@@ -15,9 +15,9 @@
       "modules": [
         "repitch"
       ],
-      "mainBytes": 1121488,
-      "mainSha256": "a7bc011d0e0201bea8cc60b853cce5c2d505596486b11de926511f8a8ea835be",
-      "updateSha256": "2add7b25a6e191748d6cbd14feda96aac3289f045bf63c384da2039077ae3076",
+      "mainBytes": 1121101,
+      "mainSha256": "1e44eeeefaa5c57ab52d16b41ca01b031857543007b955bb6fffc2b8622435d6",
+      "updateSha256": "e8cc5c01323f485106a28230818985ac8069de3d10cb3755ef507bad522f426e",
       "reservedBytes": 98304,
       "roundTrip": "passed"
     },
@@ -25,9 +25,9 @@
       "modules": [
         "miniverb"
       ],
-      "mainBytes": 1121489,
-      "mainSha256": "d42513e4832d1b9946ada048d394c63f3aedfbcc6f8506ec8632e7ca5ab3dac5",
-      "updateSha256": "493a1039e05eb26a1f2c0293b9f83d2e7d316ec8c2986c540efae7f4f47f3ba4",
+      "mainBytes": 1121099,
+      "mainSha256": "52c465b03debb7f0e9871d8be31fb7d43deec069bef10fc08f0629312b22d126",
+      "updateSha256": "368a2ae11a9fd410610f5a0154fae5f267b35bfc423ac0f246d7dfa0b8605f18",
       "reservedBytes": 98304,
       "roundTrip": "passed"
     },
@@ -36,9 +36,9 @@
         "tapeecho",
         "euclid"
       ],
-      "mainBytes": 1225784,
-      "mainSha256": "09384b34247ab16747b965f357aa657a29a7b1162ef367d7e9ee8771df985db1",
-      "updateSha256": "d5b4c2f4c5fad9718035ceba0ea830ecc112f937ea3069d1683336e509c2d5f0",
+      "mainBytes": 1225402,
+      "mainSha256": "cd90cc4f543e6518fe40d712857c0732cd35c77ffe33a47088d491308138f09e",
+      "updateSha256": "850cd4d616a9b6d43bbea100d66d3db4a02c2619e43c72e4503d6b298a1337e2",
       "reservedBytes": 10586112,
       "roundTrip": "passed"
     },
@@ -46,9 +46,9 @@
       "modules": [
         "analog-bassdrum"
       ],
-      "mainBytes": 1274751,
-      "mainSha256": "c4ab07683c39a64795b0b9b2c38bef938cc8db85f6eac829be575c46e5317f34",
-      "updateSha256": "cab5ad81a970ea2ffb4e7c81762a58d4d7713e1027f3754e4ef00925228bfdab",
+      "mainBytes": 1274359,
+      "mainSha256": "ff3af824f2ae4ac82df6b24a36a42e835548b70d9a9162cfc9acb0be4336a4d0",
+      "updateSha256": "db7492e217325fcbb2ad1ccd53f1ce12f3ac13837c772bf4e329e970182357a7",
       "reservedBytes": 10586112,
       "roundTrip": "passed"
     },
@@ -56,9 +56,9 @@
       "modules": [
         "sidechain-compressor"
       ],
-      "mainBytes": 1121504,
-      "mainSha256": "f5f4a9c425f0350addeb26c9808432a63b329fcda3358bc371cf72e9584360ee",
-      "updateSha256": "9f0d83976b43df451cb95fdb446c7151e1aaf178401ea86ea7976e1bdfa77d04",
+      "mainBytes": 1121113,
+      "mainSha256": "d43cd776e9b1f111d1ad157151eaaba4c63453a9ae2f98a1f5b601c5d784f454",
+      "updateSha256": "907e61374552cdce7b7fd63057d5e7eec5ef1b3921e6938e2d5caa604f3d707a",
       "reservedBytes": 98304,
       "roundTrip": "passed"
     },
@@ -67,9 +67,9 @@
         "usb-audio-out-tracks-main-cue",
         "quantizer"
       ],
-      "mainBytes": 1126423,
-      "mainSha256": "9831f76ba2a9ed8cb598e5c213405b4ad4b32679900bfea6bc5f04dd65846e78",
-      "updateSha256": "7f9dfddeb5036b5af361b35af8136324f00f3bd449f227abb58b7bfa251881ad",
+      "mainBytes": 1126028,
+      "mainSha256": "176608c1bf908928d25494763734c1b2403b72a36423be83b9bc55ba98207f28",
+      "updateSha256": "78c72e27c841b029bff3a07259b3d5372f6029906c0a1c2c7bf15ad20b0859f4",
       "reservedBytes": 10586112,
       "roundTrip": "passed"
     },
@@ -77,9 +77,9 @@
       "modules": [
         "midi-scenes"
       ],
-      "mainBytes": 1121493,
-      "mainSha256": "f41729c255f9ed0996a51485519239e263be06f581b47fdb412d0c2fc580e8e3",
-      "updateSha256": "2754be7adc640ae6ab9018c0ec4e26a25b85fb60f0626a4b4d31bc6a67503d23",
+      "mainBytes": 1121109,
+      "mainSha256": "7e09dd029c276ebddb37c2da884a948b5e4959a1d4ce598a55e253fac853694e",
+      "updateSha256": "10a71353550c7cf2822f28cea7dbe662fc9a6da8a2f4c9b625492be9c9c0a34b",
       "reservedBytes": 178176,
       "roundTrip": "passed"
     },
@@ -87,9 +87,9 @@
       "modules": [
         "airwindows-chorus"
       ],
-      "mainBytes": 1121500,
-      "mainSha256": "be7fb2ae4986059dad4556f9daed1a97a7d0b447f7b9f13d523ba3140ab9b24f",
-      "updateSha256": "f05f718dfb0c30559d2627fb3be8dd674a811d5a012c1527da44450e67a96588",
+      "mainBytes": 1121109,
+      "mainSha256": "7efd088904acf2d1aeceb4c94da81f9f58501c5b27e292ee1378d339388c37b3",
+      "updateSha256": "f7859004422ca8091e8db2e9a9cb9679f2c017fe6d6890416e092424cb099ad4",
       "reservedBytes": 98304,
       "roundTrip": "passed"
     },
@@ -97,9 +97,9 @@
       "modules": [
         "poly8"
       ],
-      "mainBytes": 1134248,
-      "mainSha256": "7ea687773766da12b343cb6b5a9d0eaa0ddb6a969eb0e8814ba1197473655c52",
-      "updateSha256": "10d3d75ccdfb6db8f126f2366dc502962ce110b2290c97d8432b70ccc6028052",
+      "mainBytes": 1133858,
+      "mainSha256": "061df6e289d49adb7fa21b8ce30bb16a700d402edccf896d53db731711856028",
+      "updateSha256": "0c0f4f6fa5590ada0506232401b07c059ca1745cb916f91ea820025aaaa12899",
       "reservedBytes": 10586112,
       "roundTrip": "passed"
     }
@@ -109,7 +109,7 @@
   "repeatPatchRejected": true,
   "inputUnchanged": true,
   "hardware": "untested",
-  "packageArtifactSha256": "2224c6cbddf8511c57557923be1d06f266b52beb0ae55655e7e710aceedf78c3",
+  "packageArtifactSha256": "c5c8f33c289120892dc57bd38f8af3e1684942ebe3653025c9613f3e38836854",
   "verifierSha256": "9c2fc402b1be03f71878c76e4ea842507853b8ed073428f72efb8f19bab4b2d2",
-  "startupPackageVersion": "3.0.0-beta.2"
+  "startupPackageVersion": "3.0.0"
 }

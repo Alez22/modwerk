@@ -34,18 +34,25 @@ builds its own startup, still marked NEW / BETA, from those two unchanged files.
 ### Release gate
 
 The source, app and server changes are prepared; the release is not. Before this
-startup reaches members, the owner completes these steps for the exact package:
+startup reaches members, the owner completes these steps for the exact package.
+Steps 1 to 3 were run on 14 October 2026; steps 4 to 6 are open.
 
-1. Rebuild `src/engine/assets/beta-startup.json` with the pinned toolchain
-   (`package.py`, m68k-elf GCC 16.2.0). The cloud session that prepared the change
-   had no m68k-elf toolchain, so the committed package is still `3.0.0-beta.2` and
-   the SDK provenance test fails until it is rebuilt as `3.0.0`.
-2. Run the native matrix (`scripts/verify-startup-beta-native.mjs`) and replace
-   `beta-docking-native.json`.
-3. Boot core-only and standalone MIDI Scenes images in the emulator on MKI and MKII
-   (`scripts/verify-startup-beta.py`) and replace the two capture records and the
-   GIF. The records below still describe `3.0.0-beta.2`, with labels and the
-   earlier timing.
+1. Done: `src/engine/assets/beta-startup.json` is rebuilt as `3.0.0`
+   (10,948 bytes, SHA-256 `62dbceb8…`) in the pinned `modwerk-source-tools` container
+   (GCC 16.2.0, binutils 2.47), with no firmware mounted. The same container reproduces
+   the committed `3.0.0-beta.2` byte for byte, and the SDK provenance test passes.
+2. Done: the native matrix (`scripts/verify-startup-beta-native.mjs`) passed for all
+   ten selections, with GNU/browser link parity at both runtime bases, ROM-gate
+   parity, rejection of changed hooks and of a repeated patch, and a firmware round
+   trip for every image. [`beta-docking-native.json`](media/startup/beta-docking-native.json)
+   is replaced.
+3. Done: the emulator booted the core-only and standalone MIDI Scenes images on MKI
+   and MKII (`scripts/verify-startup-beta.py`). Every run ended on the 792 authored
+   pixels with none missing or extra, lit 44 (MKI) and 67 (MKII) lamps on one channel with
+   levels 0 to 15, had them dark before the handover, and restored the stock screen,
+   LED rows and colours. The two capture records and
+   [the GIF](media/startup/beta-docking.gif), which now ends on the actual final frame,
+   are replaced.
 4. Refresh Tape Echo's retained-evidence binding, which pins the startup package.
    That is handled separately.
 5. Flash the exact build on an MKII, and on an MKI if one is available. Watch the
@@ -58,11 +65,14 @@ LED channel, bounded levels, lamps dark at the end, colour restore, exact final
 frame of 792 pixels), the session fallback and startup choice, configuration
 persistence, the server's build access, and the TypeScript check. Not checked
 there: the compiled package, native/browser parity, emulator boots and any
-hardware.
+hardware. The first three have since been run (steps 1 to 3); hardware has not.
 
 ## Beta docking edition — 12 October 2026
 
 This beta edition stays in place until the docking edition above is released.
+The capture records, native record and GIF linked below were replaced on 14 October
+2026 by the docking edition's (`3.0.0`, 792 pixels, no labels); the results described
+in this section are those of `3.0.0-beta.2`.
 
 New Octatrack builds for beta testers and verified administrators include the
 Elekloader migration's docking startup, ported independently of its new base.
