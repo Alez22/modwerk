@@ -7,6 +7,7 @@
 // a new directory outside Git: what `npm run device -- boot DIR` and the emulator's run scripts read. Firmware and generated images never enter the checkout.
 //
 //   npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]
+// Private transport candidates may add --usb-midi and --usb-audio "USB AUDIO OUT TRACKS MAIN CUE".
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -20,6 +21,9 @@ import { buildBase } from '../src/engine/elekloader/octatrack-base.ts'
 const { values: args } = parseArgs({ options: {
   stock: { type: 'string' }, upstream: { type: 'string', default: join(homedir(), '.cache/modwerk-upstream/elekloader') },
   write: { type: 'boolean', default: false }, out: { type: 'string' },
+  'usb-midi': { type: 'boolean', default: false }, 'usb-audio': { type: 'string' },
+  'resident-stock-hooks': { type: 'boolean', default: false },
+  'saved-set-export': { type: 'boolean', default: false },
 } })
 if (!args.stock) throw new Error('Usage: npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]')
 const root = resolve(import.meta.dirname, '..'), here = join(root, 'sdk/machines/octatrack/elekloader')
@@ -29,7 +33,10 @@ const asm = process.env.ELEKLOADER_DSP_ASM ?? join(homedir(), '.cache/modwerk-up
 const python = (script, ...rest) => execFileSync('python3', ['-B', join(here, script), ...rest], { stdio: 'inherit', env: { ...process.env, ELEKLOADER_DSP_ASM: asm } })
 
 const core = join(mkdtempSync(join(tmpdir(), 'modwerk-base-')), 'core')
-python('build_core.py', '--stock', args.stock, '--upstream', args.upstream, '--output', core, '--dsp-loader')
+python('build_core.py', '--stock', args.stock, '--upstream', args.upstream, '--output', core, '--dsp-loader',
+  ...(args['usb-midi'] ? ['--usb-midi'] : []), ...(args['usb-audio'] ? ['--usb-audio', args['usb-audio']] : []),
+  ...(args['resident-stock-hooks'] ? ['--resident-stock-hooks'] : []),
+  ...(args['saved-set-export'] ? ['--saved-set-export'] : []))
 python('check_stock_free.py', join(core, 'base.elemod'), '--stock', args.stock, '--upstream', args.upstream)
 for (const [key, file] of [['package', 'base.elemod'], ['fills', 'base-fills.json'], ['sources', 'base-sources.json']]) {
   const fresh = readFileSync(join(core, file))

@@ -78,6 +78,7 @@ const REJECTED: Partial<Record<number, string>> = {
   5: 'The Octatrack is still loading module code. Try again in a moment.',
   6: 'This module needs more DSP time than an effect slot has.',
   7: 'A track is playing this module’s effect, so the Octatrack can’t change it now. Pick another effect on that track, then try again.',
+  9: 'This version of the module changes a part of the Octatrack that the base now shares between modules. Install its newer version.',
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'

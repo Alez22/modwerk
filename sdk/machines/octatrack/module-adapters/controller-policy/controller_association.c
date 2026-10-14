@@ -66,7 +66,8 @@ int mw_controller_bind(struct mw_controller_registry *r,unsigned at,const struct
     if(at>=MW_CONTROLLER_SLOTS || !b) return MW_CTL_STALE;
     struct mw_controller_slot *s=&r->slots[at];
     if(s->state!=MW_CTL_RESERVED || !identity(&s->binding.identity,&b->identity) || !b->generation ||
-       b->generation<=r->last_generation || !b->canonical_extent || (b->canonical_extent&15u) || (b->canonical_extent&0x08000000u) ||
+       b->generation<=r->last_generation || !b->canonical_extent || (b->canonical_extent&15u) ||
+       (b->canonical_extent>=0x48000400u && b->canonical_extent<0x4ff00000u) ||
        !b->extent_bytes || b->canonical_extent+b->extent_bytes<=b->canonical_extent || !b->image_bytes ||
        b->image_offset>b->extent_bytes || b->image_bytes>b->extent_bytes-b->image_offset || !r->backend || !r->backend->owns_image ||
        r->backend->owns_image(r->context,b)!=1) return MW_CTL_CLOSED;

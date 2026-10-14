@@ -3,6 +3,7 @@
  * -DMODWERK_DSP_RESERVE=342):
  * admission against the arena, the instance block, cycles, free ids and
  * effects in use, and the catalog the DSP manager reads. */
+#include "sha256.c"
 #include "dsp.c"
 #include "fxmap.c"
 #include <stdio.h>
@@ -10,6 +11,15 @@
 const struct fx_legacy modwerk_fx_legacy[] = {{0x873d83ccu, 27, "E-Verb"}};
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots) { (void)id; (void)recipe; (void)bytes; (void)slots; return 1; }
 void modwerk_fxpage_drop(unsigned id) { (void)id; }
+/* Legacy tests have no production owner/journal authority. */
+int modwerk_runtime_owner_snapshot(const uint8_t *p,struct runtime_owner *o) { (void)p;(void)o;return 0; }
+int modwerk_runtime_owner_valid(const struct runtime_owner *o) { (void)o;return 0; }
+int modwerk_runtime_owner_canonical(const struct runtime_owner *o,uintptr_t *a) { (void)o;(void)a;return 0; }
+const struct runtime_module *modwerk_runtime_module(unsigned p) { (void)p;return 0; }
+void modwerk_runtime_journal_snapshot(struct runtime_journal_progress *p) { *p=(struct runtime_journal_progress){0}; }
+int modwerk_fxpage_validate(unsigned i,const uint8_t *p,uint32_t n,unsigned s) { (void)i;(void)p;(void)n;(void)s;return 0; }
+int modwerk_fxpage_current(unsigned i,const uint8_t *p,uint32_t n,unsigned s) { (void)i;(void)p;(void)n;(void)s;return 0; }
+int modwerk_fxpage_commit_checked(unsigned i,uint8_t *p,uint32_t n,unsigned s) { (void)i;(void)p;(void)n;(void)s;return 0; }
 const uint32_t modwerk_fx_legacy_count = 1;
 static char written[256];
 static int capture(uint32_t file, const void *data, unsigned length)
@@ -124,8 +134,8 @@ int main(void)
     for (unsigned k = 32; k < MODWERK_FX_IDS; ++k) dl_catalog[k] = (struct dl_package)STOCK; /* identity.c's stubs */
     static const uint32_t words[3] = {1, 2, 3};
     static const uint16_t relocations[1] = {0};
-    struct runtime_dsp none = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", 0, 0, 0};
-    struct runtime_dsp fx = {words, relocations, 3, 1, 1, 2, 244, 0, 26, 1, RUNTIME_MODELED, 70, 70, 1, "Test FX", 0, 0, 0};
+    struct runtime_dsp none = {0};
+    struct runtime_dsp fx = {.words=words,.relocations=relocations,.count=3,.relocation_count=1,.init=1,.proc=2,.cycles=244,.id=26,.slots=1,.kind=RUNTIME_MODELED,.state=70,.module=70,.layout=1,.name="Test FX"};
     CHECK(modwerk_machine_dsp_admit(&none, &none) == RUNTIME_OK && modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK);
     /* The effect id is a handle: the preferred one when it is a free module id, else the lowest free module id. */
     fx.id = 27; CHECK(modwerk_machine_dsp_admit(&none, &fx) == RUNTIME_OK && fx.id == 27);

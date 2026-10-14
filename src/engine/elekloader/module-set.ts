@@ -14,6 +14,8 @@ export class ModuleSetError extends Error {}
 export interface RuntimePackage {
   bytes: number; sha256: string; path: string; name?: string
   abi?: number; features?: number; sites?: number; copies?: number; fills?: number
+  /** Exact IDENTIFY digest when authored code depends on this base's addresses. */
+  requiredBase?: string
 }
 export interface MachineVariant extends RuntimePackage {
   layout: number; current: boolean; members: { id: string; version: string }[]
@@ -54,7 +56,8 @@ function requirements(entry: RuntimePackage, group = false) {
   const abi = entry.abi ?? ('octabam' in entry && entry.octabam ? 7 : 6), sites = entry.sites ?? 0, copies = entry.copies ?? 0, fills = entry.fills ?? 0
   if (![6, 7, 8].includes(abi) || !bounded(sites, 128) || !bounded(copies, 128) || !bounded(fills, 64) ||
       !bounded(entry.features ?? 0, 65535) || (abi < 8 && fills) || (abi < 7 && copies) ||
-      (group && abi !== 8) || (abi >= 7 && [entry.features, entry.sites, entry.copies, ...(abi === 8 ? [entry.fills] : [])].some(value => value === undefined)))
+      (group && abi !== 8) || (entry.requiredBase !== undefined && (typeof entry.requiredBase !== 'string' || !/^[0-9a-f]{64}$/.test(entry.requiredBase))) ||
+      (abi >= 7 && [entry.features, entry.sites, entry.copies, ...(abi === 8 ? [entry.fills] : [])].some(value => value === undefined)))
     throw invalidPackage()
   // Required features follow the actual record types even if a manifest accidentally omits a bit.
   const features = (entry.features ?? 0) | (sites ? RuntimeFeature.sites : 0) | (copies ? RuntimeFeature.stockCopies : 0) |
@@ -203,9 +206,11 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
       ...added.map(id => ({ id, name: name(id), add: published.get(id) })),
     ] as Step[] }
   }
-  function requireBase(steps: Step[], capabilities?: RuntimeCapabilities) {
+  function requireBase(steps: Step[], capabilities?: RuntimeCapabilities, base?: string) {
     for (const step of steps) for (const entry of [step.add, step.undo]) {
       if (!entry) continue
+      if (entry.requiredBase && entry.requiredBase !== base)
+        throw new ModuleSetError('This module package needs the exact Modwerk base it was prepared for. Reconnect that base before syncing.')
       const { abi, features, sites, copies } = requirements(entry, step.group)
       if ((!capabilities && (abi > 6 || features)) || capabilities && (abi > capabilities.abi || (features & capabilities.features) !== features || sites > capabilities.maxSites || copies > capabilities.maxCopies))
         throw new BaseUpdateRequired()
@@ -221,13 +226,13 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
     if (new Set(moduleIds).size !== moduleIds.length) throw new ModuleSetError('The Octatrack’s module list contains overlapping machine packages. Reconnect and read it again.')
     return { moduleIds, removedStockFx: [], ...runtimeGroups.length ? { runtimeGroups } : {} }
   }
-  function review(target: InventoryTarget, current: Inventory, capabilities?: RuntimeCapabilities) {
+  function review(target: InventoryTarget, current: Inventory, capabilities?: RuntimeCapabilities, base?: string) {
     const changes = inventoryChanges(current, target)
     let updates: string[] = [], needsSync = !!(changes.add.length + changes.remove.length + changes.stockOff.length + changes.stockOn.length)
     try {
       const planned = plan(target, current)
       updates = planned.updates; needsSync = planned.steps.length > 0
-      requireBase(planned.steps, capabilities)
+      requireBase(planned.steps, capabilities, base)
       return { changes, updates, needsSync, problem: undefined as ModuleSetError | undefined }
     } catch (error) {
       if (!(error instanceof ModuleSetError)) throw error
@@ -236,9 +241,9 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
   }
   return {
     ids, inventory, review,
-    problem: (target: InventoryTarget, current: Inventory, capabilities?: RuntimeCapabilities) => review(target, current, capabilities).problem,
-    async prepare(target: InventoryTarget, current: Inventory, load = fetchPackage, capabilities?: RuntimeCapabilities): Promise<{ name: string; changes: SetChange[] }> {
-      const { steps } = plan(target, current); requireBase(steps, capabilities)
+    problem: (target: InventoryTarget, current: Inventory, capabilities?: RuntimeCapabilities, base?: string) => review(target, current, capabilities, base).problem,
+    async prepare(target: InventoryTarget, current: Inventory, load = fetchPackage, capabilities?: RuntimeCapabilities, base?: string): Promise<{ name: string; changes: SetChange[] }> {
+      const { steps } = plan(target, current); requireBase(steps, capabilities, base)
       // Fetch and verify every forward and rollback package before the first write to the unit.
       const packages = new Map<RuntimePackage, Uint8Array>()
       await Promise.all(steps.flatMap(step => [step.add, step.undo].filter((entry): entry is RuntimePackage => !!entry).map(async entry => {
@@ -268,5 +273,8 @@ export function moduleSetKit(link: OctatrackLink) {
     if (!modules) throw new ModuleSetError('This Octatrack’s base doesn’t list its modules. Install the latest Modwerk base, then try again.')
     return inventoryFrom(modules)
   }
-  return { readInventory, prepareUpdate: async (target: InventoryTarget) => prepareModuleSet(target, await readInventory(), fetchPackage, link.getState().identity?.capabilities) }
+  return { readInventory, prepareUpdate: async (target: InventoryTarget) => {
+    const inventory = await readInventory(), identity = link.getState().identity
+    return prepareModuleSet(target, inventory, fetchPackage, identity?.capabilities, identity?.base)
+  } }
 }

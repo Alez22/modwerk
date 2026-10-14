@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 import struct
-from machine_layout import _envelope, _integer, _json, _sha, SHA
+from machine_layout import _envelope, _integer, _json, _sha, SHA, participants
 
-CAPACITY, HEADER, RECORD = 16, 16, 60
+CAPACITY, HEADER, RECORD = 24, 16, 60
 BYTES = HEADER + CAPACITY * RECORD
 SCHEMA = 'modwerk-table-layout-v1'
+PARTICIPANT_SCHEMA = 'modwerk-table-layout-v2'
+ANALOG_BD_SCHEMA = 'modwerk-table-layout-v3'
 KEYS = frozenset(('schema', 'packageSha256', 'imageSha256', 'compiledImageSha256', 'recipeSha256',
                   'family', 'stateLayoutRevision', 'parameterLayoutRevision', 'arrayOffsets', 'tableSymbols', 'sources'))
 ENTRY_KEYS = frozenset(('package', 'declaration', 'recipe', 'reviewed_sha256', 'source_root'))
@@ -46,7 +48,9 @@ def validate(package, declaration, recipe, *, reviewed_sha256, source_root):
             not isinstance(declaration, bytes) or _sha(declaration) != reviewed_sha256):
         raise ValueError('The independently reviewed table declaration changed.')
     doc, captured = _json(declaration, 65536), _json(recipe, 1048576)
-    if (not isinstance(doc, dict) or set(doc) != KEYS or doc['schema'] != SCHEMA or
+    explicit = isinstance(doc, dict) and doc.get('schema') in (PARTICIPANT_SCHEMA, ANALOG_BD_SCHEMA)
+    if (not isinstance(doc, dict) or set(doc) != KEYS | ({'participants'} if explicit else set()) or
+            doc.get('schema') not in (SCHEMA, PARTICIPANT_SCHEMA, ANALOG_BD_SCHEMA) or
             not isinstance(doc['family'], str) or doc['family'] not in SHAPES):
         raise ValueError('Unsupported private table declaration.')
     for key in ('packageSha256', 'imageSha256', 'compiledImageSha256', 'recipeSha256'):
@@ -56,7 +60,11 @@ def validate(package, declaration, recipe, *, reviewed_sha256, source_root):
     group = isinstance(package, bytes) and len(package) >= 8 and package[7] == 4
     image, mask, parameters, module = _envelope(package, group=group)
     family, count, insert, added, identity, roots, refs, count_at, count_code = SHAPES[doc['family']]
-    if module != identity and not (family == 1 and group and mask & 4 and module == 0xdb769930):
+    analog_bd = doc.get('schema') == ANALOG_BD_SCHEMA and isinstance(doc.get('participants'), list) and 'analog-bassdrum' in doc['participants']
+    optional = participants(mask, doc['participants'], analog_bd=analog_bd) if explicit and group else False
+    if explicit and not group:
+        raise ValueError('Explicit group participants require an actual canonical group.')
+    if module != identity and not (family == 1 and group and (mask & 4 or optional) and module == 0xdb769930):
         raise ValueError('The exact package is not this canonical table owner.')
     if (_sha(package) != doc['packageSha256'] or _sha(image) != doc['imageSha256'] or parameters != doc['parameterLayoutRevision']):
         raise ValueError('Package identity/parameter layout changed.')
