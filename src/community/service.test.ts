@@ -59,6 +59,8 @@ async function fixture(){
  db.exec(readFileSync(new URL('../../migrations/0041_issue_closed_at.sql',import.meta.url),'utf8'))
  db.exec(readFileSync(new URL('../../migrations/0060_module_working_reports.sql',import.meta.url),'utf8'))
  db.exec(readFileSync(new URL('../../migrations/0068_report_triage.sql',import.meta.url),'utf8'))
+ db.exec(readFileSync(new URL('../../migrations/0021_social_onboarding.sql',import.meta.url),'utf8'))
+ db.exec(readFileSync(new URL('../../migrations/0063_github_actions.sql',import.meta.url),'utf8'))
  const env:Env={DB:adapter(db),APP_URL:'https://octamod.test',ADMIN_KEY_SHA256:await digest(adminKey)}
  const objects=new Map<string,ArrayBuffer>()
  env.MEDIA={async put(key,bytes){objects.set(key,bytes)},async get(key){const bytes=objects.get(key);return bytes?{body:new ReadableStream({start(controller){controller.enqueue(new Uint8Array(bytes));controller.close()}})}:null},async delete(key){objects.delete(key)}}
@@ -206,9 +208,9 @@ describe('community access and review',()=>{
    const markdown=String(created.body.body)
    expect(markdown).toContain('by [other](https://octamod.test/forum/profile/other/)');expect(markdown).not.toContain('@sambanks');expect(markdown).toContain('| Module version | Not recorded |') // the configuration comes from the attached log, which does not list spectrum
    expect(markdown).toContain('@\u200bsomeone');expect(markdown).toContain('#\u200b12');expect(markdown).not.toContain('<img')
-   expect(markdown).toContain('[open them on Modwerk](https://octamod.test/#developer/report/'+result.id+')')
-   // The configuration, build fingerprint and log stay private.
-   for(const secret of ['c'.repeat(64),'OCTAMOD-LOG','repitch'])expect(markdown).not.toContain(secret)
+   expect(markdown).not.toContain('#developer/report/');expect(markdown).toContain('Everything the reporter submitted is in this issue.')
+   // The reporter agreed to publish the configuration, build fingerprint and log on GitHub.
+   for(const published of ['c'.repeat(64),'<details><summary>OCTAMOD.LOG</summary>','# OCTAMOD-LOG','repitch'])expect(markdown).toContain(published)
    const [row]=await (await call('/admin/issues?status=all','GET',undefined,'',undefined,admin)).json();expect(row).toMatchObject({id:result.id,github_state:'failed',github_error:'GitHub answered 401: Bad credentials.'})
    expect((await call('/admin/issues/'+row.id+'/github','POST',{},reporter)).status).toBe(403)
    const retried=await (await call('/admin/issues/'+row.id+'/github','POST',{},'',undefined,admin)).json();expect(retried).toEqual({state:'synced',url:'https://github.com/repeat98/octamod/issues/41'})
