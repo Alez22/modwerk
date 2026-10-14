@@ -28,9 +28,23 @@ def package(module, image):
     return b'MWRM' + struct.pack('>HHIIIIII', 4, 0, len(image), 0, 0, 0, 0, module) + image
 
 
+DONOR = 0x400d5a82
+DONOR_BYTES = bytes((7 * i + 3) & 255 for i in range(0x192))
+
+
+def page_image(seed):
+    """An MWPP record (stock_hook_controllers.page_record's layout) heading a 96-byte image:
+    two integers, one text, one pointer to image offset 80."""
+    record = b'MWPP' + bytes((1, 2, 1, 1)) + struct.pack('>I', DONOR) + hashlib.sha256(DONOR_BYTES).digest()
+    record += struct.pack('>HBBI', 5, 1, 0, 0x11) + struct.pack('>HBBI', 100, 4, 0, 0x1234)
+    record += struct.pack('>HBB', 70, 6, 3) + b'KEY\0'
+    record += struct.pack('>HHI', 234, 0, 80)
+    return record + bytes((seed + i) & 255 for i in range(96 - len(record)))
+
+
 PACKAGES = {  # name: (module id, feature, image)
-    'sc': (0x95cff696, 1, bytes(range(64))),
-    'sc2': (0x95cff696, 1, bytes(range(1, 65))),
+    'sc': (0x95cff696, 1, page_image(0)),
+    'sc2': (0x95cff696, 1, page_image(1)),
     'matrix': (0xcaf158b5, 2, bytes(range(2, 130))),
     'rival': (0x12345678, 1, bytes(range(3, 67))),
     'forged': (0x95cff696, 1, bytes(range(4, 68))),  # same module, untrusted bytes
@@ -49,6 +63,7 @@ def header():
         digest = ','.join('0x%02x' % b for b in hashlib.sha256(data).digest())
         rows += ('{{{%s}, {%d}, 0x%08xu, 1, 1, 1, %d, %d}, 1, %d, 8, 16, 24}, '
                  % (digest, feature, module, feature, CORES[feature], len(image)))
+    text += 'static const uint8_t donor_original[%d] = {%s};\n' % (len(DONOR_BYTES), ','.join(map(str, DONOR_BYTES)))
     return text + '#define ROWS %s\n' % rows
 
 
@@ -84,6 +99,8 @@ int dl_hook_buffer_ranges_idle(unsigned feature) { (void)feature; return (int)bu
 unsigned modwerk_controller_policy_entries(void) { return 0; }
 uint8_t mw_controller_board_test_read8(uint32_t a) { return a == 0x80000037u ? mode_live : a == 0x100b1497u ? mode_cs1 : 0xff; }
 int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi) { (void)lo; (void)hi; return (int)ui_clear; }
+static uint8_t donor[sizeof donor_original];
+uint8_t *mw_controller_board_test_donor(uint32_t a) { assert(a == 0x400d5a82u); return donor; }
 int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
     const struct runtime_context *c, enum runtime_metadata_operation op)
 { (void)c; assert(sr >= 0x400u); to->foreign_roots = 0; return modwerk_controller_admit(from, to, op); }
@@ -183,6 +200,15 @@ static int lease(uint32_t module, unsigned feature)
 }
 #define SC 0x95cff696u
 #define MATRIX 0xcaf158b5u
+static __attribute__((unused)) int page_is(int applied, uint32_t module)
+{
+    if (!applied) return !memcmp(donor, donor_original, sizeof donor);
+    uint32_t v = (uint32_t)(exec_of(module) + 80u), p = (uint32_t)donor[234] << 24 | (uint32_t)donor[235] << 16 | (uint32_t)donor[236] << 8 | donor[237];
+    for (unsigned i = 0; i < sizeof donor; ++i)
+        if (i != 5 && !(i >= 100 && i < 104) && !(i >= 70 && i < 76) && !(i >= 234 && i < 238) && donor[i] != donor_original[i]) return 0;
+    return donor[5] == 0x11 && !donor[100] && !donor[101] && donor[102] == 0x12 && donor[103] == 0x34 &&
+        !memcmp(donor + 70, "KEY\0\0\0", 6) && p == v;
+}
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -198,11 +224,28 @@ int main(int argc, char **argv)
     (void)mode; (void)why; (void)install_refused;
     return 0;
 #else
+    memcpy(donor, donor_original, sizeof donor);
+    if (mode == 7) donor[300] ^= 1; /* not the stock descriptor the record names: no page, still a working controller */
     run(2);
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
-    assert(!lease(SC, 1)); /* published, not yet reset and enabled */
+    assert(!lease(SC, 1) && (mode == 7 || page_is(0, SC))); /* published, not yet reset and enabled */
     run(120);
     assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+    if (mode == 7) {
+        donor[300] ^= 1; assert(page_is(0, SC)); donor[300] ^= 1;
+        assert(lease(SC, 1));
+        return 0;
+    }
+    assert(page_is(1, SC));
+    if (mode == 8) {
+        /* Someone changed the extended page: unknown, the removal quarantines and holds it. */
+        donor[200] ^= 1;
+        assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
+        run(5);
+        assert(slot_for(SC, MW_CTL_QUARANTINED) && dsp_mask[0] == 1);
+        assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_CONFLICT);
+        return 0;
+    }
     assert(words[0][0] == 1042 && words[1][0] == 1042 && modwerk_controller_held() == 1);
     assert(lease(SC, 1) && !lease(SC, 2));
     if (mode == 0) {
@@ -210,7 +253,7 @@ int main(int argc, char **argv)
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
         assert(lease(SC, 1)); /* only a request until the tick starts the disable */
         run(1);
-        assert(!lease(SC, 1)); /* disabling: no writes */
+        assert(!lease(SC, 1) && page_is(0, SC)); /* page gone before the hooks; disabling: no writes */
         run(10);
         assert(slot_for(SC, MW_CTL_RETIRING) && !dsp_mask[0] && !dsp_mask[1]);
         ui_clear = 0;
@@ -218,18 +261,18 @@ int main(int argc, char **argv)
         ui_clear = 1;
         assert(install(removal(SC), 32) == MU_APPLIED);
         run(2);
-        assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held());
+        assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && page_is(0, SC));
         /* Installing it again binds a new owner generation from scratch. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(120);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && lease(SC, 1));
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && lease(SC, 1) && page_is(1, SC));
     } else if (mode == 1) {
         /* An abandoned removal: disabled, then restored through a full reset. */
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
         run(10);
-        assert(slot_for(SC, MW_CTL_RETIRING) && !dsp_mask[0]);
+        assert(slot_for(SC, MW_CTL_RETIRING) && !dsp_mask[0] && page_is(0, SC));
         run(700);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1 && lease(SC, 1));
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1 && lease(SC, 1) && page_is(1, SC));
     } else if (mode == 2) {
         /* Same-feature replacement: predecessor disabled, successor bound with it
          * as previous, reset and enabled, then the predecessor retires. */
@@ -238,8 +281,8 @@ int main(int argc, char **argv)
         assert(install(pkg_sc2, sizeof pkg_sc2) == MU_APPLIED);
         run(120);
         const struct mw_controller_slot *next = slot_for(SC, MW_CTL_ACTIVE);
-        assert(next && next->binding.image_bytes == 64 && next->previous < MW_CONTROLLER_SLOTS && slot_for(SC, MW_CTL_RELEASED));
-        assert(dsp_mask[0] == 1 && dsp_mask[1] == 1 && lease(SC, 1));
+        assert(next && next->binding.image_bytes == 96 && next->previous < MW_CONTROLLER_SLOTS && slot_for(SC, MW_CTL_RELEASED));
+        assert(dsp_mask[0] == 1 && dsp_mask[1] == 1 && lease(SC, 1) && page_is(1, SC)); /* the successor's formatter */
     } else if (mode == 3) {
         /* Matrix beside it: core A only; removal refuses in MATRIX mode. */
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
@@ -341,7 +384,7 @@ class ControllerBoard(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp); self.generated(work)
             binary = self.build(work, True)
-            for mode in range(7):
+            for mode in range(9):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)

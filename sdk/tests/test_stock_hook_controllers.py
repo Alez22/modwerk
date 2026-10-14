@@ -78,7 +78,8 @@ class StockHookControllers(unittest.TestCase):
     @unittest.skipUnless(shutil.which('m68k-elf-as') and (UPSTREAM / 'elekloader/sdk/octabam.py').is_file(),
                          'ColdFire assembler or Elekloader checkout unavailable')
     def test_encoded_packages_are_base_bound_and_deterministic(self):
-        base = {'modwerk_controller_write_begin': 0x41234560, 'modwerk_controller_write_end': 0x41234600}
+        base = {'modwerk_controller_write_begin': 0x41234560, 'modwerk_controller_write_end': 0x41234600,
+                'modwerk_cue_cfg_clamp': 0x41234680}
         for name in controllers.UNITS:
             with tempfile.TemporaryDirectory() as one, tempfile.TemporaryDirectory() as two:
                 a = controllers.encode(name, SDK, builder, Path(one), base, UPSTREAM)
@@ -90,8 +91,8 @@ class StockHookControllers(unittest.TestCase):
                 image = data[76 - 4:]  # ABI 7: 72-byte header, no hooks
                 self.assertEqual(struct.unpack('>I', data[8:12])[0], a['imageBytes'])
                 # The lease entries are absolute base addresses, never relocated.
-                for value in base.values():
-                    self.assertIn(struct.pack('>I', value), data)
+                for key in controllers.LEASE_IMPORTS:
+                    self.assertIn(struct.pack('>I', base[key]), data)
                 rows = controllers.policy_rows(name, a)
                 self.assertEqual([r['entryName'] for r in rows], list(controllers.DEFAULT_ENTRIES[name]))
                 self.assertIn('{{{0x', controllers.policies_c(rows))
@@ -103,7 +104,26 @@ class StockHookControllers(unittest.TestCase):
                         dict(base, modwerk_controller_write_end=base['modwerk_controller_write_begin'])):
                 with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(ValueError, 'lease entries'):
                     controllers.encode(name, SDK, builder, Path(tmp), bad, UPSTREAM)
-        self.assertNotIn('matrix_enter', controllers.DEFAULT_ENTRIES['output-matrix'])
+        self.assertIn('matrix_enter', controllers.DEFAULT_ENTRIES['output-matrix'])
+        # Output Matrix: the base owns its boot widenings, and its stock-equal spans ship as copies.
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(ValueError, 'boot widenings'):
+            controllers.encode('output-matrix', SDK, builder, Path(tmp),
+                               {k: v for k, v in base.items() if k != 'modwerk_cue_cfg_clamp'}, UPSTREAM)
+        with tempfile.TemporaryDirectory() as tmp:
+            matrix = controllers.encode('output-matrix', SDK, builder, Path(tmp), base, UPSTREAM)
+        data = matrix['package']
+        self.assertEqual((matrix['sites'], matrix['copies']), (19, len(controllers.STOCK_COPIES['output-matrix'])))
+        image = data[72:72 + matrix['imageBytes']]
+        for label, delta, address, length, digest in controllers.STOCK_COPIES['output-matrix']:
+            self.assertIn(struct.pack('>IIHH', 0, address, length, 0)[4:] + bytes.fromhex(digest), data)
+        for address in controllers.BASE_OWNED_SITES['output-matrix']:
+            self.assertNotIn(struct.pack('>I', address), data[72 + matrix['imageBytes']:])
+        # Sidechain's page record heads its image: COMPRESSOR's descriptor and its stock SHA-256.
+        with tempfile.TemporaryDirectory() as tmp:
+            sc = controllers.encode('sidechain-compressor', SDK, builder, Path(tmp), base, UPSTREAM)
+        image = sc['package'][72:72 + sc['imageBytes']]
+        self.assertEqual(image[:5], b'MWPP\x01')
+        self.assertEqual(struct.unpack('>I', image[8:12])[0], 0x400d5a82)
         # A base that raises ev_mute_keep: Sidechain answers it (ABI 8 hook word, order 50).
         registry = {'events': [{'event': 'ev_%d' % i, 'index': i} for i in (4, 5, 6)] + [{'event': 'ev_mute_keep', 'index': 7}]}
         raising = dict(base, modwerk_raise_ev_mute_keep=0x41234700)
@@ -117,6 +137,18 @@ class StockHookControllers(unittest.TestCase):
             plain = controllers.encode('sidechain-compressor', SDK, builder, Path(tmp), base, UPSTREAM, registry=registry)
         self.assertEqual(plain['hooks'], [])
         self.assertEqual(a['entries'], plain['entries'])
+
+    def test_stock_copy_sources_are_patched_by_nobody(self):
+        # The gate's own claims (every active module and the committed base): a copy
+        # taken from bytes someone patches would depend on install order.
+        spec = importlib.util.spec_from_file_location('controller_compat', ROOT / 'scripts/module-compat.py')
+        compat = importlib.util.module_from_spec(spec); spec.loader.exec_module(compat)
+        _, modules, inputs, _ = compat.repository_inputs()
+        copies = {k: list(v) for k, v in inputs['copies'].items()}
+        copies.setdefault('output-matrix', []).extend(
+            (address, length, 'controller copy') for _, _, address, length, _ in controllers.STOCK_COPIES['output-matrix'])
+        problems = compat.check(modules, **dict(inputs, copies=copies))
+        self.assertEqual([p['text'] for p in problems if 'output-matrix' in p['modules']], [])
 
     def test_trust_rows_refuse_malformed_and_duplicate_rows(self):
         row = dict(module='output-matrix', moduleId=0xcaf158b5, packageSha256='11' * 32, sourcePolicySha256='22' * 32,

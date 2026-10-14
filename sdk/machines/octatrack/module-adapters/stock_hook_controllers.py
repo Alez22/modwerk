@@ -32,10 +32,31 @@ UNITS = {
     'sidechain-compressor': ('modules/sidechain-compressor/upstream/tools/patch_sidechain.s', 1, ('sc_norm',)),
     'output-matrix': ('modules/output-matrix/matrix.s', 2, ('page_levels', 'matrix_leave', 'matrix_enter')),
 }
-# Leased entries a base trusts by default once the package is reviewed. Entering
-# MATRIX stays out: its project-load clamp and CS1 power-up check are installed
-# only after stock boot ran them, so a power cycle loses MATRIX (owner decision).
-DEFAULT_ENTRIES = {'sidechain-compressor': ('sc_norm',), 'output-matrix': ('page_levels', 'matrix_leave')}
+# Leased entries a base trusts once the package is reviewed.
+DEFAULT_ENTRIES = {'sidechain-compressor': ('sc_norm',), 'output-matrix': ('page_levels', 'matrix_leave', 'matrix_enter')}
+# Output Matrix's project-load CUE CFG clamp and CS1 power-up check run in stock
+# boot, before any package is installed: the resident base owns the widening
+# (build_core.py, `modwerk_cue_cfg_clamp`), so MATRIX survives a power cycle and
+# the package leaves those three sites out.
+BASE_OWNED_SITES = {'output-matrix': (0x4008732a, 0x400100be, 0x400100c4)}
+BASE_OWNED_MARK = 'modwerk_cue_cfg_clamp'
+# Authored spans that equal stock code byte for byte (both unchanged stock-free
+# scanners refuse them: 16-byte literal runs and 12 non-zero bytes): shipped as
+# zeros and ABI 7 stock copies the base fills from its running code after
+# checking the hash. (symbol, offset, stock address, length, SHA-256 of the
+# authored bytes, which equal the stock bytes there.) No module or the base
+# patches a source span (test_stock_hook_controllers checks the gate's claims).
+STOCK_COPIES = {'output-matrix': (
+    ('audio_enter', 8, 0x4006541c, 18, '854793f1a989aaa29a4978b316713fd1dfd25f24367bdf5ce0a654c632414ab9'),
+    ('mw_mode_done', 2, 0x40055e62, 14, '91a4bbc12afccfa7100e67201876284c378c5e2ce3fa01d7729b37c918a4e9cb'),
+    ('part_cue', 0, 0x4000eab0, 16, '76615980349044858d2d9013919133c736ea96190fad78cc59e5e55748ca263b'),
+    ('part_cue', 22, 0x4004eb96, 13, 'f6bb5520b783d035828391c47f07f2457e9bf7f6cb785f9518abf6829d44f3da'),
+    ('lev_box_cue', 58, 0x4003ffd8, 14, 'e3d21ed07e823ecac61ec2b4dd20ebf1eac251c1886b5381ce9c33a9d1783e48'))}
+# Sidechain's KEY/KFLT/KGN/MON on COMPRESSOR's own page: the catalogue's
+# descriptor recipe, carried at the head of the image as an MWPP record the
+# board applies in place while the controller is ACTIVE (controller_board.c).
+PAGE_RECIPES = {'sidechain-compressor': 'src/engine/assets/descriptor-recipes.json'}
+PAGE_BYTES = 0x192
 REQUIRED_CORES = {1: 3, 2: 1}  # stock_hooks.c: Matrix is core A only
 TITLES = {'sidechain-compressor': 'SIDECHAIN COMP', 'output-matrix': 'OUTPUT MATRIX'}
 REVISIONS = (1, 1, 1)  # policy, state, parameter: the scoped derivative's first reviewed contract
@@ -234,6 +255,37 @@ mw_matrix_mode_body:
 '''
 
 
+def page_record(name):
+    """The MWPP record (GNU as) for a module whose page extends a stock effect in
+    place: magic, version 1, integer/text/pointer counts, the stock descriptor and
+    the SHA-256 of its PAGE_BYTES, then (offset, width, 0, value) integers,
+    (offset, width, length, text) strings padded to 4, and (offset, 0, image
+    offset) pointers to the module's own formatters. No stock bytes."""
+    if name not in PAGE_RECIPES:
+        return ''
+    recipes = json.loads((_ROOT / PAGE_RECIPES[name]).read_text())['recipes']
+    recipe = next(r for r in recipes if r['id'] == name)
+    if recipe.get('sourceSha256') != SOURCE_PINS['modules/%s/manifest.py' % name] or not recipe.get('replaces'):
+        raise ValueError('The page recipe is not the pinned in-place source: ' + name)
+    ints, texts, pointers = recipe['integers'], recipe['strings'], recipe['rawPointers']
+    if (len(ints) > 64 or len(texts) > 16 or len(pointers) > 8 or
+            any(i['width'] not in (1, 2, 4) or i['offset'] + i['width'] > PAGE_BYTES for i in ints) or
+            any(len(s['value'].encode('latin-1')) >= s['width'] or s['offset'] + s['width'] > PAGE_BYTES for s in texts) or
+            any(p['offset'] + 4 > PAGE_BYTES for p in pointers)):
+        raise ValueError('The page recipe exceeds the board record bounds: ' + name)
+    lines = ['        .text', '        .balign 4', 'mw_page:', '        .ascii "MWPP"',
+             '        .byte 1, %d, %d, %d' % (len(ints), len(texts), len(pointers)),
+             '        .long 0x%08x' % recipe['donorAddress'],
+             '        .byte ' + ', '.join('0x%02x' % b for b in bytes.fromhex(recipe['donorSha256']))]
+    lines += ['        .word %d\n        .byte %d, 0\n        .long 0x%x' % (i['offset'], i['width'], i['value'] & 0xffffffff) for i in ints]
+    for s in texts:
+        text = s['value'].encode('latin-1')
+        lines += ['        .word %d\n        .byte %d, %d' % (s['offset'], s['width'], len(text)),
+                  '        .byte ' + ', '.join(str(b) for b in text + bytes(-(len(text) + 4) % 4))]
+    lines += ['        .word %d, 0\n        .long %s - mw_page' % (p['offset'], p['symbol']) for p in pointers]
+    return '\n'.join(lines) + '\n        .balign 2\n'
+
+
 def adapted_source(name, sdk):
     """Emit an authored derivative while refusing any imported-source drift.
 
@@ -247,6 +299,7 @@ def adapted_source(name, sdk):
     """
     source = sources(name, sdk)[UNITS[name][0]]
     if name == 'sidechain-compressor':
+        source = _replace_once(source, '    .text\n', '    .text\n' + page_record(name), )
         source = _replace_once(source, 'sc_norm:\n', 'mw_sc_norm_body:\n')
         return source + write_wrapper('sc_norm', 1, 'mw_sc_norm_body',
                                      denied='        lea 0x80000a50,%a3') + _MUTE_KEEP_SOURCE
@@ -396,7 +449,10 @@ def controller_sites(name, upstream, symbols, builder):
         if d.kind not in builder.OPCODES or d.kind == 'lea' or d.target is not None or n < 6 or n % 2:
             raise ValueError('Detour at %#x: only jmp or jsr to the module\'s own symbol.' % d.site)
         digest, checked = builder.stock_digest(d.expect)
-        sites.append((d.site, digest, builder.OPCODES[d.kind] + symbol(d.symbol) + b'\x4e\x71' * ((n - 6) // 2), [2], 0, checked))
+        # The pad after the jump is never reached from its start; a long one begins with a bra.s
+        # to its end (same effect as nops, no CCR change) so it is not a stock-like nop run.
+        pad = b'\x4e\x71' * ((n - 6) // 2) if n - 6 < 12 else bytes((0x60, n - 8)) + b'\x4e\x71' * ((n - 8) // 2)
+        sites.append((d.site, digest, builder.OPCODES[d.kind] + symbol(d.symbol) + pad, [2], 0, checked))
     for poke in m.pokes:
         digest, checked = builder.stock_digest(poke.expect)
         sites.append((poke.addr, digest, bytes(poke.write), [], 0, checked))
@@ -437,17 +493,32 @@ def encode(name, sdk, builder, work, base_symbols, upstream, cross='m68k-elf-', 
             raise ValueError('A leased entry of the derivative is not inside its image: ' + entry)
         entries[entry] = dict(entry=at[0], beginReturn=at[1], endReturn=at[2])
     sites = controller_sites(name, upstream, symbols, builder)
+    if name in BASE_OWNED_SITES:
+        if BASE_OWNED_MARK not in base_symbols:
+            raise ValueError('This base does not own Output Matrix\'s boot widenings; rebuild it with --resident-stock-hooks.')
+        sites = [s for s in sites if s[0] not in BASE_OWNED_SITES[name]]
+    image, copies = bytearray(low), []
+    for label, delta, address, length, digest in STOCK_COPIES.get(name, ()):
+        at = symbols[label] + delta
+        if (sha(bytes(image[at:at + length])) != digest or
+                any(at < o + 4 and o < at + length for o in offsets)):
+            raise ValueError('An authored stock-copy span changed or holds a relocation: ' + label)
+        image[at:at + length] = bytes(length)
+        copies.append((at, address, length, bytes.fromhex(digest)))
+    low = bytes(image)
+    if name in PAGE_RECIPES and (symbols.get('mw_page') != 0 or low[:4] != b'MWPP'):
+        raise ValueError('The page record does not head the image.')
     # Subscribe exactly when this base raises the event (base-bound like the lease).
     hooks = []
     if name == 'sidechain-compressor' and 'modwerk_raise_' + MUTE_KEEP['event'] in base_symbols:
         hooks = builder.subscribe([builder.NONE] * len(builder.HANDLERS), [MUTE_KEEP], symbols, registry)
-    data = builder.package(low, bss, hooks, offsets, sites=sites, name=name, hashed=True,
+    data = builder.package(low, bss, hooks, offsets, sites=sites, name=name, hashed=True, copies=copies,
                            title=TITLES[name], layout=1, abi=8 if hooks else None)
     policy = dict(schema=1, module=name, feature=UNITS[name][1], revisions=list(REVISIONS),
                   sourceHashes={relative: sha(text.encode()) for relative, text in texts.items()},
                   adaptedSourceSha256=sha(source.read_bytes()), entries=entries)
     return dict(package=data, packageSha256=sha(data), moduleId=builder.module_id(name), imageBytes=len(low),
-                bss=bss, sites=len(sites), entries=entries, imports=imports, hooks=hooks,
+                bss=bss, sites=len(sites), copies=len(copies), entries=entries, imports=imports, hooks=hooks,
                 sourcePolicySha256=sha(json.dumps(policy, sort_keys=True, separators=(',', ':')).encode()),
                 policy=policy)
 
@@ -455,8 +526,7 @@ def encode(name, sdk, builder, work, base_symbols, upstream, cross='m68k-elf-', 
 def policy_rows(name, encoded, entries=None):
     """Trust rows for controller_write_policy.c, one per leased entry.
 
-    `entries` defaults to DEFAULT_ENTRIES: authorizing matrix_enter is an
-    explicit owner decision (see DEFAULT_ENTRIES).
+    `entries` defaults to DEFAULT_ENTRIES.
     """
     entries = DEFAULT_ENTRIES[name] if entries is None else tuple(entries)
     feature = UNITS[name][1]
@@ -496,8 +566,6 @@ def main(argv=None):
     parser.add_argument('--base-symbols', type=Path, required=True, help='that base build_core symbols.json')
     parser.add_argument('--upstream', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True, help='new private directory outside Git')
-    parser.add_argument('--authorize-matrix-entry', action='store_true',
-                        help='also trust matrix_enter (owner decision: MATRIX does not survive a power cycle)')
     args = parser.parse_args(argv)
     spec = importlib.util.spec_from_file_location('controller_builder', _ROOT / 'sdk/runtime/loader/build.py')
     builder = importlib.util.module_from_spec(spec); spec.loader.exec_module(builder)
@@ -509,8 +577,7 @@ def main(argv=None):
     for name in UNITS:
         encoded = encode(name, _ROOT / 'sdk/octabam', builder, out / (name + '-work'), symbols, args.upstream)
         _private.save(out / (name + '.mwrm'), encoded['package'])
-        entries = DEFAULT_ENTRIES[name] + (('matrix_enter',) if name == 'output-matrix' and args.authorize_matrix_entry else ())
-        rows += policy_rows(name, encoded, entries)
+        rows += policy_rows(name, encoded)
         receipt['packages'][name] = {k: v for k, v in encoded.items() if k != 'package'}
     policies_c(rows)
     receipt['rows'] = rows

@@ -180,7 +180,16 @@ _spec = importlib.util.spec_from_file_location('modwerk_site_events', APP / 'sdk
 EVENTS = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(EVENTS)
 # Catalogue modules allowed to patch what this base owns, and why (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configuration',
-             'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port'}
+             'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port',
+             'output-matrix': 'resident bases own its CUE CFG project-load clamp and CS1 power-up widening (cue_cfg.s); '
+                              'its controller package leaves those sites out'}
+# cue_cfg.s: (address, guard bytes, guard SHA-256 = Output Matrix's manifest guard, the base's site).
+CUE_CFG_WIDENING = ((0x4008732a, 14, '968adf63466a054aefd6609f18536e3719bbcc144b6dc0a43de49794c3bb3718',
+                     dict(op='jmp', target='modwerk_cue_cfg_clamp', length=6)),
+                    (0x400100be, 2, '0b14b394f74bdc2f13a4efc3e6bcec310ba2288bcf64811943a1fe443229d05b',
+                     dict(op='bytes', new='7402', length=2)),   # CS1 check: 2 is valid
+                    (0x400100c4, 2, '1f2e6d00279b4659b6d6f1ad57e12568e4a50f80908af50d1e861001b2be2a3b',
+                     dict(op='bytes', new='7002', length=2)))   # ... and above 2 clamps to 2
 
 
 def catalogue_overlaps(sites):
@@ -1368,6 +1377,9 @@ modwerk_retained_end:
         ['usbmidi.s', 'usbmidi_rx.s'] + (['usbaudio.s'] if args.usb_audio else []) if usb_functions else ['usbaudio.s'] if args.dev else [])
     if resident_boot_prepared:
         recipe['sources'].append('resident-dsp-boot.s')
+    if args.resident_stock_hooks:
+        shutil.copyfile(HERE / 'cue_cfg.s', source / 'cue_cfg.s')
+        recipe['sources'].append('cue_cfg.s')
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',
                         '-fno-merge-constants', '-fno-asynchronous-unwind-tables', '-fno-unwind-tables',
@@ -1404,6 +1416,11 @@ modwerk_retained_end:
         recipe['sites'].append(dict(addr=hex(guard['address']), stock=image[at:at+n].hex(),
                                     op='jmp', target=target))
     stock_at = lambda addr, n: image[addr-device.main_load:addr-device.main_load+n]
+    for addr, n, guard, site in (CUE_CFG_WIDENING if args.resident_stock_hooks else ()):
+        if sha(stock_at(addr, n)) != guard:
+            raise ValueError('Stock bytes at %#x are not the CUE CFG clamp/check cue_cfg.s widens.' % addr)
+        recipe['sites'].append(dict({k: v for k, v in site.items() if k != 'length'},
+                                    addr=hex(addr), stock=stock_at(addr, site['length']).hex()))
     recipe['sites'] += usb_functions.sites(usb, stock_at, args.usb_audio) if usb_functions else usb.sites(stock_at, args.dev)
     # RAM boot: the gate at the OS entry, and the DSP park in both payloads.
     at = BOOT_GATE[0] - device.main_load
