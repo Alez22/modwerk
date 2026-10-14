@@ -43,6 +43,7 @@ volatile uint32_t modwerk_modset_result;
 uint8_t modwerk_test_live_fx[16];
 volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
 const fx_set modwerk_fx_modules = {{1u << 27 | 1u << 29}};
+int modwerk_dsp_budget(unsigned slot, struct modwerk_dsp_budget *out) { (void)slot, (void)out; return 0; } /* draws only */
 /* dsp.c's MODULE LOAD list: `installed` modules. */
 static unsigned installed;
 unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)
@@ -106,11 +107,16 @@ int main(void)
     modwerk_test_live_fx[8] = 27; ++dl_selection_completed; memory_tick();
     CHECK(open == MEMORY);                                             /* E-Verb picked on T1 FX2 */
     CHECK(!modwerk_status_key(YES, 0) && open == MEMORY);              /* the pick's YES release: it stays */
+    CHECK(budget_slot == 8);                                           /* the box shows that slot's core */
     CHECK(!modwerk_status_key(0, 1) && open == CLOSED);                /* a press closes it and goes on to stock */
+    modwerk_test_live_fx[12] = 29; ++dl_selection_completed; memory_tick();
+    CHECK(open == MEMORY && budget_slot == 12);                        /* Euclid picked on T5 FX2 */
+    CHECK(modwerk_status_key(YES, 1) && open == CLOSED);               /* YES only closes it (owner, 14 October 2026) */
+    CHECK(modwerk_status_key(YES, 0));                                 /* and takes its release */
     modwerk_test_live_fx[9] = 27, modwerk_test_live_fx[10] = 29; ++dl_selection_completed; memory_tick();
     CHECK(open == CLOSED);                                             /* two slots changed: a Part change */
     ++modwerk_boot_accepted; memory_tick();
-    CHECK(open == MEMORY);
+    CHECK(open == MEMORY && budget_slot == -1);                        /* over USB: memory only, no slot */
     for (unsigned i = 0; i < 90u; ++i) memory_tick();
     CHECK(open == CLOSED);                                             /* gone after a second and a half */
     /* PROJ > MODWERK's other rows: each opens its page; NO closes it. */

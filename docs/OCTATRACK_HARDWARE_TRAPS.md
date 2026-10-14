@@ -377,6 +377,21 @@ with `-fno-late-combine-instructions`. `sdk/runtime/m68k_codegen.py`
 refuses any C object, in the base and elemod builds, where an instruction
 steps an address register in its source and reuses it in its destination.
 
+**Stock copies a table entry; restoring the table is not enough.** A track
+bind (`0x4000bff0`) copies its machine type's renderer and start routine
+from the type tables (`0x400d6434[type]`, `0x400d6454[type]`) into two
+per-track slots (`0x400d61d0`, `0x400d61f0`), and every frame calls through
+the slots (`0x4000d43c`). A machine package patches the type table, so
+after it played, removing it put the table back but left the slots on its
+freed code: the unit kept running the removed module until the next install
+was copied over it, then crashed (vector 4 in pool code, beta run 2,
+finding 30, twin `025b3559`). The loader now calls
+`modwerk_machine_site_restored` whenever a site goes back to stock, and the
+Octatrack runtime puts slots that hold the removed entry back to the stock
+one. Any new site whose stock data is copied elsewhere needs the same
+follow-up; fill freed memory with illegal instructions on a dev twin to see
+such a leftover call at once instead of on a later install.
+
 ## The emulator and the tools
 
 What `ot_emu` does not show:

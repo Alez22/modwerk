@@ -199,19 +199,21 @@ extern uint8_t modwerk_test_live_fx[16];
 #endif
 extern volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
 static unsigned memory_left; /* ticks the box still shows */
+static int budget_slot = -1; /* the slot the pick put a module on; -1: an accept over USB (memory only) */
 static void memory_tick(void)
 {
     static uint32_t completed, accepted;
     static uint8_t before[16];
-    int loaded = modwerk_boot_accepted != accepted;
+    int over_usb = modwerk_boot_accepted != accepted, picked = 0;
     if (dl_selection_completed != completed) { /* a pick changes one slot; a Part change, usually many: no box then */
-        unsigned changed = 0, module = 0;
-        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, module |= (unsigned)fx_in(modwerk_fx_modules, LIVE[i]);
-        loaded |= changed == 1u && module;
+        unsigned changed = 0, module = 0, at = 0;
+        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, at = i, module |= (unsigned)fx_in(modwerk_fx_modules, LIVE[i]);
+        if (changed == 1u && module) picked = 1, budget_slot = (int)at;
     }
-    if (dl_selection_completed != completed || loaded) for (unsigned i = 0; i < 16u; ++i) before[i] = LIVE[i];
+    if (over_usb && !picked) budget_slot = -1;
+    if (dl_selection_completed != completed || over_usb) for (unsigned i = 0; i < 16u; ++i) before[i] = LIVE[i];
     completed = dl_selection_completed, accepted = modwerk_boot_accepted;
-    if (loaded && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
+    if ((picked || over_usb) && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
     if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
 }
 /* MODULE LOAD (owner, 12 October 2026: "load per module"): each installed module effect, with what its instances
@@ -229,7 +231,10 @@ int modwerk_status_key(int code, int pressed)
         return 0;
     }
     if (code == CUE) cue = pressed;
-    if (open == MEMORY && pressed) open = CLOSED; /* a popup: the key goes on to stock */
+    if (open == MEMORY && pressed) { /* a popup: YES only closes it (owner, 14 October 2026); any other key goes on to stock */
+        open = CLOSED;
+        if (code == YES) { taken = code; return 1; }
+    }
     if (pressed && (open == MISSING || open == MODULE_LOAD) && code != CUE && !(code == PROJ && cue)) { /* lists */
         unsigned *top = open == MISSING ? &missing_top : &modules_top, n = open == MISSING ? missing[3] : modules_count();
         if (code == UP && *top) --*top;
@@ -461,6 +466,20 @@ static void modules_page(unsigned char *frame)
     if (estimate) label(X0 + 4u, Y1 - 8u, "~ ESTIMATE");
     button(frame, X1 - 26u, Y1 - 10u, "YES");
 }
+/* A bar whose last `part` of `permille` is dotted: what one effect adds to what its core already holds. */
+static void share_bar(unsigned char *frame, unsigned x, unsigned y, unsigned w, unsigned h, uint32_t permille, uint32_t part)
+{
+    bar(frame, x, y, w, h, permille, 0);
+    uint32_t n = (w - 2u) * (permille < 1000u ? permille : 1000u) / 1000u, k = (w - 2u) * (part < permille ? part : permille) / 1000u;
+    for (unsigned px = x + 1u + n - k; px < x + 1u + n; ++px)
+        for (unsigned py = y + 1u; py + 2u <= y + h; ++py) if ((px + py) & 1u) fill(frame, px, py, px, py, 0);
+}
+static void plus(unsigned x, unsigned top, uint32_t permille)
+{
+    char t[8], *s = t;
+    *s++ = '+', s = number(s, (permille + 5u) / 10u), *s++ = '%', *s = 0;
+    label(x, top, t);
+}
 static void memory_box(unsigned char *frame)
 {
     static const char *const names[3] = {"T1-4", "T5-8", "POOL"};
@@ -471,6 +490,20 @@ static void memory_box(unsigned char *frame)
     surface[3] = (uint32_t)(uintptr_t)frame;
     fill(frame, 18u, 12u, 109u, 50u, 0);
     outline(frame, 18u, 12u, 109u, 50u);
+    struct modwerk_dsp_budget b;
+    if (budget_slot >= 0 && modwerk_dsp_budget((unsigned)budget_slot, &b)) { /* its core's DSP time and code memory */
+        char where[8] = {'T', (char)('1' + (budget_slot & 7)), ' ', 'F', 'X', (char)(budget_slot < 8 ? '1' : '2'), 0};
+        b.name[15] = 0;
+        for (char *c = b.name; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* as MISSING names them */
+        label(23u, 15u, b.name), label((unsigned)(105 - TEXT_WIDTH(FONT, -1, where)), 15u, where);
+        fill(frame, 18u, 22u, 109u, 22u, 1);
+        const uint32_t dsp = share(b.charge, b.allowance), dsp_part = share(b.effect_cycles, b.allowance),
+                       mem = share(b.words, b.arena), mem_part = share(b.effect_words, b.arena);
+        label(23u, 26u, "DSP"), share_bar(frame, 45u, 26u, 40, 6, dsp, dsp_part), plus(89u, 26u, dsp_part);
+        label(23u, 34u, "MEM"), share_bar(frame, 45u, 34u, 40, 6, mem, mem_part), plus(89u, 34u, mem_part);
+        label(23u, 42u, "POOL"), bar(frame, 45u, 42u, 40, 6, used[2], 0), percent(89u, 42u, used[2]);
+        return;
+    }
     label((unsigned)(64 - TEXT_WIDTH(FONT, -1, "MEMORY USED") / 2), 15u, "MEMORY USED");
     fill(frame, 18u, 22u, 109u, 22u, 1);
     for (unsigned i = 0; i < 3u; ++i) {
