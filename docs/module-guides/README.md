@@ -86,6 +86,16 @@ An entry fails once a named module is no longer active or nothing meets at a lis
 
 The gate does not prove runtime behaviour, DSP placement, cycles or hardware compatibility. `module:verify` and the qualification steps still cover those.
 
+### UI claims
+
+Build your module to work with everything else: that is the default. Two modules must not take the same key gesture or the same stock screen, because the musician would get whichever one runs first. Declare what yours takes in `compatibility.uiClaims` in `octamod.module.json`, and the gate compares it with every active module:
+
+- `key:HELD+PRESSED`: the keys held, in any order, then the key pressed or the encoder turned, for example `key:UP+TEMPO` or `key:CUE+LEVEL`. Add `@PAGE` when it only works on one page (`key:FUNC+LEFT@CHROMATIC`); without it, the gesture counts on every page. `TRACK` and `TRIG` stand for any track or trig key, `A`-`F` and `LEVEL` for turning an encoder. The contract lists every name.
+- `screen:NAME`: a stock window or page your module draws over or replaces, for example `screen:TEMPO`.
+- `[]` when it takes neither. What it adds through the base's FX list, machine list or menu rows is not a claim: the base shares those.
+
+New modules must declare it (`module:doctor` checks). If the clash with another module is deliberate, add that module to your `compatibility.conflicts`. The gate then accepts it, and the configurator never lets anyone choose both together.
+
 ### Events
 
 Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md), "Do not patch the shared sites: subscribe"). The Modwerk base owns every stock site that more than one module needs and shares it in one of four ways. The registry is `sdk/machines/octatrack/events.json`. `sdk/machines/octatrack/EVENTS.md` lists every entry with its prototype or record, what a result means, its order rule and where it runs. C modules include `sdk/machines/octatrack/include/modwerk_events.h`.
@@ -140,6 +150,7 @@ Each problem is one line naming the modules, the byte ranges and what each one p
 | `fx2 id: X and Y both claim 0x…` | Pick another chooser row (a free effect ID) |
 | `core-private Y`, `DSP data range`, `FX2 instance buffers` | Claim free words, or request a base-owned region |
 | `relation …` | Correct `compatibility.json`; every entry needs owner review |
+| `X (key:…) and Y (key:…) take the same key gesture` (or screen) | Change one so both work, or list the other module in `compatibility.conflicts` ([UI claims](#ui-claims)) |
 
 ## Performance
 
