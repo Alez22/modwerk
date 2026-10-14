@@ -26,6 +26,13 @@
   --accent-ink: #171722;
   --accent-soft: #353540;
   --accent-line: #626574;
+  /* Card footer: the stability grade by level, and the two report counts. Amber is kept for confirmed bugs. */
+  --grade-limited: #9db4d9;
+  --grade-in-use: #7ed3a0;
+  --grade-proven: #5fe0a8;
+  --grade-bug: #f0b95e;
+  --signal-reports: #7cc4f0;
+  --signal-waiting: #c4a5f2;
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23bebec9' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5l3 3 3-3'/%3E%3C/svg%3E");
   --mono: "SFMono-Regular", Consolas, monospace;
 }
@@ -196,19 +203,26 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
 .card-stat { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .card-stat.is-downloads { color: var(--muted); }
 .card-stats .module-works-count { font-size: 12px; }
-.card-proof { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; white-space: nowrap; }
-.card-proof-grade { display: inline-flex; flex: 1 1 0; align-items: center; gap: 6px; min-width: 0; }
+.card-proof { --lv: var(--muted); display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4; white-space: nowrap; }
+.card-proof[data-level="limited"] { --lv: var(--grade-limited); }
+.card-proof[data-level="in-use"] { --lv: var(--grade-in-use); }
+.card-proof[data-level="proven"] { --lv: var(--grade-proven); }
+.card-proof[data-level="reported"] { --lv: var(--grade-bug); }
+.card-proof[data-level="pending"] { --lv: var(--faint); }
+.card-proof-grade { display: inline-flex; flex: 1 1 0; align-items: center; gap: 5px; min-width: 0; color: var(--lv); font-weight: 500; }
 .card-proof-grade-label { overflow: hidden; text-overflow: ellipsis; }
-.card-proof-reports { display: inline-flex; flex: none; align-items: center; gap: 8px; }
-.card-proof-count { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
-.evidence-dot { width: 7px; height: 7px; border-radius: 50%; background: #8f8fa3; flex-shrink: 0; }
-.evidence-dot.is-proven { background: #7ed3a0; box-shadow: 0 0 6px #7ed3a066; }
-.evidence-dot.is-in-use { background: #7ed3a0; }
-.evidence-dot.is-reported { background: #d8b56f; }
-.evidence-dot.is-pending { background: transparent; border: 1px dashed #8f8fa3; }
-.card-proof label { display: inline-flex; flex: none; gap: 6px; align-items: center; cursor: pointer; margin-right: -8px; padding: 6px 8px; border: 1px solid transparent; border-radius: 5px; }
-.card-proof label:hover { background: var(--surface-hover); }
-.card-proof label:has(input:checked) { background: var(--accent-soft); color: #c1c7ff; }
+/* Three bars show how far up the ladder a module is: limited testing, regular use, widely used. */
+.grade-meter { display: inline-flex; flex: none; gap: 2px; }
+.grade-meter span { width: 7px; height: 4px; border-radius: 2px; background: #4a4a54; }
+.card-proof[data-level="limited"] .grade-meter span:nth-child(-n+1), .card-proof[data-level="in-use"] .grade-meter span:nth-child(-n+2), .card-proof[data-level="proven"] .grade-meter span { background: var(--lv); }
+.card-proof[data-level="pending"] .grade-meter span { background: none; outline: 1px dashed var(--lv); outline-offset: -1px; }
+.card-proof-reports { display: inline-flex; flex: none; align-items: center; gap: 6px; }
+.card-proof-count { display: inline-flex; align-items: center; gap: 4px; color: var(--cc); font-weight: 500; font-variant-numeric: tabular-nums; }
+.card-proof-count.is-review { --cc: var(--signal-reports); }
+.card-proof-count.is-waiting { --cc: var(--signal-waiting); }
+.card-proof label { display: inline-flex; flex: none; gap: 6px; align-items: center; cursor: pointer; margin-right: -8px; padding: 6px 8px; border: 1px solid var(--control-border); border-radius: 5px; color: var(--text-secondary); }
+.card-proof label:hover { border-color: var(--line-hover); background: var(--surface-hover); }
+.card-proof label:has(input:checked) { border-color: #505879; background: var(--accent-soft); color: #c1c7ff; }
 .card-proof label:has(input:disabled) { cursor: not-allowed; opacity: .5; }
 .card-proof input { accent-color: var(--accent); margin: 0; width: 13px; height: 13px; }
 @media (max-width: 600px) {
