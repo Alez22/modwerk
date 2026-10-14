@@ -130,7 +130,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "0.1.4 holds the dry signal at full level through MIX 95 so raising MIX no longer turns the track down (issue #607). The kernel matches its native oracle bit for bit on the ColdFire emulator; the echo path, feedback law and self-oscillation headroom are unchanged. Current-build hardware and chip timing are not measured; the earlier hardware freeze at seven instances remains open. See TESTING.md.",
+    "summary": "0.1.4 holds the dry signal at full level through MIX 95 so raising MIX no longer turns the track down (issue #607). The kernel matches its native oracle bit for bit on the ColdFire emulator; the echo path, feedback law and self-oscillation headroom are unchanged. The pinned hardware record reports six instances running and a seventh freezing the unit; that limit remains open, and no hardware run, chip timing or listening test exists for 0.1.4. See TESTING.md.",
     "hardwareStatus": "untested",
     "evidenceRevision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
     "gates": [
