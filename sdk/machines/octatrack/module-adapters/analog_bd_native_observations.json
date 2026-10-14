@@ -1,11 +1,11 @@
 {
  "schema": "modwerk-private-ab-native-observations-v1",
  "mainSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e",
- "receiptSha256": "cd50fc967953f82f9456d711cac9afbb86342404fe4e2c990e2fcc89ad282d09",
+ "receiptSha256": "065c24761285dcabbaa1e3318a632da1e297373b29897acee5b421a0f74ad050",
  "sourcePins": {
   "sdk/machines/octatrack/module-adapters/analog_bd_composition.py": "81e274ac0d427cbd0c82731e0535a6f846b8a1b818ae44d8faef4f90cdff29c6",
   "sdk/machines/octatrack/module-adapters/analog_bd_runtime.py": "c3e3f51076e9ae3579e2e00d96d21eee87a2d12afa4ae69fb7067da3399fa17a",
-  "sdk/machines/octatrack/module-adapters/analog_bd_write_lease.py": "dc984d8e145ab3e97fdc2ec8a84a492604952cdcd7a006ecaabe98ddc0a374a1",
+  "sdk/machines/octatrack/module-adapters/analog_bd_write_lease.py": "ff7a9f553de1a2ee44793c6cfabac4a95c9c21c62a462ced15e5c509b5364e0b",
   "sdk/machines/octatrack/module-adapters/machine_composition.py": "4cfa5ae146e1b93c16b478af5882072e3ddefb1bd32960dde577a3f1cb5b3d3e",
   "sdk/machines/octatrack/module-adapters/stock_hook_write_lease.h": "ab14679a5faae84ef47d1ca37e46b3171da45252d12310e0b4458228be8334be",
   "sdk/machines/octatrack/module-adapters/analog_bd_write_lease_fixture.c": "dd3714d8c5f493a7507ff72575e48e0a67376806daef726a2a23845a999c5e08",
@@ -1004,7 +1004,7 @@
    "fixture": "lease",
    "variant": "0-lease",
    "origin": 1191706624,
-   "imageSha256": "68bfbafba917b4dec5de1d9859d956c856da192c6d3f4877582b0ac8801db9fe",
+   "imageSha256": "92c61f285332991073e43c17b8a5f867604faa4ab3d9934901205debd51c6932",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1030,7 +1030,7 @@
    "fixture": "lease",
    "variant": "0-lease",
    "origin": 1192230912,
-   "imageSha256": "b0c528b00f7cf0fa9298df784610383a78812c5a0699317234bd28fc9a50459e",
+   "imageSha256": "597f8b3839879d0ad50d150ef0b758c9acc9f9a7c9557c7ce565546c101e9d41",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1056,7 +1056,7 @@
    "fixture": "lease",
    "variant": "1-lease",
    "origin": 1191706624,
-   "imageSha256": "7ec9acbc9e0784eaf0845ed02dde031a97bd57132e258e8997110af60229dba4",
+   "imageSha256": "79b3c9d512a7db11af4abb71542f7e3625c3605b03e02e567bb8a1683c05bb43",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1082,7 +1082,7 @@
    "fixture": "lease",
    "variant": "1-lease",
    "origin": 1192230912,
-   "imageSha256": "815d8966b453653a20cc03cc2a999a94f17f371093facc2e2b8585397cd75cce",
+   "imageSha256": "2dbe3c49d68e7aea0ab2c5e232568db3a71468d2c8f29c3f5b117b7dae9fb731",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1108,7 +1108,7 @@
    "fixture": "lease",
    "variant": "2-lease",
    "origin": 1191706624,
-   "imageSha256": "b0b638a3fc213db18d7da4e87acaed0bf18a4518142111c8371829c6c1348425",
+   "imageSha256": "aca858e1fa7cd47d0d1e0b36e27254648d6a310ecd4e3213ecdef40f83deaef1",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1134,7 +1134,7 @@
    "fixture": "lease",
    "variant": "2-lease",
    "origin": 1192230912,
-   "imageSha256": "65073126da5ab007ded1f5710854786f7a7ed35230ccdd435e16de55498d3f4a",
+   "imageSha256": "ef8e0613b25c8170c5faadc97c03b9c0194248729fcc7977d79c221607751cd5",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1160,7 +1160,7 @@
    "fixture": "lease",
    "variant": "3-lease",
    "origin": 1191706624,
-   "imageSha256": "9c5815ce0ba57f917ebf17a80d2bb557f94fb67eea361d01fdc15d261f16fb51",
+   "imageSha256": "4b385c28dc8cf2410bdaade8bb78c8ab5b63c17b29a7ec1ae785fc54efc84d98",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1186,7 +1186,7 @@
    "fixture": "lease",
    "variant": "3-lease",
    "origin": 1192230912,
-   "imageSha256": "af9935f5bdf756a5e9605b505e1af23495d70699cfae2e33a4d3ee415961088a",
+   "imageSha256": "95c407b493a88a8f61e56ae82b299050c50dbcbfdafc2e1d15c96f29bec79c7a",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1212,7 +1212,7 @@
    "fixture": "lease",
    "variant": "4-lease",
    "origin": 1191706624,
-   "imageSha256": "1ad618fcf8d7e1ac33af930157a30e33b4a410c0f96661bf437b562ee81808cf",
+   "imageSha256": "ff3e3e1fed8e4914e12df0e80ec7e8230e086a91716edcc8a4dafab4bd96a11d",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1238,7 +1238,7 @@
    "fixture": "lease",
    "variant": "4-lease",
    "origin": 1192230912,
-   "imageSha256": "1fd421408088f61da1db2c9d83185f2779ef9a74989d61e9a33fc158b3eb4ba8",
+   "imageSha256": "dc7e81c8020cb7b04fea9144a983b733561ad09122a05d10c279c3038bcc9b8e",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1264,7 +1264,7 @@
    "fixture": "lease",
    "variant": "5-lease",
    "origin": 1191706624,
-   "imageSha256": "8df5f215311bb15486e1a64f9be93f064e90ab4b065c9d87f484c7afed69261d",
+   "imageSha256": "5f51a1c0204d8acc571bc6892d056306c3db03b1b5ed2f3fd039c7e52d779bd3",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1290,7 +1290,7 @@
    "fixture": "lease",
    "variant": "5-lease",
    "origin": 1192230912,
-   "imageSha256": "78ccbd1fa71ec5280f346aa4ca78c43c294e89866a6599b3263f426e349a320d",
+   "imageSha256": "a16db853acb6cfa5a7d76e82c00a415247f8445cbabdb3c7d13006fa0defe5f7",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1316,7 +1316,7 @@
    "fixture": "lease",
    "variant": "6-lease",
    "origin": 1191706624,
-   "imageSha256": "97167f1183c1e7d70944cbd37ec857e5d29a711224fa852ceba6aec437e7e396",
+   "imageSha256": "d32145a21f3b4b3daf5c6dfc602a51277d01f7aa76e5b071cdff1c0e429b78c1",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1342,7 +1342,7 @@
    "fixture": "lease",
    "variant": "6-lease",
    "origin": 1192230912,
-   "imageSha256": "006830d783b2cbbeb44d6e377e09f406699c0b4925bb82e83b47955c7058bcad",
+   "imageSha256": "d49626aed348c4098c681248785dd788e4127addfb819b92dfcabc18cf5c9c70",
    "observed": {
     "origin": 1192230912,
     "calls": 16,
@@ -1368,7 +1368,7 @@
    "fixture": "lease",
    "variant": "7-lease",
    "origin": 1191706624,
-   "imageSha256": "584489a5f1965a49070bc3b45eab8b9e8e6da1d0205789a8dec8422cb777ca31",
+   "imageSha256": "d4e393fd2e57dbed30e41ac38745c14eab6659ccced89e45a5e12edd95569ca8",
    "observed": {
     "origin": 1191706624,
     "calls": 16,
@@ -1394,7 +1394,7 @@
    "fixture": "lease",
    "variant": "7-lease",
    "origin": 1192230912,
-   "imageSha256": "75ca4dd20fa66966dea07cf4ae49ab194cde0a9dc1473e46ceba3bec07e82570",
+   "imageSha256": "a2ce8b3c1f208dd214813f312b499be258945a78e9fa3afcd77920552002d09c",
    "observed": {
     "origin": 1192230912,
     "calls": 16,

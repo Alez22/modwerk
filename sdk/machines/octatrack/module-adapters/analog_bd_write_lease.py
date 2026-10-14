@@ -28,7 +28,12 @@ def source(original):
         raise ValueError('Reviewed controller write-lease ABI changed.')
     text = analog_bd_runtime.control_source(original)
     seams = (
-        ('#include "engine.h"', '#include "engine.h"\n#include "stock_hook_write_lease.h"'),
+        ('#include "engine.h"', '''#include "engine.h"
+#include "stock_hook_write_lease.h"
+/* One End call site: the backend binds exactly one reviewed End return PC,
+ * and GCC otherwise duplicates the tail call into each render branch. */
+static int __attribute__((noinline)) ab_lease_end(struct mw_controller_write_lease *lease)
+{ return modwerk_controller_write_end(lease)==1 ? 0 : -1; }'''),
         ('    ++ab_render_calls;', '''    struct mw_controller_write_lease lease;
     /* Without an owned lease the frame still needs this track's record: the
      * stock silent source (kinds 5..7) writes an empty header and zero samples
@@ -41,7 +46,7 @@ def source(original):
          '''        U32(0x80001c80u)=(uint32_t)(uintptr_t)(cursor+4+2*n);
         /* No stock call, wait, redraw or notification occurs within this
          * bounded producer span. Never replay writes after a failed End. */
-        return modwerk_controller_write_end(&lease)==1 ? 0 : -1;'''),
+        return ab_lease_end(&lease);'''),
     )
     for before, after in seams:
         if text.count(before) != 1:
