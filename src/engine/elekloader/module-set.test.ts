@@ -3,21 +3,28 @@ import { describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
-import { BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, USB_MODULE_IDS } from './module-set'
+import { BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
 
 const file = (path: string) => new Uint8Array(readFileSync(new URL('../../../public/' + path, import.meta.url)))
 const load = async (entry: { path: string }) => file(entry.path)
 const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
-  it('publishes each listed module as its manifest says: DSP effects with no stock-code sites', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus'])
+  it('publishes each listed module with its checked runtime identity, ABI and record counts', () => {
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch'])
     for (const entry of manifest.packages) {
-      const data = file(entry.path), view = new DataView(data.buffer)
+      const data = file(entry.path), view = new DataView(data.buffer), abi = view.getUint16(4)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)
       expect([data.length, sha(data), view.getUint32(28).toString(16).padStart(8, '0')]).toEqual([entry.bytes, entry.sha256, runtimeId(entry.id)])
-      expect([String.fromCharCode(...data.subarray(0, 4)), view.getUint16(4), view.getUint32(20), view.getUint32(24)]).toEqual(['MWRM', 6, 0, 0]) // no hooks, no sites
+      expect(String.fromCharCode(...data.subarray(0, 4))).toBe('MWRM')
+      if (!('octabam' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([6, 0, 0]) // ABI 6 DSP effects carry no stock-code bytes
+      expect([entry.abi, entry.sites, entry.copies, entry.fills]).toEqual([abi, view.getUint32(24), abi >= 7 ? view.getUint32(68) : 0, abi === 8 ? view.getUint32(72) : 0])
+      expect(view.getUint32(20) > 0).toBe((entry.features & 128) !== 0) // only a site-event subscriber has hook words
     }
+  })
+  it('lets a package subscribe to at most the base’s site events', () => {
+    const events = JSON.parse(readFileSync(new URL('../../../sdk/machines/octatrack/events.json', import.meta.url), 'utf8')).events
+    expect(SITE_EVENTS).toBe(events.length)
   })
   it('names a module by the first four bytes of the SHA-256 of its catalogue id, and removes it with an empty package', () => {
     expect(runtimeId('everb')).toBe('873d83cc')
@@ -55,6 +62,29 @@ describe('preparing a module set', () => {
   it('refuses what the base cannot do yet, before anything is sent', async () => {
     await expect(prepareModuleSet({ name: 'Set', moduleIds: ['everb', 'tapeecho'] }, empty, load)).rejects.toThrow(ModuleSetError)
     await expect(prepareModuleSet({ name: 'Set', moduleIds: [], removedStockFx: ['DARK REV'] }, empty, load)).rejects.toThrow(/stock effects/)
+  })
+  it('preflights each package’s actual requirements and composes every published package on a capable base', async () => {
+    const target = { name: 'All published', moduleIds: USB_MODULE_IDS }, fetched = vi.fn(load)
+    const events = { abi: 8, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+    await expect(prepareModuleSet(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
+    await expect(prepareModuleSet(target, empty, fetched, { ...events, features: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired) // Repitch subscribes
+    await expect(prepareModuleSet(target, empty, fetched, { ...events, abi: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired)
+    await expect(prepareModuleSet(target, empty, fetched, { ...events, maxSites: 1 })).rejects.toBeInstanceOf(BaseUpdateRequired)
+    expect(fetched).not.toHaveBeenCalled()
+    const result = await prepareModuleSet(target, empty, fetched, events)
+    expect(result.changes.map(change => change.module)).toEqual(manifest.packages.map(entry => entry.name))
+    expect(result.changes.every(change => change.undo?.length === 32)).toBe(true)
+  })
+  it('refuses hook words a subscriber’s manifest does not declare, or more than the base dispatches', async () => {
+    const entry = manifest.packages.find(item => item.id === 'repitch')!, data = file(entry.path)
+    const events = { abi: 8, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+    const undeclared = createRuntimeCatalogue({ packages: [{ ...entry, features: entry.features & ~128 }] })
+    await expect(undeclared.prepare({ name: 'Set', moduleIds: ['repitch'] }, empty, load, events)).rejects.toThrow('inconsistent')
+    const core = data.slice(), view = new DataView(core.buffer)
+    view.setUint32(76, view.getUint32(76 + 4 * 4) & 0xffffff) // a core handler instead of the subscription
+    view.setUint32(76 + 4 * 4, 0xffffffff)
+    const moved = createRuntimeCatalogue({ packages: [{ ...entry, bytes: core.length, sha256: sha(core) }] })
+    await expect(moved.prepare({ name: 'Set', moduleIds: ['repitch'] }, empty, async () => core, events)).rejects.toThrow('inconsistent')
   })
   it('fetches the site’s copy and refuses one that did not arrive intact', async () => {
     const entry = manifest.packages[0], data = file(entry.path)
