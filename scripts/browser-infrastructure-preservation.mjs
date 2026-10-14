@@ -95,12 +95,13 @@ function hasDuplicateKeys(source) {
 // Release import/stamping changes only provenance already excluded by retained
 // evidence. Pin all package contents and qualification fields to the actual
 // validated Git bytes; derived manifest hashes must match the live files. Another
-// module's own release may also add or change its rows in these shared packages:
-// they are not Tape Echo inputs, so the comparison ignores them exactly as the
+// module's own release may also add or change its rows in these shared packages
+// and in the USB runtime-package manifest (Tape Echo has no row there): they are
+// not Tape Echo inputs, so the comparison ignores them exactly as the
 // retained-evidence comparison does, and every other byte must still match.
-async function publicationInputs(root, validatedCommit, validated, current, document) {
+async function publicationInputs(root, validatedCommit, validated, current, document, accepted = new Map()) {
   const result = { ...current }, head = git(root, 'rev-parse', 'HEAD').toString().trim(), others = await otherModuleIds(root, document, validatedCommit)
-  for (const name of [...PACKAGE_FILES, 'module-build.json', 'analog-bd-composition-proofs.json']) {
+  for (const name of [...PACKAGE_FILES, 'module-build.json', 'analog-bd-composition-proofs.json', 'octatrack-module-packages.json']) {
     const path = 'src/engine/assets/' + name
     if (current[path] === validated[path]) continue
     if (!current[path] || !validated[path]) fail()
@@ -118,11 +119,11 @@ async function publicationInputs(root, validatedCommit, validated, current, docu
       // for a pure provenance stamp; only another module's rows may reorder them.
       const expectedLine = /^ {2}"sourceCommit": (null|"[a-f0-9]{40}"),$/m.exec(expectedBytes.toString('utf8'))?.[0]
       const sourceLine = '  "sourceCommit": ' + JSON.stringify(head) + ','
-      if (expectedLine && liveBytes.toString('utf8').replace(sourceLine, expectedLine) === expectedBytes.toString('utf8')) { result[path] = validated[path]; continue }
+      if (expectedLine && liveBytes.toString('utf8').replace(sourceLine, expectedLine) === expectedBytes.toString('utf8')) { accepted.set(path, current[path]); result[path] = validated[path]; continue }
       if (hasDuplicateKeys(liveBytes.toString('utf8'))) fail()
     }
     if (same(liveBytes) !== same(expectedBytes)) fail()
-    result[path] = validated[path]
+    accepted.set(path, current[path]); result[path] = validated[path]
   }
   return sorted(result)
 }
@@ -153,7 +154,7 @@ export async function validateBrowserPreservationBinding(root, approvedRef, docu
     git(root, 'merge-base', '--is-ancestor', record.approvedMain, approvedRef)
     git(root, 'merge-base', '--is-ancestor', record.approvedMain, record.validatedCommit)
     git(root, 'merge-base', '--is-ancestor', record.validatedCommit, 'HEAD')
-    const before = await browserProtectedInputs(root, record.approvedMain), validated = await browserProtectedInputs(root, record.validatedCommit), current = await publicationInputs(root, record.validatedCommit, validated, await browserProtectedInputs(root), document)
+    const accepted = new Map(), before = await browserProtectedInputs(root, record.approvedMain), validated = await browserProtectedInputs(root, record.validatedCommit), current = await publicationInputs(root, record.validatedCommit, validated, await browserProtectedInputs(root), document, accepted)
     if (!object(record.protectedInputHashes) || Object.values(record.protectedInputHashes).some(value => !hash(value)) || !isDeepStrictEqual(sorted(record.protectedInputHashes), current) || !isDeepStrictEqual(validated, current) || record.protectedInputsSha256 !== browserProtectedInputsSha256(current) || record.approvedProtectedInputsSha256 !== browserProtectedInputsSha256(before) || !keys(record.changes, allowed)) fail()
     const changed = [...new Set([...Object.keys(before), ...Object.keys(current)])].filter(path => before[path] !== current[path]).sort()
     if (!isDeepStrictEqual(changed, allowed)) fail()
@@ -161,8 +162,9 @@ export async function validateBrowserPreservationBinding(root, approvedRef, docu
     if (sha(await fixedBytes(root, BROWSER_PARITY_RUNNER)) !== record.proof.runnerSha256 || sha(git(root, 'show', record.validatedCommit + ':' + BROWSER_PARITY_RUNNER)) !== record.proof.runnerSha256 || sha(reportBytes) !== record.proof.reportSha256) fail()
     parity(canonicalJson(reportBytes), record)
     return { matchesFile(beforeBytes, afterBytes, path) {
-      const change = record.changes[path]
-      return !!change && (beforeBytes ? sha(beforeBytes) : null) === change.before && (afterBytes ? sha(afterBytes) : null) === change.after
+      // The live bytes of a shared file publicationInputs accepted (another module's rows) also match.
+      const change = record.changes[path], after = afterBytes ? sha(afterBytes) : null
+      return !!change && (beforeBytes ? sha(beforeBytes) : null) === change.before && (after === change.after || accepted.has(path) && after === accepted.get(path))
     } }
   } catch { fail() }
 }
