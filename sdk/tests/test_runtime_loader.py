@@ -192,10 +192,16 @@ class SiteEventTests(unittest.TestCase):
             for d in module.detours:
                 for at, site in reg['sites'].items():
                     if d.site < at + site['length'] and at < d.site + max(d.pad_to or 6, d.expect.length):
-                        self.assertEqual((d.site, d.pad_to, d.expect.length, d.expect.sha256), (at, site['length'], site['length'], site['guard']),
-                                         '%s %s' % (module.name, d.symbol))
+                        kind = next(e['kind'] for e in reg['events'] if e['site'] == at)
+                        if kind == 'take':  # a taker's detour starts on the site and covers it; the base keeps the guard
+                            self.assertTrue(d.site == at and max(d.pad_to or 6, d.expect.length) >= site['length'],
+                                            '%s %s' % (module.name, d.symbol))
+                        else:
+                            self.assertEqual((d.site, d.pad_to, d.expect.length, d.expect.sha256), (at, site['length'], site['length'], site['guard']),
+                                             '%s %s' % (module.name, d.symbol))
                         met.add((module.name, d.symbol))
-        self.assertTrue({('repitch', 'rate_hook'), ('mute-modes', 'fresh_bind'), ('poly8', 'mr_rate_hook'), ('poly8', 'mr_stop_voice')} <= met)
+        self.assertTrue({('repitch', 'rate_hook'), ('mute-modes', 'fresh_bind'), ('poly8', 'mr_rate_hook'), ('poly8', 'mr_stop_voice'),
+                         ('poly8', 'mr_note_on'), ('synth', 'po_mon'), ('quantizer', 'qz_boot'), ('synth', 'qz_boot')} <= met)
 
     def test_raised_events_have_a_base_entry_and_no_site(self):
         reg = events.load()
@@ -204,7 +210,8 @@ class SiteEventTests(unittest.TestCase):
         self.assertNotIn(None, reg['sites'])
         header = events.loader(reg)
         self.assertIn('{0x00000000u, 0u}', header)  # no span: the loader's site checks never meet it
-        self.assertIn('#define RUNTIME_SITE_EVENT_RAISES { 0, 0, 0, (uintptr_t)modwerk_raise_ev_mute_keep }', header)
+        self.assertIn('#define RUNTIME_SITE_EVENT_RAISES { 0, 0, 0, (uintptr_t)modwerk_raise_ev_mute_keep%s }'
+                      % (', 0' * (len(reg['events']) - 4)), header)
         self.assertIn('modwerk_ev_mute_keep *raise_ev_mute_keep', events.sdk(reg))
         asm = shutil.which('m68k-elf-as')
         if asm:
@@ -215,7 +222,7 @@ class SiteEventTests(unittest.TestCase):
             self.assertTrue(rows['modwerk_events_code'] <= rows['modwerk_raise_ev_mute_keep'] < rows['modwerk_events_code_end'])
         doc = json.loads((EVENTS_DIR / 'events.json').read_text())
         for change in (dict(results='notify'), dict(args=['site+4']), dict(length=8)):
-            bad = json.loads(json.dumps(doc)); bad['events'][-1].update(change)
+            bad = json.loads(json.dumps(doc)); next(e for e in bad['events'] if e['event'] == 'ev_mute_keep').update(change)
             with tempfile.TemporaryDirectory() as temp, self.subTest(change), self.assertRaises(ValueError):
                 Path(temp, 'events.json').write_text(json.dumps(bad)); events.load(Path(temp, 'events.json'))
         self.assertEqual(build.subscribe([build.NONE] * 4, [], {'raise_ev_mute_keep': 0x40}, raises=['ev_mute_keep']),

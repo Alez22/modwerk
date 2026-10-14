@@ -312,23 +312,42 @@ def site_events():
 
 
 def runtime_declaration(folder):
-    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}.
-    With it the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
-    `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out. A core
+    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}],
+    "contribute": [{"to", "order", "data", "replaces"}], "raise": [event]}. With it the package subscribes or contributes
+    (needs a base with those events and tables) and its units assemble with MODWERK_EVENTS defined. `replaces` names what
+    its native octabam build patches there instead, which the package leaves out: a detour's symbol, or (a list for a
+    take event or a table) detour symbols and 0x addresses of pokes, symbol references and table references. A core
     event (module_tick, module_draw, module_key, module_enc) takes {"event", "fn"} alone. `raise` names events with no
     site that the module raises: its zero word raise_<event> receives the base's entry at install (RUNTIME_RAISE)."""
     path = Path(folder) / 'runtime.json'
     if not path.is_file():
         return None
     doc = json.loads(path.read_text())
-    entry = lambda e: (set(e) == {'event', 'fn'} if e.get('event') in HANDLERS else
-                       not set(e) - {'event', 'fn', 'order', 'replaces'} and {'event', 'fn', 'order'} <= set(e))
-    if (doc.get('schema') != 1 or not {'schema', 'subscribe'} <= set(doc) <= {'schema', 'subscribe', 'raise'}
-            or not doc['subscribe'] or not all(isinstance(e, dict) and entry(e) for e in doc['subscribe'])
+    replaces = lambda e: 'replaces' not in e or isinstance(e['replaces'], str) or (
+        isinstance(e['replaces'], list) and e['replaces'] and all(isinstance(r, str) for r in e['replaces']))
+    entry = lambda e: isinstance(e, dict) and (set(e) == {'event', 'fn'} if e.get('event') in HANDLERS else
+                                               not set(e) - {'event', 'fn', 'order', 'replaces'}
+                                               and {'event', 'fn', 'order'} <= set(e) and replaces(e))
+    contribution = lambda e: (isinstance(e, dict) and not set(e) - {'to', 'data', 'order', 'replaces'}
+                              and {'to', 'data', 'order'} <= set(e) and replaces(e))
+    if (doc.get('schema') != 1 or not {'schema'} < set(doc) <= {'schema', 'subscribe', 'contribute', 'raise'}
+            or not isinstance(doc.get('subscribe', []), list) or not isinstance(doc.get('contribute', []), list)
+            or not doc.get('subscribe', []) + doc.get('contribute', [])
+            or not all(entry(e) for e in doc.get('subscribe', []))
+            or not all(contribution(e) for e in doc.get('contribute', []))
             or not isinstance(doc.get('raise', []), list) or not all(isinstance(e, str) for e in doc.get('raise', []))
             or len(set(doc.get('raise', []))) != len(doc.get('raise', []))):
-        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}' % path)
+        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], '
+                         '"contribute": [{"to", "order", "data", "replaces"}], "raise": [event]}' % path)
+    doc.setdefault('subscribe', [])
     return doc
+
+
+def entries(declared):
+    """A runtime declaration's subscriptions and contributions as hook entries {event, fn, order, replaces}."""
+    return list(declared.get('subscribe', [])) + [dict(event=c['to'], fn=c['data'], order=c['order'],
+                                                       **({'replaces': c['replaces']} if 'replaces' in c else {}))
+                                                  for c in declared.get('contribute', [])]
 
 
 RAISE = 255  # loader.h RUNTIME_RAISE: on a raised event's word, the offset of the zero slot for the base's entry
@@ -336,14 +355,15 @@ RAISE = 255  # loader.h RUNTIME_RAISE: on a raised event's word, the offset of t
 
 def subscribe(hooks, entries, symbols, registry=None, raises=()):
     """`hooks` (the core events' words) with each subscription's word after them, by the event's hook index: its order
-    (0-254) in the top byte and the handler's image offset below (loader.h). Each event in `raises` (a raised event,
-    no site) takes RAISE and the offset of the module's zero word raise_<event>, which the loader points at the base's
-    entry. Trailing empty words are left out."""
+    (0-254) in the top byte and the handler's (a take event's record's, a table's record's) image offset below
+    (loader.h). Each event in `raises` (a raised event, no site) takes RAISE and the offset of the module's zero word
+    raise_<event>, which the loader points at the base's entry. Trailing empty words are left out."""
     events = {e['event']: e for e in (registry or site_events())['events']}
     words = list(hooks) + [NONE] * (len(HANDLERS) + len(events) - len(hooks))
     for name in raises:
         e, slot = events.get(name), 'raise_' + name
-        if not e or e['site'] is not None or slot not in symbols or symbols[slot] & 1 or words[e['index']] != NONE:
+        if (not e or e['kind'] != 'call' or e['site'] is not None or slot not in symbols or symbols[slot] & 1
+                or words[e['index']] != NONE):
             raise ValueError('A raise names an event of sdk/machines/octatrack/events.json with no site, once, and the '
                              'module defines its zero word %s: %r' % (slot, name))
         words[e['index']] = RAISE << 24 | symbols[slot]
@@ -355,42 +375,85 @@ def subscribe(hooks, entries, symbols, registry=None, raises=()):
             continue
         e = events.get(entry['event'])
         if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < RAISE
-                or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000):
-            raise ValueError('A subscription names an event of sdk/machines/octatrack/events.json, one of the module\'s own '
-                             'functions and an order 0-255, one per event: %r' % (entry,))
+                or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000 or symbols[entry['fn']] & 1):
+            raise ValueError('A subscription names an event or table of sdk/machines/octatrack/events.json, one of the '
+                             'module\'s own even symbols and an order 0-254, one per event: %r' % (entry,))
         words[e['index']] = entry['order'] << 24 | symbols[entry['fn']]
     while words and words[-1] == NONE:
         words.pop()
     return words
 
 
-def replaced(detours, entries, registry=None):
-    """The detours a subscribing package keeps: each `replaces` must be a detour at its event's site with that
-    site's length and stock guard, and goes."""
+def _names(entry):
+    r = entry.get('replaces', [])
+    return [r] if isinstance(r, str) else list(r)
+
+
+def replaced(detours, entries, registry=None, pokes=None, refs=None):
+    """What a subscribing package keeps of its detours (and, given, its pokes and symbol references): each name a
+    subscription `replaces` goes. A call event's detour sits exactly on its site with that length and stock guard; a
+    take event's starts at its site and covers at least the site; a table's detour, poke or reference is one of the
+    sites the table owns. Returns the kept detours, or (detours, pokes, refs) when pokes or refs are given."""
     reg = registry or site_events()
     events = {e['event']: e for e in reg['events']}
-    names = {e['replaces']: events[e['event']] for e in entries if 'replaces' in e and e['event'] in events
-             and events[e['event']]['site'] is not None}
-    kept = [d for d in detours if d.symbol not in names]
+    owned = {s['site']: s for s in reg.get('owned', [])}
+    named = {}
+    for entry in entries:
+        e = events.get(entry['event'])
+        for name in _names(entry) if e else ():
+            if name in named:
+                raise ValueError('%s is replaced twice.' % name)
+            named[name] = e
+    used = set()
+    def check(name, site, length, expect, what):
+        e = named[name]
+        if e['kind'] == 'call':
+            if what != 'detour' or site != e['site'] or length != e['length'] or (
+                    stock_digest(expect) != (bytes.fromhex(reg['sites'][e['site']]['guard']), e['length'])):
+                raise ValueError('%s does not replace the detour at %s\'s site %#x exactly.' % (name, e['event'], e['site']))
+        elif e['kind'] == 'take':
+            if what != 'detour' or site != e['site'] or length < e['length']:
+                raise ValueError('%s does not start at %s\'s site %#x and cover it.' % (name, e['event'], e['site']))
+        elif not any(o['table'] == e['event'] and o['site'] <= site < o['site'] + o['length'] for o in owned.values()):
+            raise ValueError('%s at %#x is not a site %s owns.' % (name, site, e['event']))
+        used.add(name)
+    kept = []
     for d in detours:
-        e = names.get(d.symbol)
-        if e and (d.site != e['site'] or (d.pad_to or 6) != e['length'] or
-                  stock_digest(d.expect) != (bytes.fromhex(reg['sites'][e['site']]['guard']), e['length'])):
-            raise ValueError('%s does not replace the detour at %s\'s site %#x exactly.' % (d.symbol, e['event'], e['site']))
-    if len(detours) - len(kept) != len(names):
-        raise ValueError('A runtime.json replaces a detour the module does not have.')
-    return kept
+        if d.symbol in named:
+            check(d.symbol, d.site, d.pad_to or 6, d.expect, 'detour')
+        else:
+            kept.append(d)
+    kept_pokes = []
+    for p in pokes or ():
+        name = '%#010x' % p.addr
+        if name in named:
+            check(name, p.addr, len(p.write), p.expect, 'poke')
+        else:
+            kept_pokes.append(p)
+    kept_refs = []
+    for r in refs or ():
+        name = '%#010x' % r.addr
+        if name in named:
+            check(name, r.addr, 4, None, 'ref')
+        else:
+            kept_refs.append(r)
+    missing = set(named) - used
+    if missing:
+        raise ValueError('A runtime.json replaces what the module does not have: ' + ', '.join(sorted(missing)))
+    return (kept, kept_pokes, kept_refs) if pokes is not None or refs is not None else kept
 
 
 def unevented(sites, copies=(), registry=None):
-    """Refuse a write or stock copy on a base-owned event's bytes, naming the event: subscribe to it instead."""
-    events = (registry or site_events())['events']
+    """Refuse a write or stock copy on a base-owned event's or table's bytes, naming it: subscribe or contribute."""
+    reg = registry or site_events()
     spans = [(s[0], max(len(s[2]), s[5] if len(s) > 5 else 0)) for s in sites] + [(c[1], c[2]) for c in copies]
+    owned = [(e['site'], e['length'], e['event'], 'subscribe to') for e in reg['events'] if e['site'] is not None]
+    owned += [(o['site'], o['length'], o['table'], 'contribute to') for o in reg.get('owned', [])]
     for address, n in spans:
-        for e in events:
-            if e['site'] is not None and address < e['site'] + e['length'] and e['site'] < address + n:
-                raise ValueError('The write at %#x meets %s\'s site %#x, which the base owns: subscribe to %s.'
-                                 % (address, e['event'], e['site'], e['event']))
+        for at, length, name, how in owned:
+            if address < at + length and at < address + n:
+                raise ValueError('The write at %#x meets %s\'s site %#x, which the base owns: %s %s.'
+                                 % (address, name, at, how, name))
 
 
 def stock_digest(expect):
@@ -443,7 +506,7 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
             raise ValueError('%s names %s, which its units do not define.' % (name, name_))
         return struct.pack('>I', symbols[name_] + addend)
     sites = []
-    for d in replaced(m.detours, declared['subscribe']) if declared else m.detours:
+    for d in replaced(m.detours, entries(declared)) if declared else m.detours:
         n = d.pad_to or 6
         if d.kind not in OPCODES or d.target is not None or n < 6 or n % 2:
             raise ValueError('Detour at %#x: only jmp, jsr or lea to the module\'s own symbol.' % d.site)
@@ -460,7 +523,7 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
               for unit in m.linked for c in getattr(unit, 'stock_copies', ())]
     if declared:
         unevented(sites, copies)
-        hooks[:] = subscribe([NONE] * len(HANDLERS), declared['subscribe'], symbols, raises=declared.get('raise', ()))
+        hooks[:] = subscribe([NONE] * len(HANDLERS), entries(declared), symbols, raises=declared.get('raise', ()))
     return image, bss, offsets, sites, copies
 
 
@@ -656,6 +719,166 @@ def octabam_group(args):
                        title=args.name or 'Machines', layout=args.layout, copies=copies, fills=fills, abi=8, flags=4)
 
 
+def octabam_machine(args):
+    """One catalogue machine module as an independent ABI 8 package: what it shares with other modules goes through
+    the base's events and tables (its runtime.json, or its machine port in module-adapters/machine-ports.json), so it
+    installs alone or beside any other module. No group metadata, no composition, no other member."""
+    sys.path.insert(0, str(args.upstream.expanduser().resolve()))
+    from elekloader.sdk import octabam as port
+    sdk = Path(__file__).resolve().parents[2] / 'octabam'
+    adapters = Path(__file__).resolve().parents[2] / 'machines/octatrack/module-adapters'
+    sys.path.insert(0, str(adapters))
+    import machine_ports
+    ob = port.Octabam(str(sdk))
+    if args.octabam_machine not in ob.modules or not machine_ports.declaration(args.octabam_machine):
+        raise ValueError('%s is no catalogue module with a runtime.json or machine port.' % args.octabam_machine)
+    with tempfile.TemporaryDirectory() as folder:
+        work = Path(folder)
+        m, entries = machine_ports.effective(ob.modules[args.octabam_machine], sdk, work / 'port')
+        if m.requires or m.keeps or m.dram_regions or m.overrides or m.cf_patches or m.dsp or m.tables:
+            raise ValueError(m.name + ': the package still has a resource a runtime package cannot carry (requires, keeps, '
+                             'DRAM regions, overrides, caves, DSP code or a grown table).')
+        objects, units = [], []
+        for unit in m.linked:
+            if unit.include or unit.defsyms or unit.cave_addr is not None:
+                raise ValueError(unit.label + ': a generated or pinned unit.')
+            obj = work / ('unit%d.o' % len(objects))
+            subprocess.run([args.cross + 'as', '-mcpu=54455', '--defsym', 'MODWERK_EVENTS=1', unit.source, '-o', str(obj)],
+                           cwd=sdk, check=True, capture_output=True)
+            for name in unit.exports:
+                subprocess.run([args.cross + 'objcopy', '--globalize-symbol=' + name, str(obj)], check=True, capture_output=True)
+            objects.append(obj); units.append(unit)
+        wanted = machine_ports.imports(m.name)
+        if wanted:  # functions of the exact base it is built for (absolute: never relocated)
+            base = json.loads(args.base_symbols.read_text()) if args.base_symbols else {}
+            missing = [n for n in wanted if type(base.get(n)) is not int]
+            if missing:
+                raise ValueError('%s imports %s from its base: give --base-symbols of a base that exports them.'
+                                 % (m.name, ', '.join(missing)))
+            bound = work / 'imports.s'
+            bound.write_text(''.join('        .global %s\n        .set    %s, %#x\n' % (n, n, base[n]) for n in wanted))
+            objects.append(work / 'imports.o')
+            subprocess.run([args.cross + 'as', '-mcpu=54455', str(bound), '-o', str(objects[-1])], check=True, capture_output=True)
+        image, symbols, bss, offsets = link_units(objects, args.cross, 0, work, anywhere=True)
+    def pointer(symbol, addend=0):
+        if symbol not in symbols:
+            raise ValueError('%s names %s, which its units do not define.' % (m.name, symbol))
+        return struct.pack('>I', symbols[symbol] + addend)
+    sites = []
+    for d in m.detours:
+        n = d.pad_to or 6
+        if d.kind not in OPCODES or d.target is not None or n < 6 or n % 2:
+            raise ValueError('Detour at %#x: only jmp, jsr or lea to the module\'s own symbol.' % d.site)
+        digest, checked = stock_digest(d.expect)
+        sites.append((d.site, digest, OPCODES[d.kind] + pointer(d.symbol) + b'\x4e\x71' * ((n - 6) // 2), [2], 2 if d.kind == 'lea' else 0, checked))
+    for poke in m.pokes:
+        digest, checked = stock_digest(poke.expect)
+        sites.append((poke.addr, digest, bytes(poke.write), [], 0, checked))
+    for ref in m.symbol_refs:
+        digest, checked = stock_digest(ref.expect.to_bytes(4, 'big'))
+        sites.append((ref.addr, digest, pointer(ref.symbol, ref.addend), [0], 0, checked))
+    copies = [(symbols[c.symbol], c.span.address, c.span.length, stock_digest(c.span)[0]) for u in units for c in u.stock_copies]
+    unevented(sites, copies)
+    if args.stock:
+        check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
+    hooks = subscribe([NONE] * len(HANDLERS), entries, symbols)
+    # Authored runs that coincide with stock are reconstructed from the user's OS (a reviewed recipe), so the package
+    # passes the unchanged strict stock-free scans: module-adapters/machine-recipes.json, or a private capture.
+    import stock_recipe
+    inputs = machine_inputs(m.name, adapters)
+    fills = []
+    if args.capture_stock_recipe:
+        if not args.stock:
+            raise ValueError('A machine recipe capture needs the original stock OS.')
+        args.capture_stock_recipe.write_text(json.dumps(capture_machine_recipe(m.name, image, offsets, inputs, args), indent=1) + '\n')
+    recipes = json.loads((adapters / 'machine-recipes.json').read_text())['ports'] if (adapters / 'machine-recipes.json').is_file() else {}
+    if m.name in recipes and not args.capture_stock_recipe:
+        image, extra, fills = stock_recipe.apply(image, offsets, recipes[m.name], inputs)
+        copies += extra
+        unevented([], extra)
+    documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
+    title = args.name or next((d.get('name') for d in documents.get('modules', []) if d.get('id') == m.name), '')
+    data = package(image, bss, hooks, offsets, sites, name=m.name, hashed=True, title=title, layout=args.layout,
+                   copies=copies, fills=fills, abi=8)
+    if args.stock and m.name in recipes and not args.capture_stock_recipe:
+        from elekloader import formats
+        parsed, device, _ = formats.load(str(args.stock))
+        private_stock_free(data, args.stock, formats.main_image(parsed, device), args.upstream.expanduser().resolve())
+    return data
+
+
+def machine_inputs(name, adapters):
+    """The exact inputs a machine package's image comes from: its port's reviewed sources and the builders."""
+    import machine_ports
+    entry = machine_ports.port(name) or {}
+    root = Path(__file__).resolve().parents[3]
+    ports = {'vector': ('vector_runtime.py',), 'synth': ('fm_runtime.py',), 'quantizer': ('quantizer_runtime.py',),
+             'analog-bassdrum': ('analog_bd_runtime.py', 'analog_bd_write_lease.py', 'stock_hook_write_lease.h')}
+    files = [Path(__file__).resolve(), adapters / 'machine_ports.py', adapters / 'machine-ports.json'] + [
+        adapters / n for n in ports.get(name, ()) if (adapters / n).is_file()]
+    out = {str(f.relative_to(root)): hashlib.sha256(f.read_bytes()).hexdigest() for f in files}
+    out.update(entry.get('sources', {}))
+    return dict(sorted(out.items()))
+
+
+def capture_machine_recipe(name, image, relocations, inputs, args):
+    """Every authored run of a machine package's image that the strict scans would find in stock (16 bytes, or 12
+    non-zero), as copies of identical stock bytes no event or table site holds: hashes and addresses only."""
+    from elekloader import formats
+    parsed, device, _ = formats.load(str(args.stock))
+    main = formats.main_image(parsed, device)
+    folder = HERE.parents[1] / 'machines/octatrack/elekloader'
+    loaded = []
+    for module_name in ('module_packages', 'check_stock_free'):
+        spec = importlib.util.spec_from_file_location('capture_' + module_name, folder / (module_name + '.py'))
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); loaded.append(module)
+    packages, scanner = loaded
+    reg = site_events()
+    held = [(e['site'], e['length']) for e in reg['events'] if e['site'] is not None] + [(o['site'], o['length']) for o in reg['owned']]
+    base = json.loads((HERE.parents[2] / 'src/engine/assets/octatrack-base.elemod').read_text())  # the base's own sites
+    held += [(int(s['addr'], 16), s['len']) for s in base['sites']]
+    starts = {at for at, n in packages.runs(image, main).items() if n >= packages.LIMIT}
+    starts |= {o for _, o, _, _ in scanner.stock_runs({'sections': {'i': {'parts': [['hex', image.hex()]]}}},
+                                                       scanner.haystacks(args.stock, args.upstream.expanduser().resolve()), 16)}
+    words = set()
+    for r in relocations:
+        words |= set(range(r, r + 4))
+    copies, covered = [], set()
+    for start in sorted(starts):
+        if start in covered:
+            continue
+        # every stock occurrence of the run's first 12 bytes, longest match first, outside base-held sites
+        at, candidates = main.find(image[start:start + 12]), []
+        while at >= 0:
+            n = 12
+            while start + n < len(image) and at + n < len(main) and image[start + n] == main[at + n]:
+                n += 1
+            address = device.main_load + at
+            if not any(address < a + l and a < address + n for a, l in held):
+                candidates.append((n, -at, address))
+            at = main.find(image[start:start + 12], at + 1)
+        if not candidates:
+            raise ValueError('%s: the stock run at image offset %#x exists only under base-held sites.' % (name, start))
+        n, _, address = max(candidates)
+        offset = start
+        while offset < start + n:
+            if offset in words:
+                offset += 1
+                continue
+            end = offset
+            while end < start + n and end not in words and end - offset < 32:
+                end += 1
+            piece = image[offset:end]
+            if end - offset >= 2 and any(piece):
+                copies.append(dict(offset=offset, length=end - offset, address=address + (offset - start),
+                                   sha256=hashlib.sha256(piece).hexdigest(),
+                                   purpose='%s: authored bytes coinciding with stock (strict scan), reconstructed from the '
+                                           'identical bytes of the user\'s OS; review' % name))
+                covered |= set(range(offset, end))
+            offset = end
+    return dict(schema=1, imageSha256=hashlib.sha256(image).hexdigest(), sources=inputs, copies=copies, fills=[])
+
+
 def check_stock(sites, stock, upstream):
     """Each ABI 7 site's hash against the stock OS: a manifest that names the wrong bytes fails here, not on a unit."""
     sys.path.insert(0, str(upstream.expanduser().resolve()))
@@ -738,6 +961,8 @@ def main():
     parser.add_argument('--stock-recipe', type=Path, help='reviewed source/image hashes and explicit copies/fills')
     parser.add_argument('--capture-stock-recipe', type=Path, help='private hash-only recipe capture; no stock bytes')
     parser.add_argument('--octabam', help='a catalogue module from its Octabam manifest (ABI 7); a hybrid effect adds --dsp')
+    parser.add_argument('--octabam-machine', help='a catalogue machine module as one independent package: its shared sites '
+                                                  'through the base\'s events and tables (runtime.json or machine port)')
     parser.add_argument('--private-port', action='store_true', help='reviewed private standalone StockCopy preparation; requires original stock; never publishes')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     parser.add_argument('--subscribe', action='append', default=[], metavar='EVENT:FN:ORDER',
@@ -746,8 +971,9 @@ def main():
     private = private_standalone(args) if args.private_port else None
     if args.subscribe and not args.sources:
         parser.error('--subscribe is for C sources; an octabam module subscribes in its runtime.json, an elemod in its "subscribe".')
-    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) > 1 or not (args.sources or args.elemod or args.dsp)
-            and not args.octabam and not args.octabam_group or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group) and not args.upstream)):
+    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) + bool(args.octabam_machine) > 1
+            or not (args.sources or args.elemod or args.dsp) and not args.octabam and not args.octabam_group and not args.octabam_machine
+            or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group or args.octabam_machine) and not args.upstream)):
         parser.error('Give C sources, --elemod, --dsp, or --octabam with --upstream.')
     dsp, pkg = None, {}
     documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
@@ -762,6 +988,8 @@ def main():
                           args.name or named or pkg.get('key', ''), args.layout)
     if args.octabam_group:
         data = octabam_group(args)
+    elif args.octabam_machine:
+        data = octabam_machine(args)
     elif args.elemod:
         data = build_elemod(args)
     elif args.sources:

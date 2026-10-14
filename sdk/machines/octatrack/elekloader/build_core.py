@@ -34,7 +34,10 @@ VOLATILE_SERVICE_SOURCES = ('volatile_service.c', 'volatile_service.h')
 MACHINE_TRUST_SOURCES = ('machine_admission.c', 'machine_admission.h',
     'machine_admission_runtime.c', 'machine_declarations.c',
     'machine_lifetime.c', 'machine_lifetime.h', 'machine_parts.c', 'machine_parts.h',
-    'table_admission.c', 'table_admission.h', 'table_declarations.c', 'table_declarations.h')
+    'table_admission.c', 'table_admission.h', 'table_declarations.c', 'table_declarations.h',
+    'machine_contributors.c', 'machine_contributors.h')
+RETIREMENT_SOURCES = tuple('analog-bd-parts/' + n for n in ('analog_bd_part_restore.c', 'analog_bd_part_restore.h',
+                                                          'analog_bd_part_board.c', 'analog_bd_part_board.h'))
 
 
 def check_trust_storage(main_image, mapping, layout, main_load):
@@ -194,17 +197,23 @@ CUE_CFG_WIDENING = ((0x4008732a, 14, '968adf63466a054aefd6609f18536e3719bbcc144b
 
 def catalogue_overlaps(sites):
     """Catalogue modules a site of this base would lock out: each must still install over the stock bytes
-    it patches or keeps, beside the base (PLAY MODES once met the project map's seams). A detour a module's
-    runtime.json replaces by a subscription to the base's event there is not a lockout."""
+    it patches or keeps, beside the base (PLAY MODES once met the project map's seams). What a module's runtime.json
+    or machine port subscribes or contributes in place of a patch (module-adapters/machine_ports.py) is not a lockout."""
     from elekloader.sdk import octabam as port
+    spec = importlib.util.spec_from_file_location('modwerk_machine_ports_base', APP / 'sdk/machines/octatrack/module-adapters/machine_ports.py')
+    machine_ports = importlib.util.module_from_spec(spec); spec.loader.exec_module(machine_ports)
     ob = port.Octabam(str(APP / 'sdk/octabam'))
     base = [(int(s['addr'], 16), len(bytes.fromhex(s['stock']))) for s in sites]
     found = []
     for name, m in sorted(ob.modules.items()):
-        declared = RUNTIME_BUILDER.runtime_declaration(APP / 'sdk/octabam/modules' / name)
-        subscribed = {e['replaces'] for e in declared['subscribe'] if 'replaces' in e} if declared else set()
-        spans = ([(d.site, max(len(d.expect), d.pad_to or 6)) for d in m.detours if d.symbol not in subscribed] + [(p.addr, len(p.expect)) for p in m.pokes] +
-                 [(k.addr, len(k.expect)) for k in m.keeps] + [(site, 6) for t in m.tables for site, _ in t.refs])
+        try:
+            m = machine_ports.ported(m)
+        except (ValueError, KeyError):
+            found.append(name)
+            continue
+        spans = ([(d.site, max(len(d.expect), d.pad_to or 6)) for d in m.detours] + [(p.addr, len(p.expect)) for p in m.pokes] +
+                 [(k.addr, len(k.expect)) for k in m.keeps] + [(site, 6) for t in m.tables for site, _ in t.refs] +
+                 [(r.addr, 4) for r in m.symbol_refs])
         if name not in BASE_OWNS and any(a < b + bn and b < a + n for a, n in spans for b, bn in base):
             found.append(name)
     return found
@@ -785,11 +794,13 @@ def ctext(value):
     return json.dumps(value, ensure_ascii=True)
 
 
-def stock_reference(parts, offset, length, address):
+def stock_reference(parts, offset, length, address, stock_at=None):
     """Replace a zero source placeholder with an Elekloader stock-copy recipe.
 
     This changes data parts only, never layout, relocations or instructions.
     The linker recovers the guarded bytes from the owner's verified stock.
+    With stock_at(address, n), a placeholder the builder already stored as a stock run of zeros (code before it
+    repeated stock) is split out of that run.
     """
     if not isinstance(offset, int) or not isinstance(length, int) or offset < 0 or length <= 0:
         raise ValueError('Stock replay requires a positive bounded source span.')
@@ -801,6 +812,14 @@ def stock_reference(parts, offset, length, address):
         if lo >= hi:
             (before if at < offset else after).append(part)
         else:
+            if part[0] == 'stock' and stock_at and not any(stock_at(int(part[1], 16) + lo - at, hi - lo)):
+                if lo > at:
+                    before.append(['stock', part[1], lo - at])
+                if hi < at + size:
+                    after.append(['stock', '0x%08x' % (int(part[1], 16) + hi - at), at + size - hi])
+                found += hi-lo
+                at += size
+                continue
             if part[0] != 'hex' or any(bytes.fromhex(part[1])[lo-at:hi-at]):
                 raise ValueError('Stock replay is not a zero source placeholder.')
             if lo > at:
@@ -1102,6 +1121,11 @@ def main():
     machine_trust = APP / 'sdk/machines/octatrack/module-adapters'
     for name in MACHINE_TRUST_SOURCES:
         shutil.copyfile(machine_trust / name, source / name)
+    # Retirements the base carries for contributed machines (machine_contributors.c): Analog BD's Part conversion,
+    # when the analog-bd lane's files are present (-O2: it runs with the machine lock held).
+    for name in RETIREMENT_SOURCES:
+        if (machine_trust / name).is_file():
+            shutil.copyfile(machine_trust / name, source / Path(name).name)
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')
     usb = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb)
@@ -1113,8 +1137,10 @@ def main():
         spec = importlib.util.spec_from_file_location('modwerk_authored_usb_descriptors', usb.AUDIO_DESCRIPTORS)
         usb_descriptors = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_descriptors)
     for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
-            ('runtime_events.h', 'runtime_events.s') if args.site_events else ()):
+            ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s') if args.site_events else ()):
         shutil.copyfile(HERE / name, source / name)
+    if args.site_events:  # the tables' records (struct modwerk_machine, struct modwerk_sequencer_rows)
+        shutil.copyfile(APP / 'sdk/machines/octatrack/include/modwerk_events.h', source / 'modwerk_events.h')
     # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.
     spec = importlib.util.spec_from_file_location('modwerk_base_art', APP / 'sdk/runtime/startup/base_art.py')
     base_art = importlib.util.module_from_spec(spec); spec.loader.exec_module(base_art)
@@ -1250,6 +1276,10 @@ def main():
     for name in MACHINE_TRUST_SOURCES:
         path = machine_trust / name
         inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
+    for name in RETIREMENT_SOURCES:
+        path = machine_trust / name
+        if path.is_file():
+            inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if saved_set_root:
         for name in saved_set_files:
             path = saved_set_root / name
@@ -1406,12 +1436,24 @@ modwerk_retained_end:
         recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
     if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/EVENTS.md)
         recipe['cflags'].append('-DMODWERK_RUNTIME_EVENTS')
-        recipe['sources'].append('runtime_events.s')
+        recipe['sources'] += ['runtime_events.s', 'machine_registry.s']
         for addr, n, guard, label in EVENTS.base_sites():
             stock = image[addr - device.main_load:addr - device.main_load + n]
             if sha(stock) != guard:
                 raise ValueError('Stock bytes at %#x are not the ones events.json names.' % addr)
             recipe['sites'].append(dict(addr=hex(addr), stock=stock.hex(), op='jmp', target=label))
+        # The tables' sites: the machine registry's and the SEQUENCER rows' (machine_registry.c/.s). 'own' sites keep
+        # their stock bytes; the registry rewrites their immediates while the table changes.
+        for s in EVENTS.owned_sites():
+            addr, n = s['site'], s['length']
+            stock = image[addr - device.main_load:addr - device.main_load + n]
+            if sha(stock) != s['guard']:
+                raise ValueError('Stock bytes at %#x are not the ones events.json names for %s.' % (addr, s['table']))
+            if s['op'] == 'jmp':
+                recipe['sites'].append(dict(addr=hex(addr), stock=stock.hex(), op='jmp', target=s['target']))
+            elif s['op'] in ('ptr', 'lea'):  # an lea keeps its opcode: its operand is the pointer
+                at = addr + (2 if s['op'] == 'lea' else 0)
+                recipe['sites'].append(dict(addr=hex(at), stock=stock[at - addr:at - addr + 4].hex(), op='ptr', target=s['target']))
     if '-DMODWERK_RUNTIME_VOLATILE_JOURNAL' in recipe['cflags']:
         for name in VOLATILE_SERVICE_SOURCES:
             shutil.copyfile(HERE / name, source / name)
@@ -1505,6 +1547,14 @@ modwerk_retained_end:
         guard = guards[key]; n = guard.get('patchLength', guard['length'])
         document['sections'][section]['parts'] = stock_reference(
             document['sections'][section]['parts'], offset, n, guard['address'])
+    # Displaced stock instructions the events' tails and the machine registry replay: modwerk_stock_<address>_<n>
+    # placeholders, filled from the user's own OS (events.py, machine_registry.s).
+    for name, (section, offset) in sorted(document['symbols'].items()):
+        found = re.fullmatch(r'modwerk_stock_([0-9a-f]{8})_(\d+)', name)
+        if found:
+            document['sections'][section]['parts'] = stock_reference(
+                document['sections'][section]['parts'], offset, int(found.group(2)), int(found.group(1), 16),
+                lambda a, n: image[a - device.main_load:a - device.main_load + n])
     Path(path).write_text(json.dumps(document, indent=1)+'\n')
     if args.dsp_loader:  # the package without stock bytes, for Git and the browser: base.elemod and base-fills.json
         fills = [fill for t in 'AB' for fill in dsp_layout[t]['fills']]

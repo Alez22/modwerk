@@ -67,6 +67,9 @@ struct runtime_dsp {
     uint8_t pinned;                  /* flag 2: its ColdFire code names its effect id, so it takes that one or
                                       * none (ABI 6) */
     uint8_t foreign_roots;           /* trusted board admission only, never an uploaded flag */
+    uint8_t contributes;             /* the loader's: its hooks contribute to a table (machine UI roots may name it) */
+    uint32_t hook_offset[RUNTIME_HOOKS]; /* the loader's: each hook word's image offset, RUNTIME_NONE without (a table's
+                                      * record, read by the machine's admission) */
     uint8_t package_sha256[MU_DIGEST_BYTES]; /* exact encoded package, retained across relocation;
                                             * private board declarations must never hash mutable image bytes */
 };
@@ -122,6 +125,7 @@ unsigned modwerk_runtime_refused_event(void);         /* after RUNTIME_EVENT: th
 extern uintptr_t volatile *const modwerk_runtime_event_row[RUNTIME_SITE_EVENTS];
 extern const uint8_t modwerk_events_code[], modwerk_events_code_end[];
 #endif
+void modwerk_machine_tables_changed(void);          /* masked, after rows changed; weak no-op by default */
 unsigned modwerk_runtime_capabilities(uint8_t *out); /* MWCP v1: 12 bytes, read-only */
 extern volatile uint32_t modwerk_runtime_ticks; /* advanced by the glue's tick, for diagnostics */
 uint32_t modwerk_runtime_value(void);

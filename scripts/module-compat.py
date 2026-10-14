@@ -15,6 +15,7 @@ else octabam's ledger refuses (FX ids, DSP hooks, core-private Y, buffer regions
 for every pair and for the whole active set.
 """
 import ast
+import importlib.util
 import itertools
 import json
 import re
@@ -31,13 +32,17 @@ EVENTS = 'sdk/machines/octatrack/events.json'
 # are its two planned sites (working names). Delete this fixture once EVENTS lands: the gate reads the file.
 PLANNED_EVENTS = [dict(event='ev_play_increment', site='0x40004100', length=8),
                   dict(event='ev_voice_bind', site='0x40006820', length=8)]
+PORTS = 'sdk/machines/octatrack/module-adapters/machine_ports.py'
 RECIPES = ('sdk/machines/octatrack/module-adapters/standalone-recipes.json',
-           'sdk/machines/octatrack/module-adapters/candidate-recipes.json')
+           'sdk/machines/octatrack/module-adapters/candidate-recipes.json',
+           'sdk/machines/octatrack/module-adapters/machine-recipes.json')
 BASE = 'the Modwerk base'
 PROBE = 0x400D7000  # ledger.check's probe address for a floating cave's emit pokes
 ROUTES = {
     'subscribe': ('the base owns this event site: subscribe a handler to the event (subscribe: event, fn, '
                   'order in mod.json) instead of patching it', '#events'),
+    'contribute': ('the base owns this stock site for a table (its machine registry or menu rows): contribute a record '
+                   'to the table (contribute: to, order, data in runtime.json) instead of patching it', '#tables'),
     'event': ('two behaviour hooks meet on this stock site: request a new event (one reviewed entry in '
               'sdk/machines/octatrack/events.json), then subscribe to it instead of patching', '#propose-an-event'),
     'site': ('one owner per byte: patch other bytes, or request a new event if you need the same behaviour',
@@ -87,6 +92,8 @@ def route(x, y):
         return None
     if 'copy' in kinds:
         return 'copy'
+    if 'owned' in kinds:
+        return 'contribute'
     if 'event' in kinds:
         return 'subscribe'
     if 'table' in kinds:
@@ -110,6 +117,10 @@ def describe(a, x, b, y, at, way):
         (c, cn), (p, pn) = ((x, a), (y, b)) if x[0] == 'copy' else ((y, b), (x, a))
         return (f'{cn} copies stock bytes {span(c[1], c[2])} ({c[3]}), but {pn} patches {span(p[1], p[2])} '
                 f'({p[0]} {p[3]}): the copy depends on install order')
+    if way == 'contribute':
+        (e, _), (p, pn) = ((x, a), (y, b)) if x[0] == 'owned' else ((y, b), (x, a))
+        return (f'{pn} patches {span(p[1], p[2])} ({p[0]} {p[3]}), which the table {e[3]} owns '
+                f'({span(e[1], e[2])}): contribute to it in runtime.json instead of patching')
     if way == 'subscribe':
         (e, _), (p, pn) = ((x, a), (y, b)) if x[0] == 'event' else ((y, b), (x, a))
         return (f'{pn} patches {span(p[1], p[2])} ({p[0]} {p[3]}), which is the event {e[3]} '
@@ -133,12 +144,14 @@ def ledger_findings(selected, platform):
     return [p for p in problems if p.split(':', 1)[0] not in SPAN_FINDINGS]
 
 
-def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None, subscriptions=None):
+def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None, natives=None,
+          subscriptions=None):
     """Problems for these active modules: [{'modules': [...], 'text': str, 'route': str}].
 
     modules: octabam Module objects (all active); base_sites: (start, length, kind) the base patches;
     events: registry entries {event, site, length}; copies: {module name: [(address, length, label)]}
     from port recipes and packages; relations: the reviewed entries; base_owns: modules allowed on base sites;
+    natives: {name: manifest module} for octabam's own ledger, which judges native compositions (default: modules);
     subscriptions: {module name: its runtime.json entries}. A detour a subscription `replaces` stays out of the
     module's loader package (sdk/runtime/loader/build.py replaced()), so it claims nothing here."""
     problems, names = [], {m.name for m in modules}
@@ -154,8 +167,9 @@ def check(modules, base_sites=(), events=(), copies=None, relations=(), base_own
                                      f'{entry.get("event")}, which is not a site event in {EVENTS}', route='event'))
                 continue
             site = int(e['site'], 16)
+            native = (natives or {}).get(m.name, m)  # a ported module no longer has the detours it replaced
             if not any(d.symbol == entry['replaces'] and d.site == site and (d.pad_to or 6) == e['length']
-                       for d in m.detours):
+                       for d in native.detours):
                 problems.append(dict(modules=[m.name], text=f'{m.name}\'s runtime.json replaces {entry["replaces"]}, '
                                      f'which is not its detour at {e["event"]}\'s site 0x{site:08x}', route='subscribe'))
                 continue
@@ -164,7 +178,7 @@ def check(modules, base_sites=(), events=(), copies=None, relations=(), base_own
         if name in owners:
             owners[name] += [('copy', a, n, label) for a, n, label in items]
     owners[BASE] = [('base ' + kind, a, n, 'site') for a, n, kind in base_sites]
-    owners[BASE] += [('event', int(e['site'], 16), e['length'], e['event']) for e in events]
+    owners[BASE] += [('owned' if e.get('table') else 'event', int(e['site'], 16), e['length'], e['event']) for e in events]
     known_events = {e['event'] for e in events}
 
     def problem(involved, text, way):
@@ -195,7 +209,7 @@ def check(modules, base_sites=(), events=(), copies=None, relations=(), base_own
     for a, x, b, y, at, way in overlaps(owners):
         if BASE in (a, b):
             module, base_claim = (b, x) if a == BASE else (a, y)
-            if (module, at) in pending or (base_claim[0] != 'event' and module in base_owns):
+            if (module, at) in pending or (base_claim[0] not in ('event', 'owned') and module in base_owns):
                 continue
             problem((module,), describe(a, x, b, y, at, way) + ('' if way == 'subscribe' else f'; {BASE} patches it'),
                     way)
@@ -207,11 +221,12 @@ def check(modules, base_sites=(), events=(), copies=None, relations=(), base_own
         if key not in used:
             problem(key[0], f'relation {"+".join(entry["modules"])}: nothing meets at 0x{key[1]:08x} any more; '
                             f'remove the site', 'relation')
-    for a, b in itertools.combinations(modules, 2):
+    native = [(natives or {}).get(m.name, m) for m in modules]
+    for a, b in itertools.combinations(native, 2):
         for text in ledger_findings([a, b], platform or {}):
             problem((a.name, b.name), text, 'row' if text.startswith('fx2 id') else 'other')
     seen = {p['text'] for p in problems}
-    for text in ledger_findings(list(modules), platform or {}):
+    for text in ledger_findings(native, platform or {}):
         if text not in seen:
             problem([n for n in names if re.search(rf'\b{re.escape(n)}\b', text)], f'whole set: {text}',
                     'row' if text.startswith('fx2 id') else 'other')
@@ -233,15 +248,38 @@ def active_ids():
 
 
 def read_events():
+    """The base's event sites and the sites its tables own: [{event, site, length, table}]. An event a module raises
+    (no site) owns no stock bytes."""
     if not (APP / EVENTS).exists():
         return PLANNED_EVENTS
-    # an event a module raises (site null) owns no stock bytes: nothing to compare
-    events = [e for e in json.loads((APP / EVENTS).read_text())['events'] if e.get('site') is not None]
+    out = []
+    for e in json.loads((APP / EVENTS).read_text())['events']:
+        if e.get('kind') == 'table':
+            out += [dict(event=e['event'], site=s['site'], length=s['length'], table=True) for s in e.get('sites', [])]
+        elif e.get('site') is not None:
+            out.append(dict(event=e['event'], site=e['site'], length=e['length']))
     if not all(isinstance(e.get('event'), str) and re.fullmatch(r'0x[0-9a-fA-F]{8}', str(e.get('site')))
-               and type(e.get('length')) is int and e['length'] > 0 for e in events):
+               and type(e.get('length')) is int and e['length'] > 0 for e in out):
         raise SystemExit(f'{EVENTS}: every event needs event (its name), site (0x… stock address) and length; '
                          f'update read_events() in scripts/module-compat.py if the registry changed shape')
-    return events
+    return out
+
+
+def ported(modules):
+    """Each module as its runtime package installs it: what its runtime.json (or its machine port,
+    sdk/machines/octatrack/module-adapters/machine-ports.json) subscribes or contributes in place of a patch is the
+    base's, so it is not the module's claim. A declaration that does not match the manifest is a problem."""
+    spec = importlib.util.spec_from_file_location('modwerk_machine_ports', APP / PORTS)
+    machine_ports = importlib.util.module_from_spec(spec); spec.loader.exec_module(machine_ports)
+    out, problems = [], []
+    for m in modules:
+        try:
+            out.append(machine_ports.ported(m))
+        except (ValueError, KeyError) as error:
+            out.append(m)
+            problems.append(dict(modules=[m.name], text=f'{m.name}: its runtime.json or machine port does not match '
+                                                        f'its manifest: {error}', route='subscribe'))
+    return out, problems
 
 
 def repository_inputs():
@@ -281,7 +319,10 @@ def repository_inputs():
                   subscriptions=subscriptions,
                   copies=copies, relations=json.loads((APP / RELATIONS).read_text())['relations'],
                   base_owns=ast.literal_eval(owns), platform=platform)
-    return ids, [by_name[i] for i in ids if i in by_name], inputs, load
+    natives = [by_name[i] for i in ids if i in by_name]
+    modules, mismatched = ported(natives)
+    inputs['natives'] = {m.name: m for m in natives}
+    return ids, modules, inputs, load + mismatched
 
 
 def main(argv):

@@ -6,6 +6,7 @@
 #define MODWERK_RUNTIME_EVENTS
 #define MODWERK_RUNTIME_METADATA_EXTERNAL
 #define MODWERK_RUNTIME_JOURNAL_EXTERNAL
+#define MODWERK_RUNTIME_TABLES_EXTERNAL
 #include "../loader.c"
 #include "../../upload/sha256.c"
 #include <stdio.h>
@@ -17,20 +18,21 @@ static unsigned failures;
 static uint8_t stock[256], original[256], paused[64];
 static int masked, locked, unknown, rows_written_unmasked;
 static uintptr_t row_copy[RUNTIME_SITE_EVENTS][4];
+#define WORDS(e) (event_room[e] + 1u < 4u ? event_room[e] + 1u : 4u) /* the words of row e compared */
 /* The base's dispatch, as far as the loader knows it: an address range. */
 const uint8_t modwerk_events_code[64] = {0}, modwerk_events_code_end[1] = {0};
 const unsigned char modwerk_raise_test[4] = {0}; /* the base's entry for the raised event */
-static void snapshot(void) { for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < 4; ++k) row_copy[e][k] = modwerk_runtime_event_row[e][k]; }
+static void snapshot(void) { for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < WORDS(e); ++k) row_copy[e][k] = modwerk_runtime_event_row[e][k]; }
 static int rows_same(void)
 {
-    for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < 4; ++k) if (row_copy[e][k] != modwerk_runtime_event_row[e][k]) return 0;
+    for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < WORDS(e); ++k) if (row_copy[e][k] != modwerk_runtime_event_row[e][k]) return 0;
     return 1;
 }
 static uintptr_t mark[RUNTIME_SITE_EVENTS][4];
-static void keep(void) { for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < 4; ++k) mark[e][k] = modwerk_runtime_event_row[e][k]; }
+static void keep(void) { for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < WORDS(e); ++k) mark[e][k] = modwerk_runtime_event_row[e][k]; }
 static int kept(void)
 {
-    for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < 4; ++k) if (mark[e][k] != modwerk_runtime_event_row[e][k]) return 0;
+    for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) for (unsigned k = 0; k < WORDS(e); ++k) if (mark[e][k] != modwerk_runtime_event_row[e][k]) return 0;
     return 1;
 }
 int modwerk_machine_stopped(void) { return 1; }
@@ -53,9 +55,11 @@ unsigned modwerk_machine_paused(struct runtime_span *span, unsigned max, const s
 }
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to) { (void)from; (void)to; return RUNTIME_OK; }
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to) { (void)from; (void)to; }
+static unsigned seen_contributor, tables_changed;
 int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
     const struct runtime_context *context, enum runtime_metadata_operation operation)
-{ (void)from; (void)context; (void)operation; to->foreign_roots = 0; return RUNTIME_OK; } /* synthetic: groups admitted */
+{ (void)from; (void)context; seen_contributor |= operation == RUNTIME_METADATA_PREPARE && to->contributes; to->foreign_roots = 0; return RUNTIME_OK; } /* synthetic: groups admitted */
+void modwerk_machine_tables_changed(void) { CHECK(masked); ++tables_changed; }
 /* Synthetic journal adapter: every job READY at once (no DSP work). */
 int modwerk_machine_journal_enabled(void) { return 1; }
 int modwerk_machine_journal_begin_safe(void) { return 1; }
@@ -237,25 +241,48 @@ int main(void)
         CHECK(!modwerk_runtime_volatile_busy() && kept());
     }
     CHECK(row_is(0, (const uint32_t[]){0xdb769930u, 20, 30}, 3) && row_is(1, (const uint32_t[]){50, 60}, 2));
+    /* A take event and a table hold their room of subscribers; the next is refused before memory is taken, and a
+     * removal makes room again. A contributor is marked for the board; the base hears of every row change masked. */
+    unsigned changed = tables_changed;
+    subscriber(90, RUNTIME_EVENTS + 3, 40, 4); CHECK(install());
+    subscriber(91, RUNTIME_EVENTS + 3, 50, 4); CHECK(install() && row_is(3, (const uint32_t[]){90, 91}, 2) && tables_changed > changed);
+    subscriber(92, RUNTIME_EVENTS + 3, 10, 4);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_FULL && modwerk_runtime_refused_event() == RUNTIME_EVENTS + 3u);
+    subscriber(90, RUNTIME_EVENTS + 3, 45, 8); CHECK(install() && row_is(3, (const uint32_t[]){90, 91}, 2)); /* a replacement fits */
+    CHECK(removal(91)); subscriber(92, RUNTIME_EVENTS + 3, 10, 4); CHECK(install() && row_is(3, (const uint32_t[]){92, 90}, 2));
+    seen_contributor = 0;
+    subscriber(93, RUNTIME_EVENTS + 4, 30, 8); CHECK(install() && seen_contributor && live_id(93)->dsp.contributes);
+    CHECK(!live_id(92)->dsp.contributes);
+    subscriber(94, RUNTIME_EVENTS + 4, 20, 8); CHECK(install() && row_is(4, (const uint32_t[]){94, 93}, 2));
+    subscriber(95, RUNTIME_EVENTS + 4, 20, 8); CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_FULL);
+    /* A table's owned site refuses raw patches and copies, naming the table. */
+    pkg(96, none, RUNTIME_HOOKS, 1, 0); site8(0x10ceu, 6, 6);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_EVENT && modwerk_runtime_refused_event() == RUNTIME_EVENTS + 4u);
+    pkg(96, none, RUNTIME_HOOKS, 0, 0); copy8(0x10d2u, 2);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_EVENT);
+    pkg(96, none, RUNTIME_HOOKS, 1, 0); site8(0x10c0u, 6, 6);        /* the take event's site */
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_EVENT && modwerk_runtime_refused_event() == RUNTIME_EVENTS + 3u);
+    for (const uint32_t *id = (const uint32_t[]){90, 92, 93, 94, 0}; *id; ++id) CHECK(removal(*id));
+    CHECK(row_is(3, 0, 0) && row_is(4, 0, 0));
     /* A raised event (no site): RUNTIME_RAISE asks for the base's entry in a zero word of the image; it is no
      * handler. A plain order subscribes as at a site; a slot that is not zero, or reaches past the image, is refused. */
     uint32_t raise[RUNTIME_HOOKS]; memcpy(raise, none, sizeof raise);
-    raise[RUNTIME_EVENTS + 3] = RUNTIME_RAISE << 24 | 8u;
+    raise[RUNTIME_EVENTS + 5] = RUNTIME_RAISE << 24 | 8u;
     pkg(90, raise, RUNTIME_HOOKS, 0, 0); CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
     pkg(90, raise, RUNTIME_HOOKS, 0, 0); memset(p + n - 64 + 8, 0, 4); CHECK(install());
-    CHECK(be32(live_id(90)->dsp.image + 8) == (uint32_t)(uintptr_t)modwerk_raise_test && !live_id(90)->hook[RUNTIME_EVENTS + 3]);
-    CHECK(row_is(3, 0, 0));
-    raise[RUNTIME_EVENTS + 3] = RUNTIME_RAISE << 24 | 62u;
+    CHECK(be32(live_id(90)->dsp.image + 8) == (uint32_t)(uintptr_t)modwerk_raise_test && !live_id(90)->hook[RUNTIME_EVENTS + 5]);
+    CHECK(row_is(5, 0, 0));
+    raise[RUNTIME_EVENTS + 5] = RUNTIME_RAISE << 24 | 62u;
     pkg(91, raise, RUNTIME_HOOKS, 0, 0); memset(p + n - 2, 0, 2); CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED);
-    subscriber(92, RUNTIME_EVENTS + 3, 50, 4); CHECK(install() && row_is(3, (const uint32_t[]){92}, 1));
-    CHECK(removal(90) && removal(92) && row_is(3, 0, 0));
+    subscriber(92, RUNTIME_EVENTS + 5, 50, 4); CHECK(install() && row_is(5, (const uint32_t[]){92}, 1));
+    CHECK(removal(90) && removal(92) && row_is(5, 0, 0));
     /* Removing every subscriber empties every row and frees the pool. */
     for (const uint32_t *id = (const uint32_t[]){0xdb769930u, 20, 30, 50, 60, 70, 0}; *id; ++id) CHECK(removal(*id));
     CHECK(row_is(0, 0, 0) && row_is(1, 0, 0) && row_is(2, 0, 0) && !modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES);
     CHECK(!memcmp(stock, original, sizeof stock) && !rows_written_unmasked && !masked && !locked);
     if (failures) { fprintf(stderr, "%u event checks failed\n", failures); return 1; }
     puts("Site events: refusals naming the event, ordered rows in every install order, removal, replacement and "
-         "restore, two events at one site, the paused-dispatch fence, groups, journal commit/rollback and a raised event's "
-         "entry slot passed.");
+         "restore, two events at one site, the paused-dispatch fence, groups, journal commit/rollback, take and table rooms, owned"
+         " table sites, contributor marks and a raised event's entry slot passed.");
     return 0;
 }

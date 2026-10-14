@@ -68,3 +68,21 @@ int machine_part_lifetime(machine_part_read read, void *context, uint32_t bank, 
     }
     return 0;
 }
+int machine_part_signature(machine_part_read read, void *context, uint32_t bank, const uint8_t sig[2], uint8_t lo, uint8_t hi)
+{
+    uint32_t physical = bank >= 0x48000000u && bank < STOCK_RAM_END + UNCACHED ? bank - UNCACHED : bank;
+    if (!read || !sig || (bank & 1u) || physical < 0x40000000u || physical > STOCK_RAM_END - (0x9504au + 4u * STRIDE)) return MACHINE_PART_UNKNOWN;
+    for (unsigned region = 0; region < 4; ++region) {
+        uint32_t base = region == 0 ? bank + 0x8ed80u : region == 1 ? bank + 0x9504au : region == 2 ? 0x100a4eceu : 0x100ab196u;
+        for (unsigned part = 0; part < 4; ++part)
+            for (unsigned track = 0; track < 8; ++track) {
+                uint8_t type, s[3];
+                uint32_t at = base + part * STRIDE;
+                if (!read(context, at + 0x22u + track, &type, 1)) return MACHINE_PART_UNKNOWN;
+                if (type >= 2u) continue;
+                if (!read(context, at + 60u + 30u * track, s, 3)) return MACHINE_PART_UNKNOWN;
+                if (s[0] == sig[0] && s[1] == sig[1] && s[2] >= lo && s[2] <= hi) return MACHINE_PART_RETAINED;
+            }
+    }
+    return MACHINE_PART_CLEAR;
+}
