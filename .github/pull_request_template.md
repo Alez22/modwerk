@@ -1,4 +1,10 @@
-Describe the change in behavior, module version(s), compatibility and source/media attribution.
+**A fix or improvement outside a module?** Title it `Fix: …`, `Improvement: …` or `Docs: …` (it is labelled from that), keep it to one change, delete everything below and answer three questions in plain words:
+
+- **What was wrong or hard:**
+- **What this changes:**
+- **How I checked it:** (`npm run pr:ready` and anything else you ran)
+
+**A module or module update:** describe the change in behavior, module version(s), compatibility and source/media attribution.
 
 Existing module authors can opt into [automatic publication](../docs/MODULE_AUTHOR_UPDATES.md) after reviewing all evidence:
 

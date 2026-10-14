@@ -1,0 +1,17 @@
+{
+ "schema": 1,
+ "identity": "d6b234e25e866a1a7e632b90b2d61c60efd5c3168c2a698019aee6801438c911",
+ "arena": 1088525792,
+ "pool": 1086593104,
+ "symbols": {
+  "modwerk_controller_write_begin": 1084865252,
+  "modwerk_controller_write_end": 1084865280,
+  "modwerk_cue_cfg_clamp": 1085002040,
+  "modwerk_raise_ev_mute_keep": 1085004064
+ },
+ "controllers": {
+  "sidechain-compressor": "b414f027635760bdbe2aab318302ac74e6259ef3bd71f17217e554548571d4d4",
+  "output-matrix": "3083cce6eb84da226ebc292a0b29969ab33736ca886d5ada76ba26256d0ceee0",
+  "analog-bassdrum": "bf0e259afed5d5869a275ecd249f90f6835180a8d3e4d167d466b29b820f7146"
+ }
+}

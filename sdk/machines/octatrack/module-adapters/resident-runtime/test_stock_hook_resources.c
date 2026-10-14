@@ -60,6 +60,20 @@ int main(void) {
     assert(dl_buffers_prepare(&b,running,ids,reads)==DL_BUF_OK); dl_buffers_cancel(&b);
     claims[33].complete=0;
     assert(dl_buffers_prepare(&b,running,ids,reads)==DL_BUF_MEMORY);
+    /* Whole-block claims (no exact declaration) against an explicit held mask: leases | board controllers. */
+    const struct mw_hook_buffer_claim fx1w={3072u,1,0},fx2w={16384u,1,0},fx2head={16384u,1,1};
+    for(unsigned c=0;c<2;++c) for(unsigned k=0;k<4;++k) {
+        assert(mw_hook_buffer_permitted_held(0,c,0,k,&fx1w));
+        assert(mw_hook_buffer_permitted_held(0,c,1,k,&fx2w)==(k!=2)); /* FX2 block 2 needs a head proof */
+        assert(mw_hook_buffer_permitted_held(MW_HOOK_MATRIX|MW_HOOK_ANALOG_BD,c,0,k,&fx1w)); /* Y below 0x1000; AB is X */
+    }
+    assert(mw_hook_buffer_permitted_held(0,0,1,2,&fx2head));
+    assert(!mw_hook_buffer_permitted_held(MW_HOOK_SIDECHAIN,0,1,2,&fx2head)); /* SC's shared Y at 0x33dfe */
+    assert(!mw_hook_buffer_permitted_held(MW_HOOK_SIDECHAIN,1,1,2,&fx2head)); /* and its alias seen from core 1 */
+    assert(mw_hook_buffer_permitted_held(MW_HOOK_SIDECHAIN,0,1,3,&fx2w)); /* 0x34000 starts where SC's span ends */
+    assert(!mw_hook_buffer_permitted_held(8u,0,0,0,&fx1w)); /* an unknown held bit refuses */
+    assert(!mw_hook_buffer_permitted_held(0,0,0,0,&fx2w)); /* larger than an FX1 block */
+    assert(!mw_hook_buffer_permitted(0,0,0,0,&fx1w));
     struct mw_hook_span span={0x33dfe,1,1,MW_HOOK_X};
     assert(!mw_hook_ranges_idle(1,&span,1,0,0,3)); /* shared alias, other core and memory space */
     assert(!mw_hook_ranges_idle(1,0,0,&span,1,3)); /* pending init is equally held */

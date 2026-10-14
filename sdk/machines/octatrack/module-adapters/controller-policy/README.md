@@ -1,9 +1,12 @@
-# Private controller association preparation
+# Controller association, transport, write lease and board
 
-These files prepare a board-only lifetime contract for the resident Sidechain,
-Output Matrix and Analog BD engines. They do not change the loader, generated
-catalogue, public base or package admission. The strong policy bridge has zero
-entries and refuses every buffer and fixed-resource claim.
+These files hold the board-only lifetime contract for the resident Sidechain,
+Output Matrix and Analog BD engines. `controller_board.c` binds their packages
+to it from the compiled trust rows (empty by default; the beta base's are
+`module-adapters/controller-policies.json`). Analog BD's reset restores its
+engine's authored boot record (its tables) rather than zeros. The strong
+buffer-policy bridge has zero entries and refuses every buffer and
+fixed-resource claim.
 
 `controller_association` accepts a trusted compiled declaration and keeps the
 encoded package SHA256, source-policy SHA256, module and policy/state/parameter
@@ -36,8 +39,11 @@ Jobs bind generation, a board ticket, the actual 16-bit wire sequence, core,
 operation, reset offset/count and CAS expected/desired masks. RESET ranges are
 bounded to 24 words. The backend must refuse actual transport sequence wrap or
 reuse, including unrelated operations: the helper cannot observe unreported wire
-wraps. Exhausted generations and tickets also refuse. RESTORE is reserved but
-remains closed until its actual source/backend contract has been proved.
+wraps. Exhausted generations and tickets also refuse. The RESTORE job
+operation is reserved and closed. `mw_controller_restore` instead re-arms a
+disabled (RETIRING) generation whose image is published again (an abandoned
+removal, a rolled-back replacement) for a complete zero reset and enable, only
+while every other held slot of the feature is disabled or untouched.
 
 Each core must acknowledge initialization, release its reset job storage and
 acknowledge activation before the pure pending-journal query permits control

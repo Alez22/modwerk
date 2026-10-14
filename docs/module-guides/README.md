@@ -71,14 +71,14 @@ Most of these need a native toolchain and your own original OS 1.40C kept outsid
 Every Octatrack module must install beside every other active module and the Modwerk base. `npm run modules:compat` checks this on every pull request, as part of `npm run check` and `npm run module:doctor`, so registered authors' automatic updates pass it too. It reads declarations only: your manifest's detours, hooks, pokes, references, caves, grown tables, kept bytes and stock copies, the port recipes, the committed base package and octabam's DSP resource rules. It needs no firmware and runs in under a second. It checks every pair and the whole set.
 
 - **One owner per byte.** No two modules, and no module and the base, may patch overlapping stock bytes or relocate the same stock table (Elekloader's rule 5).
-- **Share behaviour through events.** When two modules need to act at the same stock site, the base owns that site and each module subscribes to its [event](#events). Never patch an event's site (Elekloader's rule 4).
+- **Share behaviour through events and tables.** When two modules need to act at the same stock site, the base owns that site and each module subscribes to its [event](#events) or contributes to its table. Never patch a site the base owns (Elekloader's rule 4).
 - **Copy stock bytes only from bytes nobody patches.** A copy taken from bytes that another module or the base patches depends on install order. Take the identical bytes from an unpatched location instead. For example, a Tape Echo runtime port copied 13 bytes from 0x4000230e, under the machine group's Part-validator hook at 0x40002318; its fix takes the same instruction bytes from 0x4003886a.
 - **Pinned effect IDs and chooser rows are exclusive.** Pick a free one.
 
 The only exceptions are the reviewed entries in `sdk/machines/octatrack/compatibility.json`. Each names both modules, the exact addresses and a reason:
 
-- `group-owned`: one module's reviewed composition owns every listed site. Today this is the machine group that POLY8 composes (POLY8, VECTOR, FM Synth, Scale Quantizer, Analog BD).
-- `pending-migration`: two modules still patch the site of a planned event and may do so only `until` both subscribe. Today: Repitch and POLY8 at `ev_play_increment` (0x40004100), and Mute Modes and POLY8 at `ev_voice_bind` (0x40006820).
+- `group-owned`: one module's reviewed composition owns every listed site. None today: POLY8, VECTOR, FM Synth, Scale Quantizer and Analog BD are independent packages that share the machine chooser, the SEQUENCER page and the chromatic keyboard through the base's tables and take events.
+- `pending-migration`: two modules still patch the site of a planned event and may do so only `until` both subscribe. None today: Repitch, POLY8 and Mute Modes subscribe, and a detour a module's `runtime.json` names in `replaces` is not in its runtime package, so the gate no longer counts it.
 
 An entry fails once a named module is no longer active or nothing meets at a listed site, so the file stays exact. A new entry needs owner review, and is the last resort: propose an event instead. The base's own exceptions are `BASE_OWNS` in `sdk/machines/octatrack/elekloader/build_core.py`.
 
@@ -86,17 +86,42 @@ The gate does not prove runtime behaviour, DSP placement, cycles or hardware com
 
 ### Events
 
-Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md), "Do not patch the shared sites: subscribe"). The base owns each event's stock site and calls every subscribed handler in a fixed order. A module adds a handler with `subscribe` entries of `event`, `fn` and `order`, for example `{"event": "ev_play_increment", "fn": "mymod_rate", "order": 50}`. Lower `order` runs first. Each event's registry entry gives its C prototype and says what a return value means, for example whether a handler can take the event so that later handlers do not see it.
+Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md), "Do not patch the shared sites: subscribe"). The Modwerk base owns every stock site that more than one module needs and shares it in one of four ways. The registry is `sdk/machines/octatrack/events.json`. `sdk/machines/octatrack/EVENTS.md` lists every entry with its prototype or record, what a result means, its order rule and where it runs. C modules include `sdk/machines/octatrack/include/modwerk_events.h`.
 
-The registry will be a file called `events.json` beside `sdk/machines/octatrack/compatibility.json`. Its first two events, `ev_play_increment` and `ev_voice_bind`, and subscribe support in the USB loader are still being built. Until they land, the gate checks the two planned sites from a small fixture in `scripts/module-compat.py`, and no module can subscribe yet. Do not add a new raw patch at either site in the meantime.
+| Kind | What the base does | What your `runtime.json` declares | Example |
+| --- | --- | --- | --- |
+| Call event | Runs every handler at its stock site, lowest `order` first, then stock. A handler's result passes, takes or drops the call, as the event's contract says. | `subscribe`: `event`, `fn` (a C function) and `order` | `ev_play_increment`: Repitch changes a track's playback increment |
+| Raised event | Has no stock site. A module asks it, and the base runs every handler and returns their answers OR'd. | To ask it: `raise`, and a zero word `raise_<event>` in initialized data, which the loader points at the base's entry at install. To answer it: `subscribe`, as for a call event | `ev_mute_keep`: Mute Modes asks which tracks another module still reads while they are muted |
+| Take event | Gives its site to one subscriber: the first record, in `order`, whose `claims` is 0 or accepts the call. Its `entry` runs with every register as at the site, replays the stock instructions and returns to stock itself. | `subscribe`, with `fn` naming a `struct modwerk_take` {claims, entry} | `ev_octave_key`: POLY8, FM Synth and Scale Quantizer each claim their own tracks |
+| Table | Has no site. Modules contribute fixed-size records, and base code reads them in `order`. | `contribute`: `to`, `data` (the record's symbol) and `order` | `ot_machines`: each track machine's chooser row, page and renderer |
+
+A `runtime.json` needs `schema` and at least one subscription or contribution. The other keys are optional:
+
+```json
+{
+  "schema": 1,
+  "subscribe": [{ "event": "ev_play_increment", "fn": "mymod_rate", "order": 50 }],
+  "contribute": [{ "to": "ot_machines", "data": "mymod_machine", "order": 40 }],
+  "raise": ["ev_mute_keep"]
+}
+```
+
+- **Order.** 0-254; equal orders run in module-id order. 255 marks a raise and is never an order. Each entry gives its bands, for example 10-29 for a machine that claims its own tracks.
+- **Replaces.** `replaces` names what your native octabam build patches at that site instead: a detour's symbol, or for a take event or a table a list of detour symbols and `0x` addresses of pokes and references. The runtime package leaves it out, and the gate stops counting it.
+- **Room.** Each take event and table holds a fixed number of subscribers: 8, and 4 for `ot_machines`. The loader refuses a package past it. Before anything is sent, the site also refuses a raise on anything but a raised event and a take or table record that runs past the package's image.
+- **Context.** Handlers run where the entry says: short, with no firmware call that can block. Call-event handlers use the C convention and keep every register but d0-d1/a0-a1.
+- **Base.** A subscriber needs a base built with site events (loader capability 128). Before it sends anything, the site asks for a base update when the connected base can't take the package.
+- **Hook indices are an ABI.** Released packages carry them. Add new events and tables at the end of the registry, and never renumber a released one.
+
+Machine modules whose native source predates events declare the same subscriptions and contributions in `sdk/machines/octatrack/module-adapters/machine-ports.json` instead of a `runtime.json`.
 
 ### Propose an event
 
-Propose an event when the gate says two behaviour hooks meet, or when you need a site that another module or the base already patches:
+Propose an event or a table when the gate says two behaviour hooks meet, or when you need a site that another module or the base already patches:
 
-1. Open a pull request that adds one entry to the registry (`events.json`, once it exists): the name (`ev_` and what happens), the stock site (address and length, whole instructions), when it runs (task or interrupt level), the handler's C prototype and its order rule. Addresses and lengths only: no stock bytes.
+1. Open a pull request that adds one entry at the end of `sdk/machines/octatrack/events.json`, then run `python3 -B sdk/machines/octatrack/events.py --write` to regenerate the base's dispatch, the headers, EVENTS.md and the site's hook list. An event needs its name (`ev_` and what happens), its kind, its stock site (address, length in whole instructions and a SHA-256 guard), or none for a raised event, when it runs, its C prototype and its order rule. A table needs an `ot_` name, its record size and C declaration, its room and the sites its reader owns. Addresses, lengths and hashes only: no stock bytes.
 2. Say which modules patch that site today. Until they subscribe, list each such pair in `compatibility.json` as `pending-migration`, with the event and `until`.
-3. The owner reviews the entry. Every later module subscribes to it instead of patching.
+3. The owner reviews the entry. Every later module subscribes or contributes instead of patching.
 
 ### Read the gate's message
 
