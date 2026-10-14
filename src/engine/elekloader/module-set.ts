@@ -3,6 +3,7 @@
 // publishes as runtime packages (public/octatrack-modules, made from source by `npm run octatrack:module-packages`)
 // are installed from them; anything the set leaves out is removed with an empty package naming its module.
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
+import siteEvents from './octatrack-site-events.json' with { type: 'json' }
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { MODULES } from '../../catalog/modules.ts'
 import { inventoryChanges, type Inventory, type InventoryTarget } from '../../config/inventory.ts'
@@ -50,8 +51,17 @@ export async function fetchPackage(entry: RuntimePackage): Promise<Uint8Array> {
 }
 
 const MACHINE_BITS: Record<string, number> = { poly8: 1, vector: 2, synth: 4 }
-/** The Octatrack base's site events (sdk/machines/octatrack/events.json): hook words a subscriber may carry after the core four. */
-export const SITE_EVENTS = 4
+/** The Octatrack base's site events and tables (sdk/machines/octatrack/events.json, through events.py): hook words a
+ * subscriber may carry after the core four, by hook index. */
+export const SITE_EVENTS = siteEvents.events.length
+const SITE_KINDS = siteEvents.events.map((event, i) => {
+  if (event.index !== 4 + i) throw new Error('octatrack-site-events.json is out of order: run events.py --write')
+  return { kind: event.kind, record: (event as { record?: number }).record ?? 0 }
+})
+/** loader.h RUNTIME_RAISE: a raised event's hook word with this order points at a zero slot for the base's entry. */
+const RAISE = 255
+/** loader.h struct modwerk_take: claims and entry, the record a take event's hook word points at. */
+const TAKE_RECORD = 8
 const invalidPackage = () => new ModuleSetError('The site’s module package list is inconsistent. Reload the page before syncing.')
 const bounded = (n: unknown, max: number) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= max
 function requirements(entry: RuntimePackage, group = false) {
@@ -94,6 +104,12 @@ function checkPackage(entry: RuntimePackage, data: Uint8Array, id: string, varia
     const hook = view.getUint32(header + 4 * i), handler = i < 4 ? hook : hook & 0xffffff
     if (hook !== 0xffffffff && (handler >= image || handler % 2)) fail()
     subscribed ||= i >= 4 && hook !== 0xffffffff
+    if (i < 4 || hook === 0xffffffff) continue
+    // As the loader: a raise asks for the base's entry in a zero 4-byte slot of the image, only on a raised event; a
+    // take event's word points at a whole {claims, entry} record, a table's at a whole record of the table's size.
+    const { kind, record } = SITE_KINDS[i - 4] ?? fail(), at = header + 4 * hooks + handler
+    if (hook >>> 24 === RAISE ? kind !== 'raise' || handler + 4 > image || data.subarray(at, at + 4).some(byte => byte !== 0) :
+      handler + (kind === 'take' ? TAKE_RECORD : kind === 'table' ? record : 0) > image) fail()
   }
   if (subscribed !== subscriber) fail() // the manifest names the base feature its subscriptions need
   for (let i = 0; i < relocations; i++) {

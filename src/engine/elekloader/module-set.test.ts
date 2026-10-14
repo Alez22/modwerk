@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
+import siteEvents from './octatrack-site-events.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
 import { BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
 
@@ -85,6 +86,30 @@ describe('preparing a module set', () => {
     view.setUint32(76 + 4 * 4, 0xffffffff)
     const moved = createRuntimeCatalogue({ packages: [{ ...entry, bytes: core.length, sha256: sha(core) }] })
     await expect(moved.prepare({ name: 'Set', moduleIds: ['repitch'] }, empty, async () => core, events)).rejects.toThrow('inconsistent')
+  })
+  it('checks a raised event’s slot, a take event’s record and a table’s record as the loader does', async () => {
+    const index = (name: string) => siteEvents.events.find(event => event.event === name)!.index
+    const events = { abi: 8, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+    // Authored synthetic bytes only: an ABI 8 header, hook words, a zeroed image, no records and no firmware data.
+    function subscriber(words: Record<number, number>, image = 96, slot = 0) {
+      const hooks = Math.max(...Object.keys(words).map(Number)) + 1, data = new Uint8Array(76 + 4 * hooks + image), v = new DataView(data.buffer)
+      v.setUint32(0, 0x4d57524d); v.setUint16(4, 8); v.setUint32(8, image); v.setUint32(20, hooks); v.setUint32(28, Number.parseInt(runtimeId('mute-modes'), 16))
+      for (let i = 0; i < hooks; i++) v.setUint32(76 + 4 * i, words[i] ?? 0xffffffff)
+      if (slot) v.setUint32(76 + 4 * hooks + slot, 0x12345678)
+      const entry = { id: 'mute-modes', name: 'Mute Modes', abi: 8, features: 128, sites: 0, copies: 0, fills: 0, bytes: data.length, sha256: sha(data), path: 'test/sub.mwrm' }
+      return createRuntimeCatalogue({ packages: [entry] }).prepare({ name: 'Set', moduleIds: ['mute-modes'] }, empty, async () => data, events)
+    }
+    const raise = (offset: number) => 255 << 24 | offset, order = (offset: number) => 50 << 24 | offset
+    await expect(subscriber({ [index('ev_mute_keep')]: raise(8) })).resolves.toBeDefined()
+    await expect(subscriber({ [index('ev_mute_keep')]: order(8) })).resolves.toBeDefined() // a handler of the raised event
+    await expect(subscriber({ [index('ev_mute_keep')]: raise(8) }, 96, 8)).rejects.toThrow('inconsistent') // the slot is not zero
+    await expect(subscriber({ [index('ev_mute_keep')]: raise(94) })).rejects.toThrow('inconsistent') // the slot reaches past the image
+    await expect(subscriber({ [index('ev_play_increment')]: raise(8) })).rejects.toThrow('inconsistent') // no raise on a site event
+    await expect(subscriber({ [index('ev_midi_note_on')]: order(88) })).resolves.toBeDefined()
+    await expect(subscriber({ [index('ev_midi_note_on')]: order(90) })).rejects.toThrow('inconsistent') // {claims, entry} past the image
+    await expect(subscriber({ [index('ot_machines')]: order(16) })).resolves.toBeDefined()
+    await expect(subscriber({ [index('ot_machines')]: order(20) })).rejects.toThrow('inconsistent') // an 80-byte record past the image
+    await expect(subscriber({ [4 + SITE_EVENTS]: order(8) })).rejects.toThrow('inconsistent') // past the base's events
   })
   it('fetches the site’s copy and refuses one that did not arrive intact', async () => {
     const entry = manifest.packages[0], data = file(entry.path)
