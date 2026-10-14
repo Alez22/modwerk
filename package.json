@@ -18,6 +18,7 @@
     "test": "vitest run",
     "check": "node scripts/check.mjs",
     "pr:ready": "node scripts/pr-ready.mjs",
+    "catalog:resolve": "node scripts/catalog-resolve.mjs",
     "deploy": "npm run build && wrangler deploy --config wrangler.worker.jsonc",
     "dev:community": "wrangler dev --config wrangler.worker.jsonc --port 8788",
     "db:local": "wrangler d1 migrations apply octamod-community --config wrangler.worker.jsonc --local",

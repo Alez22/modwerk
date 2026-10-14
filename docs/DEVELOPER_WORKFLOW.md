@@ -40,7 +40,7 @@ It fetches Modwerk's `main` (from `upstream` when your fork has it, else `origin
 
 These stumbling blocks have each cost a contributor and the owner a repair round:
 
-- **main moved.** An author update merges automatically only when its CI ran against the current `main`; the scope job's name records both commits. When `main` moves first, merge it, run `pr:ready` again and push.
+- **main moved.** An author update merges automatically only when its CI ran against the current `main`; the scope job's name records both commits. When `main` moves first, merge it, run `pr:ready` again and push. If the merge stops on the shared catalogue files every Digitakt/Digitone module PR appends to (`src/catalog/machine-modules.json`, `src/community/module-changelogs.json`, the Elekloader `catalog.json` and lock), run `npm run catalog:resolve`. It merges them entry by entry and recomputes the catalogue hashes. It refuses an entry both sides changed, and any other conflict. Then commit and run `pr:ready`.
 - **Stale generated files.** `src/catalog/module-documents.json` and the compatibility files go stale whenever `main` moves under your branch. `pr:ready` regenerates them; commit what it names. Never edit them by hand.
 - **Letter case.** macOS and Windows find `Foo.s` when you wrote `foo.s`; Linux CI does not. `modules:check` refuses a manifest path in the wrong case, but not an `.include` line inside an assembly source, so check those yourself.
 - **A merge that breaks the code.** Merging `main` can leave a duplicate declaration or a stale call without any conflict marker. `pr:ready` runs the full check after the merge for exactly this reason.
