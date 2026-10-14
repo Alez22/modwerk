@@ -68,6 +68,8 @@ Most of these need a native toolchain and your own original OS 1.40C kept outsid
 
 ## Cross-compatibility
 
+**No module depends on another, on any machine.** Every module builds, installs and works when it is the only module chosen, on the stock OS, the base and the shared SDK. It never calls, extends or hooks another module's code, engine, rows, tables or files, and it declares no `requires`. No "needs X" selection rule, and no module pull request stacked on another's. When two modules need the same code, put it in the base or the shared SDK first, as an event or a table, in its own owner-reviewed pull request, or ship both features as one module. Review refuses a module that depends on another, and no exception entry covers it.
+
 Every Octatrack module must install beside every other active module and the Modwerk base. `npm run modules:compat` checks this on every pull request, as part of `npm run check` and `npm run module:doctor`, so registered authors' automatic updates pass it too. It reads declarations only: your manifest's detours, hooks, pokes, references, caves, grown tables, kept bytes and stock copies, the port recipes, the committed base package and octabam's DSP resource rules. It needs no firmware and runs in under a second. It checks every pair and the whole set.
 
 - **One owner per byte.** No two modules, and no module and the base, may patch overlapping stock bytes or relocate the same stock table (Elekloader's rule 5).
