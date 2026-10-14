@@ -19,9 +19,13 @@
 #endif
 
 /* Retirements the base carries, by signature. Analog BD's converts its tracks to FLEX in every known Part copy
- * (analog-bd-parts/analog_bd_part_board.c); absent from a base without it, which then refuses as above. */
-extern int mw_ab_board_check(void) __attribute__((weak));
-extern int mw_ab_board_retire(void) __attribute__((weak));
+ * (analog-bd-parts/analog_bd_part_board.c); a base without it keeps these defaults (-1: no retirement), so a leaving
+ * Analog BD is refused while a Part holds it, as any machine. */
+int mw_ab_board_check(void), mw_ab_board_retire(void);
+#ifndef MW_NO_DEFAULTS
+__attribute__((weak)) int mw_ab_board_check(void) { return -1; }
+__attribute__((weak)) int mw_ab_board_retire(void) { return -1; }
+#endif
 static const struct machine_retirement retirements[] = {
     {{'A', 'B'}, 1, 1, mw_ab_board_check, mw_ab_board_retire},
 };
@@ -42,7 +46,7 @@ const struct machine_retirement *machine_retirement(const uint8_t *record)
 {
     for (unsigned i = 0; record && i < sizeof retirements / sizeof *retirements; ++i)
         if (record[4] == retirements[i].sig[0] && record[5] == retirements[i].sig[1] && record[6] >= retirements[i].lo &&
-            record[7] <= retirements[i].hi && retirements[i].check && retirements[i].retire) return &retirements[i];
+            record[7] <= retirements[i].hi && retirements[i].check() >= 0) return &retirements[i];
     return 0;
 }
 struct reader { machine_memory_read read; void *context; };

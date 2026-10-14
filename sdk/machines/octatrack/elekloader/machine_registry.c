@@ -46,9 +46,14 @@ const char *mw_src_names[ROWS];
 uint32_t mw_pb_table[ROWS];
 extern int mw_stock_validate(uint8_t *);
 /* The DSP budget's source stage (dsp.c): a machine whose voice replaces its track's stock source is charged on that
- * track's core. Absent from a base without them, so a priced machine is never admitted there. */
-extern int modwerk_dsp_source_claim(unsigned track, uint32_t voice, uint32_t engine, uint8_t kind) __attribute__((weak));
-extern void modwerk_dsp_source_release(unsigned track, int engine_off) __attribute__((weak));
+ * track's core. A base without it keeps these defaults: a priced machine is never admitted, nor its voice rendered. */
+int modwerk_dsp_source_claim(unsigned track, uint32_t voice, uint32_t engine, uint8_t kind);
+void modwerk_dsp_source_release(unsigned track, int engine_off);
+#ifndef MW_HOST
+__attribute__((weak)) int modwerk_dsp_source_claim(unsigned track, uint32_t voice, uint32_t engine, uint8_t kind)
+{ (void)track; (void)voice; (void)engine; (void)kind; return RUNTIME_CYCLES; }
+__attribute__((weak)) void modwerk_dsp_source_release(unsigned track, int engine_off) { (void)track; (void)engine_off; }
+#endif
 static uint8_t charged;                   /* tracks of the current Part whose priced machine's voice is charged */
 extern void mw_stock_pool_open(void), mw_stock_list_draw(void);
 
@@ -175,7 +180,7 @@ static void leave(const Machine *const *m, unsigned n, Part *part, Part *mirror,
         charged &= (uint8_t)~(1u << track);
         unsigned others = 0; const Machine *who;
         for (unsigned t = 0; t < 8; ++t) if (t != track && charged & 1u << t && owner(m, n, part, t, &who) && who == old) ++others;
-        if (modwerk_dsp_source_release) modwerk_dsp_source_release(track, !others);
+        modwerk_dsp_source_release(track, !others);
     }
 }
 /* Tracks that became a priced machine without an assignment (a project load, a Part change, a paste) are charged
@@ -186,11 +191,11 @@ static void charge(const Machine *const *m, unsigned n)
     const Part *part = current_part(); const Machine *who;
     for (unsigned t = 0; t < 8; ++t) {
         int owned = owner(m, n, part, t, &who) && who->source_kind;
-        if (owned && !(charged & 1u << t) && modwerk_dsp_source_claim &&
+        if (owned && !(charged & 1u << t) &&
             !modwerk_dsp_source_claim(t, who->source_voice, who->source_engine, who->source_kind)) charged |= (uint8_t)(1u << t);
         else if (!owned && charged & 1u << t) {
             charged &= (uint8_t)~(1u << t);
-            if (modwerk_dsp_source_release) modwerk_dsp_source_release(t, 0);
+            modwerk_dsp_source_release(t, 0);
         }
     }
 }
@@ -207,7 +212,7 @@ unsigned mw_assign(Part *part, unsigned track, unsigned row)
     if (next) {
         if (next->admit_track && !next->admit_track(part, track)) return (unsigned)-1;
         if (next->source_kind && old != next) {
-            if (!modwerk_dsp_source_claim || modwerk_dsp_source_claim(track, next->source_voice, next->source_engine, next->source_kind))
+            if (modwerk_dsp_source_claim(track, next->source_voice, next->source_engine, next->source_kind))
                 return (unsigned)-1;
             charged |= (uint8_t)(1u << track);
         }

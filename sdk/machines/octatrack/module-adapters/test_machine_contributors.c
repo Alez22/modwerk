@@ -4,6 +4,7 @@
  * with no Part, with a Part holding its signature, with a base retirement (check at PREPARE, retire at SWITCH),
  * and a stock UI root naming its image. Synthetic bytes only. */
 #define MODWERK_HOST
+#define MW_NO_DEFAULTS
 #include "machine_contributors.h"
 #include "modwerk_events.h"
 #include <stdio.h>
@@ -75,7 +76,7 @@ int main(void)
     /* Analog BD leaves through its base retirement: PREPARE checks (PLANNED admits, UNKNOWN refuses), SWITCH retires
      * (only CLEAR retires). The Part signature fallback is not used for it. */
     verdict_check = MACHINE_RETIRE_PLANNED;
-    CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_PREPARE) == RUNTIME_OK && checks == 1);
+    CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_PREPARE) == RUNTIME_OK && checks == 2);
     verdict_check = MACHINE_RETIRE_UNKNOWN;
     CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_PREPARE) == RUNTIME_IN_USE);
     verdict_retire = MACHINE_RETIRE_PARTIAL;
@@ -84,6 +85,12 @@ int main(void)
     CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_SWITCH) == RUNTIME_IN_USE);
     verdict_retire = MACHINE_RETIRE_CLEAR;
     CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_SWITCH) == RUNTIME_OK && retires == 3);
+    /* A base without the retirement (its check answers -1): the Part signature decides, as for any machine. */
+    verdict_check = -1;
+    CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_SWITCH) == RUNTIME_IN_USE && retires == 3);
+    memset(bank, 0, sizeof bank);
+    CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_SWITCH) == RUNTIME_OK && retires == 3);
+    verdict_check = MACHINE_RETIRE_CLEAR;
     /* A stock UI root naming the leaving image refuses, before its retirement runs. */
     cache[100] = 0x40, cache[101] = 0x20, cache[102] = 0x00, cache[103] = 0x10; /* inside Analog BD's image */
     CHECK(machine_contributor_admission(&ab, &none, host_read, 0, BANK, RUNTIME_METADATA_SWITCH) == RUNTIME_IN_USE && retires == 3);
