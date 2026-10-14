@@ -57,22 +57,6 @@
       "owner": "poly8",
       "reason": "Machine-group seams owned by POLY8's composition (sdk/octabam/modules/poly8/composition.json, applied by sdk/octabam/tools/remix/machine_composition.py; dispatch order POLY8, VECTOR, FM, QZ, AB). Without POLY8 the configurator refuses this pair (src/catalog/selection-conflicts.ts). Both add a machine row at the same chooser, page and renderer seams.",
       "sites": ["0x40002318", "0x400334d8", "0x4003a52e", "0x4003c928", "0x4003c950", "0x4003c980", "0x4003cd98", "0x4003d718", "0x4004c36a", "0x4005221e", "0x400585dc", "0x400585fa", "0x4005a616", "0x4005a850", "0x40078678", "0x400786c8", "0x400786ce", "0x40078886", "0x40079248", "0x4007981c", "0x40079904"]
-    },
-    {
-      "modules": ["poly8", "repitch"],
-      "kind": "pending-migration",
-      "event": "ev_play_increment",
-      "until": "Repitch and POLY8 subscribe to ev_play_increment once the USB loader supports subscribe; then both raw detours go and this entry is removed.",
-      "reason": "Both scale the shared CPU/DSP playback increment at 0x40004100. Today POLY8's composition owns the site: its mr_rate_hook (poly8/shared-machine-hooks.s, MR_NEXT) takes POLY tracks and chains Repitch's rate_hook for every other track, so the reviewed order is POLY8, then Repitch.",
-      "sites": ["0x40004100"]
-    },
-    {
-      "modules": ["mute-modes", "poly8"],
-      "kind": "pending-migration",
-      "event": "ev_voice_bind",
-      "until": "Mute Modes and POLY8 subscribe to ev_voice_bind once the USB loader supports subscribe; then both raw detours go and this entry is removed.",
-      "reason": "Both act when a fresh voice is bound at 0x40006820. POLY8's mr_stop_voice stops the selected POLY extension, then chains Mute Modes' fresh_bind (poly8/polyphony.s) unless POLY8 is rendering, so the reviewed order is POLY8, then Mute Modes.",
-      "sites": ["0x40006820"]
     }
   ]
 }
