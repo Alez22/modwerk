@@ -22,7 +22,7 @@ import { setPageMetadata } from './page-metadata'
 import { HOME_DESCRIPTION, HOME_TITLE } from './site-metadata'
 import { ModuleSets } from './components/ModuleSets'
 import { ModuleComparison } from './components/ModuleComparison'
-import { api } from './community/api'
+import { api, onCommunityReconnect } from './community/api'
 import { compareModules, DEFAULT_MODULE_SORT, MODULE_STATISTICS_CHANGED, type ModuleStatistics } from './community/module-statistics'
 import { ModulePopularity } from './community/ModulePopularity'
 import type { ConflictFix } from './catalog/selection-conflicts'
@@ -213,6 +213,7 @@ export default function App() {
   const configurationCount = activeFor(configurationTarget)?.moduleIds.length ?? 0
   function ensureActive(item?: Configuration) { if (item && storedActive?.id !== item.id) workspace.selectConfiguration(item.id) }
   function setKeepStockFx2(value: boolean) { ensureActive(active); workspace.setKeepStockFx2(value) }
+  function setClassicStartup(value: boolean) { ensureActive(active); workspace.setClassicStartup(value) }
   function toggleMachineModule(id: string) { workspace.toggleModule(id, currentDevice.id) }
   const selectedIds = active?.moduleIds ?? []
   const firmwareBuild = useFirmwareBuild(workspace.firmwareClient, active, firmware)
@@ -243,7 +244,7 @@ export default function App() {
   function closeSearch() { setQuery(''); flushSync(() => setSearchOpen(false)); searchToggleRef.current?.focus() }
   const [family,setFamily]=useState(initialBrowse?.family ?? 'all'),[sort,setSort]=useState(initialBrowse?.sort ?? DEFAULT_MODULE_SORT),[comparison,setComparison]=useState<string[]>([]),[compareOpen,setCompareOpen]=useState(false)
   const [statistics,setStatistics]=useState<ModuleStatistics[]|null>(null)
-  useEffect(()=>{let cancelled=false,latest=0;function load(){if(!session.available)return;const request=++latest;void api<ModuleStatistics[]>('/community/summary').then(value=>{if(!cancelled&&request===latest)setStatistics(value)}).catch(()=>{if(!cancelled&&request===latest)setStatistics(null)})}load();window.addEventListener(MODULE_STATISTICS_CHANGED,load);return()=>{cancelled=true;window.removeEventListener(MODULE_STATISTICS_CHANGED,load)}},[session.available,onLibrary])
+  useEffect(()=>{let cancelled=false,latest=0;function load(){if(!session.available)return;const request=++latest;void api<ModuleStatistics[]>('/community/summary').then(value=>{if(!cancelled&&request===latest)setStatistics(value)}).catch(()=>{if(!cancelled&&request===latest)setStatistics(null)})}load();window.addEventListener(MODULE_STATISTICS_CHANGED,load);const reconnected=onCommunityReconnect(load);return()=>{cancelled=true;reconnected();window.removeEventListener(MODULE_STATISTICS_CHANGED,load)}},[session.available,onLibrary])
   const [dragging, setDragging] = useState(false)
   const [saved, setSaved] = useState(false)
   const [riskAccepted, setRiskAccepted] = useState<{key:string;accepted:boolean}>({key:'',accepted:false})
@@ -388,6 +389,7 @@ export default function App() {
   // The module set page's checkout pieces: in the side column, or in the card fold while a base is connected.
   const firmwareBuildPanel = <FirmwareBuildPanel build={firmwareBuild} available={ENGINE_AVAILABLE} downloadsEnabled={DOWNLOADS_ENABLED} firmwareReady={!!firmware} moduleCount={selection.length} riskAccepted={riskAccepted.key===firmwareBuild.key&&riskAccepted.accepted} configurationName={active?.name??'Configuration'} onExport={saveSelection} exported={saved} results={buildResultsSlot}/>
   const compatibilityPanel = <Suspense fallback={null}><CompatibilityPanel ids={selectedIds} keepStockFx2={DSP_LOADER && (active?.keepStockFx2??true)} buildState={firmwareBuild.state} buildError={firmwareBuild.error} buildConflict={firmwareBuild.conflict} onFix={fixConflict}/></Suspense>
+  const startupOptions = <section className="configuration-section chooser-options"><h2>Startup</h2><label><input type="checkbox" checked={!!active?.classicStartup} onChange={event=>setClassicStartup(event.target.checked)}/><span><strong>Classic startup</strong><small>Keep the 2.8-second startup of earlier builds instead of the docking animation.</small></span></label></section>
   const riskAcceptance = <RiskAcceptance checked={riskAccepted.key===firmwareBuild.key&&riskAccepted.accepted} onChange={accepted => setRiskAccepted({key:firmwareBuild.key,accepted})}/>
   // The beta's Octatrack page (#configuration and #octatrack): the sets beside the unit, with the configuration page's
   // header, module grid and card route in it, so nothing the page had is lost.
@@ -412,6 +414,7 @@ export default function App() {
       </section>
       <Suspense fallback={null}><ConfigurationEffects ids={selectedIds} keepStockFx2={active?.keepStockFx2 ?? true} build={firmwareBuild} /></Suspense>
       {DSP_LOADER && <section className="configuration-section chooser-options"><h2>Effect menus</h2><label><input type="checkbox" checked={active?.keepStockFx2??true} onChange={event=>setKeepStockFx2(event.target.checked)}/><span><strong>Keep stock FX2 effects</strong><small>Keep the original FX2 effects alongside your modules.</small></span></label></section>}
+      {startupOptions}
       <div ref={setBuildResultsSlot} className="build-results" />
     </div><div className="configuration-checkout">{compatibilityPanel}<div className="checkout-card">{riskAcceptance}<MemberGate action="build firmware" next={route}>{firmwareBuildPanel}</MemberGate></div></div></div></CardInstall>} /></Suspense>
   return (
@@ -512,6 +515,7 @@ export default function App() {
                     <p className="firmware-help"><a href="#faq">Where do I get the .bin? Read the FAQ & flashing guide <Icon name="arrow" size={14} /></a></p>
                   </section>
                   {DSP_LOADER && <section className="configuration-section chooser-options"><h2>Effect menus</h2><label><input type="checkbox" checked={active?.keepStockFx2??true} onChange={event=>setKeepStockFx2(event.target.checked)}/><span><strong>Keep stock FX2 effects</strong><small>Keep the original FX2 effects alongside your modules.</small></span></label></section>}
+                  {startupOptions}
                   <div ref={setBuildResultsSlot} className="build-results" />
                 </div>
                 <div className="configuration-checkout">
