@@ -9,7 +9,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
-sys.path.insert(0, str(ADAPTER))
+sys.path.append(str(ADAPTER))
 import machine_layout as layout
 import machine_declarations as declarations
 import quantizer_runtime as quantizer

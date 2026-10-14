@@ -6,7 +6,7 @@ import sys
 
 adapter = Path(__file__).resolve().parents[1] / 'machines/octatrack/module-adapters'
 sys.path.append(str(adapter))  # Keep SDK wrappers first during unittest discovery.
-spec = importlib.util.spec_from_file_location('fm_runtime_adapter_tests', adapter / 'test_fm_runtime.py')
+spec = importlib.util.spec_from_file_location('fm_runtime_adapter_tests', adapter / 'fm_runtime_tests.py')
 tests = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tests)
 SourceTests = tests.SourceTests

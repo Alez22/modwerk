@@ -22,6 +22,9 @@
 #include "usb_base.h"
 #include "runtime.h"
 #include "boot.h"
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+#include "volatile_service.h"
+#endif
 #ifdef MODWERK_SAVED_SET_EXPORT
 #include "saved_set_session.h"
 #endif
@@ -65,6 +68,11 @@ static struct mv_transport transport;
 static uint8_t reply[512] __attribute__((aligned(512))); /* within one 4 KiB page */
 static struct dtd data_dtd __attribute__((aligned(32)));
 static uint8_t started, receiving;
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+static struct mvs_service volatile_service __attribute__((aligned(16)));
+#define VOLATILE_SERVICE ((struct mvs_service *)UNCACHED(&volatile_service))
+static uint8_t volatile_started, volatile_receiving;
+#endif
 static volatile uint8_t wake_posted;
 static volatile uint8_t held; /* a frame put off until settled: the tick wakes the engine to look again */
 static uint32_t expected, frames, refusals, resets;
@@ -91,6 +99,9 @@ int octamod_log_can_flush(void);
 int modwerk_saved_set_busy(void) { return msx_session_active(SAVED_SET); }
 static int saved_set_structural_safe(void)
 {
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    if(modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE)) return 0;
+#endif
     if (receiving || held || (controller_started && controller.phase != MU_NORMAL) ||
         !modwerk_modset_export_idle() || !modwerk_dsp_export_idle() ||
         !modwerk_machine_stopped() || REG(0x460d1cb8u) != 1u || REG(0x460e76a0u)) return 0;
@@ -126,6 +137,9 @@ int modwerk_machine_journal_begin_safe(void)
 /* A host session is open (an install, a trial, its self-test): dsp.c moves no code meanwhile. */
 int modwerk_upload_busy(void);
 int modwerk_upload_busy(void) {
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    if(modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE)) return 1;
+#endif
 #ifdef MODWERK_SAVED_SET_EXPORT
     if (modwerk_saved_set_busy()) return 1;
 #endif
@@ -153,6 +167,38 @@ static void flush_receive(void)
 {
     ENDPTFLUSH = 1u;
     for (uint32_t i = 0; (ENDPTFLUSH & 1u) && i < 100000u; ++i) {}
+}
+
+static uint32_t prime_receive(uint8_t *buffer,uint32_t length)
+{
+        /* Stock's completion loop handles an EP0 OUT completion harmlessly
+         * only in its idle state (11) with no awaited OUT descriptor; in any
+         * other state it spins on the bit forever. This new SETUP has ended
+         * whatever transfer stock was tracking (its SETUP path also cleared
+         * the EP0 completion bits), so take EP0 into the idle state for ours.
+         * On hardware the state was not idle here: a fast host's SETUP can
+         * clear the previous IN completion before stock processes it. */
+        submit_state = EP0_STATE << 16 | (EP0_OUT_AWAITED != 0);
+        EP0_STATE = 11u;
+        EP0_OUT_AWAITED = 0;
+        struct dtd *d = UNCACHED(&data_dtd);
+        uint32_t at = (uint32_t)(uintptr_t)buffer;
+        d->next = 1u;
+        d->token = length << 16 | DTD_IOC | DTD_ACTIVE;
+        d->page[0] = at;
+        for (uint32_t i = 1; i < 5; ++i) d->page[i] = (at & ~0xfffu) + 0x1000u * i;
+        volatile uint32_t *qh = (volatile uint32_t *)(uintptr_t)EP0_OUT_QH;
+        /* ZLT off: with it on (stock's setting) a stage of whole 64-byte packets
+         * waits for a zero-length packet the host never sends (hardware, usbtest9). */
+        qh[0] |= 1u << 29;
+        qh[2] = (uint32_t)(uintptr_t)d;
+        ENDPTPRIME = ENDPTPRIME | 1u;
+        ++primes, waited = 0;
+        qh_next = qh[2];
+        prime_status = ENDPTPRIME << 16 | (ENDPTSTAT & 0xffffu);
+        expected = length;
+        receiving = 1;
+        return MODWERK_EP0_RECEIVING;
 }
 
 /* DIAG (0xC1, bRequest 4, wValue 0, wLength 68, never a multiple of 64; see
@@ -203,6 +249,36 @@ uint32_t modwerk_ep0_dispatch(void)
 {
     struct mv_transport *t = vendor();
     uint8_t *out = UNCACHED(reply);
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    /* A new SETUP abandons an incomplete private OUT. Unknown writes trigger
+     * board expiry/recovery, never controller adoption or frame replay. */
+    if(receiving && volatile_receiving) {
+        receiving=volatile_receiving=0;++abandons;flush_receive();
+        modwerk_volatile_reset(VOLATILE_SERVICE);wake();
+    }
+    if(SETUP[1]>=34u && SETUP[1]<=36u) {
+        uint32_t length=(uint32_t)SETUP[6]|(uint32_t)SETUP[7]<<8;
+        if(SETUP[2] || SETUP[3] || SETUP[4]!=MODWERK_VENDOR_INTERFACE || SETUP[5]) return MODWERK_EP0_REFUSE;
+        if(SETUP[1]!=34u) {
+            if(SETUP[0]!=MV_RESULT_TYPE || length!=MVS_STATUS_BYTES) return MODWERK_EP0_REFUSE;
+            if(!volatile_started) { wake();return MODWERK_EP0_REFUSE; }
+            modwerk_ep0_reply=out;return modwerk_volatile_status(VOLATILE_SERVICE,out);
+        }
+        if(SETUP[0]!=MV_SUBMIT_TYPE || !volatile_started || length<MVS_HEADER_BYTES ||
+           length>MVS_FRAME_BYTES || !(length%64u) || VOLATILE_SERVICE->queued ||
+           (controller_started && controller.phase!=MU_NORMAL) || receiving || held
+#ifdef MODWERK_SAVED_SET_EXPORT
+           || modwerk_saved_set_busy()
+#endif
+           ) return MODWERK_EP0_REFUSE;
+        /* Only the bounded completed frame is queued. No parser, allocation,
+         * source declaration, Begin or publication work runs in the ISR. */
+        volatile_receiving=1;
+        return prime_receive(t->frame,length);
+    }
+    if((modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE)) &&
+       SETUP[0]==MV_SUBMIT_TYPE) return MODWERK_EP0_REFUSE;
+#endif
 #ifdef MODWERK_SAVED_SET_EXPORT
     /* The export lease freezes controller mutation before SETUP can reserve
      * a receiving frame. The completed queued frame also blocks export begin. */
@@ -275,6 +351,9 @@ uint32_t modwerk_ep0_dispatch(void)
 #ifdef MODWERK_SAVED_SET_EXPORT
         if (SETUP[2] && modwerk_saved_set_busy()) return MODWERK_EP0_REFUSE;
 #endif
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+        if(SETUP[2] && (modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE))) return MODWERK_EP0_REFUSE;
+#endif
         if (SETUP[2]) (void)modwerk_selftest_start();
         modwerk_selftest_refresh();
         for (unsigned i = 0; i < sizeof modwerk_selftest; ++i) out[i] = ((const volatile uint8_t *)&modwerk_selftest)[i];
@@ -284,6 +363,9 @@ uint32_t modwerk_ep0_dispatch(void)
 #endif
 #ifdef MODWERK_DEV
     if (r.action == MV_STALL) { /* development bases: KEY and SCREEN (dev.c) */
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+        if(modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE)) return MODWERK_EP0_REFUSE;
+#endif
 #ifdef MODWERK_SAVED_SET_EXPORT
         if (modwerk_saved_set_busy()) return MODWERK_EP0_REFUSE;
 #endif
@@ -292,36 +374,7 @@ uint32_t modwerk_ep0_dispatch(void)
         if (n) return n;
     }
 #endif
-    if (r.action == MV_RECEIVE) {
-        /* Stock's completion loop handles an EP0 OUT completion harmlessly
-         * only in its idle state (11) with no awaited OUT descriptor; in any
-         * other state it spins on the bit forever. This new SETUP has ended
-         * whatever transfer stock was tracking (its SETUP path also cleared
-         * the EP0 completion bits), so take EP0 into the idle state for ours.
-         * On hardware the state was not idle here: a fast host's SETUP can
-         * clear the previous IN completion before stock processes it. */
-        submit_state = EP0_STATE << 16 | (EP0_OUT_AWAITED != 0);
-        EP0_STATE = 11u;
-        EP0_OUT_AWAITED = 0;
-        struct dtd *d = UNCACHED(&data_dtd);
-        uint32_t at = (uint32_t)(uintptr_t)r.buffer;
-        d->next = 1u;
-        d->token = r.length << 16 | DTD_IOC | DTD_ACTIVE;
-        d->page[0] = at;
-        for (uint32_t i = 1; i < 5; ++i) d->page[i] = (at & ~0xfffu) + 0x1000u * i;
-        volatile uint32_t *qh = (volatile uint32_t *)(uintptr_t)EP0_OUT_QH;
-        /* ZLT off: with it on (stock's setting) a stage of whole 64-byte packets
-         * waits for a zero-length packet the host never sends (hardware, usbtest9). */
-        qh[0] |= 1u << 29;
-        qh[2] = (uint32_t)(uintptr_t)d;
-        ENDPTPRIME = ENDPTPRIME | 1u;
-        ++primes, waited = 0;
-        qh_next = qh[2];
-        prime_status = ENDPTPRIME << 16 | (ENDPTSTAT & 0xffffu);
-        expected = r.length;
-        receiving = 1;
-        return MODWERK_EP0_RECEIVING;
-    }
+    if (r.action == MV_RECEIVE) return prime_receive(r.buffer,r.length);
     if (r.action != MV_SEND || r.length > sizeof reply) { ++refusals; return MODWERK_EP0_REFUSE; }
     for (uint32_t i = 0; i < r.length; ++i) out[i] = r.buffer[i];
     modwerk_ep0_reply = out;
@@ -338,6 +391,10 @@ void modwerk_ep0_poll(void)
         receiving = 0;
         ++abandons;
         abandoned_token = ((volatile struct dtd *)UNCACHED(&data_dtd))->token;
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+        if(volatile_receiving) { volatile_receiving=0;modwerk_volatile_reset(VOLATILE_SERVICE);wake(); }
+        else
+#endif
         mv_abandon(t);
         flush_receive();
         return;
@@ -350,7 +407,14 @@ void modwerk_ep0_poll(void)
     const volatile uint8_t *head = t->frame;
     ++completions; last_token = token; last_received = received;
     frame_head = (uint32_t)head[0] << 24 | (uint32_t)head[1] << 16 | (uint32_t)head[2] << 8 | head[3];
-    if (mv_data(t, received)) {
+    int accepted;
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    if(volatile_receiving) { volatile_receiving=0;accepted=received==expected &&
+        modwerk_volatile_queue(VOLATILE_SERVICE,t->frame,received); }
+    else
+#endif
+    accepted=mv_data(t,received);
+    if (accepted) {
         ++frames;
         STATUS_IN();
         wake();
@@ -366,6 +430,9 @@ void modwerk_ep0_bus_reset(void)
 {
     struct mv_transport *t = vendor();
     ++resets;
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    volatile_receiving=0;modwerk_volatile_reset(VOLATILE_SERVICE);wake();
+#endif
 #ifdef MODWERK_SAVED_SET_EXPORT
     msx_session_reset(SAVED_SET); /* running latch remains held until engine I/O returns */
 #endif
@@ -382,6 +449,9 @@ void modwerk_ep0_bus_reset(void)
 void modwerk_ep0_tick(void);
 void modwerk_ep0_tick(void)
 {
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    if(volatile_started && modwerk_volatile_tick(VOLATILE_SERVICE,modwerk_runtime_ticks)) wake();
+#endif
 #ifdef MODWERK_SAVED_SET_EXPORT
     msx_session_tick(SAVED_SET); /* only export traffic renews this independent lease */
 #endif
@@ -408,6 +478,10 @@ void modwerk_ep0_tick(void)
         else if (receiving && ++waited >= 30u) {
             stuck_overlay = ((volatile uint32_t *)(uintptr_t)EP0_OUT_QH)[3];
             receiving = 0, waited = 0, ++stalled;
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+            if(volatile_receiving) { volatile_receiving=0;modwerk_volatile_reset(VOLATILE_SERVICE);wake(); }
+            else
+#endif
             mv_abandon(vendor());
             flush_receive();
             ENDPTCTRL0 = ENDPTCTRL0 | 0x00010001u; /* both ways; the next SETUP clears it */
@@ -474,6 +548,20 @@ void modwerk_engine_idle(void)
                      modwerk_base_digest, session, modwerk_base_digest, 0, &modwerk_boot_backend)) return;
         controller_started = 1;
     }
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    if(!volatile_started) {
+        if(!modwerk_volatile_init(VOLATILE_SERVICE,modwerk_boot_staging(),BOOT_IMAGE_BYTES,
+            modwerk_base_digest,controller.session)) return;
+        volatile_started=1;
+    }
+    modwerk_volatile_service(VOLATILE_SERVICE,modwerk_runtime_ticks);
+    if(modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE)) return;
+#endif
     (void)mv_service(UNCACHED(&transport), &controller);
+#ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
+    /* Legacy publication can change the inventory. Refresh the engine-owned
+     * cached digest before a host reads it; ISR reads do no hashing. */
+    modwerk_volatile_service(VOLATILE_SERVICE,modwerk_runtime_ticks);
+#endif
     modwerk_boot_service(); /* an armed RAM boot, once due (boot.c): does not return then */
 }

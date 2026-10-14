@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Actual saved-set code refuses volatile persistence; absent backend is closed.
+"""Actual saved-set code holds still while a volatile journal owns RAM and takes
+only an exactly matching Keep; absent backend is closed.
 
 The loader's normal host suite exercises real allocation, site publication,
 partial/unknown synthetic ACKs and reverse rollback under both pool sizes.
@@ -48,13 +49,21 @@ class RuntimeJournal(unittest.TestCase):
 #include "vendor.h"
 #define MODWERK_SAVED_SET_EXPORT
 #define MODWERK_RESIDENT_STOCK_HOOKS
+#define MODWERK_RUNTIME_VOLATILE_JOURNAL
+#include "volatile_service.h"
 #define UNCACHED(p) (p)
 static struct mv_transport transport;
 static struct mu_context controller;
+static struct mvs_service volatile_service;
+#define VOLATILE_SERVICE (&volatile_service)
 static int started=1,wake_posted,receiving,held,controller_started;
+static int journal_busy,service_busy;
+int modwerk_runtime_volatile_busy(void) { return journal_busy; }
+int modwerk_volatile_busy(const struct mvs_service *s) { assert(s==VOLATILE_SERVICE);return service_busy; }
 static int exporting,modset_idle=1,dsp_idle=1,stopped=1,hooks_idle=1;
-static uint32_t paused=1,recording;
-static uint32_t reg(uint32_t a) { assert(a==0x460d1cb8u || a==0x460e76a0u); return a==0x460d1cb8u?paused:recording; }
+/* 0x460d1cb8: card mounted (1); 0x460e76a0: USB disk mode active. */
+static uint32_t card_ready=1,usb_disk;
+static uint32_t reg(uint32_t a) { assert(a==0x460d1cb8u || a==0x460e76a0u); return a==0x460d1cb8u?card_ready:usb_disk; }
 #define REG(a) reg(a)
 int modwerk_saved_set_busy(void) { return exporting; }
 int modwerk_modset_export_idle(void) { return modset_idle; }
@@ -64,7 +73,7 @@ int modwerk_stock_hook_export_idle(void) { return hooks_idle; }
 ''' + function('static int saved_set_structural_safe(void)') + '\n' + function('int modwerk_machine_journal_begin_safe(void)') + '''
 int main(void) {
     assert(modwerk_machine_journal_begin_safe());
-    int *bad_one[]={&wake_posted,&receiving,&held,&exporting};
+    int *bad_one[]={&wake_posted,&receiving,&held,&exporting,&journal_busy,&service_busy};
     for(unsigned i=0;i<sizeof bad_one/sizeof bad_one[0];i++) {
         *bad_one[i]=1;assert(!modwerk_machine_journal_begin_safe());*bad_one[i]=0;
         assert(modwerk_machine_journal_begin_safe());
@@ -78,8 +87,8 @@ int main(void) {
     transport.lapses=1;assert(!modwerk_machine_journal_begin_safe());transport.lapses_handled=1;
     assert(modwerk_machine_journal_begin_safe());
     controller_started=1;controller.phase=MU_TRIAL;assert(!modwerk_machine_journal_begin_safe());controller.phase=MU_NORMAL;
-    paused=0;assert(!modwerk_machine_journal_begin_safe());paused=1;
-    recording=1;assert(!modwerk_machine_journal_begin_safe());recording=0;
+    card_ready=0;assert(!modwerk_machine_journal_begin_safe());card_ready=1;
+    usb_disk=1;assert(!modwerk_machine_journal_begin_safe());usb_disk=0;
     assert(modwerk_machine_journal_begin_safe());return 0;
 }
 '''
@@ -87,9 +96,10 @@ int main(void) {
 
     def test_all_real_saved_set_paths_preserve_both_files_and_ram_baseline(self):
         source = (ELEK / 'test_modset.c').read_text()
+        sanitizers = ('-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all')
         for defines in (('-DMODWERK_HOST',), ('-DMODWERK_HOST', '-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')):
             with self.subTest(defines=defines):
-                self.compile_run(source, defines)
+                self.compile_run(source, defines + sanitizers)
 
     def test_missing_production_journal_backend_does_not_open_a_service(self):
         # Keep the real legacy loader suite and remove only the synthetic
@@ -113,8 +123,35 @@ int main(void) {
     CHECK(modwerk_runtime_journal_verify()==RJ_REFUSED);
     CHECK(modwerk_runtime_journal_activate()==RJ_REFUSED);
     CHECK(modwerk_runtime_journal_abort()==RJ_STALE);
+    CHECK(modwerk_runtime_journal_accept()==RJ_REFUSED && !modwerk_runtime_volatile_busy());
+    CHECK(!modwerk_machine_journal_accept(0,0));
 ''' + source[end:]
         self.compile_run(source)
+
+    def test_actual_board_ledger_drives_the_real_checked_dsp_commit(self):
+        # journal_board.c's stored receipts against dsp.c/fxpage.c/fxmap.c's
+        # actual checked publication. Owners, progress, the association row
+        # and manager receipts are synthetic; no DSP ACK is established.
+        for defines in ((), ('-DMODWERK_FX_IDS=128u',)):
+            with self.subTest(defines=defines), tempfile.TemporaryDirectory() as temp:
+                args = ['cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g',
+                        '-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-DMODWERK_HOST',
+                        '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565', '-DMODWERK_DSP_RESERVE=342',
+                        *defines, '-I', ELEK, '-I', ROOT / 'sdk/octabam/platform/dsp-dynload-transport',
+                        '-I', ROOT / 'sdk/runtime/upload', '-I', LOADER, ELEK / 'test_journal_board.c',
+                        '-o', Path(temp) / 'board']
+                compiled = subprocess.run(args, capture_output=True, text=True)
+                self.assertEqual(compiled.returncode, 0, compiled.stderr)
+                ran = subprocess.run([Path(temp) / 'board'], capture_output=True, text=True)
+                self.assertEqual(ran.returncode, 0, ran.stderr)
+
+    def test_public_board_adapter_is_closed_and_declares_nothing(self):
+        source = (ELEK / 'journal_board.c').read_text()
+        self.assertIn('#define MODWERK_JOURNAL_BOARD_ENABLED 0', source)
+        self.assertIn('#define MW_REVIEWED_JOURNAL_ASSOCIATIONS /* none */', source)
+        build = (ELEK / 'build_core.py').read_text()
+        self.assertNotIn('MODWERK_JOURNAL_BOARD_ENABLED', build)
+        self.assertNotIn('MW_REVIEWED_JOURNAL_ASSOCIATIONS', build)
 
 
 if __name__ == '__main__':

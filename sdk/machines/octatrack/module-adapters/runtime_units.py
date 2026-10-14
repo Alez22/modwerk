@@ -38,6 +38,7 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
                       capture_output=True).returncode == 0:
         raise ValueError('Private compilation outputs must stay outside Git.')
     work.mkdir(mode=0o700)
+    declared = builder.runtime_declaration(sdk_root / 'modules' / module.name)
     objects, references = [], []
     labels = {unit.label for unit in module.linked}
     for unit in module.linked:
@@ -62,6 +63,8 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
         actual = hashlib.sha256(raw.read_bytes()).hexdigest()
         if actual != digest:
             raise ValueError('Authored native reference changed: ' + unit.label)
+        if declared:  # the native bytes are proven above; the package carries its site-event subscriber form
+            run(cross + 'as', '-mcpu=54455', '--defsym', 'MODWERK_EVENTS=1', '-I', str(include), str(source), '-o', str(obj), cwd=sdk_root)
         references.append(dict(unit=unit.label, address=address, sha256=actual, bytes=raw.stat().st_size,
                                sourceSha256=hashlib.sha256(source.read_bytes()).hexdigest(),
                                includeSha256=hashlib.sha256(generated.encode()).hexdigest()))
@@ -98,7 +101,7 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
             if data[start:start + len(expected)] != expected:
                 raise ValueError('A table differs from the independent native insertion oracle.')
     sites = []
-    for detour in module.detours:
+    for detour in builder.replaced(module.detours, declared['subscribe']) if declared else module.detours:
         n = detour.pad_to or 6
         if (detour.unit not in labels or detour.symbol not in symbols or detour.target is not None
                 or detour.kind not in builder.OPCODES or n < 6 or n & 1):
@@ -121,5 +124,9 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
     for address, digest, _, _, _, checked in sites:
         if hashlib.sha256(stock_at(address, checked)).digest() != digest:
             raise ValueError('A guarded stock site changed.')
-    return dict(image=image, bss=bss, offsets=offsets, sites=sites, copies=copies, symbols=symbols,
+    hooks = []
+    if declared:
+        builder.unevented(sites, copies)
+        hooks = builder.subscribe([builder.NONE] * len(builder.HANDLERS), declared['subscribe'], symbols)
+    return dict(image=image, bss=bss, offsets=offsets, sites=sites, copies=copies, symbols=symbols, hooks=hooks,
                 referenceProofs=references, tableOracle=True, origins=[0, builder.SHIFT])

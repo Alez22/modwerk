@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'sdk/machines/octatrack/module-adapters'))
+sys.path.append(str(ROOT / 'sdk/machines/octatrack/module-adapters'))
 import runtime_tables
 import runtime_units
 spec = importlib.util.spec_from_file_location('table_fixture_builder', ROOT / 'sdk/runtime/loader/build.py')

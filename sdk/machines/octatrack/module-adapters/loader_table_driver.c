@@ -7,6 +7,13 @@
 #include "machine_admission.h"
 void *memcpy(void *to,const void *from,unsigned long length)
 { volatile uint8_t *out=to;const volatile uint8_t *in=from;for(unsigned long i=0;i<length;i++)out[i]=in[i];return to; }
+/* Synthetic fixtures link without libc, like the board runtime. */
+void *memset(void *to, int value, unsigned long length)
+{
+    volatile uint8_t *out = to;
+    for (unsigned long i = 0; i < length; ++i) out[i] = (uint8_t)value;
+    return to;
+}
 static uint8_t fixture_table[TABLE_DECLARATION_BYTES];
 static uint8_t fixture_machines[MACHINE_DECLARATION_BYTES];
 static int read_board(void *context,uint32_t at,void *out,uint32_t n)
@@ -58,10 +65,23 @@ int modwerk_machine_metadata_admit(const struct runtime_dsp *from,struct runtime
     int why=machine_metadata_admission(fixture_machines,from,to,read_board,0,
         *(volatile uint32_t *)(uintptr_t)0x46c82456u);
     if(why)return why;
+    why=table_machine_association(fixture_machines,fixture_table,from);
+    if(why)return why;
+    why=table_machine_association(fixture_machines,fixture_table,to);
+    if(why)return why;
     struct runtime_span span[RUNTIME_PAUSED];unsigned count=modwerk_machine_paused(span,RUNTIME_PAUSED,context);
     why=table_metadata_admission(fixture_table,from,to,operation,read_board,0,span,count);
-    if(!why)to->foreign_roots=to->present && ((to->flags&RUNTIME_GROUP_METADATA)||table_metadata_family(to));
+    if(!why)to->foreign_roots=to->present && ((to->flags&RUNTIME_GROUP_METADATA)||table_metadata_family(fixture_table,to));
     return why;
+}
+void fixture_review_optional_quantizer(const uint8_t *data,uint32_t length,uint32_t optional)
+{
+    uint8_t digest[32];mu_sha256(data,length,digest);
+    for(unsigned i=0;i<fixture_machines[5];i++) {
+        uint8_t *r=fixture_machines+16+44*i;unsigned k=0;
+        while(k<32 && r[k]==digest[k])k++;
+        if(k==32) {r[37]=(uint8_t)optional;return;}
+    }
 }
 uint32_t fixture_table_image(void)
 {const struct runtime_module *m=modwerk_runtime_module(0);return m?(uint32_t)(uintptr_t)m->dsp.image:0;}

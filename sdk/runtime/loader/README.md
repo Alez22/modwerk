@@ -124,7 +124,7 @@ index, exact length 12) returns `MWCP`, version u8 = 1, maximum ABI u8 = 8,
 features u16, maximum sites u16 and maximum copies u16, all big-endian.
 Features currently equal 7: ColdFire sites (1), hash-backed copies (2)
 and authored fills (4). Table composition (8), machine groups (16) and
-resident Sidechain support (32) are disabled. A client must check the
+resident Sidechain support (32) are disabled. 64 is the volatile journal service (closed). Site events (128) are set only by a base built with them. A client must check the
 current base before submitting a newer package, including Undo.
 
 ABI 8 flag 4 identifies a pure ColdFire group with an `MWMG` v1 image
@@ -138,6 +138,33 @@ stable across subsets; its inventory layout must identify the exact
 package and member versions, and old variants must remain available for
 Undo. The private `--octabam-group` builder and source-pinned stock recipes
 produce candidates, not qualified public modules.
+
+## Events at stock sites (ABI 8)
+
+A base may own stock sites that several modules need, and turn each into an event, as
+Elekloader's core does for `ev_tick` and the others (its rule 4: do not patch the shared sites,
+subscribe). The Octatrack's are one reviewed registry, `sdk/machines/octatrack/events.json`;
+`events.py` generates the base's dispatch (`runtime_events.s`), the loader's table header
+(`runtime_events.h`, built in with `MODWERK_RUNTIME_EVENTS`), the SDK header and
+`sdk/machines/octatrack/EVENTS.md`, which states each event's prototype, context, results and
+the reviewed order of its current subscribers.
+
+A package subscribes with hook words after the four core events: the word at hook index
+`RUNTIME_EVENTS + k` holds event k's order in its top byte and the handler's image offset below
+(`0xffffffff`: none). Only ABI 8 carries them; a base without events refuses a package with more
+than four hook words. `build.py` writes them from a module's `runtime.json`
+(`{"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}`; `replaces` names the
+detour its native octabam build keeps at that site, and its units assemble with
+`MODWERK_EVENTS`), from an elemod's `subscribe`, or from `--subscribe EVENT:FN:ORDER` for C
+sources. `contribute` is refused.
+
+The loader keeps one row per event: every live module's handler, by (order, module id), then 0.
+A switch that changes a row builds it under the stable lock and writes it masked with the
+switch's sites, and waits (`RUNTIME_BUSY`) while any paused task is inside the base's dispatch,
+so no task resumes part way through a row. Removal and rollback rebuild the rows from the live
+set, so they come back exactly and install order never matters. A site or stock copy on an
+event's bytes is refused as `RUNTIME_EVENT`; `modwerk_runtime_refused_event()` gives the event's
+hook index. MWCP feature 128 says the base has events.
 
 ## Several modules at once
 

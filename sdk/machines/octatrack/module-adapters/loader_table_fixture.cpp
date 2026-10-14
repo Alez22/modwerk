@@ -78,25 +78,41 @@ struct Probe {
     }
 };
 int main(int argc,char **argv) {
-    assert(argc==4 || argc==5);unsigned total=0;
-    if(argc==5) {
-        struct Group {unsigned mask,offset[3];std::vector<uint8_t> package;};
+    assert(argc==4 || argc==5 || (argc==6 && std::string(argv[4])=="--table-packages") ||
+           (argc==7 && std::string(argv[5])=="--companions"));unsigned total=0;
+    if(argc==5 || argc==7) {
+        struct Group {unsigned mask,offset[3],optional;std::vector<uint8_t> package;};
         std::vector<Group> groups;std::ifstream f(argv[4]);std::string path;Group g;
-        while(f>>g.mask>>path>>g.offset[0]>>g.offset[1]>>g.offset[2]) {g.package=load(path.c_str());groups.push_back(g);}
-        assert(groups.size()==7);unsigned transitions=0,minimumFree=262144;
+        while(f>>g.mask>>path>>g.offset[0]>>g.offset[1]>>g.offset[2]>>g.optional) {
+            assert(g.optional<=1 && (!(g.mask&4)||!g.optional));g.package=load(path.c_str());groups.push_back(g);
+        }
+        assert(groups.size()==7 || groups.size()==10);unsigned transitions=0,minimumFree=262144;
         for(const auto& baseline:groups) {
             Probe p(load(argv[1]),load(argv[2]),argv[3]);auto original=load(argv[1]);
             auto write=[&](const Group& group) {for(unsigned i=0;i<group.package.size();i++)p.m.write8(packet+i,group.package[i]);};
             write(baseline);assert(p.call("prepare",{0,packet,uint32_t(baseline.package.size())})==0);
             for(const auto& group:groups) {
                 write(group);p.call("fixture_review_machine",{packet,uint32_t(group.package.size()),1,1});
-                if(group.mask&4)p.call("fixture_review_table_offsets",{packet,uint32_t(group.package.size()),1,1,1,group.offset[0],group.offset[1],group.offset[2]});
+                p.call("fixture_review_optional_quantizer",{packet,uint32_t(group.package.size()),group.optional});
+                if((group.mask&4)||group.optional)p.call("fixture_review_table_offsets",{packet,uint32_t(group.package.size()),1,1,1,group.offset[0],group.offset[1],group.offset[2]});
             }
             write(baseline);assert(p.call("prepare",{0,packet,uint32_t(baseline.package.size())})==1);
             assert(p.call("publish",{0})==1 && p.call("retire",{0})==1);
             auto baselineImage=p.call("fixture_table_image"),baselineFree=p.call("modwerk_runtime_free",{0});
             for(const auto& target:groups) {
                 write(target);unsigned dropped=baseline.mask&~target.mask;
+                if((baseline.mask&4)||baseline.optional||(target.mask&4)||target.optional) {
+                    // Current captured register and every paused alias fence
+                    // QZ acquisition and release, including same-mask variants.
+                    for(uint32_t held:{0x400b27d0u,0x480b27d0u,0x40065b14u,0x48065b14u,0x40064e20u}) {
+                        assert(p.call("prepare",{0,packet,uint32_t(target.package.size())},held)==0);
+                        assert(p.call("fixture_table_image")==baselineImage && p.call("modwerk_runtime_free",{0})==baselineFree);
+                    }
+                    p.m.write32(0x460bcc2c+0x14,0x480b27d0u);
+                    assert(p.call("prepare",{0,packet,uint32_t(target.package.size())})==0);p.m.write32(0x460bcc2c+0x14,0);
+                    p.m.write32(0x400cbf4c,0x47060000);p.m.write32(0x400cbf40,4);
+                    assert(p.call("prepare",{0,packet,uint32_t(target.package.size())})==0);p.m.write32(0x400cbf4c,0);
+                }
                 if(dropped) {
                     unsigned owner=dropped&1?1:dropped&2?2:4;
                     const uint8_t signature[3][3]={{'P','L',1},{'S','2',2},{'F','M',1}};unsigned row=owner==1?0:owner==2?1:2;
@@ -107,7 +123,7 @@ int main(int argc,char **argv) {
                 }
                 assert(p.call("prepare",{0,packet,uint32_t(target.package.size())})==1);
                 auto available=p.call("modwerk_runtime_free",{0});if(available<minimumFree)minimumFree=available;
-                if((baseline.mask|target.mask)&4) {
+                if(((baseline.mask|target.mask)&4)||baseline.optional||target.optional) {
                     p.m.write32(0x400cbf4c,0x47060000);p.m.write32(0x400cbf40,4);
                     assert(p.call("publish",{0})==0 && p.call("fixture_table_image")==baselineImage);p.m.write32(0x400cbf4c,0);
                 }
@@ -143,12 +159,72 @@ int main(int argc,char **argv) {
             }
             total+=p.calls;
         }
-        std::printf("{\"machineMasks\":7,\"transitions\":%u,\"calls\":%u,\"minimumFreeBytes\":%u,\"pausedAliasNegatives\":true,\"retainedPartAndMenuNegatives\":true,\"exactPreinstallRestore\":true,\"fullReclamation\":true,\"hardware\":false}\n",transitions,total,minimumFree);return 0;
+        // Raw companions (actual Repitch/Mutes/standalone QZ packets) beside each
+        // group, in both install orders. `conflict` names the participants (P=1,
+        // V=2, FM=4, QZ=8) whose canonical group owner holds one of its raw sites:
+        // then the later prepare is refused RUNTIME_CONFLICT before any change;
+        // otherwise both coexist. Table companions get exact synthetic trust.
+        unsigned pairs=0,refused=0;
+        if(argc==7) {
+            struct Companion {unsigned conflict;std::vector<uint8_t> package;};
+            std::vector<Companion> companions;std::ifstream c(argv[6]);Companion k;
+            while(c>>k.conflict>>path) {assert(k.conflict && k.conflict<16);k.package=load(path.c_str());companions.push_back(k);}
+            assert(!companions.empty());
+            auto be=[](const std::vector<uint8_t>& b,unsigned at) {return uint32_t(b[at])<<24|uint32_t(b[at+1])<<16|uint32_t(b[at+2])<<8|b[at+3];};
+            for(const auto& group:groups)for(const auto& companion:companions)for(unsigned order=0;order<2;order++) {
+                Probe p(load(argv[1]),load(argv[2]),argv[3]);
+                auto write=[&](const std::vector<uint8_t>& b) {for(unsigned i=0;i<b.size();i++)p.m.write8(packet+i,b[i]);};
+                write(group.package);p.call("fixture_review_machine",{packet,uint32_t(group.package.size()),1,1});
+                p.call("fixture_review_optional_quantizer",{packet,uint32_t(group.package.size()),group.optional});
+                if((group.mask&4)||group.optional)p.call("fixture_review_table_offsets",{packet,uint32_t(group.package.size()),1,1,1,group.offset[0],group.offset[1],group.offset[2]});
+                const auto& b=companion.package;uint32_t module=be(b,28);
+                if(module==0x7e9d5687u || module==0x73bab3b1u) {
+                    unsigned family=module==0x7e9d5687u?1:2;uint32_t offset[3]={0,0,0};
+                    const uint32_t first[2][3]={{0x40065bd8,0x40065bde,0x40065cc4},{0x40068efe,0x40068f0a,0x40069022}};
+                    unsigned at=76+be(b,8)+4*be(b,16),count=be(b,24);
+                    for(unsigned i=0;i<count;i++) {uint32_t address=be(b,at);unsigned n=b[at+4],r=b[at+7];
+                        for(unsigned t=0;t<3;t++)if(address==first[family-1][t]){assert(n==4);offset[t]=be(b,at+40);}
+                        at+=40+n+2*r;}
+                    assert(offset[0]&&offset[1]&&offset[2]);write(b);
+                    p.call("fixture_review_table_offsets",{packet,uint32_t(b.size()),family,1,1,offset[0],offset[1],offset[2]});
+                }
+                unsigned owned=group.mask|((group.mask&4)||group.optional?8u:0u);bool conflict=owned&companion.conflict;
+                const auto& live=order?b:group.package;const auto& later=order?group.package:b;
+                write(live);assert(p.call("prepare",{0,packet,uint32_t(live.size())})==1);
+                assert(p.call("publish",{0})==1 && p.call("retire",{0})==1 && p.call("modwerk_runtime_active")==1);
+                auto free=p.call("modwerk_runtime_free",{0});write(later);
+                if(conflict) {
+                    assert(p.call("prepare",{0,packet,uint32_t(later.size())})==0 && p.call("modwerk_runtime_refusal")==3);
+                    assert(p.call("modwerk_runtime_active")==1 && p.call("modwerk_runtime_free",{0})==free);refused++;
+                } else {
+                    assert(p.call("prepare",{0,packet,uint32_t(later.size())})==1);
+                    assert(p.call("publish",{0})==1 && p.call("retire",{0})==1 && p.call("modwerk_runtime_active")==2);
+                }
+                pairs++;total+=p.calls;
+            }
+        }
+        std::printf("{\"machineMasks\":7,\"packageVariants\":%u,\"transitions\":%u,\"calls\":%u,\"minimumFreeBytes\":%u,\"companionOrders\":%u,\"companionConflicts\":%u,\"pausedAliasNegatives\":true,\"retainedPartAndMenuNegatives\":true,\"sameMaskOptionalQzTransitions\":true,\"exactPreinstallRestore\":true,\"fullReclamation\":true,\"hardware\":false}\n",unsigned(groups.size()),transitions,total,minimumFree,pairs,refused);return 0;
     }
+    struct ActualTable {unsigned family,offset[3];std::vector<uint8_t> package;};
+    std::vector<ActualTable> actual;
+    if(argc==6) {
+        std::ifstream f(argv[5]);std::string path;ActualTable row;
+        while(f>>row.family>>path>>row.offset[0]>>row.offset[1]>>row.offset[2]) {
+            assert(row.family==1 || row.family==2);row.package=load(path.c_str());actual.push_back(row);
+        }
+        assert(!actual.empty()&&actual.size()<=2);
+    }
+    unsigned tested=0;
     for(unsigned family=1;family<=2;family++) {
-        Probe p(load(argv[1]),load(argv[2]),argv[3]);auto b=p.package(family);for(unsigned i=0;i<b.size();i++)p.m.write8(packet+i,b[i]);
+        const ActualTable *selected=nullptr;
+        for(const auto& row:actual)if(row.family==family){assert(!selected);selected=&row;}
+        if(argc==6&&!selected)continue;
+        Probe p(load(argv[1]),load(argv[2]),argv[3]);auto b=selected?selected->package:p.package(family);
+        for(unsigned i=0;i<b.size();i++)p.m.write8(packet+i,b[i]);
         assert(p.call("prepare",{0,packet,uint32_t(b.size())})==0 && p.call("modwerk_runtime_active")==0);
-        p.call("fixture_review_table",{packet,uint32_t(b.size()),family,1,1});auto free=p.call("modwerk_runtime_free",{0});
+        if(selected)p.call("fixture_review_table_offsets",{packet,uint32_t(b.size()),family,1,1,selected->offset[0],selected->offset[1],selected->offset[2]});
+        else p.call("fixture_review_table",{packet,uint32_t(b.size()),family,1,1});
+        auto free=p.call("modwerk_runtime_free",{0});
         const uint32_t root=family==1?0x400b27d0:0x400b2a34,consumer=family==1?0x40065b14:0x40068e00,list=family==1?0x460e43d8:0x460e4668;
         for(uint32_t held:{root,root+0x08000000,consumer,0x40064e20u}) {
             assert(p.call("prepare",{0,packet,uint32_t(b.size())},held)==0);assert(p.call("modwerk_runtime_free",{0})==free);
@@ -160,6 +236,16 @@ int main(int argc,char **argv) {
         // Publication refusal discards the staged candidate in normal USB
         // flow; here the actual loader can retry its still-owned candidate.
         assert(p.call("publish",{0})==1);auto image=p.call("fixture_table_image");assert(image);
+        if(selected) {
+            const uint32_t roots[2][3]={{0x400b27d0,0x400b27dc,0x400b282c},{0x400b2a34,0x400b2a74,0x400b2ac0}};
+            unsigned count=family==1?3:16,insert=family==1?3:2,added=family==1?3:1;
+            uint32_t bytes=uint32_t(b[8])<<24|uint32_t(b[9])<<16|uint32_t(b[10])<<8|b[11];
+            for(unsigned table=0;table<3;table++)for(unsigned row=0;row<count+added;row++) {
+                uint32_t value=p.m.read32(image+selected->offset[table]+4*row);
+                if(insert<=row&&row<insert+added)assert(value>=image&&value<image+bytes);
+                else assert(value==p.m.read32(roots[family-1][table]+4*(row<insert?row:row-added)));
+            }
+        }
         p.m.write32(0x400cbf4c,0x47060000);p.m.write32(0x400cbf40,family==1?4:12);
         assert(p.call("restore",{0})==0 && p.call("modwerk_runtime_active")==1);p.m.write32(0x400cbf4c,0);
         uint32_t alias=image>=0x48000000u?image-0x08000000u:image+0x08000000u;
@@ -170,12 +256,18 @@ int main(int argc,char **argv) {
         auto original=load(argv[1]);const std::vector<uint32_t> refs=family==1?std::vector<uint32_t>{0x40065bd8,0x40065bde,0x40065cc4,0x40065d3e,0x40065d58,0x40065d72,0x40065c7c}:
             std::vector<uint32_t>{0x40068efe,0x40068f0a,0x40069022,0x4006903e,0x40069056,0x40068fb2};
         for(uint32_t at:refs)for(unsigned i=0;i<(at==0x40068fb2?2u:4u);i++)assert(p.m.read8(at+i)==original[at+i-0x40000400]);
+        if(selected) {
+            auto be=[&](unsigned at){return uint32_t(b[at])<<24|uint32_t(b[at+1])<<16|uint32_t(b[at+2])<<8|b[at+3];};
+            unsigned at=76+be(8)+4*be(16),count=be(24);
+            for(unsigned i=0;i<count;i++) {uint32_t address=be(at);unsigned n=b[at+4],r=b[at+7];
+                for(unsigned k=0;k<n;k++)assert(p.m.read8(address+k)==original[address+k-0x40000400]);at+=40+n+2*r;}
+        }
         // The original initializer resets offset/row/cursor when a closed
         // menu reopens after Undo; no saved selection is mutated by admission.
         for(unsigned i=0;i<5;i++)p.m.write32(list+4*i,0x7fffffff);
         p.call_at(0x4007ec60,{list,family==1?3u:5u,family==1?3u:16u});
         assert(!p.m.read32(list)&&!p.m.read32(list+4)&&!p.m.read32(list+8));
-        assert(p.m.read32(list+12)==(family==1?3u:5u)&&p.m.read32(list+16)==(family==1?3u:16u));total+=p.calls;
+        assert(p.m.read32(list+12)==(family==1?3u:5u)&&p.m.read32(list+16)==(family==1?3u:16u));total+=p.calls;tested++;
     }
-    std::printf("{\"families\":2,\"calls\":%u,\"defaultClosed\":true,\"pausedAliasAndMenuNegatives\":true,\"exactPreinstallRestore\":true,\"stockListReset\":true,\"hardware\":false}\n",total);
+    std::printf("{\"families\":%u,\"calls\":%u,\"actualPackages\":%u,\"defaultClosed\":true,\"pausedAliasAndMenuNegatives\":true,\"exactPreinstallRestore\":true,\"stockListReset\":true,\"hardware\":false}\n",tested,total,unsigned(actual.size()));
 }

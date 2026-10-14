@@ -13,6 +13,10 @@ _private_spec = importlib.util.spec_from_file_location("candidate_private_paths"
     Path(__file__).resolve().parents[4] / "scripts/runtime_private_paths.py")
 private_paths = importlib.util.module_from_spec(_private_spec)
 _private_spec.loader.exec_module(private_paths)
+_run_pack_spec = importlib.util.spec_from_file_location("candidate_run_pack",
+    Path(__file__).resolve().parents[1] / "elekloader/run_pack.py")
+run_pack = importlib.util.module_from_spec(_run_pack_spec)
+_run_pack_spec.loader.exec_module(run_pack)
 
 
 def private_output(path):
@@ -44,14 +48,15 @@ def bind_base(main, symbols, proof):
             or not isinstance(ddr, list) or len(ddr) != 2 or any(type(value) is not int for value in ddr)
             or type(run_load) is not int or not ddr[0] <= identity <= ddr[1] - 32):
         raise ValueError('Candidate native link proof does not bind the exact image and identity location.')
-    # The core's .run bytes live in the appended FLASH blob, then boot copies
-    # them to DDR. A DDR symbol is not a direct offset into MAIN.raw.
+    # The core's .run bytes live packed in the appended FLASH blob, then boot
+    # unpacks them to DDR (run_pack.py). A DDR symbol is not an offset into MAIN.raw.
+    plain = run_pack.unpack(main, layout, symbols, LOAD)
     at = run_load - LOAD + identity - ddr[0]
-    if at < 0 or at + 32 > len(main) or not any(main[at:at + 32]):
+    if at < 0 or at + 32 > len(plain) or not any(plain[at:at + 32]):
         raise ValueError('Candidate IDENTIFY digest lies outside its actual image or is empty.')
-    if main[at:at + 32].hex() != proof.get('configurationHash'):
+    if plain[at:at + 32].hex() != proof.get('configurationHash'):
         raise ValueError('Candidate authored IDENTIFY bytes differ from its native proof.')
-    return dict(identity=main[at:at + 32].hex(), arena=arena, pool=pool,
+    return dict(identity=plain[at:at + 32].hex(), arena=arena, pool=pool,
                 poolOrigins=(pool + 0x08001000, pool + 0x08004000),
                 imageSha256=hashlib.sha256(main).hexdigest())
 

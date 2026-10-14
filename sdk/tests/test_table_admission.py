@@ -23,7 +23,9 @@ class TableAdmissionTests(unittest.TestCase):
             entry.write_text('#define MODWERK_RUNTIME_METADATA_EXTERNAL\n#include "loader.c"\n#include "sha256.c"\n'
                              'void *memcpy(void *d,const void *s,unsigned long n) {'
                              'volatile uint8_t *out=d;const volatile uint8_t *in=s;'
-                             'for(unsigned long i=0;i<n;i++)out[i]=in[i];return d;}\n')
+                             'for(unsigned long i=0;i<n;i++)out[i]=in[i];return d;}\n'
+                             'void *memset(void *d,int v,unsigned long n) {'
+                             'volatile uint8_t *out=d;for(unsigned long i=0;i<n;i++)out[i]=(uint8_t)v;return d;}\n')
             glue = ROOT / 'sdk/machines/octatrack/elekloader'
             flags = [gcc, '-mcpu=5475', '-msoft-float', '-O2', '-ffreestanding', '-fno-builtin',
                      '-fno-jump-tables', '-fno-asynchronous-unwind-tables', '-fomit-frame-pointer',
@@ -61,7 +63,8 @@ class TableAdmissionTests(unittest.TestCase):
             output = Path(temp) / 'test'
             sources = [ADAPTER / (name + '.c') for name in
                        ('table_admission', 'table_declarations', 'machine_admission', 'machine_declarations', 'machine_lifetime', 'machine_parts', 'test_table_admission')]
-            subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic',
+            subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g',
+                            '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
                             '-I', str(ADAPTER), '-I', str(ROOT / 'sdk/runtime/loader'),
                             '-I', str(ROOT / 'sdk/runtime/upload'), *map(str, sources), '-o', str(output)],
                            check=True, capture_output=True)
@@ -148,11 +151,18 @@ class TableAdmissionTests(unittest.TestCase):
                         rows.append(' '.join(map(str, [mask, directory / 'reviewed-stockfree.mwrm', *offsets, 1])))
                 manifest = work / 'groups.txt'
                 manifest.write_text('\n'.join(rows) + '\n')
-                matrix = subprocess.run([work / 'probe', stock, work / 'test.bin', work / 'symbols', manifest],
+                # Lines "<conflicting participant bits P1 V2 FM4 QZ8> <actual raw companion package>".
+                companions = os.environ.get('MODWERK_PRIVATE_COMPANIONS')
+                matrix = subprocess.run([work / 'probe', stock, work / 'test.bin', work / 'symbols', manifest,
+                                         *(['--companions', companions] if companions else [])],
                                         capture_output=True, text=True)
                 self.assertEqual(matrix.returncode, 0, matrix.stdout + matrix.stderr)
                 self.assertIn('"machineMasks":7', matrix.stdout)
                 matrix_receipt = json.loads(matrix.stdout.splitlines()[-1])
+                if companions:
+                    lines = Path(companions).read_text().splitlines()
+                    self.assertEqual(matrix_receipt['companionOrders'], 2 * len(rows) * len(lines))
+                    matrix_receipt['companionSha256'] = [hashlib.sha256(Path(line.split()[1]).read_bytes()).hexdigest() for line in lines]
                 matrix_receipt.update(packageSha256={str(mask): hashlib.sha256((group_root / str(mask) / 'reviewed-stockfree.mwrm').read_bytes()).hexdigest() for mask in range(1, 8)},
                                       trustDeclarations='synthetic-native-only', moduleBehaviorQualified=False,
                                       browser=False, hardware=False, admission=False)

@@ -34,7 +34,7 @@
         "sdk/octabam/tools/remix/compile_cache.py": "74d7d08cdbad8ebf6e56d8be7041c9603197b6f7b089962d8fccd880bb592504",
         "sdk/octabam/tools/remix/schema.py": "a5300338149966a2d3af1deaae9337495612865611436d6c90f63653d27b7761",
         "sdk/machines/octatrack/module-adapters/candidate_packages.py": "03f3af1155ef2fe0ca3b58c242a75509a06bb4cdaa19a2ad71267f7aff2d8517",
-        "sdk/machines/octatrack/module-adapters/runtime_candidate.py": "a16151c9c60fdeee463c7e568e28559c48527795f56cab176a0dbaa14b5e98ab",
+        "sdk/machines/octatrack/module-adapters/runtime_candidate.py": "33a2530ec5839f3380bea1739796263c9b48bac81601d2a137d61fe8905dac1a",
         "sdk/machines/octatrack/module-adapters/cave_runtime.py": "d168ad9bc0782e15c4901bba1599e3a7b56f3cb50adf2776fabcda2326479f9f",
         "sdk/machines/octatrack/module-adapters/runtime_units.py": "0e868924d9543aa48c57175e6cb4744aa3eb9a5c0465b37dfdcdcef46652e1dd",
         "sdk/machines/octatrack/module-adapters/runtime_tables.py": "113fc8cd2b33815794576667ddf9afbea3d4dff13ad4cb1227d5f891b1fb0dad",
@@ -130,8 +130,8 @@
         "sdk/octabam/tools/remix/arena.py": "83bca851a90f6389aec86659dff10a8874b219f37ffcbecdb866275921f11d71",
         "sdk/octabam/tools/remix/compile_cache.py": "74d7d08cdbad8ebf6e56d8be7041c9603197b6f7b089962d8fccd880bb592504",
         "sdk/octabam/tools/remix/schema.py": "a5300338149966a2d3af1deaae9337495612865611436d6c90f63653d27b7761",
-        "sdk/machines/octatrack/module-adapters/candidate_packages.py": "7d97c2439388cfc420defe1dba42549728834e0cafe83e3fced805e51cf6bb9d",
-        "sdk/machines/octatrack/module-adapters/runtime_candidate.py": "01d59bcc8d284e3b694130ef16eadddf8dc628f49d8100329ed623074d8ac106",
+        "sdk/machines/octatrack/module-adapters/candidate_packages.py": "03f3af1155ef2fe0ca3b58c242a75509a06bb4cdaa19a2ad71267f7aff2d8517",
+        "sdk/machines/octatrack/module-adapters/runtime_candidate.py": "33a2530ec5839f3380bea1739796263c9b48bac81601d2a137d61fe8905dac1a",
         "sdk/machines/octatrack/module-adapters/cave_runtime.py": "d168ad9bc0782e15c4901bba1599e3a7b56f3cb50adf2776fabcda2326479f9f",
         "sdk/machines/octatrack/module-adapters/runtime_units.py": "0e868924d9543aa48c57175e6cb4744aa3eb9a5c0465b37dfdcdcef46652e1dd",
         "sdk/machines/octatrack/module-adapters/runtime_tables.py": "113fc8cd2b33815794576667ddf9afbea3d4dff13ad4cb1227d5f891b1fb0dad",
@@ -165,7 +165,8 @@
         "upstream/elekloader/devices/digitone_mk1.py": "8f86b2384f2aae8b34fcee6036c3c347bf77c2d55dc24677649baa09a2e4adc0",
         "upstream/elekloader/devices/__init__.py": "724ebe0ecf4d9447a5d66bba3c10b168f5abe5d2d8296b4447d3562b66141bec",
         "upstream/elekloader/devices/octatrack.py": "110dbea9e71046994d4ae1f05638dbf6f8ab72388dca5ffc590e5e978ea38975",
-        "upstream/elekloader/devices/digitakt_mk1.py": "2126ee25bb30f98246a03e93e1766376ec975de751cf2c9b8e24f987e77fc022"
+        "upstream/elekloader/devices/digitakt_mk1.py": "2126ee25bb30f98246a03e93e1766376ec975de751cf2c9b8e24f987e77fc022",
+        "scripts/runtime_private_paths.py": "5228d96de2fdfaedc4a91af710f017fcb9d8087e528759dc08acc9a8b2fb51d3"
       },
       "tables": [
         {

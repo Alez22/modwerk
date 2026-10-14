@@ -20,7 +20,16 @@ APP = HERE.parents[3]
 VERSION = '0.3.1-modwerk-dev.1'
 # Resident controller trust: association, the scoped write lease, its resolver and the board-compiled policy table.
 CONTROLLER_POLICY_SOURCES = ('controller_policy.c', 'controller_policy.h', 'controller_association.c', 'controller_association.h',
-                             'controller_write_lease.c', 'controller_write_lease.h', 'controller_write_policy.c')
+                             'controller_write_lease.c', 'controller_write_lease.h', 'controller_write_policy.c',
+                             'controller_transport.c', 'controller_transport.h')
+# Built for size (RAM boot keeps MAIN under 1.25 MiB): engine-task and boot-only units, never reached from the USB
+# or frame interrupts or with interrupts masked. boot_anim.c is paced by DTIM3, not by instruction counts, so it
+# can only draw fewer frames in its 3.5 s. Units an interrupt reaches (ep0, vendor, transfer, manager, selection,
+# the saved-set session/export and modset export-idle seam) and units holding or called under a mask
+# (loader, dsp, stock hooks, metadata admission/lifetime/Part helpers and controller association/write leases)
+# stay at the kit's -O2.
+SIZE_OPTIMIZED = ('wire.c', 'upload.c', 'boot_anim.c', 'saved_set_reader.c')
+VOLATILE_SERVICE_SOURCES = ('volatile_service.c', 'volatile_service.h')
 # Fixed, default-empty private trust storage; no public admission flags.
 MACHINE_TRUST_SOURCES = ('machine_admission.c', 'machine_admission.h',
     'machine_admission_runtime.c', 'machine_declarations.c',
@@ -68,7 +77,61 @@ def check_saved_set_storage(mapping, layout):
         raise ValueError('Saved-set snapshot is not the exact bounded linked BSS reservation.')
     return dict(address=address, uncachedAddress=address + 0x08000000, bytes=length,
                 snapshotCapacity=RUNTIME_POOL_BYTES + 0x1000, initializedAtBoot=True, hardware=False)
-FIELDS = {'build': 17, 'os': 17, 'modules': 4096, 'configuration': 65,
+
+
+# core-ot.s's .bss clear, through the uncached alias, steps over the logger's 8192 retained bytes (retained.s).
+BOOT_CLEAR_SKIP = '''3:      cmpa.l  #modwerk_retained_start + UNCACHED, %a1
+        bne.s   5f
+        lea     8192(%a1), %a1
+        sub.l   #2048, %d0
+        beq.s   4f
+5:      clr.l   (%a1)+'''
+# core-ot.s's word copy of .run: MAIN stores .run packed (run_pack.py), and run_unpack.s decodes it in its place.
+BOOT_RUN_COPY = '''        lea     __run_load, %a0         | where the RAM image was unpacked
+        movea.l #__run_start + UNCACHED, %a1
+        move.l  #__run_words, %d0
+        beq.s   2f                      | nothing to copy (core alone)
+1:      move.l  (%a0)+, (%a1)+
+        subq.l  #1, %d0
+        bne.s   1b'''
+
+
+def check_zero_state(elf, moved, layout, mapping, bootstrap):
+    """Prove every object zero_state moved out of .data lies, in the final link, inside the uncached boot
+    clear and outside its retained skip. Locals are found by their unit's FILE symbol, globals by name."""
+    bss, base = layout.get('bss'), layout.get('sections', {}).get('core .bss')
+    keep = mapping.get('modwerk_retained_start'), mapping.get('modwerk_retained_end')
+    if (bootstrap.count('movea.l #__bss_start + UNCACHED, %a1') != 1 or bootstrap.count(BOOT_CLEAR_SKIP) != 1 or
+            not isinstance(bss, list) or len(bss) != 2 or
+            any(type(v) is not int for v in (*bss, base, *keep, mapping.get('__bss_words'))) or
+            mapping.get('__bss_start') != bss[0] or bss[0] + 4 * mapping['__bss_words'] != bss[1] or
+            not bss[0] <= base < bss[1] or keep[1] - keep[0] != 8192 or (keep[0] - bss[0]) % 4 or
+            not bss[0] <= keep[0] < keep[1] <= bss[1]):
+        raise ValueError('The boot clear or its retained skip is not the reviewed linked layout.')
+    sections = {s.idx: s.name for s in elf.sections}
+    found, unit = {}, None
+    for y in elf.symbols:
+        if y.type == 4:  # STT_FILE: the locals after it are that unit's
+            unit = y.name
+        elif y.type == 1:  # STT_OBJECT
+            found.setdefault((unit if y.bind == 0 else None, y.name), []).append(y)
+    proof = {}
+    for name, objects in sorted(moved.items()):
+        for o in objects:
+            hits = found.get((name, o), []) + found.get((None, o), [])
+            if len(hits) != 1:
+                raise ValueError('Zero-state object %s:%s is missing or ambiguous in the link.' % (name, o))
+            y = hits[0]
+            at = base + y.value
+            if (sections.get(y.shndx) != '.bss' or y.size <= 0 or at < bss[0] or at + y.size > bss[1] or
+                    (at < keep[1] and keep[0] < at + y.size) or (y.bind and mapping.get(o) != at)):
+                raise ValueError('Zero-state object %s:%s is not in the cleared BSS outside the retained skip.' % (name, o))
+            proof[name + ':' + o] = dict(address=hex(at), uncachedAddress=hex(at + 0x08000000), bytes=y.size)
+    return dict(clear=[hex(v) for v in bss], retainedSkip=[hex(v) for v in keep], objects=proof,
+                bytes=sum(p['bytes'] for p in proof.values()), hardware=False)
+
+
+FIELDS ={'build': 17, 'os': 17, 'modules': 4096, 'configuration': 65,
           'source': 65, 'fx1': 1024, 'fx2': 1024, 'hidden': 1024}
 # RAM boot (boot.s): the gate replaces the OS entry's `movea.l #0x48000000,%sp`.
 BOOT_GATE = (0x40000412, '2e7c48000000')
@@ -110,6 +173,11 @@ DYNLOAD_HOOKS = (
     # Modwerk's: main's idle spin counts the ColdFire's idle time (status.s, status.c). Its last init call only:
     # stock's spin stays, where ot_emu parks main again after a bench call.
     (0x4001fc96, 6, '2edb8c17ea73bf5ecd097ec929f3bfd6f8a74c81b11080d0d74efd55bec6b416', 'mw_idle'))
+# The runtime builder's runtime.json reader and the Octatrack's events at base-owned sites (events.json).
+_spec = importlib.util.spec_from_file_location('modwerk_runtime_builder', APP / 'sdk/runtime/loader/build.py')
+RUNTIME_BUILDER = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(RUNTIME_BUILDER)
+_spec = importlib.util.spec_from_file_location('modwerk_site_events', APP / 'sdk/machines/octatrack/events.py')
+EVENTS = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(EVENTS)
 # Catalogue modules allowed to patch what this base owns, and why (docs/OCTATRACK_ELEKLOADER_MIGRATION.md).
 BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configuration',
              'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port'}
@@ -117,13 +185,16 @@ BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configurati
 
 def catalogue_overlaps(sites):
     """Catalogue modules a site of this base would lock out: each must still install over the stock bytes
-    it patches or keeps, beside the base (PLAY MODES once met the project map's seams)."""
+    it patches or keeps, beside the base (PLAY MODES once met the project map's seams). A detour a module's
+    runtime.json replaces by a subscription to the base's event there is not a lockout."""
     from elekloader.sdk import octabam as port
     ob = port.Octabam(str(APP / 'sdk/octabam'))
     base = [(int(s['addr'], 16), len(bytes.fromhex(s['stock']))) for s in sites]
     found = []
     for name, m in sorted(ob.modules.items()):
-        spans = ([(d.site, max(len(d.expect), d.pad_to or 6)) for d in m.detours] + [(p.addr, len(p.expect)) for p in m.pokes] +
+        declared = RUNTIME_BUILDER.runtime_declaration(APP / 'sdk/octabam/modules' / name)
+        subscribed = {e['replaces'] for e in declared['subscribe'] if 'replaces' in e} if declared else set()
+        spans = ([(d.site, max(len(d.expect), d.pad_to or 6)) for d in m.detours if d.symbol not in subscribed] + [(p.addr, len(p.expect)) for p in m.pokes] +
                  [(k.addr, len(k.expect)) for k in m.keeps] + [(site, 6) for t in m.tables for site, _ in t.refs])
         if name not in BASE_OWNS and any(a < b + bn and b < a + n for a, n in spans for b, bn in base):
             found.append(name)
@@ -902,6 +973,8 @@ def main():
                              'X the full loader, and the receivers watch X:$7a92-$7fff for anything that writes it (dev request 26).')
     parser.add_argument('--saved-set-export', action='store_true',
                         help='Private fixed-two-file read-only recovery snapshot. No card writes.')
+    parser.add_argument('--site-events', action='store_true',
+                        help='own the stock sites of sdk/machines/octatrack/events.json and dispatch their events to subscribed modules')
     parser.add_argument('--resident-stock-hooks', action='store_true',
                         help='Private dormant resident SC/Matrix/Analog BD packing. Does not admit their runtime controllers.')
     parser.add_argument('--dsp-loader', action='store_true',
@@ -959,12 +1032,10 @@ def main():
     marker = '3:      clr.l   (%a1)+'
     if bootstrap.count(marker) != 1:
         raise ValueError('Pinned boot clear seam changed; review before porting.')
-    bootstrap = bootstrap.replace(marker, '''3:      cmpa.l  #modwerk_retained_start + UNCACHED, %a1
-        bne.s   5f
-        lea     8192(%a1), %a1
-        sub.l   #2048, %d0
-        beq.s   4f
-5:      clr.l   (%a1)+''')
+    bootstrap = bootstrap.replace(marker, BOOT_CLEAR_SKIP)
+    if bootstrap.count(BOOT_RUN_COPY) != 1:
+        raise ValueError('Pinned .run copy seam changed; review run_unpack.s before porting.')
+    bootstrap = bootstrap.replace(BOOT_RUN_COPY, '        jsr     mw_run_unpack           | .run is stored packed (run_unpack.s)')
     (source / 'core-ot.s').write_text(bootstrap)
     for p in logger.iterdir():
         if p.suffix in ('.c', '.h') and p.name != 'identity.c':
@@ -977,6 +1048,10 @@ def main():
     adapter = adapter.replace(io_macro,
         '#define io (*(uint8_t (*)[512])((uintptr_t)&octamod_log_retained + 6144u + 0x08000000u))\n'
         'typedef char modwerk_io_capacity[(sizeof io == 512)?1:-1];')
+    # Its read-back scratch to .bss as well: olog_stock_read always fills it before it is compared.
+    if adapter.count('static uint8_t verify[512] = {0};') != 1:
+        raise ValueError('The logger read-back buffer changed; review the .bss edit.')
+    adapter = adapter.replace('static uint8_t verify[512] = {0};', 'static uint8_t verify[512];')
     (source/'stock_140c.c').write_text(adapter)
     # The recorder's zeroed buffers to .bss, which core-ot.s clears at boot: 43 KB of zeros out of the image, which a
     # RAM boot must keep under 1.25 MiB (BOOT_IMAGE_BYTES), as selection.c's paste buffer (DSP_EDITS).
@@ -1010,7 +1085,8 @@ def main():
         usb_functions = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_functions)
         spec = importlib.util.spec_from_file_location('modwerk_authored_usb_descriptors', usb.AUDIO_DESCRIPTORS)
         usb_descriptors = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_descriptors)
-    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s') + (('dev.c',) if args.dev else ()):
+    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
+            ('runtime_events.h', 'runtime_events.s') if args.site_events else ()):
         shutil.copyfile(HERE / name, source / name)
     # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.
     spec = importlib.util.spec_from_file_location('modwerk_base_art', APP / 'sdk/runtime/startup/base_art.py')
@@ -1024,6 +1100,8 @@ def main():
         import resident_driver
         import resident_source
         import resident_placement
+        import resident_journal
+        import zero_state
         import resident_boot as resident_boot_helper
         import dsp_packages
         from elekloader.sdk.octabam import Octabam
@@ -1037,6 +1115,7 @@ def main():
             loader_dsp = resident_source.load_loader(APP)
         for name in DYNLOAD_SOURCES + ('hooks.s',):
             text = (DYNLOAD / name).read_text()
+            preserved_dynload = text
             edits = DSP_EDITS.get(name, ()) + WIDTH_EDITS.get(name, ()) + DSP_HOOK_EDITS[args.dsp_hook].get(name, ())
             if name == 'transfer.c' and args.dsp_probe == 'W':
                 # One word per upload packet: the count of accepted packets before a reject is the exact
@@ -1054,13 +1133,17 @@ def main():
             if args.resident_stock_hooks and name == 'buffers.c':
                 text = resident_placement.buffers(text)
             elif args.resident_stock_hooks and name == 'manager.c':
-                text = resident_placement.manager(text)
+                text = resident_journal.manager(resident_placement.manager(text))
             if args.resident_stock_hooks and name == 'transfer.c':
                 text = resident_driver.transport(text)
+            if args.resident_stock_hooks and name == 'transfer.h':
+                text = resident_driver.transport_header(text)
             if saved_set_wiring and name == 'transfer.c':
                 text = saved_set_wiring.transfer(text, args.resident_stock_hooks)
             elif saved_set_wiring and name == 'selection.c':
                 text = saved_set_wiring.selection(text)
+            if args.resident_stock_hooks and name in zero_state.UNITS:  # last, after every other seam
+                text = zero_state.unit(name, text, preserved_dynload)
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         if args.resident_stock_hooks:
             for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h'):
@@ -1081,7 +1164,7 @@ def main():
         if saved_set_wiring:
             (source / 'dsp.c').write_text(saved_set_wiring.dsp((source / 'dsp.c').read_text()))
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
-        for name in ('fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'load_wire.h', 'selftest.h'):
+        for name in ('dsp_journal.h', 'dsp_journal_manager.h', 'fxmap.h', 'fxpage.h', 'fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'load_wire.h', 'selftest.h'):
             shutil.copyfile(HERE / name, source / name)
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
@@ -1146,7 +1229,7 @@ def main():
                      'scripts/octatrack-module-page.mjs'):
             inputs[name] = sha((APP / name).read_bytes())
     if args.resident_stock_hooks:
-        for name in ('resident_dsp.py', 'resident_boot.py', 'resident_driver.py', 'resident_source.py', 'resident_placement.py', 'resident_base.patch', 'resident_base_sources.json'):
+        for name in ('resident_dsp.py', 'resident_boot.py', 'resident_driver.py', 'resident_source.py', 'resident_placement.py', 'resident_journal.py', 'resident_base.patch', 'resident_base_sources.json'):
             p = APP / 'sdk/machines/octatrack/module-adapters' / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
         inputs.update({'sdk/octabam/' + p: h for p, h in resident_dsp.verify_sources(resident_ob.root).items()})
@@ -1253,10 +1336,14 @@ octamod_log_retained:
 .skip 8192
 modwerk_retained_end:
 ''')
+    for name in SIZE_OPTIMIZED:
+        path = source / name
+        if path.exists():  # the saved-set reader exists only with its option
+            path.write_text('#pragma GCC optimize ("Os")\n' + path.read_text())
     recipe.update(version=VERSION, title='Modwerk base prototype', author='irpina; Modwerk contributors',
                   license='GPL-3.0-or-later',
                   description='Private core-only Elekloader base with logger/startup, a USB vendor interface and a runtime module loader (hooks and stock-code sites); NOT a flash candidate.')
-    recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s', 'crash.s'] + (
+    recipe['sources'] += [p.name for p in sorted(source.glob('*.c'))] + ['hooks.s', 'retained.s', 'usb_base.s', 'boot.s', 'boot_anim.s', 'crash.s', 'run_unpack.s'] + (
         ['dsp_hooks.s', 'dsp_core1.s', 'fxmap.s', 'fxpage.s', 'status.s'] if args.dsp_loader else []) + (
         ['usbmidi.s', 'usbmidi_rx.s'] + (['usbaudio.s'] if args.usb_audio else []) if usb_functions else ['usbaudio.s'] if args.dev else [])
     if resident_boot_prepared:
@@ -1274,6 +1361,21 @@ modwerk_retained_end:
         recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
     if args.resident_stock_hooks:
         recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
+    if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/EVENTS.md)
+        recipe['cflags'].append('-DMODWERK_RUNTIME_EVENTS')
+        recipe['sources'].append('runtime_events.s')
+        for addr, n, guard, label in EVENTS.base_sites():
+            stock = image[addr - device.main_load:addr - device.main_load + n]
+            if sha(stock) != guard:
+                raise ValueError('Stock bytes at %#x are not the ones events.json names.' % addr)
+            recipe['sites'].append(dict(addr=hex(addr), stock=stock.hex(), op='jmp', target=label))
+    if '-DMODWERK_RUNTIME_VOLATILE_JOURNAL' in recipe['cflags']:
+        for name in VOLATILE_SERVICE_SOURCES:
+            shutil.copyfile(HERE / name, source / name)
+        recipe['sources'].append('volatile_service.c')
+        if args.dsp_loader and args.resident_stock_hooks:  # the board journal adapter needs the manager journal
+            shutil.copyfile(HERE / 'journal_board.c', source / 'journal_board.c')
+            recipe['sources'].append('journal_board.c')
     for key in ('idle', 'job', 'transport', 'open', 'read', 'write', 'close'):
         guard = guards[key]; n = guard.get('patchLength', guard['length'])
         at = guard['address'] - device.main_load
@@ -1400,6 +1502,17 @@ modwerk_retained_end:
         raise ValueError('Core has unexpected unresolved imports: ' + str(mod.imports))
     outputs, manifest = patch.build(str(args.stock), [path], version='ELEKLOADER')
     mapping = manifest.pop('_map')
+    # MAIN stores .run packed (run_pack.py): the linked image again without its plain copy, repacked and verified as
+    # patch.build does, so the RAM boot bound and every hash below are the packed image's.
+    from elekloader.codec import aplib
+    spec = importlib.util.spec_from_file_location('modwerk_run_pack', HERE/'run_pack.py')
+    run_pack = importlib.util.module_from_spec(spec); spec.loader.exec_module(run_pack)
+    parsed = formats.load(str(args.stock))[0]
+    linked = formats.main_image(formats.parse(outputs['bin'], device), device)
+    main_packed, run_proof = run_pack.pack(linked, manifest['link']['layout'], mapping, device.main_load, aplib.pack_section)
+    outputs = formats.write(parsed, formats.pack_main(main_packed), device, manifest['version'])
+    manifest.update(main_sha256=sha(main_packed), main_len=len(main_packed),
+                    output=formats.verify(outputs, parsed, main_packed, device, manifest['version']))
     for ext, data in outputs.items():
         target = out / ('NOT_FLASH_CANDIDATE.' + ext); target.write_bytes(data)
         if sha(target.read_bytes()) != sha(data):
@@ -1415,9 +1528,15 @@ modwerk_retained_end:
         raise ValueError('The RAM boot stage at %#x is outside the reserve the gate scans.' % stage)
     # The unpacked image a RAM boot sends (`npm run device -- boot`); private like the rest.
     main_out = formats.main_image(formats.parse(str(out/'NOT_FLASH_CANDIDATE.bin'), device), device)
-    trust_storage = check_trust_storage(main_out, mapping, manifest['link']['layout'], device.main_load)
+    trust_storage = check_trust_storage(run_pack.unpack(main_out, manifest['link']['layout'], mapping, device.main_load),
+                                        mapping, manifest['link']['layout'], device.main_load)
     if saved_set_proof:
         saved_set_proof['storage'] = check_saved_set_storage(mapping, manifest['link']['layout'])
+    zero_proof = None
+    if args.resident_stock_hooks:
+        from elekloader.sdk.elf import Elf
+        zero_proof = check_zero_state(Elf.load(str(Path(path).parent / (recipe['id'] + '.work') / (recipe['id'] + '.o'))),
+                                      zero_state.MOVED, manifest['link']['layout'], mapping, (source / 'core-ot.s').read_text())
     if (int.from_bytes(main_out[:4], 'big') != OS_FIRST or len(main_out) > BOOT_IMAGE_BYTES or
             main_out[OS_VEROFF:OS_VEROFF+2] != image[OS_VEROFF:OS_VEROFF+2]):
         raise ValueError('The built MAIN image cannot be booted from RAM.')
@@ -1426,7 +1545,7 @@ modwerk_retained_end:
                   upstream=pin, sources=inputs, configuration=configuration, configurationHash=identity,
                   dspLoader={t: {k: (hex(v) if isinstance(v, int) else v) for k, v in dsp_layout[t].items() if k not in ('words', 'shared', 'residentUploadRecords')} for t in dsp_layout} if dsp_layout else None,  # no stock words in proofs
                   residentDspBoot=resident_boot_prepared['receipt'] if resident_boot_prepared else None,
-                  savedSetExport=saved_set_proof,
+                  savedSetExport=saved_set_proof, zeroState=zero_proof, runPack=run_proof,
                   packageSha256=sha(Path(path).read_bytes()), manifest=manifest,
                   savedHashes={ext:sha(data) for ext,data in outputs.items()}, trustStorage=trust_storage,
                   productionReady=False, hardware='not tested', emulator='not tested',

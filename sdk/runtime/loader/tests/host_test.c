@@ -67,7 +67,7 @@ int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtim
 
 /* Trusted synthetic adapter: exercises the actual loader journal; it is not
  * a DSP driver, resource census or physical ACK qualification. */
-static int journal_enabled,journal_begin_safe,journal_admitted,journal_roots=1,journal_commit=1;
+static int journal_enabled,journal_begin_safe,journal_admitted,journal_roots=1,journal_commit=1,journal_switch_safe=1;
 static enum runtime_journal_observation journal_observed=RJ_READY;
 static uint8_t journal_masks[3];
 static unsigned journal_jobs;
@@ -99,13 +99,34 @@ int modwerk_machine_journal_committed(const struct runtime_journal_view *row,int
     if(live[row->position]) {
         for(unsigned i=0;i<live[row->position]->sites;i++) {
             const struct runtime_site *site=&live[row->position]->site[i];
-            CHECK(!memcmp(stock+site->address-STOCK,site->code,site->length));
+            CHECK(!memcmp(stock+(site->address-STOCK),site->code,site->length));
         }
     }
     return journal_commit;
 }
+int modwerk_machine_journal_switch_safe(const struct runtime_journal_view *row,int reverse)
+{
+    (void)reverse;CHECK(locked && !masked);
+    CHECK(!row->before.generation || modwerk_runtime_owner_valid(&row->before));
+    CHECK(!row->after.generation || modwerk_runtime_owner_valid(&row->after));
+    return journal_switch_safe;
+}
 int modwerk_machine_journal_roots_clear(const struct runtime_journal_view *row)
 { (void)row;CHECK(locked);return journal_roots; }
+/* Synthetic Keep answer; the loader must offer only exact published fresh installs. */
+static int journal_accept=1;
+static unsigned journal_accepts;
+int modwerk_machine_journal_accept(const struct runtime_journal_view *rows,unsigned count)
+{
+    CHECK(locked && !masked && journal.progress.phase==RJ_TRIAL && count==journal.progress.records);
+    for(unsigned i=0;i<count;i++)
+        CHECK(!rows[i].before.generation && rows[i].from==&no_dsp && modwerk_runtime_owner_valid(&rows[i].after) &&
+              live[rows[i].position] && rows[i].to==&live[rows[i].position]->dsp && rows[i].position==journal.row[i].position);
+    ++journal_accepts;return journal_accept;
+}
+static unsigned journal_idles;
+void modwerk_machine_journal_idle(uint32_t generation)
+{ CHECK(locked && generation==journal.progress.generation && journal.progress.phase==RJ_IDLE);++journal_idles; }
 static const struct mu_backend *b = &modwerk_runtime_backend;
 static uint8_t p[RUNTIME_PACKAGE_BYTES + 64];
 static uint32_t n;
@@ -681,7 +702,7 @@ int main(void)
     journal_masks[0]=1;journal_masks[2]=0;CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_free(0)==staged_free);
     journal_observed=RJ_READY;journal_masks[2]=1;CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING);
     journal_roots=0;CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_free(0)==staged_free);
-    journal_roots=1;CHECK(modwerk_runtime_journal_step(0)==RJ_OK && !modwerk_runtime_volatile_busy() && !modwerk_runtime_owner_valid(&staged_owner));
+    journal_roots=1;CHECK(modwerk_runtime_journal_step(0)==RJ_OK && !modwerk_runtime_volatile_busy() && !modwerk_runtime_owner_valid(&staged_owner) && journal_idles==1);
     CHECK(modwerk_runtime_free(0)==baseline_free && live[0]==baseline0 && live[1]==baseline1 && !memcmp(stock,baseline_stock,sizeof stock));
     /* Two actual CF publications, then reverse order and exact rollback. */
     CHECK(modwerk_runtime_journal_begin()==RJ_OK);
@@ -689,12 +710,24 @@ int main(void)
     id=113;begin(64,0,0,0,0,1,0x33);site(STOCK+96,6);CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
     CHECK(modwerk_runtime_journal_verify()==RJ_OK && modwerk_runtime_journal_activate()==RJ_PENDING);
     journal_masks[0]=journal_masks[1]=journal_masks[2]=3;
+    /* Even a completed DSP transition cannot publish CF through an absent,
+     * stale or unknown exact preflight. Preserve both images and site bytes. */
+    for(int missing=-1;missing<=2;++missing) if(missing!=1) {
+        journal_switch_safe=missing;
+        CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && !journal.progress.published &&
+            live[0]==baseline0 && !memcmp(stock,baseline_stock,sizeof stock));
+    }
+    journal_switch_safe=1;
+    /* A journal-owned ready plan is not the legacy manager's idle state.
+     * Its independent exact preflight replaces legacy DSP admission only. */
+    dsp_why=RUNTIME_BUSY;
     CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && journal.progress.published==1);
     CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && journal.progress.published==2);
     CHECK(modwerk_runtime_journal_step(0)==RJ_OK && journal.progress.phase==RJ_TRIAL && modwerk_runtime_active()==3);
     reclaim(0);CHECK(modwerk_runtime_owner_valid(&owner_identity[0]) && reachable(baseline0));
     CHECK(modwerk_runtime_journal_abort()==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_PENDING && journal.progress.published==1);
     CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_OK);
+    dsp_why=RUNTIME_OK;
     CHECK(modwerk_runtime_free(0)==baseline_free && live[0]==baseline0 && live[1]==baseline1 && !memcmp(stock,baseline_stock,sizeof stock));
     /* A missing CF commit observation keeps both actual generations after
      * publication; it cannot become a successful trial or reclaim either. */
@@ -726,6 +759,51 @@ int main(void)
     CHECK(modwerk_runtime_free(0)==baseline_free && !memcmp(stock,baseline_stock,sizeof stock));
     CHECK(modwerk_runtime_journal_abort()==RJ_STALE);
     CHECK(dsp_switches==baseline_switches); /* owned journal ACKs never start legacy DSP work */
+    /* Keep (synthetic board answer): only a published fresh-install set ends the
+     * journal, once, as the new baseline. A replace or removal row refuses before
+     * the board with nothing changed; reverse still works before Keep. */
+    uint8_t trial_digest[MU_DIGEST_BYTES],digest[MU_DIGEST_BYTES];unsigned idles=journal_idles;
+    CHECK(modwerk_runtime_journal_accept()==RJ_REFUSED && !journal_accepts);
+    for(unsigned set=0;set<5;++set) {
+        CHECK(modwerk_runtime_journal_begin()==RJ_OK);
+        if(set==0) { id=111;begin(64,0,0,0,0,1,0x61);site(STOCK+32,6); }    /* replaces live 111 */
+        else if(set==1) { id=112;begin(0,0,RUNTIME_NONE,0,0,0,0); }       /* removes live 112 */
+        else { id=116;begin(64,0,0,0,0,1,0x66);site(STOCK+160,6); }
+        CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+        id=115;begin(64,0,0,0,0,1,0x65);site(STOCK+128,6);CHECK(modwerk_runtime_journal_prepare(p,n,0)==RJ_OK);
+        CHECK(modwerk_runtime_journal_verify()==RJ_OK && modwerk_runtime_journal_accept()==RJ_REFUSED);
+        CHECK(modwerk_runtime_journal_activate()==RJ_PENDING && modwerk_runtime_journal_accept()==RJ_REFUSED);
+        CHECK(modwerk_runtime_journal_step(0)==RJ_PENDING && modwerk_runtime_journal_step(0)==RJ_PENDING);
+        CHECK(journal.progress.published==2 && modwerk_runtime_journal_accept()==RJ_REFUSED); /* published, not yet the trial */
+        CHECK(modwerk_runtime_journal_step(0)==RJ_OK);
+        CHECK(journal.progress.phase==RJ_TRIAL && journal.progress.published==2 && journal_accepts==(set>2?set-2u:0u));
+        uint32_t lock=modwerk_machine_lock();CHECK(modwerk_runtime_journal_digest(trial_digest));modwerk_machine_unlock(lock);
+        const struct runtime_module *trial0=live[0],*trial1=live[1];uint32_t trial_free=modwerk_runtime_free(0);
+        if(set<2) CHECK(modwerk_runtime_journal_accept()==RJ_REFUSED && !journal_accepts);
+        else if(set==2) { journal_accept=0;CHECK(modwerk_runtime_journal_accept()==RJ_REFUSED && journal_accepts==1); }
+        else if(set==3) { journal_accept=-1;CHECK(modwerk_runtime_journal_accept()==RJ_UNCERTAIN && journal_accepts==2 && journal.progress.phase==RJ_QUARANTINE); }
+        if(set<4) {
+            /* Unchanged by the refusal (or held by the unknown answer); exact reverse recovers. */
+            CHECK(journal.progress.published==2 && live[0]==trial0 && live[1]==trial1 && modwerk_runtime_free(0)==trial_free);
+            CHECK(set==3 || journal.progress.phase==RJ_TRIAL);
+            CHECK(modwerk_runtime_journal_abort()==RJ_PENDING);
+            for(unsigned i=0;i<4 && journal.progress.phase==RJ_ROLLBACK;++i) modwerk_runtime_journal_step(0);
+            CHECK(!modwerk_runtime_volatile_busy() && modwerk_runtime_free(0)==baseline_free && !memcmp(stock,baseline_stock,sizeof stock));
+            continue;
+        }
+        journal_accept=1;CHECK(modwerk_runtime_journal_accept()==RJ_OK && journal_accepts==3 && journal_idles==idles+5);
+        CHECK(!modwerk_runtime_volatile_busy() && !journal.progress.records && modwerk_runtime_active()==4);
+        lock=modwerk_machine_lock();CHECK(modwerk_runtime_journal_digest(digest));modwerk_machine_unlock(lock);
+        CHECK(!memcmp(digest,trial_digest,sizeof digest) && modwerk_runtime_journal_accept()==RJ_REFUSED && journal_accepts==3);
+        CHECK(modwerk_runtime_journal_abort()==RJ_STALE);
+    }
+    /* The kept set is ordinary live state: the legacy path is open again and removes it. */
+    for(id=115;id<=116;++id) {
+        begin(0,0,RUNTIME_NONE,0,0,0,0);
+        CHECK(b->enter(0) && b->prepare(0,p,n) && b->publish(0)==MU_APPLIED && b->retire(0) && b->leave(0));
+    }
+    CHECK(modwerk_runtime_active()==2 && live[0]==baseline0 && live[1]==baseline1);
+    CHECK(modwerk_runtime_free(0)==baseline_free && !memcmp(stock,baseline_stock,sizeof stock));
     if (failures) { fprintf(stderr, "%u loader checks failed\n", failures); return 1; }
     puts("Loader: refusals, relocation, bss, hooks, stock-code sites (in-flight, stock and changed-code refusals, "
          "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion, DSP sections and ABI 7's "

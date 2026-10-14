@@ -6,6 +6,8 @@ import json
 import struct
 import unittest
 import sys
+ADAPTER = Path(__file__).resolve().parents[1] / 'machines/octatrack/module-adapters'
+sys.path.append(str(ADAPTER))
 import machine_layout as layout
 import table_declarations as declarations
 import test_table_declarations as base

@@ -11,6 +11,13 @@ void *memcpy(void *to, const void *from, unsigned long length)
     for (unsigned long i=0;i<length;i++) out[i]=in[i];
     return to;
 }
+/* Synthetic fixtures link without libc, like the board runtime. */
+void *memset(void *to, int value, unsigned long length)
+{
+    volatile uint8_t *out = to;
+    for (unsigned long i = 0; i < length; ++i) out[i] = (uint8_t)value;
+    return to;
+}
 #ifdef MODWERK_MACHINE_DECLARATION_TEST
 #include "machine_admission.h"
 static uint8_t fixture_table[MACHINE_DECLARATION_BYTES];

@@ -9,7 +9,7 @@
 #include "modwerk_module.h"
 #define RUNTIME_ABI 8u
 #define RUNTIME_GROUP_METADATA 4u       /* ABI8 MWMG prefix; machine must explicitly admit its lifetime */
-#define RUNTIME_CAPABILITY_FLAGS 7u     /* CF sites, hash-backed stock copies, authored constant fills */
+#define RUNTIME_CAPABILITY_FLAGS 7u     /* CF sites, hash-backed stock copies, authored constant fills; and 128, site events, when the machine has them (64 is the volatile journal) */
 #define RUNTIME_HEADER_BYTES 76u        /* ABI 8: ABI 7 (72) plus constant-fill count; older headers: 68, 50, 32, 28 */
 #define RUNTIME_IMAGE_BYTES 131072u      /* one module's image and bss (Tape Echo's tone table is 86 KiB) */
 #define RUNTIME_RELOCATIONS 2048u
@@ -32,6 +32,14 @@
 /* Hook order in packages: the events every Elekloader core has. Later events
  * append; a base refuses a package with hooks it does not dispatch. */
 enum runtime_event { RUNTIME_TICK, RUNTIME_DRAW, RUNTIME_KEY, RUNTIME_ENC, RUNTIME_EVENTS };
+/* A machine's events at stock sites its base owns (the Octatrack's: sdk/machines/octatrack/EVENTS.md) follow as hook
+ * indices RUNTIME_EVENTS on, from its generated header (runtime_events.h, generated from its events.json). */
+#ifdef MODWERK_RUNTIME_EVENTS
+#include "runtime_events.h"
+#else
+#define RUNTIME_SITE_EVENTS 0u
+#endif
+#define RUNTIME_HOOKS (RUNTIME_EVENTS + RUNTIME_SITE_EVENTS)
 struct runtime_site { uint32_t address, length; uint8_t stock[RUNTIME_SITE_BYTES], code[RUNTIME_SITE_BYTES]; };
 /* A module's DSP effect (README.md, "DSP code"): relocatable code the machine
  * loads into a DSP when a track picks the effect, and what it needs there. */
@@ -62,7 +70,8 @@ struct runtime_dsp {
 };
 enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 /* At the start of the module's pool extent, followed by its sites, code, data, bss and DSP code. */
-struct runtime_module { uint32_t id, size; uintptr_t hook[RUNTIME_EVENTS]; const struct runtime_site *site; uint32_t sites; struct runtime_dsp dsp; }; /* hook 0: none */
+struct runtime_module { uint32_t id, size; uintptr_t hook[RUNTIME_HOOKS]; const struct runtime_site *site; uint32_t sites; struct runtime_dsp dsp;
+                        uint8_t order[RUNTIME_HOOKS]; }; /* hook 0: none; order: a site event's, lower first */
 /* Board-owned immutable reconstruction identity, kept outside the module
  * extent. This does not confer publication, DSP readiness or write authority.
  * Query/validation callers must retain the stable machine lock throughout the
@@ -83,9 +92,10 @@ int modwerk_runtime_owner_canonical(const struct runtime_owner *,uintptr_t *exte
 /* Why the last package was refused, for diagnostics and the unit's own message. */
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
                        RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
-                       RUNTIME_STOCK /* ABI 7: the bytes under a site are not the stock bytes its hash names */ };
+                       RUNTIME_STOCK /* ABI 7: the bytes under a site are not the stock bytes its hash names */,
+                       RUNTIME_EVENT /* a site or copy meets a stock site the base owns as an event: subscribe to it */ };
 /* ABI 7's site record (a 32-byte hash for the stock bytes) is never longer than ABI 6's (the stock bytes). */
-#define RUNTIME_PACKAGE_BYTES (RUNTIME_HEADER_BYTES + 4u * RUNTIME_EVENTS + RUNTIME_IMAGE_BYTES + 4u * RUNTIME_RELOCATIONS + \
+#define RUNTIME_PACKAGE_BYTES (RUNTIME_HEADER_BYTES + 4u * RUNTIME_HOOKS + RUNTIME_IMAGE_BYTES + 4u * RUNTIME_RELOCATIONS + \
                                RUNTIME_SITES * (8u + 2u * RUNTIME_SITE_BYTES + 2u * RUNTIME_SITE_RELOCATIONS) + \
                                RUNTIME_COPIES * (12u + 32u) + RUNTIME_FILLS * 12u + 4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
 
@@ -102,6 +112,14 @@ uint32_t modwerk_runtime_broken(void);               /* the first live module wh
 uint32_t modwerk_runtime_free(uint32_t *largest);    /* pool bytes free, and the largest free run */
 unsigned modwerk_runtime_list(uint8_t *out, unsigned first, unsigned most); /* INVENTORY: 4 + 24 x entries bytes */
 enum runtime_refusal modwerk_runtime_refusal(void);
+unsigned modwerk_runtime_refused_event(void);         /* after RUNTIME_EVENT: that event's hook index */
+#if RUNTIME_SITE_EVENTS
+/* Each site event's handlers in (order, module id) order, then 0: the base's dispatch (runtime_events.s,
+ * modwerk_events_code up to modwerk_events_code_end) walks them. Rewritten masked, only while no paused
+ * task is inside that dispatch. */
+extern uintptr_t volatile *const modwerk_runtime_event_row[RUNTIME_SITE_EVENTS];
+extern const uint8_t modwerk_events_code[], modwerk_events_code_end[];
+#endif
 unsigned modwerk_runtime_capabilities(uint8_t *out); /* MWCP v1: 12 bytes, read-only */
 extern volatile uint32_t modwerk_runtime_ticks; /* advanced by the glue's tick, for diagnostics */
 uint32_t modwerk_runtime_value(void);

@@ -11,7 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
-sys.path.insert(0, str(ADAPTER))
+sys.path.append(str(ADAPTER))
 import table_declarations as declarations
 spec = importlib.util.spec_from_file_location('table_package_builder', ROOT / 'sdk/runtime/loader/build.py')
 builder = importlib.util.module_from_spec(spec)

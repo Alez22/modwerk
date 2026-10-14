@@ -124,6 +124,7 @@ def authored(root, upstream, module, builder, binding, stock_at, work, cross):
     sdk = root / 'sdk/octabam'
     port = octabam.Octabam(str(sdk)).modules[module]
     source_hashes = inputs(root, upstream, module)
+    hooks = []
     if module in cave_runtime.PORTS:
         image, bss, offsets, sites, copies, sources, proofs = cave_runtime.prepare_caves(
             port, sdk, builder, work, cross, binding['arena'], pool_origins=binding['poolOrigins'])
@@ -141,7 +142,7 @@ def authored(root, upstream, module, builder, binding, stock_at, work, cross):
     elif module == 'mute-modes':
         recipe = declaration(root, module, source_hashes)
         result = runtime_units.compile_linked(port, sdk, builder, work, cross, {port.key}, recipe['tables'], stock_at)
-        image, bss, offsets, sites, copies = (result[name] for name in ('image', 'bss', 'offsets', 'sites', 'copies'))
+        image, bss, offsets, sites, copies, hooks = (result[name] for name in ('image', 'bss', 'offsets', 'sites', 'copies', 'hooks'))
         proofs, title = {name: result[name] for name in ('referenceProofs', 'tableOracle', 'origins')}, 'Mute Modes'
     else:
         raise ValueError('No reviewed private native adapter for ' + module)
@@ -165,7 +166,7 @@ def authored(root, upstream, module, builder, binding, stock_at, work, cross):
             meaning='arena resource word, not the full base identity')
     if source_hashes != inputs(root, upstream, module):
         raise ValueError('A private native input changed during compilation.')
-    return builder.package(image, bss, [], offsets, sites, name=module, hashed=True, title=title,
+    return builder.package(image, bss, hooks, offsets, sites, name=module, hashed=True, title=title,
                            layout=1, copies=copies, abi=8), proofs
 
 

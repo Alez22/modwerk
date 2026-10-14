@@ -13,22 +13,34 @@ from types import SimpleNamespace
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'sdk/machines/octatrack/module-adapters'))
+sys.path.append(str(ROOT / 'sdk/machines/octatrack/module-adapters'))
 import runtime_candidate as candidate
 import standalone_runtime as standalone
 import candidate_packages as packages
 
 
+def stored(data):
+    """The kit's section format, every byte a literal (run_pack.py's stream, without the kit's match finder)."""
+    tail = bin((1 << 24) + 2)[3:]
+    bits = [(1, bytes((b,))) for b in data] + [(0, b'')] + [e for i, b in enumerate(tail) for e in (
+        (int(b), b''), (int(i == len(tail) - 1), b'\xff' if i == len(tail) - 1 else b''))]
+    body = b''.join(bytes((sum(bit << 7 - k for k, (bit, _) in enumerate(bits[i:i + 8])),)) +
+                    b''.join(p for _, p in bits[i:i + 8]) for i in range(0, len(bits), 8))
+    return len(body).to_bytes(4, 'big') + (sum(body) & 0xffffffff).to_bytes(4, 'big') + body
+
+
 def fixture():
     main = bytearray(0x300)
     symbols = dict(arena_base=0x40d00000, pool=0x48001000, __bss_start=0x48001000,
-                   __bss_end=0x48100000, modwerk_base_digest=0x48000010)
+                   __bss_end=0x48100000, modwerk_base_digest=0x48000010,
+                   __run_load=candidate.LOAD + 0x200, __run_start=0x48000000, __run_words=0x40)
     for address in (0x4000045e, 0x4000046c, 0x400004c8):
         struct.pack_into('>I', main, address - candidate.LOAD, symbols['arena_base'])
     main[0x210:0x230] = bytes(range(1, 33))
-    proof = dict(configurationHash=main[0x210:0x230].hex(), manifest=dict(
-        main_sha256=hashlib.sha256(main).hexdigest(), main_len=len(main),
-        link=dict(layout=dict(ddr=[0x48000000, 0x48000100], run_load=candidate.LOAD + 0x200))))
+    layout = dict(ddr=[0x48000000, 0x48000100], run_load=candidate.LOAD + 0x200)
+    main, _ = candidate.run_pack.pack(main, layout, symbols, candidate.LOAD, stored)
+    proof = dict(configurationHash=bytes(range(1, 33)).hex(), manifest=dict(
+        main_sha256=hashlib.sha256(main).hexdigest(), main_len=len(main), link=dict(layout=layout)))
     return bytes(main), symbols, proof
 
 
