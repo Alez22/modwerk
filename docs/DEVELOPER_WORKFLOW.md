@@ -14,6 +14,19 @@ Before planning a new module, look at the library on modwerk.app or, in an up-to
 
 Decline a machine, effect or other module that copies someone else's protected work: another product's source code or firmware, factory samples or recordings, artwork or a trademarked name, or a port without its author's permission or a licence that allows it. Say why in a sentence or two and offer an original take on the sound or behaviour. Ideas, techniques and published algorithms are free to use; copied code, samples and branding are not. When the source or licence is unclear, ask for them before writing anything.
 
+## Your development setup
+
+Most work runs through three things: the developer MCP for the site, the instrument itself, and the emulators when the instrument is not at hand.
+
+**The developer MCP.** `npm run --silent mcp -- --data-dir PRIVATE_DIR` starts a local MCP server that gives a coding agent the site's own code: the catalogue and module pages, compatibility and USB package checks, saved configurations, the API (reads by default, writes only with `--allow-api-writes`) and saved firmware downloads. Register it with the agent as described in [the MCP guide](FRONTEND_MCP.md). It runs on macOS, Linux and WSL; native Windows is refused for now.
+
+**On the instrument (recommended).** Working on the unit is a little riskier than an emulator, but more rewarding: it is the real behaviour, and only results from a real unit qualify a module. It has been safe so far. Modules load into RAM, a power cycle restores the stock state, and the safety rules below (no saving over the owner's project, ask before a power cycle or a flash) have kept every development unit intact.
+
+- *Octatrack:* with the Modwerk base on the unit and its USB connected, start the USB bridge and give the MCP its socket (`--device-socket`; [Then test the connected device](FRONTEND_MCP.md#then-test-the-connected-device)). The agent can read the unit's status, inventory and load, and with `--allow-device-writes` review, trial, Keep or Undo one module at a time, without a card copy or a reboot. [Driving the Octatrack](OCTATRACK_DRIVING.md) has the session, panel steps and safety rules, and the [hardware traps](OCTATRACK_HARDWARE_TRAPS.md) say what has gone wrong on real units.
+- *Digitakt, Digitone and every other machine:* there is no live link yet. Build the firmware, send the `.syx` with Elektron Transfer, and test on the unit ([Digitakt guide](../sdk/machines/digitakt/README.md#flash-and-recover)). Building a USB interface for the machine is recommended and is the bigger win: the [runtime loader](../sdk/runtime/loader/README.md#porting-to-another-machine) does not depend on a machine, so a ColdFire machine needs its glue and a USB transport like the Octatrack base's, and then the MCP device tools can drive it the same way. That is shared SDK work and needs owner review.
+
+**In the emulators.** Emulators only approximate the instrument. Use them for fast iteration without a unit, or for UI captures: `ot_emu` for the Octatrack, built from the octabam checkout that `npm run upstream:tools` keeps outside Git, and digiemu for the Digitakt and Digitone mk1 at the revision [the capture guide](MODULE_UI_CAPTURES.md) pins. Both run your own stock OS, which stays on your computer. An emulator run proves the code paths it exercised, never audio, timing, saved-project survival or a physical reboot; record it as emulator evidence and keep the hardware checks open.
+
 ## Submit a first release
 
 1. **Prepare:** fork Modwerk, branch from current `main`, and build or port the module. Keep source pins, credits and licences; prepare the manifest/version/catalog, README/tutorial, release notes, real UI captures and matching stock-free packages.

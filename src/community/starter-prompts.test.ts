@@ -79,6 +79,7 @@ describe('starter prompts', () => {
       expect(prompt).toContain('instead of building a duplicate')
       expect(prompt.indexOf('look at what Modwerk already has')).toBeLessThan(prompt.indexOf('Before you write code, read'))
       expect(prompt).toContain('never patch a site another module or the base patches')
+      expect(prompt).toContain('on my unit (recommended')
     }
     for (const file of ['sdk/catalog.json', 'src/catalog/machine-modules.json', 'sdk/drafts']) expect(existsSync(file), file).toBe(true)
     expect(updatePrompt('digitakt')).not.toContain('look at what Modwerk already has')
@@ -91,6 +92,11 @@ describe('starter prompts', () => {
     expect(workflow).toContain('## Check what already exists')
     expect(workflow).toContain('## Refuse infringing work')
     expect(readFileSync('docs/module-guides/README.md', 'utf8')).toContain('## Cross-compatibility')
+    expect(workflow).toContain('## Your development setup')
+    expect(workflow).toContain('--device-socket')
+    expect(workflow).toContain('Building a USB interface for the machine is recommended')
+    expect(agents).toContain('Emulators (')
+    expect(updatePrompt('digitakt')).toContain('"Your development setup" in docs/DEVELOPER_WORKFLOW.md')
     expect(readFileSync('docs/MODULE_AUTHOR_UPDATES.md', 'utf8')).toContain('Automatically merge and publish my module update after checks pass.')
   })
 
@@ -136,6 +142,7 @@ describe('start developing page', () => {
     expect(html).toContain('Copy prompt')
     expect(html.match(/Copy prompt/g)).toHaveLength(1)
     expect(html).toContain('Preview complete prompt')
+    expect(html).toContain('DEVELOPER_WORKFLOW.md#your-development-setup')
     expect(html).not.toContain('<details open')
     expect(html.indexOf('Your coding prompt')).toBeLessThan(html.indexOf('Your first release'))
   })

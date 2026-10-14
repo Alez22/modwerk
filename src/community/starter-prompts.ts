@@ -76,7 +76,7 @@ function setupGuidance(repository = REPOSITORY, login = '') {
     '  1. A free GitHub account (github.com/signup). Ask for my login and use it as the module author.',
     '  2. Fork ' + repository + ' with the Fork button, install git if I have none, then clone my fork and install its packages (Node 24 through nvm; nvm-windows on Windows):',
     ...cloneCommands(repository, login).split('\n').map(line => '     ' + line),
-    '  3. A coding agent that works on files in that folder: Claude Code (Claude subscription) or Codex (ChatGPT plan), as a desktop app, IDE extension or terminal tool. Octatrack native builds also need Python 3.10+, Docker and my own stock OS 1.40C, which stays on my computer and is never sent to you.',
+    '  3. A coding agent that works on files in that folder: Claude Code (Claude subscription) or Codex (ChatGPT plan), as a desktop app, IDE extension or terminal tool. Octatrack native builds also need Python 3.10+, Docker and my own stock OS 1.40C, which stays on my computer and is never sent to you. Testing on my own unit, connected by USB, is recommended; an emulator works without one.',
     '  4. Open the cloned folder in that agent, then tell me to copy this whole prompt from my first message and paste it there. Then stop: the agent takes over.',
   ]
 }
@@ -93,6 +93,9 @@ const CATALOGUE_CHECK = 'First look at what Modwerk already has ("Check what alr
 
 /** Holds on every machine: modules share the instrument through the events its base or core owns. */
 const SHARE_THE_INSTRUMENT = 'It must install and run beside every other module: never patch a site another module or the base patches; share it through the machine\'s events instead ("Cross-compatibility" in docs/module-guides/README.md).'
+
+/** Where the work is tested: the developer MCP, the unit itself (recommended) or an emulator. */
+const DEVELOPMENT_SETUP = 'Ask me how I will test: on my unit (recommended: a little riskier than an emulator but the real behaviour, and safe so far; on the Octatrack the developer MCP drives it over USB) or in the emulator, which only approximates the instrument. If my machine has no USB interface yet, recommend building one. Set up the developer MCP for the site and, if I have one, my unit ("Your development setup" in docs/DEVELOPER_WORKFLOW.md).'
 
 const IDEA_PLACEHOLDER = '<describe your idea: what it does, its controls, and how it should sound or behave>'
 const PORT_PLACEHOLDER = '<name the module and link its source>'
@@ -124,6 +127,7 @@ export function starterPrompt(machine: StarterMachine, starter: Starter, idea = 
     ...reading,
     '',
     'Use Node 24 and npm ci. Propose a module id, its controls and the exact button steps to reach it on the unit. Wait for my OK before implementation. ' + create,
+    DEVELOPMENT_SETUP,
     SHARE_THE_INSTRUMENT,
     '',
     developerWorkflowPrompt('create'),
@@ -141,6 +145,7 @@ export function updatePrompt(machine: StarterMachine, module = '', idea = '', is
     '',
     'Before changing code, read these, AGENTS.md first:', ...reading.map(file => '- ' + file),
     'Then read the module’s manifest, README, TESTING and its category guide, and reproduce the report where possible. Use Node 24 and npm ci.',
+    DEVELOPMENT_SETUP,
     '', developerWorkflowPrompt('update'),
   ], repository, login)
 }
