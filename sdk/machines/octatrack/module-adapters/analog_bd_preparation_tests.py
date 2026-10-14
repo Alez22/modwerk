@@ -146,5 +146,37 @@ class NativeTests(unittest.TestCase):
                 self.assertEqual('pm_assign' in maps[0], bool(mask & 1))
 
 
+
+class ObservationTests(unittest.TestCase):
+    """Hash-only private emulator observations stay bound to the exact sources."""
+    def test_native_observations_bind_current_sources_and_stay_unqualified(self):
+        import json
+        app = SDK.parents[1]
+        doc = json.loads((Path(__file__).with_name('analog_bd_native_observations.json')).read_text())
+        self.assertEqual(doc['schema'], 'modwerk-private-ab-native-observations-v1')
+        for name, digest in doc['sourcePins'].items():
+            self.assertEqual(hashlib.sha256((app / name).read_bytes()).hexdigest(), digest, name)
+        for key in ('hardware', 'admission', 'productionLease', 'encodedPackage'):
+            self.assertIs(doc[key], False)
+        runs = doc['runs']
+        count = lambda kind: sum(run['fixture'] == kind for run in runs)
+        self.assertEqual((count('controller'), count('sharedKey'), count('ui'), count('lease')), (16, 6, 22, 16))
+        self.assertEqual({run['origin'] for run in runs}, {0x47080000, 0x47100000})
+        for run in runs:
+            observed = run['observed']
+            self.assertIs(observed['hardware'], False)
+            self.assertIs(observed['admission'], False)
+            if run['fixture'] == 'controller':
+                self.assertTrue(observed['exactAbStockRestore'] and observed['stockDescriptorTableUnchanged'])
+                self.assertFalse(observed['controllerReadyQualified'] or observed['unmapped'])
+            if run['fixture'] == 'lease':
+                self.assertTrue(observed['writesOnlyInsideLease'] and observed['noFailureReplay'])
+                self.assertEqual((observed['deniedBegins'], observed['failedEnds']), (12, 3))
+                self.assertFalse(observed['productionLease'] or observed['physicalTimingQualified'])
+            if run['fixture'] == 'ui':
+                self.assertTrue(observed['exactPreinstallRootRestore'])
+                self.assertFalse(observed['unknownExports'])
+
+
 if __name__ == '__main__':
     unittest.main()

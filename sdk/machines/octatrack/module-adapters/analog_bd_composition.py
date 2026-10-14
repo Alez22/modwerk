@@ -72,11 +72,13 @@ def _compile(source, text, compiled, asm, hooks, cross):
     asm.write_text(compiled.read_text() + '\n#APP\n' + hooks)
 
 
-def effective_modules(selected, sdk_root=None, work=None, cross='m68k-elf-'):
+def effective_modules(selected, sdk_root=None, work=None, cross='m68k-elf-', *, lease=False):
     """AB plus any POLY/VECTOR/FM subset (mask 0 is AB alone with the bridge).
 
     One common site owner; AB keeps its own CF units, with only its descriptor
-    writes removed (analog_bd_runtime.port). `work` must outlive assembly.
+    writes removed (analog_bd_runtime.port). `lease` puts the renderer's control
+    writes inside the strong board write lease (analog_bd_write_lease.port);
+    its two imports stay undefined. `work` must outlive assembly.
     """
     selected = list(selected)
     names = {m.name for m in selected}
@@ -90,7 +92,10 @@ def effective_modules(selected, sdk_root=None, work=None, cross='m68k-elf-'):
     policy = importlib.import_module('remix.machine_composition')
     from remix.stock_guard import stock_guard
     from remix.schema import Linked, StockCopy
-    from analog_bd_runtime import port as ab_port
+    if lease:
+        from analog_bd_write_lease import port as ab_port
+    else:
+        from analog_bd_runtime import port as ab_port
     from vector_runtime import port as vector_port
     base._read(sdk, 'modules/poly8/manifest.py')
     base._read(sdk, 'modules/poly8/composition.json')

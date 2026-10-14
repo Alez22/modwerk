@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Private strong AB write-lease emitter; no production authority by itself.
+
+The AB renderer's control-record writes go inside one board write lease of the
+reviewed ABI (`stock_hook_write_lease.h`, MW_CONTROLLER_WRITE_ANALOG_BD). The
+two lease functions stay undefined, strong imports: a native fixture may bind
+explicit test functions, an encoded package only the exact base's exports.
+Unsigned tracks still reach the stock renderer before any lease.
+"""
+from pathlib import Path
+import hashlib
+import subprocess
+from dataclasses import replace
+
+HEADER = Path(__file__).with_name('stock_hook_write_lease.h')
+HEADER_SHA256 = 'ab14679a5faae84ef47d1ca37e46b3171da45252d12310e0b4458228be8334be'
+CONTROLLER_ADAPTER_SHA256 = 'c3e3f51076e9ae3579e2e00d96d21eee87a2d12afa4ae69fb7067da3399fa17a'
+IMPORTS = ('modwerk_controller_write_begin', 'modwerk_controller_write_end')
+
+
+def source(original):
+    import analog_bd_runtime
+    if hashlib.sha256(Path(analog_bd_runtime.__file__).read_bytes()).hexdigest() != CONTROLLER_ADAPTER_SHA256:
+        raise ValueError('Reviewed AB descriptor adapter changed before lease emission.')
+    if hashlib.sha256(HEADER.read_bytes()).hexdigest() != HEADER_SHA256:
+        raise ValueError('Reviewed controller write-lease ABI changed.')
+    text = analog_bd_runtime.control_source(original)
+    seams = (
+        ('#include "engine.h"', '#include "engine.h"\n#include "stock_hook_write_lease.h"'),
+        ('    ++ab_render_calls;', '''    struct mw_controller_write_lease lease;
+    if(modwerk_controller_write_begin((uintptr_t)ab_render,
+        MW_CONTROLLER_WRITE_ANALOG_BD,&lease)!=1) return -1;
+    ++ab_render_calls;'''),
+        ('        U32(0x80001c80u)=(uint32_t)(uintptr_t)(cursor+4+2*n);\n        return 0;',
+         '''        U32(0x80001c80u)=(uint32_t)(uintptr_t)(cursor+4+2*n);
+        /* No stock call, wait, redraw or notification occurs within this
+         * bounded producer span. Never replay writes after a failed End. */
+        return modwerk_controller_write_end(&lease)==1 ? 0 : -1;'''),
+    )
+    for before, after in seams:
+        if text.count(before) != 1:
+            raise ValueError('Reviewed AB write span changed.')
+        text = text.replace(before, after)
+    return text
+
+
+def port(module, sdk_root, work, cross='m68k-elf-'):
+    import analog_bd_runtime
+    sdk = Path(sdk_root).resolve();folder = Path(work).resolve();folder.mkdir(parents=True, exist_ok=True)
+    # First require the unchanged imported units; this explicit source variant
+    # cannot accept an already adapted, duplicate or foreign controller unit.
+    analog_bd_runtime.port(module, sdk, folder / 'descriptor-proof', cross=cross)
+    control, assembly = folder / 'analog-bd-lease-control.c', folder / 'analog-bd-lease-control.s'
+    upstream = sdk / 'modules/analog-bassdrum'
+    control.write_text(source((upstream / 'control.c').read_text()))
+    from machine_composition import FLAGS
+    subprocess.run([cross + 'gcc', *FLAGS, '-I', str(upstream), '-I', str(HEADER.parent), '-S', str(control), '-o', str(assembly)],
+                   check=True, capture_output=True)
+    return replace(module, linked=tuple(replace(u, source=str(assembly), dram=True, cave_addr=None)
+                                        if u.label == 'abcontrol' else u for u in module.linked))

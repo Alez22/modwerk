@@ -11,3 +11,4 @@ tests = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tests)
 SourceTests = tests.SourceTests
 NativeTests = tests.NativeTests
+ObservationTests = tests.ObservationTests
