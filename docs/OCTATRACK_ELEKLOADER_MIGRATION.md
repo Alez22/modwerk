@@ -2362,6 +2362,7 @@ explicit trial-acceptance rules still apply.
 | Tape Echo 0.1.2 | ~0 (ColdFire) | 4 (modeled) | – |
 
 DJ EQUALIZER's 331 executed instructions (emulator) run as 342 cycles: stock's code runs at about one cycle per instruction. Ours runs at 1.4–1.7.
+Not the loader's doing: on 14 October 2026 (dev twin of base `362fb24d`, `octatrack-measure.py`), SPRING REV and FILTER, now loaded on demand into the same arena and relocated like a module, measured 298 / 288 and 285 / 275 (dearest), as in the table. The extra cycles are in the modules' own DSP code (instruction mix, memory access or pipeline stalls the emulator does not count); not yet traced.
 
 **The ledger since S19 (owner's choice: a 90% frame ceiling)**, all in chip cycles:
 - **Allowances.** Core 0 3,120 and core 1 3,565, each 90% of the frame less stock's own work.
