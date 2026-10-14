@@ -30,8 +30,10 @@ int main(int argc,char **argv) {
     auto read=[&](uint32_t at,unsigned n) { std::vector<uint8_t>b(n);for(unsigned i=0;i<n;++i)b[i]=m.read8(at+i);return b; };
     auto write=[&](uint32_t at,const std::vector<uint8_t>&b) { for(unsigned i=0;i<b.size();++i)m.write8(at+i,b[i]); };
     auto cpu=m.getCpuState(); unsigned calls=0,instructions=0,maxHeld=0,maxMode=0;
-    unsigned gateCase=0,begins=0,ends=0,heldInstructions=0,redraws=0,modeLeases=0;bool held=false,modeEntry=false,handler=false;
+    unsigned gateCase=0,begins=0,ends=0,heldInstructions=0,redraws=0,modeLeases=0,frameLeases=1;bool held=false,modeEntry=false,handler=false;
     std::string modeLease="matrix_leave";
+    // Executed module instructions per call in the cases a frame meets most (the fixture's Begin/End not counted).
+    std::map<std::string,unsigned> cost;
     std::vector<std::array<uint32_t,3>> notifications;
     uint32_t lease=0;std::array<uint32_t,15> endOutputs{};uint16_t endCcr=0;
     auto get=[&](unsigned r) {return m68k_get_reg(cpu,m68k_register_t(M68K_REG_D0+r));};
@@ -79,7 +81,8 @@ int main(int argc,char **argv) {
         assert(m.pc()==stop && m.unmappedCount()==unmapped);
         assert(m68k_get_reg(cpu,M68K_REG_SP)==stack+4 && !held);
         assert((m68k_get_reg(cpu,M68K_REG_SR)&0x700)==0);
-        const unsigned leases=handler?0u:modeEntry?modeLeases:1u;
+        // A frame hook leases only when its body would write (its read-only precheck); a mode change when it converts.
+        const unsigned leases=handler?0u:modeEntry?modeLeases:frameLeases;
         if(guarded){assert(begins==leases && ends==unsigned(leases && (gateCase==1 || gateCase==2)));
             if(ends && !modeEntry){for(unsigned r=0;r<15;++r)assert(get(r)==endOutputs[r]);assert((m68k_get_reg(cpu,M68K_REG_SR)&31)==endCcr);}}
         if(modeEntry)maxMode=std::max(maxMode,instructions-started);
@@ -102,8 +105,11 @@ int main(int argc,char **argv) {
             auto expectedStore=store,expectedLive=live;
             auto normalize=[](std::vector<uint8_t>&bytes,unsigned at) {if(bytes[at]>8){bytes[at]=0;bytes[at+1]=64;bytes[at+2]=64;bytes[at+3]=0;}};
             if(!guarded || gate==1 || gate==2){if(ids&1)normalize(expectedStore,s);if(ids&2)normalize(expectedLive,l);}
+            frameLeases=((ids&1) && key>8) || ((ids&2) && (key+7)%256>8); // a KEY above 8 to reset
             write(working,store);write(saved,guard);write(mirror,guard);write(0x80000810,live);m.write8(0x80000003,uint8_t(part));
-            enter("sc_norm");run();
+            enter("sc_norm");const unsigned before=instructions;run();
+            if(part==0 && track==0 && slot==0 && gate==(guarded?1u:0u) && (key==1 || key==9) && (ids==0 || ids==3))
+                cost[ids==0?"no COMPRESSOR":key==1?"COMPRESSOR, KEY 1":"COMPRESSOR, KEY 9 (normalized)"]=instructions-before;
             assert(read(working,stride)==expectedStore && read(0x80000810,8*lane)==expectedLive);
             assert(read(saved,stride)==guard && read(mirror,stride)==guard);
             for(unsigned r=0;r<15;++r)assert(get(r)==(r==11?0x80000a50u:0x47070000+4*r));
@@ -129,7 +135,7 @@ int main(int argc,char **argv) {
     } else {
         constexpr uint32_t page=0x47090000;
         for(unsigned mode=0;mode<3;++mode)for(unsigned base=0;base<16;++base)for(unsigned phones:{0u,64u,127u,255u})
-        for(unsigned gate=0;gate<(guarded?5u:1u);++gate) {
+        for(unsigned clear=0;clear<2;++clear)for(unsigned gate=0;gate<(guarded?5u:1u);++gate) {
             gateCase=gate;
             std::array<uint8_t,8>sent{},fading{};
             for(unsigned t=0;t<8;++t){m.write8(symbols.at("sent_codes")+t,0);m.write8(symbols.at("fading")+t,0);}
@@ -137,6 +143,7 @@ int main(int argc,char **argv) {
             for(unsigned frame=0;frame<3;++frame) {
                 begins=ends=0;
                 std::vector<uint8_t>before(128);for(unsigned i=0;i<before.size();++i)before[i]=uint8_t(i*13+7);
+                if(clear)before[0x76]=before[0x77]=0; // $3b as a frame outside MATRIX leaves it
                 auto expected=before;
                 auto word=[&](unsigned at,unsigned value){expected[at]=uint8_t(value>>8);expected[at+1]=uint8_t(value);};
                 std::array<uint8_t,8>routed{};
@@ -154,7 +161,11 @@ int main(int argc,char **argv) {
                     word(0x52,64);word(0x6e,77);word(0x70,phones>=128?0xff00+phones:phones);word(0x76,1);
                     for(unsigned half=0;half<2;++half){unsigned packed=0;for(unsigned t=0;t<4;++t)packed=16*packed+routed[4*half+t];word(0x72+2*half,packed);}
                 } else word(0x76,0); }
-                write(page,before);enter("page_levels");m68k_set_reg(cpu,M68K_REG_A2,page);m68k_set_reg(cpu,M68K_REG_D2,77);run();
+                frameLeases=mode==2 || !clear; // MATRIX, or $3b to clear
+                write(page,before);enter("page_levels");m68k_set_reg(cpu,M68K_REG_A2,page);m68k_set_reg(cpu,M68K_REG_D2,77);
+                const unsigned started=instructions;run();
+                if(base==0 && phones==64 && gate==(guarded?1u:0u) && frame==2 && mode!=1 && clear==(mode==0))
+                    cost[mode==2?"MATRIX":"NORMAL, page $3b clear"]=instructions-started;
                 assert(read(page,128)==expected);
                 for(unsigned t=0;t<8;++t){assert(m.read8(symbols.at("sent_codes")+t)==sent[t]);assert(m.read8(symbols.at("fading")+t)==fading[t]);}
                 assert(get(2)==77 && get(10)==page);
@@ -222,5 +233,6 @@ int main(int argc,char **argv) {
             for(unsigned r:{2u,3u,4u,5u,6u,7u,10u,11u,12u,13u,14u})assert(get(r)==0x47070000+4*r);
         }
     }
+    for(const auto &c:cost)std::printf("COST %s %s per call: %u instructions\n",module.c_str(),c.first.c_str(),c.second);
     std::printf("PASS actual ColdFire %s %s: %u calls, %u instructions, max held %u instructions, max mode %u instructions; source/fixture memory/register/stack oracle only\n",module.c_str(),guarded?"scoped-fixture":"original",calls,instructions,maxHeld,maxMode);
 }
