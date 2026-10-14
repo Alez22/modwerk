@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Cross-compatibility gate: every active Octatrack module must install beside every other.
+"""Cross-compatibility gate: every module must install beside every other on its machine.
 
     npm run modules:compat                 # every active module, every pair and the whole set
     npm run modules:compat -- <id>         # only what involves <id>
@@ -13,6 +13,12 @@ to it. Two owners may meet on stock bytes only where sdk/machines/octatrack/comp
 modules and the address with a reason; the base's own exceptions are build_core.py's BASE_OWNS. Everything
 else octabam's ledger refuses (FX ids, DSP hooks, core-private Y, buffer regions, data ranges) is checked
 for every pair and for the whole active set.
+
+Every elemod machine (Digitakt, Digitone and the others with an elemod SDK) is checked by the same rules from
+its mods' modwerk.module.json and build.json: no two mods patch the same stock bytes in a release they share,
+claim the same named resource or region, or claim a resource the core owns. Two mods may meet only where
+sdk/machines/<machine>/compatibility.json lists them as pending-event: the core does not yet own that site as
+an event both can subscribe to. Elemod problems name modules as <machine>/<id>.
 """
 import ast
 import itertools
@@ -47,7 +53,13 @@ ROUTES = {
     'row': ('pick another chooser row (a free effect ID)', '#cross-compatibility'),
     'other': ('claim a resource nobody else uses, or request a base-owned region or event for shared state',
               '#cross-compatibility'),
-    'relation': (f'correct {RELATIONS}; every entry needs owner review', '#cross-compatibility'),
+    'relation': (f'correct {RELATIONS} (sdk/machines/<machine>/compatibility.json for other machines); every '
+                 'entry needs owner review', '#cross-compatibility'),
+    'core-event': ('two mods patch the same stock site: the core should own it as an event or table both subscribe '
+                   'to; propose it, and until the core has it, list the pair in sdk/machines/<machine>/'
+                   'compatibility.json as pending-event (owner review)', '#propose-an-event'),
+    'claim': ('a named resource has one owner: claim another one, or ask for the core to own it and share it '
+              'through an event or table', '#cross-compatibility'),
 }
 # octabam ledger findings this gate already compares by exact byte range (with relations), not by message.
 SPAN_FINDINGS = ('ColdFire cave', 'hook site', 'poke site', 'kept bytes', 'grown table')
@@ -278,12 +290,103 @@ def repository_inputs():
     return ids, [by_name[i] for i in ids if i in by_name], inputs, load
 
 
+def elemod_declarations(machine, document, build):
+    """What a mod changes, from its manifest and build spec: (release or None, start, end, label) spans and claims."""
+    spans = []
+    for release, value in build.get('releases', {}).items():
+        spans += [(release, int(site['addr'], 16), int(site['addr'], 16) + site['len'], f'site {site["addr"]}')
+                  for site in value.get('sites', [])]
+    derive = build.get('derive') or {}
+    for release in derive.get('releases', []):
+        spans += [(release, int(site['addr'], 16), int(site['addr'], 16) + site['len'], f'call site {site["addr"]}')
+                  for site in derive.get('callSites', [])]
+    spans += [(None, int(r['lo'], 16), int(r['hi'], 16), f'region {r["name"]}') for r in build.get('regions', [])]
+    spans += [(None, a, b, f'{c["to"]} entry') for c in build.get('contribute', []) for a, b in c.get('claims', [])]
+    return dict(name=f'{machine}/{document["id"]}', spans=spans, claims=list(document['platform'].get('claims', [])))
+
+
+def check_elemod(machine, mods, core=None, relations=()):
+    """Problems among one elemod machine's mods: shared stock bytes, regions or claims, and claims of core resources."""
+    problems, names = [], {m['name'] for m in mods}
+
+    def problem(involved, text, way):
+        problems.append(dict(modules=sorted(set(involved) & names), text=text, route=way))
+
+    allowed, used = {}, set()
+    for entry in relations:
+        pair = [f'{machine}/{n}' for n in entry.get('modules', [])]
+        if (len(pair) != 2 or pair[0] == pair[1] or entry.get('kind') != 'pending-event' or not entry.get('sites')
+                or not all(str(entry.get(k, '')).strip() for k in ('event', 'until', 'reason'))):
+            problem(pair, f'relation {"+".join(pair)}: needs two mods, its sites, a reason and kind pending-event '
+                          f'with the planned event and until', 'relation')
+            continue
+        stale = [n for n in pair if n not in names]
+        if stale:
+            problem(pair, f'relation {"+".join(pair)} names {", ".join(stale)}, which is no longer a mod: remove '
+                          f'the entry', 'relation')
+            continue
+        for site in entry['sites']:
+            allowed[(frozenset(pair), int(site, 16))] = entry
+    core_claims = set((core or {}).get('claims', []))
+    for m in mods:
+        for claim in sorted(set(m['claims']) & core_claims):
+            problem((m['name'],), f'{m["name"]} claims {claim}, which the {machine} core owns', 'claim')
+    for a, b in itertools.combinations(mods, 2):
+        for claim in sorted(set(a['claims']) & set(b['claims'])):
+            problem((a['name'], b['name']), f'{a["name"]} and {b["name"]} both claim {claim}', 'claim')
+        met = {}
+        for ra, xa, ya, la in a['spans']:
+            for rb, xb, yb, lb in b['spans']:
+                if (ra is None or rb is None or ra == rb) and xa < yb and xb < ya:
+                    met.setdefault(max(xa, xb), []).append((ra or rb, la, lb))
+        for at, where in sorted(met.items()):
+            key = (frozenset((a['name'], b['name'])), at)
+            if key in allowed:
+                used.add(key)
+                continue
+            releases = sorted({r for r, _, _ in where if r})
+            _, la, lb = where[0]
+            problem((a['name'], b['name']), f'{a["name"]} ({la}) and {b["name"]} ({lb}) both patch 0x{at:08x}'
+                    + (f' in OS {", ".join(releases)}' if releases else ''),
+                    'core-event' if la.startswith(('site', 'call site')) and lb.startswith(('site', 'call site')) else 'other')
+    for key, entry in allowed.items():
+        if key not in used:
+            problem(key[0], f'relation {"+".join(sorted(key[0]))}: nothing meets at 0x{key[1]:08x} any more; '
+                            f'remove the site', 'relation')
+    return problems
+
+
+def elemod_inputs():
+    """Each elemod machine's mods, core interface and reviewed relations, read through its machine profile."""
+    machines = []
+    for profile_path in sorted((APP / 'sdk/machines').glob('*/machine.json')):
+        profile = json.loads(profile_path.read_text())
+        sdk = profile.get('sdk') or {}
+        if sdk.get('platform') != 'elemod' or not (APP / sdk['modules']).is_dir():
+            continue
+        core_file = APP / (sdk.get('core') or {}).get('path', '') / 'interface.json'
+        mods = []
+        for folder in sorted(f for f in (APP / sdk['modules']).iterdir() if f.is_dir() and not f.name.startswith('_')):
+            if (folder / 'modwerk.module.json').is_file():
+                document = json.loads((folder / 'modwerk.module.json').read_text())
+                build = json.loads((folder / document['platform']['build']).read_text())
+                mods.append(elemod_declarations(profile['id'], document, build))
+        relations_file = profile_path.parent / 'compatibility.json'
+        machines.append(dict(machine=profile['id'], mods=mods,
+                             core=json.loads(core_file.read_text()) if core_file.is_file() else None,
+                             relations=json.loads(relations_file.read_text())['relations'] if relations_file.is_file() else []))
+    return machines
+
+
 def main(argv):
     started = time.perf_counter()
     as_json, only = '--json' in argv, [a for a in argv if not a.startswith('--')]
     ids, modules, inputs, problems = repository_inputs()
     if modules:
         problems += check(modules, **inputs)
+    machines = elemod_inputs()
+    for m in machines:
+        problems += check_elemod(m['machine'], m['mods'], m['core'], m['relations'])
     if only:
         problems = [p for p in problems if set(only) & set(p['modules'])]
     for p in problems:
@@ -293,7 +396,11 @@ def main(argv):
                    events=len(inputs.get('events', [])), problems=len(problems),
                    seconds=round(time.perf_counter() - started, 2), notActive=[i for i in only if i not in ids],
                    pending=[dict(modules=r['modules'], event=r['event'], until=r['until'])
-                            for r in inputs.get('relations', []) if r.get('kind') == 'pending-migration'])
+                            for r in inputs.get('relations', []) if r.get('kind') == 'pending-migration']
+                   + [dict(modules=[f'{m["machine"]}/{n}' for n in r.get('modules', [])], event=r.get('event'),
+                           until=r.get('until')) for m in machines for r in m['relations']],
+                   machines=[dict(machine=m['machine'], mods=len(m['mods']), relations=len(m['relations']))
+                             for m in machines])
     if as_json:
         print(json.dumps(dict(problems=problems, summary=summary)))
     else:
@@ -302,6 +409,9 @@ def main(argv):
             print('    fix: ' + p['fix'] + ' (' + p['guide'] + ')')
         for i in summary['notActive']:
             print(f'· {i} is not an active catalogue module (paused or unlisted), so it is not compared')
+        for m in (m for m in summary['machines'] if m['mods']):
+            print(f"Cross-compatibility: {m['mods']} {m['machine']} mods, {m['mods'] * (m['mods'] - 1) // 2} pairs, "
+                  f"{m['relations']} reviewed relations")
         print(f"Cross-compatibility: {summary['active']} active Octatrack modules, {summary['pairs']} pairs and the "
               f"whole set, {summary['events']} events, {summary['relations']} reviewed relations; "
               f"{len(problems)} problem(s) in {summary['seconds']}s")

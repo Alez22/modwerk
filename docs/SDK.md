@@ -100,6 +100,20 @@ To publish, a version needs at least `author-hardware`, measured memory and load
 
 The Octatrack keeps its stricter qualification contract ([MODULE_QUALIFICATION.md](MODULE_QUALIFICATION.md)) for contract v2 modules.
 
+## Sharing the instrument
+
+Every machine follows one contract, so modules install and run beside each other. One owner per stock byte. A site that several modules need belongs to the base or core, which turns it into an event; modules subscribe with a handler and an order, add entries to its tables, and claim named resources. A module never patches what another module or the base patches. Each platform declares this in its own files:
+
+| | Octatrack (octabam) | elemod machines (Digitakt, Digitone and others) |
+| --- | --- | --- |
+| Events the base or core owns | [`sdk/machines/octatrack/events.json`](../sdk/machines/octatrack/events.json), generated into `EVENTS.md` | the core's `interface.json` (`events`, `tables`, `claims`) |
+| A module subscribes | `runtime.json` (`subscribe`, `raise`) | `build.json` `subscribe` and `contribute`, `platform.events` |
+| Named resources | effect ids and chooser rows, in the manifest | `platform.claims` |
+| Reviewed exceptions | [`sdk/machines/octatrack/compatibility.json`](../sdk/machines/octatrack/compatibility.json) | `sdk/machines/<machine>/compatibility.json` (`pending-event`) |
+| Gate | `npm run modules:compat`, part of `npm run check` and `module:doctor` | the same command |
+
+The rules and the gate's messages are in [cross-compatibility](module-guides/README.md#cross-compatibility). A new machine's core publishes the same three things (events, tables, claims) in its `interface.json` ([Add a machine](ADD_A_MACHINE.md#give-a-machine-an-sdk)).
+
 ## Checks
 
 `npm run check` runs machine-profile validation, the module checks for every machine, licence notices, lint, tests, type checking and the production build. Checks read manifests and text only: they never execute submitted source or read firmware. Module folders reject firmware images, dumps, build outputs, binaries, symlinks and paths that leave the folder.

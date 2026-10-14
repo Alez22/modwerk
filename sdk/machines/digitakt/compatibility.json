@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "about": "Reviewed places where two Digitakt mods meet on the same stock bytes; read by scripts/module-compat.py (npm run modules:compat, part of npm run check). Any overlap not listed here fails, and so does an entry naming a mod that no longer exists or a site where nothing meets any more. pending-event: the core does not own the site yet; the entry names the planned core events and lasts until both mods subscribe. New entries need owner review; for shared behaviour, propose a core event instead (docs/module-guides/README.md#propose-an-event).",
+  "relations": [
+    {
+      "modules": [
+        "digichain",
+        "digineighbor"
+      ],
+      "kind": "pending-event",
+      "event": [
+        "ev_src_page",
+        "ev_src_render"
+      ],
+      "sites": [
+        "0x4000f2bc",
+        "0x4000f324",
+        "0x4000fe8a",
+        "0x4000feac",
+        "0x40065794",
+        "0x400657cc",
+        "0x400657ee",
+        "0x40077fba"
+      ],
+      "until": "the Digitakt core owns these sites as events and both mods subscribe; digichain shows the dispatch the core needs",
+      "reason": "digichain owns the SRC page and render sites once and passes each call to the mod whose machine it is for (its README); NEIGHBOR patches the same sites for its own machine. The pair is a declared conflict: the builder refuses NEIGHBOR beside digichain."
+    },
+    {
+      "modules": [
+        "digichain",
+        "digislicer"
+      ],
+      "kind": "pending-event",
+      "event": [
+        "ev_src_range"
+      ],
+      "sites": [
+        "0x4000f534",
+        "0x4000f5fc",
+        "0x4000ff20",
+        "0x400100c4"
+      ],
+      "until": "the Digitakt core owns these sites as events and both mods subscribe; digichain shows the dispatch the core needs",
+      "reason": "digichain owns the SRC parameter-range sites and dispatches them; DIGISLICER patches the same sites. Declared conflict."
+    },
+    {
+      "modules": [
+        "digichain",
+        "digisophie"
+      ],
+      "kind": "pending-event",
+      "event": [
+        "ev_src_page",
+        "ev_src_render",
+        "ev_src_range",
+        "ev_lfo_dest"
+      ],
+      "sites": [
+        "0x4000f2bc",
+        "0x4000f324",
+        "0x4000f534",
+        "0x4000f5fc",
+        "0x4000fe8a",
+        "0x4000feac",
+        "0x4000ff20",
+        "0x400100c4",
+        "0x40060b8e",
+        "0x40065794",
+        "0x400657cc",
+        "0x400657ee",
+        "0x40065de6",
+        "0x40065e5e",
+        "0x40077fba",
+        "0x400a4374",
+        "0x400a43f0"
+      ],
+      "until": "the Digitakt core owns these sites as events and both mods subscribe; digichain shows the dispatch the core needs",
+      "reason": "digichain owns the SRC page, range, render and LFO DEST sites and dispatches them; SOPHIE patches the same sites. Declared conflict."
+    },
+    {
+      "modules": [
+        "digimono",
+        "digislicer"
+      ],
+      "kind": "pending-event",
+      "event": [
+        "ev_src_key"
+      ],
+      "sites": [
+        "0x401848dc",
+        "0x40184bdc"
+      ],
+      "until": "the Digitakt core owns these sites as events and both mods subscribe; digichain shows the dispatch the core needs",
+      "reason": "Both replace the SRC key handler pointer for their own machines. Declared conflict."
+    },
+    {
+      "modules": [
+        "digineighbor",
+        "digisophie"
+      ],
+      "kind": "pending-event",
+      "event": [
+        "ev_src_page",
+        "ev_src_render"
+      ],
+      "sites": [
+        "0x4000f2bc",
+        "0x4000f324",
+        "0x4000fe8a",
+        "0x4000feac",
+        "0x40065794",
+        "0x400657cc",
+        "0x400657ee",
+        "0x40077fba"
+      ],
+      "until": "the Digitakt core owns these sites as events and both mods subscribe; digichain shows the dispatch the core needs",
+      "reason": "Both redirect the SRC page and render sites to their own handlers. Not declared as a conflict; the browser builder refuses the pair (one owner per byte)."
+    },
+    {
+      "modules": [
+        "digislicer",
+        "digisophie"
+      ],
+      "kind": "pending-event",
+      "event": [
+        "ev_src_range"
+      ],
+      "sites": [
+        "0x4000f534",
+        "0x4000f5fc",
+        "0x4000ff20",
+        "0x400100c4"
+      ],
+      "until": "the Digitakt core owns these sites as events and both mods subscribe; digichain shows the dispatch the core needs",
+      "reason": "Both redirect the SRC parameter-range sites to their own handlers. Not declared as a conflict; the browser builder refuses the pair (one owner per byte)."
+    }
+  ]
+}

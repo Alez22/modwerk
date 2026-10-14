@@ -151,6 +151,12 @@ function machineModule({ id, machine }) {
     else if (!exists('docs/module-guides/' + manifest.category + '.md')) lines.push({ state: 'fail', name: 'category guide', detail: 'docs/module-guides/' + manifest.category + '.md is missing', fix: 'write the guide for this category' })
     else lines.push({ state: 'ok', name: 'category guide', detail: 'walk docs/module-guides/' + manifest.category + '.md, and the Digitakt and Digitone section in it' })
   }
+  // Cross-compatibility with every other mod of the machine and its core (scripts/module-compat.py, run once above).
+  const clashes = compatProblems?.filter(problem => problem.modules.includes(machine + '/' + id)) ?? []
+  if (!compatProblems) lines.push({ state: 'fail', name: 'cross-compatibility', detail: 'the gate did not run: ' + ((compat.stderr || compat.error?.message || '').trim().split('\n').pop() || 'no output'), fix: 'install Python 3.10+, then npm run modules:compat' })
+  else if (clashes.length) lines.push({ state: 'fail', name: 'cross-compatibility', detail: clashes.length + ' clash(es), first: ' + clashes[0].text, fix: clashes[0].fix + ' (' + clashes[0].guide + '); npm run modules:compat -- ' + machine + '/' + id + ' lists every one' })
+  else lines.push({ state: 'ok', name: 'cross-compatibility', detail: 'no unreviewed clash with another ' + machine + ' mod or the core (npm run modules:compat)' })
+  for (const pending of compatResult?.summary.pending.filter(row => row.modules.includes(machine + '/' + id)) ?? []) lines.push({ state: 'info', name: 'core events', detail: 'meets ' + pending.modules.find(name => name !== machine + '/' + id) + ' until: ' + pending.until + ' (' + [pending.event].flat().join(', ') + ')' })
   // The browser builds only from the files elekloader's catalog pins (vendor/elekloader/catalog/catalog.json); a mod's id is its catalog id.
   const pins = json('vendor/elekloader/catalog/catalog.json').mods.filter(mod => mod.id === id && mod.device.startsWith(machine))
   if (pins.length) lines.push({ state: 'ok', name: 'browser builder', detail: 'pinned in the elekloader catalog for OS ' + pins.map(mod => mod.os).join(', ') })

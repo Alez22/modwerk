@@ -32,7 +32,7 @@ Handlers use the C calling convention: arguments on the stack, d0–d1/a0–a1 f
 - **Fast SRAM:** 2,304 bytes (0x8000F700–0x80010000) for time-critical code.
 - **SRC machine slots:** 4–7, one per new machine.
 
-Claim named resources (a machine slot, a SETTINGS row, a SysEx id, a +Drive path) in `platform.claims`; two mods may never claim the same one.
+Claim named resources (a machine slot, a SETTINGS row, a SysEx id, a +Drive path) in `platform.claims`; two mods may never claim the same one. `npm run modules:compat` compares every pair of Digitakt mods: their stock sites in each OS release both support, regions and claims. Its only exceptions are the reviewed `pending-event` entries in [compatibility.json](compatibility.json), where SRC machines still patch the SRC page, parameter ranges, render step, LFO DEST names and SRC key handler that the core should own ([every other machine](../../../docs/module-guides/README.md#every-other-machine)).
 
 ## Toolchain
 
