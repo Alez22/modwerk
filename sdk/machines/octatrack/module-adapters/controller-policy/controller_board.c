@@ -162,6 +162,12 @@ static int live(const struct mw_controller_binding *b)
     return 0;
 }
 
+/* The alias a module's code runs from: the canonical (cached) one itself in a base built with --cached-modules. */
+#ifdef MODWERK_CACHED_MODULES
+#define EXEC_ALIAS(canonical) (canonical)
+#else
+#define EXEC_ALIAS(canonical) modwerk_machine_uncached((void *)canonical)
+#endif
 /* A trusted image may begin with an MWPP record (stock_hook_controllers.page_record):
  * its page extends a stock effect's own descriptor in place. Staged from the
  * descriptor as it is now, checked against the record's stock SHA-256, into
@@ -173,7 +179,7 @@ static uint32_t be16(const uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
 static uint32_t be32(const uint8_t *p) { return be16(p) << 16 | be16(p + 2); }
 static uint32_t page_stage(const struct mw_controller_binding *b, uint8_t saved[PAGE_BYTES])
 {
-    uintptr_t exec = (uintptr_t)modwerk_machine_uncached((void *)b->canonical_extent) + b->image_offset;
+    uintptr_t exec = (uintptr_t)EXEC_ALIAS(b->canonical_extent) + b->image_offset;
     const uint8_t *r = (const uint8_t *)exec; uint32_t n = b->image_bytes, at = 44u;
     if (n < at || r[0] != 'M' || r[1] != 'W' || r[2] != 'P' || r[3] != 'P' || r[4] != 1u ||
         r[5] > 64u || r[6] > 16u || r[7] > 8u) return 0;
@@ -255,7 +261,7 @@ static int owns_image(void *u, const struct mw_controller_binding *b)
     const struct mw_controller_write_policy *p = b ? row_for(b->identity.package_sha256, b->identity.module, b->image_bytes) : 0;
     struct runtime_owner o; uintptr_t canonical;
     if (!p || !same_identity(&p->identity, &b->identity) || !b->canonical_extent) return 0;
-    uintptr_t exec = (uintptr_t)modwerk_machine_uncached((void *)b->canonical_extent) + b->image_offset;
+    uintptr_t exec = (uintptr_t)EXEC_ALIAS(b->canonical_extent) + b->image_offset;
     return modwerk_runtime_owner_at(exec, &o) == 1 && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
         canonical == b->canonical_extent && o.generation == b->generation && o.module == b->identity.module &&
         o.extent_bytes == b->extent_bytes && o.image_offset == b->image_offset && o.image_bytes == b->image_bytes &&

@@ -1296,6 +1296,9 @@ def main():
                         help='Load every DSP effect, stock and module, on demand (needs ELEKLOADER_DSP_ASM, Node 24).')
     parser.add_argument('--dsp-burn', type=int, default=0,
                         help='with --dsp-loader, calibration only: core 0\'s receiver spends this many more cycles (2-4094, even) every frame; negative, core 1\'s.')
+    parser.add_argument('--cached-modules', action='store_true',
+                        help='Prototype, for a development twin: runtime modules run from the pool\'s cached alias, '
+                             'not the uncached one (sdk/runtime/loader/README.md, "Cached modules"). Off by default.')
     parser.add_argument('--fx-ids', type=int, choices=(32, 128), default=128,
                         help='with --dsp-loader: the base\'s effect ids (fxids.h, the dispatch and chooser tables; '
                              'docs/OCTATRACK_MORE_EFFECT_IDS.md). 32, the old width, only to bisect a fault.')
@@ -1642,7 +1645,8 @@ def main():
     configuration = dict(fx1=['NONE', *chooser['stockFx1']], fx2=['NONE', *chooser['stockFx2']],
                          hidden=[], logger='0.2.0', modules=[], os='1.40C', source=source_hash, stockfx2=True,
                          usb=dict(interfaces=['msc', 'modwerk-vendor'], vendor=1, submit=True, backend='runtime-loader-3'),
-                         boot='ram-1', **({'dev': ['key', 'panel', 'state', 'screen', 'usb-audio-main-cue']} if args.dev else {}))
+                         boot='ram-1', **({'dev': ['key', 'panel', 'state', 'screen', 'usb-audio-main-cue']} if args.dev else {}),
+                         **({'cachedModules': 'prototype-1'} if args.cached_modules else {}))
     if args.dsp_loader:
         configuration.update(dsp=dict(loader='dsp-dynload-3', stock='on-demand', rows='runtime',
                                       allowance=DSP_ALLOWANCE, reserve=DSP_RESERVE, probe=args.dsp_probe, burn=args.dsp_burn, hook=args.dsp_hook, arena=[dsp_layout[t]['tableWords'] - loader_dsp.SAVED for t in 'AB']))
@@ -1752,6 +1756,8 @@ modwerk_retained_end:
          '-DMODWERK_DSP_RESERVE=%d' % DSP_RESERVE] +
         ['-DMODWERK_DSP_%s%d=%d' % (key, n, dsp_layout[t][field]) for n, t in enumerate('AB')
          for key, field in (('TABLE', 'table'), ('WORDS', 'tableWords'), ('MISS', 'miss'), ('METER', 'meter'))] if args.dsp_loader else [])
+    if args.cached_modules:  # loader.c, runtime.c, fxpage.c, controller_board.c
+        recipe['cflags'].append('-DMODWERK_CACHED_MODULES')
     if args.saved_set_export:
         recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
     if args.resident_stock_hooks:
