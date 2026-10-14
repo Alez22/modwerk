@@ -34,7 +34,7 @@ class RuntimeUnits(unittest.TestCase):
                                         bytes.fromhex('4e714e75' if 'SC' in selected else '4e75')).hexdigest()))
         table = SimpleNamespace(old=0x40001000, count=16, insert_at=2,
                                 symbols=(('row', 'entry'),), refs=((0x40002002, 0x40001000),))
-        self.module = SimpleNamespace(key='TEST', linked=(self.unit,), tables=(table,), detours=(), pokes=(),
+        self.module = SimpleNamespace(key='TEST', name='test', linked=(self.unit,), tables=(table,), detours=(), pokes=(),
                                       symbol_refs=(), requires=(), keeps=(), dram_regions=(), overrides=(),
                                       cf_patches=(), dsp=None)
         self.data = struct.pack('>16I', *range(0x40004000, 0x40004040, 4))
@@ -59,6 +59,20 @@ class RuntimeUnits(unittest.TestCase):
         self.assertEqual(len(normal['copies']), 3)
         self.assertNotEqual(normal['referenceProofs'][0]['sha256'], variant['referenceProofs'][0]['sha256'])
         self.assertEqual(len(normal['sites']), 1)
+        self.assertEqual(normal['hooks'], [])
+
+    def test_runtime_json_subscribes_and_assembles_the_event_form(self):
+        normal = self.prepare()
+        (self.sdk / 'row.s').write_text('.include "remix.inc"\n.text\n.global entry\nentry:\n.ifdef SC_KEY\nnop\n.endif\n'
+                                        '.ifdef MODWERK_EVENTS\nnop\nnop\n.endif\nrts\n')
+        (self.sdk / 'modules/test').mkdir(parents=True)
+        (self.sdk / 'modules/test/runtime.json').write_text(
+            '{"schema": 1, "subscribe": [{"event": "ev_play_increment", "fn": "entry", "order": 40}]}')
+        evented = self.prepare('evented')  # the native reference still holds: only the package form changes
+        self.assertEqual(len(evented['image']), len(normal['image']) + 4)
+        index = next(e['index'] for e in builder.site_events()['events'] if e['event'] == 'ev_play_increment')
+        self.assertEqual(len(evented['hooks']), index + 1)
+        self.assertEqual(evented['hooks'][index], 40 << 24 | evented['symbols']['entry'])
 
     def test_source_drift_and_mismatched_callable_variant_are_refused(self):
         (self.sdk / 'row.s').write_text('.text\n.global entry\nentry:\nnop\nrts\n')
