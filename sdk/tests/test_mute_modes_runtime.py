@@ -4,7 +4,8 @@
 Needs MODWERK_PRIVATE_STOCK_MAIN (your own 1.40C MAIN image), the Elekloader upstream (MODWERK_UPSTREAM, default
 ~/.cache/modwerk-upstream/elekloader) and the built native emulator (OCTABAM_NATIVE). Never firmware in CI.
 The packages are built here from source: Mute Modes' raw native forms (plain and SC_KEY) for the base without site
-events, its subscriber form bound to the events base built here, and an ev_mute_keep provider."""
+events, its subscriber form bound to the events base (it asks for the ev_mute_keep entry by hook index; the loader fills it at install), and an
+ev_mute_keep provider."""
 import hashlib
 import importlib.util
 import json
@@ -73,18 +74,17 @@ class MuteModesRuntime(unittest.TestCase):
                                 '-T', str(work / 'link.ld'), *map(str, objects), '-o', str(elf)], check=True, capture_output=True)
                 (work / (name + '.sym')).write_text(subprocess.check_output(['m68k-elf-nm', str(elf)], text=True))
                 subprocess.run(['m68k-elf-objcopy', '-O', 'binary', str(elf), str(work / (name + '.bin'))], check=True)
-            base = {line.split()[2]: int(line.split()[0], 16) for line in (work / 'events.sym').read_text().splitlines() if len(line.split()) == 3}
 
             def mute_modes(name, selected, events):
                 result = runtime_units.compile_linked(port, ROOT / 'sdk/octabam', build, work / name, 'm68k-elf-', selected, tables,
-                                                      stock_at, base_symbols=base, events=events)
+                                                      stock_at, events=events)
                 data = build.package(result['image'], result['bss'], result['hooks'], result['offsets'], result['sites'], name='mute-modes',
                                      hashed=True, title='Mute Modes', layout=1, copies=result['copies'], abi=8)
                 (work / (name + '.mwrm')).write_bytes(data); nm_file(work / (name + '.syms'), result['symbols'])
                 return result
             new = mute_modes('new', {'MUTE_MODES'}, True)
-            self.assertEqual(new['imports'], {'modwerk_raise_ev_mute_keep': base['modwerk_raise_ev_mute_keep']})
             self.assertEqual(new['hooks'][0], new['symbols']['mm_restore'])
+            self.assertEqual(new['hooks'][7], build.RAISE << 24 | new['symbols']['raise_ev_mute_keep'])
             mute_modes('plain', {'MUTE_MODES'}, False)
             mute_modes('key', {'MUTE_MODES', 'SIDECHAIN_COMPRESSOR'}, False)
             subprocess.run(['m68k-elf-as', '-mcpu=54455', str(ADAPTERS / 'mute_keep_provider_fixture.s'), '-o', str(work / 'keep.o')], check=True)

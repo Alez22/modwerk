@@ -316,7 +316,7 @@ def runtime_declaration(folder):
     With it the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
     `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out. A core
     event (module_tick, module_draw, module_key, module_enc) takes {"event", "fn"} alone. `raise` names events with no
-    site that the module raises through the base's modwerk_raise_<event>: its package is bound to that base's address."""
+    site that the module raises: its zero word raise_<event> receives the base's entry at install (RUNTIME_RAISE)."""
     path = Path(folder) / 'runtime.json'
     if not path.is_file():
         return None
@@ -331,26 +331,22 @@ def runtime_declaration(folder):
     return doc
 
 
-def raise_imports(declared, base_symbols, registry=None):
-    """{entry symbol: address} for the events a runtime.json raises, from the exact base's own symbols (inside its
-    dispatch code); refuse a raise the registry does not define as raised or a base without that entry."""
-    raised = {e['event']: 'modwerk_raise_' + e['event'] for e in (registry or site_events())['events'] if e['site'] is None}
-    out, low, high = {}, base_symbols.get('modwerk_events_code'), base_symbols.get('modwerk_events_code_end')
-    for name in (declared or {}).get('raise', []):
-        symbol = raised.get(name)
-        value = base_symbols.get(symbol) if symbol else None
-        if type(value) is not int or type(low) is not int or type(high) is not int or not low <= value < high or value & 1:
-            raise ValueError('%s is not an event this base raises for modules (sdk/machines/octatrack/events.json): '
-                             'build against a base with site events and its symbols.' % name)
-        out[symbol] = value
-    return out
+RAISE = 255  # loader.h RUNTIME_RAISE: on a raised event's word, the offset of the zero slot for the base's entry
 
 
-def subscribe(hooks, entries, symbols, registry=None):
+def subscribe(hooks, entries, symbols, registry=None, raises=()):
     """`hooks` (the core events' words) with each subscription's word after them, by the event's hook index: its order
-    (0-255) in the top byte and the handler's image offset below (loader.h). Trailing empty words are left out."""
+    (0-254) in the top byte and the handler's image offset below (loader.h). Each event in `raises` (a raised event,
+    no site) takes RAISE and the offset of the module's zero word raise_<event>, which the loader points at the base's
+    entry. Trailing empty words are left out."""
     events = {e['event']: e for e in (registry or site_events())['events']}
     words = list(hooks) + [NONE] * (len(HANDLERS) + len(events) - len(hooks))
+    for name in raises:
+        e, slot = events.get(name), 'raise_' + name
+        if not e or e['site'] is not None or slot not in symbols or symbols[slot] & 1 or words[e['index']] != NONE:
+            raise ValueError('A raise names an event of sdk/machines/octatrack/events.json with no site, once, and the '
+                             'module defines its zero word %s: %r' % (slot, name))
+        words[e['index']] = RAISE << 24 | symbols[slot]
     for entry in entries:
         if entry['event'] in HANDLERS:  # a core event: the handler's offset, no order
             if set(entry) != {'event', 'fn'} or entry['fn'] not in symbols or words[HANDLERS.index(entry['event'])] != NONE:
@@ -358,7 +354,7 @@ def subscribe(hooks, entries, symbols, registry=None):
             words[HANDLERS.index(entry['event'])] = symbols[entry['fn']]
             continue
         e = events.get(entry['event'])
-        if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < 256
+        if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < RAISE
                 or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000):
             raise ValueError('A subscription names an event of sdk/machines/octatrack/events.json, one of the module\'s own '
                              'functions and an order 0-255, one per event: %r' % (entry,))
@@ -431,8 +427,6 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
     if extra or not m.linked:
         raise ValueError('%s needs what a runtime package cannot carry yet: %s' % (name, ', '.join(extra) or 'no ColdFire unit'))
     declared = runtime_declaration(root / 'modules' / name)
-    if declared and declared.get('raise'):
-        raise ValueError(name + ' raises events (runtime.json): build it against an exact base (runtime_units.py).')
     if declared and hooks is None:
         raise ValueError(name + ' subscribes to site events (runtime.json): its caller must take its hook words.')
     with tempfile.TemporaryDirectory() as tmp:
@@ -466,7 +460,7 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
               for unit in m.linked for c in getattr(unit, 'stock_copies', ())]
     if declared:
         unevented(sites, copies)
-        hooks[:] = subscribe([NONE] * len(HANDLERS), declared['subscribe'], symbols)
+        hooks[:] = subscribe([NONE] * len(HANDLERS), declared['subscribe'], symbols, raises=declared.get('raise', ()))
     return image, bss, offsets, sites, copies
 
 
@@ -577,8 +571,6 @@ def octabam_group(args):
                    quantizer_runtime.port(m, sdk, work / 'quantizer') if m.name == 'quantizer' and m.linked else m for m in modules]
         units, objects, tables, sites = [], [], [], []
         declared = {m.name: runtime_declaration(sdk / 'modules' / m.name) for m in modules if (sdk / 'modules' / m.name).is_dir()}
-        if any(d and d.get('raise') for d in declared.values()):
-            raise ValueError('A machine-group member raises events: the group builder has no base binding for them.')
         for m in modules:
             if m.requires or m.keeps or m.dram_regions or m.overrides or m.cf_patches or m.dsp:
                 raise ValueError(m.name + ': the group has an unported resource or DSP claim.')
@@ -658,7 +650,8 @@ def octabam_group(args):
             copies += extra
         if args.stock:
             check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
-        hooks = subscribe([NONE] * len(HANDLERS), entries, symbols) if entries else []
+        raises = [r for m in modules if declared.get(m.name) for r in declared[m.name].get('raise', ())]
+        hooks = subscribe([NONE] * len(HANDLERS), entries, symbols, raises=raises) if entries or raises else []
         return package(image, bss, hooks, offsets, sites, name=args.module_id or 'octatrack-machines', hashed=True,
                        title=args.name or 'Machines', layout=args.layout, copies=copies, fills=fills, abi=8, flags=4)
 
@@ -715,7 +708,7 @@ def build_elemod(args):
     # Subscribers need ABI 8, whose sites carry their stock bytes' hash instead of the bytes.
     unevented(sites)
     symbols = {name: value for name, (where, value) in doc['symbols'].items() if where == '.run'}
-    hooks = subscribe([NONE] * len(HANDLERS), doc['subscribe'], symbols)
+    hooks = subscribe([NONE] * len(HANDLERS), doc['subscribe'], symbols, raises=doc.get('raise', ()))
     sites = [(a, hashlib.sha256(stock).digest(), code, local, 0, len(stock)) for a, stock, code, local in sites]
     return package(image, 0, hooks, offsets, sites, name=doc['id'], hashed=True, title=doc['id'][:15], abi=8)
 

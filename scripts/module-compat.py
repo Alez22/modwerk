@@ -133,14 +133,16 @@ def ledger_findings(selected, platform):
     return [p for p in problems if p.split(':', 1)[0] not in SPAN_FINDINGS]
 
 
-def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None):
+def check(modules, base_sites=(), events=(), copies=None, relations=(), base_owns=(), platform=None, replaced=None):
     """Problems for these active modules: [{'modules': [...], 'text': str, 'route': str}].
 
     modules: octabam Module objects (all active); base_sites: (start, length, kind) the base patches;
     events: registry entries {event, site, length}; copies: {module name: [(address, length, label)]}
-    from port recipes and packages; relations: the reviewed entries; base_owns: modules allowed on base sites."""
+    from port recipes and packages; relations: the reviewed entries; base_owns: modules allowed on base sites; replaced:
+    {module name: detour sites} its runtime.json subscriptions replace, which its runtime package does not patch."""
     problems, names = [], {m.name for m in modules}
-    owners = {m.name: claims(m) for m in modules}
+    owners = {m.name: [c for c in claims(m) if not (c[0] == 'detour' and c[1] in (replaced or {}).get(m.name, ()))]
+              for m in modules}
     for name, items in (copies or {}).items():
         if name in owners:
             owners[name] += [('copy', a, n, label) for a, n, label in items]
@@ -253,7 +255,12 @@ def repository_inputs():
             (c['source'], c['bytes'], f'{o["label"]}:{c["section"]}') for o in layout['objects'] for c in o.get('stockCopies', []))
     owns = next(node.value for node in ast.parse((APP / 'sdk/machines/octatrack/elekloader/build_core.py').read_text()).body
                 if isinstance(node, ast.Assign) and any(getattr(t, 'id', '') == 'BASE_OWNS' for t in node.targets))
-    inputs = dict(base_sites=[(int(s['addr'], 16), s['len'], s['kind']) for s in base['sites']], events=read_events(),
+    replaced = {}  # a subscription's `replaces` (runtime.json): its package leaves that detour out (build.py replaced())
+    for m in by_name.values():
+        doc = APP / 'sdk/octabam/modules' / m.name / 'runtime.json'
+        gone = {e['replaces'] for e in json.loads(doc.read_text())['subscribe'] if 'replaces' in e} if doc.is_file() else set()
+        replaced[m.name] = {d.site for d in m.detours if d.symbol in gone}
+    inputs = dict(replaced=replaced, base_sites=[(int(s['addr'], 16), s['len'], s['kind']) for s in base['sites']], events=read_events(),
                   copies=copies, relations=json.loads((APP / RELATIONS).read_text())['relations'],
                   base_owns=ast.literal_eval(owns), platform=platform)
     return ids, [by_name[i] for i in ids if i in by_name], inputs, load

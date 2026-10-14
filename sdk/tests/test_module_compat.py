@@ -80,6 +80,17 @@ class GateTests(unittest.TestCase):
         self.assertEqual({p['route'] for p in third}, {'subscribe', 'event'})
         self.assertTrue(all('c' in p['modules'] for p in third))
 
+    def test_a_replaced_detour_is_no_longer_patched_so_the_pending_entry_must_go(self):
+        modules = [module('a', 0x40004100), module('b', 0x40004100)]
+        pending = relation(('a', 'b'), 'pending-migration', (0x40004100,), event='ev_test', until='both subscribe')
+        both = dict(a={0x40004100}, b={0x40004100})
+        self.assertEqual(gate.check(modules, events=[EVENT], replaced=both), [])
+        stale = gate.check(modules, events=[EVENT], relations=[pending], replaced=both)
+        self.assertEqual([p['route'] for p in stale], ['relation'])
+        self.assertIn('nothing meets at 0x40004100', stale[0]['text'])
+        half = gate.check(modules, events=[EVENT], replaced=dict(a={0x40004100}))  # b still patches the event's site
+        self.assertEqual(self.routes(half), [(('b',), 'subscribe')])
+
     def test_pinned_effect_id_collision_names_another_chooser_row(self):
         problems = gate.check([module('a', fx=0x1e), module('b', fx=0x1e)])
         self.assertEqual(self.routes(problems), [(('a', 'b'), 'row')])

@@ -252,11 +252,13 @@ p1_key:
     .ifdef MODWERK_EVENTS
 | ev_mute_keep, raised here (no stock site): the base asks every module that reads a track's
 | audio and returns their tracks OR'd in %d0 bits 0..7 -- what the scan below finds for
-| SIDE-CHAIN, answered by the module that owns the KEY. C convention: %d2/%d5 survive, the
-| caller's %a0/%a1 are kept here, %d0/%d1 are hook 1's own.
+| SIDE-CHAIN, answered by the module that owns the KEY. The loader writes the base's entry
+| into raise_ev_mute_keep at install (runtime.json "raise"). C convention: %d2/%d5 survive,
+| the caller's %a0/%a1 are kept here, %d0/%d1 are hook 1's own.
     lea     (-8,%sp),%sp
     movem.l %a0-%a1,(%sp)
-    jsr     modwerk_raise_ev_mute_keep
+    movea.l raise_ev_mute_keep,%a0
+    jsr     (%a0)
     movem.l (%sp),%a0-%a1
     lea     (8,%sp),%sp
     .else
@@ -1415,6 +1417,12 @@ tf_sil:
 | SDRAM with the image, like DIRECT JUMP's DJ_MODE). 0 until the first active-mode frame.
     .balign 2
 KEYMASK: .byte 0
+    .ifdef MODWERK_EVENTS
+    .balign 4
+    .global raise_ev_mute_keep
+raise_ev_mute_keep:
+    .long   0                           | the base's ev_mute_keep entry, written by the loader at install
+    .endif
     .balign 2
     .else
     .set    tf_sil, tf_skip             | no SIDE-CHAIN: the silenced branches are stock's skip, as before

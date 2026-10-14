@@ -111,6 +111,13 @@ static int subscribes(const struct runtime_module *m)
     for (unsigned e = RUNTIME_EVENTS; m && e < RUNTIME_HOOKS; ++e) if (m->hook[e]) return 1;
     return 0;
 }
+/* A raised event (no site, span 0): the base's entry, which a package's hook word with order RUNTIME_RAISE asks the
+ * loader to write into a zero word of its image. The hook index is the stable ABI: nothing is bound to a base build. */
+#ifndef RUNTIME_SITE_EVENT_RAISES
+#define RUNTIME_SITE_EVENT_RAISES { 0 }
+#endif
+static const uintptr_t raise_entry[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_RAISES;
+static uintptr_t raise_of(uint32_t hook) { return hook >= RUNTIME_EVENTS && hook < RUNTIME_HOOKS && !event_span[hook - RUNTIME_EVENTS][1] ? raise_entry[hook - RUNTIME_EVENTS] : 0; }
 static int in_dispatch(uint32_t v)
 {
     v = modwerk_machine_reference(v);
@@ -121,6 +128,7 @@ static int in_dispatch(uint32_t v)
 static int evented(uint32_t address, uint32_t n) { (void)address; (void)n; return 0; }
 static int subscribes(const struct runtime_module *m) { (void)m; return 0; }
 static int in_dispatch(uint32_t v) { (void)v; return 0; }
+static uintptr_t raise_of(uint32_t hook) { (void)hook; return 0; }
 #endif
 
 /* The ledger. Extents are whole 16-byte lines, written and read only through
@@ -525,6 +533,9 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
         hook[i] = i < hooks ? be32(data + header + 4u * i) : RUNTIME_NONE;
         if (i >= RUNTIME_EVENTS && hook[i] != RUNTIME_NONE) order[i] = (uint8_t)(hook[i] >> 24), hook[i] &= 0xffffffu;
         if (hook[i] != RUNTIME_NONE && (hook[i] >= image || hook[i] & 1u)) return refuse(RUNTIME_MALFORMED);
+        /* RUNTIME_RAISE on a raised event: a zero slot of 4 bytes for the base's entry, never a handler. */
+        if (hook[i] != RUNTIME_NONE && order[i] == RUNTIME_RAISE && raise_of(i) &&
+            (image < 4u || hook[i] > image - 4u || be32(from + hook[i]))) return refuse(RUNTIME_MALFORMED);
         legacy |= i < RUNTIME_EVENTS && hook[i] != RUNTIME_NONE;
     }
     if ((dsp.flags & RUNTIME_GROUP_METADATA) && (dsp.flags != RUNTIME_GROUP_METADATA || dsp.count || bss || legacy || image < 16u || data[at] != 'M' || data[at + 1] != 'W' ||
@@ -642,6 +653,11 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
             const uint8_t *f = fill + i * 12u;
             for (uint32_t j = 0; j < be32(f + 4); ++j) to[be32(f) + j] = f[8];
         }
+        for (uint32_t i = RUNTIME_EVENTS; i < RUNTIME_HOOKS; ++i)  /* last: nothing above may have written the slot */
+            if (hook[i] != RUNTIME_NONE && order[i] == RUNTIME_RAISE && raise_of(i)) {
+                if (be32(to + hook[i])) return refuse(RUNTIME_MALFORMED);
+                put32(to + hook[i], (uint32_t)raise_of(i)); hook[i] = RUNTIME_NONE; order[i] = 0;
+            }
         p = record;
         for (uint32_t i = 0; i < sites; ++i) {
             uint32_t n = size[i], r = abi >= 7u ? p[7] : be16(p + 6), held = abi >= 7u ? MU_DIGEST_BYTES : n, keep = abi >= 7u ? p[5] : 0u;

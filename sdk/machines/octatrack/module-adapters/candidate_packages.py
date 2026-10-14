@@ -118,7 +118,7 @@ def recorder_source_oracle(module, sdk, builder, work, cross, image, bss, offset
     return proofs
 
 
-def authored(root, upstream, module, builder, binding, stock_at, work, cross, base_symbols=None):
+def authored(root, upstream, module, builder, binding, stock_at, work, cross):
     sys.path.insert(0, str(upstream))
     from elekloader.sdk import octabam
     sdk = root / 'sdk/octabam'
@@ -141,11 +141,9 @@ def authored(root, upstream, module, builder, binding, stock_at, work, cross, ba
         title = cave_runtime.PORTS[module][0]
     elif module == 'mute-modes':
         recipe = declaration(root, module, source_hashes)
-        # Its raise entries (runtime.json) come from the same exact base map the binding checked.
-        result = runtime_units.compile_linked(port, sdk, builder, work, cross, {port.key}, recipe['tables'], stock_at,
-                                              base_symbols=base_symbols)
+        result = runtime_units.compile_linked(port, sdk, builder, work, cross, {port.key}, recipe['tables'], stock_at)
         image, bss, offsets, sites, copies, hooks = (result[name] for name in ('image', 'bss', 'offsets', 'sites', 'copies', 'hooks'))
-        proofs, title = {name: result[name] for name in ('referenceProofs', 'tableOracle', 'origins', 'imports')}, 'Mute Modes'
+        proofs, title = {name: result[name] for name in ('referenceProofs', 'tableOracle', 'origins')}, 'Mute Modes'
     else:
         raise ValueError('No reviewed private native adapter for ' + module)
     # Validate every original guard against both original stock and actual base.
@@ -180,8 +178,8 @@ def prepare(args, generator):
         raise ValueError('Private preparation needs explicit reviewed ports, original stock, new output and exact native base inputs.')
     root, upstream = generator.APP, args.upstream.expanduser().resolve()
     builder = load('candidate_runtime_builder', root / 'sdk/runtime/loader/build.py')
-    main, base_symbols = args.base_image.read_bytes(), json.loads(args.base_symbols.read_text())
-    binding = runtime_candidate.bind_base(main, base_symbols, json.loads(args.base_proof.read_text()))
+    main = args.base_image.read_bytes()
+    binding = runtime_candidate.bind_base(main, json.loads(args.base_symbols.read_text()), json.loads(args.base_proof.read_text()))
     sys.path.insert(0, str(upstream))
     from elekloader import formats
     parsed, device, release = formats.load(str(args.stock))
@@ -219,8 +217,7 @@ def prepare(args, generator):
                 entry = dict(id=module, octabam=True, **{key: value for key, value in figures.items() if value is not None})
                 data = generator.build(entry, work / (module + '.mwrm'), upstream, private_stock=args.stock)
             else:
-                data, proofs = authored(root, upstream, module, builder, binding, stock_at, work / module, 'm68k-elf-',
-                                        base_symbols=base_symbols)
+                data, proofs = authored(root, upstream, module, builder, binding, stock_at, work / module, 'm68k-elf-')
                 builder.private_stock_free(data, args.stock, original, upstream)
             runtime_candidate.check_sites_and_copies(main, *records(data))
             path = 'octatrack-modules/%s/%s.mwrm' % (module, versions[module])

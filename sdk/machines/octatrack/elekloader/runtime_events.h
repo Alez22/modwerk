@@ -7,4 +7,7 @@
 #define RUNTIME_SITE_EVENTS 4u
 #define RUNTIME_SITE_EVENT_SPANS { {0x40004100u, 8u}, {0x40006820u, 8u}, {0x40006820u, 8u}, {0x00000000u, 0u} }
 #define RUNTIME_SITE_EVENT_ROWS(r) { r[0], r[1], r[2], r[3] }
+extern const unsigned char modwerk_raise_ev_mute_keep[];
+/* raised events: the base's entry a package's RUNTIME_RAISE hook word receives */
+#define RUNTIME_SITE_EVENT_RAISES { 0, 0, 0, (uintptr_t)modwerk_raise_ev_mute_keep }
 #endif
