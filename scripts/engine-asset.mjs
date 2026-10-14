@@ -41,7 +41,9 @@ export function engineAsset(bytes, path, document, previousVersion, addedIds = [
     if (!item || typeof item !== 'object') return
     if ((item.id === document.id || item.moduleId === document.id) && item.version === document.version) item.version = previousVersion
     for (const [key, child] of Object.entries(item)) {
-      if (Array.isArray(child)) item[key] = child.filter(row => !row || typeof row !== 'object' || !omitted.includes(row.moduleId ?? row.id) && !(Array.isArray(row.ids) && row.ids.some(id => omitted.includes(id))))
+      // A row naming another module (by id, ids or a native proof's moduleIds) is a combination with that module's own
+      // release, qualified on its own; only rows of this module alone stay frozen.
+      if (Array.isArray(child)) item[key] = child.filter(row => !row || typeof row !== 'object' || !omitted.includes(row.moduleId ?? row.id) && ![row.ids, row.moduleIds].some(list => Array.isArray(list) && list.some(id => omitted.includes(id))))
       visit(item[key])
     }
   }

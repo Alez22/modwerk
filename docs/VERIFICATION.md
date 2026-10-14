@@ -1431,3 +1431,22 @@ E-Verb is in none of them.
 
 No hardware result exists for 0.1.1; the owner's MKII report covers 0.1.0.
 Publication needs the owner's approval of this exact source.
+
+## Mini Verb DSP cost — 13 October 2026
+
+Mini Verb 0.2.2-experimental removes two coefficient reloads that loaded the
+value `y1` already held. Its modeled sample loop falls from 415 to 411 cycles
+(the Octatrack loader's 7/4 charge from 727 to 720, within the smaller core's
+726 one-module allowance). The disassembled programs differ in exactly those
+two instructions. All 75 native DSP checks pass, including new gates that find
+0.2.2 bit-identical to the published 0.2.1 program with eight moving instances,
+every trigger split on both cores and a 0.9 FS input at TONE 0, 64 and 127; the
+builder-path dspbench agrees at splits 0, 1, 7 and 15.
+
+Under Air Chorus's matched protocol (one instance per core, X:0 audio, null stub
+subtracted, splits 0–15, every SPRING TYPE and moving controls), worst-case
+SPRING REV executes 314.0 instructions/sample and Mini Verb 0.2.2 362.75
+(1.155×; 0.2.1 364.75, 0.2.0 360.75), identical on both cores. These are
+executed instructions, not chip cycles. The only chip timing is 0.2.0's 665
+cycles/sample on the owner's MKII. Native/browser parity, the isolated package
+build, owner approval, hardware and chip timing of 0.2.2 are still required.

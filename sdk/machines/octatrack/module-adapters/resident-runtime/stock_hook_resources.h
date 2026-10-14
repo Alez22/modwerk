@@ -10,6 +10,10 @@ struct mw_hook_span { uint32_t address, words; uint8_t core, space; };
 unsigned mw_stock_hooks_held(const struct mw_stock_hooks *);
 int mw_hook_buffer_permitted(const struct mw_stock_hooks *,unsigned core,unsigned kind,unsigned block,
                              const struct mw_hook_buffer_claim *);
+/* The same against an explicit held-feature mask (MW_HOOK_SIDECHAIN|MATRIX|ANALOG_BD): the stock-hook leases and the
+ * controller board's held controllers together. An unknown bit refuses. */
+int mw_hook_buffer_permitted_held(unsigned held,unsigned core,unsigned kind,unsigned block,
+                                  const struct mw_hook_buffer_claim *);
 /* Both sets must include all exact-source fixed and instance tenants, including
  * pending initialization and outgoing code through its last unbind ACK.
  * Shared X/Y/P aliases are compared across both cores. Incomplete means closed. */

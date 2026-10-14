@@ -11,6 +11,7 @@ import { resolveModuleFile as file } from '../src/catalog/module-folder.ts'
 import { BASELINE_PATH, WAIVERS_PATH, parseQualificationBaseline, parseReleaseWaivers, qualificationReports, requireFolderQualification } from './module-qualification.mjs'
 import { parseRetainedResourceImpacts, requireModuleResourceImpact } from '../src/catalog/resource-impact.ts'
 import { compactChecks, passingPairs } from '../src/catalog/compatibility-checks.ts'
+import { USB_WAIVERS_PATH, parseUsbPackageWaivers } from './retained-evidence.mjs'
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),modules=resolve(root,'sdk/octabam/modules')
 const args=process.argv.slice(2),write=args.includes('--write'),baseIndex=args.indexOf('--base'),base=baseIndex<0?null:args[baseIndex+1]
 if(baseIndex>=0&&!base)throw new Error('--base requires a Git commit/ref')
@@ -22,6 +23,8 @@ const json=async path=>JSON.parse(await readFile(path,'utf8'))
 const baselineBytes=await readFile(resolve(root,BASELINE_PATH),'utf8'),baseline=parseQualificationBaseline(JSON.parse(baselineBytes))
 const waiverBytes=await readFile(resolve(root,WAIVERS_PATH),'utf8'),waivers=parseReleaseWaivers(JSON.parse(waiverBytes))
 if(baseCommit&&git('ls-tree','--name-only',baseCommit,'--',WAIVERS_PATH).trim()===WAIVERS_PATH&&git('show',baseCommit+':'+WAIVERS_PATH)!==waiverBytes)throw new Error('Owner utility release waivers are frozen to the two approved versions; updates require full qualification.')
+const usbWaiverBytes=await readFile(resolve(root,USB_WAIVERS_PATH),'utf8').catch(error=>{if(error.code==='ENOENT')return null;throw error});if(usbWaiverBytes!==null)parseUsbPackageWaivers(JSON.parse(usbWaiverBytes))
+if(baseCommit&&git('ls-tree','--name-only',baseCommit,'--',USB_WAIVERS_PATH).trim()===USB_WAIVERS_PATH&&git('show',baseCommit+':'+USB_WAIVERS_PATH)!==usbWaiverBytes)throw new Error('Owner USB package waivers are frozen to their exact versions and hashes; a change needs the owner\'s review of this check.')
 if(baseCommit&&git('ls-tree','--name-only',baseCommit,'--',BASELINE_PATH).trim()===BASELINE_PATH&&git('show',baseCommit+':'+BASELINE_PATH)!==baselineBytes)throw new Error('The existing-module qualification baseline is frozen; new modules and updates must supply qualification evidence, never expand or rewrite exemptions.')
 const impactsPath='sdk/module-resource-estimates.json',impactBytes=await readFile(resolve(root,impactsPath),'utf8'),impacts=parseRetainedResourceImpacts(JSON.parse(impactBytes),[...baseline.values()])
 if(baseCommit&&git('ls-tree','--name-only',baseCommit,'--',impactsPath).trim()===impactsPath&&git('show',baseCommit+':'+impactsPath)!==impactBytes)throw new Error('Initial resource estimates are pinned to the frozen existing versions; updates require a greater module version and resources.impact in the module manifest.')
