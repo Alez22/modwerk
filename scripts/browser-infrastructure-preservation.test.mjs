@@ -37,6 +37,7 @@ async function fixture() {
   git('add', '.'); git('commit', '-qm', 'Synthetic approved main')
   const base = git('rev-parse', 'HEAD'), before = await browserProtectedInputs(root, base)
   for (const path of allowed) write(path, 'candidate:' + path)
+  write('src/engine/assets/octatrack-module-packages.json', { packages: [{ id: 'foreign', cycles: 415, version: '1.0.0', sha256: 'a'.repeat(64) }] })
   write('scripts/verify-tapeecho-browser-parity.mjs', 'synthetic test runner')
   git('add', '.'); git('commit', '-qm', 'Synthetic integrated candidate')
   const candidate = git('rev-parse', 'HEAD'), after = await browserProtectedInputs(root, candidate)
@@ -137,6 +138,30 @@ describe('one exact Tape Echo browser infrastructure binding', () => {
       f.write(path, { ...JSON.parse(readFileSync(resolve(f.root, path))), compilerSha256: 'e'.repeat(64) })
       await expect(loadBrowserInfrastructurePreservation(f.root, f.base, document)).rejects.toThrow('Invalid or stale')
     } finally { f.cleanup() }
+  })
+  // A USB runtime-package release (for example Mini Verb's) rewrites its own manifest row.
+  const usbRelease = (f, change) => {
+    const path = 'src/engine/assets/octatrack-module-packages.json', manifest = JSON.parse(readFileSync(resolve(f.root, path)))
+    change(manifest); f.write(path, manifest)
+  }
+  it("accepts another module's own row in the USB package manifest", async () => {
+    const f = await fixture()
+    try {
+      usbRelease(f, m => { Object.assign(m.packages[0], { cycles: 411, version: '1.0.1', sha256: 'b'.repeat(64) }) })
+      const binding = await loadBrowserInfrastructurePreservation(f.root, f.base, document), path = 'src/engine/assets/octatrack-module-packages.json'
+      expect(binding).not.toBeNull()
+      // The released file itself (not only the validated bytes) passes the retained-evidence comparison.
+      expect(binding.matchesFile(null, readFileSync(resolve(f.root, path)), path)).toBe(true)
+      expect(binding.matchesFile(null, Buffer.from('{}'), path)).toBe(false)
+    } finally { f.cleanup() }
+  })
+  it.each([
+    ['an unlisted module row', m => { m.packages.push({ id: 'unlisted', cycles: 1 }) }],
+    ['a field outside the rows', m => { m.abi = 9 }],
+    ['a Tape Echo row', m => { m.packages.push({ id: 'tapeecho', cycles: 4 }) }],
+  ])('still rejects a USB package manifest that changes %s', async (_, change) => {
+    const f = await fixture()
+    try { usbRelease(f, change); await expect(loadBrowserInfrastructurePreservation(f.root, f.base, document)).rejects.toThrow('Invalid or stale') } finally { f.cleanup() }
   })
   it('leaves the original fail-closed path active without a real binding', async () => {
     const f = await fixture()
