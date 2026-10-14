@@ -59,11 +59,13 @@ function fastStubs(derive) {
 }
 await mkdir(output, { recursive: true })
 for (const machine of machines.filter(item => item.sdk?.platform === 'elemod')) {
+  const folderRoot = resolve(root, machine.sdk.modules)
+  const entries = (await readdir(folderRoot, { withFileTypes: true })).filter(entry => entry.isDirectory() && !entry.name.startsWith('_')).sort((a, b) => a.name.localeCompare(b.name))
+  // A machine whose SDK has no module yet needs no linker profile; its first module brings one.
+  if (!entries.length) continue
   const device = LINK_DEVICES.find(item => item.machine === machine.id)
   if (!device) throw new Error('No linker profile for ' + machine.id)
-  const folderRoot = resolve(root, machine.sdk.modules)
-  for (const entry of (await readdir(folderRoot, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!entry.isDirectory() || entry.name.startsWith('_')) continue
+  for (const entry of entries) {
     const folder = resolve(folderRoot, entry.name)
     const document = parseModwerkModule(await json(await resolveModuleFile(folder, 'modwerk.module.json')), machines)
     if (document.machine !== machine.id || document.id !== entry.name || document.exclusive) throw new Error('Expected a linkable module in its machine folder')

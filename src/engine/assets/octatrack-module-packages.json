@@ -12,7 +12,12 @@
       "module": "873d83cc",
       "bytes": 7398,
       "sha256": "050ccc3ed85815521342285df4a2423bcfcd5a4bd45c3da67055afcf41d70ab7",
-      "path": "octatrack-modules/everb/0.1.1-experimental.mwrm"
+      "path": "octatrack-modules/everb/0.1.1-experimental.mwrm",
+      "abi": 6,
+      "features": 0,
+      "sites": 0,
+      "copies": 0,
+      "fills": 0
     },
     {
       "id": "miniverb",
@@ -26,7 +31,12 @@
       "module": "3cbedc9c",
       "bytes": 2762,
       "sha256": "d40a7deb698cbf8bab6a4dcc160ebdc8fbcab70682ab38359d289dec0530277e",
-      "path": "octatrack-modules/miniverb/0.2.1-experimental.mwrm"
+      "path": "octatrack-modules/miniverb/0.2.1-experimental.mwrm",
+      "abi": 6,
+      "features": 0,
+      "sites": 0,
+      "copies": 0,
+      "fills": 0
     },
     {
       "id": "tapehead",
@@ -39,7 +49,12 @@
       "module": "bcf0d674",
       "bytes": 2250,
       "sha256": "980fb1ceda23837b3cb121e42372ccc21e5068ce03cacb1f371c7d53f5150554",
-      "path": "octatrack-modules/tapehead/0.1.2-experimental.mwrm"
+      "path": "octatrack-modules/tapehead/0.1.2-experimental.mwrm",
+      "abi": 6,
+      "features": 0,
+      "sites": 0,
+      "copies": 0,
+      "fills": 0
     },
     {
       "id": "airwindows-chorus",
@@ -53,7 +68,12 @@
       "module": "496d848e",
       "bytes": 3710,
       "sha256": "3be09ec1b69cd50ee439a368a05d73d76a2ca02a8bea597993cbece42a36fc00",
-      "path": "octatrack-modules/airwindows-chorus/0.1.2-experimental.mwrm"
+      "path": "octatrack-modules/airwindows-chorus/0.1.2-experimental.mwrm",
+      "abi": 6,
+      "features": 0,
+      "sites": 0,
+      "copies": 0,
+      "fills": 0
     }
   ]
 }

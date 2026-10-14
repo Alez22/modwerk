@@ -12,6 +12,10 @@
 #include "transfer.h"
 #include "status.h"
 #include "fxids.h"
+#include "dsp_journal.h"
+#include "fxpage.h"
+#include "fxmap.h"
+#include "upload.h"
 
 /* manager.c's code descriptor, which it reads from dl_codes. */
 struct code { const uint32_t *words; const uint16_t *relocations; uint16_t count, init, proc, relocation_count; };
@@ -76,6 +80,8 @@ extern volatile uint32_t modwerk_modset_generation, modwerk_modset_count, modwer
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots); /* fxpage.c */
 void modwerk_fxpage_drop(unsigned id);
 static uint32_t owner[MODWERK_FX_IDS];
+static uint8_t catalogue_digest[MODWERK_FX_IDS][MU_DIGEST_BYTES];
+static uint32_t catalogue_generation[MODWERK_FX_IDS]; /* immutable loader generation, never a host claim */
 static uint16_t owner_layout[MODWERK_FX_IDS];
 static char owner_name[MODWERK_FX_IDS][16];
 static uint8_t *owner_page[MODWERK_FX_IDS]; /* its page recipe (the module image's head), and that image's length */
@@ -135,6 +141,7 @@ static void release(unsigned k)
     dl_catalog[k] = unheld;
     dl_codes[0][k] = dl_codes[1][k] = (struct code){0, 0, 0, 0, 0, 0};
     owner[k] = 0, owner_page[k] = 0, owner_pinned[k] = 0, owner_cycles[k] = 0, owner_measured[k] = 0;
+    catalogue_generation[k] = 0;
     modwerk_fxpage_drop(k);
 }
 /* Its page in the choosers at handle k, when it brought one (a module without one still runs where a
@@ -144,27 +151,203 @@ static void list(unsigned k, uint8_t *page, uint32_t bytes)
     owner_page[k] = page, owner_page_bytes[k] = bytes;
     if (page) modwerk_fxpage_build(k, page, bytes, dl_catalog[k].slots);
 }
+/* The immutable catalogue generation also seals its actual source words and
+ * relocations outside the owned image, where a running module cannot adopt it. */
+static void catalogue_stamp(const struct runtime_dsp *d,uint8_t *out)
+{
+    uint8_t parts[2u*MU_DIGEST_BYTES];
+    mu_sha256((const uint8_t *)d->words,4u*d->count,parts);
+    mu_sha256((const uint8_t *)d->relocations,2u*d->relocation_count,parts+MU_DIGEST_BYTES);
+    mu_sha256(parts,sizeof parts,out);
+}
+/* Shared scalar publication, without a page, map write or manager nudge. */
+static void __attribute__((noinline)) catalogue_install(const struct runtime_dsp *to,uint32_t generation)
+{
+    uint32_t cycles = chip_cycles(to) > MODWERK_DSP_RESERVE ? chip_cycles(to) : MODWERK_DSP_RESERVE;
+    dl_catalog[to->id] = (struct dl_package){(uint16_t)to->count, 1, cycles, to->slots, 0, 1, to->buffer != 0};
+    dl_codes[0][to->id] = dl_codes[1][to->id] =
+        (struct code){to->words, to->relocations, (uint16_t)to->count, to->init, to->proc, to->relocation_count};
+    owner[to->id] = to->module, owner_layout[to->id] = to->layout, owner_pinned[to->id] = to->pinned;
+    catalogue_generation[to->id] = generation;
+    catalogue_stamp(to,catalogue_digest[to->id]);
+    owner_cycles[to->id] = chip_cycles(to), owner_measured[to->id] = to->kind == RUNTIME_HARDWARE;
+    for (unsigned i = 0; i < 16u; ++i) owner_name[to->id][i] = to->name[i];
+}
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to)
 {
     int had = from->count ? handle_of(from->module) : -1;
     if (had >= 0) release((unsigned)had);
     if (to->count) {
-        uint32_t cycles = chip_cycles(to) > MODWERK_DSP_RESERVE ? chip_cycles(to) : MODWERK_DSP_RESERVE;
-        dl_catalog[to->id] = (struct dl_package){(uint16_t)to->count, 1, cycles, to->slots, 0, 1, to->buffer != 0};
-        dl_codes[0][to->id] = dl_codes[1][to->id] =
-            (struct code){to->words, to->relocations, (uint16_t)to->count, to->init, to->proc, to->relocation_count};
-        owner[to->id] = to->module, owner_layout[to->id] = to->layout, owner_pinned[to->id] = to->pinned;
-        owner_cycles[to->id] = chip_cycles(to), owner_measured[to->id] = to->kind == RUNTIME_HARDWARE;
-        for (unsigned i = 0; i < 16u; ++i) owner_name[to->id][i] = to->name[i];
+        struct runtime_owner identity={0};
+        uint32_t generation=modwerk_runtime_owner_snapshot(to->image,&identity)==1 && identity.module==to->module?identity.generation:0;
+        catalogue_install(to,generation);
         list(to->id, (uint8_t *)(uintptr_t)to->page, to->page_bytes);
         modwerk_fxmap_assign(to->id, to->module, to->layout, to->name);
         nudge = 1; /* tracks may already name it (a saved project): load it there now */
     }
 }
+/* This is the real journal publication seam. Missing board transition authority
+ * remains closed; a copied owner or a transport idle flag is never readiness. */
+#ifndef MODWERK_JOURNAL_FACT_EXTERNAL
+__attribute__((weak)) int modwerk_machine_journal_commit_ready(const struct runtime_journal_view *r,int reverse,struct modwerk_journal_commit_fact *f)
+{ (void)r;(void)reverse;(void)f;return 0; }
+__attribute__((weak)) int modwerk_machine_journal_commit_consume(const struct modwerk_journal_commit_fact *f)
+{ (void)f;return 0; }
+#endif
+static int same_bytes(const uint8_t *a,const uint8_t *b,unsigned n)
+{ for(unsigned i=0;i<n;++i) if(a[i]!=b[i]) return 0;return 1; }
+static int same_owner(const struct runtime_owner *a,const struct runtime_owner *b)
+{
+    return a->generation==b->generation && a->module==b->module && a->owned_extent==b->owned_extent &&
+        a->extent_bytes==b->extent_bytes && a->image_offset==b->image_offset && a->image_bytes==b->image_bytes &&
+        same_bytes(a->package_sha256,b->package_sha256,MU_DIGEST_BYTES);
+}
+static int same_row(const struct runtime_journal_view *a,const struct runtime_journal_view *b)
+{ return a->module==b->module && a->position==b->position && a->from==b->from && a->to==b->to && same_owner(&a->before,&b->before) && same_owner(&a->after,&b->after) && same_bytes(a->package_sha256,b->package_sha256,MU_DIGEST_BYTES); }
+static int owned_range(const struct runtime_owner *o,const void *p,uint32_t n,unsigned alignment)
+{
+    uintptr_t a=(uintptr_t)p;
+    return a>=o->owned_extent && a-o->owned_extent<=o->extent_bytes && n<=o->extent_bytes-(a-o->owned_extent) && !(a&(alignment-1u));
+}
+static int checked_descriptor(const struct runtime_owner *o,const struct runtime_dsp *d,uint32_t module)
+{
+    if(!d) return 0;
+    if(!o->generation) {
+        const struct runtime_owner empty={0};const struct runtime_dsp none={0};
+        return same_owner(o,&empty) && same_bytes((const uint8_t *)d,(const uint8_t *)&none,sizeof none);
+    }
+    uintptr_t canonical;struct runtime_owner actual;
+    if(o->module!=module || !modwerk_runtime_owner_valid(o) || !modwerk_runtime_owner_canonical(o,&canonical) ||
+       !canonical || o->extent_bytes<sizeof(struct runtime_module) || o->image_offset>o->extent_bytes ||
+       o->image_bytes>o->extent_bytes-o->image_offset || o->owned_extent>UINTPTR_MAX-o->extent_bytes ||
+       d!=&((const struct runtime_module *)o->owned_extent)->dsp || !d->present || d->module!=module ||
+       (uintptr_t)d->image!=o->owned_extent+o->image_offset || d->image_bytes!=o->image_bytes ||
+       !same_bytes(d->package_sha256,o->package_sha256,MU_DIGEST_BYTES) ||
+       modwerk_runtime_owner_snapshot(d->image,&actual)!=1 || !same_owner(o,&actual)) return 0;
+    if(!d->count) return !d->page && !d->relocation_count;
+    unsigned arena=modwerk_dsp_arena[0]<modwerk_dsp_arena[1]?modwerk_dsp_arena[0]:modwerk_dsp_arena[1];
+    if(d->count>arena || d->count>UINT16_MAX || d->state>SLOT_WORDS || !d->slots || d->slots>3u ||
+       d->buffer>(d->slots&1u?FX1_BUFFER:FX2_BUFFER) || !d->kind || d->kind>RUNTIME_HARDWARE ||
+       chip_cycles(d)>MODWERK_DSP_ALLOWANCE-7u*MODWERK_DSP_RESERVE || d->init>=d->count || d->proc>=d->count ||
+       !fx_in(modwerk_fx_modules,d->id) || d->name[15] || !owned_range(o,d->words,4u*d->count,4u) ||
+       (d->relocation_count && !owned_range(o,d->relocations,2u*d->relocation_count,2u))) return 0;
+    for(unsigned i=0;i<d->count;++i) if(d->words[i]>0xffffffu) return 0;
+    for(unsigned i=0;i<d->relocation_count;++i) {
+        unsigned r=d->relocations[i];
+        if(r>=d->count || d->words[r]>=d->count || (i && r<=d->relocations[i-1u])) return 0;
+    }
+    return !d->page || (d->page==d->image && d->page_bytes==d->image_bytes && modwerk_fxpage_validate(d->id,d->page,d->page_bytes,d->slots));
+}
+static int empty_catalogue(unsigned id)
+{
+    const struct dl_package *p=&dl_catalog[id];
+    if(owner[id] || catalogue_generation[id] || owner_page[id] || owner_pinned[id] || owner_cycles[id] || owner_measured[id] ||
+       p->words || p->alignment!=1u || p->cycles!=MODWERK_DSP_RESERVE || p->slots!=3u || !p->resident || !p->qualified || p->buffer) return 0;
+    for(unsigned c=0;c<2u;++c) { const struct code *k=&dl_codes[c][id];
+        if(k->words || k->relocations || k->count || k->init || k->proc || k->relocation_count) return 0; }
+    return modwerk_fxpage_current(id,0,0,0);
+}
+static int checked_catalogue(const struct runtime_owner *o,const struct runtime_dsp *d,uint32_t module)
+{
+    int id=modwerk_dsp_catalogue_handle(module);
+    if(id==-2) return 0;
+    if(!d->count) return id<0;
+    if(id<0) return 0;
+    const struct dl_package *p=&dl_catalog[id];uint32_t cycles=chip_cycles(d);uint8_t digest[MU_DIGEST_BYTES];
+    catalogue_stamp(d,digest);
+    if(!same_bytes(digest,catalogue_digest[id],MU_DIGEST_BYTES)) return 0;
+    if(catalogue_generation[id]!=o->generation || owner_layout[id]!=d->layout || owner_pinned[id]!=d->pinned ||
+       owner_cycles[id]!=cycles || owner_measured[id]!=(d->kind==RUNTIME_HARDWARE) ||
+       !same_bytes((const uint8_t *)owner_name[id],(const uint8_t *)d->name,16u) || owner_page[id]!=d->page || owner_page_bytes[id]!=d->page_bytes ||
+       p->words!=d->count || p->alignment!=1u || p->cycles!=(cycles>MODWERK_DSP_RESERVE?cycles:MODWERK_DSP_RESERVE) ||
+       p->slots!=d->slots || p->resident || !p->qualified || p->buffer!=(d->buffer!=0)) return 0;
+    for(unsigned c=0;c<2u;++c) { const struct code *k=&dl_codes[c][id];
+        if(k->words!=d->words || k->relocations!=d->relocations || k->count!=d->count || k->init!=d->init || k->proc!=d->proc || k->relocation_count!=d->relocation_count) return 0; }
+    return modwerk_fxpage_current((unsigned)id,d->page,d->page_bytes,d->slots) && modwerk_fxmap_current((unsigned)id,module,d->layout,d->name);
+}
+int modwerk_dsp_catalogue_handle(uint32_t module)
+{
+    int found=-1;
+    for(unsigned k=0;module && k<MODWERK_FX_IDS;++k) if(owner[k]==module) { if(found>=0) return -2;found=(int)k; }
+    return found;
+}
+static int checked_live(const struct runtime_journal_view *r,const struct runtime_owner *o,const struct runtime_dsp *d)
+{
+    const struct runtime_module *m=modwerk_runtime_module(r->position);
+    return o->generation?m && (uintptr_t)m==o->owned_extent && m->id==r->module && &m->dsp==d:!m;
+}
+static int same_fact(const struct modwerk_journal_commit_fact *a,const struct modwerk_journal_commit_fact *b)
+{
+    if(!same_row(&a->row,&b->row) || a->ticket!=b->ticket || a->generation!=b->generation || a->map_generation!=b->map_generation ||
+       a->reverse!=b->reverse || a->required!=b->required || a->touched!=b->touched || a->confirmed!=b->confirmed || a->released!=b->released || a->catalogue_handle!=b->catalogue_handle || a->catalogue_target!=b->catalogue_target) return 0;
+    for(unsigned c=0;c<2u;++c) if(a->job_ticket[c]!=b->job_ticket[c] || a->job_generation[c]!=b->job_generation[c] ||
+        a->pool_base[c]!=b->pool_base[c] || a->pool_words[c]!=b->pool_words[c] || a->first_sequence[c]!=b->first_sequence[c] ||
+        a->last_sequence[c]!=b->last_sequence[c] || a->acknowledged_sequence[c]!=b->acknowledged_sequence[c] ||
+        a->code_offset[c]!=b->code_offset[c] || a->code_words[c]!=b->code_words[c]) return 0;
+    return 1;
+}
+static struct modwerk_journal_commit_fact checked_preflight;
+static unsigned checked_preflight_ready;
+static int checked_commit(const struct runtime_journal_view *r,int reverse,int committed,struct modwerk_journal_commit_fact *fact)
+{
+    if(!r || !r->module || r->position>=RUNTIME_MODULES || (reverse!=0 && reverse!=1) || rebinding || nudge ||
+       !checked_descriptor(&r->before,r->from,r->module) || !checked_descriptor(&r->after,r->to,r->module) ||
+       (r->before.generation && r->before.generation==r->after.generation) ||
+       modwerk_machine_journal_commit_ready(r,reverse,fact)!=1 || !same_row(r,&fact->row) || !fact->ticket ||
+       fact->reverse!=reverse || fact->catalogue_target>1u || (fact->catalogue_target && !reverse)) return 0;
+    const struct runtime_owner *target=reverse?&r->before:&r->after,*source=reverse?&r->after:&r->before;
+    const struct runtime_dsp *to=reverse?r->from:r->to,*from=reverse?r->to:r->from;
+    if(fact->catalogue_target) source=target,from=to;
+    struct runtime_journal_progress progress;modwerk_runtime_journal_snapshot(&progress);
+    if(!fact->generation || fact->generation!=progress.generation || progress.phase!=(reverse?RJ_ROLLBACK:RJ_PUBLISHING) ||
+       !fact->map_generation || fact->map_generation!=modwerk_fxmap_checked_generation() || fact->map_generation==UINT32_MAX ||
+       fact->required>3u || fact->touched!=fact->required || fact->confirmed!=fact->required || fact->released!=fact->required ||
+       progress.required!=fact->required || progress.confirmed!=fact->confirmed || (fact->touched&~progress.touched) ||
+       !checked_live(r,committed?target:source,committed?to:from) || !checked_catalogue(source,from,r->module)) return 0;
+    int had=modwerk_dsp_catalogue_handle(r->module),id=had>=0?had:to->id;
+    if(had==-2 || fact->catalogue_handle!=(to->count?(unsigned)id:255u)) return 0;
+    if(to->count && ((!reverse && id!=to->id) || (had<0 && !empty_catalogue((unsigned)id)) ||
+       !modwerk_fxmap_allows_checked((unsigned)id,to->module))) return 0;
+    for(unsigned c=0;c<2u;++c) {
+        if(fact->required>>c&1u) {
+            if(!fact->job_ticket[c] || !fact->job_generation[c] || !fact->first_sequence[c] || fact->first_sequence[c]>fact->last_sequence[c] ||
+               fact->acknowledged_sequence[c]!=fact->last_sequence[c]) return 0;
+            if(to->count) {
+                if(fact->pool_base[c]>0x2000u || fact->pool_words[c]>0x2000u-fact->pool_base[c] ||
+                   fact->code_offset[c]<64u || fact->code_offset[c]<fact->pool_base[c] || fact->code_words[c]!=to->count ||
+                   fact->code_offset[c]-fact->pool_base[c]>fact->pool_words[c] || to->count>fact->pool_words[c]-(fact->code_offset[c]-fact->pool_base[c])) return 0;
+            } else if(fact->code_words[c] || fact->code_offset[c]) return 0;
+        } else if(fact->job_ticket[c] || fact->job_generation[c] || fact->first_sequence[c] || fact->last_sequence[c] ||
+                  fact->acknowledged_sequence[c] || fact->code_offset[c] || fact->code_words[c]) return 0;
+    }
+    return 1;
+}
+int modwerk_machine_journal_switch_safe(const struct runtime_journal_view *r,int reverse)
+{
+    checked_preflight_ready=0;struct modwerk_journal_commit_fact fact={0};
+    if(!checked_commit(r,reverse,0,&fact)) return 0;
+    checked_preflight=fact;checked_preflight_ready=1;return 1;
+}
+int modwerk_machine_journal_committed(const struct runtime_journal_view *r,int reverse)
+{
+    struct modwerk_journal_commit_fact fact={0};unsigned had_ready=checked_preflight_ready;checked_preflight_ready=0;
+    if(!had_ready || !checked_commit(r,reverse,1,&fact) || !same_fact(&fact,&checked_preflight) || modwerk_machine_journal_commit_consume(&fact)!=1) return 0;
+    const struct runtime_owner *target=reverse?&r->before:&r->after;
+    const struct runtime_dsp *target_dsp=reverse?r->from:r->to;struct runtime_dsp selected=*target_dsp;
+    int had=modwerk_dsp_catalogue_handle(r->module);if(selected.count) selected.id=fact.catalogue_handle;
+    const struct runtime_dsp *to=&selected;
+    if(to->count) {
+        if(!modwerk_fxpage_commit_checked(to->id,(uint8_t *)(uintptr_t)to->page,to->page_bytes,to->slots)) return 0;
+        catalogue_install(to,target->generation);owner_page[to->id]=(uint8_t *)(uintptr_t)to->page;owner_page_bytes[to->id]=to->page_bytes;
+        if(!modwerk_fxmap_assign_checked(to->id,to->module,to->layout,to->name)) return 0;
+    } else if(had>=0) release((unsigned)had);
+    return checked_live(r,target,target_dsp) && checked_descriptor(target,target_dsp,r->module) && checked_catalogue(target,target_dsp,r->module) &&
+        (had<0 || to->count || empty_catalogue((unsigned)had));
+}
 /* A project load can name an installed module at another handle, or another module at the handle one
  * holds. Those modules let go first: the manager retires their code, so no slot runs the wrong module.
  * Once it is idle, each takes the handle the map gives it (choose); one that finds none stays out. */
-static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured; } moving[MODWERK_FX_IDS];
+static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles, generation; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured, digest[MU_DIGEST_BYTES]; } moving[MODWERK_FX_IDS];
 static unsigned moving_count;
 static uint32_t mapped; /* the map generation the handles follow */
 static void rebind_tick(void)
@@ -183,6 +366,8 @@ static void rebind_tick(void)
             moving[moving_count].package = dl_catalog[k];
             moving[moving_count].code[0] = dl_codes[0][k], moving[moving_count].code[1] = dl_codes[1][k];
             moving[moving_count].module = owner[k], moving[moving_count].layout = owner_layout[k];
+            moving[moving_count].generation = catalogue_generation[k];
+            for(unsigned byte=0;byte<MU_DIGEST_BYTES;++byte) moving[moving_count].digest[byte]=catalogue_digest[k][byte];
             moving[moving_count].page = owner_page[k], moving[moving_count].page_bytes = owner_page_bytes[k];
             moving[moving_count].pinned = owner_pinned[k], moving[moving_count].from = (uint8_t)k;
             moving[moving_count].cycles = owner_cycles[k], moving[moving_count].measured = owner_measured[k];
@@ -200,6 +385,8 @@ static void rebind_tick(void)
         dl_catalog[id] = moving[i].package;
         dl_codes[0][id] = moving[i].code[0], dl_codes[1][id] = moving[i].code[1];
         owner[id] = moving[i].module, owner_layout[id] = moving[i].layout, owner_pinned[id] = moving[i].pinned;
+        catalogue_generation[id] = moving[i].generation;
+        for(unsigned byte=0;byte<MU_DIGEST_BYTES;++byte) catalogue_digest[id][byte]=moving[i].digest[byte];
         owner_cycles[id] = moving[i].cycles, owner_measured[id] = moving[i].measured;
         for (unsigned c = 0; c < 16u; ++c) owner_name[id][c] = moving[i].name[c];
         list((unsigned)id, moving[i].page, moving[i].page_bytes);
