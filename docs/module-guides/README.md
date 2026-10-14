@@ -125,6 +125,29 @@ Propose an event or a table when the gate says two behaviour hooks meet, or when
 2. Say which modules patch that site today. Until they subscribe, list each such pair in `compatibility.json` as `pending-migration`, with the event and `until`.
 3. The owner reviews the entry. Every later module subscribes or contributes instead of patching.
 
+### Flag every incompatibility
+
+Build your module to work beside everything else. Machine lists, effect lists and menu rows belong to the base, so modules that add to them never collide. Where your module truly cannot run beside another, that is allowed, but say exactly which: add the other module's id to `compatibility.conflicts` in `octamod.module.json`. The configurator then never offers both together.
+
+Collisions are caught automatically, so nothing ships incompatible without its author deciding:
+
+- **Card builds.** `npm run modules:pairs` runs octabam's ledger on every catalogue module alone and beside every other, in each context POLY8's shared machine list creates, and writes `src/catalog/compatibility-pairs.json`. A pair the ledger refuses that neither module flags fails the check. The configurator refuses every refused or flagged pair by itself, so no rule is written by hand. The table grows with the square of the number of modules, and the same check proves with the full ledger that pairs decide every larger selection.
+- **USB sets.** `npm run modules:compat` still refuses every byte collision, flagged or not: beta sets install whatever is chosen, so subscribe to an event or [propose one](#propose-an-event).
+- **What no gate sees.** A flag can also name a limit the ledger cannot see, such as DSP placement or behaviour. Say why in the README's Compatibility section. `npm run module:doctor -- <id>` lists the collisions the ledger finds, so a flag that no longer applies can go at the next version.
+
+### Shared sites still to build
+
+The more of these the base owns, the more modules combine. Each is an event or a table to [propose](#propose-an-event), in its own owner-reviewed pull request, before a module uses it:
+
+| Site | Today |
+| --- | --- |
+| Track machine list (SRC SETUP) | Base table `ot_machines`; on the card, POLY8's shared machine list |
+| Effect lists (FX1, FX2) | USB: the base gives each module effect a per-project handle; card: pinned effect ids, 32 in all ([wider ids](../OCTATRACK_MORE_EFFECT_IDS.md)) |
+| SEQUENCER rows | Base table `ot_sequencer_rows` |
+| MIDI generators on a MIDI track's SRC SETUP | Not built: a base table of MIDI sources, as `ot_machines` is for audio tracks |
+| Stock DSP effects a module hooks (Sidechain Compressor, Output Matrix) | Not built: DSP-side taps, one owner per stock site |
+| Module settings | Not built: upstream octabam's [OTX settings store proposal](https://github.com/sambanks/octabam/blob/main/docs/proposals/OTX_PROJECT_PROPOSAL.md) |
+
 ### Read the gate's message
 
 Each problem is one line naming the modules, the byte ranges and what each one patches, followed by a `fix:` line with the route and a link to this section. `npm run modules:compat -- <id>` lists only what involves your module.
