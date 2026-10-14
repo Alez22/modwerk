@@ -1,0 +1,91 @@
+{
+ "schema": 1,
+ "device": "octatrack",
+ "os": "1.40C",
+ "about": "The stock sites the Modwerk base owns and turns into events (EVENTS.md). Modules subscribe; none patches these sites. events.py generates the base's dispatch, the loader's table header, the SDK header and EVENTS.md from this file. Adding an event is one reviewed entry here.",
+ "sites": [
+  {
+   "site": "0x40004100",
+   "length": 8,
+   "guard": "cfb51026afa59069c37a05dce3ec521567135c112d210e4a0f29129e3e353df7",
+   "routine": "the playback-increment builder 0x40004008(track, ping, start, end): STATIC, FLEX and PICKUP, and POLY8's tracks through it; lea -48(sp) and 44 bytes of saved registers put its track at 52(sp) here",
+   "head": [".word 0xa1c0 | movclr.l %acc0,%d0: the increment, PTCH and RATE applied", "asr.l %d6,%d0"],
+   "tail": ["move.l %d0,36(%a3) | the track state's increment, read by the source fetch and the DSP voice command", "jmp 0x40004108"],
+   "done": null
+  },
+  {
+   "site": "0x40006820",
+   "length": 8,
+   "guard": "87faf47c9893d1a9506259f68551bf06eb1ce723ac12cfae49a5b10b8b169fb6",
+   "routine": "0x40006820(track): stops a track's voice and binds it fresh (clears its active byte and state, then 0x4000672c), interrupts masked; 8 or more does every track by calling this site once per track. Callers: the trig path 0x4000f518, the frame handler 0x4000d45a, the renderer 0x40008110, UI paths (0x40043c50 and five more)",
+   "head": [],
+   "tail": ["move.l 4(%sp),%d1 | stock's own prologue, its loads in another order", "move.l %a2,-(%sp)", "move.l %d2,-(%sp)", "jmp 0x40006828"],
+   "done": ["rts | the call returns as stock's does when it has nothing to do"]
+  }
+ ],
+ "events": [
+  {
+   "event": "ev_play_increment",
+   "index": 4,
+   "site": "0x40004100",
+   "length": 8,
+   "prototype": "int f(uint32_t *increment, unsigned track)",
+   "args": ["&d0", "site+52"],
+   "results": {"0": "next", "*": "tail"},
+   "when": "the increment builder recomputes a track's playback increment (Q26, 0x04000000 = unity), after stock applied PTCH and RATE and before it stores it; when the builder reuses the stored increment no handler runs",
+   "context": "the audio render, at interrupt level: short, no firmware call that can block, the EMAC kept as found",
+   "contract": "Change *increment to change what the track plays at. Return nonzero to take the track: no later handler runs. The base stores *increment either way. The builder's d2-d7/a2-a6 are intact in a handler (a3 the track's 40-byte state, d6 the shift just applied) and must be kept, as C keeps them.",
+   "order": "lower first, then module id. 10-29: a machine that owns its tracks' increment and takes them; 40-69: tempo and rate changes on other tracks.",
+   "subscribers": [
+    {"module": "poly8", "fn": "poly_play_increment", "order": 20,
+     "does": "a POLY track's increment becomes its voices' tuning (poly_track_inc) and the DSP runs it at unity; it takes the track",
+     "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_increment_shift; shared-machine-hooks.s mr_rate_hook sends POLY tracks there before any other module's rate_hook"},
+    {"module": "repitch", "fn": "repitch_play_increment", "order": 50,
+     "does": "scales the increment by project tempo over the sample's tempo when REPITCH is on the track, clamped to 2x; d3 holds the sample tempo its rate_gate (0x4000406a) found in the same builder",
+     "evidence": "sdk/octabam/modules/repitch/repitch.s rate_hook and rate_gate"}
+   ],
+   "orderEvidence": "sdk/octabam/modules/poly8/composition.json replaces Repitch's 0x40004100 detour with POLY8's mr_rate_hook, which takes POLY tracks first and passes the others to rate_hook. POLY8 also forces a POLY track's live TSTR off (poly_config_tstr), so REPITCH never acts on one."
+  },
+  {
+   "event": "ev_voice_bind",
+   "index": 5,
+   "site": "0x40006820",
+   "length": 8,
+   "prototype": "int f(unsigned track)",
+   "args": ["site+4"],
+   "results": {"0": "next", "1": "done", "*": "tail"},
+   "when": "before stock stops a track's voice and binds it fresh; track 8 or more means every track, and stock then comes back here once per track",
+   "context": "the frame interrupt or a task: short, no firmware call that can block",
+   "contract": "Return 0 to pass. 1 drops this reset: stock does nothing and the call returns. 2 runs stock's reset at once: no later ev_voice_bind handler and no ev_voice_bind_run handler. Any other nonzero acts as 2. d2-d7/a2-a6 are the caller's and must be kept.",
+   "order": "lower first, then module id. 10-29: a machine that renders voices itself and redirects the resets its renderer causes; 30-69: gates on ordinary tracks (mute modes).",
+   "subscribers": [
+    {"module": "poly8", "fn": "poly_voice_bind", "order": 20,
+     "does": "while POLY8 renders an extension voice, the reset stops that voice only (1); while it renders a primary voice, stock's reset runs at once (2)",
+     "evidence": "sdk/octabam/modules/poly8/shared-machine-hooks.s mr_stop_voice; polyphony.s poly_stop_voice, whose .psv_replay goes to stock without fresh_bind while rendering"},
+    {"module": "mute-modes", "fn": "mm_voice_bind", "order": 50,
+     "does": "in OTFX-T and DT-T a single muted or soloed-out track's reset is dropped, so no new voice starts (a SIDE-CHAIN key track keeps it)",
+     "evidence": "sdk/octabam/modules/mute-modes/patch_softmute.s fresh_bind (hook 10)"}
+   ],
+   "orderEvidence": "POLY8's mr_stop_voice checks its renderer state before anything else, then Mute Modes' gate (its mr_mute_suppressed, a copy of fresh_bind's test, when fresh_bind is linked), and only then discards the track's extension voices (ev_voice_bind_run)."
+  },
+  {
+   "event": "ev_voice_bind_run",
+   "index": 6,
+   "site": "0x40006820",
+   "length": 8,
+   "prototype": "void f(unsigned track)",
+   "args": ["site+4"],
+   "results": "notify",
+   "when": "every ev_voice_bind handler passed: stock's reset runs next",
+   "context": "as ev_voice_bind",
+   "contract": "A notification: every handler runs; none can stop the reset. d2-d7/a2-a6 are the caller's and must be kept.",
+   "order": "lower first, then module id; 10-90.",
+   "subscribers": [
+    {"module": "poly8", "fn": "poly_voice_bind_run", "order": 50,
+     "does": "discards the track's extension voices, held keys and queued presses, interrupts masked",
+     "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_stop_voice .psv_stock (pm_clear_extensions)"}
+   ],
+   "orderEvidence": "In POLY8 + Mute Modes the extension voices are discarded only when the reset is not dropped (mr_mute_suppressed returns first)."
+  }
+ ]
+}
