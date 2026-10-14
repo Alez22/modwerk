@@ -17,16 +17,16 @@
     {
       "id": "miniverb",
       "slots": "fx2",
-      "cycles": 415,
+      "cycles": 411,
       "cyclesKind": "modeled",
       "state": 64,
       "buffer": 16384,
-      "version": "0.2.1-experimental",
+      "version": "0.2.2-experimental",
       "name": "Mini Verb",
       "module": "3cbedc9c",
-      "bytes": 2762,
-      "sha256": "f230ca39730d2c10d8d3e40db7786fc6db7def89f4b6c841ca4b5a3a3e9de2d4",
-      "path": "octatrack-modules/miniverb/0.2.1-experimental.mwrm"
+      "bytes": 2746,
+      "sha256": "2c879e54ec16c31a6a2ebf8b8850a9c6717052b26617f547c467f55901c195b1",
+      "path": "octatrack-modules/miniverb/0.2.2-experimental.mwrm"
     },
     {
       "id": "tapehead",
