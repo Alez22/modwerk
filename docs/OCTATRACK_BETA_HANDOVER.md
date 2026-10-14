@@ -161,6 +161,9 @@ Later, not blocking the first beta:
 
 ## Records
 
+[OCTATRACK_BETA_TEST_PLAN.md](OCTATRACK_BETA_TEST_PLAN.md) (14 October 2026) is the test plan for the rollout: the tester's
+onboarding end to end, the loader after the loading and packaging changes, the sessions, and the findings log.
+
 `docs/OCTATRACK_ELEKLOADER_MIGRATION.md` (the plan and hardware runs), `docs/OCTATRACK_MODULE_EDGE_CASES.md` (what
 is proven), `docs/OCTATRACK_HARDWARE_TRAPS.md`, `docs/OCTATRACK_DRIVING.md`, `docs/OCTATRACK_MORE_EFFECT_IDS.md`,
 `docs/APP_DEVELOPMENT.md` (the beta gate, the hub, releasing USB to everyone), `sdk/machines/octatrack/elekloader/README.md`
