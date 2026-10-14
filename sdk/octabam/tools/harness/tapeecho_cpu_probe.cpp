@@ -180,7 +180,9 @@ static void kernel_tests(ot::Machine& m) {
         }
         ++modes[mode==3?3:!s.mix?0:s.mix==2147483640?1:2];
         int32_t wetIn[16],audioIn[32],expectedAudio[32],expectedRecord[32];
-        for(unsigned j=0;j<16;++j)wetIn[j]=test%3==0?int32_t(random()):int32_t(random())/8;
+        // The feedback table is divided by the wet makeup (level match, #607), so the
+        // same wet word drives the record loop less: /4 keeps the curve limit exercised.
+        for(unsigned j=0;j<16;++j)wetIn[j]=test%3==0?int32_t(random()):int32_t(random())/4;
         for(unsigned j=0;j<32;++j)audioIn[j]=expectedAudio[j]=random();
         TapeState expectedState=s;
         te_host_tape_block(&expectedState,wetIn,expectedAudio,expectedRecord,dm,df,dn);
