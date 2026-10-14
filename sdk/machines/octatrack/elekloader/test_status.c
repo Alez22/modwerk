@@ -44,6 +44,7 @@ uint8_t modwerk_test_live_fx[16];
 volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
 const fx_set modwerk_fx_modules = {{1u << 27 | 1u << 29}};
 int modwerk_dsp_budget(unsigned slot, struct modwerk_dsp_budget *out) { (void)slot, (void)out; return 0; } /* draws only */
+uint32_t modwerk_dsp_booked(unsigned core) { return core; } /* draws only */
 /* dsp.c's MODULE LOAD list: `installed` modules. */
 static unsigned installed;
 unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out)

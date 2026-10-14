@@ -222,8 +222,9 @@ static void memory_tick(void)
     if (open != MEMORY) words_before[0] = dl_residency_words[0], words_before[1] = dl_residency_words[1];
 }
 /* MODULE LOAD (owner, 12 October 2026: "load per module"): each installed module effect, with what its instances
- * cost on each core as a share of the frame, as the LOAD page's bars count. The cores' meters see only their sum, so
- * this is each module's figure times the slots running it: a hardware figure, or 7/4 of an emulator claim (~). */
+ * cost on each core as a share of that core's DSP budget, as the box and the STATUS page's DSP rows count (owner,
+ * 14 October 2026: one denominator). The cores' meters see only their sum, so this is each module's figure times the
+ * slots running it: a hardware figure, or 7/4 of an emulator claim (~). */
 static struct modwerk_module_load modules[MODWERK_FX_IDS];
 static unsigned modules_count(void) { return modwerk_dsp_module_loads(modules); }
 volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key or knob: dsp.c's compaction waits for quiet */
@@ -459,7 +460,7 @@ static void modules_page(unsigned char *frame)
             if (!slots) *e++ = '-';
             else {
                 if (!m->measured) *e++ = '~';
-                e = number(e, (share(m->cycles * slots, FRAME_CYCLES / 16u) + 5u) / 10u);
+                e = number(e, (share(m->cycles * slots, core ? MODWERK_DSP_ALLOWANCE0 : MODWERK_DSP_ALLOWANCE1) + 5u) / 10u);
                 *e++ = '%';
             }
             *e = 0;
@@ -529,24 +530,18 @@ void modwerk_status_draw(unsigned char *frame)
     dialog(frame, "MODWERK STATUS");
     uint32_t cpu_peak = 0;
     for (unsigned i = 0; i < 8u; ++i) cpu_peak = cpu_recent[i] > cpu_peak ? cpu_recent[i] : cpu_peak;
-    static const char *const names[3] = {"CPU", "T1-4", "T5-8"};
-    const uint32_t load[3] = {modwerk_status[CPU], modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN]},
-                   peak[3] = {cpu_peak, modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
-    for (unsigned i = 0; i < 3u; ++i) {
-        unsigned y = Y0 + 14u + 8u * i;
-        label(X0 + 4u, y, names[i]);
-        bar(frame, X0 + 30u, y, 58, 6, load[i], peak[i]);
-        percent(X0 + 92u, y, load[i]);
-    }
-    for (unsigned x = X0 + 4u; x < X1 - 3u; x += 2) fill(frame, x, Y0 + 38u, x, Y0 + 38u, 1);
     uint32_t largest, pool = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
-    static const char *const memory[3] = {"P T1-4", "P T5-8", "POOL"};
-    const uint32_t used[3] = {share(dl_residency_words[1], modwerk_dsp_arena[1]), share(dl_residency_words[0], modwerk_dsp_arena[0]),
-                              share(pool, RUNTIME_POOL_BYTES)};
-    for (unsigned i = 0; i < 3u; ++i) {
-        unsigned y = Y0 + 42u + 6u * i;
-        label(X0 + 4u, y - 1u, memory[i]);
-        bar(frame, X0 + 30u, y, 58, 4, used[i], 0);
-        percent(X0 + 92u, y - 1u, used[i]);
+    /* What runs now (measured, with the recent peak's tick), then the DSP budget admission books per core (owner,
+     * 14 October 2026: DSP FULL comes from it, not from the measured load), the code memory and the module pool. */
+    static const char *const names[8] = {"CPU", "T1-4", "T5-8", "DSP T1-4", "DSP T5-8", "MEM T1-4", "MEM T5-8", "POOL"};
+    const uint32_t load[8] = {modwerk_status[CPU], modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN], modwerk_dsp_booked(1),
+                              modwerk_dsp_booked(0), share(dl_residency_words[1], modwerk_dsp_arena[1]),
+                              share(dl_residency_words[0], modwerk_dsp_arena[0]), share(pool, RUNTIME_POOL_BYTES)},
+                   peak[3] = {cpu_peak, modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
+    for (unsigned i = 0; i < 8u; ++i) {
+        unsigned y = Y0 + 13u + 6u * i;
+        label(X0 + 4u, y - 1u, names[i]);
+        bar(frame, X0 + 40u, y, 48, 4, load[i], i < 3u ? peak[i] : 0);
+        percent(X0 + 92u, y - 1u, load[i]);
     }
 }

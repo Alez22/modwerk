@@ -226,6 +226,7 @@ int main(void)
           budget.charge == 7u * MODWERK_DSP_RESERVE + 427u + modwerk_dsp_source_charge(0) && budget.words == 1200 &&
           budget.arena == 2320 && !memcmp(budget.name, loads[0].name, 16));
     CHECK(!modwerk_dsp_budget(5, &budget) && !modwerk_dsp_budget(16, &budget)); /* a slot with no module; past the slots */
+    CHECK(modwerk_dsp_booked(0) == budget.charge * 1000u / budget.allowance); /* the STATUS page: the same sum */
     slot_cycles[13] = 0; dl_residency_words[0] = 0;
     modwerk_test_live_fx[13] = 4; idle = 0;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_BUSY && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_BUSY);

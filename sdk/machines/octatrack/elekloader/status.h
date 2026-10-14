@@ -16,5 +16,7 @@ unsigned modwerk_dsp_module_loads(struct modwerk_module_load *out); /* dsp.c: ho
  * words against its arena and the effect's own, and the effect's name. */
 struct modwerk_dsp_budget { uint32_t charge, allowance, effect_cycles, words, arena; char name[16]; uint8_t core; };
 int modwerk_dsp_budget(unsigned slot, struct modwerk_dsp_budget *out); /* dsp.c: 0 unless a module runs on the slot */
+/* dsp.c: core c's DSP budget booked as admission counts it, per mille of its allowance; a pick past 1000 is DSP FULL. */
+uint32_t modwerk_dsp_booked(unsigned core);
 unsigned modwerk_status_load(uint8_t *out); /* cached MWLD v1, no work scheduled by the read */
 #endif
