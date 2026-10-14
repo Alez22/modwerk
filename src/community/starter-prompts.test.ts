@@ -66,8 +66,9 @@ describe('starter prompts', () => {
 
   it('asks the agent to share findings as a separate docs-only PR', () => {
     for (const prompt of [starterPrompt('octatrack', startersFor('octatrack')[0]), updatePrompt('digitakt')]) {
-      expect(prompt).toContain('Share what you learn')
-      expect(prompt).toContain('docs-only PR')
+      expect(prompt).toContain('Fixes and improvements')
+      expect(prompt).toContain('"Fix: …", "Improvement: …" or "Docs: …"')
+      expect(prompt).toContain('Never put it in the module PR')
     }
     expect(readFileSync('AGENTS.md', 'utf8')).toContain('Leave `sdk/octabam/AGENTS.md` unchanged')
   })
@@ -94,6 +95,9 @@ describe('starter prompts', () => {
     expect(readFileSync('docs/module-guides/README.md', 'utf8')).toContain('## Cross-compatibility')
     expect(workflow).toContain('## Your development setup')
     expect(workflow).toContain('## Make it mergeable')
+    expect(workflow).toContain('### Fixes and improvements')
+    expect(readFileSync('.github/workflows/pr-flags.yml', 'utf8')).toContain('Improvement:*) label=enhancement')
+    expect(readFileSync('.github/pull_request_template.md', 'utf8')).toContain('**What was wrong or hard:**')
     expect(agents).toContain('npm run pr:ready')
     expect(updatePrompt('digitakt')).toContain('npm run pr:ready -- --author <my login>')
     expect(readFileSync('docs/ADD_A_MACHINE.md', 'utf8')).toContain("## Aim for the Octatrack's interface")

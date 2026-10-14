@@ -44,7 +44,7 @@ These stumbling blocks have each cost a contributor and the owner a repair round
 - **Stale generated files.** `src/catalog/module-documents.json` and the compatibility files go stale whenever `main` moves under your branch. `pr:ready` regenerates them; commit what it names. Never edit them by hand.
 - **Letter case.** macOS and Windows find `Foo.s` when you wrote `foo.s`; Linux CI does not. `modules:check` refuses a manifest path in the wrong case, but not an `.include` line inside an assembly source, so check those yourself.
 - **A merge that breaks the code.** Merging `main` can leave a duplicate declaration or a stale call without any conflict marker. `pr:ready` runs the full check after the merge for exactly this reason.
-- **Two pieces of work in one PR.** A guide edit, shared code or another module inside an author update takes it off the automatic path; send a finding as its own docs-only PR ([Share what you learn](#share-what-you-learn)).
+- **Two pieces of work in one PR.** A guide edit, shared code or another module inside an author update takes it off the automatic path; send a finding, fix or improvement as its own small PR ([Fixes and improvements](#fixes-and-improvements)).
 - **The first failure hides the next.** CI and `npm run check` stop at the first failing stage, so one fix can uncover another. Run `pr:ready` until it is Ready instead of pushing after each fix.
 - **Compiled packages.** The `octatrack-source` and `elemod-source` jobs rebuild packages in the pinned Docker toolchain and require the committed ones to match. Reproduce them before you push: `bash scripts/build-modules-isolated.sh <clean checkout> <new dir> <image id>` for the Octatrack, `bash scripts/build-elemod-isolated.sh` and `node scripts/verify-elemod-release-exports.mjs <dir>` for the Digitakt and Digitone, from a clean, committed tree.
 - **Your first PR waits for the owner.** GitHub holds a first-time contributor's CI runs until the owner approves them, after every push. Run `pr:ready` locally and push once, rather than often, so each approval counts.
@@ -120,6 +120,15 @@ The guides are the context every prompt and agent reads, so a finding that helps
 - Correct a stale or wrong statement instead of adding a contradicting one. Keep the entry short and general, and say a hardware behaviour only as observed on a named build, otherwise "not tested".
 - Keep it stock-free: no firmware bytes, code, tables or dumps. `sdk/octabam/AGENTS.md` stays unchanged because octabam's code cites it; put Modwerk-specific traps in a Modwerk guide.
 - Send it as its own docs-only pull request. Inside a module release it is outside a registered author's scope and would remove the update from the automatic path, and one pull request should hold one piece of work. Docs-only edits use the lightweight checks. The owner reviews the wording, and the agent tells the contributor what it added.
+
+### Fixes and improvements
+
+When work turns up a bug, a fix, or an improvement that makes Modwerk easier to use or to develop for, in the SDK, the tools, the site or a guide, and it is not the task at hand, send it as its own small pull request rather than folding it into yours. These are welcome and quick to merge when they are easy to read:
+
+- **Flag it in the title:** `Fix: …` for something broken, `Improvement: …` for something made easier or better, `Docs: …` for a guide-only finding. A workflow labels the PR from that prefix (`bug`, `enhancement`, `documentation`).
+- **One change, in plain words.** A title a musician could follow, a small diff and a description that answers what was wrong or hard, what this changes and how you checked it. The PR template has those three lines.
+- **Mergeable as it is.** Branch from current `main`, run `npm run pr:ready` until it says Ready, and keep generated files, versions and other modules out of it unless the change needs them.
+- **Ask first in someone's fork.** An agent working for a contributor offers the PR and opens it with their OK. If you can't fix it, open an issue or a site report instead, saying what you saw and on which build.
 
 ## Keep the prompt and page aligned
 
