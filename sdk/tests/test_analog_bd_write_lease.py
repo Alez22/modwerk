@@ -86,5 +86,45 @@ class AnalogBdWriteLeaseTests(unittest.TestCase):
                 self.assertNotIn(' B ', symbols)
 
 
+    @unittest.skipUnless(shutil.which('m68k-elf-gcc'), 'native ColdFire toolchain required')
+    def test_policy_offsets_have_one_begin_and_one_end_continuation(self):
+        import analog_bd_lease_policy as policy
+        imports = {'modwerk_controller_write_begin': 0x40a994c0, 'modwerk_controller_write_end': 0x40a994dc}
+        def link(folder, origin, text=None):
+            from unittest.mock import patch
+            bd = selected(0)[0]
+            if text is None:
+                module = lease.port(bd, SDK, folder / 'w')
+            else:
+                with patch.object(lease, 'source', lambda original: text):
+                    module = lease.port(bd, SDK, folder / 'w')
+            objects = []
+            for index, unit in enumerate(module.linked):
+                obj, source = folder / ('%d.o' % index), Path(unit.source)
+                subprocess.run(['m68k-elf-as', '-mcpu=54455', str(source if source.is_absolute() else SDK / source), '-o', str(obj)],
+                               cwd=SDK, check=True, capture_output=True)
+                objects.append(obj)
+            script, elf = folder / 'link.ld', folder / ('%x.elf' % origin)
+            script.write_text('SECTIONS { . = %#x; .text : { *(.text*) *(.rodata*) *(.data*) } /DISCARD/ : { *(.comment) *(.note*) *(.eh_frame) } }' % origin)
+            subprocess.run(['m68k-elf-ld', '--no-warn-rwx-segments', *['--defsym=%s=%#x' % item for item in imports.items()],
+                            '-T', str(script), '-o', str(elf), *map(str, objects)], check=True, capture_output=True)
+            return elf
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            rows = [policy.policy_offsets(link(folder / str(o), o), o, imports) for o in (0, 0x21030)]
+            self.assertEqual(rows[0], rows[1])
+            self.assertLess(rows[0]['entry'], rows[0]['begin_return'])
+            self.assertNotEqual(rows[0]['begin_return'], rows[0]['end_return'])
+            with self.assertRaisesRegex(ValueError, 'two strong lease imports'):
+                policy.policy_offsets(link(folder / 'x', 0), 0, {'modwerk_controller_write_begin': 1})
+            # The recovered inline End tail compiles to two End call sites; refuse it.
+            original = (SDK / 'modules/analog-bassdrum/control.c').read_text()
+            inline = lease.source(original).replace('return ab_lease_end(&lease);',
+                                                    'return modwerk_controller_write_end(&lease)==1 ? 0 : -1;')
+            inline = inline.replace('static int __attribute__((noinline)) ab_lease_end', 'static int __attribute__((noinline,unused)) ab_lease_end')
+            with self.assertRaisesRegex(ValueError, 'exactly one call site'):
+                policy.policy_offsets(link(folder / 'inline', 0, inline), 0, imports)
+
+
 if __name__ == '__main__':
     unittest.main()
