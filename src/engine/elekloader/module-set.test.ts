@@ -12,13 +12,14 @@ const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
   it('publishes each listed module with its checked runtime identity, ABI and record counts', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch'])
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer'])
     for (const entry of manifest.packages) {
       const data = file(entry.path), view = new DataView(data.buffer), abi = view.getUint16(4)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)
       expect([data.length, sha(data), view.getUint32(28).toString(16).padStart(8, '0')]).toEqual([entry.bytes, entry.sha256, runtimeId(entry.id)])
       expect(String.fromCharCode(...data.subarray(0, 4))).toBe('MWRM')
-      if (!('octabam' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([6, 0, 0]) // ABI 6 DSP effects carry no stock-code bytes
+      if (!('octabam' in entry) && !('machine' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([6, 0, 0]) // ABI 6 DSP effects carry no stock-code bytes
+      if ('machine' in entry) expect([abi, view.getUint16(6) & 4]).toEqual([8, 0]) // an independent machine package, never a group
       expect([entry.abi, entry.sites, entry.copies, entry.fills]).toEqual([abi, view.getUint32(24), abi >= 7 ? view.getUint32(68) : 0, abi === 8 ? view.getUint32(72) : 0])
       expect(view.getUint32(20) > 0).toBe((entry.features & 128) !== 0) // only a site-event subscriber has hook words
     }

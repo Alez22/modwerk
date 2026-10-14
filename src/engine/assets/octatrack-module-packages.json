@@ -104,6 +104,66 @@
       "bytes": 1428,
       "sha256": "052d27edf6cfac091d126beebac18e2b2d0ecaad470d00581a2a08e215bb47c3",
       "path": "octatrack-modules/repitch/0.2.0-experimental.mwrm"
+    },
+    {
+      "id": "poly8",
+      "machine": true,
+      "abi": 8,
+      "features": 131,
+      "sites": 23,
+      "copies": 6,
+      "fills": 0,
+      "version": "0.3.0-experimental",
+      "name": "POLY8",
+      "module": "9fa85eef",
+      "bytes": 57340,
+      "sha256": "b63c3b44ce3218a5e36077e4f7b192cd3f9eb3a1882647c45b7e7a6e19430212",
+      "path": "octatrack-modules/poly8/0.3.0-experimental.mwrm"
+    },
+    {
+      "id": "vector",
+      "machine": true,
+      "abi": 8,
+      "features": 131,
+      "sites": 2,
+      "copies": 8,
+      "fills": 0,
+      "version": "0.2.4-experimental",
+      "name": "VECTOR",
+      "module": "b0d51c58",
+      "bytes": 18350,
+      "sha256": "2cf04fd4343aa276271cef9d32025fb94e0da064f5702052acc152c486b1aec0",
+      "path": "octatrack-modules/vector/0.2.4-experimental.mwrm"
+    },
+    {
+      "id": "synth",
+      "machine": true,
+      "abi": 8,
+      "features": 131,
+      "sites": 24,
+      "copies": 38,
+      "fills": 0,
+      "version": "0.1.2-experimental",
+      "name": "FM Synth",
+      "module": "e8c3e4fa",
+      "bytes": 29810,
+      "sha256": "6e5716540d78b652b272c364ddf398f688eb9dff7e2b926b2895e250341aaca7",
+      "path": "octatrack-modules/synth/0.1.2-experimental.mwrm"
+    },
+    {
+      "id": "quantizer",
+      "machine": true,
+      "abi": 8,
+      "features": 130,
+      "sites": 0,
+      "copies": 5,
+      "fills": 0,
+      "version": "0.1.3-experimental",
+      "name": "Scale Quantizer",
+      "module": "7e9d5687",
+      "bytes": 4660,
+      "sha256": "4bd0e586aa5c2d47e77f554734868651207f3caa57f5b7798608fda3f4efad51",
+      "path": "octatrack-modules/quantizer/0.1.3-experimental.mwrm"
     }
   ]
 }

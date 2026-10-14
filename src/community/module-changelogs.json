@@ -279,7 +279,8 @@
         "date": "2026-10-11",
         "changes": [
           "Fix MIDI trig-mode popup freezes caused by the octave display hook skipping a stack argument. MIDI keeps its stock octave value and formatting; audio scale/root behavior is preserved.",
-          "Physical hardware, chip worst-case timing and complete memory bounds have not been verified for this update."
+          "Physical hardware, chip worst-case timing and complete memory bounds have not been verified for this update.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB as one independent package beside every other module, on a Modwerk base built with site events. What it shares with other machines goes through the base's machine chooser table and take events instead of a machine group, and its authored bytes that coincide with stock are rebuilt from your own OS at install. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ]
       },
       {
@@ -398,7 +399,8 @@
           "correct the MIDI chromatic drawer’s argument stack so changing MIDI trig mode keeps the instrument responsive (#264).",
           "add 18.06 dB of source headroom before mono output and paraphonic summing, preserving envelopes and relative voice levels (#273). Sounds are quieter at unchanged mixer settings; effect and multi-track mix clipping remains possible.",
           "Owner-approved experimental release without current hardware validation. Chip timing and complete memory bounds remain unmeasured; the original static symptom is not hardware-confirmed.",
-          "Documentation/media-only (12 October 2026): add a sample-free melodic preview using VECTOR’s native generator offline to supply FM note locks, with native 128 BPM sequencing, index/feedback sweeps and actual Mini Verb in FX2. Remove boot/edit silence and added gaps; include exact generator, source/image, controls, recording and decoded peak provenance. Firmware and hardware/performance qualification are unchanged."
+          "Documentation/media-only (12 October 2026): add a sample-free melodic preview using VECTOR’s native generator offline to supply FM note locks, with native 128 BPM sequencing, index/feedback sweeps and actual Mini Verb in FX2. Remove boot/edit silence and added gaps; include exact generator, source/image, controls, recording and decoded peak provenance. Firmware and hardware/performance qualification are unchanged.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB as one independent package beside every other module, on a Modwerk base built with site events. What it shares with other machines goes through the base's machine chooser table and take events instead of a machine group, and its authored bytes that coincide with stock are rebuilt from your own OS at install. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ]
       },
       {
@@ -525,7 +527,8 @@
         "date": "2026-10-09",
         "changes": [
           "Prevent packed VECTOR settings from making stock Part validation reject the saved bank at startup, which reset machines to STATIC and left PLAY stuck on the first step. Preserve existing S2 version 1/2 settings while retaining stock validation of other data.",
-          "Two-instance Part/project save-reload, saved-card fresh load and battery-RAM-only restart pass in the emulator. Physical reboot/audio remain unverified under the owner-approved exception for this exact version. Already reset projects require restoration from a backup."
+          "Two-instance Part/project save-reload, saved-card fresh load and battery-RAM-only restart pass in the emulator. Physical reboot/audio remain unverified under the owner-approved exception for this exact version. Already reset projects require restoration from a backup.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB as one independent package beside every other module, on a Modwerk base built with site events. What it shares with other machines goes through the base's machine chooser table and take events instead of a machine group, and its authored bytes that coincide with stock are rebuilt from your own OS at install. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ]
       },
       {
@@ -904,7 +907,8 @@
         "changes": [
           "Runtime package only: on a Modwerk base that owns 0x40004100 and 0x40006820 (sdk/machines/octatrack/events.json), POLY8 subscribes instead of patching them: ev_play_increment (order 20) takes POLY tracks, ev_voice_bind (order 20) handles resets its renderer causes, ev_voice_bind_run discards a track's extension voices when a reset runs. Repitch and Mute Modes then install beside it without POLY8 linking their code.",
           "The subscribers are appended to polyphony.s under MODWERK_EVENTS with absolute addressing, so no existing PC-relative displacement moves; native octabam builds assemble byte-identical.",
-          "Limits: needs a base built with site events; older bases refuse this package, and Undo keeps 0.2.7-experimental for them. Emulator evidence only (synthetic renderer flags and register state); current-build hardware, chip worst-case timing and complete memory bounds remain unqualified."
+          "Limits: needs a base built with site events; older bases refuse this package, and Undo keeps 0.2.7-experimental for them. Emulator evidence only (synthetic renderer flags and register state); current-build hardware, chip worst-case timing and complete memory bounds remain unqualified.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB as one independent package beside every other module, on a Modwerk base built with site events. What it shares with other machines goes through the base's machine chooser table and take events instead of a machine group, and its authored bytes that coincide with stock are rebuilt from your own OS at install. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ]
       },
       {

@@ -14,7 +14,11 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
   effect when the entry has figures (TAPE ECHO, EUCLID; "pinned" when its C names its effect id). Its writes to stock
   code carry the SHA-256 of the stock bytes, never the bytes; the base checks them against its running code. Needs
   m68k-elf binutils and Elekloader's checkout (--upstream) to read the manifest; --check skips these entries, and
-  says so, without them.
+  says so, without them;
+- an entry with "machine": a catalogue machine module as one independent package (--octabam-machine, ABI 8): what
+  it shares goes through the base's events and tables (its runtime.json or machine port), and its authored runs that
+  coincide with stock are rebuilt from the user's OS by the reviewed recipe in module-adapters/machine-recipes.json,
+  so the package carries no stock bytes. Same tools as "octabam".
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
@@ -45,6 +49,8 @@ def build(entry, out, upstream, private_stock=None):
         args += ['--buffer', str(entry['buffer'])]
     if entry.get('octabam'):
         args += ['--octabam', entry['id'], '--upstream', str(upstream)] + (['--pinned'] if entry.get('pinned') else [])
+    if entry.get('machine'):
+        args += ['--octabam-machine', entry['id'], '--upstream', str(upstream)]
     if private_stock:
         args += ['--private-port', '--stock', str(private_stock)]
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)
@@ -126,8 +132,9 @@ def dsp_words(data):
 
 
 def tools(entry, upstream):
-    """Whether this machine can build the entry: an Octabam one needs m68k-elf binutils and Elekloader's checkout."""
-    return not entry.get('octabam') or bool(shutil.which('m68k-elf-as') and (upstream / 'elekloader/sdk/octabam.py').is_file())
+    """Whether this machine can build the entry: an Octabam or machine one needs m68k-elf binutils and Elekloader's checkout."""
+    return not (entry.get('octabam') or entry.get('machine')) or bool(
+        shutil.which('m68k-elf-as') and (upstream / 'elekloader/sdk/octabam.py').is_file())
 
 
 def main():
