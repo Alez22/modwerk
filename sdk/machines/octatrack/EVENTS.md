@@ -10,11 +10,19 @@ the loader keeps each event's handlers in (order, module id) order and refuses a
 patches one of these sites. Handlers use the C convention: arguments on the stack, d0-d1/a0-a1 free,
 everything else kept, the result in d0. C modules include `include/modwerk_events.h`.
 
-| event | site | when | C prototype | result | order | context |
-|---|---|---|---|---|---|---|
-| `ev_play_increment` | 0x40004100 | the increment builder recomputes a track's playback increment (Q26, 0x04000000 = unity), after stock applied PTCH and RATE and before it stores it; when the builder reuses the stored increment no handler runs | `int f(uint32_t *increment, unsigned track)` | Change *increment to change what the track plays at. Return nonzero to take the track: no later handler runs. The base stores *increment either way. The builder's d2-d7/a2-a6 are intact in a handler (a3 the track's 40-byte state, d6 the shift just applied) and must be kept, as C keeps them. | lower first, then module id. 10-29: a machine that owns its tracks' increment and takes them; 40-69: tempo and rate changes on other tracks. | the audio render, at interrupt level: short, no firmware call that can block, the EMAC kept as found |
-| `ev_voice_bind` | 0x40006820 | before stock stops a track's voice and binds it fresh; track 8 or more means every track, and stock then comes back here once per track | `int f(unsigned track)` | Return 0 to pass. 1 drops this reset: stock does nothing and the call returns. 2 runs stock's reset at once: no later ev_voice_bind handler and no ev_voice_bind_run handler. Any other nonzero acts as 2. d2-d7/a2-a6 are the caller's and must be kept. | lower first, then module id. 10-29: a machine that renders voices itself and redirects the resets its renderer causes; 30-69: gates on ordinary tracks (mute modes). | the frame interrupt or a task: short, no firmware call that can block |
-| `ev_voice_bind_run` | 0x40006820 | every ev_voice_bind handler passed: stock's reset runs next | `void f(unsigned track)` | A notification: every handler runs; none can stop the reset. d2-d7/a2-a6 are the caller's and must be kept. | lower first, then module id; 10-90. | as ev_voice_bind |
+A **take** event gives its site to one subscriber: its `fn` names a `struct modwerk_take` {claims, entry}.
+The records are asked in order; the first whose `claims` is 0 or returns nonzero for the call gets the site:
+its `entry` runs with every register and the stack as at the site (code that replays what the site held and
+returns to stock itself, as a detour does; a `jsr` entry returns with rts past the site), or with `entry` 0
+stock runs at once. With no taker stock runs. A **table** has no site: modules contribute records
+(`{"to", "order", "data"}` in runtime.json, `data` a symbol of the record) and base code reads them in
+(order, module id) order. Each event and table has a room: the loader refuses a package past it.
+
+| event | kind | site | when | prototype or record | result | order | context |
+|---|---|---|---|---|---|---|---|
+| `ev_play_increment` | call | 0x40004100 | the increment builder recomputes a track's playback increment (Q26, 0x04000000 = unity), after stock applied PTCH and RATE and before it stores it; when the builder reuses the stored increment no handler runs | `int f(uint32_t *increment, unsigned track)` | Change *increment to change what the track plays at. Return nonzero to take the track: no later handler runs. The base stores *increment either way. The builder's d2-d7/a2-a6 are intact in a handler (a3 the track's 40-byte state, d6 the shift just applied) and must be kept, as C keeps them. | lower first, then module id. 10-29: a machine that owns its tracks' increment and takes them; 40-69: tempo and rate changes on other tracks. | the audio render, at interrupt level: short, no firmware call that can block, the EMAC kept as found |
+| `ev_voice_bind` | call | 0x40006820 | before stock stops a track's voice and binds it fresh; track 8 or more means every track, and stock then comes back here once per track | `int f(unsigned track)` | Return 0 to pass. 1 drops this reset: stock does nothing and the call returns. 2 runs stock's reset at once: no later ev_voice_bind handler and no ev_voice_bind_run handler. Any other nonzero acts as 2. d2-d7/a2-a6 are the caller's and must be kept. | lower first, then module id. 10-29: a machine that renders voices itself and redirects the resets its renderer causes; 30-69: gates on ordinary tracks (mute modes). | the frame interrupt or a task: short, no firmware call that can block |
+| `ev_voice_bind_run` | call | 0x40006820 | every ev_voice_bind handler passed: stock's reset runs next | `void f(unsigned track)` | A notification: every handler runs; none can stop the reset. d2-d7/a2-a6 are the caller's and must be kept. | lower first, then module id; 10-90. | as ev_voice_bind |
 
 ## Reviewed subscribers
 

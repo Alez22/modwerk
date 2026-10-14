@@ -52,6 +52,12 @@ __attribute__((weak)) int modwerk_machine_journal_trial(int running) { (void)run
 int modwerk_runtime_volatile_busy(void) { return journal.progress.phase != RJ_IDLE; }
 
 
+/* Masked, right after a switch rewrote the rows: base code that keeps state derived from a table drops what
+ * named a module that left (the Octatrack's machine registry). */
+#ifndef MODWERK_RUNTIME_TABLES_EXTERNAL
+__attribute__((weak)) void modwerk_machine_tables_changed(void) {}
+#endif
+
 #ifndef MODWERK_RUNTIME_REFERENCE_EXTERNAL
 __attribute__((weak)) uint32_t modwerk_machine_reference(uint32_t value) { return value; }
 #endif
@@ -96,14 +102,41 @@ static unsigned refused_event;
 unsigned modwerk_runtime_refused_event(void) { return refused_event; }
 #if RUNTIME_SITE_EVENTS
 static const uint32_t event_span[RUNTIME_SITE_EVENTS][2] = RUNTIME_SITE_EVENT_SPANS;
-static uintptr_t volatile event_row[RUNTIME_SITE_EVENTS][RUNTIME_MODULES + 1u];
-uintptr_t volatile *const modwerk_runtime_event_row[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_ROWS(event_row);
-static uintptr_t staged_row[RUNTIME_SITE_EVENTS][RUNTIME_MODULES + 1u];
+/* A table (no site) holds contributed records, not handlers; its sites, which the base's reader patches, are owned
+ * spans. Each event or table holds at most its room of subscribers; rows share one store. */
+static const uint32_t event_room[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_ROOM;
+static const uint8_t event_table[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_TABLES;
+static const uint32_t owned_span[RUNTIME_OWNED_SITES ? RUNTIME_OWNED_SITES : 1u][3] = RUNTIME_OWNED_SPANS;
+static uintptr_t volatile event_words[RUNTIME_SITE_EVENT_WORDS];
+uintptr_t volatile *const modwerk_runtime_event_row[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_ROWS(event_words);
+static uintptr_t staged_words[RUNTIME_SITE_EVENT_WORDS];
+static uintptr_t *const staged_row[RUNTIME_SITE_EVENTS] = RUNTIME_SITE_EVENT_ROWS(staged_words);
 static const struct runtime_module *by_order[RUNTIME_MODULES];
 static int evented(uint32_t address, uint32_t n)
 {
     for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e)
         if (address < event_span[e][0] + event_span[e][1] && event_span[e][0] < address + n) { refused_event = RUNTIME_EVENTS + e; return 1; }
+    for (unsigned k = 0; k < RUNTIME_OWNED_SITES; ++k)
+        if (address < owned_span[k][0] + owned_span[k][1] && owned_span[k][0] < address + n) { refused_event = RUNTIME_EVENTS + owned_span[k][2]; return 1; }
+    return 0;
+}
+/* Would `hook` past each event's room once `position` holds the candidate? Other positions' live modules and the
+ * journal's pending ones count, as claimed() counts their sites. */
+static int roomless(unsigned position, const uint32_t *hook)
+{
+    for (unsigned e = RUNTIME_EVENTS; e < RUNTIME_HOOKS; ++e) {
+        if (hook[e] == RUNTIME_NONE) continue;
+        uint32_t n = 1;
+        for (unsigned k = 0; k < RUNTIME_MODULES; ++k) n += k != position && live[k] && live[k]->hook[e];
+        for (unsigned k = 0; k < journal.progress.records; ++k)
+            n += journal.row[k].position != position && journal.row[k].after && journal.row[k].after->hook[e];
+        if (n > event_room[e - RUNTIME_EVENTS]) { refused_event = e; return 1; }
+    }
+    return 0;
+}
+static uint8_t contributes(const uint32_t *hook)
+{
+    for (unsigned e = RUNTIME_EVENTS; e < RUNTIME_HOOKS; ++e) if (hook[e] != RUNTIME_NONE && event_table[e - RUNTIME_EVENTS]) return 1;
     return 0;
 }
 static int subscribes(const struct runtime_module *m)
@@ -119,6 +152,8 @@ static int in_dispatch(uint32_t v)
 }
 #else
 static int evented(uint32_t address, uint32_t n) { (void)address; (void)n; return 0; }
+static int roomless(unsigned position, const uint32_t *hook) { (void)position; (void)hook; return 0; }
+static uint8_t contributes(const uint32_t *hook) { (void)hook; return 0; }
 static int subscribes(const struct runtime_module *m) { (void)m; return 0; }
 static int in_dispatch(uint32_t v) { (void)v; return 0; }
 #endif
@@ -364,7 +399,7 @@ static const struct runtime_dsp no_dsp;
 static const struct runtime_dsp *dsp_of(const struct runtime_module *m) { return m ? &m->dsp : &no_dsp; }
 #if RUNTIME_SITE_EVENTS
 /* Locked: each site event's row once `position` holds `to`, by (order, module id). */
-static void events_stage(unsigned position, const struct runtime_module *to)
+static int events_stage(unsigned position, const struct runtime_module *to)
 {
     for (unsigned e = RUNTIME_EVENTS; e < RUNTIME_HOOKS; ++e) {
         unsigned n = 0;
@@ -376,20 +411,22 @@ static void events_stage(unsigned position, const struct runtime_module *to)
                 by_order[k] = by_order[k - 1];
             by_order[k] = m;
         }
+        if (n > event_room[e - RUNTIME_EVENTS]) return 0; /* admission counted the room: never past a row */
         for (unsigned k = 0; k < n; ++k) staged_row[e - RUNTIME_EVENTS][k] = by_order[k]->hook[e];
         staged_row[e - RUNTIME_EVENTS][n] = 0;
     }
+    return 1;
 }
 /* Masked: a word per handler. */
 static void events_commit(void)
 {
     for (unsigned e = 0; e < RUNTIME_SITE_EVENTS; ++e) {
         unsigned k = 0;
-        do event_row[e][k] = staged_row[e][k]; while (staged_row[e][k++]);
+        do modwerk_runtime_event_row[e][k] = staged_row[e][k]; while (staged_row[e][k++]);
     }
 }
 #else
-static void events_stage(unsigned position, const struct runtime_module *to) { (void)position; (void)to; }
+static int events_stage(unsigned position, const struct runtime_module *to) { (void)position; (void)to; return 1; }
 static void events_commit(void) {}
 #endif
 /* One position's hooks, sites and DSP effect change together, with no other task running (locked) and the
@@ -402,9 +439,9 @@ static int switch_locked(unsigned position, struct runtime_module *to, const str
     int ok = !in_flight(from, to, context) && !modwerk_machine_metadata_admit(dsp_of(from), &want, context, RUNTIME_METADATA_SWITCH) &&
         want.foreign_roots == dsp_of(to)->foreign_roots &&
         (!legacy_dsp || !modwerk_machine_dsp_admit(dsp_of(from), &want)) && want.id == dsp_of(to)->id;
+    int rows = subscribes(from) || subscribes(to);
+    if (ok && rows) ok = events_stage(position, to);
     if (ok) {
-        int rows = subscribes(from) || subscribes(to);
-        if (rows) events_stage(position, to);
         uint32_t mask = modwerk_machine_mask(); /* the machine's real-time interrupts may run these bytes */
         ok = holds(from, 1);
         if (ok) {
@@ -418,7 +455,7 @@ static int switch_locked(unsigned position, struct runtime_module *to, const str
             if (!ok) put(from, 1);
             modwerk_machine_invalidate_code();
         }
-        if (ok && rows) events_commit();
+        if (ok && rows) events_commit(), modwerk_machine_tables_changed();
         modwerk_machine_unmask(mask);
         if (ok) {
             live[position] = to;
@@ -607,7 +644,8 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
     mu_sha256(data, length, dsp.package_sha256);
     /* Admission: a position, bytes no other live module owns, an effect id and what the machine's DSPs take, memory. */
     slot = position_of(id);
-    if (slot == RUNTIME_MODULES) return refuse(RUNTIME_FULL);
+    if (slot == RUNTIME_MODULES || roomless(slot, hook)) return refuse(RUNTIME_FULL);
+    dsp.contributes = contributes(hook);
     for (uint32_t i = 0; i < sites; ++i) if (claimed(slot, address[i], size[i])) return refuse(RUNTIME_CONFLICT);
     uint32_t admission_lock = modwerk_machine_lock();
     int why = modwerk_machine_metadata_admit(dsp_of(live[slot]), &dsp, context, RUNTIME_METADATA_PREPARE);
