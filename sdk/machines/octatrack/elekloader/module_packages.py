@@ -19,8 +19,8 @@ To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
 scans every package, and its DSP words packed in three bytes either way round, for runs of 12 or more bytes that
-appear in the stock OS image too, counted by their non-zero bytes (zero padding and empty header fields match
-anywhere), and fails on 12 (E-Verb's DSP words share 10 by chance), and runs check_stock_free.py's scan (16 bytes at
+appear in the stock OS image too, counted by their bytes that are not filler (zero padding and empty header fields,
+and stretches of four or more 0xFF bytes such as unused hook words, match anywhere), and fails on 12 (E-Verb's DSP words share 10 by chance), and runs check_stock_free.py's scan (16 bytes at
 any alignment, against the image and its DSP words as the ColdFire keeps them). Needs Elekloader (--upstream,
 default ~/.cache/modwerk-upstream/elekloader) to unpack the OS. Node 24 for the page recipe."""
 import argparse, hashlib, json, shutil, struct, subprocess, sys, tempfile
@@ -31,7 +31,8 @@ BUILD = APP / 'sdk/runtime/loader/build.py'
 DSP = APP / 'src/engine/assets/dsp-packages.json'
 MANIFEST = APP / 'src/engine/assets/octatrack-module-packages.json'
 PUBLIC = APP / 'public'
-SEED, LIMIT = 12, 12  # bytes: a shared run worth looking at; its non-zero bytes that fail
+SEED, LIMIT = 12, 12  # bytes: a shared run worth looking at; its counted (not filler) bytes that fail
+FILL = 4  # 0xFF bytes in a stretch this long count as filler: a whole unused hook word (the loader's RUNTIME_NONE)
 
 
 def build(entry, out, upstream, private_stock=None):
@@ -50,11 +51,34 @@ def build(entry, out, upstream, private_stock=None):
     return out.read_bytes()
 
 
+def filler(data):
+    """How many filler bytes `data` has before each offset: zeros, and 0xFF bytes in a stretch of FILL or more. Both
+    recur in any two images and say nothing about where bytes came from (the owner allowed the strict scan to ignore
+    0xFF-only runs as it ignores zeros, 14 Oct 2026). A shorter 0xFF stretch, as in an instruction, still counts."""
+    marks, at = bytearray(len(data)), 0
+    while at < len(data):
+        end = at + 1
+        if data[at] == 0xff:
+            while end < len(data) and data[end] == 0xff:
+                end += 1
+            if end - at >= FILL:
+                marks[at:end] = b'\x01' * (end - at)
+        else:
+            marks[at] = data[at] == 0
+        at = end
+    before = [0]
+    for mark in marks:
+        before.append(before[-1] + mark)
+    return before
+
+
 def runs(data, stock):
-    """Stretches of `data` (from their start) that also appear in `stock`, at least SEED bytes: their non-zero bytes."""
+    """Stretches of `data` (from their start) that also appear in `stock`, at least SEED bytes: their bytes that are not
+    filler (filler())."""
+    before = filler(data)
     grams = {}
     for at in range(len(data) - SEED + 1):
-        if data[at:at + SEED].count(0) <= SEED // 2:  # zero-heavy seeds match everywhere and only slow the scan down
+        if before[at + SEED] - before[at] <= SEED // 2:  # filler-heavy seeds match everywhere and only slow the scan down
             grams.setdefault(data[at:at + SEED], []).append(at)
     found = {}
     for at in range(len(stock) - SEED + 1):
@@ -62,7 +86,7 @@ def runs(data, stock):
             n = SEED
             while start + n < len(data) and at + n < len(stock) and data[start + n] == stock[at + n]:
                 n += 1
-            found[start] = max(found.get(start, 0), n - data[start:start + n].count(0))
+            found[start] = max(found.get(start, 0), n - (before[start + n] - before[start]))
     return found
 
 
