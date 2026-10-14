@@ -128,7 +128,7 @@ if (mode === 'dumps') {
     for (let tries = 0; ; tries++) {
       try { await keep(data); return tries } catch (error) {
         const why = await refusal()
-        if (why !== 5 || tries >= 60) throw new Error(`${what}: ${error.message} (loader refusal ${why})`)
+        if (why !== 5 || tries >= 60) throw new Error(`${what}: ${error.message} (loader refusal ${why})`, { cause: error })
         await session.cancel().catch(() => {}); await settle(30)
       }
     }
