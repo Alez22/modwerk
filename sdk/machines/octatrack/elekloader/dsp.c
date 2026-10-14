@@ -745,7 +745,7 @@ static void peek_tick(void)
     else peeking = -1; /* the manager or a probe took the core: keep what was read */
 }
 #endif
-#ifndef MODWERK_HOST
+#if !defined(MODWERK_HOST) || defined(MODWERK_HOST_SELFTEST) /* test_selftest.c runs it on the host */
 /* The self-test (PROJ > MODWERK > SELF TEST, or dev.c request 21; owner, 11 October 2026): with the transport
  * stopped, by the live FX array only (never a Part), in about 3 s for every eight DSP modules:
  * 0. playback: PLAY, as the panel presses it; everything below runs with the pattern playing, and each placed
@@ -754,16 +754,33 @@ static void peek_tick(void)
  * 1. configuration: every live module's stock-code sites still hold its patches;
  * 2. together: the DSP modules in batches, one a track, the dearest first and core 0's tracks (T5-T8, it also
  *    mixes) first, so a batch reaches the ledger's limit; each placed as soon as the one before runs bound;
- *    one the ledger refuses (its core full) goes first into the next batch, one refused in an empty batch cannot
- *    run at all. Each batch runs until both cores' meters have a fresh window: no core and not the CPU past 90 %,
- *    frames running, none late (an interrupt held off too long stops the DSPs). Then each placed module's code
+ *    one the ledger refuses (its core full) goes first into the next batch. A batch's first module is tried alone
+ *    (owner, 14 October 2026): on T5, then on T1, in FX2 then FX1 as its slots allow, beside whatever the Part runs;
+ *    refused on all of those, the same again with every other slot of its core NONE (stock and module effects
+ *    alike, in the live array only), so the Part's own reverbs and delays never fail a module that fits a core of
+ *    its own. Only a module no core takes even then cannot run at all (SELFTEST_NOT_LOADED). The rest of that
+ *    batch keeps the emptied core and fills the remaining tracks; one refused waits for the next batch, where it
+ *    is tried alone, so a batch never fails for its own sake. Each batch runs until both cores' meters have a
+ *    fresh window: no core and not the CPU past 90 %, frames running, none late (an interrupt held off too long
+ *    stops the DSPs). Then each placed module's code
  *    is summed where it runs (dsp_receiver.asm's SUM) against its package. Every module must have run;
- * 3. stress: twice, the last batch cleared and placed again at once (uploads and retirements while it all runs);
+ * 3. stress: twice, the last batch cleared (its modules back to what the Part runs there, an emptied core left
+ *    empty) and placed again at once (uploads and retirements while it all runs);
  * then each track gets back what it ran and its lanes, and STOP. Fails as well on a stall or a loader rejection,
  * error or rollback. NO cancels it (all of that is restored as well). */
 #include "selftest.h"
 volatile struct selftest modwerk_selftest;
+#ifdef MODWERK_HOST
+uint8_t modwerk_test_lanes[8 * 72];
+volatile uint32_t modwerk_test_playing;
+#define LIVE_SET ((volatile uint8_t *)modwerk_test_live_fx)
+#define LANE(t) ((volatile uint8_t *)modwerk_test_lanes + 72u * (t))
+#define PLAYING (modwerk_test_playing == 1u)
+#else
 #define LIVE_SET ((volatile uint8_t *)0x80000ec4u)
+#define LANE(t) ((volatile uint8_t *)(0x80000810u + 72u * (t))) /* a track's live lane (Octabam's PARAM_PAGES.md 5a') */
+#define PLAYING (*(volatile uint32_t *)0x800065b8u == 1u)
+#endif
 int dl_bound(unsigned core, unsigned id);           /* manager.c (build_core.py's edit): a slot there runs bound code */
 extern volatile uint8_t dl_intended_override[16];   /* manager.c (build_core.py's edit): what a parked slot waits for */
 unsigned modwerk_runtime_intact(void);              /* loader.c: live modules whose sites hold */
@@ -808,12 +825,13 @@ void modwerk_selftest_refresh(void)
     modwerk_selftest.live = modwerk_runtime_active();
     modwerk_selftest.refusal = modwerk_runtime_refusal();
 }
-enum { PLACE, WAIT, HOLD, CODE, CLEAR };
-static uint8_t st_live[16], st_want[16], st_queue[MODWERK_FX_IDS], st_later[MODWERK_FX_IDS];
-static unsigned st_queued, st_deferred, st_track, st_batch, st_step, st_ticks, st_round;
+enum { PLACE, WAIT, HOLD, CODE, CLEAR, EMPTY, RESET };
+/* st_live: what each slot ran before the test; st_base: the batch's background, that with a core the batch emptied
+ * NONE; st_want: st_base and the batch's modules. st_used: the tracks the batch has taken (bits); st_try: its first
+ * module's attempt (alone_slot); st_slot: where the module being placed goes; st_back: the restore's half. */
+static uint8_t st_live[16], st_base[16], st_want[16], st_queue[MODWERK_FX_IDS], st_later[MODWERK_FX_IDS];
+static unsigned st_queued, st_deferred, st_used, st_try, st_slot, st_back, st_batch, st_step, st_ticks, st_round;
 static uint32_t st_counted, st_frames, st_failures, st_reads;
-#define LANE(t) ((volatile uint8_t *)(0x80000810u + 72u * (t))) /* a track's live lane (Octabam's PARAM_PAGES.md 5a') */
-#define PLAYING (*(volatile uint32_t *)0x800065b8u == 1u)
 volatile uint32_t modwerk_selftest_key;
 void modwerk_post_key(unsigned code, int pressed); /* boot.c: through the panel's byte ringer */
 static uint8_t st_lanes[8][72];
@@ -825,7 +843,7 @@ static unsigned triangle(unsigned x) { x &= 255u; return x < 128u ? x : 255u - x
 static void modulate(const uint8_t *want)
 {
     for (unsigned i = 0; i < 16u; ++i) {
-        if (want[i] == st_live[i]) continue;
+        if (want[i] == st_live[i] || !want[i]) continue; /* a slot the test emptied runs NONE */
         volatile uint8_t *lane = LANE(i & 7u);
         unsigned p1 = i < 8u ? 18u : 24u, p2 = i < 8u ? 0x32u : 0x38u;
         for (unsigned k = 0; k < 6u; ++k) {
@@ -848,6 +866,9 @@ static int settled(const uint8_t *want) /* the manager idle, and every slot runn
         if (LIVE_SET[i] != want[i] || (want[i] < MODWERK_FX_IDS && !dl_catalog[want[i]].resident && !dl_bound(core_of_slot(i), want[i]))) return 0;
     return 1;
 }
+/* Settled, judged at least seven ticks after the change, once the manager has taken it: a set that only takes code
+ * off looks settled before the manager has seen it, and its next step would then meet the old code still loaded. */
+static int taken(const uint8_t *want) { return st_ticks > 6u && settled(want); }
 static void set_live(const uint8_t *want)
 {
     for (unsigned i = 0; i < 16u; ++i) {
@@ -869,9 +890,9 @@ static void finish(void)
 /* Playing: the live set and the lanes as the Part has them now, then the checks. */
 static void started(volatile struct selftest *t)
 {
-    for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_want[i] = LIVE_SET[i];
+    for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_base[i] = st_want[i] = LIVE_SET[i];
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
-    st_counted = counted(), st_track = st_batch = st_step = st_ticks = st_round = 0;
+    st_counted = counted(), st_used = st_try = st_batch = st_step = st_ticks = st_round = 0;
     dl_frame_gap = 0;
     t->phase = st_queued ? SELFTEST_TOGETHER : SELFTEST_RESTORE;
 }
@@ -890,9 +911,9 @@ int modwerk_selftest_start(void)
         }
     t->modules = modwerk_runtime_active(), t->dsp = st_queued, t->intact = modwerk_runtime_intact(), t->total = st_queued + 2u;
     if (t->intact != t->modules) t->failed |= SELFTEST_BROKEN, blame(MODWERK_FX_IDS, modwerk_runtime_broken());
-    for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_want[i] = LIVE_SET[i];
+    for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_base[i] = st_want[i] = LIVE_SET[i];
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
-    st_counted = counted(), st_ticks = st_step = 0, st_played = 0;
+    st_counted = counted(), st_ticks = st_step = st_back = 0, st_played = 0;
     modwerk_status_fast = 1;
     t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING; /* the tick presses PLAY */
     return 1;
@@ -904,30 +925,68 @@ void modwerk_selftest_abort(void)
     modwerk_selftest.phase = SELFTEST_RESTORE, st_ticks = 0;
 }
 static void pop(void) { for (unsigned k = 1; k < st_queued; ++k) st_queue[k - 1] = st_queue[k]; --st_queued; }
+/* A batch's first module alone, attempt n (slots: 1 FX1, 2 FX2): FX2 then FX1 as its slots allow, each on T5 (core 0)
+ * then T1 (core 1), beside the Part's effects; then all of those again with every other slot of that core NONE
+ * (*empty). Its slot (0-15), or 16 after the last. */
+static unsigned alone_slot(unsigned slots, unsigned n, int *empty)
+{
+    unsigned kinds = (slots & 1u) + (slots >> 1 & 1u), k = kinds ? n % (2u * kinds) : 0;
+    *empty = n >= 2u * kinds;
+    if (n >= 4u * kinds) return 16u;
+    return ((slots & 2u) && k < 2u ? 8u : 0u) + (k & 1u ? 0u : 4u);
+}
+static unsigned next_track(void) /* the batch's next track: core 0's first */
+{
+    for (unsigned k = 0; k < 8u; ++k) if (!(st_used >> track_order[k] & 1u)) return track_order[k];
+    return 8u;
+}
 static void together(volatile struct selftest *t)
 {
     if (st_step == PLACE) {
-        if (!st_queued || st_track == 8u) { /* the batch is full or nothing is left: let it run */
+        if (!st_queued || st_used == 0xffu) { /* the batch is full or nothing is left: let it run */
             if (st_batch) st_step = HOLD, st_ticks = 0, st_frames = dl_frames, st_reads = ~0u;
-            else st_step = CLEAR;
+            else st_step = CLEAR, st_back = 0, st_ticks = 0;
             return;
         }
         if (!dl_publication_idle()) return;
-        unsigned id = st_queue[0], i = (dl_catalog[id].slots & 2u ? 8u : 0u) + track_order[st_track];
-        st_want[i] = (uint8_t)id, set_live(st_want), st_failures = dl_residency_failures, st_step = WAIT, st_ticks = 0;
+        unsigned id = st_queue[0], slots = dl_catalog[id].slots;
+        int empty = 0;
+        if (st_batch) st_slot = (slots & 2u ? 8u : 0u) + next_track();
+        else if ((st_slot = alone_slot(slots, st_try, &empty)) > 15u) { /* no core runs it, even with nothing else */
+            t->failed |= SELFTEST_NOT_LOADED, t->done = t->done + 1, blame(id, 0), pop(), st_try = 0;
+            return;
+        }
+        if (empty) { /* the core's every slot NONE first: the allocator places new code beside live code */
+            for (unsigned i = 0; i < 16u; ++i) if (core_of_slot(i) == core_of_slot(st_slot)) st_base[i] = st_want[i] = 0;
+            set_live(st_want), st_step = EMPTY, st_ticks = 0;
+            return;
+        }
+        st_want[st_slot] = (uint8_t)id, set_live(st_want), st_failures = dl_residency_failures, st_step = WAIT, st_ticks = 0;
+        return;
+    }
+    if (st_step == EMPTY) {
+        if (taken(st_want)) st_want[st_slot] = st_queue[0], set_live(st_want), st_failures = dl_residency_failures, st_step = WAIT, st_ticks = 0;
+        else if (st_ticks > 240u) ++st_try, st_step = RESET, st_ticks = 0; /* it would not empty: the next attempt */
+        return;
+    }
+    if (st_step == RESET) { /* the Part's effects back, as it ran them, before the next attempt */
+        for (unsigned i = 0; i < 16u; ++i) st_base[i] = st_want[i] = st_live[i];
+        set_live(st_want);
+        if (taken(st_want) || st_ticks > 300u) st_step = PLACE;
         return;
     }
     if (st_step == WAIT) {
-        unsigned id = st_queue[0], i = (dl_catalog[id].slots & 2u ? 8u : 0u) + track_order[st_track];
+        unsigned id = st_queue[0], i = st_slot;
         if (settled(st_want)) {
             if (st_batch < 8u) batch_ids[st_batch] = (uint8_t)id;
-            t->track[track_order[st_track]] = (uint8_t)id, t->ran = t->ran + 1, t->done = t->done + 1, ++st_batch;
+            t->track[i & 7u] = (uint8_t)id, t->ran = t->ran + 1, t->done = t->done + 1, ++st_batch;
+            st_used |= 1u << (i & 7u), st_try = 0;
         } else if ((dl_residency_failures != st_failures && dl_publication_idle()) || st_ticks > 120u) {
-            st_want[i] = st_live[i], set_live(st_want); /* refused: its core is full */
-            if (st_batch) st_later[st_deferred++] = (uint8_t)id; /* first in the next batch */
-            else t->failed |= SELFTEST_NOT_LOADED, t->done = t->done + 1, blame(id, 0); /* not even on its own */
+            st_want[i] = st_base[i], set_live(st_want); /* refused: its core is full */
+            if (!st_batch) { ++st_try, st_step = RESET, st_ticks = 0; return; } /* alone: the next attempt */
+            st_later[st_deferred++] = (uint8_t)id, st_used |= 1u << (i & 7u); /* first in the next batch, alone */
         } else return;
-        pop(), ++st_track, st_step = PLACE;
+        pop(), st_step = PLACE;
         return;
     }
     if (st_step == HOLD) { /* until both cores' meters have a fresh window with everything bound */
@@ -947,7 +1006,7 @@ static void together(volatile struct selftest *t)
         chk_n[0] = chk_n[1] = chk_i[0] = chk_i[1] = chk_at[0] = chk_at[1] = chk_busy[0] = chk_busy[1] = 0;
         for (unsigned i = 0; i < 16u; ++i) { /* each placed module once on each core it runs on */
             unsigned core = core_of_slot(i), seen = 0;
-            if (st_want[i] == st_live[i]) continue;
+            if (st_want[i] == st_live[i] || !st_want[i]) continue;
             for (unsigned k = 0; k < chk_n[core]; ++k) seen |= chk_id[core][k] == st_want[i];
             if (!seen && chk_n[core] < 8u) chk_id[core][chk_n[core]++] = st_want[i];
         }
@@ -973,7 +1032,7 @@ static void together(volatile struct selftest *t)
             if (dl_publication_idle() && dl_job_status(c) == -2 &&
                 dl_sum_start(c, (unsigned)at + chk_at[c], n, code_sum(c, id, chk_at[c], n, (unsigned)at))) chk_busy[c] = 1;
         }
-        if (!left || st_ticks > 600u) st_step = CLEAR; /* ten seconds at most: a channel never free is not a verdict */
+        if (!left || st_ticks > 600u) st_step = CLEAR, st_back = 0, st_ticks = 0; /* ten seconds at most: a channel never free is not a verdict */
         return;
     }
     /* CLEAR: the next batch starts with the deferred ones; after the last, the stress rounds use this batch */
@@ -982,12 +1041,13 @@ static void together(volatile struct selftest *t)
         for (unsigned k = 0; k < st_deferred; ++k) st_queue[k] = st_later[k];
         st_queued += st_deferred, st_deferred = 0;
     }
-    if (st_queued) {
-        set_live(st_live);
-        if (!settled(st_live)) return;
-        for (unsigned i = 0; i < 16u; ++i) st_want[i] = st_live[i];
+    if (st_queued) { /* the modules off first, then an emptied core's effects back: their code arrives once the modules' left */
+        if (!st_back) set_live(st_base), st_back = 1, st_ticks = 0;
+        if (st_back == 1u) { if (!taken(st_base) && st_ticks <= 300u) return; set_live(st_live), st_back = 2, st_ticks = 0; }
+        if (!taken(st_live)) return;
+        for (unsigned i = 0; i < 16u; ++i) st_base[i] = st_want[i] = st_live[i];
         for (unsigned i = 0; i < 8u; ++i) t->track[i] = 0;
-        st_track = st_batch = 0, st_step = PLACE;
+        st_used = st_try = st_batch = st_back = 0, st_step = PLACE;
         return;
     }
     t->phase = SELFTEST_STRESS, st_step = st_round = 0, st_ticks = 0;
@@ -1008,8 +1068,8 @@ static void selftest_tick(void)
     if (t->phase == SELFTEST_STRESS) {
         if (st_round < 2u) { /* the last batch cleared, then placed again at once */
             static uint8_t batch[16];
-            if (st_step == 0) { for (unsigned i = 0; i < 16u; ++i) batch[i] = st_want[i]; set_live(st_live), st_step = 1, st_ticks = 0; return; }
-            if (st_step == 1) { if (settled(st_live)) set_live(batch), st_step = 2, st_ticks = 0; else if (st_ticks > 240u) t->failed |= SELFTEST_REFUSED, st_round = 2; return; }
+            if (st_step == 0) { for (unsigned i = 0; i < 16u; ++i) batch[i] = st_want[i]; set_live(st_base), st_step = 1, st_ticks = 0; return; }
+            if (st_step == 1) { if (taken(st_base)) set_live(batch), st_step = 2, st_ticks = 0; else if (st_ticks > 240u) t->failed |= SELFTEST_REFUSED, st_round = 2; return; }
             if (settled(batch)) ++st_round, t->done = t->done + 1, st_step = 0;
             else if (st_ticks > 240u) t->failed |= SELFTEST_REFUSED, st_round = 2;
             return;
@@ -1021,12 +1081,21 @@ static void selftest_tick(void)
         t->phase = SELFTEST_RESTORE, st_ticks = 0;
         return;
     }
-    /* SELFTEST_RESTORE: each track back to what it ran and its lanes, then STOP if the test pressed PLAY */
-    restore_lanes(), set_live(st_live);
-    if (!settled(st_live) && st_ticks <= 300u) return;
+    /* SELFTEST_RESTORE: each track back to what it ran and its lanes, then STOP if the test pressed PLAY: the modules off
+     * first (a core the test emptied stays empty), then the Part's effects back, so no code waits on the modules' room */
+    restore_lanes();
+    if (st_back < 2u) {
+        if (!st_back) set_live(st_base), st_back = 1, st_ticks = 0;
+        if (!taken(st_base) && st_ticks <= 300u) return;
+        st_back = 2, st_ticks = 0;
+    }
+    set_live(st_live);
+    if (!taken(st_live) && st_ticks <= 300u) return;
     if (st_played && PLAYING) { if (st_step != 9) press(0x27u), st_step = 9, st_ticks = 0; if (st_ticks < 60u) return; }
     finish();
 }
+#endif
+#ifndef MODWERK_HOST
 /* Packing each core's code (owner, 11 October 2026). Code a track runs never moves on its own, so taking a module off
  * leaves a hole a later, larger one may not fit. Each hole is closed by moving a block into it the way a copying
  * collector moves objects: the new copy is uploaded while the old one runs, the dispatch entry is bound to it at a
