@@ -7,7 +7,7 @@
       "Unchanged on purpose: echo level, feedback law, tone and self-oscillation headroom. Raising the echo level to match the input was tried and rejected, because the highest feedback settings then clip the output at full wet (25% of samples at FDBK 102, 68% at FDBK 127, against none before).",
       "Saved projects sound different at the same settings: the dry signal is up to 10.7 dB louder at MIX 90 and the echoes sit lower against it. Lower MIX or the track volume to taste.",
       "Stereo, asked for in the same report, is not planned: a tape echo has one tape and one playback head, so the echo stays mono (the dry signal stays stereo), and a second channel would double its per-track CPU cost while the freeze at seven instances is still open.",
-      "Verification is software only: the changed mixer kernel matches the native arithmetic bit for bit on the ColdFire emulator (1,024 blocks across dry, full wet, mixed and ramping MIX), and the host voicing gate gained dry-level checks. No hardware run, chip timing or listening test exists for this version, and the earlier hardware freeze at seven instances remains open."
+      "Verification is software only: the changed mixer kernel matches the native arithmetic bit for bit on the ColdFire emulator (1,024 blocks across dry, full wet, mixed and ramping MIX), the host voicing gate gained dry-level checks, the browser builder matches native octabam on all 126 Tape Echo selections (54 images, 72 refusals, 0 mismatches) and on the 162 Analog BD compositions, and the USB package was rebuilt (host tests only, no run on a real base). No hardware run, chip timing or listening test exists for this version, and the earlier hardware freeze at seven instances remains open."
     ]
   },
   {
