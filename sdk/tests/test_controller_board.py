@@ -36,9 +36,11 @@ DONOR_BYTES = bytes((7 * i + 3) & 255 for i in range(0x192))
 
 def page_image(seed):
     """An MWPP record (stock_hook_controllers.page_record's layout) heading a 96-byte image:
-    two integers, one text, one pointer to image offset 80."""
-    record = b'MWPP' + bytes((1, 2, 1, 1)) + struct.pack('>I', DONOR) + hashlib.sha256(DONOR_BYTES).digest()
+    three integers and an inherit (the donor's own bits under 0x0000ff0f back at 398), one text, one
+    pointer to image offset 80."""
+    record = b'MWPP' + bytes((1, 4, 1, 1)) + struct.pack('>I', DONOR) + hashlib.sha256(DONOR_BYTES).digest()
     record += struct.pack('>HBBI', 5, 1, 0, 0x11) + struct.pack('>HBBI', 100, 4, 0, 0x1234)
+    record += struct.pack('>HBBI', 398, 4, 0, 0) + struct.pack('>HBBI', 398, 4, 1, 0x0000ff0f)
     record += struct.pack('>HBB', 70, 6, 3) + b'KEY\0'
     record += struct.pack('>HHI', 234, 0, 80)
     return record + bytes((seed + i) & 255 for i in range(96 - len(record)))
@@ -230,8 +232,10 @@ static __attribute__((unused)) int page_is(int applied, uint32_t module)
     if (!applied) return !memcmp(donor, donor_original, sizeof donor);
     uint32_t v = (uint32_t)(exec_of(module) + 80u), p = (uint32_t)donor[234] << 24 | (uint32_t)donor[235] << 16 | (uint32_t)donor[236] << 8 | donor[237];
     for (unsigned i = 0; i < sizeof donor; ++i)
-        if (i != 5 && !(i >= 100 && i < 104) && !(i >= 70 && i < 76) && !(i >= 234 && i < 238) && donor[i] != donor_original[i]) return 0;
+        if (i != 5 && !(i >= 100 && i < 104) && !(i >= 70 && i < 76) && !(i >= 234 && i < 238) && !(i >= 398 && i < 402) &&
+            donor[i] != donor_original[i]) return 0;
     return donor[5] == 0x11 && !donor[100] && !donor[101] && donor[102] == 0x12 && donor[103] == 0x34 &&
+        !donor[398] && !donor[399] && donor[400] == donor_original[400] && donor[401] == (donor_original[401] & 0x0f) &&
         !memcmp(donor + 70, "KEY\0\0\0", 6) && p == v;
 }
 int main(int argc, char **argv)

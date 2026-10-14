@@ -167,5 +167,62 @@ class StockHookControllers(unittest.TestCase):
         with self.assertRaises(ValueError):
             controllers.policies_c([dict(row, entry=2 * i) for i in range(1, 27)])
 
+    def test_page_record_matches_the_browser_descriptor_clone(self):
+        """Sidechain's real MWPP record, applied as controller_board.c's page_stage applies it, to a synthetic
+        donor whose enable words are set, equals what src/engine/descriptors.ts composeDescriptors makes from the
+        same recipe and donor (integers, then the inherited enable nibbles, then the strings) apart from the
+        record's own formatter pointers. A record that dropped inheritedEnable would clear stock COMPRESSOR's
+        page-1 enables (ATK..RMS)."""
+        import hashlib, json
+        recipe = next(r for r in json.loads((ROOT / controllers.PAGE_RECIPES['sidechain-compressor']).read_text())['recipes']
+                      if r['id'] == 'sidechain-compressor')
+        record, symbols = bytearray(), {}
+        for line in controllers.page_record('sidechain-compressor').splitlines():
+            op, _, rest = line.strip().partition(' ')
+            if op == '.ascii':
+                record += json.loads(rest).encode('latin-1')
+            elif op in ('.byte', '.word'):
+                record += b''.join(int(v, 0).to_bytes(1 if op == '.byte' else 2, 'big') for v in rest.split(','))
+            elif op == '.long':  # a value, or a formatter's offset in the image: a stand-in here
+                value = int(rest, 0) if ' - mw_page' not in rest else symbols.setdefault(rest, 0x200 + 4 * len(symbols))
+                record += value.to_bytes(4, 'big')
+        self.assertEqual(record[:5], b'MWPP\x01')
+        self.assertEqual((struct.unpack('>I', record[8:12])[0], record[12:44].hex()), (recipe['donorAddress'], recipe['donorSha256']))
+        donor = bytes((5 * i + 1) & 255 for i in range(controllers.PAGE_BYTES))
+        donor = donor[:0x18a] + bytes.fromhex('0000a5c3') + bytes.fromhex('01111111') + donor[0x192:]
+        # controller_board.c page_stage, from the record alone.
+        page, at = bytearray(donor), 44
+        for _ in range(record[5]):
+            off, width, inherit, value = struct.unpack('>HBBI', record[at:at + 8]); at += 8
+            self.assertIn(inherit, (0, 1))
+            new = value.to_bytes(4, 'big')[4 - width:]
+            page[off:off + width] = bytes((p & ~n | d & n) if inherit else n for p, n, d in zip(page[off:off + width], new, donor[off:off + width]))
+        for _ in range(record[6]):
+            off, width, length = struct.unpack('>HBB', record[at:at + 4])
+            page[off:off + width] = record[at + 4:at + 4 + length] + bytes(width - length); at += 4 + (length + 3 & ~3)
+        pointers = []
+        for _ in range(record[7]):
+            off, zero, _ = struct.unpack('>HHI', record[at:at + 8]); at += 8
+            self.assertEqual(zero, 0); pointers.append(off)
+        self.assertEqual(at, len(record))
+        # descriptors.ts composeDescriptors on the same donor.
+        clone = bytearray(donor)
+        lo, hi = struct.unpack('>I', donor[0x18e:0x192])[0], struct.unpack('>I', donor[0x18a:0x18e])[0]
+        for field in recipe['integers']:
+            clone[field['offset']:field['offset'] + field['width']] = field['value'].to_bytes(field['width'], 'big')
+        for slot in recipe['inheritedEnable']:
+            offset, mask = (0x18e if slot < 8 else 0x18a), 0xf << (slot % 8) * 4
+            word = struct.unpack('>I', clone[offset:offset + 4])[0] & ~mask | (lo if slot < 8 else hi) & mask
+            clone[offset:offset + 4] = struct.pack('>I', word)
+        for field in recipe['strings']:
+            text = field['value'].encode('latin-1')
+            clone[field['offset']:field['offset'] + field['width']] = text + bytes(field['width'] - len(text))
+        for off in pointers:
+            page[off:off + 4] = clone[off:off + 4] = bytes(4)
+        self.assertEqual(sorted(pointers), sorted(p['offset'] for p in recipe['rawPointers']))
+        self.assertEqual(page.hex(), clone.hex())
+        # The stock page-1 enables survive; the new slots 8-11 are on.
+        self.assertEqual(struct.unpack('>II', page[0x18a:0x192]), (0x1111, 0x01111111))
+
 
 if __name__ == '__main__': unittest.main()
