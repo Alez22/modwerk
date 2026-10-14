@@ -4,7 +4,9 @@
 
 Queue under the machine lock. Original MAIN, linked images, logs and the
 receipt stay in a new private directory outside Git; firmware never enters CI.
-Each composed variant is linked fresh at two origins and must relocate exactly.
+Analog BD alone (its own units; the base machine registry owns the shared
+chooser seams in the events model) is linked fresh at two origins and must
+relocate exactly.
 The loader's stock copies are filled from the original MAIN, as it would on the
 device. Fixture lease functions and helper identities are synthetic: this proves
 authored ColdFire behaviour only, never board ACKs, generations, DSP audio,
@@ -23,7 +25,6 @@ ROOT = Path(__file__).resolve().parents[4]
 ADAPTER = Path(__file__).resolve().parent
 SDK = ROOT / 'sdk/octabam'
 sys.path.insert(0, str(ADAPTER))
-import analog_bd_composition  # noqa: E402
 import machine_composition  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location('analog_bd_private_paths', ROOT / 'scripts/runtime_private_paths.py')
@@ -34,13 +35,10 @@ ARCHIVES = ('libot_machine.a', 'mc68k/lib68kEmu.a', 'dsp56300/dsp56kEmu/libdsp56
             'dsp56300/dsp56kBase/libdsp56kBase.a', 'dsp56300/asmjit/libasmjit.a')
 ORIGINS = (0x47080000, 0x47100000)
 HELPER = 0x47400000
-FIXTURES = {'controller': 'analog_bd_controller_fixture.cpp', 'lease': 'analog_bd_write_lease_probe.cpp',
-            'sharedKey': 'analog_bd_shared_key_fixture.cpp', 'ui': 'analog_bd_ui_fixture.cpp'}
-PREPARATION = ('analog_bd_composition.py', 'analog_bd_runtime.py', 'analog_bd_write_lease.py', 'machine_composition.py',
+FIXTURES = {'lease': 'analog_bd_write_lease_probe.cpp', 'ui': 'analog_bd_ui_fixture.cpp'}
+PREPARATION = ('analog_bd_runtime.py', 'analog_bd_write_lease.py', 'machine_composition.py',
                'stock_hook_write_lease.h', 'analog_bd_write_lease_fixture.c', 'analog_bd_ui.c', 'analog_bd_ui.h',
-               'analog_bd_ui_driver.c', 'machine_lifetime.c', 'machine_lifetime.h', 'fm_runtime.py',
-               'vector_runtime.py', 'quantizer_runtime.py', 'probe_analog_bd.py')
-VARIANTS = [(mask, False) for mask in range(8)] + [(mask, True) for mask in range(1, 4)]
+               'analog_bd_ui_driver.c', 'machine_lifetime.c', 'machine_lifetime.h', 'probe_analog_bd.py')
 
 
 def sha(data):
@@ -51,15 +49,13 @@ def run(command, **kwargs):
     return subprocess.run([str(c) for c in command], check=True, capture_output=True, text=True, **kwargs)
 
 
-def selected(mask, quantizer):
+def selected():
     sys.path.insert(0, str(SDK / 'tools'))
     from remix import registry
     old = Path.cwd()
     try:
         os.chdir(SDK)
-        return [registry._load_one(SDK / ('modules/' + name + '/manifest.py'))
-                for name in ['analog-bassdrum', *[n for n, bit in [('poly8', 1), ('vector', 2), ('synth', 4)] if mask & bit],
-                             *(['quantizer'] if quantizer else [])]]
+        return registry._load_one(SDK / 'modules/analog-bassdrum/manifest.py')
     finally:
         os.chdir(old)
 
@@ -84,15 +80,11 @@ def link(objects, origin, work, bss=False):
     return binary.read_bytes(), symbols, sizes
 
 
-def compose(mask, quantizer, lease, work, main):
-    """Fresh units, two native origins, exact relocation, then stock copies."""
-    result = analog_bd_composition.effective_modules(selected(mask, quantizer), SDK, work / 'source', lease=lease)
-    if mask & 4:
-        import fm_runtime
-        result = [fm_runtime.port(m, SDK, work / 'fm', composition=True) if m.name == 'synth' else m for m in result]
-    if quantizer:
-        import quantizer_runtime
-        result = [quantizer_runtime.port(m, SDK, work / 'qz') if m.name == 'quantizer' else m for m in result]
+def compose(lease, work, main):
+    """Fresh AB units, two native origins, exact relocation, then stock copies."""
+    import analog_bd_runtime, analog_bd_write_lease
+    port = analog_bd_write_lease.port if lease else analog_bd_runtime.port
+    result = [port(selected(), SDK, work / 'source')]
     objects, copies = [], []
     for index, unit in enumerate(u for m in result for u in m.linked):
         obj = work / ('%d.o' % index)
@@ -112,7 +104,7 @@ def compose(mask, quantizer, lease, work, main):
     inside = lambda table: {k: v for k, v in table.items() if 0 <= v <= len(low)}  # absolute .set values excluded
     symbols = inside(symbols)
     if symbols != inside(other) or len(low) != len(high):
-        raise ValueError('An AB composition changes layout between native origins.')
+        raise ValueError('The AB image changes layout between native origins.')
     delta, expected, at = ORIGINS[1] - ORIGINS[0], bytearray(low), 0
     while at + 4 <= len(low):
         a, b = int.from_bytes(low[at:at + 4], 'big'), int.from_bytes(high[at:at + 4], 'big')
@@ -121,7 +113,7 @@ def compose(mask, quantizer, lease, work, main):
         else:
             at += 2
     if bytes(expected) != high:
-        raise ValueError('An AB composition has a non-relocatable difference between origins.')
+        raise ValueError('The AB image has a non-relocatable difference between origins.')
     offsets = [at for at in range(0, len(low) - 3, 2) if int.from_bytes(high[at:at + 4], 'big') - int.from_bytes(low[at:at + 4], 'big') == delta]
     filled = bytearray(low)
     for symbol, address, length, digest in copies:
@@ -191,28 +183,20 @@ def main():
                             imageSha256=row['sha256'], stockCopies=row['copies'], observed=observed))
         print(kind, row['variant'], hex(row['origin']), json.dumps(observed), flush=True)
     for lease in (False, True):
-        for mask, quantizer in VARIANTS:
-            if lease and quantizer:
-                continue
-            variant = ('qz-%d' % mask if quantizer else str(mask)) + ('-lease' if lease else '')
-            work = out / variant;work.mkdir()
-            image, offsets, symbols, sizes, copies = compose(mask, quantizer, lease, work, main_image)
-            symbol_file = work / 'symbols.txt'
-            _private.save(symbol_file, ''.join('%s %d\n' % item for item in symbols.items()).encode())
-            for origin in ORIGINS:
-                raw = work / ('%x.private.raw' % origin)
-                data = placed(image, offsets, origin)
-                _private.save(raw, data)
-                row = dict(work=work, variant=variant, origin=origin, bytes=len(data), sha256=sha(data), copies=copies)
-                if lease:
-                    execute('lease', [executables['lease'], args.main, raw, symbol_file, hex(origin), sizes['ab_render']], row)
-                    continue
-                if not quantizer:
-                    execute('controller', [executables['controller'], args.main, raw, symbol_file, hex(origin), mask], row)
-                else:
-                    execute('sharedKey', [executables['sharedKey'], args.main, raw, symbol_file, hex(origin), mask], row)
-                execute('ui', [executables['ui'], args.main, raw, symbol_file, hex(origin), helper_dir / 'helper.private.raw',
-                               helper_dir / 'symbols.txt', variant], row)
+        variant = 'ab-lease' if lease else 'ab'
+        work = out / variant;work.mkdir()
+        image, offsets, symbols, sizes, copies = compose(lease, work, main_image)
+        symbol_file = work / 'symbols.txt'
+        _private.save(symbol_file, ''.join('%s %d\n' % item for item in symbols.items()).encode())
+        for origin in ORIGINS:
+            raw = work / ('%x.private.raw' % origin)
+            data = placed(image, offsets, origin)
+            _private.save(raw, data)
+            row = dict(work=work, variant=variant, origin=origin, bytes=len(data), sha256=sha(data), copies=copies)
+            if lease:
+                execute('lease', [executables['lease'], args.main, raw, symbol_file, hex(origin), sizes['ab_render']], row)
+            execute('ui', [executables['ui'], args.main, raw, symbol_file, hex(origin), helper_dir / 'helper.private.raw',
+                           helper_dir / 'symbols.txt', variant], row)
     receipt = dict(schema='modwerk-private-ab-native-fixtures-v1', mainSha256=MAIN_SHA256, inputs=inputs,
                    sources={name: sha((SDK / 'modules/analog-bassdrum' / name).read_bytes()) for name in
                             ('manifest.py', 'control.c', 'control.s', 'engine.h', 'engine.s', 'machine.s')},

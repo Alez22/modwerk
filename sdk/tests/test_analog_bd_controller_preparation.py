@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Register closed private Analog BD controller preparation regressions."""
+"""Register closed private Analog BD port preparation regressions."""
 import importlib.util
 from pathlib import Path
 import sys
