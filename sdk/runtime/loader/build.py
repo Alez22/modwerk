@@ -767,6 +767,11 @@ def octabam_machine(args):
             objects.append(work / 'imports.o')
             subprocess.run([args.cross + 'as', '-mcpu=54455', str(bound), '-o', str(objects[-1])], check=True, capture_output=True)
         image, symbols, bss, offsets = link_units(objects, args.cross, 0, work, anywhere=True)
+        if args.lease_policy:  # its controller's write-lease offsets, for the base's trust row (base_bound.py)
+            if (machine_ports.port(m.name) or {}).get('controller') != 'analog_bd_write_lease':
+                raise ValueError('%s has no reviewed write lease.' % m.name)
+            import analog_bd_lease_policy
+            lease = analog_bd_lease_policy.policy_offsets(work / '0.elf', 0, {n: base[n] for n in wanted}, args.cross)
     def pointer(symbol, addend=0):
         if symbol not in symbols:
             raise ValueError('%s names %s, which its units do not define.' % (m.name, symbol))
@@ -807,6 +812,9 @@ def octabam_machine(args):
     title = args.name or next((d.get('name') for d in documents.get('modules', []) if d.get('id') == m.name), '')
     data = package(image, bss, hooks, offsets, sites, name=m.name, hashed=True, title=title, layout=args.layout,
                    copies=copies, fills=fills, abi=8)
+    if args.lease_policy:
+        args.lease_policy.write_text(json.dumps(dict(entry=lease['entry'], beginReturn=lease['begin_return'],
+                                                     endReturn=lease['end_return'], imageBytes=len(image))) + '\n')
     if args.stock and m.name in recipes and not args.capture_stock_recipe:
         from elekloader import formats
         parsed, device, _ = formats.load(str(args.stock))
@@ -1003,6 +1011,8 @@ def main():
     parser.add_argument('--stock', type=Path)
     parser.add_argument('--upstream', type=Path)
     parser.add_argument('--base-symbols', type=Path)
+    parser.add_argument('--lease-policy', type=Path, help='with --octabam-machine: write its controller\'s write-lease '
+                        'offsets (entry, Begin and End returns) for the base\'s trust row')
     parser.add_argument('--dsp', help='JSON:KEY, a relocatable DSP package; alone, or beside C sources')
     parser.add_argument('--slots', choices=sorted(SLOTS))
     parser.add_argument('--cycles', type=int, help='worst case per sample and instance')

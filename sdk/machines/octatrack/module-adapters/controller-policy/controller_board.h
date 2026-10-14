@@ -9,7 +9,8 @@
  * Authority is the exact compiled trust rows (controller_write_policy.c) and
  * the loader's own owner ledger: a live module whose encoded package, module
  * id and image match a row is that controller. Empty rows (the default) make
- * every package an ordinary one and drive nothing. Analog BD (4) stays closed.
+ * every package an ordinary one and drive nothing. Analog BD (4) is bound the
+ * same way on both cores; its reset restores its engine's boot record.
  *
  * Install: the package's CF sites publish as for any module; the tick then
  * reserves and binds its exact owner generation, resets the feature's DSP

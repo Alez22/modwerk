@@ -20,6 +20,7 @@ ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
 POLICY = ADAPTER / 'controller-policy'
 ELEK = ROOT / 'sdk/machines/octatrack/elekloader'
 sys.path.append(str(ADAPTER))
+import resident_boot  # noqa: E402
 import resident_driver  # noqa: E402
 
 
@@ -48,8 +49,21 @@ PACKAGES = {  # name: (module id, feature, image)
     'matrix': (0xcaf158b5, 2, bytes(range(2, 130))),
     'rival': (0x12345678, 1, bytes(range(3, 67))),
     'forged': (0x95cff696, 1, bytes(range(4, 68))),  # same module, untrusted bytes
+    'ab': (0xabdb1445, 4, bytes(range(5, 133))),
 }
-CORES = {1: 3, 2: 1}
+CORES = {1: 3, 2: 1, 4: 3}
+AB_WORDS = 3776
+
+
+def ab_words(core):
+    """Synthetic engine words for one core (tables and a zero stretch), not Analog BD's."""
+    return [0 if 1000 <= i < 1600 else (i * 2654435761 >> 7 ^ core * 0x5a5a5a) & 0xffffff for i in range(AB_WORDS)]
+
+
+def ab_records(core):
+    """The x record as resident_boot.py packs it into the base."""
+    record = resident_boot.records_bytes([dict(space='x', address=0x2840, words=ab_words(core))], [('x', 0x2840, AB_WORDS)])
+    return resident_boot.pack_zeros(record)
 
 
 def header():
@@ -64,7 +78,11 @@ def header():
         rows += ('{{{%s}, {%d}, 0x%08xu, 1, 1, 1, %d, %d}, 1, %d, 8, 16, 24}, '
                  % (digest, feature, module, feature, CORES[feature], len(image)))
     text += 'static const uint8_t donor_original[%d] = {%s};\n' % (len(DONOR_BYTES), ','.join(map(str, DONOR_BYTES)))
-    return text + '#define ROWS %s\n' % rows
+    for core in (0, 1):
+        packed = ab_records(core)
+        text += 'static uint8_t ab_x_%d[%d] = {%s};\n' % (core, len(packed), ','.join(map(str, packed)))
+        text += 'static const uint32_t ab_expect_%d[%d] = {%s};\n' % (core, AB_WORDS, ','.join(map(str, ab_words(core))))
+    return text + '#define ROWS %s\n#define ROW_COUNT %d\n' % (rows, len(PACKAGES) - 1)
 
 
 FIXTURE = r'''
@@ -101,6 +119,8 @@ uint8_t mw_controller_board_test_read8(uint32_t a) { return a == 0x80000037u ? m
 int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi) { (void)lo; (void)hi; return (int)ui_clear; }
 static uint8_t donor[sizeof donor_original];
 uint8_t *mw_controller_board_test_donor(uint32_t a) { assert(a == 0x400d5a82u); return donor; }
+const uint8_t *mw_controller_board_test_ab(unsigned c, const uint8_t **end)
+{ *end = c ? ab_x_1 + sizeof ab_x_1 : ab_x_0 + sizeof ab_x_0; return c ? ab_x_1 : ab_x_0; }
 int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
     const struct runtime_context *c, enum runtime_metadata_operation op)
 { (void)c; assert(sr >= 0x400u); to->foreign_roots = 0; return modwerk_controller_admit(from, to, op); }
@@ -108,7 +128,7 @@ static uint8_t task_stack[512] __attribute__((aligned(4)));
 int modwerk_machine_stack(uintptr_t *lo, uintptr_t *hi) { *lo = (uintptr_t)task_stack; *hi = *lo + sizeof task_stack; return 1; }
 #ifdef BOARD_ROWS
 const struct mw_controller_write_policy modwerk_controller_write_policies[MW_CONTROLLER_WRITE_POLICY_CAPACITY + 1u] = { ROWS };
-const unsigned modwerk_controller_write_policy_count = 4;
+const unsigned modwerk_controller_write_policy_count = ROW_COUNT;
 #else
 const struct mw_controller_write_policy modwerk_controller_write_policies[MW_CONTROLLER_WRITE_POLICY_CAPACITY + 1u] = {{.version = 0}};
 const unsigned modwerk_controller_write_policy_count = 0;
@@ -121,8 +141,8 @@ struct mw_controller_registry modwerk_controller_registry;
 /* Modelled receiver: a reset ACKs and counts words per feature; a CAS ACKs only
  * with the expected mask and only enabling features whose reset completed;
  * disabling invalidates readiness (resident_dsp.receiver_control). */
-static unsigned dsp_mask[2], words[2][3], answered[2], cas_count;
-static const unsigned totals[3] = {1042, 193, 0};
+static unsigned dsp_mask[2], words[2][3], answered[2], cas_count, ab_wrong;
+static const unsigned totals[3] = {1042, 193, 3776};
 static void dsp(void)
 {
     dl_frame();
@@ -131,16 +151,19 @@ static void dsp(void)
         answered[c] = dl_tx[c][1];
         unsigned reject = 0, op = dl_tx[c][2];
         if (op == 11u) {
-            unsigned f = dl_tx[c][7], k = f == 1u ? 0 : f == 2u ? 1 : 2;
-            reject = k > 1 || dl_tx[c][5] != words[c][k] || (dsp_mask[c] & f);
+            unsigned f = dl_tx[c][7], k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : 3;
+            reject = k > 2 || dl_tx[c][5] != words[c][k] || (dsp_mask[c] & f);
+            /* Analog BD's engine is reset to its boot record, word for word (24-bit: high 16, low 8). */
+            for (unsigned i = 0; !reject && k == 2 && i < dl_tx[c][4]; ++i)
+                if (((unsigned)dl_tx[c][8 + 2 * i] << 8 | dl_tx[c][9 + 2 * i]) != (c ? ab_expect_1 : ab_expect_0)[dl_tx[c][5] + i]) ++ab_wrong;
             if (!reject) words[c][k] += dl_tx[c][4];
         } else if (op == 10u) {
             unsigned expected = dl_tx[c][4], desired = dl_tx[c][5], on = desired & ~expected;
             ++cas_count;
             reject = refuse_cas || expected != dsp_mask[c] || ((on & 1u) && words[c][0] != totals[0]) ||
-                ((on & 2u) && words[c][1] != totals[1]);
+                ((on & 2u) && words[c][1] != totals[1]) || ((on & 4u) && words[c][2] != totals[2]);
             if (!reject) {
-                for (unsigned f = 1; f <= 2; f <<= 1) if ((expected & f) && !(desired & f)) words[c][f >> 1] = 0;
+                for (unsigned f = 1; f <= 4; f <<= 1) if ((expected & f) && !(desired & f)) words[c][f >> 1] = 0;
                 dsp_mask[c] = desired;
             }
         } else continue;
@@ -200,6 +223,7 @@ static int lease(uint32_t module, unsigned feature)
 }
 #define SC 0x95cff696u
 #define MATRIX 0xcaf158b5u
+#define AB 0xabdb1445u
 static __attribute__((unused)) int page_is(int applied, uint32_t module)
 {
     if (!applied) return !memcmp(donor, donor_original, sizeof donor);
@@ -225,6 +249,7 @@ int main(int argc, char **argv)
     return 0;
 #else
     memcpy(donor, donor_original, sizeof donor);
+    if (mode == 10) ab_x_1[4] ^= 1; /* core B's engine record names another address: Analog BD never resets */
     if (mode == 7) donor[300] ^= 1; /* not the stock descriptor the record names: no page, still a working controller */
     run(2);
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
@@ -324,6 +349,28 @@ int main(int argc, char **argv)
         assert(install(removal(SC), 32) == MU_APPLIED && install(pkg_rival, sizeof pkg_rival) == MU_APPLIED);
         run(120);
         assert(slot_for(0x12345678u, MW_CTL_ACTIVE) && dsp_mask[0] == 1);
+    } else if (mode == 9) {
+        /* Analog BD beside it, on both cores: its engine reset to its boot record word for word, then enabled. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        assert(!lease(AB, 4));
+        run(500);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dsp_mask[1] == 5 && !ab_wrong);
+        assert(words[0][2] == 3776 && words[1][2] == 3776 && modwerk_controller_held() == 5);
+        assert(lease(AB, 4) && !lease(AB, 1) && lease(SC, 1));
+        assert(install_refused(removal(AB), 32, &why) && why == RUNTIME_BUSY);
+        run(1);
+        assert(!lease(AB, 4));
+        run(10);
+        assert(slot_for(AB, MW_CTL_RETIRING) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(install(removal(AB), 32) == MU_APPLIED);
+        run(2);
+        assert(slot_for(AB, MW_CTL_RELEASED) && modwerk_controller_held() == 1 && lease(SC, 1));
+    } else if (mode == 10) {
+        /* A record that is not its engine's: never reset or enabled, so never a lease; Sidechain unaffected. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(500);
+        assert(!slot_for(AB, MW_CTL_ACTIVE) && !(dsp_mask[0] & 4u) && !(dsp_mask[1] & 4u) && !lease(AB, 4));
+        assert(lease(SC, 1) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
     } else if (mode == 6) {
         /* Saved-set export blocks control writes and new jobs, not progress after. */
         saved_busy = 1;
@@ -384,7 +431,7 @@ class ControllerBoard(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp); self.generated(work)
             binary = self.build(work, True)
-            for mode in range(9):
+            for mode in range(11):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)

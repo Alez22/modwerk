@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
 import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
-import baseBinding from '../assets/octatrack-base-binding.json' with { type: 'json' }
+import baseBinding from '../../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
 import { BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
 
@@ -13,7 +13,7 @@ const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
   it('publishes each listed module with its checked runtime identity, ABI and record counts', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'recorder-loop-fix'])
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'recorder-loop-fix', 'analog-bassdrum'])
     for (const entry of manifest.packages) {
       const data = file(entry.path), view = new DataView(data.buffer), abi = view.getUint16(4)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)

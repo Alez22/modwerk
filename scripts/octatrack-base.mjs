@@ -10,9 +10,9 @@
 // Private transport candidates may add --usb-midi and --usb-audio "USB AUDIO OUT TRACKS MAIN CUE". --site-events builds the
 // base that owns sdk/machines/octatrack/events.json's sites and tables and dispatches them to subscribed packages;
 // --table-owners also fills its table-owner storage from module-adapters/table-owners.json (the reviewed table owners).
-// --resident-stock-hooks --controllers adds the resident Sidechain and Output Matrix engines and admits their packages
+// --resident-stock-hooks --controllers adds the resident Sidechain, Output Matrix and Analog BD engines and admits their packages
 // through committed trust rows (module-adapters/controller-policies.json). Every build also writes
-// src/engine/assets/octatrack-base-binding.json, which the base-bound packages link against (module_packages.py). The beta base:
+// sdk/machines/octatrack/base-binding.json, which the base-bound packages link against (module_packages.py). The beta base:
 //   npm run octatrack:base -- --stock OS.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners --resident-stock-hooks --controllers
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -37,7 +37,7 @@ if (!args.stock) throw new Error('Usage: npm run octatrack:base -- --stock OCTAT
 const root = resolve(import.meta.dirname, '..'), here = join(root, 'sdk/machines/octatrack/elekloader')
 const adapters = join(root, 'sdk/machines/octatrack/module-adapters')
 const committed = { package: join(root, 'src/engine/assets/octatrack-base.elemod'), fills: join(root, 'src/engine/assets/octatrack-base-fills.json'),
-  sources: join(root, 'src/engine/assets/octatrack-base-sources.json'), binding: join(root, 'src/engine/assets/octatrack-base-binding.json'),
+  sources: join(root, 'src/engine/assets/octatrack-base-sources.json'), binding: join(root, 'sdk/machines/octatrack/base-binding.json'),
   policies: join(adapters, 'controller-policies.json') }
 const asm = process.env.ELEKLOADER_DSP_ASM ?? join(homedir(), '.cache/modwerk-upstream/octabam/vendor/dsp56300/build/source/dsp_host/dsp_asm')
 const python = (script, ...rest) => execFileSync('python3', ['-B', script.includes('/') ? script : join(here, script), ...rest], { stdio: 'inherit', env: { ...process.env, ELEKLOADER_DSP_ASM: asm } })
@@ -54,13 +54,14 @@ const build = (output, ...rest) => python('build_core.py', '--stock', args.stock
   ...(args['resident-stock-hooks'] ? ['--resident-stock-hooks'] : []),
   ...(args['saved-set-export'] ? ['--saved-set-export'] : []), ...rest)
 if (args.controllers) {
-  // The controller packages call the base's lease entries by address, and the base admits them by their hashes: build
-  // it with empty trust rows, encode the packages against that link, then build it again with their rows. build_core.py
-  // refuses the second build if any symbol moved (--controller-layout), so the packages hold for the final base.
+  // Sidechain, Output Matrix and Analog BD call the base's lease entries by address, and the base admits them by their
+  // hashes: build it with empty trust rows, encode the packages against that link (base_bound.py rows), then build it
+  // again with their rows. build_core.py refuses the second build if any symbol moved (--controller-layout), so the
+  // packages hold for the final base.
   if (!args['resident-stock-hooks']) throw new Error('--controllers needs --resident-stock-hooks.')
   const empty = join(work, 'empty'), encoded = join(work, 'controllers')
   build(empty)
-  python(join(adapters, 'stock_hook_controllers.py'), '--base-symbols', join(empty, 'symbols.json'), '--upstream', args.upstream, '--out', encoded)
+  python(join(adapters, 'base_bound.py'), 'rows', '--base-symbols', join(empty, 'symbols.json'), '--upstream', args.upstream, '--out', encoded)
   same(readFileSync(join(encoded, 'controller-policies.json')), committed.policies)
   build(core, '--controller-policies', committed.policies, '--controller-layout', join(empty, 'symbols.json'))
 } else build(core)
@@ -68,7 +69,7 @@ python('check_stock_free.py', join(core, 'base.elemod'), '--stock', args.stock, 
 for (const [key, file] of [['package', 'base.elemod'], ['fills', 'base-fills.json'], ['sources', 'base-sources.json']])
   same(readFileSync(join(core, file)), committed[key])
 // What the base-bound packages link against (module-adapters/base_bound.py): its identity, arena, pool and lease entries.
-python(join(adapters, 'base_bound.py'), core, ...(args.controllers ? ['--policies', committed.policies] : []), '-o', join(work, 'binding.json'))
+python(join(adapters, 'base_bound.py'), 'bind', core, ...(args.controllers ? ['--policies', committed.policies] : []), '-o', join(work, 'binding.json'))
 same(readFileSync(join(work, 'binding.json')), committed.binding)
 
 const stock = new Uint8Array(readFileSync(args.stock))

@@ -155,7 +155,10 @@ class StockHookControllers(unittest.TestCase):
                    revisions=[1, 1, 1], feature=2, requiredCores=1, version=1, imageBytes=64, entryName='page_levels',
                    entry=8, beginReturn=16, endReturn=24)
         self.assertEqual(controllers.policies_c([row]).count('\n'), 1)
-        for change in (dict(requiredCores=3), dict(feature=4, requiredCores=3), dict(entry=9), dict(endReturn=64),
+        # Analog BD's row (base_bound.py): feature 4 on both cores, and nothing else for it.
+        self.assertEqual(controllers.policies_c([dict(row, feature=4, requiredCores=3)]).count('\n'), 1)
+        for change in (dict(requiredCores=3), dict(feature=4, requiredCores=1), dict(feature=8, requiredCores=3),
+                       dict(entry=9), dict(endReturn=64),
                        dict(beginReturn=24), dict(packageSha256='00' * 32), dict(revisions=[1, 2, 1]), dict(version=2)):
             with self.assertRaises(ValueError):
                 controllers.policies_c([dict(row, **change)])

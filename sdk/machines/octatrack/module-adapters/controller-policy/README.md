@@ -1,10 +1,12 @@
 # Controller association, transport, write lease and board
 
 These files hold the board-only lifetime contract for the resident Sidechain,
-Output Matrix and Analog BD engines. `controller_board.c` binds Sidechain and
-Output Matrix packages to it from the compiled trust rows (empty by default);
-Analog BD stays closed. The strong buffer-policy bridge has zero entries and
-refuses every buffer and fixed-resource claim.
+Output Matrix and Analog BD engines. `controller_board.c` binds their packages
+to it from the compiled trust rows (empty by default; the beta base's are
+`module-adapters/controller-policies.json`). Analog BD's reset restores its
+engine's authored boot record (its tables) rather than zeros. The strong
+buffer-policy bridge has zero entries and refuses every buffer and
+fixed-resource claim.
 
 `controller_association` accepts a trusted compiled declaration and keeps the
 encoded package SHA256, source-policy SHA256, module and policy/state/parameter

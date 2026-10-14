@@ -20,12 +20,18 @@ unsigned modwerk_controller_policy_entries(void);
 uint8_t mw_controller_board_test_read8(uint32_t);
 int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi);
 uint8_t *mw_controller_board_test_donor(uint32_t);
+const uint8_t *mw_controller_board_test_ab(unsigned core, const uint8_t **end);
 #define READ8(a) mw_controller_board_test_read8(a)
+#define AB_RECORDS(c, end) mw_controller_board_test_ab(c, end)
 #define UI_CLEAR(lo, hi) mw_controller_board_test_ui(lo, hi)
 #define DONOR(a) mw_controller_board_test_donor(a)
 #else
 #define READ8(a) (*(volatile const uint8_t *)(uintptr_t)(a))
 #define DONOR(a) ((uint8_t *)(uintptr_t)(a))
+/* Analog BD's engine records, as the resident boot uploads them (resident_boot.py). */
+extern const uint8_t mw_resident_ab_x_A[], mw_resident_ab_x_A_end[], mw_resident_ab_x_B[], mw_resident_ab_x_B_end[];
+static const uint8_t *AB_RECORDS(unsigned c, const uint8_t **end)
+{ *end = c ? mw_resident_ab_x_B_end : mw_resident_ab_x_A_end; return c ? mw_resident_ab_x_B : mw_resident_ab_x_A; }
 static int board_read(void *context, uint32_t address, void *out, uint32_t length)
 {
     (void)context;
@@ -52,9 +58,38 @@ static uint8_t staged[PAGE_BYTES];
 static int same(const void *a, const void *b, unsigned n)
 { const uint8_t *x = a, *y = b; while (n--) if (*x++ != *y++) return 0; return 1; }
 static int nonzero(const uint8_t *p, unsigned n) { while (n--) if (*p++) return 1; return 0; }
-static unsigned cores(unsigned feature) { return feature == 1u ? 3u : feature == 2u ? 1u : 0u; }
-/* stock_hooks reset totals: SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A. */
-static unsigned total(unsigned feature, unsigned c) { return !(cores(feature) >> c & 1u) ? 0u : feature == 1u ? 1042u : 193u; }
+static unsigned cores(unsigned feature) { return feature == 1u || feature == 4u ? 3u : feature == 2u ? 1u : 0u; }
+/* stock_hooks reset totals: SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A; Analog BD X
+ * $2840-$36ff on both cores (resident_dsp.resource_ranges, resident_driver.py). */
+#define AB_WORDS 3776u
+static unsigned total(unsigned feature, unsigned c)
+{ return !(cores(feature) >> c & 1u) ? 0u : feature == 1u ? 1042u : feature == 2u ? 193u : AB_WORDS; }
+/* Sidechain's and Matrix's authored initialization is zero; Analog BD's engine is not (its tables). Its reset
+ * restores what the resident boot uploaded, from the same authored record: [space, address, count] and then each
+ * word, three bytes little-endian, packed as zero and literal runs (resident_boot.pack_zeros). Decoded once per core;
+ * a record that is not exactly x:$2840 with AB_WORDS words never resets (the slot cannot become ready). */
+static uint32_t ab_init[2][AB_WORDS];
+static uint8_t ab_state[2]; /* 0 not decoded, 1 ready, 2 refused */
+static int ab_decode(unsigned c)
+{
+    static const uint8_t head[9] = {1, 0, 0, 0x40, 0x28, 0, (uint8_t)AB_WORDS, (uint8_t)(AB_WORDS >> 8), 0};
+    const uint8_t *end, *p = AB_RECORDS(c, &end);
+    uint32_t at = 0, need = 9u + 3u * AB_WORDS;
+    if (ab_state[c]) return ab_state[c] == 1u;
+    ab_state[c] = 2u;
+    while (p < end) {
+        unsigned token = *p++, n = (token & 127u) + 1u;
+        if (n > need - at || (!(token & 128u) && n > (uint32_t)(end - p))) return 0;
+        for (unsigned i = 0; i < n; ++i, ++at) {
+            unsigned byte = token & 128u ? 0u : *p++;
+            if (at < 9u) { if (byte != head[at]) return 0; }
+            else ab_init[c][(at - 9u) / 3u] |= (uint32_t)byte << (8u * ((at - 9u) % 3u));
+        }
+    }
+    if (at != need) return 0;
+    ab_state[c] = 1u;
+    return 1;
+}
 static int same_identity(const struct mw_controller_identity *a, const struct mw_controller_identity *b)
 {
     return same(a->package_sha256, b->package_sha256, 32) && same(a->source_policy_sha256, b->source_policy_sha256, 32) &&
@@ -240,16 +275,17 @@ static int roots_clear(void *u, const struct mw_controller_binding *b)
     if (b->identity.feature == 2u && (READ8(MATRIX_MODE) == 2u || READ8(MATRIX_MODE_CS1) == 2u)) return 0;
     return b->canonical_extent <= UINTPTR_MAX - b->extent_bytes && UI_CLEAR(b->canonical_extent, b->canonical_extent + b->extent_bytes);
 }
-/* The authored initialization of both engines is zero (resident_dsp.initialization_records). */
+/* Sidechain's and Matrix's authored initialization is zero (resident_dsp.initialization_records); Analog BD's is
+ * its boot record. Either array stays unchanged through the job's release. */
 static int reset_source(void *u, const struct mw_controller_binding *b, unsigned c, uint32_t offset, const uint32_t **words, unsigned *count)
 {
     static const uint32_t zeros[24];
     (void)u;
     unsigned f = b->identity.feature, n = c < 2u ? total(f, c) : 0u;
-    if (!n || offset >= n || !words || !count) return 0;
+    if (!n || offset >= n || !words || !count || (f == 4u && !ab_decode(c))) return 0;
     unsigned k = n - offset > 24u ? 24u : n - offset;
     if (f == 1u && offset < 528u && k > 528u - offset) k = 528u - offset; /* one owned range per chunk */
-    *words = zeros; *count = k; return 1;
+    *words = f == 4u ? ab_init[c] + offset : zeros; *count = k; return 1;
 }
 /* Known from the dormant boot upload and every ACKed owned CAS since; any
  * uncertain job on a core makes it unknown for the rest of the boot. */

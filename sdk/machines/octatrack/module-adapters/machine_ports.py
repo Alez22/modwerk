@@ -173,8 +173,8 @@ def effective(module, sdk_root, work, registry=None, path=PORTS):
         effective_module = controller.port(effective_module, sdk_root, work / 'controller')
     price = (entry or {}).get('price')
     if price and (APP / price['source']).is_file():
-        declared = json.loads((APP / price['source']).read_text())
-        if (declared.get('perVoice'), declared.get('perCoreWhileEnabled'), declared.get('kind')) != (
+        measured = json.loads((APP / price['source']).read_text())
+        if (measured.get('perVoice'), measured.get('perCoreWhileEnabled'), measured.get('kind')) != (
                 price['voice'], price['engine'], price['kind'] + '-instructions'):
             raise ValueError('%s: its machine port\'s price differs from %s' % (module.name, price['source']))
     if entry:

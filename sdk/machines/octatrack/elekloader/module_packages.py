@@ -25,10 +25,10 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
 - an entry with "tables" (Mute Modes): its units and grown stock tables (build.py --octabam-tables) from the reviewed
   table recipes in module-adapters/candidate-recipes.json; the base admits it through its reviewed table declaration
   (module-adapters/table-owners.json, built into the base);
-- an entry with "base" (Sidechain Compressor, Output Matrix, CC Map, Recorder Loop Fix): bound to the exact public
-  base, whose IDENTIFY digest its manifest entry names as requiredBase (module-adapters/base_bound.py). The controller
-  packages call the base's write-lease entries and the base admits them through the trust rows built into it; the
-  cave ports are linked for its arena and runtime pool. They link against src/engine/assets/octatrack-base-binding.json,
+- an entry with "base" (Sidechain Compressor, Output Matrix, Analog BD, CC Map, Recorder Loop Fix): bound to the
+  exact public base, whose IDENTIFY digest its manifest entry names as requiredBase (module-adapters/base_bound.py).
+  The controller packages and Analog BD call the base's write-lease entries and the base admits them through the trust
+  rows built into it; the cave ports are linked for its arena and runtime pool. They link against sdk/machines/octatrack/base-binding.json,
   which `npm run octatrack:base` writes from the base it built. Same tools as "octabam".
 To add a module, add its entry (id and figures) to the manifest and run this.
 
@@ -213,7 +213,7 @@ def main():
             made = dict(entry, **capabilities(data), version=version, name=name, module=data[28:32].hex(), bytes=len(data),
                         sha256=hashlib.sha256(data).hexdigest(), path=path)
             if entry.get('base'):
-                made['requiredBase'] = json.loads((APP / 'src/engine/assets/octatrack-base-binding.json').read_text())['identity']
+                made['requiredBase'] = json.loads((APP / 'sdk/machines/octatrack/base-binding.json').read_text())['identity']
             entries.append(made)
             if a.check:
                 same = made == entry and (PUBLIC / path).is_file() and (PUBLIC / path).read_bytes() == data
