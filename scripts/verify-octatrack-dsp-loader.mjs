@@ -32,7 +32,13 @@
 // time, must hold each site's new bytes while it is live (kept bytes as stock, relocated words at one base) and its
 // image's first 64 bytes, every relocation word and every original stock copy there,
 // and every site the bytes from before once it is removed).
-// Additional sites packages can be passed in SECOND, comma-separated; each is installed then removed in turn.
+// Additional sites packages can be passed in SECOND, comma-separated; each is installed then removed in turn. A removal
+// the base answers RUNTIME_BUSY (5: a resident controller's hooks are still being disabled) is staged again.
+// controllers (PACKAGE Sidechain's, SECOND Output Matrix's encoded controller packages, stock_hook_controllers.py, for
+// a base built with their trust rows): each alone, then both: installed and kept, its registry slot ACTIVE (every
+// reset and enable ACKed by the emulated DSPs), Sidechain's COMPRESSOR page applied in place and restored, MATRIX
+// entered and left through the AUDIO page's actions, removal refused in MATRIX and taken once disabled, and a trial
+// undone (rollback) after activation, retried while the base disables it.
 // SCENARIO:MODULE names the module by its catalogue id (src/engine/assets/dsp-packages.json); E-Verb by default.
 // The card needs a project whose Part 1 has no module effect on T1, T2, T5 or T6.
 // Emulator evidence only: executed instructions, no hardware timing or audio.
@@ -116,6 +122,17 @@ if (mode === 'dumps') {
     await session.stage({ base, data, sha256: sha(data) }); await session.activate(); await session.startTrial()
     await session.holdTrial(); await session.accept(); await session.leaveUploadMode()
   }
+  const refusal = async () => (await transport.selftest(false))?.refusal
+  // Stage, publish and keep, again while the base answers RUNTIME_BUSY (a resident controller still disabling).
+  const keepRetry = async (data, what) => {
+    for (let tries = 0; ; tries++) {
+      try { await keep(data); return tries } catch (error) {
+        const why = await refusal()
+        if (why !== 5 || tries >= 60) throw new Error(`${what}: ${error.message} (loader refusal ${why})`)
+        await session.cancel().catch(() => {}); await settle(30)
+      }
+    }
+  }
   const pick = async (track, slot, chooserRow) => {
     const [, queued] = await bench.command(`call 0x${symbols.modwerk_dsp_pick.toString(16)} ${slot} ${track} ${chooserRow}`)
     assert.equal(Number(queued), 1, 'the base queues the pick')
@@ -175,6 +192,95 @@ if (mode === 'dumps') {
   // Install once the project load has set the map (fxmap.c, battery RAM 0x100fe000), as a user would: handles follow
   // the project, and a large package's commit does not wait behind the load's engine work.
   for (let tries = 0; tries < 120 && (await long(0x100fe000)) >>> 8 !== 0x4d5746; tries++) await settle(10) // 'MWFX', or 'MWF' and the id count
+  if (scenario === 'controllers') {
+    const peek = async (address, n) => {
+      const out = Buffer.alloc(n + 8), from = address - address % 4
+      for (let a = from; a < address + n; a += 4) out.writeUInt32BE(await long(a), a - from)
+      return out.subarray(address - from, address - from + n)
+    }
+    const SLOT = 180, STATE = 172, MODULE = 64, ACTIVE = 6, RELEASED = 10, CUE_CFG = 0x80000037, CUE_CFG_CS1 = 0x100b1497
+    const COMP = 0x400d5a82, FIELDS = [[70, 24], [102, 4], [186, 16], [234, 4], [394, 8]] // names, defaults, counts, KEY formatter, enables
+    const registry = symbols.modwerk_controller_registry
+    const states = async module => {
+      const out = []
+      for (let i = 0; i < 6; i++) if (await long(registry + SLOT * i + MODULE) === module) out.push(await byte(registry + SLOT * i + STATE))
+      return out
+    }
+    const until = async (module, state, what) => {
+      for (let tries = 0; tries < 200; tries++) { if ((await states(module)).includes(state)) return; await settle(20) }
+      throw new Error(`${what}: slot states ${await states(module)}`)
+    }
+    const page = async () => Buffer.concat(await Promise.all(FIELDS.map(([o, n]) => peek(COMP + o, n))))
+    const stockPage = await page()
+    const packages = [file, second].map(path => {
+      const data = new Uint8Array(readFileSync(path)), view = new DataView(data.buffer)
+      return { data, id: view.getUint32(28), ...unpack(data) }
+    })
+    const [sc, matrix] = packages
+    const imageAt = async p => { // the live image: a site's relocated word less the offset the package holds
+      const site = p.sites.find(s => s.relocations.length), o = site.relocations[0]
+      return (await long(site.address + o) - Buffer.from(site.code).readUInt32BE(o)) >>> 0
+    }
+    const checkPage = async live => {
+      const now = await page()
+      if (!live) return assert.deepEqual(now, stockPage, 'COMPRESSOR\'s page is stock again')
+      const at = await imageAt(sc), formatter = now.readUInt32BE(24 + 4 + 16)
+      assert.equal(now.toString('latin1', 0, 24).replace(/\0+/g, ' ').trim(), 'KEY KFLT KGN MON', 'the KEY page names')
+      assert(formatter >= at && formatter < at + sc.image.length, 'the KEY formatter is the package\'s own')
+    }
+    const install = async (p, name) => {
+      await keepRetry(p.data, name + ' install'); await until(p.id, ACTIVE, name + ' activation')
+      console.log(`${name}: installed and kept; its controller is ACTIVE`)
+    }
+    const remove = async (p, name) => {
+      const tries = await keepRetry(removal(base, p.id).data, name + ' removal')
+      await until(p.id, RELEASED, name + ' retirement')
+      for (const site of p.sites) assert.notDeepEqual(await peek(site.address, Math.min(site.length, 4)), Buffer.from(site.code).subarray(0, 4))
+      console.log(`${name}: removed after ${tries} RUNTIME_BUSY answer(s); released`)
+    }
+    const undo = async (p, name) => {
+      await session.stage({ base, data: p.data, sha256: sha(p.data) }); await session.activate(); await session.startTrial()
+      await until(p.id, ACTIVE, name + ' activation in the trial')
+      let tries = 0
+      for (;; tries++) {
+        try { await session.rollback(); break } catch (error) {
+          if (session.status?.phase !== 'recovery' || tries >= 60) throw error
+          await settle(30)
+        }
+      }
+      await session.leaveUploadMode()
+      await until(p.id, RELEASED, name + ' undo retirement')
+      console.log(`${name}: trial undone after activation (${tries} retried rollback(s)); released`)
+    }
+    const action = async index => { // NORMAL, STUDIO, MATRIX rows of the AUDIO page's CUE CFG actions (cue_actions)
+      const table = await long(0x400654c0)
+      return call(await long(table + 4 * index))
+    }
+    // Sidechain alone
+    await install(sc, 'Sidechain'); await checkPage(true)
+    await remove(sc, 'Sidechain'); await checkPage(false)
+    await undo(sc, 'Sidechain'); await checkPage(false)
+    // Output Matrix alone
+    await install(matrix, 'Output Matrix')
+    await action(2); assert.equal(await byte(CUE_CFG), 2); assert.equal(await byte(CUE_CFG_CS1), 2)
+    console.log('Output Matrix: MATRIX entered under its lease (CUE CFG and its CS1 mirror 2)')
+    await assert.rejects(keep(removal(base, matrix.id).data)); assert.equal(await refusal(), 7, 'RUNTIME_IN_USE in MATRIX')
+    await session.cancel().catch(() => {})
+    console.log('Output Matrix: removal refused while MATRIX is selected')
+    await action(0); assert.equal(await byte(CUE_CFG), 0); assert.equal(await byte(CUE_CFG_CS1), 0)
+    console.log('Output Matrix: MATRIX left for NORMAL under its lease')
+    await remove(matrix, 'Output Matrix')
+    await undo(matrix, 'Output Matrix')
+    // Both
+    await install(sc, 'Sidechain'); await install(matrix, 'Output Matrix'); await checkPage(true)
+    await action(2); assert.equal(await byte(CUE_CFG), 2); await action(1); assert.equal(await byte(CUE_CFG), 1)
+    console.log('both: MATRIX entered and left for STUDIO beside Sidechain')
+    await remove(matrix, 'Output Matrix'); assert.deepEqual(await states(sc.id), [ACTIVE]); await checkPage(true)
+    await undo(matrix, 'Output Matrix'); assert.deepEqual(await states(sc.id), [ACTIVE])
+    await remove(sc, 'Sidechain'); await checkPage(false)
+    console.log('controllers: install, activation, page, MATRIX, removal and undo passed, alone and together')
+    bench.socket.end(); process.exit(0)
+  }
   if (scenario === 'sites') {
     const peek = async (address, n) => { // ot_emu's USB bench reads no memory: a long at a time through `long`
       const out = Buffer.alloc(n + 8), from = address - address % 4
@@ -230,7 +336,7 @@ if (mode === 'dumps') {
         await verifyRuntimeRelocations(code, relocations, at, peek)
       }
       console.log(`installed: ${sites.length} sites hold, code and ${copies.length} stock copies at 0x${hex(at ?? 0)}; ${fills.length} authored initializers`)
-      await keep(removal(base, id).data)
+      await keepRetry(removal(base, id).data, 'removal')
       for (const [i, site] of sites.entries()) assert.deepEqual(await peek(site.address, site.length), before[i], `site 0x${hex(site.address)} after removal`)
       console.log(`removed: every site holds what it held before`)
     }
@@ -322,6 +428,13 @@ if (mode === 'dumps') {
   bench.socket.end()
 } else if (mode === 'check') {
   const [dir, out] = args, { proofs } = build(dir)
+  if (scenario === 'controllers') {
+    const drive = readFileSync(join(out, 'drive.txt'), 'utf8')
+    assert.match(drive, /controllers: install, activation, page, MATRIX, removal and undo passed, alone and together/)
+    assert.equal(readFileSync(join(out, 'dl_errors.bin')).readUInt32BE(0), 0, 'transport errors')
+    console.log('controllers: passed')
+    process.exit(0)
+  }
   if (scenario === 'sites') {
     const drive = readFileSync(join(out, 'drive.txt'), 'utf8'), log = readFileSync(join(out, 'log.txt'), 'utf8')
     assert.match(log, /M6a gate\s+: PASS/, 'all stock tasks, including the displaced idle initialization, must run')

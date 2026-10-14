@@ -13,13 +13,19 @@ unsigned modwerk_controller_policy_entries(void);
 #define MATRIX_MODE 0x80000037u     /* CUE CFG, 2 is MATRIX (output-matrix/matrix.s) */
 #define MATRIX_MODE_CS1 0x100b1497u /* its power-cycle mirror */
 #define QUIESCE_TICKS 600u          /* a disable for a removal nobody completes: ~10 s of UI ticks */
+#define PAGE_BYTES 0x192u           /* a stock effect descriptor (fxpage.c) */
+#define PAGE_LOW 0x40000400u        /* stock descriptors live in the OS image's RAM copy */
+#define PAGE_HIGH 0x400de1e0u
 #ifdef MW_CONTROLLER_BOARD_TEST
 uint8_t mw_controller_board_test_read8(uint32_t);
 int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi);
+uint8_t *mw_controller_board_test_donor(uint32_t);
 #define READ8(a) mw_controller_board_test_read8(a)
 #define UI_CLEAR(lo, hi) mw_controller_board_test_ui(lo, hi)
+#define DONOR(a) mw_controller_board_test_donor(a)
 #else
 #define READ8(a) (*(volatile const uint8_t *)(uintptr_t)(a))
+#define DONOR(a) ((uint8_t *)(uintptr_t)(a))
 static int board_read(void *context, uint32_t address, void *out, uint32_t length)
 {
     (void)context;
@@ -37,6 +43,10 @@ static struct mw_controller_transport transport;
 static uint32_t ticks, verified[MW_CONTROLLER_SLOTS]; /* verified: the generation whose ENABLE checked resources */
 static struct { uint32_t generation, since; uint8_t quiesce; } want[MW_CONTROLLER_SLOTS];
 static uint8_t started, closed, mask[2], mask_known;
+/* In-place page extensions: the stock descriptor's bytes before, the SHA-256 of what was written. */
+static struct { uint32_t generation, donor; uint8_t slot, applied; uint8_t saved[PAGE_BYTES], digest[32]; } pages[2];
+static uint32_t page_refused[MW_CONTROLLER_SLOTS];
+static uint8_t staged[PAGE_BYTES];
 #define REGISTRY modwerk_controller_registry
 
 static int same(const void *a, const void *b, unsigned n)
@@ -112,6 +122,85 @@ static int live(const struct mw_controller_binding *b)
             canonical == b->canonical_extent) return 1;
     }
     return 0;
+}
+
+/* A trusted image may begin with an MWPP record (stock_hook_controllers.page_record):
+ * its page extends a stock effect's own descriptor in place. Staged from the
+ * descriptor as it is now, checked against the record's stock SHA-256, into
+ * `staged`; `saved` gets the bytes before. Returns the descriptor's address. */
+static uint32_t be16(const uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
+static uint32_t be32(const uint8_t *p) { return be16(p) << 16 | be16(p + 2); }
+static uint32_t page_stage(const struct mw_controller_binding *b, uint8_t saved[PAGE_BYTES])
+{
+    uintptr_t exec = (uintptr_t)modwerk_machine_uncached((void *)b->canonical_extent) + b->image_offset;
+    const uint8_t *r = (const uint8_t *)exec; uint32_t n = b->image_bytes, at = 44u;
+    if (n < at || r[0] != 'M' || r[1] != 'W' || r[2] != 'P' || r[3] != 'P' || r[4] != 1u ||
+        r[5] > 64u || r[6] > 16u || r[7] > 8u) return 0;
+    uint32_t donor = be32(r + 8); uint8_t digest[MU_DIGEST_BYTES];
+    if (donor < PAGE_LOW || donor > PAGE_HIGH - PAGE_BYTES || (donor & 1u)) return 0;
+    const volatile uint8_t *d = DONOR(donor);
+    for (unsigned i = 0; i < PAGE_BYTES; ++i) staged[i] = saved[i] = d[i];
+    mu_sha256(staged, PAGE_BYTES, digest);
+    if (!same(digest, r + 12, 32)) return 0;
+    for (unsigned i = 0; i < r[5]; ++i, at += 8u) {
+        uint32_t off = at + 8u <= n ? be16(r + at) : PAGE_BYTES, w = at + 8u <= n ? r[at + 2] : 0, v = at + 8u <= n ? be32(r + at + 4) : 0;
+        if ((w != 1u && w != 2u && w != 4u) || r[at + 3] || off + w > PAGE_BYTES) return 0;
+        for (unsigned k = 0; k < w; ++k) staged[off + k] = (uint8_t)(v >> (8u * (w - 1u - k)));
+    }
+    for (unsigned i = 0; i < r[6]; ++i) {
+        if (at + 4u > n) return 0;
+        uint32_t off = be16(r + at), w = r[at + 2], len = r[at + 3], step = 4u + ((len + 3u) & ~3u);
+        if (!w || len >= w || off + w > PAGE_BYTES || step > n - at) return 0;
+        for (unsigned k = 0; k < w; ++k) staged[off + k] = k < len ? r[at + 4u + k] : 0;
+        at += step;
+    }
+    for (unsigned i = 0; i < r[7]; ++i, at += 8u) {
+        if (at + 8u > n) return 0;
+        uint32_t off = be16(r + at), o = be32(r + at + 4), v = (uint32_t)(exec + o);
+        if (be16(r + at + 2) || off + 4u > PAGE_BYTES || o >= n || (o & 1u)) return 0;
+        for (unsigned k = 0; k < 4u; ++k) staged[off + k] = (uint8_t)(v >> (24u - 8u * k));
+    }
+    return donor;
+}
+/* Masked only for the byte copy: the descriptor never changes under a reader. */
+static void page_write(uint32_t donor, const uint8_t *from)
+{
+    volatile uint8_t *d = DONOR(donor);
+    uint32_t irq = modwerk_machine_mask();
+    for (unsigned i = 0; i < PAGE_BYTES; ++i) d[i] = from[i];
+    modwerk_machine_unmask(irq);
+}
+static unsigned page_of(unsigned at, uint32_t generation)
+{
+    for (unsigned k = 0; k < 2u; ++k) if (pages[k].applied && pages[k].slot == at && pages[k].generation == generation) return k;
+    return 2u;
+}
+static void page_apply(unsigned at)
+{
+    const struct mw_controller_binding *b = &REGISTRY.slots[at].binding;
+    unsigned k = 0;
+    if (page_refused[at] == b->generation || page_of(at, b->generation) < 2u) return;
+    while (k < 2u && pages[k].applied) ++k;
+    uint32_t donor = k < 2u ? page_stage(b, pages[k].saved) : 0;
+    for (unsigned j = 0; donor && j < 2u; ++j) if (pages[j].applied && pages[j].donor == donor) donor = 0; /* one extension per page */
+    if (!donor) { page_refused[at] = b->generation; return; }
+    page_write(donor, staged);
+    mu_sha256(staged, PAGE_BYTES, pages[k].digest);
+    pages[k].generation = b->generation; pages[k].donor = donor; pages[k].slot = (uint8_t)at; pages[k].applied = 1;
+}
+/* 1 reverted or none applied; 0 the page is not what was written: unknown, held. */
+static int page_revert(unsigned at)
+{
+    unsigned k = page_of(at, REGISTRY.slots[at].binding.generation);
+    if (k == 2u) return 1;
+    uint8_t digest[MU_DIGEST_BYTES];
+    const volatile uint8_t *d = DONOR(pages[k].donor);
+    for (unsigned i = 0; i < PAGE_BYTES; ++i) staged[i] = d[i];
+    mu_sha256(staged, PAGE_BYTES, digest);
+    if (!same(digest, pages[k].digest, 32)) return 0;
+    page_write(pages[k].donor, pages[k].saved);
+    pages[k].applied = 0;
+    return 1;
 }
 
 /* Providers (controller_transport.h). */
@@ -236,8 +325,11 @@ static void advance(unsigned at)
         break;
     case MW_CTL_PUBLISHING: case MW_CTL_ACTIVE:
         if (quiesce) {
+            /* The page leaves before the hooks: no descriptor names the image once it is disabled. */
+            if (!page_revert(at)) { (void)mw_controller_cancel(&REGISTRY, b); break; }
             if (!jobs(s)) for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) { begin(at, c, MW_CTL_DISABLE); break; }
-        } else if (s->state == MW_CTL_PUBLISHING) {
+        } else if (s->state == MW_CTL_ACTIVE) page_apply(at);
+        else {
             if (s->enable_acks == need && !jobs(s)) (void)mw_controller_publish(&REGISTRY, b);
             else for (unsigned c = 0; c < 2u; ++c) if ((need >> c & 1u) && !(s->enable_acks >> c & 1u)) begin(at, c, MW_CTL_ENABLE);
         }

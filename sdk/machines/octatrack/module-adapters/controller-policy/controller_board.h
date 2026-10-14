@@ -15,7 +15,9 @@
  * reserves and binds its exact owner generation, resets the feature's DSP
  * state on every required core, enables its dormant hooks and publishes it
  * ACTIVE. Only PUBLISHING/ACTIVE bindings grant write leases, so the module's
- * leased entries replay stock until then.
+ * leased entries replay stock until then. An image headed by an MWPP record
+ * extends a stock effect's page in place while ACTIVE (Sidechain's KEY page on
+ * COMPRESSOR): applied over the exact stock bytes, restored before disable.
  * Removal/replacement: admission asks the tick to disable the hooks first and
  * refuses the CF switch (RUNTIME_BUSY, the host retries) until every required
  * core ACKed the disable; Matrix also refuses while MATRIX is selected, and a
