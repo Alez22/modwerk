@@ -49,9 +49,15 @@ it('refuses a cross-compatibility clash before generation or any dependent check
 it.each(['sdk:check', 'lint', 'test', 'build:bundle', ''])('keeps every independent check mandatory and waits for all results (failure: %s)', failure => {
   const result = check(failure)
   expect(result.status).toBe(failure ? 1 : 0)
-  expect(result.scripts.slice(0, 9)).toEqual(['prepare', 'licenses:check', 'machines:check', 'modules:check', 'elekloader:check', 'modules:compat', 'licenses:generate', 'machines:generate', 'modules:generate'])
-  expect(result.scripts.slice(9).sort()).toEqual(['build:bundle', 'lint', 'sdk:check', 'test', 'typecheck'])
+  expect(result.scripts.slice(0, 10)).toEqual(['prepare', 'licenses:check', 'machines:check', 'modules:check', 'elekloader:check', 'modules:compat', 'modules:pairs', 'licenses:generate', 'machines:generate', 'modules:generate'])
+  expect(result.scripts.slice(10).sort()).toEqual(['build:bundle', 'lint', 'sdk:check', 'test', 'typecheck'])
   expect(result.scripts.indexOf('build:bundle')).toBeGreaterThan(result.scripts.indexOf('typecheck'))
+})
+
+it('refuses stale or unflagged native pairs before generation or any dependent check can run', () => {
+  const result = check('modules:pairs')
+  expect(result.status).toBe(1)
+  expect(result.scripts).toEqual(['prepare', 'licenses:check', 'machines:check', 'modules:check', 'elekloader:check', 'modules:compat', 'modules:pairs'])
 })
 
 it('prevents bundling on a type error while finishing the other checks', () => {

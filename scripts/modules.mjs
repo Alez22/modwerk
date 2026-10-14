@@ -10,7 +10,6 @@ import { isDocumentationPath, manifestBuildFields } from './module-source.mjs'
 import { resolveModuleFile as file } from '../src/catalog/module-folder.ts'
 import { BASELINE_PATH, WAIVERS_PATH, parseQualificationBaseline, parseReleaseWaivers, qualificationReports, requireFolderQualification } from './module-qualification.mjs'
 import { parseRetainedResourceImpacts, requireModuleResourceImpact } from '../src/catalog/resource-impact.ts'
-import { compactChecks, passingPairs } from '../src/catalog/compatibility-checks.ts'
 import { USB_WAIVERS_PATH, parseUsbPackageWaivers } from './retained-evidence.mjs'
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),modules=resolve(root,'sdk/octabam/modules')
 const args=process.argv.slice(2),write=args.includes('--write'),baseIndex=args.indexOf('--base'),base=baseIndex<0?null:args[baseIndex+1]
@@ -55,13 +54,5 @@ const selected=[],seen=new Set()
 for(const item of catalog.modules){const document=documents.get(item.id);if(!document||item.version!==document.version||seen.has(item.id))throw new Error('Catalog must pin each included module exactly once at its declared version: '+item.id);if(typeof item.addedAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(item.addedAt)||!Number.isFinite(Date.parse(item.addedAt)))throw new Error('Catalog entry needs addedAt, the UTC time the module was first added (for example 2026-10-05T12:00:00Z): '+item.id);if(previouslyIncluded&&!previouslyIncluded.has(item.id))requireModuleUiForPublication(document);seen.add(item.id);selected.push(document)}
 const generated=JSON.stringify({schemaVersion:2,revision:catalog.sourceRevision,modules:selected},null,2)+'\n',target=resolve(root,'src/catalog/module-documents.json')
 if(write){await mkdir(dirname(target),{recursive:true});await writeFile(target,generated);const mediaRoot=resolve(root,'public/module-media');await rm(mediaRoot,{recursive:true,force:true});for(const document of selected){for(const item of document.media){const destination=resolve(mediaRoot,document.id,document.version,item.path);await mkdir(dirname(destination),{recursive:true});await copyFile(await file(resolve(modules,document.id),item.path),destination)}const thumbnail=await file(resolve(modules,document.id),'presentation/thumbnail.svg').catch(error=>{if(error.code==='ENOENT')return null;throw error});if(thumbnail){const destination=resolve(mediaRoot,document.id,document.version,'presentation/thumbnail.svg');await mkdir(dirname(destination),{recursive:true});await copyFile(thumbnail,destination)}}}else if(await readFile(target,'utf8')!==generated)throw new Error('Generated catalog is stale. Run npm run modules:generate and include it in the PR.')
-// The site reads the native declaration checks in their compact form; the full record stays the exporters' file.
-const compact=compactChecks(await json(resolve(root,'src/catalog/native-metadata.json')))
-// Pair rules on every page read only the passing pairs; the full checks load with the compatibility panel and the firmware worker.
-for(const [name,content] of [['compatibility-checks.json',compact],['compatibility-pairs.json',{revision:compact.revision,passing:passingPairs(compact)}]]){
- const target=resolve(root,'src/catalog',name),generated=JSON.stringify(content)+'\n'
- if(write)await writeFile(target,generated)
- else if((await readFile(target,'utf8').catch(()=>''))!==generated)throw new Error('src/catalog/'+name+' is stale; run npm run modules:generate')
-}
 const machineModules=await generateMachineModules({root,write,baseCommit})
 console.log('Validated '+documents.size+' Octatrack module folders and '+machineModules+' elemod module folders; '+selected.length+' version-pinned catalog entries; all CPU/DSP/memory gauges populated; two exact owner-waived utility versions retain untested hardware/unmeasured timing; worst-case cycles, exact memory, hardware test evidence and complete documentation/tutorial/screenshots required for new modules and runtime/resource changes; editorial updates may retain evidence from approved, byte-identical runtime inputs'+(baseCommit?'; version bumps and OT UI publication evidence checked against '+baseCommit:'.'))
