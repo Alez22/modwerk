@@ -21,7 +21,10 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
   so the package carries no stock bytes. Same tools as "octabam";
 - an "octabam" entry with "standalone" (Play Modes, Tape Echo, Euclid): its authored runs that coincide with stock
   are rebuilt from the user's OS by its reviewed recipe in module-adapters/standalone-recipes.json (build.py
-  --standalone; owner decision 14 Oct 2026).
+  --standalone; owner decision 14 Oct 2026);
+- an entry with "tables" (Mute Modes): its units and grown stock tables (build.py --octabam-tables) from the reviewed
+  table recipes in module-adapters/candidate-recipes.json; the base admits it through its reviewed table declaration
+  (module-adapters/table-owners.json, built into the base).
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
@@ -57,6 +60,8 @@ def build(entry, out, upstream, private_stock=None):
         args += ['--octabam-machine', entry['id'], '--upstream', str(upstream)]
     if entry.get('standalone'):
         args += ['--standalone']
+    if entry.get('tables'):
+        args += ['--octabam-tables', entry['id'], '--upstream', str(upstream)]
     if private_stock:
         args += ['--private-port', '--stock', str(private_stock)]
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)
@@ -139,7 +144,7 @@ def dsp_words(data):
 
 def tools(entry, upstream):
     """Whether this machine can build the entry: an Octabam or machine one needs m68k-elf binutils and Elekloader's checkout."""
-    return not (entry.get('octabam') or entry.get('machine')) or bool(
+    return not (entry.get('octabam') or entry.get('machine') or entry.get('tables')) or bool(
         shutil.which('m68k-elf-as') and (upstream / 'elekloader/sdk/octabam.py').is_file())
 
 

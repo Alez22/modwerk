@@ -222,6 +222,21 @@
       "bytes": 14846,
       "sha256": "abf1cda888e617408b4d088bb9afd536f9ea96c1bdb90339e56a3932d300bced",
       "path": "octatrack-modules/playmodes/0.1.1-experimental.mwrm"
+    },
+    {
+      "id": "mute-modes",
+      "tables": true,
+      "abi": 8,
+      "features": 131,
+      "sites": 14,
+      "copies": 9,
+      "fills": 0,
+      "version": "0.2.1-experimental",
+      "name": "Mute Modes",
+      "module": "73bab3b1",
+      "bytes": 2702,
+      "sha256": "c35b154d7a6ff4d9affc339387d68bde87554aec82a87b60059b6307f5b2b848",
+      "path": "octatrack-modules/mute-modes/0.2.1-experimental.mwrm"
     }
   ]
 }

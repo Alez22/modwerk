@@ -27,6 +27,11 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
     native build's raw detours (comparison evidence only: a base with site
     events refuses that package). No module dependencies, DSP
     claims or runtime state contracts are inferred from a successful compile.
+    Without `stock_at` (the published build, build.py --octabam-tables) the
+    package is the same: only the proofs against the original OS (each guard,
+    and both table reconstructions against the native insertion oracle) are
+    left to a build that has it; the base checks every guard and copy against
+    its running stock at install.
     """
     sdk_root, work = Path(sdk_root).resolve(), Path(work).resolve()
     if (not module.linked or module.key not in selected or module.requires or module.keeps
@@ -84,7 +89,7 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
     image, symbols, bss, offsets = builder.link_units(objects, cross, 0, work)
     copies = [copy for plan in plans for copy in runtime_tables.bind(plan, symbols, image, offsets)]
     rebuilt, fresh_high = bytearray(image), bytearray((work / 'image').read_bytes())
-    for at, address, length, digest in copies:
+    for at, address, length, digest in copies if stock_at is not None else ():
         data = stock_at(address, length)
         if hashlib.sha256(data).digest() != digest:
             raise ValueError('A stock table reconstruction guard changed.')
@@ -92,9 +97,9 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
     placed_high = bytearray(rebuilt)
     for at in offsets:
         struct.pack_into('>I', placed_high, at, (struct.unpack_from('>I', placed_high, at)[0] + builder.SHIFT) & 0xffffffff)
-    if placed_high != fresh_high:
+    if stock_at is not None and placed_high != fresh_high:
         raise ValueError('Table reconstruction differs from fresh high-origin native assembly.')
-    for table, plan in zip(module.tables, plans):
+    for table, plan in zip(module.tables, plans) if stock_at is not None else ():
         start = symbols[plan['symbol']]
         for data, placement in ((rebuilt, 0), (placed_high, builder.SHIFT)):
             moved = {name: value + placement for name, value in symbols.items()}
@@ -123,7 +128,7 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
     for poke in module.pokes:
         digest, checked = builder.stock_digest(poke.expect)
         sites.append((poke.addr, digest, bytes(poke.write), [], 0, checked))
-    for address, digest, _, _, _, checked in sites:
+    for address, digest, _, _, _, checked in sites if stock_at is not None else ():
         if hashlib.sha256(stock_at(address, checked)).digest() != digest:
             raise ValueError('A guarded stock site changed.')
     hooks = []

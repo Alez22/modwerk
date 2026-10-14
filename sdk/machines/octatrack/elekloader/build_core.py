@@ -40,11 +40,12 @@ RETIREMENT_SOURCES = tuple('analog-bd-parts/' + n for n in ('analog_bd_part_rest
                                                           'analog_bd_part_board.c', 'analog_bd_part_board.h'))
 
 
-def check_trust_storage(main_image, mapping, layout, main_load):
-    """Verify the real linked default-empty trust reservations before handoff.
+def check_trust_storage(main_image, mapping, layout, main_load, table=None):
+    """Verify the real linked trust reservations before handoff.
 
-    Private declaration filling is separate: this compiled baseline always has
-    zero admitted records, with storage inside the appended initialized .run.
+    The machine storage is always the empty baseline. The table storage is the
+    empty baseline too, or with `table` exactly the reviewed table-owner records
+    fill_table_owners() put there; both stay inside the appended initialized .run.
     """
     ddr, run = layout.get('ddr'), layout.get('run_load')
     if (not isinstance(ddr, list) or len(ddr) != 2 or
@@ -60,12 +61,16 @@ def check_trust_storage(main_image, mapping, layout, main_load):
             raise ValueError('Missing or out-of-bounds private trust reservation: ' + name)
         at = run - main_load + address - ddr[0]
         expected = magic + bytes((revision, 0, capacity)) + bytes(length - 7)
+        if table is not None and name == 'modwerk_table_declarations':
+            if len(table) != length or table[:4] != magic or table[4] != revision or table[6] != capacity:
+                raise ValueError('The reviewed table-owner records do not fit their reservation.')
+            expected = table
         if at < 0 or at + length > len(main_image) or main_image[at:at + length] != expected:
-            raise ValueError('Private trust reservation is not the exact empty baseline: ' + name)
+            raise ValueError('Private trust reservation is not the exact expected storage: ' + name)
         if any(address < end and start < address + length for start, end in spans):
             raise ValueError('Private trust reservations overlap.')
         spans.append((address, address + length))
-        proof[name] = dict(address=hex(address), bytes=length, count=0,
+        proof[name] = dict(address=hex(address), bytes=length, count=expected[5],
                           sha256=hashlib.sha256(expected).hexdigest())
     return proof
 
@@ -833,6 +838,59 @@ def stock_reference(parts, offset, length, address, stock_at=None):
     return before + [['stock', hex(address), length]] + after
 
 
+def replace_literal(parts, offset, old, new):
+    """Replace authored literal bytes (hex parts only) at a section offset: layout, relocations and stock parts stay."""
+    if len(old) != len(new) or not isinstance(offset, int) or offset < 0:
+        raise ValueError('A literal replacement keeps its exact length.')
+    out, at, seen, end = [], 0, bytearray(), offset + len(old)
+    for part in parts:
+        size = len(part[1]) // 2 if part[0] == 'hex' else part[2]
+        lo, hi = max(at, offset), min(at + size, end)
+        if lo >= hi:
+            out.append(part)
+        else:
+            if part[0] != 'hex':
+                raise ValueError('Reserved storage holds a stock or fill part.')
+            data = bytearray(bytes.fromhex(part[1]))
+            seen += data[lo - at:hi - at]
+            data[lo - at:hi - at] = new[lo - offset:hi - offset]
+            out.append(['hex', data.hex()])
+        at += size
+    if bytes(seen) != old:
+        raise ValueError('The reserved storage is not the exact empty reservation.')
+    return out
+
+
+def fill_table_owners(document, owners):
+    """The reviewed table owners (owner decision 14 Oct 2026, module-adapters/table-owners.json): each declaration is
+    validated against its exact published package (table_declarations.validate) and the records go into the base's
+    fixed table-owner storage before the image is built, so the base admits those packages and no other. Returns the
+    storage bytes and the files read."""
+    spec = importlib.util.spec_from_file_location('base_table_declarations',
+                                                  APP / 'sdk/machines/octatrack/module-adapters/table_declarations.py')
+    declarations = importlib.util.module_from_spec(spec); spec.loader.exec_module(declarations)
+    doc = json.loads(owners.read_text())
+    if doc.get('schema') != 1 or not isinstance(doc.get('owners'), list) or not doc['owners']:
+        raise ValueError('table-owners.json: {"schema": 1, "owners": [...]}.')
+    entries, read = [], {str(owners.relative_to(APP)): sha(owners.read_bytes())}
+    for owner in doc['owners']:
+        if set(owner) != {'module', 'package', 'declaration', 'recipe', 'reviewedSha256', 'approval'}:
+            raise ValueError('A table owner names its module, package, declaration, recipe, reviewed hash and approval.')
+        files = {}
+        for key in ('package', 'declaration', 'recipe'):
+            path = (APP / owner[key]).resolve()
+            if not path.is_relative_to(APP) or not path.is_file():
+                raise ValueError('A table owner file is missing or outside the repository: ' + owner[key])
+            files[key] = path.read_bytes()
+            read[owner[key]] = sha(files[key])
+        entries.append(dict(files, reviewed_sha256=owner['reviewedSha256'], source_root=APP))
+    table = declarations.generate(entries)
+    section, offset = document['symbols']['modwerk_table_declarations']
+    document['sections'][section]['parts'] = replace_literal(document['sections'][section]['parts'], offset,
+                                                             declarations.empty(), table)
+    return table, read
+
+
 def resident_effect_fills(tag, fx, words, section, offset, effect, original, hooks):
     """Copy original stock words around the exact authored COMP proc bridge.
 
@@ -1014,6 +1072,9 @@ def main():
                         help='Private fixed-two-file read-only recovery snapshot. No card writes.')
     parser.add_argument('--site-events', action='store_true',
                         help='own the stock sites of sdk/machines/octatrack/events.json and dispatch their events to subscribed modules')
+    parser.add_argument('--table-owners', type=Path,
+                        help='reviewed table owners (module-adapters/table-owners.json): their records go into the base\'s '
+                             'table-owner storage, so it admits those exact packages')
     parser.add_argument('--resident-stock-hooks', action='store_true',
                         help='Private dormant resident SC/Matrix/Analog BD packing. Does not admit their runtime controllers.')
     parser.add_argument('--controller-policies', type=Path,
@@ -1316,6 +1377,12 @@ def main():
     inputs['sdk/runtime/startup/build.py'] = sha((artwork.parent/'build.py').read_bytes())
     inputs['sdk/runtime/startup/base.json'] = sha((artwork.parent/'base.json').read_bytes())
     inputs['sdk/runtime/startup/base_art.py'] = sha((artwork.parent/'base_art.py').read_bytes())
+    if args.table_owners:  # the owners list and every package, declaration and recipe it names
+        owners = args.table_owners.resolve()
+        inputs[str(owners.relative_to(APP))] = sha(owners.read_bytes())
+        for owner in json.loads(owners.read_text()).get('owners', []):
+            for key in ('package', 'declaration', 'recipe'):
+                inputs[owner[key]] = sha((APP / owner[key]).read_bytes())
     source_hash = sha(json.dumps(inputs, sort_keys=True, separators=(',', ':')).encode())
     chooser = json.loads((APP/'src/engine/assets/chooser-metadata.json').read_text())
     configuration = dict(fx1=['NONE', *chooser['stockFx1']], fx2=['NONE', *chooser['stockFx2']],
@@ -1555,6 +1622,11 @@ modwerk_retained_end:
             document['sections'][section]['parts'] = stock_reference(
                 document['sections'][section]['parts'], offset, int(found.group(2)), int(found.group(1), 16),
                 lambda a, n: image[a - device.main_load:a - device.main_load + n])
+    table_storage = None
+    if args.table_owners:  # the reviewed table owners' records, in the storage the base reserved (no relink)
+        table_storage, read = fill_table_owners(document, args.table_owners.resolve())
+        if any(inputs.get(name) != digest for name, digest in read.items()):
+            raise ValueError('A table owner file changed during the base build.')
     Path(path).write_text(json.dumps(document, indent=1)+'\n')
     if args.dsp_loader:  # the package without stock bytes, for Git and the browser: base.elemod and base-fills.json
         fills = [fill for t in 'AB' for fill in dsp_layout[t]['fills']]
@@ -1631,7 +1703,7 @@ modwerk_retained_end:
     # The unpacked image a RAM boot sends (`npm run device -- boot`); private like the rest.
     main_out = formats.main_image(formats.parse(str(out/'NOT_FLASH_CANDIDATE.bin'), device), device)
     trust_storage = check_trust_storage(run_pack.unpack(main_out, manifest['link']['layout'], mapping, device.main_load),
-                                        mapping, manifest['link']['layout'], device.main_load)
+                                        mapping, manifest['link']['layout'], device.main_load, table_storage)
     if saved_set_proof:
         saved_set_proof['storage'] = check_saved_set_storage(mapping, manifest['link']['layout'])
     zero_proof = None

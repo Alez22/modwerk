@@ -58,7 +58,7 @@ describe('startup-only private prepared modules', () => {
     const { folder } = await fixture(), prepared = await loadPreparedModules(folder, manifest, frontend)
     expect(prepared.info).toEqual({ base, moduleIds: ['cc-map'], admission: false })
     expect(prepared.catalogue.ids).toEqual([...manifest.packages.map(entry => entry.id), 'cc-map'])
-    expect(prepared.catalogue.ids).not.toContain('mute-modes')
+    expect(prepared.catalogue.ids.filter(id => id === 'mute-modes')).toHaveLength(1) // the published package; the held copy adds none
     expect(() => prepared.requireBase(['cc-map'], 'b'.repeat(64))).toThrow('exact observed')
     expect(() => prepared.requireBase(['cc-map'], base)).not.toThrow()
     expect(() => prepared.requireBase(['everb'], undefined)).not.toThrow()

@@ -29,7 +29,7 @@ class TableDeclarationTests(unittest.TestCase):
         (self.root / 'table.s').write_text('authored source snapshot\n')
         self.sources = {'table.s': sha((self.root / 'table.s').read_bytes())}
 
-    def entry(self, owner='quantizer', **changes):
+    def entry(self, owner='quantizer', hooks=(), **changes):
         _, count, insert, added, _, roots, refs, count_at, count_code = declarations.SHAPES[owner]
         image, relocations, sites, copies = bytearray(512), [], [], []
         offsets = [80, 160, 240]
@@ -45,7 +45,7 @@ class TableDeclarationTests(unittest.TestCase):
                     n = min(8, end - row) * 4
                     copies.append((base + 4 * (row + extra), roots[table] + 4 * row, n, bytes((table + 1,)) * 32))
         sites.append((count_at, bytes((4,)) * 32, count_code, [], 0, len(count_code)))
-        package = builder.package(bytes(image), 0, [], relocations, sites, name=owner,
+        package = builder.package(bytes(image), 0, list(hooks), relocations, sites, name=owner,
                                   hashed=True, title='TABLE', layout=1, copies=copies, abi=8)
         names = ['labels', 'getters', 'setters']
         captured = dict(schema=1, imageSha256=sha(bytes(image)), sources=self.sources,
@@ -79,6 +79,20 @@ class TableDeclarationTests(unittest.TestCase):
         with self.assertRaises(ValueError): declarations.validate(**dict(entry, recipe=entry['recipe'] + b' '))
         (self.root / 'table.s').write_text('changed source\n')
         with self.assertRaises(ValueError): declarations.validate(**entry)
+
+    def test_a_subscribing_owner_carries_only_checked_hook_words(self):
+        """Mute Modes subscribes and raises since the events migration: its hook words are checked, and the rest of the
+        package is validated exactly as a hookless one. Synthetic bytes only."""
+        none = builder.NONE
+        entry = self.entry('mute-modes', hooks=[none] * 4 + [50 << 24 | 8, none, none, 255 << 24 | 16])
+        self.assertEqual(declarations.validate(**entry).family, 2)
+        for at, value in ((76 + 16, 50 << 24 | 9), (76 + 16, 50 << 24 | 600), (76, 3)):
+            package = bytearray(entry['package']); struct.pack_into('>I', package, at, value)
+            doc = json.loads(entry['declaration']); doc['packageSha256'] = sha(package)
+            declaration = json.dumps(doc).encode()
+            with self.subTest(at=at, value=value), self.assertRaises(ValueError):
+                declarations.validate(**dict(entry, package=bytes(package), declaration=declaration,
+                                             reviewed_sha256=sha(declaration)))
 
     def test_pointer_sites_relocations_and_original_word_mapping_cannot_drift(self):
         entry = self.entry()

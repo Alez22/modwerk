@@ -8,7 +8,8 @@
 //
 //   npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]
 // Private transport candidates may add --usb-midi and --usb-audio "USB AUDIO OUT TRACKS MAIN CUE". --site-events builds the
-// base that owns sdk/machines/octatrack/events.json's sites and tables and dispatches them to subscribed packages.
+// base that owns sdk/machines/octatrack/events.json's sites and tables and dispatches them to subscribed packages;
+// --table-owners also fills its table-owner storage from module-adapters/table-owners.json (the reviewed table owners).
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -23,6 +24,7 @@ const { values: args } = parseArgs({ options: {
   stock: { type: 'string' }, upstream: { type: 'string', default: join(homedir(), '.cache/modwerk-upstream/elekloader') },
   write: { type: 'boolean', default: false }, out: { type: 'string' },
   'usb-midi': { type: 'boolean', default: false }, 'usb-audio': { type: 'string' }, 'site-events': { type: 'boolean', default: false },
+  'table-owners': { type: 'boolean', default: false },
   'resident-stock-hooks': { type: 'boolean', default: false },
   'saved-set-export': { type: 'boolean', default: false },
 } })
@@ -37,6 +39,7 @@ const core = join(mkdtempSync(join(tmpdir(), 'modwerk-base-')), 'core')
 python('build_core.py', '--stock', args.stock, '--upstream', args.upstream, '--output', core, '--dsp-loader',
   ...(args['usb-midi'] ? ['--usb-midi'] : []), ...(args['usb-audio'] ? ['--usb-audio', args['usb-audio']] : []),
   ...(args['site-events'] ? ['--site-events'] : []),
+  ...(args['table-owners'] ? ['--table-owners', join(root, 'sdk/machines/octatrack/module-adapters/table-owners.json')] : []),
   ...(args['resident-stock-hooks'] ? ['--resident-stock-hooks'] : []),
   ...(args['saved-set-export'] ? ['--saved-set-export'] : []))
 python('check_stock_free.py', join(core, 'base.elemod'), '--stock', args.stock, '--upstream', args.upstream)

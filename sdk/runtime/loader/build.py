@@ -44,10 +44,12 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import struct
 import subprocess
 import sys
 import tempfile
+import types
 
 HERE = Path(__file__).resolve().parent
 HANDLERS = ('module_tick', 'module_draw', 'module_key', 'module_enc')  # loader.h's event order
@@ -812,6 +814,57 @@ def octabam_machine(args):
     return data
 
 
+def octabam_tables(args):
+    """Mute Modes as published (owner decision 14 Oct 2026): its linked units and grown PERSONALIZE tables
+    (runtime_units.compile_linked) from the reviewed table recipes in module-adapters/candidate-recipes.json, with no
+    firmware. The base admits it only through its reviewed table declaration (module-adapters/table_declarations.py,
+    built into the base). Given --stock, every guard and both table reconstructions are proved against the original OS
+    and both strict scans run."""
+    root = HERE.parents[2]
+    sys.path.insert(0, str(root / 'sdk/machines/octatrack/module-adapters'))
+    import candidate_packages, runtime_units
+    if args.octabam_tables != 'mute-modes':
+        raise ValueError('Only Mute Modes has a reviewed table port.')
+    upstream = args.upstream.expanduser().resolve()
+    sys.path.insert(0, str(upstream))
+    from elekloader.sdk import octabam as port
+    sdk = root / 'sdk/octabam'
+    module = port.Octabam(str(sdk)).modules[args.octabam_tables]
+    sources = candidate_packages.inputs(root, upstream, args.octabam_tables)
+    recipe = candidate_packages.declaration(root, args.octabam_tables, sources)
+    stock_at = main = None
+    if args.stock:
+        from elekloader import formats
+        parsed, device, release = formats.load(str(args.stock))
+        main = formats.main_image(parsed, device)
+        if device.key != 'octatrack' or release.version != '1.40C' or hashlib.sha256(main).hexdigest() != release.main_sha256:
+            raise ValueError('The table proofs need the original Octatrack 1.40C.')
+        def stock_at(address, length):
+            at = address - device.main_load
+            if at < 0 or at + length > len(main):
+                raise ValueError('A table span lies outside original stock MAIN.')
+            return main[at:at + length]
+    builder = types.SimpleNamespace(**globals())  # compile_linked's builder: this module's own linker and records
+    with tempfile.TemporaryDirectory() as folder:
+        result = runtime_units.compile_linked(module, sdk, builder, Path(folder) / 'units', args.cross, {module.key},
+                                              recipe['tables'], stock_at)
+    data = package(result['image'], result['bss'], result['hooks'], result['offsets'], result['sites'],
+                   name=args.octabam_tables, hashed=True, title='Mute Modes', layout=1, copies=result['copies'], abi=8)
+    if sources != candidate_packages.inputs(root, upstream, args.octabam_tables):
+        raise ValueError('A table port input changed during compilation.')
+    if args.capture_stock_recipe:  # what its table declaration binds (table_declarations.py): hashes and offsets only
+        authored = sorted(p for p in (sdk / 'modules' / args.octabam_tables).iterdir()
+                          if p.is_file() and (p.suffix in ('.s', '.S', '.inc') or p.name in ('manifest.py', 'runtime.json')))
+        tables = sorted(name for name in result['symbols'] if re.fullmatch(r'__runtime_table_\d+', name))
+        args.capture_stock_recipe.write_text(json.dumps(dict(
+            schema=1, imageSha256=hashlib.sha256(result['image']).hexdigest(),
+            sources={str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in authored},
+            symbols={name: result['symbols'][name] for name in tables}), indent=1) + '\n')
+    if args.stock:
+        private_stock_free(data, args.stock, main, upstream)
+    return data
+
+
 def machine_inputs(name, adapters):
     """The exact inputs a machine package's image comes from: its port's reviewed sources and the builders."""
     import machine_ports
@@ -968,6 +1021,8 @@ def main():
     parser.add_argument('--octabam', help='a catalogue module from its Octabam manifest (ABI 7); a hybrid effect adds --dsp')
     parser.add_argument('--octabam-machine', help='a catalogue machine module as one independent package: its shared sites '
                                                   'through the base\'s events and tables (runtime.json or machine port)')
+    parser.add_argument('--octabam-tables', help='a catalogue module that grows stock tables (Mute Modes) as published: its '
+                                                 'reviewed table recipes, admitted by the base\'s table declaration')
     parser.add_argument('--private-port', action='store_true', help='reviewed private standalone StockCopy preparation; requires original stock; never publishes')
     parser.add_argument('--standalone', action='store_true', help='a reviewed standalone port (Play Modes, Tape Echo, Euclid) '
                         'as published: the committed standalone-recipes.json, no firmware; --stock also checks it against the OS')
@@ -980,9 +1035,10 @@ def main():
     private = private_standalone(args, public=args.standalone) if args.private_port or args.standalone else None
     if args.subscribe and not args.sources:
         parser.error('--subscribe is for C sources; an octabam module subscribes in its runtime.json, an elemod in its "subscribe".')
-    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) + bool(args.octabam_machine) > 1
-            or not (args.sources or args.elemod or args.dsp) and not args.octabam and not args.octabam_group and not args.octabam_machine
-            or (args.elemod and args.dsp) or ((args.octabam or args.octabam_group or args.octabam_machine) and not args.upstream)):
+    native = args.octabam or args.octabam_group or args.octabam_machine or args.octabam_tables
+    if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) + bool(args.octabam_machine)
+            + bool(args.octabam_tables) > 1 or not (args.sources or args.elemod or args.dsp) and not native
+            or (args.elemod and args.dsp) or (native and not args.upstream) or (args.octabam_tables and args.dsp)):
         parser.error('Give C sources, --elemod, --dsp, or --octabam with --upstream.')
     dsp, pkg = None, {}
     documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
@@ -999,6 +1055,8 @@ def main():
         data = octabam_group(args)
     elif args.octabam_machine:
         data = octabam_machine(args)
+    elif args.octabam_tables:
+        data = octabam_tables(args)
     elif args.elemod:
         data = build_elemod(args)
     elif args.sources:
