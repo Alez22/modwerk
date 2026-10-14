@@ -23,6 +23,12 @@ static struct runtime_module *volatile live[RUNTIME_MODULES];
 static struct runtime_module *owned[OWNERS]; /* every module holding pool memory */
 static struct runtime_owner owner_identity[OWNERS]; /* never stored in uploaded/mutable module memory */
 static uint32_t owner_generation; /* nonzero, monotonic for this boot; exhaustion refuses */
+/* Changes whenever owned[], owner_identity[] or a position (live[]) changes: odd while a change is under way, so a
+ * reader that interrupts one (the frame interrupt, a task holding the stable lock) never keeps what it saw. */
+static volatile uint32_t owner_epoch;
+static void owners_changing(void) { owner_epoch = owner_epoch + 1u; __asm__ __volatile__("" ::: "memory"); }
+static void owners_changed(void) { __asm__ __volatile__("" ::: "memory"); owner_epoch = owner_epoch + 1u; }
+uint32_t modwerk_runtime_owner_epoch(void) { return owner_epoch; }
 static unsigned owners, slot;                /* slot: the transaction's position */
 static struct runtime_module *candidate, *previous;
 static int prepared, held;
@@ -205,9 +211,23 @@ uint32_t modwerk_runtime_free(uint32_t *largest)
 static void forget(const struct runtime_module *m)
 {
     for (unsigned i = 0; i < owners; ++i) if (owned[i] == m) {
+        owners_changing();
         --owners; owned[i] = owned[owners]; owner_identity[i] = owner_identity[owners];
-        owner_identity[owners] = (struct runtime_owner){0}; return;
+        owner_identity[owners] = (struct runtime_owner){0};
+        owners_changed(); return;
     }
+}
+/* Whole words where both digests are word aligned (every struct here holds them so). */
+typedef uint32_t __attribute__((__may_alias__)) digest_word;
+static int same_digest(const uint8_t *a, const uint8_t *b)
+{
+    if (!(((uintptr_t)a | (uintptr_t)b) & 3u)) {
+        const digest_word *x = (const digest_word *)(const void *)a, *y = (const digest_word *)(const void *)b;
+        for (unsigned n = 0; n < MU_DIGEST_BYTES / 4u; ++n) if (x[n] != y[n]) return 0;
+        return 1;
+    }
+    for (unsigned n = 0; n < MU_DIGEST_BYTES; ++n) if (a[n] != b[n]) return 0;
+    return 1;
 }
 static int owner_intact(unsigned i)
 {
@@ -219,30 +239,36 @@ static int owner_intact(unsigned i)
         o->image_offset > o->extent_bytes || o->image_bytes > o->extent_bytes - o->image_offset ||
         o->module != m->id || o->extent_bytes != m->size ||
         (uintptr_t)m->dsp.image != at + o->image_offset || o->image_bytes != m->dsp.image_bytes) return 0;
-    for (unsigned n = 0; n < MU_DIGEST_BYTES; ++n) if (o->package_sha256[n] != m->dsp.package_sha256[n]) return 0;
-    return 1;
+    return same_digest(o->package_sha256, m->dsp.package_sha256);
 }
 int modwerk_runtime_owner_snapshot(const uint8_t *image,struct runtime_owner *out)
 {
     if (!image || !out) return 0;
-    for (unsigned i = 0; i < owners; ++i) if (owner_intact(i) && owned[i]->dsp.image == image) {
+    for (unsigned i = 0; i < owners; ++i) if (owned[i]->dsp.image == image && owner_intact(i)) {
         *out = owner_identity[i]; return 1;
     }
     return 0;
 }
+static int owner_is(unsigned i, const struct runtime_owner *value)
+{
+    const struct runtime_owner *o = &owner_identity[i];
+    return value->generation == o->generation && value->module == o->module &&
+        value->owned_extent == o->owned_extent && value->extent_bytes == o->extent_bytes &&
+        value->image_offset == o->image_offset && value->image_bytes == o->image_bytes &&
+        same_digest(value->package_sha256, o->package_sha256) && owner_intact(i);
+}
+/* Generations are unique, so at most one entry is `value`; *hint, where it was last, is tried first. */
+int modwerk_runtime_owner_held(const struct runtime_owner *value, unsigned *hint)
+{
+    if (!value || !value->generation || !hint) return 0;
+    if (*hint < owners && owner_is(*hint, value)) return 1;
+    for (unsigned i = 0; i < owners; ++i) if (i != *hint && owner_is(i, value)) { *hint = i; return 1; }
+    return 0;
+}
 int modwerk_runtime_owner_valid(const struct runtime_owner *value)
 {
-    if (!value || !value->generation) return 0;
-    for (unsigned i = 0; i < owners; ++i) {
-        const struct runtime_owner *o = &owner_identity[i];
-        if (value->generation != o->generation || value->module != o->module ||
-            value->owned_extent != o->owned_extent || value->extent_bytes != o->extent_bytes ||
-            value->image_offset != o->image_offset || value->image_bytes != o->image_bytes || !owner_intact(i)) continue;
-        unsigned n = 0;
-        while (n < MU_DIGEST_BYTES && value->package_sha256[n] == o->package_sha256[n]) ++n;
-        if (n == MU_DIGEST_BYTES) return 1;
-    }
-    return 0;
+    unsigned hint = OWNERS;
+    return modwerk_runtime_owner_held(value, &hint);
 }
 int modwerk_runtime_owner_at(uintptr_t address,struct runtime_owner *out)
 {
@@ -470,7 +496,9 @@ static int switch_locked(unsigned position, struct runtime_module *to, const str
         if (ok && rows) events_commit(), modwerk_machine_tables_changed();
         modwerk_machine_unmask(mask);
         if (ok) {
+            owners_changing();
             live[position] = to;
+            owners_changed();
             /* The journal's adapter already owns all DSP jobs and ACKs. Its
              * CF commit observation must not start a second legacy job. */
             if(legacy_dsp) modwerk_machine_dsp_switch(dsp_of(from), dsp_of(to));
@@ -731,8 +759,10 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
         struct runtime_owner identity = {++owner_generation, id, (uintptr_t)m,
             m->size, head, image, {0}};
         for (unsigned i = 0; i < MU_DIGEST_BYTES; ++i) identity.package_sha256[i] = dsp.package_sha256[i];
+        owners_changing();
         owner_identity[owners] = identity;
         owned[owners++] = candidate = m;
+        owners_changed();
     }
     prepared = 1;
     return 1;

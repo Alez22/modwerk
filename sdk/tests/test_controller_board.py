@@ -51,7 +51,11 @@ PACKAGES = {  # name: (module id, feature, image)
     'rival': (0x12345678, 1, bytes(range(3, 67))),
     'forged': (0x95cff696, 1, bytes(range(4, 68))),  # same module, untrusted bytes
     'ab': (0xabdb1445, 4, bytes(range(5, 133))),
+    'plain': (0x11111100, 0, bytes(range(9, 41))),  # ordinary packages, no trust row
+    'plain2': (0x22222200, 0, bytes(range(10, 42))),
+    'plain2b': (0x22222200, 0, bytes(range(11, 43))),
 }
+UNTRUSTED = ('forged', 'plain', 'plain2', 'plain2b')
 CORES = {1: 3, 2: 1, 4: 3}
 AB_WORDS = 3776
 
@@ -73,7 +77,7 @@ def header():
     for name, (module, feature, image) in PACKAGES.items():
         data = package(module, image)
         text += 'static const uint8_t pkg_%s[%d] = {%s};\n' % (name, len(data), ','.join(map(str, data)))
-        if name == 'forged':
+        if name in UNTRUSTED:
             continue
         digest = ','.join('0x%02x' % b for b in hashlib.sha256(data).digest())
         rows += ('{{{%s}, {%d}, 0x%08xu, 1, 1, 1, %d, %d}, 1, %d, 8, 16, 24}, '
@@ -83,12 +87,13 @@ def header():
         packed = ab_records(core)
         text += 'static uint8_t ab_x_%d[%d] = {%s};\n' % (core, len(packed), ','.join(map(str, packed)))
         text += 'static const uint32_t ab_expect_%d[%d] = {%s};\n' % (core, AB_WORDS, ','.join(map(str, ab_words(core))))
-    return text + '#define ROWS %s\n#define ROW_COUNT %d\n' % (rows, len(PACKAGES) - 1)
+    return text + '#define ROWS %s\n#define ROW_COUNT %d\n' % (rows, len(PACKAGES) - len(UNTRUSTED))
 
 
 FIXTURE = r'''
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include "controller_board.h"
 #include "packages.h"
@@ -105,12 +110,14 @@ void dl_selection_tick(void) {}
 void dl_residency_tick(void) {}
 void dl_show_message(const char *s, unsigned n) { (void)s; (void)n; }
 int modwerk_machine_stopped(void) { return 1; }
-void *modwerk_machine_uncached(void *p) { return p; }
+static unsigned long uncached_calls; /* each owner header check, canonical extent and owns_image takes one */
+void *modwerk_machine_uncached(void *p) { ++uncached_calls; return p; }
 void modwerk_machine_invalidate_code(void) {}
 int modwerk_machine_patchable(uint32_t a, uint32_t n) { (void)a; (void)n; return 0; }
 uint8_t *modwerk_machine_code(uint32_t a) { (void)a; return 0; }
 void modwerk_machine_flush_data(uint32_t a, uint32_t n) { (void)a; (void)n; }
-unsigned modwerk_machine_paused(struct runtime_span *s, unsigned max, const struct runtime_context *c) { (void)s; (void)c; return max + 1u; }
+static unsigned paused_none; /* no task paused anywhere: reclaim frees what nothing reaches (else unknown, nothing) */
+unsigned modwerk_machine_paused(struct runtime_span *s, unsigned max, const struct runtime_context *c) { (void)s; (void)c; return paused_none ? 0u : max + 1u; }
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to) { (void)from; (void)to; return 0; }
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to) { (void)from; (void)to; }
 int modwerk_saved_set_busy(void) { return (int)saved_busy; }
@@ -212,15 +219,34 @@ static __attribute__((unused)) uintptr_t exec_of(uint32_t module)
         return (uintptr_t)modwerk_runtime_module(i)->dsp.image;
     return 0;
 }
-static int lease(uint32_t module, unsigned feature)
+static int lease_at(uintptr_t exec, unsigned feature)
 {
-    uintptr_t exec = exec_of(module), sp = (uintptr_t)task_stack + 64;
+    uintptr_t sp = (uintptr_t)task_stack + 64;
     struct mw_controller_write_lease *l = (void *)(task_stack + 256);
     if (!exec) return 0;
     int ok = begin_impl(exec + 8, feature, l, exec + 16, sp);
     if (ok) assert(end_impl(l, exec + 24, sp) == 1);
-    assert(sr == 0);
+    assert(sr == 0 && !writing.active);
     return ok;
+}
+static int lease(uint32_t module, unsigned feature) { return lease_at(exec_of(module), feature); }
+static __attribute__((unused)) struct runtime_module *header_of(uint32_t module)
+{
+    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) if (modwerk_runtime_module(i) && modwerk_runtime_module(i)->id == module)
+        return (struct runtime_module *)(uintptr_t)modwerk_runtime_module(i);
+    return 0;
+}
+/* A ledger or position change: the epoch moved on and is even again; the next pair decides anew, the one after
+ * checks only the owner's header in Begin and in End. */
+static __attribute__((unused)) void decided_anew(uint32_t *epoch)
+{
+    uint32_t now = modwerk_runtime_owner_epoch();
+    assert(now != *epoch && !(now & 1u));
+    *epoch = now;
+    unsigned long before = uncached_calls;
+    assert(lease(0x95cff696u, 1) && uncached_calls - before > 2u);
+    before = uncached_calls;
+    assert(lease(0x95cff696u, 1) && uncached_calls - before == 2u);
 }
 #define SC 0x95cff696u
 #define MATRIX 0xcaf158b5u
@@ -237,7 +263,7 @@ static __attribute__((unused)) int page_is(int applied, uint32_t module)
 int main(int argc, char **argv)
 {
     assert(argc == 2);
-    unsigned mode = (unsigned)(argv[1][0] - '0');
+    unsigned mode = (unsigned)strtoul(argv[1], 0, 10); /* two digits from mode 10 */
     enum runtime_refusal why;
 #ifndef BOARD_ROWS
     /* Default base: no rows, nothing activates, every package is ordinary. */
@@ -253,6 +279,7 @@ int main(int argc, char **argv)
     if (mode == 10) ab_x_1[4] ^= 1; /* core B's engine record names another address: Analog BD never resets */
     if (mode == 7) donor[300] ^= 1; /* not the stock descriptor the record names: no page, still a working controller */
     run(2);
+    if (mode == 11) { paused_none = 1; assert(install(pkg_plain, sizeof pkg_plain) == MU_APPLIED); } /* an owner entry before Sidechain's */
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
     assert(!lease(SC, 1) && (mode == 7 || page_is(0, SC))); /* published, not yet reset and enabled */
     run(120);
@@ -288,8 +315,9 @@ int main(int argc, char **argv)
         assert(install(removal(SC), 32) == MU_APPLIED);
         run(2);
         assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && page_is(0, SC));
-        /* Installing it again binds a new owner generation from scratch. */
+        /* Installing it again binds a new owner generation from scratch; no earlier decision carries over. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        assert(!lease(SC, 1));
         run(120);
         assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && lease(SC, 1) && page_is(1, SC));
     } else if (mode == 1) {
@@ -379,6 +407,76 @@ int main(int argc, char **argv)
         saved_busy = 0;
         buffers_idle = 0; /* manager busy: the ACTIVE generation's check stands */
         assert(lease(SC, 1));
+    } else if (mode == 11) {
+        /* The lease keeps Begin's decision while nothing it read changed (controller_write_lease.c): a repeated
+         * pair checks only the owner's own header, once in Begin and once in End, and walks no owner list. */
+        unsigned long before = uncached_calls;
+        for (unsigned k = 0; k < 16; ++k) assert(lease(SC, 1));
+        assert(uncached_calls - before == 32u);
+        /* Refused by the slot or the backend's per-call facts: no owner check at all, and nothing changes. */
+        static struct mw_controller_registry snapshot;
+        memcpy(&snapshot, &modwerk_controller_registry, sizeof snapshot);
+        saved_busy = 1; before = uncached_calls;
+        for (unsigned k = 0; k < 16; ++k) assert(!lease(SC, 1));
+        assert(uncached_calls == before && !memcmp(&snapshot, &modwerk_controller_registry, sizeof snapshot));
+        saved_busy = 0;
+        /* The owner's header is checked on every call: a changed digest, size or id refuses at once, the ledger unchanged. */
+        struct runtime_module *m = header_of(SC);
+        uintptr_t exec = exec_of(SC);
+        uint32_t epoch = modwerk_runtime_owner_epoch();
+        m->dsp.package_sha256[31] ^= 1u; assert(!lease_at(exec, 1)); m->dsp.package_sha256[31] ^= 1u;
+        m->dsp.package_sha256[0] ^= 0x80u; assert(!lease_at(exec, 1)); m->dsp.package_sha256[0] ^= 0x80u;
+        m->size += 16u; assert(!lease_at(exec, 1)); m->size -= 16u;
+        m->id ^= 1u; assert(!lease_at(exec, 1)); m->id ^= 1u;
+        assert(modwerk_runtime_owner_epoch() == epoch && lease(SC, 1) && writing.hint == 1u);
+        /* Removing another module: reclaim moves Sidechain's owner entry into the freed one. */
+        assert(install(removal(0x11111100u), 32) == MU_APPLIED);
+        decided_anew(&epoch);
+        assert(writing.hint == 0u);
+        /* Installing another module. */
+        assert(install(pkg_plain2, sizeof pkg_plain2) == MU_APPLIED);
+        decided_anew(&epoch);
+        /* A prepared candidate that is discarded. */
+        assert(loader->enter(0) && loader->prepare(0, pkg_plain2b, sizeof pkg_plain2b));
+        decided_anew(&epoch);
+        assert(loader->discard(0) && loader->leave(0));
+        decided_anew(&epoch);
+        /* Publishing another module, rolling it back, and reclaiming the rolled-back candidate. */
+        assert(loader->enter(0) && loader->prepare(0, pkg_plain2b, sizeof pkg_plain2b));
+        decided_anew(&epoch);
+        assert(loader->publish(0) == MU_APPLIED);
+        decided_anew(&epoch);
+        assert(loader->restore(0));
+        decided_anew(&epoch);
+        assert(loader->retire(0) && loader->leave(0));
+        decided_anew(&epoch);
+        assert(exec_of(0x22222200u) && !memcmp((const void *)exec_of(0x22222200u), pkg_plain2 + 32, 32));
+        /* A decision never outlives its slot: a bind of anything moves the registry on. */
+        uint32_t bound = modwerk_controller_registry.last_generation;
+        assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
+        decided_anew(&epoch);
+        run(40);
+        assert(modwerk_controller_registry.last_generation != bound && slot_for(MATRIX, MW_CTL_ACTIVE));
+        before = uncached_calls;
+        assert(lease(SC, 1) && uncached_calls - before > 2u); /* decided anew */
+        assert(lease(MATRIX, 2) && lease(SC, 1) && lease(MATRIX, 2)); /* two call sites, one line each */
+        before = uncached_calls;
+        assert(lease(SC, 1) && lease(MATRIX, 2) && uncached_calls - before == 4u);
+        /* A pair the frame interrupt runs inside a task's Begin decides on its own and leaves the lines alone. */
+        static struct decided lines[DECIDED];
+        memcpy(lines, decided, sizeof lines);
+        deciding = 1; before = uncached_calls;
+        assert(lease(SC, 1) && lease(MATRIX, 2) && uncached_calls - before > 4u && deciding == 1);
+        assert(!memcmp(lines, decided, sizeof lines));
+        deciding = 0;
+        /* A header changed while the lease is held: End refuses, quarantines, and the wrapper falls back to stock. */
+        uintptr_t sp = (uintptr_t)task_stack + 64;
+        struct mw_controller_write_lease *l = (void *)(task_stack + 256);
+        assert(begin_impl(exec + 8, 1, l, exec + 16, sp) == 1 && sr == 0x400u);
+        m->dsp.package_sha256[7] ^= 1u;
+        assert(!end_impl(l, exec + 24, sp) && sr == 0 && !writing.active && slot_for(SC, MW_CTL_QUARANTINED));
+        m->dsp.package_sha256[7] ^= 1u;
+        assert(!lease(SC, 1) && lease(MATRIX, 2));
     } else assert(0);
     return 0;
 #endif
@@ -432,7 +530,7 @@ class ControllerBoard(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp); self.generated(work)
             binary = self.build(work, True)
-            for mode in range(11):
+            for mode in range(12):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)

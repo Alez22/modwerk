@@ -20,9 +20,13 @@ class ControllerWriteLease(unittest.TestCase):
     def test_resolver_binds_owned_image_policy_continuations_and_stack(self):
         with tempfile.TemporaryDirectory() as temp:
             binary = Path(temp) / 'lease'
+            ledger = Path(temp) / 'ledger.c'  # the loader with its private owner ledger reachable
+            ledger.write_text('#include "loader.c"\n'
+                              'struct runtime_owner *test_owner_identity(unsigned i) { return &owner_identity[i]; }\n'
+                              'struct runtime_module *test_owned(unsigned i) { return owned[i]; }\n')
             compiled = subprocess.run(['cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic',
                                        '-I', ROOT / 'sdk/runtime/loader', '-I', ROOT / 'sdk/runtime/upload', '-I', POLICY,
-                                       POLICY / 'test_controller_write_lease.c', ROOT / 'sdk/runtime/loader/loader.c',
+                                       POLICY / 'test_controller_write_lease.c', ledger,
                                        ROOT / 'sdk/runtime/upload/sha256.c', '-o', binary], capture_output=True, text=True)
             self.assertEqual(compiled.returncode, 0, compiled.stderr)
             ran = subprocess.run([binary], capture_output=True, text=True)
