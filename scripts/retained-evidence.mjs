@@ -12,6 +12,8 @@ import { compareModuleVersions } from '../src/catalog/versions.ts'
 import { requireModuleDocumentation } from './module-documentation.mjs'
 
 const assets = 'src/engine/assets'
+export const USB_WAIVERS_PATH = 'sdk/usb-package-waivers.json'
+const USB_MANIFEST = assets + '/octatrack-module-packages.json'
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, maxBuffer: 32 * 1024 * 1024 })
 const text = (root, ...args) => git(root, ...args).toString('utf8')
 const ignored = path => /(^|\/)(__pycache__|\.DS_Store)(\/|$)|\.pyc$/.test(path)
@@ -96,6 +98,29 @@ function ownRows(value, id) {
   return { version: value?.moduleVersions?.[id] ?? null, rows }
 }
 
+// The owner's hash-bound USB package waivers (sdk/usb-package-waivers.json): at most one for this exact version.
+export function parseUsbPackageWaivers(value) {
+  const fields = ['module', 'version', 'path', 'sha256', 'approval', 'hardware', 'emulator']
+  if (!value || value.schemaVersion !== 1 || typeof value.about !== 'string' || !Array.isArray(value.waivers) || Object.keys(value).sort().join() !== 'about,schemaVersion,waivers')
+    throw new Error(USB_WAIVERS_PATH + ' is malformed')
+  const seen = new Set()
+  for (const item of value.waivers) {
+    if (!item || Object.keys(item).sort().join() !== [...fields].sort().join() || typeof item.module !== 'string' || typeof item.version !== 'string' ||
+        item.path !== 'octatrack-modules/' + item.module + '/' + item.version + '.mwrm' || !/^[a-f0-9]{64}$/.test(item.sha256) ||
+        typeof item.approval !== 'string' || item.approval.length < 12 || item.hardware !== 'not tested' || item.emulator !== 'not tested' ||
+        seen.has(item.module + '@' + item.version)) throw new Error(USB_WAIVERS_PATH + ' has a malformed or duplicate waiver')
+    seen.add(item.module + '@' + item.version)
+  }
+  return value.waivers
+}
+// The USB manifest without exactly the waived row of this module version; a waiver its row does not match refuses.
+function withoutWaivedRow(bytes, document, waiver, label) {
+  const value = JSON.parse(bytes.toString('utf8')), rows = value.packages ?? []
+  const kept = rows.filter(row => !(row.id === document.id && row.version === waiver.version && row.path === waiver.path && row.sha256 === waiver.sha256))
+  if (rows.length - kept.length !== 1) throw new Error(label + ': its USB package waiver names no published row with that exact version and SHA-256; full qualification is required')
+  return Buffer.from(JSON.stringify({ ...value, packages: kept }))
+}
+
 export async function requireRetainedEvidence(root, folder, document, baseline, waivers, qualify, options = {}) {
   const record = document.tests.retainedEvidence
   const label = document.id + '.tests.retainedEvidence'
@@ -128,6 +153,11 @@ export async function requireRetainedEvidence(root, folder, document, baseline, 
   const otherIds = await otherModuleIds(root, document, record.commit)
   const before = tree(root, record.commit, assets)
   const after = new Map([...await currentFiles(resolve(root, assets))].map(([path, bytes]) => [assets + '/' + path, bytes]))
+  // A USB loader package the owner waived for this exact version and SHA-256 is set aside; nothing else is.
+  let usb = []
+  try { usb = parseUsbPackageWaivers(JSON.parse(await readFile(resolve(root, USB_WAIVERS_PATH), 'utf8'))) } catch (error) { if (error.code !== 'ENOENT') throw error }
+  const waiver = usb.find(item => item.module === document.id && item.version === document.version)
+  if (waiver && after.has(USB_MANIFEST)) after.set(USB_MANIFEST, withoutWaivedRow(after.get(USB_MANIFEST), document, waiver, label))
   for (const path of new Set([...before.keys(), ...after.keys()])) {
     if (!path.endsWith('.json')) continue
     const own = bytes => bytes ? ownRows(engineAsset(bytes, path, document, previous.version, [], otherIds), document.id) : ownRows(null, document.id)

@@ -106,6 +106,18 @@ describe('risk-based retained module evidence',()=>{
   it.each(['src/engine/compose-os.ts','sdk/octabam/dsp/shared.asm','sdk/octabam/platform/shared/manifest.py','sdk/octabam/tools/build/build_bus.py','sdk/octabam/tools/remix/platform_build.py','scripts/build-module-packages.py'])('keeps reuse after a shared runtime/build change, which the app tests cover: %s',async path=>{
     put(path,'changed runtime dependency\n');expect(await check()).toBe('retained-evidence')
   })
+  it('sets aside only a USB package row the owner waived for this exact version and SHA-256',async()=>{
+    const path='src/engine/assets/octatrack-module-packages.json',sha='5'.repeat(64)
+    const row={id:document.id,version:document.version,path:`octatrack-modules/${document.id}/${document.version}.mwrm`,sha256:sha,bytes:96}
+    put(path,JSON.stringify({packages:[row]}))
+    await expect(check()).rejects.toThrow('package rows changed')
+    const waiver={module:document.id,version:document.version,path:row.path,sha256:sha,approval:'Synthetic owner beta waiver',hardware:'not tested',emulator:'not tested'}
+    const waive=(item:object)=>put('sdk/usb-package-waivers.json',JSON.stringify({schemaVersion:1,about:'Synthetic',waivers:[item]}))
+    waive(waiver);expect(await check()).toBe('retained-evidence')
+    waive({...waiver,sha256:'6'.repeat(64)});await expect(check()).rejects.toThrow('full qualification')
+    waive({...waiver,version:'0.1.0',path:`octatrack-modules/${document.id}/0.1.0.mwrm`});await expect(check()).rejects.toThrow('package rows changed')
+    waive({...waiver,hardware:'verified'});await expect(check()).rejects.toThrow('malformed')
+  })
   it('ignores shared assets without rows of this module',async()=>{
     put('src/engine/assets/beta-startup.json',JSON.stringify({version:'3.0.0',code:'changed shared startup'}))
     expect(await check()).toBe('retained-evidence')
