@@ -121,6 +121,44 @@ struct code dl_codes[2][MODWERK_FX_IDS];
 const uint16_t modwerk_dsp_arena[2] = {2320, 2300};
 static int idle = 1;
 int dl_publication_idle(void) { return idle; }
+static uint32_t slot_cycles[16]; /* manager.c: no slot holds anything dearer than the stock reserve */
+uint32_t dl_slot_cycles(unsigned i) { return slot_cycles[i]; }
+/* The source stage: per-voice and per-engine prices before the FX slots, any module, fail closed. */
+static void sources(void)
+{
+    const uint32_t a = 0xab, b = 0xbb; /* two machine modules' runtime ids */
+    /* Core 0 (tracks 5-8) keeps 3120 - 8 x 342 = 384 cycles; core 1 (tracks 1-4) 3565 - 2736 = 829. */
+    CHECK(modwerk_dsp_source_claim(4, a, 411, 3, RUNTIME_EXECUTED) == RUNTIME_CYCLES); /* 720 + 6 > 384 */
+    CHECK(modwerk_dsp_source_charge(0) == 0 && modwerk_dsp_source_charge(1) == 0);
+    CHECK(modwerk_dsp_source_claim(0, a, 411, 3, RUNTIME_EXECUTED) == RUNTIME_OK);     /* 726 <= 829 */
+    CHECK(modwerk_dsp_source_charge(1) == 726 && modwerk_dsp_source_charge(0) == 0);
+    CHECK(modwerk_dsp_source_claim(1, a, 411, 3, RUNTIME_EXECUTED) == RUNTIME_CYCLES); /* a second voice: 1446 */
+    CHECK(modwerk_dsp_source_claim(0, a, 411, 3, RUNTIME_EXECUTED) == RUNTIME_OK && modwerk_dsp_source_charge(1) == 726); /* same voice again */
+    CHECK(modwerk_dsp_source_claim(1, b, 50, 10, RUNTIME_HARDWARE) == RUNTIME_OK);   /* another module's own engine */
+    CHECK(modwerk_dsp_source_charge(1) == 726 + 60);
+    CHECK(modwerk_dsp_source_claim(1, a, 50, 0, RUNTIME_HARDWARE) == RUNTIME_OK);    /* a takes track 2 from b; b's engine stays */
+    CHECK(modwerk_dsp_source_charge(1) == 726 + 50 + 10);
+    slot_cycles[0] = MODWERK_DSP_RESERVE + 20u; /* a module FX on track 1 (core 1) committed meanwhile */
+    CHECK(modwerk_dsp_source_claim(2, b, 0, 10, RUNTIME_HARDWARE) == RUNTIME_OK);     /* 2756 + 786 */
+    CHECK(modwerk_dsp_source_claim(3, b, 30, 10, RUNTIME_HARDWARE) == RUNTIME_CYCLES); /* 2756 + 786 + 30 > 3565 */
+    CHECK(modwerk_dsp_source_charge(1) == 786);                                      /* nothing changed on refusal */
+    slot_cycles[0] = 0;
+    modwerk_dsp_source_release(0);
+    CHECK(modwerk_dsp_source_charge(1) == 786 - 720);                                 /* its engine stays while on */
+    modwerk_dsp_source_engine_off(a);
+    CHECK(modwerk_dsp_source_charge(1) == 10);                                         /* a's track 2 voice and engine gone */
+    modwerk_dsp_source_engine_off(b);
+    CHECK(modwerk_dsp_source_charge(1) == 0);
+    for (uint32_t m = 1; m <= SOURCE_ENGINES; ++m) CHECK(modwerk_dsp_source_claim(m & 1u ? 5 : 6, m, 0, 0, RUNTIME_HARDWARE) == RUNTIME_OK);
+    CHECK(modwerk_dsp_source_claim(7, 99, 0, 0, RUNTIME_HARDWARE) == RUNTIME_FULL);    /* every engine entry on core 0 held */
+    for (uint32_t m = 1; m <= SOURCE_ENGINES; ++m) modwerk_dsp_source_engine_off(m);
+    CHECK(modwerk_dsp_source_claim(8, a, 1, 1, RUNTIME_HARDWARE) == RUNTIME_MALFORMED);
+    CHECK(modwerk_dsp_source_claim(0, 0, 1, 1, RUNTIME_HARDWARE) == RUNTIME_MALFORMED);
+    CHECK(modwerk_dsp_source_claim(0, a, 0x10000u, 1, RUNTIME_HARDWARE) == RUNTIME_MALFORMED);
+    CHECK(modwerk_dsp_source_claim(0, a, 1, 1, 0) == RUNTIME_MALFORMED);
+    CHECK(modwerk_dsp_source_claim(0, a, 1, 1, RUNTIME_HARDWARE + 1) == RUNTIME_MALFORMED);
+    CHECK(modwerk_dsp_source_charge(0) == 0 && modwerk_dsp_source_charge(1) == 0 && modwerk_dsp_source_charge(2) == 0);
+}
 
 /* All handles held: FULL; past 32 ids the fixture's third handle, 40, is still free and goes to the newcomer. */
 static int full_or_40(const struct runtime_dsp *none, struct runtime_dsp t) /* a copy: admission writes the id it gives */
@@ -290,6 +328,7 @@ int main(void)
     third.module = 0x873d83ccu; third.id = 26; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL); /* the map has it at 27 */
     third.pinned = 0;
     planner();
+    sources();
     if (failures) { fprintf(stderr, "%u DSP glue checks failed\n", failures); return 1; }
     puts("Octatrack DSP glue: admission (ids, arena, instance block, cycles, effects in use), the catalog, the effects a bank names, the stall watchdog, the project handle map and rebinding passed.");
     return 0;

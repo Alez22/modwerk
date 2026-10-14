@@ -24,6 +24,7 @@ int dl_command_start(unsigned c,unsigned op,unsigned id,unsigned init,unsigned p
 }
 int dl_upload_start(unsigned c,const struct dl_upload *u) { (void)c;(void)u; ++starts;return 1; }
 int dl_job_status(unsigned c) { (void)c;return 0; }
+uint32_t modwerk_dsp_source_charge(unsigned c) { (void)c;return 0; } /* dsp.c: no machine source here */
 void dl_job_release(unsigned c) { (void)c; }
 int main(void) {
     struct dl_selection selection={0}; uint8_t ids[16]={0},sources[8]={0};

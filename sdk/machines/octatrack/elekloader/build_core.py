@@ -324,6 +324,13 @@ DSP_EDITS = {
                    '        if(buffers.live[i]!=DL_BUF_NONE) m|=1u<<(buffers.live[i]+((i&7)<4 ? 8u : 0u)+(i>=8 ? 4u : 0u));\n'
                    '    }\n'
                    '    return m;\n'
+                   '}\n'
+                   '/* dsp.c\'s source-stage claims: slot i\'s committed or pending charge, whichever is dearer. */\n'
+                   'uint32_t dl_slot_cycles(unsigned i) {\n'
+                   '    if(i>=16) return 0;\n'
+                   '    unsigned a=allocator.active[i],r=allocator.phase ? allocator.requested[i] : DL_NONE;\n'
+                   '    uint32_t x=a==DL_NONE ? 0 : dl_catalog[a].cycles,y=r==DL_NONE ? 0 : dl_catalog[r].cycles;\n'
+                   '    return x>y ? x : y;\n'
                    '}'),
                   ('extern const struct code dl_codes[2][32];', 'extern struct code dl_codes[2][32];'),
                   ('dl_allocator_init(&allocator,dl_catalog,0,0,0,0);',
@@ -424,7 +431,11 @@ DSP_EDITS = {
                    '    else if(token==current && phase && phase!=6) rollback();\n}')),
     # The switch frame runs the outgoing effect's first sub-block, then the incoming one's init and its
     # second: no instance runs twice, so no overlap charge (it would refuse stock picks beside modules).
-    'allocator.c': (('    uint32_t steady[2]={0,0},overlap[2]={0,0};', '    uint32_t steady[2]={0,0};'),
+    # Each core's sum starts at its machines' source-stage charge (dsp.c), so FX slots are admitted beside it.
+    'allocator.c': (('#include "allocator.h"\n', '#include "allocator.h"\nuint32_t modwerk_dsp_source_charge(unsigned);\n'),
+                    ('    uint32_t steady[2]={0,0},overlap[2]={0,0};',
+                     '    uint32_t steady[2]={modwerk_dsp_source_charge(0),modwerk_dsp_source_charge(1)};\n'
+                     '    if(steady[0]>a->allowance[0] || steady[1]>a->allowance[1]) return DL_ALLOC_CYCLES;'),
                     ('    overlap[0]=steady[0]; overlap[1]=steady[1];\n'
                      '    for(unsigned i=0;i<16;++i) {\n'
                      '        unsigned p=a->active[i],c=core_of(i);\n'

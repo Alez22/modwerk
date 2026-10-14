@@ -23,6 +23,7 @@ const uint32_t modwerk_fx_legacy_count = 0;
 struct dl_package dl_catalog[MODWERK_FX_IDS]; struct code dl_codes[2][MODWERK_FX_IDS];
 const uint16_t modwerk_dsp_arena[2] = {2320, 2300};
 int dl_publication_idle(void) { return 1; }
+uint32_t dl_slot_cycles(unsigned i) { (void)i; return 0; } /* manager.c; the source stage is test_dsp.c's */
 uint8_t modwerk_test_memory[0x40000] __attribute__((aligned(16)));
 uint32_t modwerk_fx1_list[MODWERK_LIST_ROWS] = {0x1000}, modwerk_fx2_list[MODWERK_LIST_ROWS] = {0x1000};
 const uint32_t modwerk_fx_rows[2] = {1, 1};

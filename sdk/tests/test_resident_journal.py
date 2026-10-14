@@ -51,6 +51,7 @@ static struct module modules[4]; /* 0 old A, 1 new A, 2 old B, 3 new B */
 static const struct runtime_dsp empty;
 int modwerk_stock_hook_export_idle(void) { return 1; }
 int modwerk_saved_set_busy(void) { return 0; }
+uint32_t modwerk_dsp_source_charge(unsigned c) { (void)c;return 0; }
 int modwerk_dsp_buffer_permitted(unsigned c,unsigned k,unsigned b,unsigned id) { (void)c;(void)k;(void)b;(void)id;return 1; }
 unsigned modwerk_dsp_flags(unsigned c) { return flags[c]; }
 void dl_selection_tick(void) {}

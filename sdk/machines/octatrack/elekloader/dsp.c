@@ -28,9 +28,61 @@ struct code { const uint32_t *words; const uint16_t *relocations; uint16_t count
 typedef char stock_always_fits[8u * MODWERK_DSP_RESERVE <= MODWERK_DSP_ALLOWANCE ? 1 : -1];
 /* An instance's chip cycles. A claim from the emulator (executed instructions, modeled cycles) ran 1.42-1.74 times
  * that on the owner's MKII (11 October 2026); charged at 7/4 of it until the module carries a hardware figure. */
-static uint32_t chip_cycles(const struct runtime_dsp *d)
+static uint32_t charged(uint32_t cycles, uint8_t kind) { return kind == RUNTIME_HARDWARE ? cycles : (cycles * 7u + 3u) / 4u; }
+static uint32_t chip_cycles(const struct runtime_dsp *d) { return charged(d->cycles, d->kind); }
+/* Source stage: a machine whose DSP voice replaces a track's stock source declares a price per voice (each track it
+ * renders) and per core while its engine is on, in its own figure kind. Both are charged before every FX slot (the
+ * allocator starts each core's sum at modwerk_dsp_source_charge), and a claim fits beside each slot's committed or
+ * pending charge, at least the stock reserve, so a stock pick still never needs admission. Machine lock held. */
+#define SOURCE_ENGINES 8u
+uint32_t dl_slot_cycles(unsigned slot); /* manager.c (build_core.py): a slot's committed or pending charge */
+static uint32_t source_voice[8], source_owner[8];
+static struct { uint32_t module, cycles; } source_engine[2][SOURCE_ENGINES];
+static unsigned source_core(unsigned track) { return track < 4u ? 1u : 0u; } /* the allocator's core_of: tracks 1-4 on core 1 */
+static uint32_t slot_charge(unsigned core) /* each of the core's eight slots at least the stock reserve */
 {
-    return d->kind == RUNTIME_HARDWARE ? d->cycles : (d->cycles * 7u + 3u) / 4u;
+    uint32_t sum = 0;
+    for (unsigned i = 0; i < 16u; ++i)
+        if (source_core(i & 7u) == core) { uint32_t x = dl_slot_cycles(i); sum += x > MODWERK_DSP_RESERVE ? x : MODWERK_DSP_RESERVE; }
+    return sum;
+}
+uint32_t modwerk_dsp_source_charge(unsigned core)
+{
+    uint32_t sum = 0;
+    if (core > 1u) return 0;
+    for (unsigned e = 0; e < SOURCE_ENGINES; ++e) sum += source_engine[core][e].cycles;
+    for (unsigned t = 0; t < 8u; ++t) if (source_core(t) == core) sum += source_voice[t];
+    return sum;
+}
+/* `module` (its runtime id) renders `track`, replacing whatever claimed it; nothing changes unless the core's sources,
+ * this voice, the module's engine and every slot fit its allowance. */
+int modwerk_dsp_source_claim(unsigned track, uint32_t module, uint32_t voice, uint32_t engine, uint8_t kind)
+{
+    if (track >= 8u || !module || !kind || kind > RUNTIME_HARDWARE || voice > 0xffffu || engine > 0xffffu) return RUNTIME_MALFORMED;
+    unsigned c = source_core(track), at = SOURCE_ENGINES;
+    for (unsigned e = 0; e < SOURCE_ENGINES; ++e) if (source_engine[c][e].module == module) at = e; /* its engine */
+    for (unsigned e = 0; at == SOURCE_ENGINES && e < SOURCE_ENGINES; ++e) if (!source_engine[c][e].module) at = e;
+    if (at == SOURCE_ENGINES) return RUNTIME_FULL;
+    uint32_t v = charged(voice, kind), e = charged(engine, kind), old = source_engine[c][at].module ? source_engine[c][at].cycles : 0;
+    uint32_t keep = old > e ? old : e;
+    uint32_t total = slot_charge(c) + modwerk_dsp_source_charge(c) - source_voice[track] - old + v + keep;
+    if (total > (c ? MODWERK_DSP_ALLOWANCE1 : MODWERK_DSP_ALLOWANCE0)) return RUNTIME_CYCLES;
+    source_voice[track] = v, source_owner[track] = module;
+    source_engine[c][at].module = module, source_engine[c][at].cycles = keep;
+    return RUNTIME_OK;
+}
+/* The track is back on its stock source (the machine left it, or its claim was refused): its voice is free. */
+void modwerk_dsp_source_release(unsigned track)
+{
+    if (track < 8u) source_voice[track] = 0, source_owner[track] = 0;
+}
+/* The module's engine is off on both cores (disabled or retired): its engine and every voice it held are free. */
+void modwerk_dsp_source_engine_off(uint32_t module)
+{
+    for (unsigned t = 0; module && t < 8u; ++t) if (source_owner[t] == module) modwerk_dsp_source_release(t);
+    for (unsigned c = 0; module && c < 2u; ++c)
+        for (unsigned e = 0; e < SOURCE_ENGINES; ++e)
+            if (source_engine[c][e].module == module) source_engine[c][e].module = 0, source_engine[c][e].cycles = 0;
 }
 /* A module id with no module: the null stub runs there, free on both slots. */
 #define STOCK {0, 1, MODWERK_DSP_RESERVE, 3, 1, 1, 0}
