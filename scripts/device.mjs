@@ -35,7 +35,7 @@ import { deflateSync, crc32 } from 'node:zlib'
 import { join } from 'node:path'
 import { createConnection, createServer } from 'node:net'
 import { spawn, spawnSync } from 'node:child_process'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { rmSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { sha } from '../vendor/elekloader/kit/src/bytes.ts'
@@ -175,7 +175,11 @@ async function pick(track, slot, wanted) {
   await keys('YES')
   let no = false
   const ok = await until(async () => (await mem(0x80000ec4 + 8 * (slot - 1) + track, 1))[0] === id || (no = (await statusWords())(21) !== refused))
-  if (no) { await keys('NO'); throw new Error(wanted + ' refused on T' + (track + 1) + ' FX' + slot + ' (the loader said no)') }
+  if (no) { // the refusal's reason is on the screen (DSP MEMORY FULL, cycles, ...): keep it before NO clears it
+    const shot = join(tmpdir(), `modwerk-refused-T${track + 1}-FX${slot}.png`)
+    await screen(shot)
+    await keys('NO'); throw new Error(wanted + ' refused on T' + (track + 1) + ' FX' + slot + ' (the loader said no; its screen: ' + shot + ')')
+  }
   const took = Date.now() - start
   await keys('NO')
   if (!ok) throw new Error(wanted + ' was not admitted on T' + (track + 1) + ' FX' + slot + ' within 5 s.')
