@@ -66,6 +66,8 @@ struct runtime_dsp {
                                       * none (ABI 6) */
     uint8_t foreign_roots;           /* trusted board admission only, never an uploaded flag */
     uint8_t contributes;             /* the loader's: its hooks contribute to a table (machine UI roots may name it) */
+    uint32_t hook_offset[RUNTIME_HOOKS]; /* the loader's: each hook word's image offset, RUNTIME_NONE without (a table's
+                                      * record, read by the machine's admission) */
     uint8_t package_sha256[MU_DIGEST_BYTES]; /* exact encoded package, retained across relocation;
                                             * private board declarations must never hash mutable image bytes */
 };

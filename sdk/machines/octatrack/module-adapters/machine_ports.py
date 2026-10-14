@@ -24,6 +24,7 @@ HERE = Path(__file__).resolve().parent
 APP = HERE.parents[3]
 PORTS = HERE / 'machine-ports.json'
 FLAGS = {'PROTECT': 1, 'POOL': 2, 'RENDER_FLEX': 4, 'BACKING': 8}
+KINDS = {'executed': 1, 'modeled': 2, 'hardware': 3}  # loader.h runtime_cycles
 FIELDS = ('assign', 'admit_track', 'chooser_type', 'track_page', 'ui_tick', 'leave', 'pool_open', 'pool_left',
           'choice_left', 'list_draw', 'render', 'validate')  # struct modwerk_machine after abi, sig, label, flags, page, defaults
 # Claim predicates (C convention: the argument on the stack, d0 the answer; d1/a0-a1 free), from a module's own
@@ -129,6 +130,9 @@ def glue(name, entry):
                    '        .long   mw_machine_label, %d, 0, %s\n' % (
                        m['sig'][0], m['sig'][1], m['lo'], m['hi'], sum(FLAGS[f] for f in m['flags']), m['fields'].get('defaults', 0)))
         out += ['        .long   %s\n' % (m['fields'].get(f) or 0) for f in FIELDS]
+        price = entry.get('price')
+        out.append('        .word   %d, %d\n        .byte   %d, 0, 0, 0\n' % (
+            (price['voice'], price['engine'], KINDS[price['kind']]) if price else (0, 0, 0)))
         unknown = set(m['fields']) - set(FIELDS) - {'defaults'}
         if unknown:
             raise ValueError('%s: unknown machine fields %s' % (name, ', '.join(sorted(unknown))))
@@ -161,6 +165,18 @@ def effective(module, sdk_root, work, registry=None, path=PORTS):
     elif module.name == 'quantizer':
         import quantizer_runtime
         effective_module = quantizer_runtime.port(effective_module, sdk_root, work / 'quantizer')
+    if entry and entry.get('controller'):  # a module's own reviewed controller port (the analog-bd lane's)
+        try:
+            controller = importlib.import_module(entry['controller'])
+        except ImportError as error:
+            raise ValueError('%s needs its controller port %s (module-adapters).' % (module.name, entry['controller'])) from error
+        effective_module = controller.port(effective_module, sdk_root, work / 'controller')
+    price = (entry or {}).get('price')
+    if price and (APP / price['source']).is_file():
+        declared = json.loads((APP / price['source']).read_text())
+        if (declared.get('perVoice'), declared.get('perCoreWhileEnabled'), declared.get('kind')) != (
+                price['voice'], price['engine'], price['kind'] + '-instructions'):
+            raise ValueError('%s: its machine port\'s price differs from %s' % (module.name, price['source']))
     if entry:
         from remix.schema import Linked
         source = work / 'machine-port-glue.s'
@@ -168,3 +184,8 @@ def effective(module, sdk_root, work, registry=None, path=PORTS):
         effective_module = replace(effective_module, linked=effective_module.linked + (
             Linked('mw_port', str(source), cpu='5475', dram=True),))
     return effective_module, (_builder().entries(declared) if declared else [])
+
+
+def imports(name, path=PORTS):
+    """Symbols a package takes from the exact base it is built for (its port's `imports`)."""
+    return tuple((port(name, path) or {}).get('imports', ()))

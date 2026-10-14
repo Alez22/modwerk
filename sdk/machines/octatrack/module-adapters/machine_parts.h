@@ -16,4 +16,7 @@ enum machine_part_result {
  * stay fixed. This is a removal check, not an installation/coexistence gate.
  * These exact 1.40C layouts do not read disk-only banks. */
 int machine_part_lifetime(machine_part_read, void *, uint32_t bank, unsigned dropped);
+/* Any machine by its Part signature (sig[0], sig[1], version lo..hi) on a FLEX or STATIC track of the same copies:
+ * CLEAR, RETAINED or UNKNOWN. The removal check for a contributed machine without its own retirement. */
+int machine_part_signature(machine_part_read, void *, uint32_t bank, const uint8_t sig[2], uint8_t lo, uint8_t hi);
 #endif

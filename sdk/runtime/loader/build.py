@@ -724,6 +724,17 @@ def octabam_machine(args):
             for name in unit.exports:
                 subprocess.run([args.cross + 'objcopy', '--globalize-symbol=' + name, str(obj)], check=True, capture_output=True)
             objects.append(obj); units.append(unit)
+        wanted = machine_ports.imports(m.name)
+        if wanted:  # functions of the exact base it is built for (absolute: never relocated)
+            base = json.loads(args.base_symbols.read_text()) if args.base_symbols else {}
+            missing = [n for n in wanted if type(base.get(n)) is not int]
+            if missing:
+                raise ValueError('%s imports %s from its base: give --base-symbols of a base that exports them.'
+                                 % (m.name, ', '.join(missing)))
+            bound = work / 'imports.s'
+            bound.write_text(''.join('        .global %s\n        .set    %s, %#x\n' % (n, n, base[n]) for n in wanted))
+            objects.append(work / 'imports.o')
+            subprocess.run([args.cross + 'as', '-mcpu=54455', str(bound), '-o', str(objects[-1])], check=True, capture_output=True)
         image, symbols, bss, offsets = link_units(objects, args.cross, 0, work, anywhere=True)
     def pointer(symbol, addend=0):
         if symbol not in symbols:

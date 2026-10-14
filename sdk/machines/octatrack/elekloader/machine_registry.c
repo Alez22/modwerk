@@ -45,6 +45,11 @@ static unsigned machines(const Machine **out)
 const char *mw_src_names[ROWS];
 uint32_t mw_pb_table[ROWS];
 extern int mw_stock_validate(uint8_t *);
+/* The DSP budget's source stage (dsp.c): a machine whose voice replaces its track's stock source is charged on that
+ * track's core. Absent from a base without them, so a priced machine is never admitted there. */
+extern int modwerk_dsp_source_claim(unsigned track, uint32_t voice, uint32_t engine, uint8_t kind) __attribute__((weak));
+extern void modwerk_dsp_source_release(unsigned track, int engine_off) __attribute__((weak));
+static uint8_t charged;                   /* tracks of the current Part whose priced machine's voice is charged */
 extern void mw_stock_pool_open(void), mw_stock_list_draw(void);
 
 static unsigned valid_bank(void) { uint32_t b = U32(BANK); return b >= 0x40000000u && b < 0x47f00000u; }
@@ -156,6 +161,39 @@ unsigned mw_chooser_type(unsigned type, const Part *ptr)
     if (who && who->chooser_type && who->chooser_type(type, ptr) != 5) return type;
     return mw_type(type, ptr);
 }
+/* A track leaves `old`: its own leave, stock's FLEX defaults back in both Part copies for a PROTECT machine that
+ * signs its tracks through the registry (the 12 bytes held its parameters), and its DSP charge released. */
+static void leave(const Machine *const *m, unsigned n, Part *part, Part *mirror, unsigned track, const Machine *old)
+{
+    if (old->leave) old->leave(track);
+    if (!old->assign && old->flags & MODWERK_MACHINE_PROTECT)
+        for (unsigned k = 0; k < 12; ++k) {
+            unsigned at = (k < 6 ? 0x2a : 0x1da) + 30 * track + 6 + k % 6;
+            part[at] = mirror[at] = U8(0x400d320cu + k);
+        }
+    if (old->source_kind && charged & 1u << track) {
+        charged &= (uint8_t)~(1u << track);
+        unsigned others = 0; const Machine *who;
+        for (unsigned t = 0; t < 8; ++t) if (t != track && charged & 1u << t && owner(m, n, part, t, &who) && who == old) ++others;
+        if (modwerk_dsp_source_release) modwerk_dsp_source_release(track, !others);
+    }
+}
+/* Tracks that became a priced machine without an assignment (a project load, a Part change, a paste) are charged
+ * here; tracks no longer one are released. A track its core cannot carry stays uncharged and renders silence. */
+static void charge(const Machine *const *m, unsigned n)
+{
+    if (!valid_bank()) return;
+    const Part *part = current_part(); const Machine *who;
+    for (unsigned t = 0; t < 8; ++t) {
+        int owned = owner(m, n, part, t, &who) && who->source_kind;
+        if (owned && !(charged & 1u << t) && modwerk_dsp_source_claim &&
+            !modwerk_dsp_source_claim(t, who->source_voice, who->source_engine, who->source_kind)) charged |= (uint8_t)(1u << t);
+        else if (!owned && charged & 1u << t) {
+            charged &= (uint8_t)~(1u << t);
+            if (modwerk_dsp_source_release) modwerk_dsp_source_release(t, 0);
+        }
+    }
+}
 /* A machine's admission precedes every mutation; -1 refuses. */
 unsigned mw_assign(Part *part, unsigned track, unsigned row)
 {
@@ -168,7 +206,12 @@ unsigned mw_assign(Part *part, unsigned track, unsigned row)
     Part *mirror = AT(SRAM_PART + offset);
     if (next) {
         if (next->admit_track && !next->admit_track(part, track)) return (unsigned)-1;
-        if (old && old != next && old->leave) old->leave(track);
+        if (next->source_kind && old != next) {
+            if (!modwerk_dsp_source_claim || modwerk_dsp_source_claim(track, next->source_voice, next->source_engine, next->source_kind))
+                return (unsigned)-1;
+            charged |= (uint8_t)(1u << track);
+        }
+        if (old && old != next) leave(m, n, part, mirror, track, old);
         if (next->assign) return next->assign(part, track, 1);
         if (old != next && next->defaults)
             for (unsigned k = 0; k < 12; ++k) {
@@ -184,8 +227,9 @@ unsigned mw_assign(Part *part, unsigned track, unsigned row)
         unsigned pool = old->assign(part, track, 0);
         const Machine *still; owner(m, n, part, track, &still);
         if (still == old) return pool;
-        if (old->leave) old->leave(track);
+        leave(m, n, part, mirror, track, old);
     } else if (old) {
+        leave(m, n, part, mirror, track, old);
         unsigned sig = SIG + 30 * track; for (unsigned k = 0; k < 3; ++k) part[sig + k] = mirror[sig + k] = 0;
     }
     return row < 5 ? row : 1;
@@ -194,6 +238,7 @@ void mw_ui_tick(void)
 {
     const Machine *m[ROWS - 5u]; unsigned n = machines(m);
     for (unsigned k = 0; k < n; ++k) if (m[k]->ui_tick) m[k]->ui_tick();
+    charge(m, n);
     tables(m, n);
     uint32_t mask = modwerk_machine_mask();
     counts(n, sequencer());
@@ -292,6 +337,8 @@ int mw_source_render_impl(unsigned track, unsigned ping, unsigned start, unsigne
         if (((const Machine *)v)->abi == MODWERK_MACHINE_ABI) m[n++] = (const Machine *)v;
     }
     if (valid_bank() && owner(m, n, current_part(), track, &who)) {
+        if (who->source_kind && !(charged & 1u << track)) /* uncharged: stock's silent source, never an unpaid voice */
+            return STOCK(int (*)(unsigned, unsigned, unsigned, unsigned), 0x400047f0u)(track, ping, start, end);
         if (who->render) return who->render(track, ping, start, end);
     } else
         for (unsigned k = 0; k < n; ++k)

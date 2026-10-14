@@ -34,7 +34,10 @@ VOLATILE_SERVICE_SOURCES = ('volatile_service.c', 'volatile_service.h')
 MACHINE_TRUST_SOURCES = ('machine_admission.c', 'machine_admission.h',
     'machine_admission_runtime.c', 'machine_declarations.c',
     'machine_lifetime.c', 'machine_lifetime.h', 'machine_parts.c', 'machine_parts.h',
-    'table_admission.c', 'table_admission.h', 'table_declarations.c', 'table_declarations.h')
+    'table_admission.c', 'table_admission.h', 'table_declarations.c', 'table_declarations.h',
+    'machine_contributors.c', 'machine_contributors.h')
+RETIREMENT_SOURCES = tuple('analog-bd-parts/' + n for n in ('analog_bd_part_restore.c', 'analog_bd_part_restore.h',
+                                                          'analog_bd_part_board.c', 'analog_bd_part_board.h'))
 
 
 def check_trust_storage(main_image, mapping, layout, main_load):
@@ -1091,6 +1094,11 @@ def main():
     machine_trust = APP / 'sdk/machines/octatrack/module-adapters'
     for name in MACHINE_TRUST_SOURCES:
         shutil.copyfile(machine_trust / name, source / name)
+    # Retirements the base carries for contributed machines (machine_contributors.c): Analog BD's Part conversion,
+    # when the analog-bd lane's files are present (-O2: it runs with the machine lock held).
+    for name in RETIREMENT_SOURCES:
+        if (machine_trust / name).is_file():
+            shutil.copyfile(machine_trust / name, source / Path(name).name)
     # The base owns the USB configuration and the EP0 unknown-request tail.
     spec = importlib.util.spec_from_file_location('modwerk_usb_base', HERE/'usb_base.py')
     usb = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb)
@@ -1230,6 +1238,10 @@ def main():
     for name in MACHINE_TRUST_SOURCES:
         path = machine_trust / name
         inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
+    for name in RETIREMENT_SOURCES:
+        path = machine_trust / name
+        if path.is_file():
+            inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if saved_set_root:
         for name in saved_set_files:
             path = saved_set_root / name

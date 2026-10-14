@@ -39,7 +39,10 @@ static uint32_t host_addr(const volatile uint8_t *p)
 static int stock_renders, stock_calls;
 static int stock_render(unsigned t, unsigned p, unsigned s, unsigned e) { (void)t; (void)p; (void)s; (void)e; ++stock_renders; return -7; }
 static void stock_any() { ++stock_calls; }
-static void *host_stock(uint32_t a) { return a == 0x40004008u ? (void *)(uintptr_t)stock_render : (void *)(uintptr_t)stock_any; }
+static int silent_renders;
+static int stock_silent(unsigned t, unsigned p, unsigned s, unsigned e) { (void)t; (void)p; (void)s; (void)e; ++silent_renders; return -9; }
+static void *host_stock(uint32_t a)
+{ return a == 0x40004008u ? (void *)(uintptr_t)stock_render : a == 0x400047f0u ? (void *)(uintptr_t)stock_silent : (void *)(uintptr_t)stock_any; }
 #define U8(a) (*(volatile uint8_t *)host_at(a))
 #define U32(a) host_u32(a)
 #define AT(a) ((volatile uint8_t *)host_at(a))
@@ -70,6 +73,17 @@ static uintptr_t volatile *const host_rows[RUNTIME_SITE_EVENTS] = {
 #include "machine_registry.c"
 #undef modwerk_runtime_event_row
 
+/* The DSP budget's source stage (dsp.c, synthetic): a core carries `room` voices. */
+static unsigned room = 1, claims_made, releases, engine_offs; static uint8_t voices;
+int modwerk_dsp_source_claim(unsigned track, uint32_t voice, uint32_t engine, uint8_t kind)
+{
+    CHECK(voice == 411 && engine == 3 && kind == 1); ++claims_made;
+    unsigned used = 0; for (unsigned t = 0; t < 8; ++t) used += t != track && voices & 1u << t;
+    if (used >= room) return 6; /* RUNTIME_CYCLES */
+    voices |= (uint8_t)(1u << track); return 0;
+}
+void modwerk_dsp_source_release(unsigned track, int engine_off) { voices &= (uint8_t)~(1u << track); ++releases; engine_offs += engine_off != 0; }
+
 /* Synthetic machines (the descriptor ABI; no module code). */
 static int a_admit = 1, a_renders, f_renders, left, v_wraps;
 static const uint8_t a_defaults[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
@@ -82,12 +96,14 @@ static unsigned assign_v(volatile uint8_t *part, unsigned t, unsigned on)
 { unsigned s = 60 + 30 * t; part[s] = on ? 'S' : 0; part[s + 1] = on ? '2' : 0; part[s + 2] = on ? 2 : 0; return on ? 1 : 0; }
 static int validate_v(uint8_t *part, int (*next)(uint8_t *)) { ++v_wraps; return next(part) + 1; }
 static const struct modwerk_machine A = {MODWERK_MACHINE_ABI, {'A', 'B'}, 1, 1, "ANALOG BD", MODWERK_MACHINE_PROTECT | MODWERK_MACHINE_POOL, 0, a_defaults,
-                                         0, admit_a, 0, page_a, 0, leave_a, 0, 0, 0, 0, render_a, 0};
+                                         0, admit_a, 0, page_a, 0, leave_a, 0, 0, 0, 0, render_a, 0, 0, 0, 0, {0}};
 static const struct modwerk_machine V = {MODWERK_MACHINE_ABI, {'S', '2'}, 1, 2, "VECTOR", MODWERK_MACHINE_POOL | MODWERK_MACHINE_BACKING, 0, 0,
-                                         assign_v, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, validate_v};
+                                         assign_v, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, validate_v, 0, 0, 0, {0}};
 static const struct modwerk_machine F = {MODWERK_MACHINE_ABI, {'F', 'M'}, 1, 1, "FM SYNTH", MODWERK_MACHINE_PROTECT | MODWERK_MACHINE_RENDER_FLEX, 0, a_defaults,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_f, 0};
-static const struct modwerk_machine X = {2u, {'X', 'X'}, 1, 1, "FUTURE", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_f, 0, 0, 0, 0, {0}};
+static const struct modwerk_machine X = {2u, {'X', 'X'}, 1, 1, "FUTURE", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0}};
+static const struct modwerk_machine D = {MODWERK_MACHINE_ABI, {'D', 'V'}, 1, 1, "PRICED", MODWERK_MACHINE_PROTECT, 0, a_defaults,
+                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, render_a, 0, 411, 3, 1, {0}};
 static const struct { uint32_t count; struct modwerk_sequencer_row row[3]; } FMQ = {3, {{"SCALE", 0, 0}, {"ROOT", 0, 0}, {"GLIDE", 0, 0}}},
     QZ = {3, {{"SCALE", (void *)1, 0}, {"ROOT", (void *)1, 0}, {"GLIDE", (void *)1, 0}}}, MORE = {1, {{"SWING", 0, 0}}};
 static void rows(const void *const *m, unsigned n, const void *const *s, unsigned k)
@@ -151,6 +167,26 @@ int main(void)
     const void *xf[] = {&X, &F};
     rows(xf, 2, 0, 0);
     CHECK(counts_now() >> 24 == 6u && !strcmp(mw_name(5), "FM SYNTH") && mw_type(1, slot(3)) == 5);
+
+    /* Leaving a PROTECT machine without its own assign: stock's FLEX defaults back in both copies, then no signature. */
+    CHECK(part0()[0x2a + 90 + 6] == 1 && mw_assign(part0(), 3, 1) == 1);
+    CHECK(part0()[0x2a + 90 + 6] == 0x40 && sram[0x1da + 90 + 11] == 0x40 && part0()[60 + 90] == 0 && sram[60 + 90] == 0);
+
+    /* A priced machine: charged before the track becomes it, refused when its core is full (nothing changes);
+     * an owned track without a charge renders stock's silent source; leaving releases. */
+    const void *d[] = {&D};
+    rows(d, 1, 0, 0);
+    room = 1;
+    CHECK(mw_assign(part0(), 4, 5) == 1 && voices == 1u << 4 && part0()[60 + 120] == 'D');
+    CHECK(mw_assign(part0(), 5, 5) == (unsigned)-1 && part0()[60 + 150] == 0 && voices == 1u << 4);
+    part0()[60 + 150] = 'D'; part0()[61 + 150] = 'V'; part0()[62 + 150] = 1; /* a project load signs track 5 */
+    CHECK(mw_source_render_impl(5, 0, 0, 1) == -9 && silent_renders == 1);
+    mw_ui_tick();
+    CHECK(mw_source_render_impl(5, 0, 0, 1) == -9 && mw_source_render_impl(4, 0, 0, 1) == 2);
+    room = 2; mw_ui_tick();
+    CHECK(voices == (1u << 4 | 1u << 5) && mw_source_render_impl(5, 0, 0, 1) == 3);
+    CHECK(mw_assign(part0(), 4, 1) == 1 && voices == 1u << 5 && releases == 1 && engine_offs == 0);
+    CHECK(mw_assign(part0(), 5, 1) == 1 && !voices && releases == 2 && engine_offs == 1);
 
     /* SEQUENCER: FM's quantizer rows, then Scale Quantizer's with the same labels: one set, FM's; QZ alone: QZ's. */
     const void *both[] = {&FMQ, &QZ, &MORE};

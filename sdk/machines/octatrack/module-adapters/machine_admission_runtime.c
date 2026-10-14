@@ -3,6 +3,7 @@
  * sources and fixed declarations storage. An empty storage refuses groups. */
 #include "machine_admission.h"
 #include "table_admission.h"
+#include "machine_contributors.h"
 static int board_read(void *context,uint32_t address,void *out,uint32_t length)
 {
     (void)context;
@@ -23,8 +24,16 @@ int modwerk_machine_metadata_admit(const struct runtime_dsp *from,struct runtime
 #endif
     /* No root reads for ordinary modules, including the default empty base. */
     unsigned family=table_metadata_family(modwerk_table_declarations,from)|table_metadata_family(modwerk_table_declarations,to);
-    if(!((from->flags|to->flags)&RUNTIME_GROUP_METADATA) && !family) {to->foreign_roots=0;return RUNTIME_OK;}
+    /* A machine contributed to the base's ot_machines table: an independent package, never a group. */
+    int contributor=machine_contribution(from) || machine_contribution(to);
+    if(!((from->flags|to->flags)&RUNTIME_GROUP_METADATA) && !family && !contributor) {to->foreign_roots=0;return RUNTIME_OK;}
     uint32_t bank=*(volatile uint32_t *)(uintptr_t)0x46c82456u;
+    if(contributor) {
+        to->foreign_roots=0;
+        int why=machine_contributor_admission(from,to,board_read,0,bank,operation);
+        if(why) return why;
+        if(!((from->flags|to->flags)&RUNTIME_GROUP_METADATA) && !family) return RUNTIME_OK;
+    }
     int why=machine_metadata_admission(modwerk_machine_declarations,from,to,board_read,0,bank);
     if(why) return why;
     why=table_machine_association(modwerk_machine_declarations,modwerk_table_declarations,from);
@@ -37,6 +46,7 @@ int modwerk_machine_metadata_admit(const struct runtime_dsp *from,struct runtime
         why=table_metadata_admission(modwerk_table_declarations,from,to,operation,board_read,0,span,count);
         if(why) return why;
     }
-    to->foreign_roots=to->present && ((to->flags&RUNTIME_GROUP_METADATA) || table_metadata_family(modwerk_table_declarations,to));
+    to->foreign_roots=to->present && ((to->flags&RUNTIME_GROUP_METADATA) || table_metadata_family(modwerk_table_declarations,to) ||
+                                      machine_contribution(to));
     return RUNTIME_OK;
 }

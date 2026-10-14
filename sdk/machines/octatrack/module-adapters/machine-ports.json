@@ -814,7 +814,18 @@
      "render": "ab_render"
     }
    },
-   "why": "Every Analog BD chooser, page and renderer seam is the base registry's; its engine, write lease and lifetime are the analog-bd lane's"
+   "price": {
+    "voice": 411,
+    "engine": 3,
+    "kind": "executed",
+    "source": "sdk/machines/octatrack/module-adapters/analog_bd_dsp_price.json"
+   },
+   "controller": "analog_bd_write_lease",
+   "imports": [
+    "modwerk_controller_write_begin",
+    "modwerk_controller_write_end"
+   ],
+   "why": "Every Analog BD chooser, page and renderer seam is the base registry's. Its package links the analog-bd lane's controller (analog_bd_runtime.port: no writes to stock's descriptor row 5; analog_bd_write_lease.port: render only under the board's write lease, else the stock silent source), whose two lease functions are the exact base's exports. ab_type and ab_engine_right are not descriptor fields: both assume chooser row 5, and the registry's signature lookup and RIGHT dispatch do the same with the machine's actual row."
   }
  }
 }

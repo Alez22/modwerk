@@ -650,6 +650,7 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
     slot = position_of(id);
     if (slot == RUNTIME_MODULES || roomless(slot, hook)) return refuse(RUNTIME_FULL);
     dsp.contributes = contributes(hook);
+    for (unsigned i = 0; i < RUNTIME_HOOKS; ++i) dsp.hook_offset[i] = hook[i];
     for (uint32_t i = 0; i < sites; ++i) if (claimed(slot, address[i], size[i])) return refuse(RUNTIME_CONFLICT);
     uint32_t admission_lock = modwerk_machine_lock();
     int why = modwerk_machine_metadata_admit(dsp_of(live[slot]), &dsp, context, RUNTIME_METADATA_PREPARE);

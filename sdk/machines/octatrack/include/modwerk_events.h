@@ -90,7 +90,7 @@ typedef void modwerk_ev_voice_bind_run(unsigned track);
 /* ev_project_write (0x400888aa, take: subscribe a struct modwerk_take): the project writer writes the settings lines. A task (UI, MIDI or project file): short, no firmware call that can block. The taker's entry gets every register and the stack as at the site and replays what the site held (the stock tail below) before it returns to stock; it must not jump into the site's bytes. */
 #define MODWERK_EV_PROJECT_WRITE 26
 
-/* ot_machines (table, contribute {"to": "ot_machines", "order", "data"}): the machine chooser, SRC SETUP, the page resolver, the Part validator, the UI tick, pool navigation and the FLEX renderer ask the contributed machines, in row order: chooser rows 5 on. The UI task and the audio render (render only): short, no firmware call that can block. Contribute one struct modwerk_machine (every field but abi, sig and label optional, 0). A Part keeps its signature when the machine is absent and reads as stock. Removal is refused while a Part, a UI root or a paused task still holds the machine. */
+/* ot_machines (table, contribute {"to": "ot_machines", "order", "data"}): the machine chooser, SRC SETUP, the page resolver, the Part validator, the UI tick, pool navigation and the FLEX renderer ask the contributed machines, in row order: chooser rows 5 on. The UI task and the audio render (render only): short, no firmware call that can block. Contribute one struct modwerk_machine (every field but abi, sig and label optional, 0). A Part keeps its signature when the machine is absent and reads as stock. Leaving a PROTECT machine that has no assign of its own puts stock's FLEX defaults back in both Part copies before the signature goes. A priced machine (source_kind) is charged on its track's core before the track becomes it, and every owned track at each UI tick; a track the core cannot carry renders stock's silent source. Removal is refused while a Part, a UI root or a paused task still holds the machine. */
 #define MODWERK_OT_MACHINES 27
 struct modwerk_machine {
     uint32_t abi;                       /* MODWERK_MACHINE_ABI */
@@ -111,6 +111,8 @@ struct modwerk_machine {
     const void *list_draw;              /* its pool list drawer, entered as stock's 0x4006d784 */
     int (*render)(unsigned track, unsigned ping, unsigned start, unsigned end);
     int (*validate)(uint8_t *part, int (*next)(uint8_t *part));
+    uint16_t source_voice, source_engine; /* a DSP voice that replaces its track's stock source: its price per voice */
+    uint8_t source_kind, reserved[3];   /* and per core while one runs, of this kind (loader.h runtime_cycles); 0 none */
 };
 #define MODWERK_MACHINE_ABI 1u
 #define MODWERK_MACHINE_PROTECT 1u      /* stock's validator never sees its tracks' 12 FLEX bytes */
