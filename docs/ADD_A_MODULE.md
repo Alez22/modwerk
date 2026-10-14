@@ -73,7 +73,7 @@ Once your module is in the reviewed catalog, you can link your own Ko-fi page wi
 
 ## Release notes (required for every fix and module version)
 
-Every module fix must include its changelog update in the same PR; do not defer it until after the fix or release. Before publishing a new module or updating its version, add an entry under its community ID in `src/community/module-changelogs.json`. Octatrack IDs are the module ID (`euclid`); Digitakt and Digitone IDs include the machine (`digitakt-digihealth`, `digitone-digihealth`). Keep earlier entries. The module page’s Changelog tab shows these notes, including when live version history is unavailable.
+Every module fix must include its changelog update in the same PR; do not defer it until after the fix or release. Before publishing a new module or updating its version, add an entry to the file named by its community ID in `src/community/module-changelogs/`. Octatrack IDs are the module ID (`euclid.json`); Digitakt and Digitone IDs include the machine (`digitakt-digihealth.json`, `digitone-digihealth.json`). Keep earlier entries. Each file is that module’s list of releases. `npm ci` and `npm run check` combine them into the generated, uncommitted `src/community/module-changelogs.json`, and the module folders into `src/catalog/machine-modules.json`, so two module PRs never edit the same file. The module page’s Changelog tab shows these notes, including when live version history is unavailable.
 
 ```json
 {

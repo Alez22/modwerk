@@ -17,7 +17,6 @@ function fixture({ foreign = false, symlink = false, registryChange = false } = 
   const doc = { id: 'playmodes', version: '0.1.0-experimental', author: { github: 'devilfish707' }, license: { spdx: 'MIT' }, compatibility: { effectId: null } }
   write('.github/module-authors.json', { schemaVersion: 1, accounts: { devilfish707: author.id } })
   write('sdk/catalog.json', { schemaVersion: 1, sourceRevision: 'd'.repeat(40), modules: [{ id: 'playmodes', version: doc.version }] })
-  write('src/catalog/machine-modules.json', { schemaVersion: 3, modules: [] })
   write('sdk/octabam/modules/playmodes/octamod.module.json', doc)
   write('sdk/octabam/modules/playmodes/source.c', 'original code\n')
   write('sdk/octabam/modules/playmodes/media/location.png', 'fixture only')
@@ -48,7 +47,6 @@ describe('trusted Git object inspection', () => {
     const doc = { id: 'demo', machine: 'digitakt', version: '1.0.0', author: { github: author.login }, license: { spdx: 'MIT' } }
     writeFileSync(join(f.root, folder, 'modwerk.module.json'), JSON.stringify(doc))
     writeFileSync(join(f.root, folder, 'source.c'), 'old code')
-    writeFileSync(join(f.root, 'src/catalog/machine-modules.json'), JSON.stringify({ schemaVersion: 3, modules: [doc] }))
     f.git('add', '.'); f.git('commit', '-qm', 'owner-approved Digi addition'); const base = f.git('rev-parse', 'HEAD')
     writeFileSync(join(f.root, folder, 'modwerk.module.json'), JSON.stringify({ ...doc, version: '1.0.1' }))
     writeFileSync(join(f.root, folder, 'source.c'), 'fixed code')

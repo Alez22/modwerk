@@ -131,31 +131,33 @@ export function authorizeAuthorUpdate(registry: AuthorRegistry, author: unknown,
       continue
     }
     if (vendorPaths.has(change.path)) continue
-    if (change.path === 'sdk/catalog.json' || ['src/catalog/module-documents.json', 'src/catalog/machine-modules.json'].includes(change.path)) {
+    if (change.path === 'sdk/catalog.json' || change.path === 'src/catalog/module-documents.json') {
       if (!change.before || !change.after) throw new Error('Catalog removal requires owner review.')
       const before = object(JSON.parse(change.before)), after = object(JSON.parse(change.after))
       const project = (value: Record<string, unknown>) => {
         if (!Array.isArray(value.modules)) throw new Error('Invalid generated catalog.')
         return { ...value, modules: value.modules.map(item => {
-          const row = object(item), id = change.path === 'src/catalog/machine-modules.json' ? row.machine + '-' + row.id : String(row.id)
-          if (!ids.has(id)) return row
+          const row = object(item)
+          if (!ids.has(String(row.id))) return row
           if (change.path === 'sdk/catalog.json') return { ...row, version: null }
           return { id: row.id, machine: row.machine, ownership: ownership(row) }
         }) }
       }
       if (!same(project(before), project(after))) throw new Error('Catalog changes outside the author modules require owner review.')
       for (const item of after.modules as unknown[]) {
-        const row = object(item), id = change.path === 'src/catalog/machine-modules.json' ? row.machine + '-' + row.id : String(row.id)
+        const row = object(item), id = String(row.id)
         if (ids.has(id) && row.version !== next.get(id)?.version) throw new Error('Stale author module catalog version.')
       }
       continue
     }
-    if (change.path === 'src/community/module-changelogs.json') {
+    // Each module's release notes are their own file, named by its release ID.
+    const notes = change.path.match(/^src\/community\/module-changelogs\/([a-z0-9-]+)\.json$/)
+    if (notes) {
+      if (!ids.has(notes[1])) throw new Error('Release notes for another module require owner review.')
       if (!change.before || !change.after) throw new Error('Release history cannot be removed.')
-      const before = object(JSON.parse(change.before)), after = object(JSON.parse(change.after)), oldNotes = object(before.modules), newNotes = object(after.modules)
-      const project = (value: Record<string, unknown>) => ({ ...value, modules: Object.fromEntries(Object.entries(object(value.modules)).filter(([id]) => !ids.has(id))) })
-      if (!same(project(before), project(after))) throw new Error('Release notes for another module require owner review.')
-      for (const id of ids) for (const note of Array.isArray(oldNotes[id]) ? oldNotes[id] as unknown[] : []) if (!(Array.isArray(newNotes[id]) && (newNotes[id] as unknown[]).some(item => same(item, note)))) throw new Error('Preserve published release notes.')
+      const before: unknown = JSON.parse(change.before), after: unknown = JSON.parse(change.after)
+      if (!Array.isArray(before) || !Array.isArray(after)) throw new Error('Invalid release notes for ' + notes[1] + '.')
+      if (before.some(note => !after.some(item => same(item, note)))) throw new Error('Preserve published release notes.')
       continue
     }
     if (/^sdk\/imports\/[a-z0-9-]+\.json$/.test(change.path) && !change.before && change.after && octatrack) {
