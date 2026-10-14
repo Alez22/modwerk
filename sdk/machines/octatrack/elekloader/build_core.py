@@ -183,7 +183,7 @@ BASE_OWNS = {'usb-audio-out-tracks-main-cue': 'the base owns the USB configurati
              'midi-scenes': 'its writes meet Elekloader\'s own sites; it needs a port',
              'output-matrix': 'resident bases own its CUE CFG project-load clamp and CS1 power-up widening (cue_cfg.s); '
                               'its controller package leaves those sites out'}
-# cue_cfg.s: (address, guard bytes, guard SHA-256 = Output Matrix's manifest guard, the base's site).
+# resident-runtime/cue_cfg.s: (address, guard bytes, guard SHA-256 = Output Matrix's manifest guard, the base's site).
 CUE_CFG_WIDENING = ((0x4008732a, 14, '968adf63466a054aefd6609f18536e3719bbcc144b6dc0a43de49794c3bb3718',
                      dict(op='jmp', target='modwerk_cue_cfg_clamp', length=6)),
                     (0x400100be, 2, '0b14b394f74bdc2f13a4efc3e6bcec310ba2288bcf64811943a1fe443229d05b',
@@ -1260,7 +1260,7 @@ def main():
             p = APP / 'sdk/machines/octatrack/module-adapters' / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
         inputs.update({'sdk/octabam/' + p: h for p, h in resident_dsp.verify_sources(resident_ob.root).items()})
-        for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h'):
+        for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h', 'cue_cfg.s'):
             p = resident_source.RUNTIME / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
     if args.resident_stock_hooks:
@@ -1378,7 +1378,7 @@ modwerk_retained_end:
     if resident_boot_prepared:
         recipe['sources'].append('resident-dsp-boot.s')
     if args.resident_stock_hooks:
-        shutil.copyfile(HERE / 'cue_cfg.s', source / 'cue_cfg.s')
+        shutil.copyfile(resident_source.RUNTIME / 'cue_cfg.s', source / 'cue_cfg.s')
         recipe['sources'].append('cue_cfg.s')
     recipe['cflags'] = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-common',
                         '-fno-zero-initialized-in-bss', '-fno-tree-loop-distribute-patterns',

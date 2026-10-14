@@ -36,7 +36,7 @@ UNITS = {
 DEFAULT_ENTRIES = {'sidechain-compressor': ('sc_norm',), 'output-matrix': ('page_levels', 'matrix_leave', 'matrix_enter')}
 # Output Matrix's project-load CUE CFG clamp and CS1 power-up check run in stock
 # boot, before any package is installed: the resident base owns the widening
-# (build_core.py, `modwerk_cue_cfg_clamp`), so MATRIX survives a power cycle and
+# (resident-runtime/cue_cfg.s, `modwerk_cue_cfg_clamp`), so MATRIX survives a power cycle and
 # the package leaves those three sites out.
 BASE_OWNED_SITES = {'output-matrix': (0x4008732a, 0x400100be, 0x400100c4)}
 BASE_OWNED_MARK = 'modwerk_cue_cfg_clamp'

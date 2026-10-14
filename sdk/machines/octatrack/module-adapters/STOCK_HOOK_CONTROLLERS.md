@@ -29,18 +29,23 @@ runs in a held span.
 Output Matrix mode switch: NORMAL <-> STUDIO stores as authored, with no
 lease. A switch into or out of MATRIX runs the authored whole-bank conversion
 unchanged under one lease (executed instructions in the native fixture: at
-most 38,632 held); CC 51 notifications and the redraw run after End. The
-default rows trust `matrix_leave` only: entering MATRIX stays refused until
-the base owns the project-load clamp and CS1 power-up widenings
-(`--authorize-matrix-entry` is the owner's switch), because a runtime-installed
-package is not present when stock boot runs them. Retirement refuses while
-MATRIX is selected (live or CS1 mirror): leave it on the AUDIO page first.
+most 38,632 held); CC 51 notifications and the redraw run after End. Stock
+boot parses the project and checks the CS1 settings before any package is
+installed, so resident bases own those widenings (`resident-runtime/cue_cfg.s`:
+CUE CFG 0..2 kept, three sites) and the package leaves them out; MATRIX then
+survives a power cycle and `matrix_enter` is trusted by default. Retirement
+refuses while MATRIX is selected (live or CS1 mirror): leave it on the AUDIO
+page first. Five authored Matrix spans equal stock code byte for byte; they
+ship as zeros plus hash-checked ABI 7 stock copies from bytes nobody patches.
 
 Sidechain answers the base's raised `ev_mute_keep` (order 50, `sc_mute_keep`,
 Mute Modes' native SC_KEY scan) when the base it is encoded for raises it.
-COMPRESSOR's page-2 KEY/KFLT/KGN/MON descriptor is not in the package: a
-`replaces` page needs the base (scripts/octatrack-module-page.mjs), so KEY
-stays OFF until that exists.
+COMPRESSOR's page-2 KEY/KFLT/KGN/MON: the image begins with an MWPP record,
+the catalogue's in-place descriptor recipe (descriptor-recipes.json: stock
+descriptor and its SHA-256, integer and text patches, pointers to the
+package's own formatters). The board applies it in place while the controller
+is ACTIVE, only over the exact stock bytes, and writes the saved bytes back
+before it disables the hooks; a page that changed meanwhile quarantines.
 
 `controller-policy/controller_board.c` is the board side: providers for
 `controller_transport.c`, the tick that activates a live trusted controller
