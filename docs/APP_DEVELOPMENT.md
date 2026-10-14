@@ -232,6 +232,8 @@ Additional idle `health()` reads require current opt-in. Refresh consent before 
 
 New module bugs use the module page’s amber “Report an issue” action. Module discussions warn before posting and offer to copy the written draft into that form; the forum composer cannot create bug reports.
 
+A report's state has one color wherever it appears: sky while it awaits review, violet while the reporter is asked for details, amber for a confirmed bug (and for the actions that report one), green once fixed and grey for any other closure. `reportTone` in `src/community/report-closure.ts` decides the tone, `ReportState` draws the chip and the `--issue-*` tokens in `src/styles.css` hold the colors; the library cards' report counts use the same tokens. Show a state through `ReportState` instead of choosing a color for it.
+
 Reports are structured, so authors can reproduce a problem across this many modules and configurations. Each report carries:
 
 - a title and what happened, and optionally steps to reproduce and the expected result;
