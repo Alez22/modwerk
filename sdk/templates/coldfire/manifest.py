@@ -54,6 +54,11 @@ MODULE = Module(
     # and jumps on (the common case), "jsr" for a callable that returns,
     # "lea" to rewrite a six-byte `lea abs.l,An`'s operand. `pad_to` nops
     # the rest of a displaced span longer than six bytes.
+    # Never detour a site another module or the base patches. If the site is
+    # an event in sdk/machines/octatrack/EVENTS.md, subscribe in a
+    # runtime.json beside this file instead ({"schema": 1, "subscribe":
+    # [{"event", "fn", "order"}]}); if two modules need it and it is not an
+    # event yet, propose one (docs/module-guides/README.md#propose-an-event).
     detours=(
         # Detour(0x400xxxxx, stock_guard(0x400xxxxx, 8, "<sha256>"), "unit", "my_hook",
         #        "what this hook is for", kind="jsr", pad_to=None),

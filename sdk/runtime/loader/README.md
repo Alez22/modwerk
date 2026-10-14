@@ -139,6 +139,11 @@ package and member versions, and old variants must remain available for
 Undo. The private `--octabam-group` builder and source-pinned stock recipes
 produce candidates, not qualified public modules.
 
+Groups are not how machines will ship. Each machine (POLY8, VECTOR, FM
+Synth, Scale Quantizer, Analog BD) is its own package that installs and runs
+beside the others, and the sites they share become events and tables the
+base owns (below). The `MWMG` format stays only until no candidate needs it.
+
 ## Events at stock sites (ABI 8)
 
 A base may own stock sites that several modules need, and turn each into an event, as
@@ -153,9 +158,10 @@ A package subscribes with hook words after the four core events: the word at hoo
 `RUNTIME_EVENTS + k` holds event k's order in its top byte and the handler's image offset below
 (`0xffffffff`: none). Only ABI 8 carries them; a base without events refuses a package with more
 than four hook words. `build.py` writes them from a module's `runtime.json`
-(`{"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}`; `replaces` names the
-detour its native octabam build keeps at that site, and its units assemble with
-`MODWERK_EVENTS`), from an elemod's `subscribe`, or from `--subscribe EVENT:FN:ORDER` for C
+(`{"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}`;
+`replaces` names the detour its native octabam build keeps at that site, and its units assemble
+with `MODWERK_EVENTS`; `raise` asks for the base's entry of an event without a stock site, such
+as `ev_mute_keep`), from an elemod's `subscribe`, or from `--subscribe EVENT:FN:ORDER` for C
 sources. `contribute` is refused.
 
 The loader keeps one row per event: every live module's handler, by (order, module id), then 0.

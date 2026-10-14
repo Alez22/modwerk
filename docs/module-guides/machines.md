@@ -13,6 +13,8 @@ Read [the module guides index](README.md) first. A machine that sequences notes 
 
 A new machine must be a first-class entry wherever the instrument lists machines. Analog BD shows what that takes: about twenty guarded detours, each named for the place it covers (`sdk/octabam/modules/analog-bassdrum/manifest.py`).
 
+Every track machine needs those same places: the chooser, SRC SETUP, the machine names, Part validation and the renderer. So a machine never owns them. It installs and runs on its own, beside every other machine, and reaches those places through [events and tables the base owns](README.md#events): it subscribes to the event or registers its row, and never patches a site another machine also needs. Check [EVENTS.md](../../sdk/machines/octatrack/EVENTS.md) first. If a site you need is not there yet and another module already patches it, [propose an event](README.md#propose-an-event). Do not compose your machine into another module's package, and do not ask for a `group-owned` exception: the machine group that POLY8 composes today is being retired.
+
 - [ ] **The machine chooser.** The track's machine list opens on your machine for a track that uses it, highlights it, and admits it when the choice is committed (`ab_chooser_open`, `ab_chooser_row`, `ab_main_commit`).
 - [ ] **SRC SETUP.** The same machine is selectable there, with its row highlighted, and every commit path admits it (`ab_src_names`, `ab_setup_open`, `ab_setup_row`, `ab_src_commit`, `ab_src_commit2`, `ab_setup_edit6`, `ab_setup_draw6`).
 - [ ] **Its name everywhere the stock machine names appear,** including the main page (`ab_machine_name`, `ab_name_a`, `ab_name_b`).
@@ -43,7 +45,7 @@ Test in layers, as Analog BD does: the DSP engine, the ColdFire glue, the port (
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots as in [Add or port a module](../ADD_A_MODULE.md).
-- [ ] Conflicts are declared with actual ownership and placement reasons, in `compatibility.conflicts` and in the ledger. Analog BD supports reviewed custom DSP companions (`analogBdCompanions`), subject to space; inspect both cores rather than inheriting a blanket effect exclusion. A machine that brings its own DSP engine needs the same review. Follow the [base/USB lifecycle requirements](../ADD_A_MODULE.md#octatrack-base-and-usb-lifecycle), including shared machine registration, missing-module behaviour and Keep/Undo. Unavoidable limits require owner review.
+- [ ] Conflicts are declared with actual ownership and placement reasons, in `compatibility.conflicts` and in the ledger. Analog BD supports reviewed custom DSP companions (`analogBdCompanions`), subject to space; inspect both cores rather than inheriting a blanket effect exclusion. A machine that brings its own DSP engine needs the same review. Follow the [base/USB lifecycle requirements](../ADD_A_MODULE.md#octatrack-base-and-usb-lifecycle), including shared machine registration, missing-module behaviour and Keep/Undo. `npm run modules:compat -- <id>` passes with your machine beside every other machine module, with no group exception. Unavoidable limits require owner review.
 - [ ] `npm run module:verify -- <id> --os <your 1.40C>` and `npm run module:doctor -- <id>` are green.
 
 ## Digitakt and Digitone

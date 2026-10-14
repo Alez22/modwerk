@@ -27,17 +27,13 @@ sys.path.insert(0, str(APP / 'sdk/octabam/tools'))
 GUIDE = 'docs/module-guides/README.md#cross-compatibility'
 RELATIONS = 'sdk/machines/octatrack/compatibility.json'
 EVENTS = 'sdk/machines/octatrack/events.json'
-# shortcut: the event registry is being written on another branch; until EVENTS exists on this branch, these
-# are its two planned sites (working names). Delete this fixture once EVENTS lands: the gate reads the file.
-PLANNED_EVENTS = [dict(event='ev_play_increment', site='0x40004100', length=8),
-                  dict(event='ev_voice_bind', site='0x40006820', length=8)]
 RECIPES = ('sdk/machines/octatrack/module-adapters/standalone-recipes.json',
            'sdk/machines/octatrack/module-adapters/candidate-recipes.json')
 BASE = 'the Modwerk base'
 PROBE = 0x400D7000  # ledger.check's probe address for a floating cave's emit pokes
 ROUTES = {
     'subscribe': ('the base owns this event site: subscribe a handler to the event (subscribe: event, fn, '
-                  'order in mod.json) instead of patching it', '#events'),
+                  'order in the module\'s runtime.json) instead of patching it', '#events'),
     'event': ('two behaviour hooks meet on this stock site: request a new event (one reviewed entry in '
               'sdk/machines/octatrack/events.json), then subscribe to it instead of patching', '#propose-an-event'),
     'site': ('one owner per byte: patch other bytes, or request a new event if you need the same behaviour',
@@ -113,7 +109,7 @@ def describe(a, x, b, y, at, way):
     if way == 'subscribe':
         (e, _), (p, pn) = ((x, a), (y, b)) if x[0] == 'event' else ((y, b), (x, a))
         return (f'{pn} patches {span(p[1], p[2])} ({p[0]} {p[3]}), which is the event {e[3]} '
-                f'({span(e[1], e[2])}): subscribe to it in mod.json instead of patching')
+                f'({span(e[1], e[2])}): subscribe to it in runtime.json instead of patching')
     return f'{a} ({x[0]} {x[3]}, {span(x[1], x[2])}) and {b} ({y[0]} {y[3]}, {span(y[1], y[2])}) both claim 0x{at:08x}'
 
 
@@ -233,8 +229,6 @@ def active_ids():
 
 
 def read_events():
-    if not (APP / EVENTS).exists():
-        return PLANNED_EVENTS
     # an event a module raises (site null) owns no stock bytes: nothing to compare
     events = [e for e in json.loads((APP / EVENTS).read_text())['events'] if e.get('site') is not None]
     if not all(isinstance(e.get('event'), str) and re.fullmatch(r'0x[0-9a-fA-F]{8}', str(e.get('site')))
