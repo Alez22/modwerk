@@ -18,14 +18,18 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
 - an entry with "machine": a catalogue machine module as one independent package (--octabam-machine, ABI 8): what
   it shares goes through the base's events and tables (its runtime.json or machine port), and its authored runs that
   coincide with stock are rebuilt from the user's OS by the reviewed recipe in module-adapters/machine-recipes.json,
-  so the package carries no stock bytes. Same tools as "octabam".
+  so the package carries no stock bytes. Same tools as "octabam";
+- an "octabam" entry with "standalone" (Play Modes, Tape Echo, Euclid): its authored runs that coincide with stock
+  are rebuilt from the user's OS by its reviewed recipe in module-adapters/standalone-recipes.json (build.py
+  --standalone; owner decision 14 Oct 2026).
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
 scans every package, and its DSP words packed in three bytes either way round, for runs of 12 or more bytes that
 appear in the stock OS image too, counted by their bytes that are not filler (zero padding and empty header fields,
-and stretches of four or more 0xFF bytes such as unused hook words, match anywhere), and fails on 12 (E-Verb's DSP words share 10 by chance), and runs check_stock_free.py's scan (16 bytes at
-any alignment, against the image and its DSP words as the ColdFire keeps them). Needs Elekloader (--upstream,
+and stretches of four or more 0xFF bytes such as unused hook words, match anywhere), and fails on 12 (E-Verb's DSP
+words share 10 by chance), and runs check_stock_free.py's scan (16 bytes at any alignment, against the image and its
+DSP words as the ColdFire keeps them). Needs Elekloader (--upstream,
 default ~/.cache/modwerk-upstream/elekloader) to unpack the OS. Node 24 for the page recipe."""
 import argparse, hashlib, json, shutil, struct, subprocess, sys, tempfile
 from pathlib import Path
@@ -51,6 +55,8 @@ def build(entry, out, upstream, private_stock=None):
         args += ['--octabam', entry['id'], '--upstream', str(upstream)] + (['--pinned'] if entry.get('pinned') else [])
     if entry.get('machine'):
         args += ['--octabam-machine', entry['id'], '--upstream', str(upstream)]
+    if entry.get('standalone'):
+        args += ['--standalone']
     if private_stock:
         args += ['--private-port', '--stock', str(private_stock)]
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)

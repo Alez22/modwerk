@@ -1,10 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Reviewed private standalone/hybrid reconstruction; no public admission.
+"""Reviewed standalone/hybrid reconstruction for Play Modes, Tape Echo and Euclid.
 
 Every coincident span names authored source and exact compiled/source hashes.
 The existing StockCopy implementation and final stock scans stay authoritative.
 Only separately reviewed Play Modes, Tape Echo and Euclid declarations are
 accepted here; no arbitrary code fill or caller-provided module is inferred.
+Private preparation (build.py --private-port) compares each span with the
+original OS. The published packages (build.py --standalone, owner decision
+14 Oct 2026) apply the same reviewed spans without it; the base checks every
+copy's SHA-256 against its own running stock before it installs a package.
 """
 import hashlib
 import json
@@ -56,10 +60,12 @@ def sources(root, upstream, module):
 
 
 def apply(image, relocations, recipe, inputs, root, stock_at):
-    """Validate authored provenance and running-stock guards before zeroing.
+    """Validate authored provenance and, given `stock_at`, the original-stock spans before zeroing.
 
     Source line ranges describe a developer's reviewed native symbol/emitter;
-    they do not exempt any literal from either strict package scanner.
+    they do not exempt any literal from either strict package scanner. Without
+    `stock_at` every span must still equal its reviewed hash, which was taken
+    from the original OS at review.
     """
     if recipe.get('schema') != 1 or recipe.get('imageSha256') != digest(image) or recipe.get('sources') != inputs:
         raise ValueError('The standalone recipe does not name the exact source/image inputs.')
@@ -84,7 +90,7 @@ def apply(image, relocations, recipe, inputs, root, stock_at):
                 or lines[1] > len(path.read_text().splitlines())):
             raise ValueError('Standalone authored provenance changed.')
         span = image[at:at + length]
-        if digest(span) != item.get('sha256') or stock_at(address, length) != span:
+        if digest(span) != item.get('sha256') or (stock_at is not None and stock_at(address, length) != span):
             raise ValueError('Standalone compiled and original-stock spans differ.')
     # Reuse the unchanged overlap, relocation and placeholder implementation.
     output, copies, fills = stock_recipe.apply(image, relocations, recipe, inputs)

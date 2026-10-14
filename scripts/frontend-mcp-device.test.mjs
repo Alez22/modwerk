@@ -114,12 +114,12 @@ describe('frontend MCP reviewed device transactions', () => {
     await mkdir(preparedModules, { mode: 0o700 })
     const bytes = Buffer.alloc(80)
     bytes.write('MWRM'); bytes.writeUInt16BE(8, 4); bytes.writeUInt32BE(4, 8)
-    bytes.writeUInt32BE(createHash('sha256').update('playmodes').digest().readUInt32BE(0), 28)
-    bytes.write('Play Modes', 50); bytes.writeUInt16BE(1, 66)
-    const version = frontend.modules.find(module => module.id === 'playmodes').version
-    const extra = { id: 'playmodes', version, module: bytes.subarray(28, 32).toString('hex'), name: 'Play Modes',
+    bytes.writeUInt32BE(createHash('sha256').update('cc-map').digest().readUInt32BE(0), 28)
+    bytes.write('CC Map', 50); bytes.writeUInt16BE(1, 66)
+    const version = frontend.modules.find(module => module.id === 'cc-map').version
+    const extra = { id: 'cc-map', version, module: bytes.subarray(28, 32).toString('hex'), name: 'CC Map',
       abi: 8, features: 0, sites: 0, copies: 0, fills: 0, bytes: bytes.length, requiredBase: base,
-      sha256: createHash('sha256').update(bytes).digest('hex'), path: `octatrack-modules/playmodes/${version}.mwrm` }
+      sha256: createHash('sha256').update(bytes).digest('hex'), path: `octatrack-modules/cc-map/${version}.mwrm` }
     for (const entry of [...manifest.packages, extra]) {
       const path = join(preparedModules, entry.path)
       await mkdir(join(path, '..'), { mode: 0o700, recursive: true })
@@ -132,7 +132,7 @@ describe('frontend MCP reviewed device transactions', () => {
     const open = allowDeviceWrites => createFrontendTools({ dataDir: folder, deviceSocket: 'test-only', preparedModules,
       allowDeviceWrites }, frontend, { openLink: async () => link, now: () => clock })
     service = await open(false)
-    const selected = ['everb', 'playmodes']
+    const selected = ['everb', 'cc-map']
     const plan = await service.call('device_review', { moduleIds: selected })
     await expect(service.call('device_trial', { review: plan.review })).rejects.toThrow('--allow-device-writes')
     expect(link.updates).toHaveLength(0)

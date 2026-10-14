@@ -26,12 +26,12 @@ async function fixture() {
   // Synthetic owned image: a real ABI8 header/parser, no instrument stock.
   const bytes = Buffer.alloc(80)
   bytes.write('MWRM'); bytes.writeUInt16BE(8, 4); bytes.writeUInt32BE(4, 8)
-  bytes.writeUInt32BE(createHash('sha256').update('playmodes').digest().readUInt32BE(0), 28)
-  bytes.write('Play Modes', 50); bytes.writeUInt16BE(1, 66)
-  const version = frontend.modules.find(module => module.id === 'playmodes').version
-  const extra = { id: 'playmodes', version, module: bytes.subarray(28, 32).toString('hex'), name: 'Play Modes',
+  bytes.writeUInt32BE(createHash('sha256').update('cc-map').digest().readUInt32BE(0), 28)
+  bytes.write('CC Map', 50); bytes.writeUInt16BE(1, 66)
+  const version = frontend.modules.find(module => module.id === 'cc-map').version
+  const extra = { id: 'cc-map', version, module: bytes.subarray(28, 32).toString('hex'), name: 'CC Map',
     abi: 8, features: 0, sites: 0, copies: 0, fills: 0, bytes: bytes.length,
-    sha256: createHash('sha256').update(bytes).digest('hex'), path: `octatrack-modules/playmodes/${version}.mwrm`, requiredBase: base }
+    sha256: createHash('sha256').update(bytes).digest('hex'), path: `octatrack-modules/cc-map/${version}.mwrm`, requiredBase: base }
   for (const entry of [...manifest.packages, extra]) {
     const path = join(folder, entry.path)
     await mkdir(join(path, '..'), { recursive: true, mode: 0o700 })
@@ -56,11 +56,11 @@ describe('startup-only private prepared modules', () => {
 
   it('uses real catalogue/package parsing, preserves public bytes and excludes held ports', async () => {
     const { folder } = await fixture(), prepared = await loadPreparedModules(folder, manifest, frontend)
-    expect(prepared.info).toEqual({ base, moduleIds: ['playmodes'], admission: false })
-    expect(prepared.catalogue.ids).toEqual([...manifest.packages.map(entry => entry.id), 'playmodes'])
+    expect(prepared.info).toEqual({ base, moduleIds: ['cc-map'], admission: false })
+    expect(prepared.catalogue.ids).toEqual([...manifest.packages.map(entry => entry.id), 'cc-map'])
     expect(prepared.catalogue.ids).not.toContain('mute-modes')
-    expect(() => prepared.requireBase(['playmodes'], 'b'.repeat(64))).toThrow('exact observed')
-    expect(() => prepared.requireBase(['playmodes'], base)).not.toThrow()
+    expect(() => prepared.requireBase(['cc-map'], 'b'.repeat(64))).toThrow('exact observed')
+    expect(() => prepared.requireBase(['cc-map'], base)).not.toThrow()
     expect(() => prepared.requireBase(['everb'], undefined)).not.toThrow()
   })
 
@@ -69,7 +69,7 @@ describe('startup-only private prepared modules', () => {
     await writeFile(join(folder, extra.path), Buffer.alloc(extra.bytes))
     expect((await prepared.load(extra)).subarray(0, 4)).toEqual(new Uint8Array(Buffer.from('MWRM')))
     for (const identity of [undefined, 'b'.repeat(64)]) {
-      await expect(prepared.catalogue.prepare({ name: 'Trial', moduleIds: ['playmodes'], removedStockFx: [] }, { moduleIds: [], removedStockFx: [] }, prepared.load,
+      await expect(prepared.catalogue.prepare({ name: 'Trial', moduleIds: ['cc-map'], removedStockFx: [] }, { moduleIds: [], removedStockFx: [] }, prepared.load,
         { abi: 8, features: 7, maxSites: 128, maxCopies: 128 }, identity)).rejects.toThrow('exact Modwerk base')
     }
   })

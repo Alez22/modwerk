@@ -527,13 +527,16 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
     return image, bss, offsets, sites, copies
 
 
-def private_standalone(args):
-    """Explicit private authored-span preparation; never a publication path."""
+def private_standalone(args, public=False):
+    """Authored-span reconstruction of a reviewed standalone port (standalone_runtime.py). Private (--private-port):
+    original stock required, output new and outside Git, never a publication path. Public (--standalone, owner
+    decision 14 Oct 2026): the committed reviewed recipe alone, as module_packages.py publishes it; given --stock, each
+    span is also compared with the original OS and both strict scans run."""
     root = HERE.parents[2]
     adapters = root / 'sdk/machines/octatrack/module-adapters'
     sys.path.insert(0, str(adapters))
     import standalone_runtime
-    if (args.octabam not in standalone_runtime.PORTS or not args.stock or not args.upstream
+    if (args.octabam not in standalone_runtime.PORTS or not (args.stock or public) or not args.upstream
             or args.no_page or args.page_from or args.name or args.layout != 1 or args.stock_recipe or args.capture_stock_recipe):
         raise ValueError('Private standalone ports need their reviewed declaration, original stock and ordinary layout/page.')
     wanted = standalone_runtime.PORTS[args.octabam]
@@ -550,9 +553,11 @@ def private_standalone(args):
     ancestor = output.parent
     while not ancestor.exists():
         ancestor = ancestor.parent
-    if (output.exists() or subprocess.run(['git', '-C', str(ancestor), 'rev-parse', '--show-toplevel'],
-                                         capture_output=True).returncode == 0):
+    if not public and (output.exists() or subprocess.run(['git', '-C', str(ancestor), 'rev-parse', '--show-toplevel'],
+                                                         capture_output=True).returncode == 0):
         raise ValueError('Private standalone output must be new and outside Git.')
+    if not args.stock:  # public, from the committed recipe: the base checks each copy against its running stock
+        return standalone_runtime, standalone_runtime.sources(root, args.upstream, args.octabam), None, None
     sys.path.insert(0, str(args.upstream.expanduser().resolve()))
     from elekloader import formats
     parsed, device, release = formats.load(str(args.stock))
@@ -964,11 +969,15 @@ def main():
     parser.add_argument('--octabam-machine', help='a catalogue machine module as one independent package: its shared sites '
                                                   'through the base\'s events and tables (runtime.json or machine port)')
     parser.add_argument('--private-port', action='store_true', help='reviewed private standalone StockCopy preparation; requires original stock; never publishes')
+    parser.add_argument('--standalone', action='store_true', help='a reviewed standalone port (Play Modes, Tape Echo, Euclid) '
+                        'as published: the committed standalone-recipes.json, no firmware; --stock also checks it against the OS')
     parser.add_argument('--pinned', action='store_true', help='its ColdFire code names its effect id (ABI 6 flag 2)')
     parser.add_argument('--subscribe', action='append', default=[], metavar='EVENT:FN:ORDER',
                         help='C sources: subscribe FN to a site event of sdk/machines/octatrack/events.json (repeatable)')
     args = parser.parse_args()
-    private = private_standalone(args) if args.private_port else None
+    if args.private_port and args.standalone:
+        parser.error('--private-port prepares privately; --standalone builds the published package. Give one.')
+    private = private_standalone(args, public=args.standalone) if args.private_port or args.standalone else None
     if args.subscribe and not args.sources:
         parser.error('--subscribe is for C sources; an octabam module subscribes in its runtime.json, an elemod in its "subscribe".')
     if (bool(args.sources) + bool(args.elemod) + bool(args.octabam) + bool(args.octabam_group) + bool(args.octabam_machine) > 1
@@ -1020,7 +1029,9 @@ def main():
     if private:
         if private[1] != private[0].sources(HERE.parents[2], args.upstream, args.octabam):
             raise ValueError('A private standalone source changed during compilation.')
-        private_stock_free(data, args.stock, private[3], args.upstream)
+        if args.stock:
+            private_stock_free(data, args.stock, private[3], args.upstream)
+    if private and not args.standalone:
         fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, 'wb') as output:
             output.write(data)

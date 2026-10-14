@@ -99,7 +99,8 @@
           "Protect clock reset when playback starts: preserve the CPU status register and mask interrupts while resetting timing state.",
           "Clear the initialized flag before the reset and publish it after the new state is ready, preventing an interrupt from seeing a partial reset. Existing timing, swing and controls are unchanged.",
           "Documentation/media-only: add an offline audio preview rendered through 0.1.4-experimental, with sample credits, settings and provenance; firmware is unchanged.",
-          "Documentation/media-only (12 October 2026): replace the abrupt, short-decay demo with the owner-supplied modpad.wav preview at 128 BPM. Use its eight-bar middle (22.5–37.5 seconds), excluding the render-error ends and preserving its supplied sound/decay. Record source permission, hashes, crop and encoding. Capture setup and recorded module version are unverified; firmware and existing hardware/performance status are unchanged."
+          "Documentation/media-only (12 October 2026): replace the abrupt, short-decay demo with the owner-supplied modpad.wav preview at 128 BPM. Use its eight-bar middle (22.5–37.5 seconds), excluding the render-error ends and preserving its supplied sound/decay. Record source permission, hashes, crop and encoding. Capture setup and recorded module version are unverified; firmware and existing hardware/performance status are unchanged.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on a Modwerk base. Its compiled bytes that coincide with stock are rebuilt at install from the reviewed spans of your own OS, which the base checks against its running stock, so the package carries no stock bytes. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ],
         "sourceCommit": "e027bea0fcaed334ef69c11be4474627814a2e21"
       },
@@ -419,7 +420,8 @@
         "date": "2026-10-12",
         "changes": [
           "Documentation/media-only: retain the exact 0.1.2-experimental runtime and historical UI, source and test evidence while adding a 7.85-second Legowelt Juno 106 chord-pluck preview: dry, clean eighth-note repeats and worn dotted-eighth echoes at 128 BPM, without added gaps. Include pack permission, source/excerpt hashes and offline render settings; refresh monochrome exports from the existing LCD captures.",
-          "Retain the approved 0.1.2-experimental runtime and evidence. No DSP behavior, hardware freeze mitigation, timing headroom or new physical-hardware qualification is claimed."
+          "Retain the approved 0.1.2-experimental runtime and evidence. No DSP behavior, hardware freeze mitigation, timing headroom or new physical-hardware qualification is claimed.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on a Modwerk base. Its compiled bytes that coincide with stock are rebuilt at install from the reviewed spans of your own OS, which the base checks against its running stock, so the package carries no stock bytes. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ]
       },
       {
@@ -816,7 +818,8 @@
         "changes": [
           "Import devilfish707's build-24 fixes: switching NORMAL to PER TRACK follows the track's actual length, and PER TRACK uses MASTER SCALE instead of the former NORMAL-mode scale.",
           "Keep the full track length across short MASTER LENGTH passes; restart both pingpong modes at master loops, including 14/16 and 15/16 lengths, and show the played step on the trig LEDs.",
-          "Rebuild Modwerk's source packages and verify native/browser composition. Author-reported MKII functional tests are retained; current physical persistence/isolation, MKI, chip timing and stress tests remain unverified. The owner approved those missing current-build hardware checks for this exact release."
+          "Rebuild Modwerk's source packages and verify native/browser composition. Author-reported MKII functional tests are retained; current physical persistence/isolation, MKI, chip timing and stress tests remain unverified. The owner approved those missing current-build hardware checks for this exact release.",
+          "USB package (14 Oct 2026; distribution only, the module source and version are unchanged): loads over USB on a Modwerk base. Its compiled bytes that coincide with stock are rebuilt at install from the reviewed spans of your own OS, which the base checks against its running stock, so the package carries no stock bytes. Emulator and host tests only; no hardware run of this package. The owner waived hardware evidence for this exact version's USB package for the beta."
         ]
       },
       {
