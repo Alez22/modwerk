@@ -1102,11 +1102,16 @@ def main():
     parser.add_argument('--fx-ids', type=int, choices=(32, 128), default=128,
                         help='with --dsp-loader: the base\'s effect ids (fxids.h, the dispatch and chooser tables; '
                              'docs/OCTATRACK_MORE_EFFECT_IDS.md). 32, the old width, only to bisect a fault.')
+    parser.add_argument('--slot-meter', action='store_true',
+                        help='with --dsp-loader: the per-slot DSP cycle meter (dsp_slot_meter.py), read by status.c and MWLD v2. '
+                             'Off by default: without it every output is as before.')
     args = parser.parse_args()
     if args.saved_set_export and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
         parser.error('Private saved-set export requires the ordinary DSP loader without probes/burn.')
     if args.resident_stock_hooks and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
         parser.error('Private resident stock hooks require the ordinary DSP loader, without probes/burn.')
+    if args.slot_meter and (not args.dsp_loader or args.dsp_probe):
+        parser.error('The slot meter needs the DSP loader, without a probe.')
     if bool(args.controller_policies) != bool(args.controller_layout) or (args.controller_policies and not args.resident_stock_hooks):
         parser.error('Controller trust rows need --resident-stock-hooks and the layout their packages were encoded against.')
     global FX_IDS, FX_WORDS
@@ -1240,6 +1245,10 @@ def main():
         loader_dsp = importlib.util.module_from_spec(spec); spec.loader.exec_module(loader_dsp)
         if args.resident_stock_hooks:
             loader_dsp = resident_source.load_loader(APP)
+        if args.slot_meter:
+            spec = importlib.util.spec_from_file_location('modwerk_dsp_slot_meter', HERE/'dsp_slot_meter.py')
+            slot_meter = importlib.util.module_from_spec(spec); spec.loader.exec_module(slot_meter)
+            slot_meter.install(loader_dsp)
         for name in DYNLOAD_SOURCES + ('hooks.s',):
             text = (DYNLOAD / name).read_text()
             preserved_dynload = text
@@ -1271,6 +1280,8 @@ def main():
                 text = saved_set_wiring.selection(text)
             if args.resident_stock_hooks and name in zero_state.UNITS:  # last, after every other seam
                 text = zero_state.unit(name, text, preserved_dynload)
+            if args.slot_meter and name == 'transfer.c':  # METER, a command like PEEK (dsp_slot_meter.py)
+                text = slot_meter.transfer(text)
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         if args.resident_stock_hooks:
             for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h'):
@@ -1407,6 +1418,8 @@ def main():
     if args.dsp_loader:
         configuration.update(dsp=dict(loader='dsp-dynload-3', stock='on-demand', rows='runtime',
                                       allowance=DSP_ALLOWANCE, reserve=DSP_RESERVE, probe=args.dsp_probe, burn=args.dsp_burn, hook=args.dsp_hook, arena=[dsp_layout[t]['tableWords'] - loader_dsp.SAVED for t in 'AB']))
+        if args.slot_meter:  # only when set: a base without it keeps its identity
+            configuration['dsp']['slotMeter'] = 1
     if usb_functions:
         configuration['usb'].update(interfaces=['msc', 'modwerk-vendor', 'midi-control', 'midi-streaming'] +
             (['audio-control', 'audio-streaming'] if args.usb_audio else []),
@@ -1514,6 +1527,8 @@ modwerk_retained_end:
          for key, field in (('TABLE', 'table'), ('WORDS', 'tableWords'), ('MISS', 'miss'), ('METER', 'meter'))] if args.dsp_loader else [])
     if args.saved_set_export:
         recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
+    if args.slot_meter:
+        recipe['cflags'].append('-DMODWERK_DSP_SLOT_METER')
     if args.resident_stock_hooks:
         recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
     if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/EVENTS.md)

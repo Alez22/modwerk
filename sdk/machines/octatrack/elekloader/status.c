@@ -27,12 +27,21 @@ enum { CPU, DSP0_MEAN, DSP0_PEAK, DSP1_MEAN, DSP1_PEAK, BUFFERS, POOL_USED, MODU
 /* WRAP: timer counts a frame; SUM0/1: each core's last window, idle passes summed over 1,024 frames */
 
 extern volatile uint32_t dl_frames, dl_residency_words[2];
+#ifdef MODWERK_DSP_SLOT_METER
+extern volatile uint32_t modwerk_dsp_meter_bits, modwerk_dsp_meter[7]; /* and the slot meter's two words */
+#else
 extern volatile uint32_t modwerk_dsp_meter_bits, modwerk_dsp_meter[5];
+#endif
 extern volatile int32_t modwerk_dsp_meter_core;
 extern const uint16_t modwerk_dsp_arena[2];
 int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words);
 uint32_t dl_buffers_in_use(void); /* manager.c (build_core.py's edit): FX1 and FX2 block masks, core 0 then 1 */
+#ifdef MODWERK_HOST
+static volatile uint32_t host_dtcn3; /* the host tests' frame timer */
+#define DTCN3 host_dtcn3
+#else
 #define DTCN3 (*(volatile uint32_t *)0xfc07c00cu) /* the frame timer's count: free-running, all 32 bits */
+#endif
 
 /* status.s's: the idle counts so far, and the longest pass that still counts as idle (0 until the first
  * window has measured the timer's rate: nothing counts). */
@@ -58,6 +67,84 @@ unsigned modwerk_status_load(uint8_t *out)
     modwerk_load_encode(out, modwerk_runtime_ticks, &load_cache[load_bank]);
     return MODWERK_LOAD_BYTES;
 }
+#ifdef MODWERK_DSP_SLOT_METER
+/* The slot meter (build_core.py --slot-meter, dsp_slot_meter.py): what each FX slot really costs its core. While a
+ * host reads MWLD v2 (ep0.c; it asks again within 10 s or the meter stops), each core watches one running slot at a
+ * time: armed (METER, through dsp.c), read back with the core's window (two more words), then the next. A reading
+ * counts only when both words carry the slot's key, so a window that began before the slot or another slot's never
+ * does, and none from a read during which a pick or a Part change landed. Nothing here runs per frame. */
+#define SLOT_HOLD 600u /* ticks (10 s) a v2 read keeps the meter going */
+volatile uint32_t modwerk_slot_demand; /* modwerk_runtime_ticks until which a host wants slot readings */
+extern volatile int32_t modwerk_dsp_slot_armed[2];
+extern volatile uint32_t dl_selection_completed;
+int modwerk_dsp_slot_arm(unsigned core, unsigned id, unsigned key);
+#ifdef MODWERK_HOST
+extern uint8_t modwerk_test_live_fx[16];
+#define SLOT_LIVE ((const volatile uint8_t *)modwerk_test_live_fx)
+#else
+#define SLOT_LIVE ((const volatile uint8_t *)0x80000ec4u) /* the FX ids each track runs: FX1 T1-T8, then FX2 */
+#endif
+static struct modwerk_slot_reading slot_now[16];
+static volatile struct modwerk_slot_reading slot_cache[2][16];
+static int watched[2] = {-1, -1}, read_slot = -1; /* each core's watched slot (0-15: FX1 T1-T8, FX2), the one a read is for */
+static unsigned watch_reads[2], next_slot[2];
+static uint32_t read_selection;
+static unsigned slot_core(unsigned i) { return (i & 7u) < 4u ? 1u : 0u; } /* tracks 1-4 run on core 1 */
+/* The slot's instance block, r7 as the dispatcher passes it to the proc: FX1 at $6100 + $300 a track, FX2 $100 on. */
+static unsigned slot_key(unsigned i) { return 0x6100u + 0x300u * (i & 3u) + (i >= 8u ? 0x100u : 0u); }
+static int slot_wanted(void) { return (int32_t)(modwerk_slot_demand - modwerk_runtime_ticks) > 0; }
+unsigned modwerk_status_load_slots(uint8_t *out)
+{
+    modwerk_slot_demand = modwerk_runtime_ticks + SLOT_HOLD;
+    modwerk_load_encode_slots(out, modwerk_runtime_ticks, &load_cache[load_bank], slot_cache[load_bank], FRAME_CYCLES);
+    return MODWERK_LOAD_SLOTS_BYTES;
+}
+/* After core c's read: take the watched slot's reading, then watch the next slot of c that runs something. */
+static void slot_read(unsigned c, const volatile uint32_t *w)
+{
+    int i = read_slot;
+    read_slot = -1;
+    if (i >= 0 && watched[c] == i && dl_selection_completed == read_selection) {
+        uint32_t key = slot_key((unsigned)i) >> 8;
+        if (w[0] >> 16 == key && w[1] >> 16 == key)
+            slot_now[i].mean = (uint16_t)w[0], slot_now[i].peak = (uint16_t)w[1], slot_now[i].state = 1, slot_now[i].at = modwerk_runtime_ticks,
+            watch_reads[c] = 99u;
+    }
+}
+static void slot_tick(void)
+{
+    static uint8_t armed_id[2];
+    for (unsigned i = 0; i < 16u; ++i)
+        if (slot_now[i].id != SLOT_LIVE[i] || !SLOT_LIVE[i])
+            slot_now[i].id = SLOT_LIVE[i], slot_now[i].state = SLOT_LIVE[i] ? 2 : 0, slot_now[i].mean = slot_now[i].peak = 0;
+    int wanted = slot_wanted();
+    for (unsigned c = 0; c < 2u; ++c) {
+        int w = watched[c];
+        if (w >= 0 && modwerk_dsp_slot_armed[c] < 0 && slot_now[w].state == 2) slot_now[w].state = 3; /* refused: runs nothing */
+        if (!wanted) { /* nobody asks: nothing watched, nothing spent */
+            if (w >= 0 && modwerk_dsp_slot_arm(c, 0, 0)) watched[c] = -1;
+            continue;
+        }
+        /* the next slot after a reading or a refusal, a change of this one's effect, or three reads without one */
+        int changed = w >= 0 && SLOT_LIVE[w] != armed_id[c];
+        if (w >= 0 && !changed && modwerk_dsp_slot_armed[c] >= 0 && watch_reads[c] < 3u) continue;
+        int pick = -1;
+        for (unsigned k = 1; k <= 16u && pick < 0; ++k) {
+            unsigned i = (next_slot[c] + k) % 16u;
+            if (slot_core(i) == c && SLOT_LIVE[i] && SLOT_LIVE[i] < MODWERK_FX_IDS) pick = (int)i;
+        }
+        if (pick < 0) { if (w >= 0 && modwerk_dsp_slot_arm(c, 0, 0)) watched[c] = -1; continue; }
+        if (pick == w && !changed) { watch_reads[c] = 0; continue; } /* the only one: keep it (refused, it stays so) */
+        if (modwerk_dsp_slot_arm(c, SLOT_LIVE[pick], slot_key((unsigned)pick)))
+            watched[c] = pick, next_slot[c] = (unsigned)pick, watch_reads[c] = 0, armed_id[c] = SLOT_LIVE[pick];
+    }
+}
+/* The slot cache the USB interrupt reads, in the bank publish_load is about to make current. */
+static void publish_slots(void)
+{
+    for (unsigned i = 0; i < 16u; ++i) slot_cache[load_bank ^ 1u][i] = slot_now[i];
+}
+#endif
 uint32_t modwerk_status_report(uint32_t *out)
 {
     for (unsigned i = 0; i < STATUS_WORDS; ++i) out[i] = modwerk_status[i];
@@ -94,6 +181,29 @@ void modwerk_status_tick(void)
     modwerk_status[CPU] = per && ticks > 30u && di / per < 1000u ? 1000u - di / per : 0;
     if (per && ticks > 30u && df) { load_flags |= 1u; load_at[0] = modwerk_runtime_ticks; }
     cpu_recent[(ticks / 30u) % 8u] = modwerk_status[CPU]; /* the page's CPU peak: the last four seconds */
+#ifdef MODWERK_DSP_SLOT_METER
+    if (reading >= 0) { /* the same, and with a host asking for slots the slot words (5 and 6, after missed) */
+        if (modwerk_dsp_meter_core == reading && modwerk_dsp_meter_bits >= 24u * read_words) {
+            if (read_words == 6u) slot_read((unsigned)reading, modwerk_dsp_meter + 5);
+            if (read_words >= 3u) {
+                modwerk_status[reading ? DSP1_MEAN : DSP0_MEAN] = busy((unsigned)reading, modwerk_dsp_meter[3] >> 10);
+                modwerk_status[reading ? SUM1 : SUM0] = modwerk_dsp_meter[3];
+                load_flags |= 2u << (unsigned)reading; load_at[1u + (unsigned)reading] = modwerk_runtime_ticks;
+            }
+            modwerk_status[reading ? DSP1_PEAK : DSP0_PEAK] = busy((unsigned)reading, modwerk_dsp_meter[1]);
+            modwerk_status_reads = modwerk_status_reads + 1;
+            reading = -1;
+        } else if (++waited > 2u * read_words) reading = -1, read_slot = -1; /* the manager took the core: start again */
+    }
+    slot_tick();
+    if (reading < 0 && modwerk_dsp_meter_read((unsigned)(read_last ^ 1), 1,
+                                              read_words = modwerk_status_fast ? 1u : slot_wanted() ? 6u : 3u)) {
+        reading = read_last ^= 1, waited = 0;
+        read_selection = dl_selection_completed;
+        if (read_words == 6u && watched[reading] >= 0 && modwerk_dsp_slot_armed[reading] > 0)
+            read_slot = watched[reading], ++watch_reads[reading];
+    }
+#else
     if (reading >= 0) { /* least, most and sum of 1,024 frames, read 24 bits a tick */
         if (modwerk_dsp_meter_core == reading && modwerk_dsp_meter_bits >= (read_words == 1u ? 24u : 72u)) {
             if (read_words == 3u) {
@@ -108,11 +218,15 @@ void modwerk_status_tick(void)
     }
     if (reading < 0 && modwerk_dsp_meter_read((unsigned)(read_last ^ 1), 1, read_words = modwerk_status_fast ? 1u : 3u))
         reading = read_last ^= 1, waited = 0;
+#endif
     uint32_t largest;
     modwerk_status[BUFFERS] = dl_buffers_in_use();
     modwerk_status[POOL_USED] = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
     modwerk_status[MODULES] = modwerk_runtime_active();
     modwerk_status[ARENA] = modwerk_dsp_arena[0] | (uint32_t)modwerk_dsp_arena[1] << 16;
+#ifdef MODWERK_DSP_SLOT_METER
+    publish_slots();
+#endif
     publish_load();
 }
 

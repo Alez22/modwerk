@@ -258,6 +258,12 @@ class RuntimeSlotTests(unittest.TestCase):
     def test_status_keys_on_the_host(self):
         self.host_test('test_status.c')
 
+    def test_slot_meter_on_the_host(self):
+        # build_core.py --slot-meter: status.c's per-slot rotation and MWLD v2 (dsp_slot_meter.py has the DSP side).
+        for width in ('32u', '128u'):
+            with self.subTest(width):
+                self.host_test('test_slot_meter.c', defines=('-DMODWERK_DSP_SLOT_METER', '-DMODWERK_FX_IDS=' + width))
+
     def test_the_base_at_128_effect_ids_on_the_host(self):
         # docs/OCTATRACK_MORE_EFFECT_IDS.md: the base behind MODWERK_FX_IDS works past 32 before the tables move.
         for test in ('test_dsp.c', 'test_fxpage.c', 'test_status.c'):

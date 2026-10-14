@@ -659,8 +659,13 @@ volatile uint32_t modwerk_dsp_miss_bits, modwerk_dsp_miss[MISS_WORDS]; /* bits r
 /* The load meter's last published window (dsp_receiver.asm, five P words at MODWERK_DSP_METER0/1):
  * its serial, the least, most and summed idle counts of core 0's main loop, and the frames with none.
  * Read the same way, on request (the development METER request). */
+#ifdef MODWERK_DSP_SLOT_METER
+#define METER_WORDS 7u /* then the slot meter's two (dsp_slot_meter.py): key << 16 | mean, key << 16 | peak */
+#else
+#define METER_WORDS MISS_WORDS
+#endif
 volatile int32_t modwerk_dsp_meter_core = -1;
-volatile uint32_t modwerk_dsp_meter_bits, modwerk_dsp_meter[MISS_WORDS];
+volatile uint32_t modwerk_dsp_meter_bits, modwerk_dsp_meter[METER_WORDS];
 #ifdef MODWERK_DSP_XWATCH
 /* Probe X (dsp_loader.py PROBES['X']): the watch's four P words after the meter's window (changed, the first's address
  * and value, passes), read on request (dev.c 26) ahead of the status page's meter reads, which never pause. */
@@ -681,7 +686,7 @@ static unsigned meter_first, meter_words;
 /* Words first .. first + words - 1 of core's window (into modwerk_dsp_meter[first..]): 24 bits a tick. */
 int modwerk_dsp_meter_read(unsigned core, unsigned first, unsigned words)
 {
-    if (core > 1 || meter_wanted >= 0 || !words || first + words > MISS_WORDS) return 0;
+    if (core > 1 || meter_wanted >= 0 || !words || first + words > METER_WORDS) return 0;
     meter_first = first, meter_words = words;
     meter_wanted = (int)core;
     return 1;
@@ -690,9 +695,42 @@ static int peeking = -1;
 static unsigned peek_from, peek_words, peek_inflight;
 static volatile uint32_t *peek_into, *peek_bits;
 static uint32_t peek_seen[2];
+#ifdef MODWERK_DSP_SLOT_METER
+/* The slot meter (build_core.py --slot-meter, dsp_slot_meter.py): METER (12) to `core`, watching the slot whose
+ * instance block is `key` (its r7) on effect id `id`, or nothing (key 0). status.c asks; it goes when the core's
+ * channel is free, between reads, as a read's bits do. modwerk_dsp_slot_armed[core]: 1 accepted, -1 refused (the id
+ * runs nothing, or the packet was lost), 0 not answered yet. */
+volatile int32_t modwerk_dsp_slot_armed[2];
+static volatile int arm_wanted = -1;
+static unsigned arm_id, arm_key, arm_inflight; /* arm_inflight: the core + 1 */
+int modwerk_dsp_slot_arm(unsigned core, unsigned id, unsigned key)
+{
+    if (core > 1 || arm_wanted >= 0 || arm_inflight || id >= MODWERK_FX_IDS || key > 0xffffu) return 0;
+    arm_id = id, arm_key = key, modwerk_dsp_slot_armed[core] = 0, arm_wanted = (int)core;
+    return 1;
+}
+static int arm_tick(void) /* 1 while it holds a core's channel */
+{
+    if (arm_inflight) {
+        unsigned c = arm_inflight - 1u;
+        int status = dl_job_status(c);
+        if (!status) return 1;
+        modwerk_dsp_slot_armed[c] = status > 0 ? 1 : -1;
+        if (status != -2) dl_job_release(c);
+        arm_inflight = 0;
+    }
+    if (peeking >= 0 || arm_wanted < 0 || probing >= 0 || !dl_publication_idle() || dl_job_status((unsigned)arm_wanted) != -2) return 0;
+    if (!dl_command_start((unsigned)arm_wanted, 12u, arm_id, arm_key, 0)) return 0;
+    arm_inflight = (unsigned)arm_wanted + 1u, arm_wanted = -1;
+    return 1;
+}
+#endif
 static void peek_tick(void)
 {
     static const uint16_t record[2] = {MODWERK_DSP_MISS0, MODWERK_DSP_MISS1}, meter[2] = {MODWERK_DSP_METER0, MODWERK_DSP_METER1};
+#ifdef MODWERK_DSP_SLOT_METER
+    if (arm_tick()) return;
+#endif
     if (peeking < 0) {
         for (unsigned c = 0; c < 2 && peeking < 0; ++c)
             if (dl_rejected[c] != peek_seen[c] && probing < 0 && dl_publication_idle() && dl_job_status(c) == -2) {

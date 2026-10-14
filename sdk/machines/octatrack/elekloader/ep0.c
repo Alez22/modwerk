@@ -331,6 +331,16 @@ uint32_t modwerk_ep0_dispatch(void)
         return MODWERK_EP0_REFUSE;
     }
 #endif
+#ifdef MODWERK_DSP_SLOT_METER
+    /* LOAD v2 (wValue 1, wLength 184): the same snapshot, then each FX slot's measured DSP cost (status.c). A bus
+     * without the slot meter stalls it, so a host falls back to v1. Asking keeps the meter running for 10 s. */
+    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 30 && SETUP[2] == 1u && !SETUP[3] &&
+        SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && SETUP[6] == 184u && !SETUP[7]) {
+        unsigned modwerk_status_load_slots(uint8_t *);
+        modwerk_ep0_reply = out;
+        return modwerk_status_load_slots(out);
+    }
+#endif
 #ifdef MODWERK_DSP_LOADER
     /* LOAD: one cached snapshot, no meter request or task message. */
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 30 && !SETUP[2] && !SETUP[3] &&
