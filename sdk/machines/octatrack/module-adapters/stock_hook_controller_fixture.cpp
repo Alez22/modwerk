@@ -30,13 +30,13 @@ int main(int argc,char **argv) {
     auto read=[&](uint32_t at,unsigned n) { std::vector<uint8_t>b(n);for(unsigned i=0;i<n;++i)b[i]=m.read8(at+i);return b; };
     auto write=[&](uint32_t at,const std::vector<uint8_t>&b) { for(unsigned i=0;i<b.size();++i)m.write8(at+i,b[i]); };
     auto cpu=m.getCpuState(); unsigned calls=0,instructions=0,maxHeld=0,maxMode=0;
-    unsigned gateCase=0,begins=0,ends=0,heldInstructions=0,redraws=0,modeLeases=0;bool held=false,modeEntry=false;
+    unsigned gateCase=0,begins=0,ends=0,heldInstructions=0,redraws=0,modeLeases=0;bool held=false,modeEntry=false,handler=false;
     std::string modeLease="matrix_leave";
     std::vector<std::array<uint32_t,3>> notifications;
     uint32_t lease=0;std::array<uint32_t,15> endOutputs{};uint16_t endCcr=0;
     auto get=[&](unsigned r) {return m68k_get_reg(cpu,m68k_register_t(M68K_REG_D0+r));};
     auto enter=[&](const char *entry) {
-        modeEntry=std::string(entry)=="set_mode";
+        modeEntry=std::string(entry)=="set_mode";handler=std::string(entry)=="sc_mute_keep";
         for(unsigned r=0;r<15;++r)m68k_set_reg(cpu,m68k_register_t(M68K_REG_D0+r),0x47070000+4*r);
         m68k_set_reg(cpu,M68K_REG_SP,stack);m.write32(stack,stop);
         m68k_set_reg(cpu,M68K_REG_SR,0x2013);m68k_set_reg(cpu,M68K_REG_PC,symbols.at(entry));
@@ -79,7 +79,7 @@ int main(int argc,char **argv) {
         assert(m.pc()==stop && m.unmappedCount()==unmapped);
         assert(m68k_get_reg(cpu,M68K_REG_SP)==stack+4 && !held);
         assert((m68k_get_reg(cpu,M68K_REG_SR)&0x700)==0);
-        const unsigned leases=modeEntry?modeLeases:1u;
+        const unsigned leases=handler?0u:modeEntry?modeLeases:1u;
         if(guarded){assert(begins==leases && ends==unsigned(leases && (gateCase==1 || gateCase==2)));
             if(ends && !modeEntry){for(unsigned r=0;r<15;++r)assert(get(r)==endOutputs[r]);assert((m68k_get_reg(cpu,M68K_REG_SR)&31)==endCcr);}}
         if(modeEntry)maxMode=std::max(maxMode,instructions-started);
@@ -107,6 +107,23 @@ int main(int argc,char **argv) {
             assert(read(working,stride)==expectedStore && read(0x80000810,8*lane)==expectedLive);
             assert(read(saved,stride)==guard && read(mirror,stride)==guard);
             for(unsigned r=0;r<15;++r)assert(get(r)==(r==11?0x80000a50u:0x47070000+4*r));
+        }
+        if(guarded) { // ev_mute_keep's handler: KEY tracks of every COMPRESSOR, bits 0..7 only
+            for(unsigned seed=0;seed<512;++seed) {
+                unsigned expected=0;
+                for(unsigned t=0;t<8;++t) {
+                    const uint32_t rec=0x80000110+64*t;
+                    const unsigned a=(seed*7+t*13)%11,b=(seed*5+t*3)%13;
+                    const uint8_t id1=(seed+t)%3?0x18:0x11,id2=(seed>>1)%2?0x18:0x05;
+                    const uint8_t k1=uint8_t(a==10?127:a),k2=uint8_t(b>9?255:b);
+                    m.write8(rec+55,id1);m.write8(rec+57,id2);m.write8(rec+38,k1);m.write8(rec+50,k2);
+                    if(id1==0x18 && k1>=1 && k1<=8)expected|=1u<<(k1-1);
+                    if(id2==0x18 && k2>=1 && k2<=8)expected|=1u<<(k2-1);
+                }
+                gateCase=0;begins=ends=0;enter("sc_mute_keep");run();
+                assert(get(0)==expected);
+                for(unsigned r:{2u,3u,4u,5u,6u,7u,10u,11u,12u,13u,14u})assert(get(r)==0x47070000+4*r);
+            }
         }
         assert(read(origin,unsigned(image.size()))==image);
     } else {

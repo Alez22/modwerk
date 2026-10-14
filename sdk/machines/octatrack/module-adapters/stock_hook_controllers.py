@@ -40,6 +40,42 @@ REQUIRED_CORES = {1: 3, 2: 1}  # stock_hooks.c: Matrix is core A only
 TITLES = {'sidechain-compressor': 'SIDECHAIN COMP', 'output-matrix': 'OUTPUT MATRIX'}
 REVISIONS = (1, 1, 1)  # policy, state, parameter: the scoped derivative's first reviewed contract
 POLICY_CAPACITY = 24  # controller_write_lease.h MW_CONTROLLER_WRITE_POLICY_CAPACITY
+# Sidechain answers the base's raised ev_mute_keep (Mute Modes asks which muted
+# tracks still feed a key) instead of Mute Modes' native SC_KEY variant.
+MUTE_KEEP = dict(event='ev_mute_keep', fn='sc_mute_keep', order=50)
+# Mute Modes' native SC_KEY scan (patch_softmute.s p1_key, Session 116) in the
+# C convention, as the mute-modes lane's mute_keep_provider_fixture.s proposes:
+# the tracks a COMPRESSOR (FX id 0x18) on FX1 or FX2 names as its KEY (page-2
+# slot 8: 0 OFF, 1..8 T1..T8) in this frame's per-track DSP record. Read-only:
+# stock's 0x7f default or OFF fall outside bits 0..7, so no lease is needed.
+_MUTE_KEEP_SOURCE = '''
+        .text
+        .balign 2
+        .global sc_mute_keep
+sc_mute_keep:
+        lea     0x80000110,%a0          | track 0's record, ping-pong half 0
+        moveq   #0,%d0
+sk_loop:
+        move.b  (55,%a0),%d1            | FX1 id
+        cmpi.b  #0x18,%d1
+        bne.s   sk_fx2
+        mvz.b   (38,%a0),%d1            | its KEY 0..8
+        subq.l  #1,%d1                  | -> track 0..7; OFF lands on bit 31
+        bset    %d1,%d0
+sk_fx2:
+        move.b  (57,%a0),%d1            | FX2 id
+        cmpi.b  #0x18,%d1
+        bne.s   sk_next
+        mvz.b   (50,%a0),%d1
+        subq.l  #1,%d1
+        bset    %d1,%d0
+sk_next:
+        lea     (64,%a0),%a0
+        cmpa.l  #0x80000310,%a0
+        bne.s   sk_loop
+        andi.l  #0xff,%d0               | the contract's bits 0..7
+        rts
+'''
 SC_REFERENCE = (0x400d7000, 338, '76a4badcef6024b7de8bd6f05930146bdb6a47ffd577da340a6c252c316ff854')
 
 
@@ -213,7 +249,7 @@ def adapted_source(name, sdk):
     if name == 'sidechain-compressor':
         source = _replace_once(source, 'sc_norm:\n', 'mw_sc_norm_body:\n')
         return source + write_wrapper('sc_norm', 1, 'mw_sc_norm_body',
-                                     denied='        lea 0x80000a50,%a3')
+                                     denied='        lea 0x80000a50,%a3') + _MUTE_KEEP_SOURCE
     source = _replace_once(source, 'page_levels:\n', 'mw_matrix_page_body:\n')
     source = _replace_once(source, 'set_mode:\n', _MATRIX_FRONT)
     source = _replace_once(source, _MATRIX_MODE_TAIL, _MATRIX_MODE_TAIL.replace(
@@ -370,7 +406,7 @@ def controller_sites(name, upstream, symbols, builder):
     return sorted(sites, key=lambda s: s[0])
 
 
-def encode(name, sdk, builder, work, base_symbols, upstream, cross='m68k-elf-'):
+def encode(name, sdk, builder, work, base_symbols, upstream, cross='m68k-elf-', registry=None):
     """The reviewed derivative as one stock-free ABI 7 package for one base.
 
     Linked at two origins (self-references only move; the lease entries are
@@ -401,13 +437,17 @@ def encode(name, sdk, builder, work, base_symbols, upstream, cross='m68k-elf-'):
             raise ValueError('A leased entry of the derivative is not inside its image: ' + entry)
         entries[entry] = dict(entry=at[0], beginReturn=at[1], endReturn=at[2])
     sites = controller_sites(name, upstream, symbols, builder)
-    data = builder.package(low, bss, [], offsets, sites=sites, name=name, hashed=True,
-                           title=TITLES[name], layout=1)
+    # Subscribe exactly when this base raises the event (base-bound like the lease).
+    hooks = []
+    if name == 'sidechain-compressor' and 'modwerk_raise_' + MUTE_KEEP['event'] in base_symbols:
+        hooks = builder.subscribe([builder.NONE] * len(builder.HANDLERS), [MUTE_KEEP], symbols, registry)
+    data = builder.package(low, bss, hooks, offsets, sites=sites, name=name, hashed=True,
+                           title=TITLES[name], layout=1, abi=8 if hooks else None)
     policy = dict(schema=1, module=name, feature=UNITS[name][1], revisions=list(REVISIONS),
                   sourceHashes={relative: sha(text.encode()) for relative, text in texts.items()},
                   adaptedSourceSha256=sha(source.read_bytes()), entries=entries)
     return dict(package=data, packageSha256=sha(data), moduleId=builder.module_id(name), imageBytes=len(low),
-                bss=bss, sites=len(sites), entries=entries, imports=imports,
+                bss=bss, sites=len(sites), entries=entries, imports=imports, hooks=hooks,
                 sourcePolicySha256=sha(json.dumps(policy, sort_keys=True, separators=(',', ':')).encode()),
                 policy=policy)
 

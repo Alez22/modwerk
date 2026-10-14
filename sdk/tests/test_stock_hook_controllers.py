@@ -104,6 +104,19 @@ class StockHookControllers(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(ValueError, 'lease entries'):
                     controllers.encode(name, SDK, builder, Path(tmp), bad, UPSTREAM)
         self.assertNotIn('matrix_enter', controllers.DEFAULT_ENTRIES['output-matrix'])
+        # A base that raises ev_mute_keep: Sidechain answers it (ABI 8 hook word, order 50).
+        registry = {'events': [{'event': 'ev_%d' % i, 'index': i} for i in (4, 5, 6)] + [{'event': 'ev_mute_keep', 'index': 7}]}
+        raising = dict(base, modwerk_raise_ev_mute_keep=0x41234700)
+        with tempfile.TemporaryDirectory() as tmp:
+            a = controllers.encode('sidechain-compressor', SDK, builder, Path(tmp), raising, UPSTREAM, registry=registry)
+        self.assertEqual(struct.unpack('>H', a['package'][4:6])[0], 8)
+        self.assertEqual(len(a['hooks']), 8)
+        self.assertEqual(a['hooks'][:7], [builder.NONE] * 7)
+        self.assertEqual(a['hooks'][7] >> 24, 50)
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = controllers.encode('sidechain-compressor', SDK, builder, Path(tmp), base, UPSTREAM, registry=registry)
+        self.assertEqual(plain['hooks'], [])
+        self.assertEqual(a['entries'], plain['entries'])
 
     def test_trust_rows_refuse_malformed_and_duplicate_rows(self):
         row = dict(module='output-matrix', moduleId=0xcaf158b5, packageSha256='11' * 32, sourcePolicySha256='22' * 32,
