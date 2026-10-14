@@ -6,7 +6,10 @@
  * Module code and data run from the uncached alias, so no stale or dirty
  * data-cache line reaches them; instruction fetches there are still cached
  * (stock sets no instruction ACR and IDCM is cacheable), so the loader
- * invalidates the instruction and branch caches after writing code.
+ * invalidates the instruction and branch caches after writing code. A base built
+ * with --cached-modules (build_core.py) runs them from the pool's cached alias
+ * instead, and pushes the data-cache lines of new code before it invalidates
+ * (loader.c, fxpage.c).
  *
  * Patches to stock code: only the RAM copy of the stock OS image below the
  * copy of the bootloader inside it that the OS can write to flash. Past that
@@ -54,6 +57,21 @@ void *modwerk_machine_uncached(void *p) { return (void *)((uintptr_t)p + 0x08000
  * which already sets BCINVA; bit 8 adds ICINVA. The data cache is untouched. */
 void modwerk_machine_invalidate_code(void) { __asm__ __volatile__("movec %0,%%cacr\n\tnop" :: "d"(0xa40ce100u) : "memory"); }
 uint8_t *modwerk_machine_code(uint32_t address) { return (uint8_t *)(uintptr_t)(address + 0x08000000u); }
+#ifdef MODWERK_CACHED_MODULES
+/* build_core.py --cached-modules: module code runs from the cached alias, so whatever the data cache holds of an
+ * extent must reach memory before the instruction cache fetches it (loader.c, fxpage.c). CPUSHL names a line by its
+ * set and way (An[1:0] the way), not by its address: push every way of each set the range maps to. That pushes and,
+ * with CACR's DPI clear as stock leaves it, invalidates the range's lines and any others in those sets. 0x2000
+ * bytes of sets cover a 4-way cache of up to 32 KB (a 16 KB one ignores bit 12 and sees them twice), so a longer
+ * range pushes everything once. The NOP waits for the pushes to reach memory. */
+void modwerk_machine_flush_data(uint32_t address, uint32_t length)
+{
+    uint32_t from = address & ~15u, to = length >= 0x2000u ? from + 0x2000u : address + length;
+    for (uint32_t line = from; line < to; line += 16u)
+        for (uint32_t way = 0; way < 4u; ++way) __asm__ __volatile__("cpushl %%dc,(%0)" :: "a"(line | way) : "memory");
+    __asm__ __volatile__("nop" ::: "memory");
+}
+#else
 /* CPUSHL pushes a dirty 16-byte line and, with CACR's DPI clear as stock
  * leaves it, invalidates it, so no cached copy overwrites the patch later. */
 void modwerk_machine_flush_data(uint32_t address, uint32_t length)
@@ -61,6 +79,7 @@ void modwerk_machine_flush_data(uint32_t address, uint32_t length)
     for (uint32_t line = address & ~15u; line < address + length; line += 16u)
         __asm__ __volatile__("cpushl %%dc,(%0)" :: "a"(line) : "memory");
 }
+#endif
 /* How long interrupts stay masked here, outermost spans only, in counts of the frame timer DTCN3 (132 MHz; a frame,
  * 16 samples, is about 48,000). Core 0's DMA2 dies when its frame's bank word waits a ring half for the host. */
 #define DTCN3 (*(volatile uint32_t *)0xfc07c00cu)
