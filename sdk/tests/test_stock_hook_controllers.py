@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,7 @@ import stock_hook_controllers as controllers
 spec = importlib.util.spec_from_file_location('stock_hook_controller_builder', ROOT / 'sdk/runtime/loader/build.py')
 builder = importlib.util.module_from_spec(spec); spec.loader.exec_module(builder)
 SDK = ROOT / 'sdk/octabam'
+UPSTREAM = Path.home() / '.cache/modwerk-upstream/elekloader'
 
 
 class StockHookControllers(unittest.TestCase):
@@ -43,7 +45,7 @@ class StockHookControllers(unittest.TestCase):
                     self.assertIsNone(result['encodedSha256'])
                     self.assertFalse(result['productionLeaseBound'])
                     self.assertFalse(result['admission'])
-                    self.assertFalse(result['matrixModeEnabled'])
+                    self.assertEqual(result['matrixModeLeased'], name == 'output-matrix')
 
     @unittest.skipUnless(shutil.which('m68k-elf-as'), 'ColdFire assembler unavailable')
     def test_native_adaptation_requires_strong_backend_and_refuses_unqualified_mode_writes(self):
@@ -56,12 +58,79 @@ class StockHookControllers(unittest.TestCase):
                 for entry in ('modwerk_controller_write_begin','modwerk_controller_write_end'):
                     self.assertIn(' U '+entry, symbols)
                 self.assertNotIn(' W ',symbols)
+                text=source.read_text()
+                for entry in controllers.UNITS[name][2]:
+                    self.assertEqual(text.count('\n%s:\n' % entry), 1)
+                    self.assertIn(entry + '_begun:', text); self.assertIn(entry + '_ended:', text)
                 if name=='output-matrix':
-                    self.assertIn('set_mode:\n        rts\n',source.read_text())
+                    # The authored conversion runs only through the leased entries; its CC
+                    # notification and the redraw are outside every held span.
+                    body = text[text.index('mw_matrix_mode_body:'):text.index('mw_matrix_notify:')]
+                    self.assertNotIn('jsr     MENU_REDRAW', body); self.assertNotIn('jsr     CC_OUT', body)
+                    self.assertIn('bsr     convert_all', body)
+                    front = text[text.index('set_mode:'):text.index('mw_matrix_mode_body:')]
+                    self.assertIn('bsr     matrix_enter', front); self.assertIn('bsr     matrix_leave', front)
         for imports in ({}, {'modwerk_controller_write_begin': 0x08000000, 'modwerk_controller_write_end': 0x47410100}):
             with tempfile.TemporaryDirectory() as tmp:
                 with self.assertRaisesRegex(ValueError, 'exact bounded strong'):
                     controllers.compile_original('output-matrix', SDK, builder, Path(tmp), fixture_imports=imports)
+
+    @unittest.skipUnless(shutil.which('m68k-elf-as') and (UPSTREAM / 'elekloader/sdk/octabam.py').is_file(),
+                         'ColdFire assembler or Elekloader checkout unavailable')
+    def test_encoded_packages_are_base_bound_and_deterministic(self):
+        base = {'modwerk_controller_write_begin': 0x41234560, 'modwerk_controller_write_end': 0x41234600}
+        for name in controllers.UNITS:
+            with tempfile.TemporaryDirectory() as one, tempfile.TemporaryDirectory() as two:
+                a = controllers.encode(name, SDK, builder, Path(one), base, UPSTREAM)
+                b = controllers.encode(name, SDK, builder, Path(two), base, UPSTREAM)
+                self.assertEqual(a['package'], b['package'])
+                data = a['package']
+                self.assertEqual(data[:4], b'MWRM'); self.assertEqual(struct.unpack('>H', data[4:6])[0], 7)
+                self.assertEqual(struct.unpack('>I', data[28:32])[0], builder.module_id(name))
+                image = data[76 - 4:]  # ABI 7: 72-byte header, no hooks
+                self.assertEqual(struct.unpack('>I', data[8:12])[0], a['imageBytes'])
+                # The lease entries are absolute base addresses, never relocated.
+                for value in base.values():
+                    self.assertIn(struct.pack('>I', value), data)
+                rows = controllers.policy_rows(name, a)
+                self.assertEqual([r['entryName'] for r in rows], list(controllers.DEFAULT_ENTRIES[name]))
+                self.assertIn('{{{0x', controllers.policies_c(rows))
+                with tempfile.TemporaryDirectory() as three:
+                    moved = controllers.encode(name, SDK, builder, Path(three),
+                                               dict(base, modwerk_controller_write_end=0x41234700), UPSTREAM)
+                self.assertNotEqual(moved['packageSha256'], a['packageSha256'])
+            for bad in ({}, dict(base, modwerk_controller_write_begin=0x41234561),
+                        dict(base, modwerk_controller_write_end=base['modwerk_controller_write_begin'])):
+                with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(ValueError, 'lease entries'):
+                    controllers.encode(name, SDK, builder, Path(tmp), bad, UPSTREAM)
+        self.assertNotIn('matrix_enter', controllers.DEFAULT_ENTRIES['output-matrix'])
+        # A base that raises ev_mute_keep: Sidechain answers it (ABI 8 hook word, order 50).
+        registry = {'events': [{'event': 'ev_%d' % i, 'index': i} for i in (4, 5, 6)] + [{'event': 'ev_mute_keep', 'index': 7}]}
+        raising = dict(base, modwerk_raise_ev_mute_keep=0x41234700)
+        with tempfile.TemporaryDirectory() as tmp:
+            a = controllers.encode('sidechain-compressor', SDK, builder, Path(tmp), raising, UPSTREAM, registry=registry)
+        self.assertEqual(struct.unpack('>H', a['package'][4:6])[0], 8)
+        self.assertEqual(len(a['hooks']), 8)
+        self.assertEqual(a['hooks'][:7], [builder.NONE] * 7)
+        self.assertEqual(a['hooks'][7] >> 24, 50)
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = controllers.encode('sidechain-compressor', SDK, builder, Path(tmp), base, UPSTREAM, registry=registry)
+        self.assertEqual(plain['hooks'], [])
+        self.assertEqual(a['entries'], plain['entries'])
+
+    def test_trust_rows_refuse_malformed_and_duplicate_rows(self):
+        row = dict(module='output-matrix', moduleId=0xcaf158b5, packageSha256='11' * 32, sourcePolicySha256='22' * 32,
+                   revisions=[1, 1, 1], feature=2, requiredCores=1, version=1, imageBytes=64, entryName='page_levels',
+                   entry=8, beginReturn=16, endReturn=24)
+        self.assertEqual(controllers.policies_c([row]).count('\n'), 1)
+        for change in (dict(requiredCores=3), dict(feature=4, requiredCores=3), dict(entry=9), dict(endReturn=64),
+                       dict(beginReturn=24), dict(packageSha256='00' * 32), dict(revisions=[1, 2, 1]), dict(version=2)):
+            with self.assertRaises(ValueError):
+                controllers.policies_c([dict(row, **change)])
+        with self.assertRaises(ValueError):
+            controllers.policies_c([row, dict(row)])
+        with self.assertRaises(ValueError):
+            controllers.policies_c([dict(row, entry=2 * i) for i in range(1, 27)])
 
 
 if __name__ == '__main__': unittest.main()

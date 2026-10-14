@@ -21,6 +21,14 @@ int modwerk_machine_metadata_admit(const struct runtime_dsp *from,struct runtime
     __asm__ __volatile__("move.w %%sr,%0" : "=d"(sr) :: "memory");
     if((sr&0x0700u)<0x0400u) return RUNTIME_BUSY;
 #endif
+#ifdef MODWERK_RESIDENT_STOCK_HOOKS
+    /* Trusted resident controllers (controller_board.c): disabled before unpublishing. */
+    {
+        int modwerk_controller_admit(const struct runtime_dsp *,const struct runtime_dsp *,enum runtime_metadata_operation);
+        int why=modwerk_controller_admit(from,to,operation);
+        if(why) return why;
+    }
+#endif
     /* No root reads for ordinary modules, including the default empty base. */
     unsigned family=table_metadata_family(modwerk_table_declarations,from)|table_metadata_family(modwerk_table_declarations,to);
     if(!((from->flags|to->flags)&RUNTIME_GROUP_METADATA) && !family) {to->foreign_roots=0;return RUNTIME_OK;}
