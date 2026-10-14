@@ -35,7 +35,7 @@ builds its own startup, still marked NEW / BETA, from those two unchanged files.
 
 The source, app and server changes are prepared; the release is not. Before this
 startup reaches members, the owner completes these steps for the exact package.
-Steps 1 to 3 were run on 14 October 2026, step 5 in part; steps 4 and 6 are open.
+Steps 1 to 4 and 6 were done on 14 October 2026 and step 5 in part; the owner released it with the hardware limits in step 5.
 
 1. Done: `src/engine/assets/beta-startup.json` is rebuilt as `3.0.0`
    (10,948 bytes, SHA-256 `62dbceb8…`) in the pinned `modwerk-source-tools` container
@@ -53,15 +53,15 @@ Steps 1 to 3 were run on 14 October 2026, step 5 in part; steps 4 and 6 are open
    LED rows and colours. The two capture records and
    [the GIF](media/startup/beta-docking.gif), which now ends on the actual final frame,
    are replaced.
-4. Refresh Tape Echo's retained-evidence binding, which pins the startup package.
-   That is handled separately.
+4. Done: retained evidence no longer compares shared code or unrelated assets
+   (#592), so Tape Echo's evidence no longer pins the startup package.
 5. Partly done on 14 October 2026: the exact core-only docking image (the one the
    emulator verified, MAIN SHA-256 `6f309847…`) was RAM-booted on the owner's MKII
    development unit, which plays it from RAM without flashing; the owner watched it
    and reported that it worked. Not run: the **Classic startup** build, an MKI, a
    flashed (not RAM-booted) install, and a power-cycle with a project loaded. The
    owner did not itemise the lamp colours or the handover to the normal screen.
-6. Run `npm run check -- --base origin/main`.
+6. Done: `npm run check -- --base origin/main` passes.
 
 Checked in the preparing session: the host choreography test on MKI and MKII (one
 LED channel, bounded levels, lamps dark at the end, colour restore, exact final
