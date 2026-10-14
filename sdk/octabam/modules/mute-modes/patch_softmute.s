@@ -93,6 +93,15 @@
 | tools/build_kyoti.py passes --defsym SC_KEY=1; octabam's remix.inc carries `.set SC_KEY,1`
 | when SIDECHAIN_COMPRESSOR is in the remix. Standalone builds include an empty remix.inc.
     .include "remix.inc"
+    .ifdef MODWERK_EVENTS
+| On a Modwerk base with site events (sdk/machines/octatrack/events.json) the exemption is
+| always built and its tracks are ev_mute_keep's answer (p1_key): the installed modules that
+| read a track's audio name it, so this module never needs to know which one does. With none
+| installed the answer is 0, which is the plain build's behaviour.
+    .ifndef SC_KEY
+    .set SC_KEY,1
+    .endif
+    .endif
 
     .equ GATE,        0x800000dc     | MUTE MODE word (0 = OT/stock, 1 = OT+FX).  Ignored when ALWAYS_ON.
     .equ MUTE_STATE,  0x80000008     | bits 0..7 SOLO   bits 8..15 MUTE   bits 16..23 CUE
@@ -240,6 +249,17 @@ p1_solo_fold:
 | 8 is unused and could hold anything -- and without SC_KEY this file assembles byte-for-byte
 | as it did before Session 116.
 p1_key:
+    .ifdef MODWERK_EVENTS
+| ev_mute_keep, raised here (no stock site): the base asks every module that reads a track's
+| audio and returns their tracks OR'd in %d0 bits 0..7 -- what the scan below finds for
+| SIDE-CHAIN, answered by the module that owns the KEY. C convention: %d2/%d5 survive, the
+| caller's %a0/%a1 are kept here, %d0/%d1 are hook 1's own.
+    lea     (-8,%sp),%sp
+    movem.l %a0-%a1,(%sp)
+    jsr     modwerk_raise_ev_mute_keep
+    movem.l (%sp),%a0-%a1
+    lea     (8,%sp),%sp
+    .else
     move.l  %a0,-(%sp)
     lea     0x80000110,%a0              | track 0's record, ping-pong half 0
     moveq   #0,%d0                      | D0 = key mask
@@ -266,6 +286,7 @@ pk_next:
     subq.l  #1,%d3
     bpl.s   pk_loop
     movea.l (%sp)+,%a0
+    .endif
     move.b  %d0,KEYMASK                 | for mt_trig / mt_rebind / dt_trig / fresh_bind / trigflag
     move.l  %d0,%d1
     and.l   %d2,%d1                     | silenced key tracks ...

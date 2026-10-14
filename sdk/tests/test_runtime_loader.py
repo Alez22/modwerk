@@ -197,6 +197,49 @@ class SiteEventTests(unittest.TestCase):
                         met.add((module.name, d.symbol))
         self.assertTrue({('repitch', 'rate_hook'), ('mute-modes', 'fresh_bind'), ('poly8', 'mr_rate_hook'), ('poly8', 'mr_stop_voice')} <= met)
 
+    def test_raised_events_have_a_base_entry_and_no_site(self):
+        reg = events.load()
+        raised = events.raised(reg)
+        self.assertEqual(raised, {'ev_mute_keep': 'modwerk_raise_ev_mute_keep'})
+        self.assertNotIn(None, reg['sites'])
+        header = events.loader(reg)
+        self.assertIn('{0x00000000u, 0u}', header)  # no span: the loader's site checks never meet it
+        self.assertIn('unsigned modwerk_raise_ev_mute_keep(void);', events.sdk(reg))
+        asm = shutil.which('m68k-elf-as')
+        if asm:
+            with tempfile.TemporaryDirectory() as temp:
+                subprocess.run([asm, '-mcpu=5475', EVENTS_DIR / 'elekloader/runtime_events.s', '-o', temp + '/e.o'], check=True, capture_output=True)
+                rows = {n.split()[2]: int(n.split()[0], 16) for n in subprocess.check_output(['m68k-elf-nm', temp + '/e.o'], text=True).splitlines()
+                        if len(n.split()) == 3}
+            self.assertTrue(rows['modwerk_events_code'] <= rows['modwerk_raise_ev_mute_keep'] < rows['modwerk_events_code_end'])
+        doc = json.loads((EVENTS_DIR / 'events.json').read_text())
+        for change in (dict(results='notify'), dict(args=['site+4']), dict(length=8)):
+            bad = json.loads(json.dumps(doc)); bad['events'][-1].update(change)
+            with tempfile.TemporaryDirectory() as temp, self.subTest(change), self.assertRaises(ValueError):
+                Path(temp, 'events.json').write_text(json.dumps(bad)); events.load(Path(temp, 'events.json'))
+        code = dict(modwerk_events_code=0x100, modwerk_events_code_end=0x200)
+        self.assertEqual(build.raise_imports(dict(raise_=[]), {}), {})
+        self.assertEqual(build.raise_imports({'raise': ['ev_mute_keep']}, dict(code, modwerk_raise_ev_mute_keep=0x180)),
+                         {'modwerk_raise_ev_mute_keep': 0x180})
+        for symbols, wanted in ((code, ['ev_mute_keep']), (dict(code, modwerk_raise_ev_mute_keep=0x200), ['ev_mute_keep']),
+                                (dict(code, modwerk_raise_ev_mute_keep=0x181), ['ev_mute_keep']), (code, ['ev_voice_bind'])):
+            with self.subTest(wanted=wanted, symbols=symbols), self.assertRaises(ValueError):
+                build.raise_imports({'raise': wanted}, symbols)
+        with tempfile.TemporaryDirectory() as temp:
+            for text in ('{"schema": 1, "subscribe": [{"event": "module_tick", "fn": "f", "order": 1}]}',
+                         '{"schema": 1, "subscribe": [{"event": "ev_voice_bind", "fn": "f"}]}',
+                         '{"schema": 1, "subscribe": [{"event": "module_tick", "fn": "f"}], "raise": "ev_mute_keep"}',
+                         '{"schema": 1, "subscribe": [{"event": "module_tick", "fn": "f"}], "raise": ["a", "a"]}'):
+                Path(temp, 'runtime.json').write_text(text)
+                with self.subTest(text), self.assertRaises(ValueError):
+                    build.runtime_declaration(temp)
+            Path(temp, 'runtime.json').write_text('{"schema": 1, "subscribe": [{"event": "module_tick", "fn": "f"}], "raise": ["ev_mute_keep"]}')
+            doc = build.runtime_declaration(temp)
+        self.assertEqual(build.subscribe([build.NONE] * 4, doc['subscribe'], {'f': 0x12}), [0x12])
+        with self.assertRaises(ValueError):  # one tick handler
+            build.subscribe([build.NONE] * 4, doc['subscribe'] * 2, {'f': 0x12})
+        build.unevented([(0x40000000, b'', b'\0' * 6, [], 0, 6)])  # a raised event's empty span meets nothing
+
     def test_dispatch_assembles_without_the_displaced_stock_bytes(self):
         asm = shutil.which('m68k-elf-as')
         if not asm:

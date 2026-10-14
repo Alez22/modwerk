@@ -9,7 +9,10 @@ Generates the base's dispatch (elekloader/runtime_events.s), the loader's
 table header (elekloader/runtime_events.h), the SDK header modules include
 (include/modwerk_events.h) and the reference table (EVENTS.md). The base patches
 each site with a jmp to its dispatch; a runtime package subscribes (loader.h's
-hook words past RUNTIME_ENC, build.py) and never patches the site.
+hook words past RUNTIME_ENC, build.py) and never patches the site. An event with
+no site ("site": null) is raised by a module instead: it calls the base's
+modwerk_raise_<event>(), which runs every handler and returns their answers OR'd
+(runtime.json "raise"; the package is then bound to that base's address).
 """
 import argparse
 import json
@@ -38,6 +41,13 @@ def load(path=REGISTRY):
         sites[at] = dict(s, site=at)
     events = []
     for i, e in enumerate(doc['events']):
+        if e['site'] is None:  # raised by a module through modwerk_raise_<event>: no stock bytes, no arguments yet
+            if (e['index'] != FIRST + i or e.get('length') or e['args'] or e['results'] != 'or'
+                    or not re.fullmatch('ev_[a-z0-9_]+', e['event'])):
+                raise ValueError('events.json: raised event %s needs the next hook index, no length or arguments, '
+                                 'and results "or"' % e['event'])
+            events.append(dict(e, site=None, length=0))
+            continue
         at = int(e['site'], 16)
         if (e['index'] != FIRST + i or at not in sites or e['length'] != sites[at]['length']
                 or not re.fullmatch('ev_[a-z0-9_]+', e['event'])):
@@ -60,6 +70,11 @@ def index(name, registry=None):
         if e['event'] == name:
             return e['index']
     raise ValueError('No event %s in sdk/machines/octatrack/events.json' % name)
+
+
+def raised(registry=None):
+    """The events modules raise themselves: {event name: the base's entry symbol}."""
+    return {e['event']: 'modwerk_raise_' + e['event'] for e in (registry or load())['events'] if e['site'] is None}
 
 
 def base_sites(registry=None):
@@ -106,12 +121,21 @@ def asm(reg):
             if s[action]:
                 out.append('.L%s_%s:\n        movem.l (%%sp),%%d0-%%d1/%%a0-%%a2\n        lea     %d(%%sp),%%sp\n' % (name, action, SAVED))
                 out += ['        %s\n' % line for line in s[action]]
+    for e in (e for e in reg['events'] if e['site'] is None):
+        k, loop, end = e['index'] - FIRST, '.Lraise_%s' % e['event'], '.Lraise_%s_end' % e['event']
+        out.append('\n| ---- raised by a module: %s: %s; every handler runs, the answers OR\'d\n'
+                   '        .globl  modwerk_raise_%s\nmodwerk_raise_%s:\n'
+                   '        lea     -8(%%sp),%%sp\n        movem.l %%d2/%%a2,(%%sp)\n        moveq   #0,%%d2\n'
+                   '        movea.l modwerk_runtime_event_row+%d,%%a2\n%s:\n        move.l  (%%a2)+,%%d0\n        beq     %s\n'
+                   '        movea.l %%d0,%%a0\n        jsr     (%%a0)\n        or.l    %%d0,%%d2\n        bra     %s\n'
+                   '%s:\n        move.l  %%d2,%%d0\n        movem.l (%%sp),%%d2/%%a2\n        lea     8(%%sp),%%sp\n        rts\n'
+                   % (e['event'], e['prototype'], e['event'], e['event'], 4 * k, loop, end, loop, end))
     out.append('modwerk_events_code_end:\n')
     return ''.join(out)
 
 
 def loader(reg):
-    spans = ', '.join('{%#010xu, %du}' % (e['site'], e['length']) for e in reg['events'])
+    spans = ', '.join('{%#010xu, %du}' % (e['site'] or 0, e['length']) for e in reg['events'])  # raised: no span
     rows = ', '.join('r[%d]' % i for i in range(len(reg['events'])))
     names = ', '.join('%d %s' % (e['index'], e['event']) for e in reg['events'])
     return ('/* SPDX-License-Identifier: GPL-3.0-or-later\n'
@@ -138,9 +162,12 @@ def sdk(reg):
            '#define MODWERK_EV_STOCK 2 /* ev_voice_bind: stock now, no later handler */\n']
     for e in reg['events']:
         proto = re.sub(r'^(\w+(?: \*)?)\s*f\(', r'\1 modwerk_%s(' % e['event'], e['prototype'])
-        out.append('\n/* %s (%#010x): %s. %s. %s */\n#define MODWERK_%s %d\ntypedef %s;\n' % (
-            e['event'], e['site'], e['when'], e['context'][0].upper() + e['context'][1:], e['contract'],
+        where = '%#010x' % e['site'] if e['site'] is not None else 'raised by a module'
+        out.append('\n/* %s (%s): %s. %s. %s */\n#define MODWERK_%s %d\ntypedef %s;\n' % (
+            e['event'], where, e['when'], e['context'][0].upper() + e['context'][1:], e['contract'],
             e['event'].upper(), e['index'], proto))
+        if e['site'] is None:  # the base's entry (runtime.json "raise"): every handler's answer, OR'd
+            out.append(re.sub(r'^(\w+(?: \*)?)\s*f\(', r'\1 modwerk_raise_%s(' % e['event'], e['prototype']) + ';\n')
     out.append('\n#endif\n')
     return ''.join(out)
 
@@ -157,12 +184,18 @@ def markdown(reg):
            'everything else kept, the result in d0. C modules include `include/modwerk_events.h`.\n\n'
            '| event | site | when | C prototype | result | order | context |\n|---|---|---|---|---|---|---|\n']
     for e in reg['events']:
-        out.append('| `%s` | %#010x | %s | `%s` | %s | %s | %s |\n' % (
-            e['event'], e['site'], e['when'], e['prototype'], e['contract'], e['order'], e['context']))
+        where = '%#010x' % e['site'] if e['site'] is not None else 'none: a module calls `modwerk_raise_%s()`' % e['event']
+        out.append('| `%s` | %s | %s | `%s` | %s | %s | %s |\n' % (
+            e['event'], where, e['when'], e['prototype'], e['contract'], e['order'], e['context']))
     out.append('\n## Reviewed subscribers\n\n| event | module | handler | order | what it does | evidence |\n|---|---|---|---|---|---|\n')
     for e in reg['events']:
         for s in e['subscribers']:
             out.append('| `%s` | %s | `%s` | %d | %s | %s |\n' % (e['event'], s['module'], s['fn'], s['order'], s['does'], s['evidence']))
+    raisers = [(e, r) for e in reg['events'] for r in e.get('raisers', ())]
+    if raisers:
+        out.append('\n## Reviewed raisers\n\nA raised event has no stock site: these modules call the base\'s entry and act on the answer.\n\n'
+                   '| event | module | where | what it does with the answer | evidence |\n|---|---|---|---|---|\n')
+        out += ['| `%s` | %s | `%s` | %s | %s |\n' % (e['event'], r['module'], r['fn'], r['does'], r['evidence']) for e, r in raisers]
     out.append('\n## Why this order\n\n')
     out += ['- `%s`: %s\n' % (e['event'], e['orderEvidence']) for e in reg['events']]
     out.append('\n## The sites\n\n| site | bytes | stock SHA-256 | routine |\n|---|---|---|---|\n')

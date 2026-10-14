@@ -17,13 +17,17 @@ def run(*args, cwd=None):
     return subprocess.run(args, cwd=cwd, check=True, capture_output=True)
 
 
-def compile_linked(module, sdk_root, builder, work, cross, selected, guards, stock_at):
+def compile_linked(module, sdk_root, builder, work, cross, selected, guards, stock_at, base_symbols=None, events=True):
     """Compile the exact authored units and insertion tables at two origins.
 
     `builder` is the explicitly trusted loader builder; manifests and callbacks
     are trusted repository source, never MCP arguments. `guards` contains one
     reviewed runtime_tables.capture recipe per declared table. The caller keeps
-    this newly created, private output outside Git. No module dependencies, DSP
+    this newly created, private output outside Git. A runtime.json that raises
+    events needs `base_symbols`, the exact base's map: its raise entries are
+    absolute, so the package is bound to that base. `events=False` keeps the
+    native build's raw detours (comparison evidence only: a base with site
+    events refuses that package). No module dependencies, DSP
     claims or runtime state contracts are inferred from a successful compile.
     """
     sdk_root, work = Path(sdk_root).resolve(), Path(work).resolve()
@@ -38,7 +42,9 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
                       capture_output=True).returncode == 0:
         raise ValueError('Private compilation outputs must stay outside Git.')
     work.mkdir(mode=0o700)
-    declared = builder.runtime_declaration(sdk_root / 'modules' / module.name)
+    declared = builder.runtime_declaration(sdk_root / 'modules' / module.name) if events else None
+    imports = builder.raise_imports(declared, base_symbols or {}) if declared else {}
+    defsyms = [arg for name, value in sorted(imports.items()) for arg in ('--defsym', '%s=%#x' % (name, value))]
     objects, references = [], []
     labels = {unit.label for unit in module.linked}
     for unit in module.linked:
@@ -64,7 +70,8 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
         if actual != digest:
             raise ValueError('Authored native reference changed: ' + unit.label)
         if declared:  # the native bytes are proven above; the package carries its site-event subscriber form
-            run(cross + 'as', '-mcpu=54455', '--defsym', 'MODWERK_EVENTS=1', '-I', str(include), str(source), '-o', str(obj), cwd=sdk_root)
+            run(cross + 'as', '-mcpu=54455', '--defsym', 'MODWERK_EVENTS=1', *defsyms, '-I', str(include), str(source),
+                '-o', str(obj), cwd=sdk_root)
         references.append(dict(unit=unit.label, address=address, sha256=actual, bytes=raw.stat().st_size,
                                sourceSha256=hashlib.sha256(source.read_bytes()).hexdigest(),
                                includeSha256=hashlib.sha256(generated.encode()).hexdigest()))
@@ -129,4 +136,4 @@ def compile_linked(module, sdk_root, builder, work, cross, selected, guards, sto
         builder.unevented(sites, copies)
         hooks = builder.subscribe([builder.NONE] * len(builder.HANDLERS), declared['subscribe'], symbols)
     return dict(image=image, bss=bss, offsets=offsets, sites=sites, copies=copies, symbols=symbols, hooks=hooks,
-                referenceProofs=references, tableOracle=True, origins=[0, builder.SHIFT])
+                referenceProofs=references, tableOracle=True, origins=[0, builder.SHIFT], imports=imports)

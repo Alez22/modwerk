@@ -216,7 +216,8 @@ def active_ids():
 def read_events():
     if not (APP / EVENTS).exists():
         return PLANNED_EVENTS
-    events = json.loads((APP / EVENTS).read_text())['events']
+    # an event a module raises (site null) owns no stock bytes: nothing to compare
+    events = [e for e in json.loads((APP / EVENTS).read_text())['events'] if e.get('site') is not None]
     if not all(isinstance(e.get('event'), str) and re.fullmatch(r'0x[0-9a-fA-F]{8}', str(e.get('site')))
                and type(e.get('length')) is int and e['length'] > 0 for e in events):
         raise SystemExit(f'{EVENTS}: every event needs event (its name), site (0x… stock address) and length; '

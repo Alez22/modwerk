@@ -74,6 +74,29 @@ class RuntimeUnits(unittest.TestCase):
         self.assertEqual(len(evented['hooks']), index + 1)
         self.assertEqual(evented['hooks'][index], 40 << 24 | evented['symbols']['entry'])
 
+    def test_a_raising_package_is_bound_to_its_base_and_may_take_the_tick(self):
+        normal = self.prepare()
+        (self.sdk / 'row.s').write_text('.include "remix.inc"\n.text\n.global entry\nentry:\n.ifdef SC_KEY\nnop\n.endif\n'
+                                        '.ifdef MODWERK_EVENTS\njsr modwerk_raise_ev_mute_keep\n.endif\nrts\n')
+        (self.sdk / 'modules/test').mkdir(parents=True)
+        (self.sdk / 'modules/test/runtime.json').write_text(
+            '{"schema": 1, "subscribe": [{"event": "module_tick", "fn": "entry"}], "raise": ["ev_mute_keep"]}')
+        with self.assertRaisesRegex(ValueError, 'ev_mute_keep'):  # no base: no entry to call
+            self.prepare('unbound')
+        code = dict(modwerk_events_code=0x40a00000, modwerk_events_code_end=0x40a00100)
+        with self.assertRaisesRegex(ValueError, 'ev_mute_keep'):  # an entry outside the base's dispatch code
+            runtime_units.compile_linked(self.module, self.sdk, builder, self.root / 'outside', 'm68k-elf-', {'TEST'},
+                                         [self.guard], self.read, base_symbols=dict(code, modwerk_raise_ev_mute_keep=0x40a00100))
+        bound = runtime_units.compile_linked(self.module, self.sdk, builder, self.root / 'bound', 'm68k-elf-', {'TEST'},
+                                             [self.guard], self.read, base_symbols=dict(code, modwerk_raise_ev_mute_keep=0x40a00042))
+        self.assertEqual(bound['imports'], {'modwerk_raise_ev_mute_keep': 0x40a00042})
+        self.assertIn(b'\x4e\xb9\x40\xa0\x00\x42', bound['image'])  # jsr abs.l: the base's address, not relocated
+        self.assertEqual(len(bound['offsets']), len(normal['offsets']))
+        self.assertEqual(bound['hooks'], [bound['symbols']['entry']])    # the core tick: its offset, no order
+        raw = runtime_units.compile_linked(self.module, self.sdk, builder, self.root / 'raw', 'm68k-elf-', {'TEST'},
+                                           [self.guard], self.read, events=False)
+        self.assertEqual((raw['image'], raw['hooks'], raw['imports']), (normal['image'], [], {}))
+
     def test_source_drift_and_mismatched_callable_variant_are_refused(self):
         (self.sdk / 'row.s').write_text('.text\n.global entry\nentry:\nnop\nrts\n')
         with self.assertRaisesRegex(ValueError, 'reference changed'):

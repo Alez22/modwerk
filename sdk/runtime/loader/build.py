@@ -312,17 +312,38 @@ def site_events():
 
 
 def runtime_declaration(folder):
-    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}. With it
-    the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
-    `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out."""
+    """A module's runtime.json, or None: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}.
+    With it the package subscribes (needs a base with those events) and its units assemble with MODWERK_EVENTS defined;
+    `replaces` names the detour its native octabam build keeps at the event's site, which the package leaves out. A core
+    event (module_tick, module_draw, module_key, module_enc) takes {"event", "fn"} alone. `raise` names events with no
+    site that the module raises through the base's modwerk_raise_<event>: its package is bound to that base's address."""
     path = Path(folder) / 'runtime.json'
     if not path.is_file():
         return None
     doc = json.loads(path.read_text())
-    if (doc.get('schema') != 1 or set(doc) != {'schema', 'subscribe'} or not doc['subscribe'] or
-            any(set(e) - {'event', 'fn', 'order', 'replaces'} or not {'event', 'fn', 'order'} <= set(e) for e in doc['subscribe'])):
-        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}]}' % path)
+    entry = lambda e: (set(e) == {'event', 'fn'} if e.get('event') in HANDLERS else
+                       not set(e) - {'event', 'fn', 'order', 'replaces'} and {'event', 'fn', 'order'} <= set(e))
+    if (doc.get('schema') != 1 or not {'schema', 'subscribe'} <= set(doc) <= {'schema', 'subscribe', 'raise'}
+            or not doc['subscribe'] or not all(isinstance(e, dict) and entry(e) for e in doc['subscribe'])
+            or not isinstance(doc.get('raise', []), list) or not all(isinstance(e, str) for e in doc.get('raise', []))
+            or len(set(doc.get('raise', []))) != len(doc.get('raise', []))):
+        raise ValueError('%s: {"schema": 1, "subscribe": [{"event", "fn", "order", "replaces"}], "raise": [event]}' % path)
     return doc
+
+
+def raise_imports(declared, base_symbols, registry=None):
+    """{entry symbol: address} for the events a runtime.json raises, from the exact base's own symbols (inside its
+    dispatch code); refuse a raise the registry does not define as raised or a base without that entry."""
+    raised = {e['event']: 'modwerk_raise_' + e['event'] for e in (registry or site_events())['events'] if e['site'] is None}
+    out, low, high = {}, base_symbols.get('modwerk_events_code'), base_symbols.get('modwerk_events_code_end')
+    for name in (declared or {}).get('raise', []):
+        symbol = raised.get(name)
+        value = base_symbols.get(symbol) if symbol else None
+        if type(value) is not int or type(low) is not int or type(high) is not int or not low <= value < high or value & 1:
+            raise ValueError('%s is not an event this base raises for modules (sdk/machines/octatrack/events.json): '
+                             'build against a base with site events and its symbols.' % name)
+        out[symbol] = value
+    return out
 
 
 def subscribe(hooks, entries, symbols, registry=None):
@@ -331,6 +352,11 @@ def subscribe(hooks, entries, symbols, registry=None):
     events = {e['event']: e for e in (registry or site_events())['events']}
     words = list(hooks) + [NONE] * (len(HANDLERS) + len(events) - len(hooks))
     for entry in entries:
+        if entry['event'] in HANDLERS:  # a core event: the handler's offset, no order
+            if set(entry) != {'event', 'fn'} or entry['fn'] not in symbols or words[HANDLERS.index(entry['event'])] != NONE:
+                raise ValueError('A core-event handler names one of the module\'s own functions, once: %r' % (entry,))
+            words[HANDLERS.index(entry['event'])] = symbols[entry['fn']]
+            continue
         e = events.get(entry['event'])
         if (not e or entry['fn'] not in symbols or type(entry['order']) is not int or not 0 <= entry['order'] < 256
                 or words[e['index']] != NONE or not 0 <= symbols[entry['fn']] < 0x1000000):
@@ -347,7 +373,8 @@ def replaced(detours, entries, registry=None):
     site's length and stock guard, and goes."""
     reg = registry or site_events()
     events = {e['event']: e for e in reg['events']}
-    names = {e['replaces']: events[e['event']] for e in entries if 'replaces' in e and e['event'] in events}
+    names = {e['replaces']: events[e['event']] for e in entries if 'replaces' in e and e['event'] in events
+             and events[e['event']]['site'] is not None}
     kept = [d for d in detours if d.symbol not in names]
     for d in detours:
         e = names.get(d.symbol)
@@ -365,7 +392,7 @@ def unevented(sites, copies=(), registry=None):
     spans = [(s[0], max(len(s[2]), s[5] if len(s) > 5 else 0)) for s in sites] + [(c[1], c[2]) for c in copies]
     for address, n in spans:
         for e in events:
-            if address < e['site'] + e['length'] and e['site'] < address + n:
+            if e['site'] is not None and address < e['site'] + e['length'] and e['site'] < address + n:
                 raise ValueError('The write at %#x meets %s\'s site %#x, which the base owns: subscribe to %s.'
                                  % (address, e['event'], e['site'], e['event']))
 
@@ -404,6 +431,8 @@ def octabam_units(name, origin, cross, upstream, dsp=False, hooks=None):
     if extra or not m.linked:
         raise ValueError('%s needs what a runtime package cannot carry yet: %s' % (name, ', '.join(extra) or 'no ColdFire unit'))
     declared = runtime_declaration(root / 'modules' / name)
+    if declared and declared.get('raise'):
+        raise ValueError(name + ' raises events (runtime.json): build it against an exact base (runtime_units.py).')
     if declared and hooks is None:
         raise ValueError(name + ' subscribes to site events (runtime.json): its caller must take its hook words.')
     with tempfile.TemporaryDirectory() as tmp:
@@ -548,6 +577,8 @@ def octabam_group(args):
                    quantizer_runtime.port(m, sdk, work / 'quantizer') if m.name == 'quantizer' and m.linked else m for m in modules]
         units, objects, tables, sites = [], [], [], []
         declared = {m.name: runtime_declaration(sdk / 'modules' / m.name) for m in modules if (sdk / 'modules' / m.name).is_dir()}
+        if any(d and d.get('raise') for d in declared.values()):
+            raise ValueError('A machine-group member raises events: the group builder has no base binding for them.')
         for m in modules:
             if m.requires or m.keeps or m.dram_regions or m.overrides or m.cf_patches or m.dsp:
                 raise ValueError(m.name + ': the group has an unported resource or DSP claim.')
