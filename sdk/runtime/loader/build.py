@@ -758,10 +758,101 @@ def octabam_machine(args):
     if args.stock:
         check_stock(sites + [(address, digest, b'', [], 0, n) for _, address, n, digest in copies], args.stock, args.upstream)
     hooks = subscribe([NONE] * len(HANDLERS), entries, symbols)
+    # Authored runs that coincide with stock are reconstructed from the user's OS (a reviewed recipe), so the package
+    # passes the unchanged strict stock-free scans: module-adapters/machine-recipes.json, or a private capture.
+    import stock_recipe
+    inputs = machine_inputs(m.name, adapters)
+    fills = []
+    if args.capture_stock_recipe:
+        if not args.stock:
+            raise ValueError('A machine recipe capture needs the original stock OS.')
+        args.capture_stock_recipe.write_text(json.dumps(capture_machine_recipe(m.name, image, offsets, inputs, args), indent=1) + '\n')
+    recipes = json.loads((adapters / 'machine-recipes.json').read_text())['ports'] if (adapters / 'machine-recipes.json').is_file() else {}
+    if m.name in recipes and not args.capture_stock_recipe:
+        image, extra, fills = stock_recipe.apply(image, offsets, recipes[m.name], inputs)
+        copies += extra
+        unevented([], extra)
     documents = json.loads((Path(__file__).resolve().parents[3] / 'src/catalog/module-documents.json').read_text())
     title = args.name or next((d.get('name') for d in documents.get('modules', []) if d.get('id') == m.name), '')
-    return package(image, bss, hooks, offsets, sites, name=m.name, hashed=True, title=title, layout=args.layout,
-                   copies=copies, abi=8)
+    data = package(image, bss, hooks, offsets, sites, name=m.name, hashed=True, title=title, layout=args.layout,
+                   copies=copies, fills=fills, abi=8)
+    if args.stock and m.name in recipes and not args.capture_stock_recipe:
+        from elekloader import formats
+        parsed, device, _ = formats.load(str(args.stock))
+        private_stock_free(data, args.stock, formats.main_image(parsed, device), args.upstream.expanduser().resolve())
+    return data
+
+
+def machine_inputs(name, adapters):
+    """The exact inputs a machine package's image comes from: its port's reviewed sources and the builders."""
+    import machine_ports
+    entry = machine_ports.port(name) or {}
+    root = Path(__file__).resolve().parents[3]
+    ports = {'vector': ('vector_runtime.py',), 'synth': ('fm_runtime.py',), 'quantizer': ('quantizer_runtime.py',),
+             'analog-bassdrum': ('analog_bd_runtime.py', 'analog_bd_write_lease.py', 'stock_hook_write_lease.h')}
+    files = [Path(__file__).resolve(), adapters / 'machine_ports.py', adapters / 'machine-ports.json'] + [
+        adapters / n for n in ports.get(name, ()) if (adapters / n).is_file()]
+    out = {str(f.relative_to(root)): hashlib.sha256(f.read_bytes()).hexdigest() for f in files}
+    out.update(entry.get('sources', {}))
+    return dict(sorted(out.items()))
+
+
+def capture_machine_recipe(name, image, relocations, inputs, args):
+    """Every authored run of a machine package's image that the strict scans would find in stock (16 bytes, or 12
+    non-zero), as copies of identical stock bytes no event or table site holds: hashes and addresses only."""
+    from elekloader import formats
+    parsed, device, _ = formats.load(str(args.stock))
+    main = formats.main_image(parsed, device)
+    folder = HERE.parents[1] / 'machines/octatrack/elekloader'
+    loaded = []
+    for module_name in ('module_packages', 'check_stock_free'):
+        spec = importlib.util.spec_from_file_location('capture_' + module_name, folder / (module_name + '.py'))
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); loaded.append(module)
+    packages, scanner = loaded
+    reg = site_events()
+    held = [(e['site'], e['length']) for e in reg['events'] if e['site'] is not None] + [(o['site'], o['length']) for o in reg['owned']]
+    base = json.loads((HERE.parents[2] / 'src/engine/assets/octatrack-base.elemod').read_text())  # the base's own sites
+    held += [(int(s['addr'], 16), s['len']) for s in base['sites']]
+    starts = {at for at, n in packages.runs(image, main).items() if n >= packages.LIMIT}
+    starts |= {o for _, o, _, _ in scanner.stock_runs({'sections': {'i': {'parts': [['hex', image.hex()]]}}},
+                                                       scanner.haystacks(args.stock, args.upstream.expanduser().resolve()), 16)}
+    words = set()
+    for r in relocations:
+        words |= set(range(r, r + 4))
+    copies, covered = [], set()
+    for start in sorted(starts):
+        if start in covered:
+            continue
+        # every stock occurrence of the run's first 12 bytes, longest match first, outside base-held sites
+        at, candidates = main.find(image[start:start + 12]), []
+        while at >= 0:
+            n = 12
+            while start + n < len(image) and at + n < len(main) and image[start + n] == main[at + n]:
+                n += 1
+            address = device.main_load + at
+            if not any(address < a + l and a < address + n for a, l in held):
+                candidates.append((n, -at, address))
+            at = main.find(image[start:start + 12], at + 1)
+        if not candidates:
+            raise ValueError('%s: the stock run at image offset %#x exists only under base-held sites.' % (name, start))
+        n, _, address = max(candidates)
+        offset = start
+        while offset < start + n:
+            if offset in words:
+                offset += 1
+                continue
+            end = offset
+            while end < start + n and end not in words and end - offset < 32:
+                end += 1
+            piece = image[offset:end]
+            if end - offset >= 2 and any(piece):
+                copies.append(dict(offset=offset, length=end - offset, address=address + (offset - start),
+                                   sha256=hashlib.sha256(piece).hexdigest(),
+                                   purpose='%s: authored bytes coinciding with stock (strict scan), reconstructed from the '
+                                           'identical bytes of the user\'s OS; review' % name))
+                covered |= set(range(offset, end))
+            offset = end
+    return dict(schema=1, imageSha256=hashlib.sha256(image).hexdigest(), sources=inputs, copies=copies, fills=[])
 
 
 def check_stock(sites, stock, upstream):

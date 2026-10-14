@@ -34,7 +34,8 @@ PLANNED_EVENTS = [dict(event='ev_play_increment', site='0x40004100', length=8),
                   dict(event='ev_voice_bind', site='0x40006820', length=8)]
 PORTS = 'sdk/machines/octatrack/module-adapters/machine_ports.py'
 RECIPES = ('sdk/machines/octatrack/module-adapters/standalone-recipes.json',
-           'sdk/machines/octatrack/module-adapters/candidate-recipes.json')
+           'sdk/machines/octatrack/module-adapters/candidate-recipes.json',
+           'sdk/machines/octatrack/module-adapters/machine-recipes.json')
 BASE = 'the Modwerk base'
 PROBE = 0x400D7000  # ledger.check's probe address for a floating cave's emit pokes
 ROUTES = {
