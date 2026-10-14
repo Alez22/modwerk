@@ -61,7 +61,7 @@ describe('documentation and firmware scheduling', () => {
     expect(actual.elemod).toBe(true)
     expect(actual.documentation).toBe(false)
   })
-  it.each(['vendor/elekloader/catalog/catalog.json', 'vendor/elekloader/catalog/digihealth.elemod', 'vendor/elekloader/elekloader.lock.json'])('compiles and checks downloaded native package input %s', path => {
+  it.each(['vendor/elekloader/upstream-catalog.json', 'sdk/imports/elekloader-digihealth-2026-10-14.json', 'vendor/elekloader/catalog/digihealth.elemod', 'vendor/elekloader/elekloader.lock.json'])('compiles and checks downloaded native package input %s', path => {
     expect(scope(change(path))).toMatchObject({ elemod: true, documentation: false })
   })
   it('compiles new/removed modules and refuses invalid manifest JSON', () => {

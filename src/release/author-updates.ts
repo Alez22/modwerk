@@ -6,7 +6,9 @@ export const ACTIONS_BOT_ID = 41898282
 export type AuthorRegistry = { schemaVersion: 1; accounts: Record<string, number> }
 export type AuthorModule = { folder: string; document: Record<string, unknown> }
 export type AuthorChange = { path: string; before: string | null; after: string | null; regular: boolean }
-export type AuthorVendor = { catalog: Record<string, unknown>; lock: Record<string, unknown>; artifacts: Record<string, Record<string, unknown>> }
+/** The served elekloader catalog (upstream plus every module record) at the base and at the head, assembled by trusted code. */
+export type AuthorVendor = { catalog: Record<string, unknown>; next: Record<string, unknown>; lock: Record<string, unknown>; artifacts: Record<string, Record<string, unknown>> }
+const CATALOG_RECORD = /^sdk\/imports\/elekloader-[a-z0-9][a-z0-9.-]*\.json$/
 const object = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b))
 function canonical(value: unknown): unknown {
@@ -60,21 +62,23 @@ function packageProjection(value: unknown, ids: Set<string>, changedPackages: Se
   }))
 }
 function authorizeVendor(vendor: AuthorVendor | undefined, changes: readonly AuthorChange[], ids: Set<string>, next: Map<string, Record<string, unknown>>) {
-  const paths = changes.filter(change => change.path.startsWith('vendor/elekloader/'))
+  const paths = changes.filter(change => change.path.startsWith('vendor/elekloader/') || CATALOG_RECORD.test(change.path))
   if (!paths.length) return new Set<string>()
-  if (!vendor) throw new Error('An author package needs a previously approved elekloader catalog.')
-  const catalogPath = 'vendor/elekloader/catalog/catalog.json', lockPath = 'vendor/elekloader/elekloader.lock.json'
-  const edit = paths.find(change => change.path === catalogPath), lockEdit = paths.find(change => change.path === lockPath)
-  if (!edit?.after || !lockEdit?.after || !edit.before || !lockEdit.before) throw new Error('Update both the elekloader catalog and lock with author packages.')
-  const catalog = object(JSON.parse(edit.after)), lock = object(JSON.parse(lockEdit.after))
+  if (!vendor?.next) throw new Error('An author package needs a previously approved elekloader catalog.')
+  const catalog = object(vendor.next)
   const oldRows = Array.isArray(vendor.catalog.mods) ? vendor.catalog.mods.map(object) : [], rows = Array.isArray(catalog.mods) ? catalog.mods.map(object) : []
   const id = (row: Record<string, unknown>) => String(row.device).replace(/-mk1$/, '') + '-' + row.id
   const identity = (row: Record<string, unknown>) => [row.id, row.device, row.os, row.license, row.author, row.requires, row.needs_core]
   const project = (value: Record<string, unknown>) => ({ ...value, revision: null, mods: (value.mods as unknown[]).map(object).map(row => ids.has(id(row)) ? identity(row) : row) })
   if (!same(project(vendor.catalog), project(catalog))) throw new Error('Other elekloader modules, cores, OS targets and licences require owner review.')
-  const projectLock = (value: Record<string, unknown>) => ({ ...value, catalog: { ...object(value.catalog), revision: null, sha256: null } })
-  if (!same(projectLock(vendor.lock), projectLock(lock)) || object(lock.catalog).revision !== catalog.revision) throw new Error('The elekloader kit and unrelated catalog pins require owner review.')
-  const permitted = new Set([catalogPath, lockPath])
+  // The lock pins the kit and the upstream catalog, so an author update never changes it. A module record may hold
+  // only the author's own pins, before and after.
+  const permitted = new Set<string>()
+  for (const record of paths.filter(change => CATALOG_RECORD.test(change.path))) {
+    const pins = [record.before, record.after].flatMap(text => text === null ? [] : Object.values(object(JSON.parse(text))).filter(Array.isArray).flat().map(object))
+    if (!pins.length || pins.some(row => !ids.has(id(row)))) throw new Error('Elekloader records of other modules or cores require owner review.')
+    permitted.add(record.path)
+  }
   for (const row of rows.filter(row => ids.has(id(row)))) {
     const old = oldRows.find(item => same(identity(item), identity(row)))
     if (!old || typeof row.file !== 'string' || typeof old.file !== 'string' || !/^[A-Za-z0-9_.-]+\.elemod$/.test(row.file) || !next.has(id(row))) throw new Error('Invalid author elekloader package identity.')
@@ -95,7 +99,7 @@ function authorizeVendor(vendor: AuthorVendor | undefined, changes: readonly Aut
   }
   if (paths.some(change => !permitted.has(change.path))) throw new Error('Elekloader changes outside the author packages require owner review.')
   for (const moduleId of ids) if (/^(digitakt|digitone)-/.test(moduleId) && !rows.some(row => id(row) === moduleId)) throw new Error('Every released Digi module needs matching approved native packages.')
-  if (permitted.size <= 2) throw new Error('An author package update must change a pinned native package.')
+  if (![...permitted].some(path => path.endsWith('.elemod'))) throw new Error('An author package update must change a pinned native package.')
   return permitted
 }
 

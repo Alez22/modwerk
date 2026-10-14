@@ -54,3 +54,4 @@ docs/HANDOFF-*.md
 # Committing them made every module PR edit the same lines.
 src/catalog/machine-modules.json
 src/community/module-changelogs.json
+vendor/elekloader/catalog/catalog.json
