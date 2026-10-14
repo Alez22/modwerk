@@ -80,6 +80,37 @@ class GateTests(unittest.TestCase):
         self.assertEqual({p['route'] for p in third}, {'subscribe', 'event'})
         self.assertTrue(all('c' in p['modules'] for p in third))
 
+    def test_table_sites_belong_to_the_base_and_name_the_table(self):
+        owned = dict(event='ot_test', site='0x40002318', length=8, table=True)
+        problems = gate.check([module('a', SITE)], events=[owned])
+        self.assertEqual(self.routes(problems), [(('a',), 'contribute')])
+        self.assertIn('which the table ot_test owns', problems[0]['text'])
+        problems = gate.check([module('b')], events=[owned], copies={'b': [(0x4000231a, 4, 'replay')]})
+        self.assertEqual(self.routes(problems), [(('b',), 'copy')])
+
+    def test_machine_modules_install_in_every_combination_through_events_and_tables(self):
+        """POLY8, VECTOR, FM Synth, Scale Quantizer and Analog BD: no exception in compatibility.json, every subset of
+        their packages (as their runtime.json or machine port installs them) meets nowhere; their native manifests
+        do meet, so the ports, not the gate, make them independent."""
+        import itertools, json
+        relations = json.loads((ROOT / gate.RELATIONS).read_text())['relations']
+        self.assertEqual([r for r in relations if r.get('kind') in ('group-owned', 'pending-migration')], [])
+        ids, modules, inputs, problems = gate.repository_inputs()
+        five = [m for m in modules if m.name in ('poly8', 'vector', 'synth', 'quantizer', 'analog-bassdrum')]
+        self.assertEqual(len(five), 5)
+        for n in range(1, 6):
+            for subset in itertools.combinations(five, n):
+                with self.subTest([m.name for m in subset]):
+                    self.assertEqual(gate.check(list(subset), **inputs), [])
+        natives = [inputs['natives'][m.name] for m in five]
+        clashes = gate.check(natives, **dict(inputs, natives=None))
+        self.assertTrue({'subscribe', 'contribute'} <= {p['route'] for p in clashes})
+
+    def test_a_declaration_that_does_not_match_the_manifest_fails(self):
+        modules, problems = gate.ported([module('repitch', 0x40001000)])
+        self.assertEqual([p['route'] for p in problems], ['subscribe'])
+        self.assertIn('does not match its manifest', problems[0]['text'])
+
     def test_pinned_effect_id_collision_names_another_chooser_row(self):
         problems = gate.check([module('a', fx=0x1e), module('b', fx=0x1e)])
         self.assertEqual(self.routes(problems), [(('a', 'b'), 'row')])

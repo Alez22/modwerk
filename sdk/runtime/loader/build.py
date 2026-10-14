@@ -366,7 +366,7 @@ def _names(entry):
     return [r] if isinstance(r, str) else list(r)
 
 
-def replaced(detours, entries, registry=None, pokes=(), refs=()):
+def replaced(detours, entries, registry=None, pokes=None, refs=None):
     """What a subscribing package keeps of its detours (and, given, its pokes and symbol references): each name a
     subscription `replaces` goes. A call event's detour sits exactly on its site with that length and stock guard; a
     take event's starts at its site and covers at least the site; a table's detour, poke or reference is one of the
@@ -401,14 +401,14 @@ def replaced(detours, entries, registry=None, pokes=(), refs=()):
         else:
             kept.append(d)
     kept_pokes = []
-    for p in pokes:
+    for p in pokes or ():
         name = '%#010x' % p.addr
         if name in named:
             check(name, p.addr, len(p.write), p.expect, 'poke')
         else:
             kept_pokes.append(p)
     kept_refs = []
-    for r in refs:
+    for r in refs or ():
         name = '%#010x' % r.addr
         if name in named:
             check(name, r.addr, 4, None, 'ref')
@@ -417,7 +417,7 @@ def replaced(detours, entries, registry=None, pokes=(), refs=()):
     missing = set(named) - used
     if missing:
         raise ValueError('A runtime.json replaces what the module does not have: ' + ', '.join(sorted(missing)))
-    return (kept, kept_pokes, kept_refs) if pokes or refs else kept
+    return (kept, kept_pokes, kept_refs) if pokes is not None or refs is not None else kept
 
 
 def unevented(sites, copies=(), registry=None):

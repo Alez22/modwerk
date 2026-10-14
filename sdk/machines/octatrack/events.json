@@ -440,14 +440,14 @@
    "subscribers": [
     {
      "module": "poly8",
-     "fn": "take_midi_note_on",
+     "fn": "mw_take_midi_note_on",
      "order": 20,
      "does": "a POLY track's note presses a POLY key (queued, owned); claims only POLY tracks (poly_is_track)",
      "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_midi_note_on; shared-machine-hooks.s mr_note_on"
     },
     {
      "module": "synth",
-     "fn": "take_midi_note_on",
+     "fn": "mw_take_midi_note_on",
      "order": 40,
      "does": "a synth track's PTCH raw is note - 20, stored before the START, and the note is posted to the engine; other tracks replay stock",
      "evidence": "sdk/octabam/modules/synth/upstream/synth/poly.s po_mon"
@@ -471,14 +471,14 @@
    "subscribers": [
     {
      "module": "poly8",
-     "fn": "take_midi_note_off",
+     "fn": "mw_take_midi_note_off",
      "order": 20,
      "does": "stops the voices the note owns on a POLY track; claims only POLY tracks",
      "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_midi_note_off; shared-machine-hooks.s mr_note_off"
     },
     {
      "module": "synth",
-     "fn": "take_midi_note_off",
+     "fn": "mw_take_midi_note_off",
      "order": 40,
      "does": "a paraphonic synth track releases that note's voice alone; other tracks replay stock",
      "evidence": "sdk/octabam/modules/synth/upstream/synth/poly.s po_moff"
@@ -502,21 +502,21 @@
    "subscribers": [
     {
      "module": "poly8",
-     "fn": "take_octave_key",
+     "fn": "mw_take_octave_key",
      "order": 20,
      "does": "a POLY track walks its own octave -6..+3; claims POLY tracks outside MIDI mode",
      "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_octave_button; shared-machine-hooks.s mr_octkey"
     },
     {
      "module": "synth",
-     "fn": "take_octave_key",
+     "fn": "mw_take_octave_key",
      "order": 40,
      "does": "FM Synth's bundled quantizer: a synth track's octave steps -4..+4 (qz_oct), stock's word stays 0",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_octkey"
     },
     {
      "module": "quantizer",
-     "fn": "take_octave_key",
+     "fn": "mw_take_octave_key",
      "order": 50,
      "does": "a synth track's octave steps -4..+4 (qz_oct), stock's word stays 0",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_octkey"
@@ -540,21 +540,21 @@
    "subscribers": [
     {
      "module": "poly8",
-     "fn": "take_octave_number",
+     "fn": "mw_take_octave_number",
      "order": 20,
      "does": "a POLY track keeps the octave POLY8's own 0x400449b8 detour loaded (entry 0: stock prints it); claims POLY tracks outside MIDI mode",
      "evidence": "sdk/octabam/modules/poly8/polyphony.s poly_oct_number; shared-machine-hooks.s mr_octnum"
     },
     {
      "module": "synth",
-     "fn": "take_octave_number",
+     "fn": "mw_take_octave_number",
      "order": 40,
      "does": "FM Synth's bundled quantizer: prints qz_oct on a synth track and the keyboard position on a sample track, with ROOT's name when a scale is on",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_octnum"
     },
     {
      "module": "quantizer",
-     "fn": "take_octave_number",
+     "fn": "mw_take_octave_number",
      "order": 50,
      "does": "prints qz_oct on a synth track and the keyboard position on a sample track, with ROOT's name when a scale is on",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_octnum"
@@ -578,14 +578,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_settings_sanitise",
+     "fn": "mw_take_settings_sanitise",
      "order": 40,
      "does": "FM Synth's bundled quantizer: clamps SCALE/GLIDE/ROOT (0x100b14ec..ee) to OFF / C when out of range",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_boot"
     },
     {
      "module": "quantizer",
-     "fn": "take_settings_sanitise",
+     "fn": "mw_take_settings_sanitise",
      "order": 50,
      "does": "clamps SCALE/GLIDE/ROOT (0x100b14ec..ee) to OFF / C when out of range",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_boot"
@@ -609,14 +609,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_project_defaults",
+     "fn": "mw_take_project_defaults",
      "order": 40,
      "does": "FM Synth's bundled quantizer: SCALE/GLIDE := OFF, ROOT := C",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_defaults"
     },
     {
      "module": "quantizer",
-     "fn": "take_project_defaults",
+     "fn": "mw_take_project_defaults",
      "order": 50,
      "does": "SCALE/GLIDE := OFF, ROOT := C",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_defaults"
@@ -640,14 +640,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_keyboard_draw",
+     "fn": "mw_take_keyboard_draw",
      "order": 40,
      "does": "FM Synth's bundled quantizer: a synth track draws the keyboard at stock octave 0",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_octdraw"
     },
     {
      "module": "quantizer",
-     "fn": "take_keyboard_draw",
+     "fn": "mw_take_keyboard_draw",
      "order": 50,
      "does": "a synth track draws the keyboard at stock octave 0",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_octdraw"
@@ -671,14 +671,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_release",
+     "fn": "mw_take_chromatic_release",
      "order": 40,
      "does": "FM Synth's bundled quantizer: on a paraphonic synth track the held-key mask decides the note-off",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_leg0"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_release",
+     "fn": "mw_take_chromatic_release",
      "order": 50,
      "does": "on a paraphonic synth track the held-key mask decides the note-off",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_leg0"
@@ -702,14 +702,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_held",
+     "fn": "mw_take_chromatic_held",
      "order": 40,
      "does": "FM Synth's bundled quantizer: the LEG gate (mono legato keeps the held key, paraphonic ends nothing)",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_leg1"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_held",
+     "fn": "mw_take_chromatic_held",
      "order": 50,
      "does": "the LEG gate (mono legato keeps the held key, paraphonic ends nothing)",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_leg1"
@@ -733,14 +733,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_pitch",
+     "fn": "mw_take_chromatic_pitch",
      "order": 40,
      "does": "FM Synth's bundled quantizer: transposes the key by ROOT and snaps it to the scale",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_chrom"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_pitch",
+     "fn": "mw_take_chromatic_pitch",
      "order": 50,
      "does": "transposes the key by ROOT and snaps it to the scale",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_chrom"
@@ -764,14 +764,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_trig",
+     "fn": "mw_take_chromatic_trig",
      "order": 40,
      "does": "FM Synth's bundled quantizer: mono legato is the trigless trig; paraphonic is a fresh voice posted for the engine",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_leg2"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_trig",
+     "fn": "mw_take_chromatic_trig",
      "order": 50,
      "does": "mono legato is the trigless trig; paraphonic is a fresh voice posted for the engine",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_leg2"
@@ -795,14 +795,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_record",
+     "fn": "mw_take_chromatic_record",
      "order": 40,
      "does": "FM Synth's bundled quantizer: a legato press records a trigless trig",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_leg3"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_record",
+     "fn": "mw_take_chromatic_record",
      "order": 50,
      "does": "a legato press records a trigless trig",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_leg3"
@@ -826,14 +826,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_recorded",
+     "fn": "mw_take_chromatic_recorded",
      "order": 40,
      "does": "FM Synth's bundled quantizer: notes the step and time; the release writes the note length as HOLD",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_leg4"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_recorded",
+     "fn": "mw_take_chromatic_recorded",
      "order": 50,
      "does": "notes the step and time; the release writes the note length as HOLD",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_leg4"
@@ -857,14 +857,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_locked",
+     "fn": "mw_take_chromatic_locked",
      "order": 40,
      "does": "FM Synth's bundled quantizer: the synth engine recognises a fingered chord",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_leg5"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_locked",
+     "fn": "mw_take_chromatic_locked",
      "order": 50,
      "does": "the synth engine recognises a fingered chord",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_leg5"
@@ -888,14 +888,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_chromatic_index",
+     "fn": "mw_take_chromatic_index",
      "order": 40,
      "does": "FM Synth's bundled quantizer: a synth track's index is the key itself",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_keyidx"
     },
     {
      "module": "quantizer",
-     "fn": "take_chromatic_index",
+     "fn": "mw_take_chromatic_index",
      "order": 50,
      "does": "a synth track's index is the key itself",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_keyidx"
@@ -919,14 +919,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_plock_store",
+     "fn": "mw_take_plock_store",
      "order": 40,
      "does": "FM Synth's bundled quantizer: PTCH steps by scale degree",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_plock"
     },
     {
      "module": "quantizer",
-     "fn": "take_plock_store",
+     "fn": "mw_take_plock_store",
      "order": 50,
      "does": "PTCH steps by scale degree",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_plock"
@@ -950,14 +950,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_knob_store",
+     "fn": "mw_take_knob_store",
      "order": 40,
      "does": "FM Synth's bundled quantizer: PTCH steps by scale degree",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_knob"
     },
     {
      "module": "quantizer",
-     "fn": "take_knob_store",
+     "fn": "mw_take_knob_store",
      "order": 50,
      "does": "PTCH steps by scale degree",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_knob"
@@ -981,14 +981,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_project_load",
+     "fn": "mw_take_project_load",
      "order": 40,
      "does": "FM Synth's bundled quantizer: a storing load starts from SCALE = OFF, ROOT = C, GLIDE = OFF",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_ld_entry"
     },
     {
      "module": "quantizer",
-     "fn": "take_project_load",
+     "fn": "mw_take_project_load",
      "order": 50,
      "does": "a storing load starts from SCALE = OFF, ROOT = C, GLIDE = OFF",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_ld_entry"
@@ -1012,14 +1012,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_project_line",
+     "fn": "mw_take_project_line",
      "order": 40,
      "does": "FM Synth's bundled quantizer: reads #SEQUENCER_SCALE=n / #SEQUENCER_ROOT=n / #SYNTH_GLIDE=n",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_ld_line"
     },
     {
      "module": "quantizer",
-     "fn": "take_project_line",
+     "fn": "mw_take_project_line",
      "order": 50,
      "does": "reads #SEQUENCER_SCALE=n / #SEQUENCER_ROOT=n / #SYNTH_GLIDE=n",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_ld_line"
@@ -1043,14 +1043,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "take_project_write",
+     "fn": "mw_take_project_write",
      "order": 40,
      "does": "FM Synth's bundled quantizer: writes #SEQUENCER_SCALE=n, #SEQUENCER_ROOT=n, #SYNTH_GLIDE=n",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_wr"
     },
     {
      "module": "quantizer",
-     "fn": "take_project_write",
+     "fn": "mw_take_project_write",
      "order": 50,
      "does": "writes #SEQUENCER_SCALE=n, #SEQUENCER_ROOT=n, #SYNTH_GLIDE=n",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_wr"
@@ -1075,28 +1075,28 @@
    "subscribers": [
     {
      "module": "poly8",
-     "fn": "machine",
+     "fn": "mw_machine",
      "order": 10,
      "does": "POLY8: PL/1, its own assign, chooser type, ui tick, extensions cleared on leave, pool choice, list drawer",
      "evidence": "sdk/octabam/modules/poly8/registration.s pm_*"
     },
     {
      "module": "analog-bassdrum",
-     "fn": "machine",
+     "fn": "mw_machine",
      "order": 20,
      "does": "ANALOG BD: AB/1, admit, defaults, its page, ui tick, engine list, render; PROTECT",
      "evidence": "sdk/octabam/modules/analog-bassdrum/control.s ab_*"
     },
     {
      "module": "vector",
-     "fn": "machine",
+     "fn": "mw_machine",
      "order": 30,
      "does": "VECTOR: S2/1-2, its own assign, chooser type, ui tick, pool choice, list drawer, Part validator wrapper; BACKING",
      "evidence": "sdk/octabam/modules/vector/control.s st_*"
     },
     {
      "module": "synth",
-     "fn": "machine",
+     "fn": "mw_machine",
      "order": 40,
      "does": "FM SYNTH: FM/1, admit, defaults, its page, ui tick, render (also unowned FLEX tracks); PROTECT",
      "evidence": "sdk/octabam/modules/synth/registration.s fm_*, upstream/synth/poly.s sy_render"
@@ -1397,14 +1397,14 @@
    "subscribers": [
     {
      "module": "synth",
-     "fn": "sequencer_rows",
+     "fn": "mw_sequencer_rows",
      "order": 40,
      "does": "SCALE, ROOT, GLIDE rows of FM's bundled quantizer",
      "evidence": "sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_lbl_*, qz_get*, qz_set*"
     },
     {
      "module": "quantizer",
-     "fn": "sequencer_rows",
+     "fn": "mw_sequencer_rows",
      "order": 50,
      "does": "SCALE, ROOT, GLIDE rows",
      "evidence": "sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_lbl_*, qz_get*, qz_set*"
