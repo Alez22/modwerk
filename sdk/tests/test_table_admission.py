@@ -33,8 +33,8 @@ class TableAdmissionTests(unittest.TestCase):
                      '-I' + str(glue), '-I' + str(ADAPTER), '-I' + str(ROOT / 'sdk/runtime/loader'),
                      '-I' + str(ROOT / 'sdk/runtime/upload')]
             sources = [entry, glue / 'runtime.c', *[ADAPTER / (name + '.c') for name in
-                       ('machine_admission_runtime', 'machine_admission', 'machine_declarations', 'machine_lifetime',
-                        'machine_parts', 'table_admission', 'table_declarations')]]
+                       ('machine_admission_runtime', 'machine_admission', 'machine_contributors', 'machine_declarations',
+                        'machine_lifetime', 'machine_parts', 'table_admission', 'table_declarations')]]
             objects = []
             for source in sources:
                 obj = work / (source.stem + '.o')
