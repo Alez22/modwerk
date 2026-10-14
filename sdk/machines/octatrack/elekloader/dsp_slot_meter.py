@@ -14,10 +14,10 @@ the mean and the peak counts a frame, each tagged with the watched slot's key (r
 before the slot was armed). The reading includes the wrapper's own jsr, rts and a register load inside the stamps
 (about 9 cycles a call).
 
-Its cost (dsp_asm's words; 56300 timing: one cycle a word, plus jsr/rts/branches): about 30 cycles per call of the
-watched slot's effect id (on each instance of that id on the core), 7 cycles a frame while nothing is watched
-(one test in the frame hook), 25 a frame while a slot is watched, about 40 once per window, and nothing on any
-other slot. The ColdFire's frame path is untouched: arming and the two 24-bit reads are status.c tick work (PEEK,
+Its cost (from dsp_asm's words; 56300 timing taken as a cycle a word plus 3 for jsr/rts and 4 for a branch, not
+measured on a unit): about 35 cycles per call of the watched slot (about 30 on another instance of the same effect id on
+that core), about 30 a frame while a slot is watched and 7 while none is, about 40 once per window, and nothing on
+any other slot. It takes 210 words of each core's code arena. The ColdFire's frame path is untouched: arming and the two 24-bit reads are status.c tick work (PEEK,
 one bit a packet), and only while a host asked for slot readings in the last 10 s (MWLD v2, ep0.c).
 
 Not proven on a unit yet: the timer setting ran on hardware in Octabam's probe 55, but the memory form of MOVEP
