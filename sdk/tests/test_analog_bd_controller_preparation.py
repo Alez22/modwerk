@@ -12,3 +12,4 @@ spec.loader.exec_module(tests)
 SourceTests = tests.SourceTests
 NativeTests = tests.NativeTests
 ObservationTests = tests.ObservationTests
+PriceTests = tests.PriceTests

@@ -127,5 +127,24 @@ class ObservationTests(unittest.TestCase):
                 self.assertFalse(observed['unknownExports'])
 
 
+
+class PriceTests(unittest.TestCase):
+    """The declared resident-engine price stays bound to the measured DSP sources."""
+    def test_declared_price_covers_every_measured_increment_and_is_source_bound(self):
+        import json
+        app = SDK.parents[1]
+        doc = json.loads(Path(__file__).with_name('analog_bd_dsp_price.json').read_text())
+        self.assertEqual((doc['schema'], doc['kind'], doc['hardware']), ('modwerk-ab-dsp-price-v1', 'executed-instructions', False))
+        for name, digest in doc['sourcePins'].items():
+            self.assertEqual(hashlib.sha256((app / name).read_bytes()).hexdigest(), digest, name)
+        import resident_dsp
+        for name in ('ab_glue.asm', 'bd909.asm', 'bd808.asm', 'dsp909.py', 'dsp808.py', 'fit909.json'):
+            self.assertEqual(doc['sourcePins']['sdk/octabam/modules/analog-bassdrum/' + name],
+                             resident_dsp.SOURCES['modules/analog-bassdrum/' + name])  # the resident engine is the priced one
+        self.assertGreaterEqual(doc['perVoice'], max(max(r['meanPerVoice'], r['peakPerVoice']) for r in doc['measuredIncrements']))
+        self.assertGreaterEqual(doc['perCoreWhileEnabled'], max(max(r['mean'], r['peak']) for r in doc['measuredSeam']) + 0.25)
+        self.assertEqual(doc['voicesPerCore'], 4)
+
+
 if __name__ == '__main__':
     unittest.main()
