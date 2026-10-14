@@ -10,10 +10,6 @@ extern "C" {
 }
 constexpr int fs=44100;
 constexpr double pi=3.141592653589793, q=2147483648.;
-// The wet makeup now cancels the record drive (#607, generate_tables.py), so
-// every output-referenced figure below sits this many dB above the figures
-// measured before the change. Repeat decay and tone are relative and unmoved.
-constexpr double levelMatch=5.6;
 static int failures=0;
 static void check(const char* name,bool yes,double value) {
     std::printf("  [%s] %s: %.5f\n",yes?"PASS":"FAIL",name,value);
@@ -107,7 +103,7 @@ int main() {
     // The owner explicitly permits economy-model voicing differences.
     // Removing emphasis changes saturation/noise dynamics: allow 1.5 dB
     // versus OCTACLID3, but keep the original reference, not a moving target.
-    check("Economy noise build-up stays within 1.5 dB of OCTACLID3 plus the level match",std::abs(last+8.83032-levelMatch)<1.5,last);
+    check("Economy noise build-up stays within 1.5 dB of OCTACLID3",std::abs(last+8.83032)<1.5,last);
     // The floor is the hiss, measured without DC. Until 23 Sep 2026 this
     // took the plain RMS against OCTACLID3 (-119.05/-118.03/-114.23 dB), but
     // that engine's output carried a constant -120 dBFS truncation offset
@@ -121,22 +117,16 @@ int main() {
         double square=0;for(unsigned n=fs;n<x.size();++n)square+=(x[n]-mean)*(x[n]-mean);
         floors[i]=db(std::sqrt(square/(x.size()-fs)));
         const double referenceFloor[]={-128.90197,-123.56168,-116.38375};
-        check("Economy hiss floor stays within 1 dB of the pre-EMAC engine plus the level match",std::abs(floors[i]-referenceFloor[i]-levelMatch)<1,floors[i]);
+        check("Economy hiss floor stays within 1 dB of the pre-EMAC engine",std::abs(floors[i]-referenceFloor[i])<1,floors[i]);
         check("Silent tape leaves no DC offset on the output (dBFS)",db(std::abs(mean))<-130,db(std::abs(mean)));
     }
     check("Tape age increases the noise floor",floors[2]-floors[0]>4,floors[2]-floors[0]);
     auto low=render(params(),2,1000,.001),hot=render(params(),2,1000,1);
     double compression=db(rms(hot,fs,hot.size())/rms(low,fs,low.size()))-60;
     check("Fixed DRIVE=0 retains gentle record compression (dB)",compression<0&&compression>-4,compression);
-    // Level match (#607): a small 1 kHz signal returns from full-wet tape at
-    // its input level, and the dry signal stays at unity until MIX 95 before
-    // it fades out. The burst's first 1024 samples are dry only: the echo
-    // arrives 5888 samples later and the unrecorded history reads as silence.
-    for(unsigned age:{0u,64u}) {
-        auto x=render(params(0,0,age),2,1000,.01);
-        double matched=db(rms(x,fs,x.size())/(.01/std::sqrt(2.)));
-        check(age?"AGE=64 full-wet echo returns within 1 dB of its input":"AGE=0 full-wet echo returns within 1 dB of its input",std::abs(matched)<1,matched);
-    }
+    // Level match (#607): the dry signal stays at unity until MIX 95 before it
+    // fades out. The burst's first 1024 samples are dry only: the echo arrives
+    // 5888 samples later and the unrecorded history reads as silence.
     auto dryLevel=[&](unsigned mix) {
         auto p=params();p.mix=mix;
         auto x=render(p,.5,1000,.003,true);

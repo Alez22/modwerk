@@ -55,10 +55,7 @@ def generate():
     makeup = [round((x/10**(5.44/20))**.4/x*(1<<28)) for x in rec]
     # DRIVE is fixed at 0: the wet makeup gain is a constant folded into
     # the tone section's numerator, so the loop carries makeup*wet.
-    # Level match (#607): the makeup cancels the record drive, so a small
-    # signal returns from the tape at its input level. The loop gain
-    # (feedback * makeup) is unchanged, so repeat decay stays as measured.
-    wet_gain = 1/rec[0]
+    wet_gain = makeup[0]/(1<<28)
     array('te_hp', section(biquad('hp',106,.53)))
     # Collapse the two playback low-passes into one biquad. Fit the old
     # cascade's digital magnitudes at 4/8.4 kHz analytically (no optimizer or
