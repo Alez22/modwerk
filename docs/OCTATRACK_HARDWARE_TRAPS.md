@@ -442,3 +442,10 @@ Tools that work on this Mac:
    and USB audio; the loader's own counter freezes once it is switched off.
 4. Keep the owner's projects out of it: a blank project avoids loads
    triggered by modules a project already uses.
+5. Which admission refused a pick: every cause (code arena, transition,
+   Y buffers, cycles) shows DSP MEMORY FULL. Read the manager's
+   `allocator` (`core:allocator` in the twin's `symbols.json`) right after
+   the refusal: with 128 effect ids a placement is 6 bytes (offset, words,
+   present), `live[2][128]` at +24 and `target[2][128]` at +1560; a failed
+   plan leaves its partial target, so the last id placed shows where it
+   ran out. `capacity[2]` at +4, `keep[2]` (the Parts' union) at +3132.
