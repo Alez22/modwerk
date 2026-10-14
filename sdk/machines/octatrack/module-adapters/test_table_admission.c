@@ -19,7 +19,7 @@ static int read_memory(void *context,uint32_t at,void *out,uint32_t n)
     for(unsigned f=0;f<2;f++) for(unsigned t=0;t<3;t++)
         if(at>=roots[f][t] && at+n<=roots[f][t]+(f?64u:12u) && n==4) {put32(out,stock(t,(at-roots[f][t])/4));return 1;}
     if(at<0x40000400u || at>0x47f00000u-n) return 0;
-    for(unsigned i=0;i<n;i++)p[i]=0;return 1;
+    memset(p,0,n);return 1;
 }
 static struct runtime_dsp package(unsigned family,int owned)
 {

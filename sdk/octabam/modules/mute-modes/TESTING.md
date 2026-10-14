@@ -1,6 +1,13 @@
 # Mute Modes measurements
 
-Recorded 7 October 2026. Version `0.1.0-experimental`, upstream `6f9e5bc9db0ae9fa99fa2f2a0f4de1fdb8e9a136`.
+Recorded 7 October 2026 for `0.1.0-experimental`; 0.2.0 below, upstream `6f9e5bc9db0ae9fa99fa2f2a0f4de1fdb8e9a136`.
+
+## 0.2.0: the fresh-voice-bind event (prepared 14 October 2026, not released)
+
+- **Native builds unchanged.** `patch_softmute.s` assembled without `MODWERK_EVENTS` (`m68k-elf-as -mcpu=54455` and `-mcpu=5407`) gives the same `.text` bytes and relocations as 0.1.0; linked at the author's addresses the plain unit is `d56d848e…` (0x400d7400) and the SC_KEY unit `8814aa2c…` (0x400d74e4), the `reference` hashes in `manifest.py`.
+- **Runtime package.** `runtime.json` replaces the `fresh_bind` detour with `mm_voice_bind`: it enters `fresh_bind` on the stock function's own frame, and `FB_BACK`/`FB_EPILOGUE` become two returns (0 pass, 1 drop) that pop its displaced pushes as stock's epilogue would. The package has 14 sites (was 15) and one hook word; a base without site events refuses it. Its build needs the runtime-unit adapter to assemble with `MODWERK_EVENTS` after the native reference check (loader-integration `runtime_units.py`).
+- **Emulator comparison** (loader-integration `loader_events_fixture.cpp`, 14 October 2026; synthetic mute/solo and MUTE MODE words): for MUTE MODE OT, OTFX-T, DT-T and OTFX, two muted tracks, single-track and all-track resets, the 0.1.0 raw package on a base without events and this package on an events base start exactly the same voices. Beside POLY8's subscribers, in either install order, a muted track's reset is dropped and POLY8's extension voices are kept, as in the native POLY8 + Mute Modes composition. The 0.1.0 package is refused on an events base (`RUNTIME_EVENT`).
+- Not run: hardware, audio.
 
 ## Source identity
 
