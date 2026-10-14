@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from host_flags import SANITIZE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 LOADER = ROOT / 'sdk/runtime/loader'
@@ -162,7 +163,7 @@ class SiteEventTests(unittest.TestCase):
             self.skipTest('no host C compiler')
         for defines in (('-DRUNTIME_MODULES=32u',), ('-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')):
             with self.subTest(defines), tempfile.TemporaryDirectory() as temp:
-                subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g', '-fsanitize=address,undefined',
+                subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g', *SANITIZE,
                                 '-fno-sanitize-recover=all', *defines, '-I', LOADER / 'tests/events', '-I', LOADER,
                                 '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/events_test.c', '-o', temp + '/t'],
                                check=True, capture_output=True)

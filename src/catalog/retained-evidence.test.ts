@@ -161,6 +161,19 @@ describe('risk-based retained module evidence',()=>{
     artifact.proofs[0].maskedOsSha256='d'.repeat(64)
     put(path,JSON.stringify(artifact));await expect(check()).rejects.toThrow('full qualification')
   })
+  it('leaves native proofs of combinations with another module to that module, freezing only its own',async()=>{
+    const path='src/engine/assets/analog-bd-composition-proofs.json',companion='companion-module'
+    const catalog=JSON.parse(readFileSync(resolve(root,'sdk/catalog.json'),'utf8'))
+    put('sdk/catalog.json',JSON.stringify({...catalog,modules:[...catalog.modules,{id:companion,version:'0.1.0',addedAt:'2026-10-05T12:00:00Z'}]}))
+    const artifact={proofs:[{moduleIds:[document.id],maskedOsSha256:'b'.repeat(64)},{moduleIds:[document.id,companion],maskedOsSha256:'c'.repeat(64)}]}
+    put(path,JSON.stringify(artifact))
+    git('add',path,'sdk/catalog.json');git('-c','user.name=Evidence test','-c','user.email=fixture@example.invalid','commit','--quiet','-m','Synthetic native proofs')
+    document.tests.retainedEvidence!.commit=git('rev-parse','HEAD');git('update-ref','refs/remotes/origin/main',document.tests.retainedEvidence!.commit)
+    artifact.proofs[1].maskedOsSha256='d'.repeat(64)
+    put(path,JSON.stringify(artifact));expect(await check()).toBe('retained-evidence')
+    artifact.proofs[0].maskedOsSha256='e'.repeat(64)
+    put(path,JSON.stringify(artifact));await expect(check()).rejects.toThrow('full qualification')
+  })
   it('preserves historical status when retaining a frozen baseline release',async()=>{
     git('reset','--hard','HEAD')
     const original=JSON.parse(readFileSync(resolve(folder,'octamod.module.json'),'utf8')) as ModuleDocument

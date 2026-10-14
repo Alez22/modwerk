@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from host_flags import SANITIZE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 LOADER = ROOT / 'sdk/runtime/loader'
@@ -49,7 +50,7 @@ class VolatileService(unittest.TestCase):
             for defines in ((), ('-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')):
                 executable = Path(temp) / ('fixture-large' if defines else 'fixture')
                 args = ['cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g',
-                        '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
+                        *SANITIZE, '-fno-sanitize-recover=all',
                         *defines, '-I', LOADER, '-I', ROOT / 'sdk/runtime/upload',
                         '-I', ELEK, fixture, *units(temp), '-o', executable]
                 compiled = subprocess.run(args, capture_output=True, text=True)
@@ -98,7 +99,7 @@ class VolatileService(unittest.TestCase):
                                  (enabled + ('-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u'), cases)):
                 executable = Path(temp) / ('board%d' % len(defines))
                 args = ['cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g',
-                        '-fsanitize=address,undefined', '-fno-sanitize-recover=all', *defines,
+                        *SANITIZE, '-fno-sanitize-recover=all', *defines,
                         '-I', LOADER, '-I', ROOT / 'sdk/runtime/upload', '-I', ELEK,
                         fixture, *units(temp), '-o', executable]
                 compiled = subprocess.run(args, capture_output=True, text=True)

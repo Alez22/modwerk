@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from host_flags import SANITIZE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 LOADER = ROOT / 'sdk/runtime/loader'
@@ -96,7 +97,7 @@ int main(void) {
 
     def test_all_real_saved_set_paths_preserve_both_files_and_ram_baseline(self):
         source = (ELEK / 'test_modset.c').read_text()
-        sanitizers = ('-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all')
+        sanitizers = ('-g', *SANITIZE, '-fno-sanitize-recover=all')
         for defines in (('-DMODWERK_HOST',), ('-DMODWERK_HOST', '-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')):
             with self.subTest(defines=defines):
                 self.compile_run(source, defines + sanitizers)
@@ -135,7 +136,7 @@ int main(void) {
         for defines in ((), ('-DMODWERK_FX_IDS=128u',)):
             with self.subTest(defines=defines), tempfile.TemporaryDirectory() as temp:
                 args = ['cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g',
-                        '-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-DMODWERK_HOST',
+                        *SANITIZE, '-fno-sanitize-recover=all', '-DMODWERK_HOST',
                         '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565', '-DMODWERK_DSP_RESERVE=342',
                         *defines, '-I', ELEK, '-I', ROOT / 'sdk/octabam/platform/dsp-dynload-transport',
                         '-I', ROOT / 'sdk/runtime/upload', '-I', LOADER, ELEK / 'test_journal_board.c',

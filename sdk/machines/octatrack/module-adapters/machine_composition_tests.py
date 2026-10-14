@@ -19,11 +19,18 @@ sys.path.insert(0, str(SDK / 'tools'))
 from remix import registry
 
 
+def load(path):
+    """A manifest with POSIX unit sources, as the compatibility gate hands octabam's composition (Windows paths carry
+    backslashes, and remix.machine_composition splits sources on "modules/")."""
+    module = registry._load_one(path)
+    return replace(module, linked=tuple(replace(u, source=str(u.source).replace('\\', '/')) for u in module.linked))
+
+
 def modules():
     old = Path.cwd()
     try:
         os.chdir(SDK)
-        return [registry._load_one(SDK / ('modules/' + name + '/manifest.py')) for name in ('vector', 'synth')]
+        return [load(SDK / ('modules/' + name + '/manifest.py')) for name in ('vector', 'synth')]
     finally:
         os.chdir(old)
 
@@ -92,7 +99,7 @@ class SourceTests(unittest.TestCase):
 
     def test_changed_quantizer_layout_is_not_silently_supplied_by_fm(self):
         _, synth = modules()
-        quantizer = registry._load_one(SDK / 'modules/quantizer/manifest.py')
+        quantizer = load(SDK / 'modules/quantizer/manifest.py')
         table = quantizer.tables[0]
         changed = replace(quantizer, tables=(replace(table, insert_at=2), *quantizer.tables[1:]))
         with tempfile.TemporaryDirectory() as work, self.assertRaisesRegex(ValueError, 'bundled quantizer declaration drift'):
@@ -103,7 +110,7 @@ class SourceTests(unittest.TestCase):
 class ManifestTests(unittest.TestCase):
     def test_fm_normalizes_only_its_exact_redundant_quantizer(self):
         vector, synth = modules()
-        quantizer = registry._load_one(SDK / 'modules/quantizer/manifest.py')
+        quantizer = load(SDK / 'modules/quantizer/manifest.py')
         for selected in ([synth, quantizer], [quantizer, vector, synth]):
             with tempfile.TemporaryDirectory() as work:
                 result = adapter.effective_modules(selected, SDK, work)
@@ -120,7 +127,7 @@ class ManifestTests(unittest.TestCase):
         self.assertTrue(quantizer.linked and quantizer.tables)
 
     def test_poly_present_group_preserves_visible_members_and_private_controller(self):
-        poly = registry._load_one(SDK / 'modules/poly8/manifest.py')
+        poly = load(SDK / 'modules/poly8/manifest.py')
         with tempfile.TemporaryDirectory() as work:
             result = adapter.effective_modules([poly, *modules()], SDK, work)
             self.assertEqual([m.name for m in result], ['poly8', 'vector', 'synth'])
@@ -133,7 +140,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_pair_has_one_owner_without_hidden_poly_or_unrelated_dedup(self):
         vector, synth = modules()
-        unrelated = registry._load_one(SDK / 'modules/repitch/manifest.py')
+        unrelated = load(SDK / 'modules/repitch/manifest.py')
         with tempfile.TemporaryDirectory() as work:
             result = adapter.effective_modules([vector, synth, unrelated], SDK, work)
             self.assertEqual([m.name for m in result], ['machine-bridge', 'vector', 'synth', 'repitch'])

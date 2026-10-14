@@ -23,6 +23,7 @@ import resident_driver
 import resident_journal
 import resident_placement
 import zero_state
+from host_flags import SANITIZE  # noqa: E402
 
 
 FIXTURE = r'''
@@ -368,7 +369,7 @@ class ResidentJournal(unittest.TestCase):
                 (work / name).write_text(text)
             (work / 'fixture.c').write_text(FIXTURE)
             executable = work / 'journal'
-            flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
+            flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', *SANITIZE, '-fno-omit-frame-pointer',
                      '-DDL_NATIVE_TEST', '-DMODWERK_FX_IDS=64', '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565',
                      '-DMODWERK_DSP_TABLE0=4096', '-DMODWERK_DSP_TABLE1=4096', '-DMODWERK_DSP_WORDS0=2000', '-DMODWERK_DSP_WORDS1=2000']
             includes = ['-I' + str(p) for p in (work, ELEK, RUNTIME, ROOT / 'sdk/runtime/loader', ROOT / 'sdk/runtime/upload')]

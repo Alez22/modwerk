@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from host_flags import SANITIZE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
@@ -64,7 +65,7 @@ class TableAdmissionTests(unittest.TestCase):
             sources = [ADAPTER / (name + '.c') for name in
                        ('table_admission', 'table_declarations', 'machine_admission', 'machine_declarations', 'machine_lifetime', 'machine_parts', 'test_table_admission')]
             subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', '-g',
-                            '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
+                            *SANITIZE, '-fno-sanitize-recover=all',
                             '-I', str(ADAPTER), '-I', str(ROOT / 'sdk/runtime/loader'),
                             '-I', str(ROOT / 'sdk/runtime/upload'), *map(str, sources), '-o', str(output)],
                            check=True, capture_output=True)

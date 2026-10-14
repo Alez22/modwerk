@@ -18,6 +18,7 @@ ADAPTERS = OT / 'module-adapters'
 sys.path.insert(0, str(ROOT / 'sdk/octabam/tools'))
 sys.path.insert(0, str(ADAPTERS))
 import machine_ports  # noqa: E402
+from host_flags import SANITIZE  # noqa: E402
 FIVE = ('poly8', 'vector', 'synth', 'quantizer', 'analog-bassdrum')
 INCLUDES = ['-I', OT / 'module-adapters', '-I', OT / 'elekloader', '-I', OT / 'include', '-I', ROOT / 'sdk/runtime/loader',
             '-I', ROOT / 'sdk/runtime/upload']
@@ -28,7 +29,7 @@ def host(test, *sources):
     if not cc:
         test.skipTest('no host C compiler')
     with tempfile.TemporaryDirectory() as temp:
-        subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-g', '-fsanitize=address,undefined',
+        subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-g', *SANITIZE,
                         '-fno-sanitize-recover=all', '-DMODWERK_RUNTIME_EVENTS', '-DRUNTIME_MODULES=128u', *INCLUDES,
                         *sources, '-o', temp + '/t'], check=True, capture_output=True)
         return subprocess.run([temp + '/t'], capture_output=True, text=True)

@@ -103,7 +103,7 @@
         "sdk/octabam/modules/mute-modes/evidence/source-identity.json": "e2b614f4f4e6fac5fce8123bd2943a968446606b00cf1251e99dd6c4aef17143",
         "sdk/octabam/modules/mute-modes/evidence/probes.json": "51a456346db2be6299fc5ba7127369d8430d4c69f8b99a0d6547ed82563f7af0",
         "sdk/octabam/modules/mute-modes/evidence/memory-layout.json": "9c3bc924d147e493926c2dfa0d57ee937caf7097fea5ad0ce781090540dac712",
-        "sdk/octabam/modules/mute-modes/evidence/performance.json": "28c0524eccccd83f1eee65685ff1d8b0981f43b116ca99760b4a7cf7234c3614",
+        "sdk/octabam/modules/mute-modes/evidence/performance.json": "046b4800071eb007b0cb4cafdf6f64d1571a9cba4331a0bc5cfc4bde4296e11a",
         "sdk/octabam/modules/mute-modes/evidence/local-image.json": "168bc0d3d0e37fc307042edec7f882331d8b32a6b08dbe37f7671fc024449ae8",
         "sdk/octabam/modules/mute-modes/qualification/run.py": "f45ed781001b74991d6e89829e29db04510844ea8eca89affa6208c3a9e0f609",
         "sdk/octabam/modules/mute-modes/media/capture.json": "a89008483cd9b05e638090b01d54016bcf0037a54c87ec7bed35d180c861b7c4",

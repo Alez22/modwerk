@@ -22,6 +22,7 @@ ELEK = ROOT / 'sdk/machines/octatrack/elekloader'
 sys.path.append(str(ADAPTER))
 import resident_boot  # noqa: E402
 import resident_driver  # noqa: E402
+from host_flags import SANITIZE  # noqa: E402
 
 
 def package(module, image):
@@ -406,7 +407,7 @@ class ControllerBoard(unittest.TestCase):
         (work / 'fixture.c').write_text(FIXTURE)
 
     def build(self, work, rows):
-        flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
+        flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', *SANITIZE, '-fno-omit-frame-pointer',
                  '-DDL_NATIVE_TEST', '-DMW_CONTROLLER_TRANSPORT_TEST', '-DMW_CONTROLLER_BOARD_TEST',
                  '-DMODWERK_RUNTIME_METADATA_EXTERNAL', '-DMODWERK_FX_IDS=64', '-DMODWERK_DSP_TABLE0=4096',
                  '-DMODWERK_DSP_TABLE1=4096', '-DMODWERK_DSP_WORDS0=2000', '-DMODWERK_DSP_WORDS1=2000',

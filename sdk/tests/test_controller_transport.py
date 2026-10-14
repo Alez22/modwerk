@@ -18,6 +18,7 @@ POLICY = ADAPTER / 'controller-policy'
 ELEK = ROOT / 'sdk/machines/octatrack/elekloader'
 sys.path.append(str(ADAPTER))
 import resident_driver
+from host_flags import SANITIZE  # noqa: E402
 
 FIXTURE = r'''
 #include <assert.h>
@@ -183,7 +184,7 @@ class ControllerTransport(unittest.TestCase):
             (work / 'fixture.c').write_text(FIXTURE)
             executable = work / 'controller'
             compile_result = subprocess.run(['cc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-pedantic',
-                '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-DDL_NATIVE_TEST', '-DMW_CONTROLLER_TRANSPORT_TEST',
+                *SANITIZE, '-fno-omit-frame-pointer', '-DDL_NATIVE_TEST', '-DMW_CONTROLLER_TRANSPORT_TEST',
                 '-DMODWERK_FX_IDS=64', '-DMODWERK_DSP_TABLE0=4096', '-DMODWERK_DSP_TABLE1=4096',
                 '-DMODWERK_DSP_WORDS0=2000', '-DMODWERK_DSP_WORDS1=2000', '-I' + str(work), '-I' + str(POLICY),
                 '-I' + str(ROOT / 'sdk/runtime/loader'), '-I' + str(ROOT / 'sdk/runtime/upload'),

@@ -17,6 +17,7 @@ ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
 ELEK = ROOT / 'sdk/machines/octatrack/elekloader'
 sys.path.insert(0, str(ADAPTER))
 import resident_driver
+from host_flags import SANITIZE  # noqa: E402
 
 
 FIXTURE = r'''
@@ -230,7 +231,7 @@ class OwnedTransfer(unittest.TestCase):
             (work / 'fixture.c').write_text(FIXTURE)
             executable = work / 'owned'
             compile_result = subprocess.run(['cc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-pedantic',
-                '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-DDL_NATIVE_TEST',
+                *SANITIZE, '-fno-omit-frame-pointer', '-DDL_NATIVE_TEST',
                 '-DMODWERK_FX_IDS=64', '-DMODWERK_DSP_TABLE0=4096', '-DMODWERK_DSP_TABLE1=4096',
                 '-DMODWERK_DSP_WORDS0=2000', '-DMODWERK_DSP_WORDS1=2000', '-I' + str(work),
                 str(work / 'fixture.c'), '-o', str(executable)], capture_output=True, text=True)
