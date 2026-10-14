@@ -18,10 +18,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
 POLICY = ADAPTER / 'controller-policy'
+RUNTIME = ADAPTER / 'resident-runtime'
 ELEK = ROOT / 'sdk/machines/octatrack/elekloader'
 sys.path.append(str(ADAPTER))
 import resident_boot  # noqa: E402
 import resident_driver  # noqa: E402
+import resident_placement  # noqa: E402
 from host_flags import SANITIZE  # noqa: E402
 
 
@@ -102,7 +104,6 @@ void modwerk_machine_unlock(uint32_t old) { sr = old; }
 uint32_t modwerk_machine_mask(void) { return sr; }
 void modwerk_machine_unmask(uint32_t old) { sr = old; }
 void dl_selection_tick(void) {}
-void dl_residency_tick(void) {}
 void dl_show_message(const char *s, unsigned n) { (void)s; (void)n; }
 int modwerk_machine_stopped(void) { return 1; }
 void *modwerk_machine_uncached(void *p) { return p; }
@@ -114,7 +115,13 @@ unsigned modwerk_machine_paused(struct runtime_span *s, unsigned max, const stru
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to) { (void)from; (void)to; return 0; }
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to) { (void)from; (void)to; }
 int modwerk_saved_set_busy(void) { return (int)saved_busy; }
+#ifdef BOARD_MANAGER
+void board_manager_running(unsigned slot, unsigned id);
+void board_manager_init(void);
+#else
+void dl_residency_tick(void) {}
 int dl_hook_buffer_ranges_idle(unsigned feature) { (void)feature; return (int)buffers_idle; }
+#endif
 unsigned modwerk_controller_policy_entries(void) { return 0; }
 uint8_t mw_controller_board_test_read8(uint32_t a) { return a == 0x80000037u ? mode_live : a == 0x100b1497u ? mode_cs1 : 0xff; }
 int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi) { (void)lo; (void)hi; return (int)ui_clear; }
@@ -250,6 +257,30 @@ int main(int argc, char **argv)
     return 0;
 #else
     memcpy(donor, donor_original, sizeof donor);
+#ifdef BOARD_MANAGER
+    /* The actual manager's buffer plan and idle check, no stub: a stock DELAY (id 13) on T3 and T7 FX2 holds each
+     * core's FX2 block 2, whose tail is Sidechain's key window. 0: before the manager's first transaction (the boot
+     * plan); 1: the plan dl_buffers_init starts from; 2: a module (id 40, whole ring) on T7 FX2 instead. */
+    board_manager_running(10, 13); board_manager_running(14, 13);
+    if (mode >= 1) board_manager_init();
+    if (mode == 2) board_manager_running(14, 40);
+    run(2);
+    assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+    run(120);
+    if (mode == 2) {
+        /* A genuine overlap: Sidechain waits, untouched; Output Matrix (Y $c00) is not held up by it. */
+        assert(slot_for(SC, MW_CTL_BOUND) && !words[0][0] && !words[1][0] && !dsp_mask[0] && !dsp_mask[1]);
+        assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
+        run(60);
+        assert(slot_for(MATRIX, MW_CTL_ACTIVE) && slot_for(SC, MW_CTL_BOUND) && dsp_mask[0] == 2);
+        board_manager_running(14, 13); /* the module gives way to stock's delay */
+        run(120);
+    }
+    assert(slot_for(SC, MW_CTL_ACTIVE) && (dsp_mask[0] & 1u) && dsp_mask[1] == 1);
+    assert(words[0][0] == 1042 && words[1][0] == 1042 && lease(SC, 1));
+    (void)why; (void)install_refused;
+    return 0;
+#endif
     if (mode == 10) ab_x_1[4] ^= 1; /* core B's engine record names another address: Analog BD never resets */
     if (mode == 7) donor[300] ^= 1; /* not the stock descriptor the record names: no page, still a working controller */
     run(2);
@@ -386,13 +417,35 @@ int main(int argc, char **argv)
 '''
 
 
+# The generated manager in its own unit (its statics stay its own), on the fixture's actual transfer.c. Its
+# observer storage, catalogue and packages are empty; the running FX array is the native allocator.active.
+MANAGER_UNIT = r'''
+#include <stdint.h>
+static uint32_t auto_serial = 0x80000000u;
+static unsigned observed_valid;
+static uint8_t last[16];
+#include "manager.c"
+struct dl_package dl_catalog[MODWERK_FX_IDS];
+struct code dl_codes[2][MODWERK_FX_IDS];
+const uint32_t dl_pmap16 = 0;
+const fx_set dl_stub_at_boot = {{0}}, modwerk_fx_modules = {{0, 0xffffffffu}};
+int modwerk_stock_hook_export_idle(void) { return 1; }
+uint32_t modwerk_dsp_source_charge(unsigned c) { (void)c; return 0; }
+int modwerk_dsp_buffer_permitted(unsigned c, unsigned k, unsigned b, unsigned id) { (void)c; (void)k; (void)b; (void)id; return 0; }
+/* The strong bridge's answer (controller_policy.c): no reviewed exact entry. */
+int modwerk_stock_hook_buffer_policy(unsigned c, unsigned id, struct mw_hook_buffer_claim *out) { (void)c; (void)id; (void)out; return 0; }
+void board_manager_running(unsigned slot, unsigned id) { allocator.active[slot] = (uint8_t)id; }
+void board_manager_init(void) { initialized = 1; dl_buffers_init(&buffers, dl_pmap16); }
+'''
+
+
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ControllerBoard(unittest.TestCase):
     def generated(self, work):
         import importlib.util
         spec = importlib.util.spec_from_file_location('controller_board_core', ELEK / 'build_core.py')
         core = importlib.util.module_from_spec(spec); spec.loader.exec_module(core)
-        for name in ('transfer.c', 'transfer.h', 'selection.h'):
+        for name in core.DYNLOAD_SOURCES:
             text = (core.DYNLOAD / name).read_text()
             for old, new in core.DSP_EDITS.get(name, ()) + core.WIDTH_EDITS.get(name, ()):
                 self.assertEqual(text.count(old), 1)
@@ -401,24 +454,33 @@ class ControllerBoard(unittest.TestCase):
                 text = resident_driver.transport(text).replace('*(volatile uint32_t *)0xfc07c00cu', 'test_clock')
             elif name == 'transfer.h':
                 text = resident_driver.transport_header(text)
+            elif name == 'buffers.c':
+                text = resident_placement.buffers(text)
+            elif name == 'manager.c':
+                text = resident_placement.manager(text)
             (work / name).write_text(text)
+        (work / 'manager_unit.c').write_text(MANAGER_UNIT)
         shutil.copyfile(ELEK / 'fxids.h', work / 'fxids.h')
         (work / 'packages.h').write_text(header())
         (work / 'fixture.c').write_text(FIXTURE)
 
-    def build(self, work, rows):
+    def build(self, work, rows, manager=False):
         flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', *SANITIZE, '-fno-omit-frame-pointer',
                  '-DDL_NATIVE_TEST', '-DMW_CONTROLLER_TRANSPORT_TEST', '-DMW_CONTROLLER_BOARD_TEST',
                  '-DMODWERK_RUNTIME_METADATA_EXTERNAL', '-DMODWERK_FX_IDS=64', '-DMODWERK_DSP_TABLE0=4096',
                  '-DMODWERK_DSP_TABLE1=4096', '-DMODWERK_DSP_WORDS0=2000', '-DMODWERK_DSP_WORDS1=2000',
-                 *(['-DBOARD_ROWS'] if rows else []),
-                 '-I' + str(work), '-I' + str(POLICY), '-I' + str(ADAPTER),
+                 '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565',
+                 *(['-DBOARD_ROWS'] if rows else []), *(['-DBOARD_MANAGER'] if manager else []),
+                 '-I' + str(work), '-I' + str(POLICY), '-I' + str(ADAPTER), '-I' + str(RUNTIME),
                  '-I' + str(ROOT / 'sdk/runtime/loader'), '-I' + str(ROOT / 'sdk/runtime/upload')]
-        out = work / ('board-rows' if rows else 'board-empty')
+        out = work / ('board-manager' if manager else 'board-rows' if rows else 'board-empty')
+        extra = [work / 'manager_unit.c', work / 'allocator.c', work / 'buffers.c', RUNTIME / 'stock_hooks.c',
+                 RUNTIME / 'stock_hook_resources.c'] if manager else []
         result = subprocess.run(['cc', *flags, str(work / 'fixture.c'), str(POLICY / 'controller_board.c'),
                                  str(POLICY / 'controller_transport.c'), str(POLICY / 'controller_association.c'),
                                  str(ROOT / 'sdk/runtime/loader/loader.c'), str(ROOT / 'sdk/runtime/upload/sha256.c'),
-                                 str(ADAPTER / 'machine_lifetime.c'), '-o', str(out)], capture_output=True, text=True)
+                                 str(ADAPTER / 'machine_lifetime.c'), *map(str, extra), '-o', str(out)],
+                                capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         return out
 
@@ -433,6 +495,15 @@ class ControllerBoard(unittest.TestCase):
             work = Path(temp); self.generated(work)
             binary = self.build(work, True)
             for mode in range(11):
+                with self.subTest(mode=mode):
+                    result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_actual_manager_buffer_plan_lets_sidechain_past_stock_delays(self):
+        with tempfile.TemporaryDirectory() as temp:
+            work = Path(temp); self.generated(work)
+            binary = self.build(work, True, manager=True)
+            for mode in range(3):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
