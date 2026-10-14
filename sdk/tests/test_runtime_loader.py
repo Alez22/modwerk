@@ -186,12 +186,17 @@ class SiteEventTests(unittest.TestCase):
         """Every catalogue detour on an event's site sits exactly on it with the registry's length and stock hash."""
         sys.path.insert(0, str(ROOT / 'sdk/octabam/tools'))
         from remix import registry
+        sys.path.insert(0, str(EVENTS_DIR / 'module-adapters'))
+        import machine_ports
         reg, met = events.load(), set()
         for manifest in sorted((ROOT / 'sdk/octabam/modules').glob('*/manifest.py')):
             module = registry._load_one(manifest)
+            retarget = (machine_ports.port(module.name) or {}).get('retarget', {})
             for d in module.detours:
+                # a machine port's retarget narrows the guard its package carries (machine_ports.ported)
+                guard = retarget[d.symbol]['guardLength'] if d.symbol in retarget else d.expect.length
                 for at, site in reg['sites'].items():
-                    if d.site < at + site['length'] and at < d.site + max(d.pad_to or 6, d.expect.length):
+                    if d.site < at + site['length'] and at < d.site + max(d.pad_to or 6, guard):
                         kind = next(e['kind'] for e in reg['events'] if e['site'] == at)
                         if kind == 'take':  # a taker's detour starts on the site and covers it; the base keeps the guard
                             self.assertTrue(d.site == at and max(d.pad_to or 6, d.expect.length) >= site['length'],
