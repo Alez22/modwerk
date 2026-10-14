@@ -1,17 +1,21 @@
 import type { FirmwareInspection } from './base'
 import type { UsbAudioConfiguration } from '../config/usb-audio'
 import type { SelectionConflict } from '../catalog/selection-conflicts'
+/** The docking startup, or the classic one: the stock renderer with Modwerk's two graphic tables. */
+export type StartupAnimation = 'docking' | 'classic'
 export type BuildReport = {
   version: string; revision: string; sourceCommit: string | null; sourceTreeSha256: string; moduleIds: string[]; moduleVersions: Record<string,string>; keepStockFx2: boolean
   osBytes: number; runtimeBytes: number; reservedBytes: number; fx1Rows: number; fx2Rows: number
   // Stock FX2 effects left out of this build's FX2 menu; FX1 keeps every stock effect.
   omittedStockFx2: string[]
-  startupAnimation?: 'classic' | 'beta-docking'
+  startupAnimation?: StartupAnimation
+  // Docking was asked for, but this selection composes only with the classic startup.
+  startupFallback?: true
 }
 export type BuildProgress = 'composing' | 'packing' | 'verifying'
 export type EngineRequest =
   | { id: number; type: 'inspect'; buffer: ArrayBuffer; name: string }
-  | { id: number; type: 'validate' | 'build'; moduleIds: string[]; keepStockFx2: boolean; usbAudio?: UsbAudioConfiguration; betaAccess?: boolean }
+  | { id: number; type: 'validate' | 'build'; moduleIds: string[]; keepStockFx2: boolean; usbAudio?: UsbAudioConfiguration; betaAccess?: boolean; startup?: StartupAnimation }
   | { id: number; type: 'clear' }
   | { id: number; type: 'base' }
 export type EngineResponse =
