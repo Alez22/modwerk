@@ -54,9 +54,13 @@ int main(int argc,char **argv) {
         assert(m.read32(sy.at("fixture_begins"))==1);
         uint32_t result=m68k_get_reg(cpu,M68K_REG_D0);
         if(begin!=1) {
-            denied++;assert(result==0xffffffffu&&m.read32(0x80001c80)==record&&!m.read32(sy.at("fixture_ends")));
+            // Refused: the stock silent source fills this track's slot (header
+            // n,0,1.0,0 and n zero pairs); no AB signature, counter or End.
+            (void)result;denied++;assert(m.read32(0x80001c80)==record+144&&!m.read32(sy.at("fixture_ends")));
             assert(m.read32(sy.at("ab_render_calls"))==render_calls&&m.read32(sy.at("ab_hits"))==hits);
-            for(unsigned i=0;i<200;i++)assert(m.read8(record+i)==0xa5);
+            assert(m.read32(record)==16&&!m.read32(record+4)&&m.read32(record+8)==0x04000000&&!m.read32(record+12));
+            for(unsigned i=16;i<144;i++)assert(!m.read8(record+i));
+            for(unsigned i=144;i<200;i++)assert(m.read8(record+i)==0xa5);
         } else {
             assert(m.read32(sy.at("fixture_ends"))==1&&m.read32(sy.at("fixture_phase"))==2);
             assert(m.read32(sy.at("ab_render_calls"))==render_calls+1&&m.read32(sy.at("ab_hits"))==hits+1);
@@ -67,5 +71,5 @@ int main(int argc,char **argv) {
         }
         calls++;
     }
-    std::printf("{\"origin\":%u,\"calls\":%u,\"deniedBegins\":%u,\"failedEnds\":%u,\"producerWrites\":%u,\"maxProducerInstructionsInsideLease\":%u,\"fullBackendLeaseTimingQualified\":false,\"physicalTimingQualified\":false,\"exactLeaseArguments\":true,\"writesOnlyInsideLease\":true,\"noFailureReplay\":true,\"calleeRegistersAndStackExact\":true,\"explicitNativeTestFunctions\":true,\"productionLease\":false,\"encodedPackage\":false,\"hardware\":false,\"admission\":false}\n",origin,calls,denied,failed_ends,writes,max_producer_instructions);
+    std::printf("{\"origin\":%u,\"calls\":%u,\"deniedBegins\":%u,\"failedEnds\":%u,\"producerWrites\":%u,\"maxProducerInstructionsInsideLease\":%u,\"fullBackendLeaseTimingQualified\":false,\"physicalTimingQualified\":false,\"exactLeaseArguments\":true,\"writesOnlyInsideLease\":true,\"noFailureReplay\":true,\"deniedSilentStockSource\":true,\"calleeRegistersAndStackExact\":true,\"explicitNativeTestFunctions\":true,\"productionLease\":false,\"encodedPackage\":false,\"hardware\":false,\"admission\":false}\n",origin,calls,denied,failed_ends,writes,max_producer_instructions);
 }

@@ -170,7 +170,7 @@ class ObservationTests(unittest.TestCase):
                 self.assertTrue(observed['exactAbStockRestore'] and observed['stockDescriptorTableUnchanged'])
                 self.assertFalse(observed['controllerReadyQualified'] or observed['unmapped'])
             if run['fixture'] == 'lease':
-                self.assertTrue(observed['writesOnlyInsideLease'] and observed['noFailureReplay'])
+                self.assertTrue(observed['writesOnlyInsideLease'] and observed['noFailureReplay'] and observed['deniedSilentStockSource'])
                 self.assertEqual((observed['deniedBegins'], observed['failedEnds']), (12, 3))
                 self.assertFalse(observed['productionLease'] or observed['physicalTimingQualified'])
             if run['fixture'] == 'ui':

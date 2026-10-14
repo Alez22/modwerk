@@ -5,7 +5,9 @@ The AB renderer's control-record writes go inside one board write lease of the
 reviewed ABI (`stock_hook_write_lease.h`, MW_CONTROLLER_WRITE_ANALOG_BD). The
 two lease functions stay undefined, strong imports: a native fixture may bind
 explicit test functions, an encoded package only the exact base's exports.
-Unsigned tracks still reach the stock renderer before any lease.
+Unsigned tracks still reach the stock renderer before any lease. The stock
+frame builder resets the cursor to each track's fixed slot and ignores the
+renderer's result, so a refused lease renders that frame's slot silent.
 """
 from pathlib import Path
 import hashlib
@@ -28,8 +30,12 @@ def source(original):
     seams = (
         ('#include "engine.h"', '#include "engine.h"\n#include "stock_hook_write_lease.h"'),
         ('    ++ab_render_calls;', '''    struct mw_controller_write_lease lease;
+    /* Without an owned lease the frame still needs this track's record: the
+     * stock silent source (kinds 5..7) writes an empty header and zero samples
+     * at the track's cursor, never an AB signature or borrowed Part bytes. */
     if(modwerk_controller_write_begin((uintptr_t)ab_render,
-        MW_CONTROLLER_WRITE_ANALOG_BD,&lease)!=1) return -1;
+        MW_CONTROLLER_WRITE_ANALOG_BD,&lease)!=1)
+        return ((int (*)(unsigned,unsigned,unsigned,unsigned))0x400047f0u)(track,ping,start,end);
     ++ab_render_calls;'''),
         ('        U32(0x80001c80u)=(uint32_t)(uintptr_t)(cursor+4+2*n);\n        return 0;',
          '''        U32(0x80001c80u)=(uint32_t)(uintptr_t)(cursor+4+2*n);
