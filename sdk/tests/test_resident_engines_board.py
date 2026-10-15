@@ -106,6 +106,12 @@ unsigned test_capacity(unsigned c) { return allocator.capacity[c]; }
 unsigned test_initialized(void) { return initialized; }
 unsigned test_idle(void) { return !phase && !waiting && !queued_token && !allocator.phase; }
 int test_live(unsigned c, unsigned p) { return allocator.live[c][p].present ? (int)allocator.live[c][p].offset : -1; }
+/* An open transaction's new place for p on core c (an evacuation's or a selection's), -1 none. */
+int test_target(unsigned c, unsigned p) { return allocator.phase && allocator.target[c][p].present ? (int)allocator.target[c][p].offset : -1; }
+unsigned test_active(unsigned i) { return allocator.active[i]; }
+unsigned test_words(unsigned p) { return dl_catalog[p].resident ? 0u : dl_catalog[p].words; }
+unsigned test_phase(void) { return phase; }
+void test_advance(void) { dl_residency_tick(); } /* the manager's UI tick (the native build has no observer) */
 /* Id 0 (NONE) is resident, as stock's is. */
 void test_none(void) { dl_catalog[0] = (struct dl_package){0, 0, 0, 3, 1, 1, 0}; }
 /* A stock-free FX: id p, n words, on both cores' codes (a WRITE then a BIND each). */
@@ -138,20 +144,48 @@ MODEL = r'''
 #include "expected.h"
 static unsigned quiet = 1;
 int mw_engines_test_quiet(void) { return (int)quiet; }
+/* UI ticks, the last key, a pick waiting: the evacuation's own wait (two seconds after the last key, no pick waiting). */
+static unsigned ticks = 1000, key_at, pick_waiting;
+int mw_engines_test_settled(void) { return ticks - key_at >= 120u && !pick_waiting; }
 unsigned test_capacity(unsigned c);
 unsigned test_initialized(void);
 unsigned test_idle(void);
 int test_live(unsigned c, unsigned p);
+int test_target(unsigned c, unsigned p);
+unsigned test_active(unsigned i);
+unsigned test_words(unsigned p);
+unsigned test_phase(void);
+void test_advance(void);
 void test_fx(unsigned p, unsigned n);
 void test_none(void);
 int test_select(const uint8_t ids[16], void (*pump)(void));
 extern uint8_t test_parts[4][16];
 /* Modelled receiver: WRITE into P (each chunk read back, as the receiver does), PLACE (word 7 = 1: dormant only, the
  * engine whole inside the arena, a prior unplace), CAS (word 7 = 0: never enabling an unplaced engine or one whose
- * reset is incomplete; a disable invalidates the reset), RESET counted per feature. */
+ * reset is incomplete; a disable invalidates the reset), RESET counted per feature, BIND/UNBIND/BYPASS into a dispatch
+ * table: the FX code each id runs from the next frame on. */
 static uint32_t P[2][8192];
 static unsigned dsp_mask[2], words[2][3], base_word[2][3], answered[2], cas_count;
 static unsigned refuse_write[2], refuse_place[2]; /* table offsets at which a WRITE chunk, a PLACE is refused */
+static unsigned refuse_bind[2], drop_bind[2], refuse_once[2]; /* a BIND to this table offset refused; applied but never
+                                                                 * answered (once); refused once */
+static unsigned dispatch[2][64]; /* 1 + the table offset an id's BIND named (its init), 0 the stub or unbound */
+/* Every frame: each slot runs its id's whole, correct code from where the manager holds it (live, or an open
+ * transaction's new copy), never a stub, freed or half-written words. The test FX code is (id << 12) + word. */
+static unsigned frames_checked;
+static void running_whole(void)
+{
+    for (unsigned i = 0; i < 16; ++i) {
+        unsigned p = test_active(i), c = (i & 7) < 4 ? 1u : 0u;
+        if (p >= 64 || !test_words(p)) continue;
+        assert(dispatch[c][p]);
+        unsigned at = dispatch[c][p] - 1u;
+        int live = test_live(c, p), target = test_target(c, p);
+        assert((live >= 0 && at == 64u + (unsigned)live) || (target >= 0 && at == 64u + (unsigned)target));
+        for (unsigned w = 0; w < test_words(p); ++w) assert(P[c][MODWERK_DSP_TABLE0 + at + w] == (p << 12) + w);
+        ++frames_checked;
+    }
+}
 static const unsigned totals[3] = {1042, 193, 3776};
 struct entry { unsigned op, w4, w5, w7; };
 static struct entry trail[2][8192];
@@ -192,11 +226,18 @@ static void dsp(void)
                 dsp_mask[c] = desired;
             }
         } else if (op == 10u) reject = 1;
+        else if (op == 4u) {
+            reject = w4 >= 64 || w7 != w5 + 1u || (refuse_bind[c] && w5 == refuse_bind[c]);
+            if (refuse_once[c] && w5 == refuse_once[c]) reject = 1, refuse_once[c] = 0;
+            if (!reject) dispatch[c][w4] = w5 + 1u;
+            if (!reject && drop_bind[c] && w5 == drop_bind[c]) { drop_bind[c] = 0; continue; } /* applied, unanswered */
+        } else if (op == 5u || op == 6u) { if (w4 < 64) dispatch[c][w4] = 0; }
         flags[c] = ((flags[c] ^ 1u) & 1u) | (reject ? 2u : 0u);
         dl_frame();
     }
+    running_whole();
 }
-static void run(unsigned n) { while (n--) { modwerk_controller_tick(); dsp(); dsp(); } }
+static void run(unsigned n) { while (n--) { ++ticks; modwerk_controller_tick(); test_advance(); dsp(); dsp(); } }
 static void pump(void) { dsp(); }
 static const struct mu_backend *loader = &modwerk_runtime_backend;
 static enum mu_publication install(const uint8_t *data, unsigned length)
@@ -275,6 +316,48 @@ static void ordered(unsigned c, unsigned f, unsigned offset, unsigned from)
     }
     assert(stage == 3);
 }
+/* Trail index of the first op on core c from `from` matching op (and id w4, table offset w5 when nonzero), or trails[c]. */
+static unsigned first_op(unsigned c, unsigned from, unsigned op, unsigned w4, unsigned w5)
+{
+    for (unsigned i = from; i < trails[c]; ++i)
+        if (trail[c][i].op == op && (op == 3u || !w4 || trail[c][i].w4 == w4) && (!w5 || trail[c][i].w5 == w5)) return i;
+    return trails[c];
+}
+static unsigned count_ops(unsigned c, unsigned from, unsigned op) /* ops of this kind on core c since `from` */
+{
+    unsigned n = 0;
+    for (unsigned i = from; i < trails[c]; ++i) n += trail[c][i].op == op;
+    return n;
+}
+/* The bank of the evacuation modes: id 3 (900 words, a quarter of the arena or more) runs on T5 FX1 (core A), so the
+ * allocator puts it at the top of the arena, where Sidechain's engine goes; Part 1 names it. On core B too with `both`. */
+static void big_at_top(unsigned both)
+{
+    uint8_t ids[16]; memset(ids, 0, sizeof ids);
+    ids[4] = 3;
+    if (both) ids[0] = 3;
+    memset(test_parts, 0, sizeof test_parts); memcpy(test_parts[0], ids, 16);
+    assert(test_select(ids, pump) == 1);
+    assert(test_live(0, 3) == (int)(MODWERK_DSP_WORDS0 - 64u - 900u) && (!both || test_live(1, 3) == test_live(0, 3)));
+    assert(dispatch[0][3] == 64u + (unsigned)test_live(0, 3) + 1u);
+}
+/* Several on core A: 5..8 (400 words) on T5-T8 FX1 and 9 (300) on T5 FX2, then 6 and 7 let go: 8 (1200-1600) and 9
+ * (1600-1900) sit in Sidechain's region, a hole below them. */
+static void several_in_region(uint8_t ids[16])
+{
+    memset(ids, 0, 16); memset(test_parts, 0, sizeof test_parts);
+    ids[4] = 5; ids[5] = 6; ids[6] = 7; ids[7] = 8; ids[12] = 9;
+    assert(test_select(ids, pump) == 1);
+    ids[5] = ids[6] = 0;
+    assert(test_select(ids, pump) == 1);
+    assert(test_live(0, 5) == 0 && test_live(0, 6) < 0 && test_live(0, 7) < 0 && test_live(0, 8) == 1200 && test_live(0, 9) == 1600);
+}
+static void run_until(unsigned (*done)(void), unsigned most)
+{
+    for (unsigned n = 0; n < most && !done(); ++n) run(1);
+    assert(done());
+}
+static unsigned evacuating(void) { return test_phase() == 10u; }
 static unsigned engine_ops(unsigned c, unsigned from) /* PLACE/RESET/CAS and engine-span WRITEs since `from` */
 {
     unsigned n = 0;
@@ -288,7 +371,7 @@ int main(int argc, char **argv)
     unsigned mode = (unsigned)strtoul(argv[1], 0, 10);
     memcpy(donor, donor_original, sizeof donor);
     (void)buffers_idle; (void)refuse_cas; (void)test_initialized;
-    const unsigned top = MODWERK_DSP_WORDS0 - 64u, sc = top - 388u, ab = sc - 998u, mx = top - 773u;
+    const unsigned top = MODWERK_DSP_WORDS0 - 64u, sc = top - 388u, ab = sc - 998u, mx = top - 773u, moved = top - 1800u;
     test_none(); test_fx(3, 900); test_fx(5, 400); test_fx(6, 400); test_fx(7, 400); test_fx(8, 400); test_fx(9, 300);
     run(2);
     if (mode == 0) {
@@ -364,17 +447,19 @@ int main(int argc, char **argv)
         placed_at(0, 2, sc - 773u);
         assert(mw_engines[1][1].state == MW_ENGINE_FREE && dl_engine_reserved(0) == 388 + 773 && dl_engine_reserved(1) == 388);
     } else if (mode == 3) {
-        /* Live FX code where the engine goes: refused until it is gone (no evacuation in this slice). */
+        /* Live FX code where the engine goes that cannot move below it (1,000 words at the top, 400 at the bottom of the
+         * 1,548 words left; mode 12 moves what can): refused until it is gone. */
+        test_fx(4, 1000);
         uint8_t ids[16]; memset(ids, 0, sizeof ids);
-        ids[4] = 3; /* core A (T5 FX1): 900 words, a quarter of the arena or more, so from the top */
+        ids[4] = 4; ids[5] = 5; /* core A (T5, T6 FX1): 1,000 words, a quarter of the arena or more, so from the top */
         memcpy(test_parts[0], ids, 16);
         assert(test_select(ids, pump) == 1);
-        assert(test_live(0, 3) == (int)(top - 900u));
+        assert(test_live(0, 4) == (int)(top - 1000u));
         assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY);
         run(50);
-        assert(!mw_engines_jobs && !dl_engine_reserved(0));
-        ids[4] = 0; memset(test_parts[0], 0, 16);
-        assert(test_select(ids, pump) == 1 && test_live(0, 3) < 0);
+        assert(!mw_engines_jobs && !dl_engine_reserved(0) && !dl_engine_evacuations);
+        memset(ids, 0, 16); memset(test_parts[0], 0, 16);
+        assert(test_select(ids, pump) == 1 && test_live(0, 4) < 0);
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(200);
         assert(slot_for(SC, MW_CTL_ACTIVE)); placed_at(0, 1, sc);
@@ -509,6 +594,173 @@ int main(int argc, char **argv)
         assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dsp_mask[1] == 5);
         placed_at(0, 4, ab); placed_at(1, 4, ab);
         assert(v->state[0][2] == MW_ENGINE_PLACED && v->arena[0] == ab && v->held == 5 && v->claim_why[0] == 0 && !v->wait[1][2]);
+    } else if (mode == 12) {
+        /* Evacuation: the big effect sits where Sidechain's engine goes. Admission takes it (the effect can move below);
+         * the tick moves it in one transaction (upload while it runs, one BIND, then the old copy freed and the capacity
+         * lowered), and only then is the engine written over the old copy's words, placed and switched on. Every frame of
+         * it the slot runs whole code (running_whole). */
+        big_at_top(0);
+        unsigned checked = frames_checked;
+        /* The new copy goes top-down below the region and clear of the old copy, which runs until its BIND: 136. */
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED && mw_engines_admitted[0] == 1 + MW_ENGINE_FITS);
+        run(400);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        placed_at(0, 1, sc); placed_at(1, 1, sc); ordered(1, 1, sc, 0);
+        assert(test_live(0, 3) == (int)(moved) && dispatch[0][3] == 64u + moved + 1u);
+        assert(dl_engine_evacuations == 1 && dl_engine_moves == 1 && !dl_engine_evac_failures && !dl_engine_evacuation());
+        assert(dl_engine_reserved(0) == 388 && test_capacity(0) == sc && modwerk_dsp_arena_now(0) == sc);
+        /* Order on core A: the new copy whole, then its one BIND, then the engine's first word; core B moved nothing. */
+        unsigned bind = first_op(0, 0, 4, 3, 64u + moved), engine = first_op(0, 0, 3, 0, 64u + sc);
+        assert(bind < engine && engine < trails[0] && count_ops(0, 0, 4) == 2 && !count_ops(1, 0, 4));
+        ordered(0, 1, sc, bind + 1u);
+        unsigned copied = 0;
+        for (unsigned i = 0; i < bind; ++i) if (trail[0][i].op == 3u && trail[0][i].w5 >= 64u + moved && trail[0][i].w5 < 64u + moved + 900u) copied += trail[0][i].w4;
+        assert(copied == 900 && moved == 136);
+        assert(frames_checked > checked + 300);
+        /* The old copy's words below the engine reused for anything: the slot never notices. */
+        for (unsigned w = 64u + top - 900u; w < 64u + sc; ++w) P[0][MODWERK_DSP_TABLE0 + w] = 0xdead00u;
+        run(50);
+        /* Removal: the engine goes, the capacity comes back, the effect stays where it moved. */
+        remove_module(SC);
+        unplaced(0, 1); unplaced(1, 1);
+        assert(!dl_engine_reserved(0) && test_capacity(0) == top && test_live(0, 3) == (int)(moved));
+    } else if (mode == 13) {
+        /* Nothing moves while playing, within two seconds of a key, or while a pick waits; then it does. */
+        big_at_top(0);
+        unsigned from = trails[0], from1 = trails[1];
+        quiet = 0;
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(trails[0] == from && trails[1] == from1 && !mw_engines_jobs && !dl_engine_evacuations && test_live(0, 3) == (int)(top - 900u));
+        assert(mw_engines_wait[0][0] == MW_WAIT_PLAYING && slot_for(SC, MW_CTL_BOUND));
+        quiet = 1; key_at = ticks; /* stopped by a key: core B places at once, core A waits for the two seconds */
+        run(100);
+        assert(!count_ops(0, from, 3) && !count_ops(0, from, 4) && test_live(0, 3) == (int)(top - 900u) && !dl_engine_evacuations);
+        assert(mw_engines_wait[0][0] == MW_WAIT_EVACUATION && dl_engine_why[0] == 7 && mw_engines[1][0].state == MW_ENGINE_PLACED);
+        pick_waiting = 1;
+        run(200);
+        assert(!count_ops(0, from, 3) && !dl_engine_evacuations && dl_engine_why[0] == 7);
+        quiet = 0; pick_waiting = 0; /* playing again: still nothing */
+        run(200);
+        assert(!count_ops(0, from, 3) && !dl_engine_evacuations);
+        quiet = 1;
+        run(400);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dl_engine_evacuations == 1 && test_live(0, 3) == (int)(moved));
+        placed_at(0, 1, sc); placed_at(1, 1, sc);
+    } else if (mode == 14) {
+        /* The bank's Part union no longer fits under the engine even with the effect moved: refused at admission and on
+         * the tick, nothing moved. A Part names module 40 (700 words) beside the running 900-word effect: 1,600 > 1,548. */
+        big_at_top(0);
+        test_fx(40, 700);
+        test_parts[1][4] = 40;
+        unsigned from = trails[0], from1 = trails[1];
+        assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY && dl_engine_why[0] == 3);
+        run(100);
+        assert(trails[0] == from && trails[1] == from1 && !mw_engines_jobs && !dl_engine_evacuations && test_live(0, 3) == (int)(top - 900u));
+        assert(!dl_engine_reserved(0) && test_capacity(0) == top);
+        /* A smaller module (600) fits under the engine from scratch, but not beside the effect where it would move to
+         * (136-1,036, clear of its old copy): still refused, so no Part switch to it would have to move code. */
+        test_fx(40, 600);
+        assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY && dl_engine_why[0] == 3);
+        run(50);
+        assert(trails[0] == from && !dl_engine_evacuations);
+        /* Without that Part's module it fits: moved, placed. */
+        test_parts[1][4] = 0;
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(400);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dl_engine_evacuations == 1 && test_live(0, 3) == (int)(moved));
+    } else if (mode == 15) {
+        /* The new copy's upload is refused part way: no BIND was sent, the effect runs its old copy, the new span is
+         * free again, the claim is refused and that core evacuates nothing more this boot. */
+        big_at_top(0);
+        refuse_write[0] = 64u + moved + 24u; /* the new copy's second chunk */
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(400);
+        assert(test_live(0, 3) == (int)(top - 900u) && dispatch[0][3] == 64u + top - 900u + 1u && count_ops(0, 0, 4) == 1);
+        assert(dl_engine_evac_failures == 1 && !dl_engine_evacuations && dl_engine_why[0] == 8 && (dl_engine_evacuation() >> 4) == 1);
+        assert(mw_engines[0][0].state == MW_ENGINE_FREE && !dl_engine_reserved(0) && test_capacity(0) == top && test_idle());
+        assert(mw_engines_wait[0][0] == MW_WAIT_CLAIM_REFUSED && slot_for(SC, MW_CTL_BOUND) && !cas_count);
+        placed_at(1, 1, sc);
+        assert(refused(pkg_matrix, sizeof pkg_matrix) == RUNTIME_MEMORY); /* its region holds the effect too */
+        /* Once the effect is gone, the claim goes ahead without moving anything. */
+        uint8_t none[16]; memset(none, 0, sizeof none); memset(test_parts, 0, sizeof test_parts);
+        assert(test_select(none, pump) == 1);
+        run(300);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dl_engine_evac_failures == 1 && !dl_engine_evacuations);
+        placed_at(0, 1, sc);
+    } else if (mode == 16) {
+        /* Several packages in the region move in one transaction, both uploads before either BIND; a Part switch during
+         * it waits for it and loads nothing; Part switches after start no move and no engine job. */
+        uint8_t ids[16];
+        several_in_region(ids);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        unsigned from = trails[0];
+        run_until(evacuating, 20);
+        assert(test_select(ids, pump) == 1); /* queued behind the evacuation, then nothing to load */
+        run(400);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dl_engine_evacuations == 1 && dl_engine_moves == 2);
+        assert(test_live(0, 8) == 800 && test_live(0, 9) == 400 && test_live(0, 5) == 0);
+        placed_at(0, 1, sc);
+        unsigned b8 = first_op(0, from, 4, 8, 64u + 800u), b9 = first_op(0, from, 4, 9, 64u + 400u);
+        assert(b8 < b9 && b9 < trails[0] && count_ops(0, from, 4) == 2);
+        unsigned written = 0;
+        for (unsigned i = from; i < b8; ++i) assert(trail[0][i].op == 3u); /* both copies uploaded first */
+        for (unsigned i = from; i < trails[0]; ++i) if (trail[0][i].op == 3u && trail[0][i].w5 < 64u + sc) written += trail[0][i].w4;
+        assert(written == 700); /* the two new copies and nothing else: the Part switch loaded nothing */
+        unsigned jobs = mw_engines_jobs, after = trails[0];
+        for (unsigned n = 0; n < 12; ++n) { assert(test_select(ids, pump) == 1); run(5); }
+        assert(mw_engines_jobs == jobs && trails[0] == after && dl_engine_evacuations == 1 && dl_engine_moves == 2);
+    } else if (mode == 17 || mode == 18) {
+        /* A BIND fails part way (17: refused; 18: applied but never answered, so the transport times out): every entry
+         * the evacuation touched goes back to its old copy, acknowledged, before the new copies are freed; the claim is
+         * refused, nothing of the engine reaches core A. */
+        uint8_t ids[16];
+        several_in_region(ids);
+        if (mode == 17) refuse_bind[0] = 64u + 400u; /* id 9's new copy: its BIND comes second */
+        else drop_bind[0] = 64u + 400u;
+        refuse_once[0] = 64u + 1200u; /* and id 8's way back is refused once: sent again until it lands */
+        unsigned from = trails[0];
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(500);
+        assert(test_live(0, 8) == 1200 && test_live(0, 9) == 1600 && test_idle());
+        assert(dispatch[0][8] == 64u + 1200u + 1u && dispatch[0][9] == 64u + 1600u + 1u);
+        unsigned n8 = first_op(0, from, 4, 8, 64u + 800u), n9 = first_op(0, from, 4, 9, 64u + 400u);
+        unsigned o8 = first_op(0, n9, 4, 8, 64u + 1200u), o9 = first_op(0, n9, 4, 9, 64u + 1600u);
+        assert(n8 < n9 && n9 < o8 && o8 < trails[0] && o9 < trails[0] && first_op(0, o8 + 1u, 4, 8, 64u + 1200u) < trails[0]);
+        assert(dl_engine_evac_failures == 1 && !dl_engine_evacuations && dl_engine_moves == 1 && dl_engine_why[0] == 8);
+        assert(mw_engines[0][0].state == MW_ENGINE_FREE && !dl_engine_reserved(0) && test_capacity(0) == top);
+        assert(first_op(0, from, 3, 0, 64u + sc) == trails[0] && !base_word[0][0] && slot_for(SC, MW_CTL_BOUND) && !cas_count);
+        if (mode == 18) assert(dl_errors);
+    } else if (mode == 19) {
+        /* Both cores: the effect at the top of each; one evacuation per core, one after the other; then placed. */
+        big_at_top(1);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(600);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dl_engine_evacuations == 2 && dl_engine_moves == 2);
+        assert(test_live(0, 3) == (int)(moved) && test_live(1, 3) == (int)(moved));
+        placed_at(0, 1, sc); placed_at(1, 1, sc);
+        assert(count_ops(0, 0, 4) == 2 && count_ops(1, 0, 4) == 2); /* each: the first load's BIND, the move's */
+    } else if (mode == 20) {
+        /* Sidechain let go while its evacuation runs: the evacuation finishes (moving back would be another move), and the
+         * words it reserved go back to the FX code once no held engine waits for them. */
+        big_at_top(0);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run_until(evacuating, 20);
+        assert(install(removal(SC), 32) == MU_APPLIED); /* bound, never touched: no disable needed */
+        run(200);
+        assert(dl_engine_evacuations == 1 && test_live(0, 3) == (int)(moved) && !mw_engines_jobs);
+        assert(!dl_engine_reserved(0) && !dl_engine_reserved(1) && test_capacity(0) == top && !modwerk_controller_held());
+    } else if (mode == 21) {
+        /* Code that cannot move below the region (no place for it: 1,000 words at the top, 400 at the bottom of a
+         * 1,548-word arena): refused at admission, nothing moved. */
+        test_fx(4, 1000);
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[4] = 4; ids[5] = 5;
+        assert(test_select(ids, pump) == 1 && test_live(0, 4) == (int)(top - 1000u) && test_live(0, 5) == 0);
+        unsigned from = trails[0];
+        assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY && dl_engine_why[0] == 2);
+        run(100);
+        assert(trails[0] == from && !dl_engine_evacuations && test_live(0, 4) == (int)(top - 1000u));
     } else assert(0);
     return 0;
 }
@@ -581,7 +833,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 12
+    MODES = 22
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -632,6 +884,8 @@ int dl_engine_claim(unsigned c,unsigned r,int k) { (void)c;(void)r;(void)k;retur
 void dl_engine_release(unsigned c,unsigned r) { (void)c;(void)r; }
 unsigned dl_engine_reserved(unsigned c) { (void)c;return 0; }
 int mw_engines_test_quiet(void) { return 1; }
+int mw_engines_test_settled(void) { return 1; }
+volatile uint8_t dl_engine_why[2];
 '''
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp)
