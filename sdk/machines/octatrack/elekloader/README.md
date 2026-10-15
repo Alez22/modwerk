@@ -189,8 +189,10 @@ packages cannot inherit:
 
 `status.c` measures, all the time, the ColdFire's load (main's idle spin, timed on DTIM3, `status.s`), each
 DSP core's mean and peak load (core 0's own idle count, core 1's counted wait for core 0, `dsp_receiver.asm`),
-each core's code arena, the delay-buffer blocks and the module pool. CUE + PROJ shows it as a dialog of
-bars (NO closes it), and so does PROJ > MODWERK > LOAD; `npm run device -- stats` prints it from the loader report on development
+each core's code arena, the delay-buffer blocks and the module pool. CUE + PROJ shows it as a dialog (NO closes it),
+and so does PROJ > MODWERK > LOAD: MODWERK STATUS, a table of MAIN CPU, then for each DSP chip by its tracks (T1-4 runs
+on core 1, T5-8 on core 0) NOW (measured, with the recent peak), BOOKED (what admission books; DSP FULL comes from it) and
+CODE MEM, then MODULE RAM (the pool); `npm run device -- stats` prints it from the loader report on development
 bases. PROJ > MODWERK is a fifth root category (Octabam's MAINMENU.md: the root window is five rows tall, stock fills
 four; `build_core.py` copies the four stock rows and appends it, with its icon and list): LOAD, MODULE LOAD (each
 installed module's share of each core's frame from its own cycle figure, `~` when that is 7/4 of an emulator claim:

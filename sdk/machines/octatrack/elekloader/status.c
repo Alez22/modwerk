@@ -531,17 +531,25 @@ void modwerk_status_draw(unsigned char *frame)
     uint32_t cpu_peak = 0;
     for (unsigned i = 0; i < 8u; ++i) cpu_peak = cpu_recent[i] > cpu_peak ? cpu_recent[i] : cpu_peak;
     uint32_t largest, pool = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
-    /* What runs now (measured, with the recent peak's tick), then the DSP budget admission books per core (owner,
-     * 14 October 2026: DSP FULL comes from it, not from the measured load), the code memory and the module pool. */
-    static const char *const names[8] = {"CPU", "T1-4", "T5-8", "DSP T1-4", "DSP T5-8", "MEM T1-4", "MEM T5-8", "POOL"};
-    const uint32_t load[8] = {modwerk_status[CPU], modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN], modwerk_dsp_booked(1),
-                              modwerk_dsp_booked(0), share(dl_residency_words[1], modwerk_dsp_arena[1]),
-                              share(dl_residency_words[0], modwerk_dsp_arena[0]), share(pool, RUNTIME_POOL_BYTES)},
-                   peak[3] = {cpu_peak, modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
-    for (unsigned i = 0; i < 8u; ++i) {
-        unsigned y = Y0 + 13u + 6u * i;
-        label(X0 + 4u, y - 1u, names[i]);
-        bar(frame, X0 + 40u, y, 48, 4, load[i], i < 3u ? peak[i] : 0);
-        percent(X0 + 92u, y - 1u, load[i]);
+    /* A table (owner, 15 October 2026: every label says what it is): the main CPU, then per DSP chip by its tracks
+     * what runs now (measured, with the recent peak's tick), what admission books (DSP FULL comes from it, not from
+     * the measured load, owner 14 October 2026) and its code memory, then the RAM that holds module code. */
+    static const char *const rows[3] = {"NOW", "BOOKED", "CODE MEM"};
+    const uint32_t dsp[3][2] = {{modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN]}, {modwerk_dsp_booked(1), modwerk_dsp_booked(0)},
+                                {share(dl_residency_words[1], modwerk_dsp_arena[1]), share(dl_residency_words[0], modwerk_dsp_arena[0])}},
+                   peak[2] = {modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
+    label(X0 + 4u, Y0 + 13u, "MAIN CPU"), bar(frame, X0 + 46u, Y0 + 14u, 42, 4, modwerk_status[CPU], cpu_peak);
+    percent(X0 + 92u, Y0 + 13u, modwerk_status[CPU]);
+    label(X0 + 4u, Y0 + 21u, "DSP"), label(X0 + 46u, Y0 + 21u, "T1-4"), label(X0 + 77u, Y0 + 21u, "T5-8");
+    for (unsigned i = 0; i < 3u; ++i) {
+        unsigned top = Y0 + 29u + 8u * i;
+        label(X0 + 8u, top, rows[i]);
+        for (unsigned chip = 0; chip < 2u; ++chip) { /* tracks 1-4 run on core 1, tracks 5-8 on core 0 */
+            unsigned x = X0 + 46u + 31u * chip;
+            bar(frame, x, top + 1u, 11, 4, dsp[i][chip], i == 0 ? peak[chip] : 0);
+            percent(x + 13u, top, dsp[i][chip]);
+        }
     }
+    label(X0 + 4u, Y0 + 53u, "MODULE RAM"), bar(frame, X0 + 46u, Y0 + 54u, 42, 4, share(pool, RUNTIME_POOL_BYTES), 0);
+    percent(X0 + 92u, Y0 + 53u, share(pool, RUNTIME_POOL_BYTES));
 }
