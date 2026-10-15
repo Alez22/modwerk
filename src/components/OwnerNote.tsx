@@ -90,3 +90,10 @@ export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
     if (askForDiagnostics(diagnosticPreference(), browserRequestsPrivacy())) setStep('diagnostics'); else done()
   }} /> : null
 }
+
+/** Dev preview (?preview=beta-note): the note, then the required diagnostics step. Nothing is sent. */
+export function OwnerNotePreview() {
+  const [step, setStep] = useState<'note' | 'diagnostics'>('note'), [closed, setClosed] = useState(false)
+  if (closed) return null
+  return step === 'note' ? <OwnerNote username="yourname" onJoin={() => setStep('diagnostics')} onLeave={() => setClosed(true)} /> : <DiagnosticsInvitation preview onClose={() => setClosed(true)} onLeave={() => setClosed(true)} />
+}
