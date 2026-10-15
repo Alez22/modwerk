@@ -241,7 +241,7 @@ switches and the ColdFire side are not in it.
 `npm run perf:audit -- check evidence/performance.json` (Node 24):
 
 ```
-✓ record          dsp record for bbd@0.1.0-experimental
+✓ record          dsp record for bbd@0.1.1-experimental
 ✓ cycles          4 x 378 = 1512 of 3120 per sample per core (48%), measured 399.31 per instance
 · stock benchmark 399.31 vs CHORUS 293.06 (1.36x); the dearest stock effect is 330.94; justified in the record
 ✓ stress          4 per core, eight tracks, 3 LFOs and 17 locked slots, 2 s, no clobber, no hang
