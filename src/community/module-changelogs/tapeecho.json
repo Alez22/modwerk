@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.5-experimental",
+    "date": "2026-10-15",
+    "changes": [
+      "Rollback of 0.1.4: Tape Echo runs the 0.1.3-experimental code again, unchanged. MIX is the plain dry/wet crossfade once more, so at the default MIX 90 the dry signal is at 29% (-10.7 dB). The level problem reported in [#607](https://github.com/repeat98/modwerk/issues/607) is back and not fixed.",
+      "Saved projects that were set up with 0.1.4 sound different at the same settings: the dry signal is up to 10.7 dB quieter at MIX 90. Raise the track volume or lower MIX to taste.",
+      "Verification: the runtime and its package rows are the reviewed 0.1.2/0.1.3 ones (retained evidence), rebuilt from source. No new hardware run, chip timing or listening test, and the hardware freeze at seven instances remains open."
+    ]
+  },
+  {
     "version": "0.1.4-experimental",
     "date": "2026-10-14",
     "changes": [
