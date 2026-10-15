@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyChanges, readChangeScope } from './change-scope.mjs'
+import { classifyChanges, isVersionNeutralChange, readChangeScope } from './change-scope.mjs'
 
 const digi = { id: 'demo', machine: 'digitakt', version: '1.0.0', name: 'Demo', author: { github: 'author' }, maintainers: ['author'],
   source: { revision: 'a'.repeat(40) }, platform: { build: 'build.json' }, compatibility: { releases: ['1.53'] }, claims: {},
@@ -141,5 +141,18 @@ describe('documentation and firmware scheduling', () => {
       expect(readChangeScope({ root, base: code }).elemod).toBe(true)
       expect(() => readChangeScope({ root, base: 'missing-ref' })).toThrow()
     } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+})
+
+describe('module version rule', () => {
+  const flagged = { ...digi, compatibility: { ...digi.compatibility, conflicts: ['other'] } }
+  it('needs no new Digitakt version for a conflict flag, yet still runs the full checks', () => {
+    expect(isVersionNeutralChange(change(modulePath, { ...digi, compatibility: { ...digi.compatibility, conflicts: [] } }, flagged))).toBe(true)
+    expect(scope(change(modulePath, { ...digi, compatibility: { ...digi.compatibility, conflicts: [] } }, flagged)).documentation).toBe(false)
+  })
+  it('still needs one for any other compatibility or code change', () => {
+    expect(isVersionNeutralChange(change(modulePath, flagged, { ...flagged, compatibility: { ...flagged.compatibility, releases: ['1.53', '1.54'] } }))).toBe(false)
+    expect(isVersionNeutralChange(change(modulePath, flagged, { ...flagged, platform: { build: 'other.json' } }))).toBe(false)
+    expect(isVersionNeutralChange(change('sdk/digitakt/modules/demo/src/demo.c'))).toBe(false)
   })
 })
