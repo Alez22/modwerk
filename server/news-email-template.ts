@@ -10,7 +10,7 @@ import { betaInvitationRoute, BETA_INVITATION_PLACEHOLDER } from '../src/config/
 export const NEWS_EMAIL_VERSION = 'modwerk-news-001'
 export const BETA_NEWS_EMAIL_VERSION = 'modwerk-news-beta-001'
 
-type Node = { type: string; value?: string; url?: string; depth?: number; ordered?: boolean; start?: number | null; children?: Node[] }
+type Node = { type: string; value?: string; url?: string; alt?: string | null; depth?: number; ordered?: boolean; start?: number | null; children?: Node[] }
 const TEXT = 'color:#c4c4ce;font-size:15px;line-height:25px;'
 const LINK = 'color:#c4c9ff;text-decoration:underline;'
 const CODE = 'font-family:Consolas,Menlo,monospace;font-size:14px;'
@@ -50,6 +50,9 @@ function block(node: Node, last: boolean, cta?: string): string {
     return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 24px;"><tr><td bgcolor="#5f6ac7" style="border-radius:7px;"><a href="${escape(cta)}" style="display:inline-block;padding:15px 22px;border:1px solid #727dde;border-radius:7px;color:#ffffff;font-size:15px;font-weight:bold;line-height:20px;text-decoration:none;">Join the beta</a></td></tr></table>`
   }
   if (cta && node.type === 'list' && !node.ordered) return features(node, gap)
+  // One picture from the site's own files, the same URL for every recipient: no third-party or per-recipient loads.
+  const image = node.type === 'paragraph' && node.children?.length === 1 && node.children[0].type === 'image' ? node.children[0] : undefined
+  if (cta && image && /^\/[\w-]/.test(image.url ?? '')) return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 ${gap === '0' ? '0' : '24px'};"><tr><td><img src="${escape(new URL(image.url!, cta).href)}" alt="${escape(image.alt ?? '')}" width="502" style="display:block;width:100%;max-width:502px;height:auto;border:1px solid #36363e;border-radius:8px;"></td></tr></table>`
   switch (node.type) {
     case 'paragraph': return `<p style="margin:0 0 ${gap};${TEXT}">${(node.children ?? []).map(inline).join('')}</p>`
     case 'heading': return node.depth === 1 || node.depth === 2
