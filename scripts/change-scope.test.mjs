@@ -156,3 +156,8 @@ describe('module version rule', () => {
     expect(isVersionNeutralChange(change('sdk/digitakt/modules/demo/src/demo.c'))).toBe(false)
   })
 })
+
+describe('release export reproduction', () => {
+  it.each(['scripts/package-elemod-recipe.mjs', 'scripts/verify-elemod-release-exports.mjs'])('recompiles the elemod sources for %s', path =>
+    expect(scope(change(path)).elemod).toBe(true))
+})
