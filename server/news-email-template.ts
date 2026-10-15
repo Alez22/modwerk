@@ -49,6 +49,7 @@ function block(node: Node, last: boolean, cta?: string): string {
   if (cta && node.type === 'paragraph' && node.children?.length === 1 && node.children[0].type === 'link' && node.children[0].url === cta) {
     return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 24px;"><tr><td bgcolor="#5f6ac7" style="border-radius:7px;"><a href="${escape(cta)}" style="display:inline-block;padding:15px 22px;border:1px solid #727dde;border-radius:7px;color:#ffffff;font-size:15px;font-weight:bold;line-height:20px;text-decoration:none;">Join the beta</a></td></tr></table>`
   }
+  if (cta && node.type === 'list' && !node.ordered) return features(node, gap)
   switch (node.type) {
     case 'paragraph': return `<p style="margin:0 0 ${gap};${TEXT}">${(node.children ?? []).map(inline).join('')}</p>`
     case 'heading': return node.depth === 1 || node.depth === 2
@@ -63,6 +64,16 @@ function block(node: Node, last: boolean, cta?: string): string {
     case 'definition': case 'footnoteDefinition': return ''
     default: return node.children ? blocks(node.children, last) : ''
   }
+}
+/** The beta mail's bullets become a feature panel: the Modwerk mark, a bold lead on its own line, the rest below it. */
+function features(node: Node, gap: string): string {
+  const rows = (node.children ?? []).map((item, index) => {
+    const [first, ...more] = item.children ?? [], parts = first?.type === 'paragraph' ? first.children ?? [] : []
+    const lead = parts[0]?.type === 'strong' ? (parts[0].children ?? []).map(inline).join('') : ''
+    const rest = lead ? parts.slice(1).map(inline).join('').trim() + (more.length ? blocks(more) : '') : blocks(item.children ?? [], true)
+    return `<tr><td style="padding:14px 18px;${index ? 'border-top:1px solid #36363e;' : ''}"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="top" style="width:22px;color:#c7a16c;font-size:15px;line-height:24px;">▪</td><td style="color:#a8a8b8;font-size:14px;line-height:22px;">${lead ? `<span style="display:block;margin:0 0 2px;color:#f4f4f8;font-size:16px;line-height:24px;font-weight:bold;">${lead}</span>` : ''}${rest}</td></tr></table></td></tr>`
+  })
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1c1c1f" style="margin:4px 0 ${gap === '0' ? '0' : '24px'};border:1px solid #36363e;border-radius:10px;">${rows.join('')}</table>`
 }
 /** Inside a list item a single paragraph is unwrapped, so bullets read as one line. */
 function blocks(nodes: Node[], tight = false, cta?: string): string {

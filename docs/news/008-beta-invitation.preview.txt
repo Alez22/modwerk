@@ -4,7 +4,14 @@ Hey guys,
 
 the past week I’ve been working on a big Octatrack update, and I’d love for you to try it before it’s out for everyone.
 
-You can now load modules over USB – install the Modwerk base once from the card, then modules go straight from the site onto your Octatrack, no card, no reboot. 19 modules already work this way, including the beta-only POLY8 and Air Chorus. FX get loaded onto the DSP chip on demand, and the Octatrack runs a self-test after every sync.
+- Modules over USB
+  Install the Modwerk base once from the card, then load modules straight from the site – no card, no reboot.
+- 19 modules ready
+  Including POLY8 and Air Chorus, which only beta testers get for now.
+- FX loaded on demand
+  They get loaded onto the DSP chip when a track picks them.
+- A self-test after every sync
+  The Octatrack tries the modules on your pattern, then you keep them or undo.
 
 You’ll need an Octatrack MKII, your OS 1.40C file, a USB cable and Chrome or Edge on a computer. The beta is limited to 50 people.
 
