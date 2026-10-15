@@ -74,7 +74,7 @@ Original code by @npp1993, MIT (see [LICENSE](LICENSE)). Stock code is reference
 
 ## Screens and audio
 
-Real LCD captures from the headless emulator on a private native build of this source (MAIN OS SHA-256 `c4c210ce…39af3b`), 15 October 2026. They show the interface, not hardware behaviour or sound.
+Real LCD captures from the headless emulator on a private native build of this source (MAIN OS SHA-256 `3a74ff36…dded0bc`), 15 October 2026. They show the interface, not hardware behaviour or sound.
 
 1. ![FX1 FILTER main page with SCENE A held: XLV shown, and the BASE knob highlighted with its scene lock value 30.](media/ot-scene-a-lock.png)
    Lock a value in a scene the usual way: hold SCENE A and turn a knob. Here FX1's BASE is locked to 30 in scene A; the Part's own value stays 0.

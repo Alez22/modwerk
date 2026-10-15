@@ -7347,7 +7347,7 @@
             "screenshotStyle": "black-and-white"
           },
           "moduleVersion": "0.1.0-experimental",
-          "sourceSha256": "dcb4e96285b74f9604db52b9c50efc89e301bea48c23ccb77a3d961e76dc0d4b",
+          "sourceSha256": "5b3a830aabe0fd9f677f97c76f535f44682ab68c9285bc0b1c4e71f11cb9b29f",
           "imageSha256": "c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163",
           "cycles": [
             {
@@ -7396,6 +7396,7 @@
             "imageSha256": "c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163",
             "summary": "On the contributor's Octatrack MKII (OS 1.40C) the USB package of this source (SHA-256 above) was loaded on the Modwerk beta base with the device tool: a trial without Keep rolled back, Keep installed it, and removal restored stock (SCENE + YES then arms tracks again). With it installed, SCENE A + YES and SCENE B + YES wrote the locked values, the blend wrote the in-between values, values could be edited afterwards, XVOL and XLV stayed scene locks, and NOTHING TO APPLY appeared for a repeat apply, a scene with no locks and the blend with both scenes muted. After an apply, Part save and project save, a power cycle kept the module installed, the applied values in the Part and the scenes as they were.",
             "limitations": [
+              "Run on the package of ae2a6eed (SHA-256 above). The current source differs from it only in manifest.py (the card build links the unit in the DRAM reserve); its USB package has the same code, and the published one differs only in its 16-byte display name (Apply Scene).",
               "Values were watched on the screen; audio was not checked, and no recording or timing was made.",
               "One unit, one short session, by the contributor rather than an independent reviewer.",
               "USB only: the card build of this source was not flashed (the earlier card image OMXATS30 carried the previous behaviour).",
@@ -7426,8 +7427,8 @@
             "shows": "location-and-controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -7443,8 +7444,8 @@
             "shows": "controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -7460,8 +7461,8 @@
             "shows": "controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -7477,8 +7478,8 @@
             "shows": "controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -7494,8 +7495,8 @@
             "shows": "controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -7511,8 +7512,8 @@
             "shows": "controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -7528,8 +7529,8 @@
             "shows": "controls",
             "firmware": "1.40C",
             "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at ae2a6eed alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         }
       ]

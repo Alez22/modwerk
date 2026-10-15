@@ -2,7 +2,7 @@
 
 ## Commands and exact revision
 
-Emulator only, 15 Oct 2026. The source is commit `ae2a6eed` on branch `claude/apply-scene` (merged with main 86e0dfb8). The image is byte for byte MAIN OS SHA-256 `c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b`. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
+Emulator only, 15 Oct 2026. The source is commit `ae2a6eed` on branch `claude/apply-scene` (merged with main 86e0dfb8). The image is byte for byte MAIN OS SHA-256 `c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b`. From a90849c9 the card build links the unit in the DRAM reserve (Play Modes' path), so the site's builder and native octabam agree beside Preview Vol, Mute Modes and the caves; that image (MAIN OS `3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc`, the unit at 0x40a955e0, loaded at boot) passed verify.py 179/179, including the worst case and the emulated power cycle. The USB package is byte-identical to ae2a6eed's. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
 
 ```sh
 make bus REMIX=apply-scene-stock BUILD=0          # in a scratch copy of sdk/octabam
@@ -127,4 +127,4 @@ The user asked for SCENE A + YES and SCENE B + YES to apply that scene's own loc
 
 ## OT UI capture evidence
 
-`scripts/capture-module-ui.py` on the native build of ae2a6eed (MAIN OS `c4c210ce…`), card staged from octabam's TMPL project; the plan and every PNG's SHA-256 are in `media/capture.json`. The plan locks FX1 BASE to 30 in scene A and 110 in scene B, applies scene A twice (SCENE A APPLIED, then NOTHING TO APPLY), sets the crossfader to 64 (`fader`, added to the capture tool for this) and applies the blend (SCENE BLEND APPLIED). Every image was opened and checked.
+`scripts/capture-module-ui.py` on the native build of a90849c9 (MAIN OS `3a74ff36…`; ae2a6eed's image gave pixel-identical PNGs), card staged from octabam's TMPL project; the plan and every PNG's SHA-256 are in `media/capture.json`. The plan locks FX1 BASE to 30 in scene A and 110 in scene B, applies scene A twice (SCENE A APPLIED, then NOTHING TO APPLY), sets the crossfader to 64 (`fader`, added to the capture tool for this) and applies the blend (SCENE BLEND APPLIED). Every image was opened and checked.

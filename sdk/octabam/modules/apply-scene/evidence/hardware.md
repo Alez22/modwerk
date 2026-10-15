@@ -20,6 +20,8 @@
 
 ## Limits
 
+- The current source (a90849c9) changes only manifest.py after ae2a6eed: the card build links the unit in the DRAM reserve. Its USB package carries the same code; the published package `0.1.0-experimental.mwrm` (SHA-256 `bd90b397d9dffa8d0159355baf4363e73da7bf18fd6a30624eb9fbdd2d76fb73`) differs from the tested one only in its 16-byte display name (Apply Scene, not APPLY SCENE). It has not been run on the unit.
+
 - Values watched on the screen; audio not checked, nothing recorded or timed. No click or freeze was noticed.
 - One unit, one short session, by the contributor.
 - USB only for this source; the card build was not flashed.

@@ -2,7 +2,7 @@
 
 These original LCD framebuffer captures were produced locally for APPLY SCENE's
 Modwerk documentation on 15 October 2026 from a private native build of the
-module at commit ae2a6eed (its MAIN OS SHA-256 is in capture.json). Credit:
+module at commit a90849c9 (its MAIN OS SHA-256 is in capture.json). Credit:
 Modwerk contributors (headless capture). The native emulator is octabam's
 ot_emu; its original MIT source attribution remains in the SDK.
 
