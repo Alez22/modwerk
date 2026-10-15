@@ -2,7 +2,7 @@
 
 ## Commands and exact revision
 
-Emulator only, 15 Oct 2026. The source is commit `da2d18e4` on branch `claude/apply-scene`. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
+Emulator only, 15 Oct 2026. The source is commit `ae2a6eed` on branch `claude/apply-scene` (merged with main 86e0dfb8). The image is byte for byte MAIN OS SHA-256 `c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b`. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
 
 ```sh
 make bus REMIX=apply-scene-stock BUILD=0          # in a scratch copy of sdk/octabam
@@ -65,7 +65,7 @@ Not run on the unit. The ColdFire cost is in the UI task only, per press; see ab
 
 The user's combined MKII image OMXATS30 carries the earlier source (commit 719926a2, the same module tree as 270a2dae), where SCENE A + YES and SCENE B + YES both wrote the crossfader blend. Card file `OCTATRACK_OMXATS30.bin` SHA-256 `7d1fda80c0ee0a24ab34ed073e87e7bc01e2fb05987cd61fb50dbcd4ca69f3be`, MAIN OS SHA-256 `3d620adce09a1239066ca382a6db5787aa70667ee09870fe5c364b8f9340e55e`; verify.py on it 73/73. It also holds Output Matrix, Analog BD 0.1.6 (draft), Quantize Live Rec, RINGMOD SC, LIFT, BS WAVESHAPER and Mini Verb. Reported by the user: steps 1, 2, 5 and 6 below passed (setup, apply while playing, YES alone shows ARM ALL, RELOAD PART). They also reported that FUNC + SCENE muting "does not seem to work"; not diagnosed further, because it led to the redesign below. These results do not cover the current source.
 
-### Current source over USB on the beta base (15 Oct 2026, MKII)
+### da2d18e4 over USB on the beta base (15 Oct 2026, MKII)
 
 Reported through the session "firmware builder", recorded as written.
 
@@ -84,7 +84,11 @@ Reported through the session "firmware builder", recorded as written.
 - **After removal (user-reported):** SCENE + YES does stock's arming again ("just arms track"); nothing is applied: pass.
 - **Still pending:** persistence across a power cycle.
 
-### Current source: card image checklist
+### Current source (ae2a6eed): untested on hardware
+
+Adds NOTHING TO APPLY to da2d18e4; nothing else in the behaviour changed. USB package `apply-scene-ae2a6eed.mwrm`, 758 bytes, SHA-256 `c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163` (`build.py --octabam apply-scene --name "APPLY SCENE" --stock`): ABI 7, one hashed site, 636 bytes of code, no relocations, copies or hooks. Its longest run shared with the stock OS has 11 counted bytes (limit 12); no 16-byte run (check_stock_free). On the beta base rebuilt from main 86e0dfb8 (byte-identical to the committed base, e35da4ae…), the adapted ot_emu's `sites` scenario installed it and its removal restored every site byte. To check on the unit: SCENE A + YES twice shows NOTHING TO APPLY the second time, and so does SCENE + YES on a scene with no locks.
+
+### da2d18e4: card image checklist
 
 The user asked for SCENE A + YES and SCENE B + YES to apply that scene's own locks (muted or not), and for both scene keys + YES to keep the blend. The MKII test image is APPLYSC02: APPLY SCENE alone, static stock, all stock effects. It is the image verify.py passed on: MAIN OS SHA-256 `9aa80b87e3244629dbad4c23230996a6e4f07009e66cd01b571c55843878318f`, card file `OCTATRACK_APPLYSC02.bin` SHA-256 `3aa63d9faedb15a4d38adc13de4f80e97e3aa733d486f98653b86a38f6f7d932`. Checklist:
 

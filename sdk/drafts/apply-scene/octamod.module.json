@@ -77,7 +77,7 @@
     "report": "TESTING.md",
     "summary": "verify.py under ot_emu (MKII): one-scene applies equal that scene's locks and the blend equals the stock morph model at five fader positions, with scene mutes and both key orders, on all machine types and stock FX pairs; the saved Part, scenes and fader stay untouched; RELOAD PART, Part save, project save and reload and a power cycle keep it. No hardware run of this source yet.",
     "hardwareStatus": "untested",
-    "evidenceRevision": "da2d18e4fbf9a0b819d0db8d3d6f6710fc116788",
+    "evidenceRevision": "ae2a6eedc456076cbee1a886952a399623b4e88a",
     "gates": [
       "Worst-case cycles under parameter modulation and maximum load",
       "Exact memory region and maximum-instance totals",
