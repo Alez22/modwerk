@@ -42,15 +42,15 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
     <div className="owner-note-body">
       <h2 id="owner-note-title" tabIndex={-1}>Hey guys,</h2>
       <div id="owner-note-message">
-        <p>thanks a lot for testing the beta! From now on, reporting bugs on Discord and sharing diagnostics are mandatory for beta testers – it's the only way I can keep up. Here's what I need from you:</p>
+        <p>thanks a lot for testing the beta! To keep up with all the bugs coming in, I need every beta tester to do a few things from now on:</p>
         <ul className="owner-note-asks">
           <li><strong>Report bugs on Discord as they happen</strong> – in the <strong>#beta-tester</strong> channel, right when you run into them.</li>
-          <li><strong>Match your usernames</strong> – your name on Discord must be the same as here (<strong>@{username}</strong>), so I know who's who.</li>
-          <li><strong>Share diagnostics</strong> – I'll ask you right after this note. It shows me where a build or sync went wrong.</li>
+          <li><strong>Use the same name on Discord as here</strong> (<strong>@{username}</strong>) – so I know who's who.</li>
+          <li><strong>Share diagnostics</strong> – I'll ask you right after this note. It helps me see where a build or sync went wrong.</li>
         </ul>
-        <p>I'll revoke beta access for testers who aren't active on Discord.</p>
-        <p className="owner-note-warning"><Icon name="warn" size={18} /><span>This firmware is still <strong>highly experimental</strong>. But you can always roll back to the stock firmware.</span></p>
-        <p>If that doesn't work for you, you can leave the beta below.</p>
+        <p>The beta is limited to 50 people, so if you're not active on Discord, I'll pass your place on to someone else.</p>
+        <p className="owner-note-warning"><Icon name="warn" size={18} /><span>This firmware is still <strong>highly experimental</strong> – but you can always roll back to the stock firmware.</span></p>
+        <p>If this doesn't work for you, you can leave the beta below.</p>
         <p className="owner-note-sign">Thank you,<br /><strong>Jannik</strong></p>
       </div>
     </div>
@@ -81,7 +81,7 @@ export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
   // The note counts as done once the tester joined Discord and diagnostics are on (or can't be turned on here).
   const done = () => { closeOwnerNote(); void post('/auth/owner-note', {}).catch(() => {}); setStep(undefined) }
   async function leave() {
-    if (!window.confirm('Leave the beta? The beta modules and the Octatrack USB page go away for your account, and you can’t rejoin on your own.')) return
+    if (!window.confirm('Leave the beta? The beta modules and the Octatrack USB page go away for your account. If you want back in later, just ask me on Discord.')) return
     try { await post('/auth/beta-leave', {}) } catch (failure) { window.alert(failure instanceof Error ? failure.message : 'Couldn’t leave the beta. Please try again.'); return }
     setStep(undefined); await refresh()
   }

@@ -119,7 +119,7 @@ describe('diagnostics invitation without collection side effects', () => {
   it('as the beta requirement, offers only Share diagnostics or Leave beta and ignores Escape', async () => {
     const onClose = vi.fn(), onLeave = vi.fn()
     await act(async () => { root.render(createElement(DiagnosticsInvitation, { onClose, onLeave })); await flush() })
-    expect(container.textContent).toContain('Required to stay in the beta')
+    expect(container.textContent).toContain('Needed for the beta')
     expect(container.textContent).not.toContain('Builds and syncing work either way')
     expect(container.querySelector('[aria-label="Close diagnostics invitation"]')).toBeNull()
     expect(() => button('Not now')).toThrow()
