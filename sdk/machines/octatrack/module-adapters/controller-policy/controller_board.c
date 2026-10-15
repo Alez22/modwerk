@@ -353,6 +353,8 @@ static void view(void)
     }
     for (unsigned k = 0; k < 3u; ++k) v->admitted[k] = mw_engines_admitted[k];
     v->held = (uint8_t)modwerk_controller_held();
+    v->evacuation = (uint8_t)dl_engine_evacuation();
+    v->evacuations = (uint8_t)((dl_engine_evacuations & 15u) | (dl_engine_evac_failures & 15u) << 4);
     v->jobs = mw_engines_jobs, v->placed = mw_engines_placed_count, v->unplaced = mw_engines_unplaced_count, v->refused = mw_engines_refused;
     for (unsigned i = 0; i < MW_CONTROLLER_SLOTS; ++i) {
         const struct mw_controller_slot *s = &REGISTRY.slots[i];
