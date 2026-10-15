@@ -158,15 +158,13 @@ await scenario('uncertain publication requires confirmed rollback', async s => {
 await scenario('positive unchanged publication can discard and resume', async s => {
   await s.stage(payload()); await assert.rejects(s.activate(), UploadDeviceError)
   assert.equal(s.status.phase, 'ready'); assert.equal(s.status.active, previous)
-  // The base dropped the package, so the session no longer owns one (#606): it resumes by leaving upload mode.
-  await assert.rejects(s.cancel(), /does not own a staged transaction/)
-  await s.leaveUploadMode(); assert.equal(s.status.phase, 'normal')
+  await s.cancel(); assert.equal(s.status.phase, 'normal')
 }, 'unchanged')
 
 await scenario('unchanged commit cleanup permits a fresh staged transaction', async s => {
   await s.stage(payload()); await assert.rejects(s.activate(), e => e instanceof UploadDeviceError && e.status.result === 'backend')
   assert.equal(s.status.phase, 'ready'); assert.equal(s.status.received, 0)
-  // The session forgot the offer the controller discarded (#606), so it stages the next one directly.
+  await s.cancel() // clear the client's retained offer after the controller discarded the candidate
   await s.stage(payload(17)); assert.equal(s.status.phase, 'verified'); assert.equal(s.status.currentTransaction, 2)
   await s.cancel(); assert.equal(s.status.active, previous); assert.equal(s.status.generation, 0)
 }, 'unchanged')
