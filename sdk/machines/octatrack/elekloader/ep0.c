@@ -340,7 +340,7 @@ uint32_t modwerk_ep0_dispatch(void)
         modwerk_ep0_reply = out;
         return modwerk_status_load(out);
     }
-    /* LOG (0xC1, bRequest 35, wValue the page, wLength 244): diag.c's diagnostics log, a page at a time, from
+    /* LOG (0xC1, bRequest 37, wValue the page, wLength 244): diag.c's diagnostics log, a page at a time, from
      * battery RAM; the site uploads it only with the member's consent. Read-only. */
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == DIAG_LOG_REQUEST && !SETUP[3] &&
         SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && (SETUP[6] | SETUP[7] << 8) == DIAG_PAGE) {

@@ -338,7 +338,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       const data = new Uint8Array(DEVICE_LOG_PAGE * DEVICE_LOG_PAGES)
       for (let page = 0; page < DEVICE_LOG_PAGES; ++page) {
         const reply = await unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: DEVICE_LOG_REQUEST, value: page, index }, DEVICE_LOG_PAGE)
-        if (reply.status !== 'ok' || reply.data?.byteLength !== DEVICE_LOG_PAGE) throw new Error('This base does not answer LOG (diag.c).')
+        if (reply.status !== 'ok' || reply.data?.byteLength !== DEVICE_LOG_PAGE) throw new Error(`This base does not answer LOG (diag.c): page ${page} ${reply.status} ${reply.data?.byteLength}`)
         data.set(new Uint8Array(reply.data.buffer, reply.data.byteOffset, DEVICE_LOG_PAGE), page * DEVICE_LOG_PAGE)
       }
       const log = parseDeviceLog(data)

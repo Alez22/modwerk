@@ -1,7 +1,7 @@
 import { DEVICE_INCIDENTS, type DeviceIncident, type DeviceLoad } from '../../community/octatrack-diagnostics-contract.ts'
 
 /** The unit's diagnostics log (sdk/machines/octatrack/elekloader/diag.h), as the ColdFire stores it: big-endian. */
-export const DEVICE_LOG_REQUEST = 35
+export const DEVICE_LOG_REQUEST = 37
 export const DEVICE_LOG_PAGE = 244
 const MAGIC = 0x4d574447, VERSION = 1, LOADS = 96, INCIDENTS = 32, HEADER = 40, LOAD = 28, INCIDENT = 92
 export const DEVICE_LOG_BYTES = HEADER + INCIDENT + LOAD * LOADS + INCIDENT * INCIDENTS

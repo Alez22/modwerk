@@ -47,6 +47,7 @@ typedef char diag_fits_battery_ram[0x100fc000u + sizeof(struct diag_log) <= 0x10
 #define WINDOW 600u          /* half-seconds in a load record: five minutes */
 #define HOT 900u             /* per mille */
 #define HOT_GAP 36000u       /* ticks between two HOT incidents: ten minutes, so they leave room for the rest */
+#define SETTLED 3600u        /* no HOT in the first minute: the project load at the start runs the CPU near 95 % */
 
 static volatile uint8_t keys[16];
 static volatile uint32_t key_count;
@@ -142,7 +143,7 @@ void modwerk_diag_tick(void)
     if (cpu > cpu_peak) cpu_peak = cpu;
     if (d0p > d0_peak) d0_peak = d0p;
     if (d1p > d1_peak) d1_peak = d1p;
-    if (cpu < HOT) hot_run = 0;
+    if (cpu < HOT || ticks < SETTLED) hot_run = 0;
     else {
         ++hot_count;
         if (++hot_run == 2u && (!hot_at || ticks - hot_at >= HOT_GAP)) add(l, DIAG_HOT, hot_count, 1), hot_at = ticks;

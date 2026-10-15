@@ -48,6 +48,14 @@ int main(void)
     CHECK(LOG->load[0].cpu_mean == 500u && LOG->load[0].cpu_peak == 600u && LOG->load[0].dsp0_mean == 100u && LOG->load[0].dsp0_peak == 300u);
     CHECK(LOG->load[0].dsp1_mean == 200u && LOG->load[0].dsp1_peak == 250u && LOG->load[0].samples == WINDOW && LOG->load[0].playing == WINDOW / 2u);
 
+    /* Not in the first minute after a start (the project load). */
+    restart();
+    modwerk_status[0] = 950u;
+    unsigned at_start = LOG->incidents;
+    for (unsigned t = 0; t < 3000u; ++t) tick();
+    CHECK(LOG->incidents == at_start);
+    modwerk_status[0] = 100u;
+    for (unsigned t = 0; t < 4000u; ++t) tick();
     /* The CPU at 90 % for a second, with keys pressed before: one HOT with the context, then none for ten minutes. */
     for (int code = 0; code < 20; ++code) modwerk_diag_key(code, 1), modwerk_diag_key(code, 0);
     modwerk_test_running[0] = 33, modwerk_test_running[15] = 7, modwerk_test_screen = 0x400cbf2cu, modwerk_test_tempo24 = 120u * 24u, modwerk_test_playing = 1;
@@ -67,21 +75,21 @@ int main(void)
     modwerk_status[0] = 100u;
     before = LOG->incidents;
     for (unsigned f = 0; f < FREEZE_FRAMES + 2756u; ++f) modwerk_diag_frame();
-    CHECK(LOG->freeze_state == 1u && LOG->freeze.kind == DIAG_FREEZE && LOG->freeze.boot == 3u && LOG->freeze.fx[0] == 33u);
+    CHECK(LOG->freeze_state == 1u && LOG->freeze.kind == DIAG_FREEZE && LOG->freeze.boot == 4u && LOG->freeze.fx[0] == 33u);
     CHECK(LOG->incidents == before);
     tick(), modwerk_diag_frame(); /* the UI moves; the next frame sees it */
     CHECK(LOG->freeze_state == 2u && LOG->incidents == before);
     tick();
     CHECK(LOG->freeze_state == 0u && LOG->incidents == before + 1u && last()->kind == DIAG_FREEZE && last()->a == FREEZE_FRAMES + 2755u); /* the first frame only saw the tick move */
-    CHECK(last()->seq == LOG->seq && last()->boot == 3u);
+    CHECK(last()->seq == LOG->seq && last()->boot == 4u);
 
     /* Frozen until a power cycle: the next start adds it with length 0, under the session it happened in. */
     for (unsigned f = 0; f <= FREEZE_FRAMES; ++f) modwerk_diag_frame();
     CHECK(LOG->freeze_state == 1u);
     restart();
-    CHECK(LOG->boot == 4u && LOG->freeze_state == 0u);
+    CHECK(LOG->boot == 5u && LOG->freeze_state == 0u);
     CHECK(LOG->incident[(LOG->incidents - 2u) % DIAG_INCIDENTS].kind == DIAG_FREEZE && LOG->incident[(LOG->incidents - 2u) % DIAG_INCIDENTS].a == 0u);
-    CHECK(LOG->incident[(LOG->incidents - 2u) % DIAG_INCIDENTS].boot == 3u && last()->kind == DIAG_START && last()->boot == 4u);
+    CHECK(LOG->incident[(LOG->incidents - 2u) % DIAG_INCIDENTS].boot == 4u && last()->kind == DIAG_START && last()->boot == 5u);
 
     /* Frames before the first tick of a start belong to nobody. */
     started = 0;
