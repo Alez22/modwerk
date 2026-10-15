@@ -66,8 +66,8 @@
       "version": "0.1.2-experimental",
       "name": "Air Chorus",
       "module": "496d848e",
-      "bytes": 3710,
-      "sha256": "3be09ec1b69cd50ee439a368a05d73d76a2ca02a8bea597993cbece42a36fc00",
+      "bytes": 3758,
+      "sha256": "e0f05d53b4259e0c3b50f5dde05ed1a1ec5d7c5b80bf5efd5ce4e5ab7d6d7ff8",
       "path": "octatrack-modules/airwindows-chorus/0.1.2-experimental.mwrm",
       "abi": 6,
       "features": 0,
@@ -250,9 +250,9 @@
       "name": "SIDECHAIN COMP",
       "module": "95cff696",
       "bytes": 1236,
-      "sha256": "e32de13f801a339df74bddae31ffad93f880c5248cba6fa81a83758d19334d5f",
+      "sha256": "ce706b0400ae318656bedfd592a8fc32431f267ee7f106052162cfaa133d2c1f",
       "path": "octatrack-modules/sidechain-compressor/0.1.2-experimental.mwrm",
-      "requiredBase": "b4e57deaa9d57af942c9d32d7bb8a28ea7c0e825c5e0385a0d6c6917a020713f"
+      "requiredBase": "184921104cc9dd5692d9bda2dc6ee8de225384c09b403b434dcb1d09a65f2909"
     },
     {
       "id": "output-matrix",
@@ -266,9 +266,9 @@
       "name": "OUTPUT MATRIX",
       "module": "caf158b5",
       "bytes": 3580,
-      "sha256": "5a64e8a34fc2cb1fc64ea02a06a1ece932a99ed8285e601a3da540139b39e2e1",
+      "sha256": "90e4c9dd6ec32206ae850c7558c40dc38d8464571e7802ed7f679d27b2621937",
       "path": "octatrack-modules/output-matrix/0.1.0-experimental.mwrm",
-      "requiredBase": "b4e57deaa9d57af942c9d32d7bb8a28ea7c0e825c5e0385a0d6c6917a020713f"
+      "requiredBase": "184921104cc9dd5692d9bda2dc6ee8de225384c09b403b434dcb1d09a65f2909"
     },
     {
       "id": "cc-map",
@@ -284,7 +284,7 @@
       "bytes": 966,
       "sha256": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
       "path": "octatrack-modules/cc-map/0.1.2-experimental.mwrm",
-      "requiredBase": "b4e57deaa9d57af942c9d32d7bb8a28ea7c0e825c5e0385a0d6c6917a020713f"
+      "requiredBase": "184921104cc9dd5692d9bda2dc6ee8de225384c09b403b434dcb1d09a65f2909"
     },
     {
       "id": "recorder-loop-fix",
@@ -298,9 +298,9 @@
       "name": "Recorder Loop",
       "module": "823e0f45",
       "bytes": 1818,
-      "sha256": "318f83777b195fc90b99cebe1e183063bb3031584ca3c5b149738466a57fe221",
+      "sha256": "54d45bd8c9e6142bafea3434f39f4c4143ef8a64ffb6c902ea99acddcf89778a",
       "path": "octatrack-modules/recorder-loop-fix/0.1.0-experimental.mwrm",
-      "requiredBase": "b4e57deaa9d57af942c9d32d7bb8a28ea7c0e825c5e0385a0d6c6917a020713f"
+      "requiredBase": "184921104cc9dd5692d9bda2dc6ee8de225384c09b403b434dcb1d09a65f2909"
     },
     {
       "id": "analog-bassdrum",
@@ -314,9 +314,9 @@
       "name": "Analog BD",
       "module": "abdb1445",
       "bytes": 6676,
-      "sha256": "557e260245c41f8bb9581b29fbf0974db7844301869e258f00af03f259bfa46a",
+      "sha256": "1ca2d4da41214b8b0f14e4c84d4ddf1f5cf704768e129a0cbff6339399c34744",
       "path": "octatrack-modules/analog-bassdrum/0.1.5-experimental.mwrm",
-      "requiredBase": "b4e57deaa9d57af942c9d32d7bb8a28ea7c0e825c5e0385a0d6c6917a020713f"
+      "requiredBase": "184921104cc9dd5692d9bda2dc6ee8de225384c09b403b434dcb1d09a65f2909"
     }
   ]
 }
