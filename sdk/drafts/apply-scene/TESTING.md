@@ -64,7 +64,25 @@ Not run on the unit. The ColdFire cost is in the UI task only, per press; see ab
 
 The user's combined MKII image OMXATS30 carries the earlier source (commit 719926a2, the same module tree as 270a2dae), where SCENE A + YES and SCENE B + YES both wrote the crossfader blend. Card file `OCTATRACK_OMXATS30.bin` SHA-256 `7d1fda80c0ee0a24ab34ed073e87e7bc01e2fb05987cd61fb50dbcd4ca69f3be`, MAIN OS SHA-256 `3d620adce09a1239066ca382a6db5787aa70667ee09870fe5c364b8f9340e55e`; verify.py on it 73/73. It also holds Output Matrix, Analog BD 0.1.6 (draft), Quantize Live Rec, RINGMOD SC, LIFT, BS WAVESHAPER and Mini Verb. Reported by the user: steps 1, 2, 5 and 6 below passed (setup, apply while playing, YES alone shows ARM ALL, RELOAD PART). They also reported that FUNC + SCENE muting "does not seem to work"; not diagnosed further, because it led to the redesign below. These results do not cover the current source.
 
-### Current source: untested on hardware
+### Current source over USB on the beta base (15 Oct 2026, MKII)
+
+Reported through the session "firmware builder", recorded as written.
+
+- **Unit and package:** user's MKII, OS 1.40C, beta base acf91e0a350e182d…. Package apply-scene-da2d18e4.mwrm (source da2d18e4), SHA-256 577a22e9b19df7f0f299d4cb01ca146827c0914e14a73bbad53c20000540467d. The device tool results, seen by that session:
+  - `try --seconds 15` without accept rolled back to the base (generation 2, base active): the Undo check.
+  - `try --accept` kept it (generation 3, active 577a22e9…).
+  - `remove <file> --accept` was accepted (generation 4, active 472e6d03…, the removal package).
+- **User-reported, while it was installed:**
+  - SCENE A + YES and SCENE B + YES applied the locked values: pass.
+  - Editing from the applied values afterwards: pass.
+  - XVOL/XLV stayed scene locks: pass.
+  - The blend (both keys + YES, crossfader in the middle) passed.
+  - On a cleared scene, SCENE + YES still shows the toast.
+  - No click or freeze seen in earlier testing.
+  - Audio was not checked; the user only watched the values update.
+- **Still pending:** that SCENE + YES does nothing after removal, and persistence across a power cycle.
+
+### Current source: card image checklist
 
 The user asked for SCENE A + YES and SCENE B + YES to apply that scene's own locks (muted or not), and for both scene keys + YES to keep the blend. The MKII test image is APPLYSC02: APPLY SCENE alone, static stock, all stock effects. It is the image verify.py passed on: MAIN OS SHA-256 `9aa80b87e3244629dbad4c23230996a6e4f07009e66cd01b571c55843878318f`, card file `OCTATRACK_APPLYSC02.bin` SHA-256 `3aa63d9faedb15a4d38adc13de4f80e97e3aa733d486f98653b86a38f6f7d932`. Checklist:
 
