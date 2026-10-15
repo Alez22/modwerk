@@ -178,7 +178,8 @@ export function collectOctatrackDiagnostics(memberId: string, link: OctatrackLin
   async function tick() {
     syncSiteCollection()
     if (!await refresh()) return // Never use a stale choice while another refresh is still pending.
-    if (!allowed() || reading || !link || link.getState().status !== 'ready') { if (link?.getState().status !== 'ready') logAt = 0, lastTicks = undefined; return }
+    if (link?.getState().status !== 'ready') { logAt = 0; lastTicks = undefined } // the next connection reads the log first
+    if (!allowed() || reading || !link || link.getState().status !== 'ready') return
     reading = true
     const controller = healthRead = new AbortController()
     try {
