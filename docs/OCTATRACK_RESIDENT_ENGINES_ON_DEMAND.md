@@ -199,6 +199,26 @@ Both were found while writing the evacuation and are fixed in the integration br
   - Host: `test_resident_engines_board.py` modes 26-28: a Part switch during Sidechain's engine WRITE on core A and one during the board's RESET there both complete after the job, with no rollback or failure, and the RESET goes on; two owned jobs in a row holding the core for 800 frames, then the switch completes; a reservation that never ends refuses after 600 refused starts and the switch goes through once it is gone; the same wait in the table step, with an owned job on core B.
 - **Mutation check** (scratch, not committed): each of 12 mutants is caught: the rollback to the stub (the old code), the BIND back to the new copy, no overlap check, a BIND back counted as stubbed, a BIND back outside a rollback, the journal clearing or not recording the generation, -2 a refusal again in `advance()` or in the table step, an unbounded wait, no owned holder reported, one bound shared by every owned job.
 
+## The integration build on the unit (15 October 2026)
+
+Twin built from this branch before the base regeneration (on demand, `--dev`, configuration `76e15b41…`), on the owner's MKII:
+
+- **All three engines:** placed at boot restore and by install, arena 2,224 / 3,125 (Sidechain 423 words). Eight switches between identical Parts while playing: T3 and MAIN bit-exact, no loader packet, no engine job.
+- **Sidechain key phase:** T5 (COMPRESSOR, KEY T3, MON ON) lags T3 by 32 samples on 5 of 5 enables (two blocks); the earlier base gave 89 or 121 depending on the enable. On the key-phase twin, 9 of 9 equal. MON: swapping T5's COMPRESSOR for FILTER with MON on gives exact silence.
+- **Evacuation:** SPRING REV at the top of core 1 (under Analog BD), sustained as a drone (all six knobs up, HP 0); installing Sidechain moved it and placed the engine. Under the drone (T3 0.34-0.36 RMS): no click (no 20 ms block above the drone's own second-difference texture), no dropout. Counters: moves and evacuations up by one, no failure.
+- **Picks during an engine job:** three PLATE REV picks on T5 while Output Matrix installed: all taken, no selection refused or rolled back. Before the fix the same timing gave DSP LOAD FAILED once on the unit.
+- **Analog BD on a restored Part (finding 24):** T3 left as ANALOG BD survives a RAM boot with the module in the saved set: FLEX type and marker kept, the drum plays. Before the fix the bank restore was refused: a default bank without trigs, which the unit's autosave then kept ("total silence", first blamed on Sidechain).
+- **Development trap:** a RAM boot after a session of resident engine installs and removals sometimes drops the unit off USB until a power cycle (seen twice without a stray session).
+
+## Where this stands (end of 15 October 2026)
+
+The beta base is regenerated on demand (`b4e57dea…`, Analog BD recipe recaptured, four packages rebound; commit "WIP: beta base …"). Not yet a pull request. Next, in order:
+
+1. Changelogs: a 15 October note on the current version of the five base-bound modules (four rebuilt, CC Map bytes unchanged); the Sidechain key-phase note now ships in the beta base.
+2. This note's Status and Open → Beta base, and one line in the beta test plan naming tester base `b4e57dea…` and the finding 17 recapture.
+3. The checks `npm run pr:ready` runs, serially and memory-capped (the parallel run OOMs the WSL test PC), including `import-module-build --check-only --verify-existing` for the rebuilt packages.
+4. A development twin of exactly this configuration plus `--dev`, then on the unit: boot, the three engines, a Part sweep, an Analog BD reboot. Then the pull request.
+
 ## Open
 
 - **Evacuation on the unit.** Written and host-tested (above), not yet run on hardware; the test is above ("Evacuation: the on-unit test"). Still unproven there: that the move is inaudible while an effect rings (no click, dropout or distortion on its track), its frame cost, and that the boot restore of a project whose bank holds big effects now comes up without "SOME MODULES FAILED" (that failure was inferred, never seen).
