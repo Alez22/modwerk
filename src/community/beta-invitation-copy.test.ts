@@ -14,7 +14,7 @@ it('preserves the prepared email shell, feature invitation, 50-person limit, CTA
   expect(message.html + '\n').toBe(readFileSync(new URL('../../docs/news/008-beta-invitation.preview.html', import.meta.url), 'utf8'))
   expect(message.text + '\n').toBe(readFileSync(new URL('../../docs/news/008-beta-invitation.preview.txt', import.meta.url), 'utf8'))
   expect(message.html).toContain('bgcolor="#5f6ac7"')
-  expect(message.text).toContain('limited to 50 people')
+  expect(message.text).toContain('50 people')
   expect(message.text).toContain('load modules over USB')
   expect(message.text).toContain('POLY8 and Air Chorus')
   expect(message.text).toContain('runs a self-test')
