@@ -151,7 +151,9 @@ char modwerk_menu_label[] = "MODWERK", modwerk_load_label[] = "LOAD", modwerk_mo
      modwerk_missing_label[] = "MISSING", modwerk_test_label[] = "SELF TEST";
 static unsigned missing_top, modules_top;
 static int missing_asked; /* MISSING opened from the menu: it stays open with nothing missing */
-void modwerk_load_menu(int unused) { (void)unused; if (menu_open()) open = SHOWN, close_menu = 1; }
+/* Opened from the menu, the page says for two seconds how to open it in one gesture (owner, 15 October 2026). */
+static uint32_t tip_until;
+void modwerk_load_menu(int unused) { (void)unused; if (menu_open()) open = SHOWN, close_menu = 1, tip_until = ticks + 120u; }
 void modwerk_modules_menu(int unused) { (void)unused; if (menu_open()) open = MODULE_LOAD, modules_top = 0, close_menu = 1; }
 void modwerk_missing_menu(int unused) { (void)unused; if (menu_open()) open = MISSING, missing_top = 0, missing_asked = 1, close_menu = 1; }
 /* SELF TEST (dsp.c's self-test): its page shows at once, the test starting if it can. */
@@ -228,6 +230,13 @@ static void memory_tick(void)
 static struct modwerk_module_load modules[MODWERK_FX_IDS];
 static unsigned modules_count(void) { return modwerk_dsp_module_loads(modules); }
 volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key or knob: dsp.c's compaction waits for quiet */
+/* The pages never hold the Octatrack's controls (owner, 15 October 2026: the page ate PLAY and STOP): PLAY, STOP and
+ * REC always reach stock and the page stays, so the load can be watched while playing. NO (and YES on the read-only
+ * pages) closes a page, CUE + PROJ toggles the status page, UP and DOWN scroll the lists; any other key or knob closes
+ * the page and goes on to stock, so nothing changes unseen behind it. Only a running self-test keeps the panel. */
+#define STOP 0x27
+#define PLAY 0x28
+#define REC 0x29
 int modwerk_status_key(int code, int pressed)
 {
     static int cue;
@@ -237,32 +246,39 @@ int modwerk_status_key(int code, int pressed)
         return 0;
     }
     if (code == CUE) cue = pressed;
-    if (open == MEMORY && pressed) { /* a popup: YES only closes it (owner, 14 October 2026); any other key goes on to stock */
-        open = CLOSED;
-        if (code == YES) { taken = code; return 1; }
+    if (!pressed) { /* a release goes where its press went */
+        if (code != taken) return 0;
+        taken = -1;
+        return 1;
     }
-    if (pressed && (open == MISSING || open == MODULE_LOAD) && code != CUE && !(code == PROJ && cue)) { /* lists */
+    if (code == PROJ && cue) { open = open == SHOWN ? CLOSED : SHOWN; taken = code; return 1; }
+    if (open == CLOSED || code == CUE || code == PLAY || code == STOP || code == REC) return 0;
+    if (open == TEST) {
+        if (code == NO) modwerk_selftest_abort(), open = CLOSED;
+        taken = code;
+        return 1;
+    }
+    int list = open == MISSING || open == MODULE_LOAD;
+    if (list && (code == UP || code == DOWN)) {
         unsigned *top = open == MISSING ? &missing_top : &modules_top, n = open == MISSING ? missing[3] : modules_count();
         if (code == UP && *top) --*top;
         if (code == DOWN && *top + ROWS < n) ++*top;
-        if (code == NO || code == YES) open = CLOSED;
         taken = code;
         return 1;
     }
-    if (pressed && open == TEST && code == NO) { modwerk_selftest_abort(); open = CLOSED; taken = code; return 1; }
-    if (pressed && ((code == PROJ && cue) || (open && code == NO))) {
-        open = code == NO || (code == PROJ && open == SHOWN) ? CLOSED : SHOWN;
-        taken = code;
-        return 1;
-    }
-    if (!pressed && code == taken) { taken = -1; return 1; }
-    return open && open != MEMORY && code != CUE; /* CUE's own release reaches stock, as it would without the dialog */
+    int closes = code == NO || code == YES; /* the popup after a pick: YES only closes it (owner, 14 October 2026) */
+    open = CLOSED;
+    if (!closes) return 0; /* any other key closes the page and goes on to stock */
+    taken = code;
+    return 1;
 }
 int modwerk_status_enc(int encoder, int delta)
 {
     (void)encoder, (void)delta;
     modwerk_status_key_at = modwerk_runtime_ticks; /* turning a knob counts as activity too (dsp.c's compaction) */
-    return open != CLOSED;
+    if (open == TEST) return 1;
+    open = CLOSED; /* a knob closes the page and goes on to stock */
+    return 0;
 }
 
 /* Drawing: the frame is a quarter turn round, a row of 8 bytes per x, MSB first, pixel (x, y) at bit 63 - y. */
@@ -547,5 +563,10 @@ void modwerk_status_draw(unsigned char *frame)
         if (i == 0 || i == 4) continue; /* a heading */
         bar(frame, X0 + 48u, y, 40, 4, value[i], peak[i]);
         percent(X0 + 92u, y - 1u, value[i]);
+    }
+    if ((int32_t)(tip_until - ticks) > 0) { /* over the last rows, a box as stock draws them */
+        fill(frame, X0 + 6u, Y1 - 15u, X1 - 6u, Y1 - 3u, 0);
+        outline(frame, X0 + 6u, Y1 - 15u, X1 - 6u, Y1 - 3u);
+        label((unsigned)(64 - TEXT_WIDTH(FONT, -1, "CUE + PROJ OPENS THIS") / 2), Y1 - 11u, "CUE + PROJ OPENS THIS");
     }
 }
