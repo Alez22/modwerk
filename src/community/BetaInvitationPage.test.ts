@@ -51,6 +51,8 @@ it('prompts for Discord on arrival while risk acceptance remains required before
   expect(mocks.refresh).toHaveBeenCalledOnce()
   expect(container.querySelector('h1')?.textContent).toBe('You have beta access')
   expect(container.querySelector('a')?.getAttribute('href')).toBe(DEVELOPMENT_DISCORD_URL)
+  // The next step after joining is the Octatrack's setup, where the base install guide lives.
+  expect([...container.querySelectorAll('a')].find(link => link.textContent === 'Set up your Octatrack')?.getAttribute('href')).toBe('#octatrack/setup')
 })
 it('shows a full pool with no join action, including when the last place disappears during acceptance', async () => {
   await render()
