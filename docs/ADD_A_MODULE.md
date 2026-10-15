@@ -24,6 +24,7 @@ Every module follows [the guide for its category](module-guides/README.md): effe
 - Never commit firmware, extracted stock code or tables, memory dumps, emulator cards or built images. Firmware stays on your computer. Stock code is referenced by address, length and SHA-256 and copied from each user's own OS file when they build.
 - Keep every author's credit and full licence text. Pin ported source to an exact commit. Both module contracts accept an optional `author.contributors` array of `{ "github": "handle", "name": "Display name" }` entries (`name` is optional). Each contributor appears on a separate line below the primary author in library cards, page headers and module information; describe their contribution in `author.credits` and the README. This attribution does not grant module ownership, report access or release authority; those continue to use the primary author and declared maintainers.
 - Code or behaviour changes inside a module folder need a higher semantic `version` in its manifest, and the same version in `sdk/catalog.json` once listed. Documentation/media/prose-only edits need a version bump only when requesting automatic author publication.
+- No module depends on another. Each builds, installs and works when it is the only module chosen: no `requires`, no hooks into another module's code, no "needs X" selection rule, no pull request stacked on another module's. Shared code goes into the base or the shared SDK first, or the features ship as one module. Review refuses a dependent module, with no exception ([cross-compatibility](module-guides/README.md#cross-compatibility)).
 - One module per pull request. The owner approves the first release and changes beyond the registered author's scope. Later scoped updates can use automatic author publication after evidence verification and required checks.
 
 ## Persistence and multiple instances
@@ -57,11 +58,12 @@ npm run modules:generate                      # regenerate the catalog from the 
 npm run check -- --base origin/main            # scopes docs to metadata/provenance; code runs the full app suite
 npm run module:doctor -- <id>                 # does the module fit every workflow? lists each gap and the command that fixes it
 npm run modules:check -- --base origin/main   # version and publication rules for the folders you changed
+npm run modules:compat -- <id>                # Octatrack: installs beside every other active module and the base? each clash and its fix
 ```
 
 ## What CI runs
 
-- **Documentation-only pull requests:** licence, generated catalogue, release-note coverage, module contract, tutorial and screenshot-provenance validation. No application test suite, bundle, Windows runner or native compiler.
+- **Documentation-only pull requests:** licence, generated catalogue, release-note coverage, module contract, tutorial and screenshot-provenance validation, plus the catalogue tests (`src/catalog`, about 15 seconds), because some of them check that the guides link to files that exist. No full application test suite, bundle, Windows runner or native compiler.
 - **Application or behaviour changes:** the full `npm run check` (lint, tests, types, build).
 - **Only a pull request that changes module source, the module build or the committed packages:** the Docker compile that must reproduce the committed packages. Changes to module folders or their path handling also run the Windows check. These are the same inputs the release uses to decide whether to rebuild the modules.
 - **After the merge:** the release verifies the merge approval, re-verifies the generated files, licences and module records, then type-checks and bundles what the pull request already tested. It rebuilds the modules only if module inputs changed.
@@ -72,7 +74,7 @@ Once your module is in the reviewed catalog, you can link your own Ko-fi page wi
 
 ## Release notes (required for every fix and module version)
 
-Every module fix must include its changelog update in the same PR; do not defer it until after the fix or release. Before publishing a new module or updating its version, add an entry under its community ID in `src/community/module-changelogs.json`. Octatrack IDs are the module ID (`euclid`); Digitakt and Digitone IDs include the machine (`digitakt-digihealth`, `digitone-digihealth`). Keep earlier entries. The module page’s Changelog tab shows these notes, including when live version history is unavailable.
+Every module fix must include its changelog update in the same PR; do not defer it until after the fix or release. Before publishing a new module or updating its version, add an entry to the file named by its community ID in `src/community/module-changelogs/`. Octatrack IDs are the module ID (`euclid.json`); Digitakt and Digitone IDs include the machine (`digitakt-digihealth.json`, `digitone-digihealth.json`). Keep earlier entries. Each file is that module’s list of releases. `npm ci` and `npm run check` combine them into the generated, uncommitted `src/community/module-changelogs.json`, and the module folders into `src/catalog/machine-modules.json`, so two module PRs never edit the same file. The module page’s Changelog tab shows these notes, including when live version history is unavailable.
 
 ```json
 {
@@ -150,6 +152,32 @@ screenshots. Read the complete gallery as a first-time user and follow the
 
 A module that makes or changes sound can also carry one short [audio preview](MODULE_AUDIO_PREVIEWS.md): an isolated sample comparison or an explicitly requested musical phrase that makes its controls audible.
 
+## Octatrack base and USB lifecycle
+
+New Octatrack development must deliver the browser-built base and USB module
+lifecycle alongside its card build. Plan common companions before writing
+code: stock FX, Analog BD and common custom machines/effects, on both DSP
+cores. Record shared hook/data ownership, contiguous P/X/Y placement, live
+stock tenants and fixed/instance cycle costs. A native composition or a
+standalone package that links is not completion.
+
+Release evidence must cover the exact source-built browser/runtime packages,
+regeneration and stock-free scan, base compatibility and truthful inventory,
+installation and self-test, Keep/Undo, replacement/removal, missing-module
+fallback and distinct instances through Part/project reload and physical
+reboot where applicable. Give hardware steps and record actual results;
+emulator/host tests do not fill missing hardware qualification. Preserve the
+previous approved download while preparing candidates.
+
+A newly developed module selectable in beta module sets must have a working
+USB path, not a card-only fallback; existing card-only modules need a reviewed
+migration before USB rollout. An unavoidable compatibility limit needs its
+actual resource/ownership reason and explicit owner review. This does not
+assert that pending loader ABI work (ABI 7), shared machine registration,
+table support or hooked DSP work is released: those adapters and new bases
+remain private staging until their checks and qualification are complete. See
+the [loader compatibility guide](../sdk/machines/octatrack/elekloader/README.md#runtime-compatibility-and-the-card-builder).
+
 ## Octatrack
 
 1. **Create the folder.**
@@ -176,14 +204,14 @@ A module that makes or changes sound can also carry one short [audio preview](MO
    ```
    - **What it builds.** Native octabam builds your module inside the toolchain image, without network: alone, beside each other module, in the fullest selections and in a fixed sample in between, each with and without the stock FX2 effects.
    - **What must match.** Modwerk's browser builder must refuse what native refuses, and reproduce what native builds.
-   - **What it updates.** It records the declaration checks and your module's chooser entry, and writes `sdk/native-comparisons/<id>.json`. Commit everything it changed.
+   - **What it updates.** It records the native pair checks (`npm run modules:pairs`) and your module's chooser entry, and writes `sdk/native-comparisons/<id>.json`. Commit everything it changed.
    - **Reruns.** Native results are cached, so after a fix only the affected builds run again. After a change to `src/engine/` alone, `npm run module:verify -- --all --os <file> --check` repeats only the browser side for every recorded module.
    - **Your firmware.** The MAIN OS extracted from your file stays in `~/.cache/modwerk-native`, outside the checkout, with the cache. `npm run module:verify -- --clean` deletes it.
    - **New shapes.** A module with a shape no earlier module had, such as one that replaces a stock effect or claims new memory, needs changes in both `src/engine/` and `sdk/octabam/tools/build/build_bus.py`. Expect the comparison to point at them.
 6. **Capture the screenshots** in the headless emulator with `scripts/capture-module-ui.py` ([how](MODULE_UI_CAPTURES.md)). Open every image before keeping it.
 7. **Check how it shows on the site.** The catalog entry puts the module in the library and the configurator; `npm run dev` shows it.
    - The library card draws `presentation/thumbnail.svg` (320×192). Hand-drawn art in `src/components/ModulePreview.tsx` is optional.
-   - Analog BD automatically refuses any module with an `effectId`, since it builds only beside stock effects. If your effect builds beside the stock FX2 effects, add it to `FITS_BESIDE_STOCK_FX2` in `src/catalog/selection-conflicts.ts`.
+   - Analog BD admits only the custom DSP effects named in `analogBdCompanions` in `src/catalog/selection-conflicts.ts` and refuses every other module with an `effectId`. Add yours there only after native/browser placement evidence on both cores. If your effect builds beside the stock FX2 effects, add it to `FITS_BESIDE_STOCK_FX2` in the same file. Both lists describe baked card placement, not the USB arena; see the [USB lifecycle](#octatrack-base-and-usb-lifecycle).
    - Add a short entry to `docs/VERIFICATION.md` with what you compared and the result.
 8. **Open the pull request.** Say what you tested, what you did not test and why.
 
@@ -206,7 +234,7 @@ Firmware for these machines is built by elekloader's builder, vendored unchanged
 **Writing a new mod:** `npm run module:new -- my-mod --machine digitakt --author <github-login>` creates the folder (`--machine digitone` for Digitone).
 - Write `src/`, and subscribe to core events in `build.json` ([events and budgets](../sdk/machines/digitakt/README.md)).
 - Modwerk compiles the source in its pinned toolchain ([source builds](ELEMOD_SOURCE_BUILDS.md)).
-- The browser builds only from the `.elemod` files in elekloader's catalog, so to appear in the configurator a new mod needs an `.elemod` release, added with `npm run elekloader:update` as above.
+- The browser builds only from the `.elemod` files in elekloader's catalog, so to appear in the configurator a new mod needs an `.elemod` release pinned in its own record, `sdk/imports/elekloader-<id>-<date>.json`, and downloaded with `npm run elekloader:update -- --overlay <that record>`. Never edit `vendor/elekloader/catalog/catalog.json`: it is generated from the upstream catalog and the records.
 - `npm run module:doctor -- <id>` checks the module's manifest, category guide, catalog pin and module rules.
 
 ## Reference

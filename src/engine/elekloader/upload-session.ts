@@ -216,6 +216,7 @@ export class UploadSession {
           this.expect(status.phase === 'pending', 'Publication did not retain a stopped trial configuration.')
         }
       })
+      if (status.result !== 'ok' && status.phase === 'ready') this.offer = undefined // the base dropped the package
       this.ok(status)
       return status
     })
@@ -276,6 +277,8 @@ export class UploadSession {
   }
   async rollback() { return this.exclusive(() => this.rollbackInternal()) }
   private async cancelInternal(leave: boolean) {
+    // A refused commit (activate) already dropped the offer: the base discarded the package, nothing is left to abort.
+    if (!this.offer && this.status.phase === 'ready') return leave ? this.leaveInternal() : this.status
     const offer = this.owned()
     if (this.status.phase === 'recovery' && this.status.active === offer.previous) {
       await this.rollbackInternal() // Retry failed pre-publication cleanup.

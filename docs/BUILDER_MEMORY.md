@@ -8,7 +8,7 @@ The native ledger checks complete fixed patch spans, source cave reservations (`
 
 Legacy detours with guards shorter than their emitted instruction span are extended only from the globally fingerprinted, original local OS. No extracted bytes are committed or shipped in source packages. Whole emitted/guarded spans, rather than only hook start addresses, participate in conflict checks.
 
-Stock-free GNU linker fixtures cover BSS bytes, boundary symbols, alignment and page-placement choices. Shared-builder preservation records bind exact source hashes and unchanged native complete-image identities for previously approved modules. Software parity does not constitute hardware or chip-cycle qualification.
+Stock-free GNU linker fixtures cover BSS bytes, boundary symbols, alignment and page-placement choices. Software parity does not constitute hardware or chip-cycle qualification.
 
 The port follows [octabam 6f9e5bc9](https://github.com/sambanks/octabam/blob/6f9e5bc9db0ae9fa99fa2f2a0f4de1fdb8e9a136/tools/remix/platform_build.py), while retaining Modwerk’s existing source cache, stock-copy guards and runtime types. Run `scripts/verify-builder-memory.py` in the isolated SDK toolchain container for stock-free native memory integration checks.
 

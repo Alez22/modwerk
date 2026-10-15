@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, chmod, symlink, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createFrontendTools, createProtocol, validateApiPath } from './frontend-mcp.mjs'
+import { createFrontendTools, createProtocol, validateApiPath, formatMcpLog } from './frontend-mcp.mjs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +18,30 @@ beforeAll(async () => { folder = await mkdtemp(join(tmpdir(), 'modwerk-mcp-test-
 afterAll(async () => { await service?.close(); await rm(folder, { recursive: true, force: true }) })
 
 describe('frontend MCP protocol and isolated site workflows', () => {
+  it('bounds USB error logs without dumping bundled stacks, causes or account objects', () => {
+    const error = new Error('The self-test record has the wrong length.', { cause: { session: 'private-session' } })
+    error.stack = 'Error: wrong length\n at data:text/javascript;base64,' + 'Z'.repeat(500000)
+    expect(formatMcpLog(error)).toBe('Error: The self-test record has the wrong length.')
+    const log = formatMcpLog('USB read failed', error, { session: 'private-session', payload: new Uint8Array(10000) })
+    expect(log).not.toMatch(/private-session|base64|ZZZZ|payload/)
+    expect(log).toContain('wrong length')
+    expect(formatMcpLog('data:text/javascript;base64,' + 'Z'.repeat(500000))).toBe('[data URL]')
+    expect(formatMcpLog(...Array(20).fill('x'.repeat(5000))).length).toBeLessThanOrEqual(2048)
+  })
+  it('reports frontend startup failures on stderr without a bundled stack or protocol output', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'modwerk-mcp-invalid-set-'))
+    try {
+      await writeFile(join(directory, 'sets.json'), '[{}]', { mode: 0o600 })
+      const script = fileURLToPath(new URL('./frontend-mcp.mjs', import.meta.url))
+      let failure
+      try { await promisify(execFile)(process.execPath, [script, '--data-dir', directory]) } catch (error) { failure = error }
+      expect(failure?.code).toBe(1)
+      expect(failure.stdout).toBe('')
+      expect(failure.stderr.length).toBeLessThan(2049)
+      expect(failure.stderr).toMatch(/unreadable|configuration/i)
+      expect(failure.stderr).not.toMatch(/data:|base64|at file:|node:internal/)
+    } finally { await rm(directory, { recursive: true, force: true }) }
+  }, 30000)
   it('initializes, discovers tools, and returns structured results and bounded errors', async () => {
     const protocol = createProtocol(service)
     expect((await protocol({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).error.code).toBe(-32002)
@@ -35,13 +59,19 @@ describe('frontend MCP protocol and isolated site workflows', () => {
     expect((await service.call('site_selection', { moduleIds: ['vector', 'analog-bassdrum'] })).conflicts.length).toBeGreaterThan(0)
     const usb = catalogue.modules.filter(module => module.usb).map(module => module.id)
     expect(usb.length).toBeGreaterThanOrEqual(4)
-    for (let mask = 1; mask < 1 << usb.length; mask++) {
-      const moduleIds = usb.filter((_, index) => mask & 1 << index)
-      const prepared = await service.call('site_selection', { moduleIds, usb: true, capabilities: { abi: 8, features: 7, maxSites: 128, maxCopies: 128 } })
+    // Every published package alone, every pair and all together, on the published base with site events (every subset
+    // of 19 would be 2^19 sets; preparing one only preflights each package).
+    const { identity: base } = JSON.parse(await readFile(new URL('../sdk/machines/octatrack/base-binding.json', import.meta.url), 'utf8'))
+    const capabilities = { abi: 8, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+    const sets = [...usb.map(id => [id]), ...usb.flatMap((a, i) => usb.slice(i + 1).map(b => [a, b])), usb]
+    for (const moduleIds of sets) {
+      const prepared = await service.call('site_selection', { moduleIds, usb: true, capabilities, base })
       expect(prepared.changes).toHaveLength(moduleIds.length)
       expect(prepared.changes.every(change => /^[a-f0-9]{64}$/.test(change.sha256) && change.undoSha256)).toBe(true)
     }
-    await expect(service.call('site_selection', { moduleIds: ['analog-bassdrum'], usb: true })).rejects.toThrow('USB')
+    await expect(service.call('site_selection', { moduleIds: ['sidechain-compressor'], usb: true, capabilities })).rejects.toThrow('latest Modwerk base')
+    const cardOnly = catalogue.modules.find(module => module.machine === 'octatrack' && !module.usb)
+    if (cardOnly) await expect(service.call('site_selection', { moduleIds: [cardOnly.id], usb: true })).rejects.toThrow('USB')
   })
   it('round trips sets through frontend validation without including private firmware', async () => {
     const created = await service.call('set_save', { name: 'MCP test', moduleIds: ['miniverb'] })

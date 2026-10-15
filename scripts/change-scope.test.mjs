@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { classifyChanges, readChangeScope } from './change-scope.mjs'
+import { classifyChanges, isVersionNeutralChange, readChangeScope } from './change-scope.mjs'
 
 const digi = { id: 'demo', machine: 'digitakt', version: '1.0.0', name: 'Demo', author: { github: 'author' }, maintainers: ['author'],
   source: { revision: 'a'.repeat(40) }, platform: { build: 'build.json' }, compatibility: { releases: ['1.53'] }, claims: {},
@@ -16,35 +16,48 @@ const scope = (...changes) => classifyChanges(changes)
 const repository = fileURLToPath(new URL('..', import.meta.url))
 
 describe('documentation and firmware scheduling', () => {
-  it.each(['octabam', 'digitakt', 'digitone'])('skips firmware and app checks for %s prose, screenshots and evidence', machine => {
+  it.each(['scripts/frontend-mcp.mjs', 'scripts/frontend-mcp-private-host.mjs', 'sdk/tests/test_frontend_mcp_host.py'])('checks actual native Windows MCP refusal for %s without firmware compilation', path => {
+    expect(scope(change(path))).toMatchObject({ documentation: false, windows: true, modules: false, elemod: false })
+  })
+  it.each(['scripts/prepare-runtime-spans.py', 'scripts/runtime_private_paths.py', 'sdk/tests/test_runtime_spans.py'])('runs native Windows privacy checks for %s without firmware compilation', path => {
+    expect(scope(change(path))).toMatchObject({ documentation: false, windows: true, modules: false, elemod: false })
+  })
+  it.each(['octabam', 'digitakt', 'digitone', 'analog-rytm-mkii'])('skips firmware and app checks for %s prose, screenshots and evidence', machine => {
     const actual = scope(...['README.md', 'media/control.png', 'media/capture.json', 'presentation/thumbnail.svg', 'evidence/report.json'].map(path => change(`sdk/${machine}/modules/demo/${path}`)))
     expect(actual).toEqual({ documentation: true, modules: false, elemod: false, windows: false, worker: false, logger: false })
   })
   it('treats authored changelog data as documentation while retaining app checks for its renderer and validator', () => {
-    expect(scope(change('src/community/module-changelogs.json'))).toEqual({ documentation: true, modules: false, elemod: false, windows: false, worker: false, logger: false })
+    expect(scope(change('src/community/module-changelogs/euclid.json'))).toEqual({ documentation: true, modules: false, elemod: false, windows: false, worker: false, logger: false })
     for (const path of ['src/community/ModuleChangelog.tsx', 'scripts/module-changelogs.mjs']) {
       expect(scope(change(path))).toEqual({ documentation: false, modules: false, elemod: false, windows: false, worker: false, logger: false })
     }
     // The Worker compiles the changelog loader for module release dates.
     expect(scope(change('src/community/module-changelogs.ts')).worker).toBe(true)
   })
-  it('recognizes manifest/gallery/tutorial edits plus their generated catalog as documentation', () => {
+  it('recognizes manifest/gallery/tutorial edits as documentation', () => {
     const updated = { ...digi, presentation: { ...digi.presentation, usage: ['Better tutorial'] }, controls: [{ description: 'Clear label' }], media: [{ path: 'media/control.png' }], tests: { documentation: { tutorial: {} } } }
-    const actual = scope(change(modulePath, digi, updated), change('src/catalog/machine-modules.json', { modules: [digi] }, { modules: [updated] }))
+    const actual = scope(change(modulePath, digi, updated))
     expect(actual.documentation).toBe(true)
     expect(actual.worker).toBe(false)
     expect(actual.elemod).toBe(false)
   })
   it('keeps genuine Worker module fields current without compiling metadata labels', () => {
     const updated = { ...digi, version: '1.0.1', presentation: { summary: 'New summary' } }
-    const actual = scope(change(modulePath, digi, updated), change('src/catalog/machine-modules.json', { modules: [digi] }, { modules: [updated] }))
+    const actual = scope(change(modulePath, digi, updated))
     expect(actual.documentation).toBe(false)
     expect(actual.worker).toBe(true)
     expect(actual.elemod).toBe(false)
     expect(actual.modules).toBe(false)
+    expect(scope(change(modulePath, null, digi)).worker).toBe(true)
   })
   it.each(['src/demo.c', 'build.json', 'src/demo.s', 'media/native.c'])('compiles actual Digi firmware input %s', path => {
     const actual = scope(change('sdk/digitakt/modules/demo/' + path))
+    expect(actual.elemod).toBe(true)
+    expect(actual.modules).toBe(false)
+    expect(actual.documentation).toBe(false)
+  })
+  it.each(['src/demo.s', 'build.json', 'include/demo.inc'])('compiles Analog Rytm MKII firmware input %s', path => {
+    const actual = scope(change('sdk/analog-rytm-mkii/modules/demo/' + path))
     expect(actual.elemod).toBe(true)
     expect(actual.modules).toBe(false)
     expect(actual.documentation).toBe(false)
@@ -54,7 +67,7 @@ describe('documentation and firmware scheduling', () => {
     expect(actual.elemod).toBe(true)
     expect(actual.documentation).toBe(false)
   })
-  it.each(['vendor/elekloader/catalog/catalog.json', 'vendor/elekloader/catalog/digihealth.elemod', 'vendor/elekloader/elekloader.lock.json'])('compiles and checks downloaded native package input %s', path => {
+  it.each(['vendor/elekloader/upstream-catalog.json', 'sdk/imports/elekloader-digihealth-2026-10-14.json', 'vendor/elekloader/catalog/digihealth.elemod', 'vendor/elekloader/elekloader.lock.json'])('compiles and checks downloaded native package input %s', path => {
     expect(scope(change(path))).toMatchObject({ elemod: true, documentation: false })
   })
   it('compiles new/removed modules and refuses invalid manifest JSON', () => {
@@ -135,4 +148,22 @@ describe('documentation and firmware scheduling', () => {
       expect(() => readChangeScope({ root, base: 'missing-ref' })).toThrow()
     } finally { rmSync(root, { recursive: true, force: true }) }
   })
+})
+
+describe('module version rule', () => {
+  const flagged = { ...digi, compatibility: { ...digi.compatibility, conflicts: ['other'] } }
+  it('needs no new Digitakt version for a conflict flag, yet still runs the full checks', () => {
+    expect(isVersionNeutralChange(change(modulePath, { ...digi, compatibility: { ...digi.compatibility, conflicts: [] } }, flagged))).toBe(true)
+    expect(scope(change(modulePath, { ...digi, compatibility: { ...digi.compatibility, conflicts: [] } }, flagged)).documentation).toBe(false)
+  })
+  it('still needs one for any other compatibility or code change', () => {
+    expect(isVersionNeutralChange(change(modulePath, flagged, { ...flagged, compatibility: { ...flagged.compatibility, releases: ['1.53', '1.54'] } }))).toBe(false)
+    expect(isVersionNeutralChange(change(modulePath, flagged, { ...flagged, platform: { build: 'other.json' } }))).toBe(false)
+    expect(isVersionNeutralChange(change('sdk/digitakt/modules/demo/src/demo.c'))).toBe(false)
+  })
+})
+
+describe('release export reproduction', () => {
+  it.each(['scripts/package-elemod-recipe.mjs', 'scripts/verify-elemod-release-exports.mjs'])('recompiles the elemod sources for %s', path =>
+    expect(scope(change(path)).elemod).toBe(true))
 })

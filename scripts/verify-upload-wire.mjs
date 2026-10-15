@@ -158,7 +158,14 @@ await scenario('uncertain publication requires confirmed rollback', async s => {
 await scenario('positive unchanged publication can discard and resume', async s => {
   await s.stage(payload()); await assert.rejects(s.activate(), UploadDeviceError)
   assert.equal(s.status.phase, 'ready'); assert.equal(s.status.active, previous)
-  await s.cancel(); assert.equal(s.status.phase, 'normal')
+  await s.leaveUploadMode(); assert.equal(s.status.phase, 'normal') // the session forgot the dropped offer
+}, 'unchanged')
+
+await scenario('unchanged commit cleanup permits a fresh staged transaction', async s => {
+  await s.stage(payload()); await assert.rejects(s.activate(), e => e instanceof UploadDeviceError && e.status.result === 'backend')
+  assert.equal(s.status.phase, 'ready'); assert.equal(s.status.received, 0)
+  await s.stage(payload(17)); assert.equal(s.status.phase, 'verified'); assert.equal(s.status.currentTransaction, 2)
+  await s.cancel(); assert.equal(s.status.active, previous); assert.equal(s.status.generation, 0)
 }, 'unchanged')
 
 await scenario('retirement refusal retains rollback', async s => {

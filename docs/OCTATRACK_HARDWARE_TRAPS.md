@@ -94,7 +94,62 @@ After the power cycle one RAM boot with `--chunk 4096` came back in 15 s.
 `systemstats`). They are harmless; a power-cycled unit enumerates beside
 them. If a unit does not come back at all, the cause is on the unit.
 
+**The bench must serialize whole control transfers.** Its socket's `setup`,
+data and status commands form one transaction. Serializing individual commands
+does not prevent the site's keepalive IDENTIFY (72 bytes) from overlapping a
+pending SELFTEST (96 bytes). On the owner's MKII, the ABI 8 candidate at source
+`e86283a6` produced a short self-test record through the unqueued host adapter;
+the device remained responsive. A deterministic host fixture reproduces the
+overlap, and six separate trial/self-test/Undo runs passed with the transaction
+queue. Keep strict response lengths; this host evidence does not establish
+combined-set audio or reboot persistence.
+
+**Extracted 1.40C MAIN starts at `0x40000400`.** Map stock addresses to file
+offsets from that section's load address, not the `0x40000000` vector base.
+After a runtime install, compare every declared relocation with an independent
+fresh link, including words beyond any leading-code sample. The private CC Map
+and Recorder Loop Fix envelopes prepared from `e86283a6` passed sequential
+emulator install/remove with these checks; that does not establish hardware,
+coexistence, MIDI, audio or reboot behavior.
+
+**A source-linked base's DDR symbol is not a MAIN file offset.** Elekloader
+places `.run` in appended flash and copies it to its DDR execution address at
+boot. To inspect an authored identity or arena binding in a private build,
+translate through that build's native `.run` load/execution map, after checking
+the saved MAIN length and hash and bounding the translated span. The frozen
+`e86283a6` base's identity binding was checked this way; subtracting MAIN's
+load address from its DDR symbol would read the wrong place.
+
+**A reconnect failure need not mean the RAM image failed to boot.** The host
+bridge must catch transient enumeration/claim failures while the device returns,
+dispose partially opened handles and keep listening for the next explicit
+request. Never replay a write, reset USB or select a configuration as recovery.
+The same `e86283a6` candidate identified successfully after this host fix on the
+owner's MKII; the earlier dead bridge could not establish a device boot failure.
+
+**Snapshot StockCopy sources before activation.** A source span can overlap a
+site the package replaces. Reading it after Keep compares the loader's correctly
+replayed original bytes against the new detour. The CC Map private runtime
+adapter exposed this verifier error in the emulator on 13 October 2026. Capture
+and hash-check the original spans before install, then compare the installed
+copies and removal against those snapshots.
+
 ## RAM boot
+
+**Private resident DSP packing needs an execution oracle.** In preparation
+`2f66d5d6`, each original upload stream was extended with source-pinned authored
+initialization records, preserving its stock prefix, terminator and trailer.
+An independent ColdFire execution check verified both complete streams,
+linked blob/scratch bounds and saved registers. Share initialization storage only
+when complete typed-record bytes are equal, then verify each core independently.
+This proves the packing shim, not a complete base boot, audio, timing or
+persistence.
+
+That preparation reserves the core 1 wait/meter counter at X:$7fff, outside
+Analog BD's initialization and reset ranges. Preserve that ownership boundary
+and exclude the counter from X probes; the older X:$2840 location overlaps
+Analog BD's authored tables. This is a private native proof, not hardware
+qualification of resident modules.
 
 **Only the flashed base's gate decides a RAM boot.** After the soft reset
 the bootloader always unpacks the flashed image, so its gate reads the
@@ -311,6 +366,32 @@ PLAY MODES' three project-file seams; it now sits beside them and SCALE
 QUANTIZER's, and the build fails when a base site meets the stock bytes any
 catalogue module patches or keeps (`catalogue_overlaps`).
 
+**GCC 16.2 at -O2 can store one byte late.** Its late-combine pass turned
+the controller board's byte copy into `move.b (%a0)+,(0,%a0,%d0.l)`. The
+ColdFire computes the destination from the register it has just
+incremented, so the whole COMPRESSOR descriptor landed one byte high. The
+FX1 SETUP page then saw the wrong slots enabled and jumped through an odd
+widget pointer: vector 3 (address error) at `0x40037c2a`, on a dev twin
+built from base 9d5aa74d. Host builds never show it. The base now compiles
+with `-fno-late-combine-instructions`. `sdk/runtime/m68k_codegen.py`
+refuses any C object, in the base and elemod builds, where an instruction
+steps an address register in its source and reuses it in its destination.
+
+**Stock copies a table entry; restoring the table is not enough.** A track
+bind (`0x4000bff0`) copies its machine type's renderer and start routine
+from the type tables (`0x400d6434[type]`, `0x400d6454[type]`) into two
+per-track slots (`0x400d61d0`, `0x400d61f0`), and every frame calls through
+the slots (`0x4000d43c`). A machine package patches the type table, so
+after it played, removing it put the table back but left the slots on its
+freed code: the unit kept running the removed module until the next install
+was copied over it, then crashed (vector 4 in pool code, beta run 2,
+finding 30, twin `025b3559`). The loader now calls
+`modwerk_machine_site_restored` whenever a site goes back to stock, and the
+Octatrack runtime puts slots that hold the removed entry back to the stock
+one. Any new site whose stock data is copied elsewhere needs the same
+follow-up; fill freed memory with illegal instructions on a dev twin to see
+such a leftover call at once instead of on a later install.
+
 ## The emulator and the tools
 
 What `ot_emu` does not show:
@@ -361,3 +442,10 @@ Tools that work on this Mac:
    and USB audio; the loader's own counter freezes once it is switched off.
 4. Keep the owner's projects out of it: a blank project avoids loads
    triggered by modules a project already uses.
+5. Which admission refused a pick: every cause (code arena, transition,
+   Y buffers, cycles) shows DSP MEMORY FULL. Read the manager's
+   `allocator` (`core:allocator` in the twin's `symbols.json`) right after
+   the refusal: with 128 effect ids a placement is 6 bytes (offset, words,
+   present), `live[2][128]` at +24 and `target[2][128]` at +1560; a failed
+   plan leaves its partial target, so the last id placed shows where it
+   ran out. `capacity[2]` at +4, `keep[2]` (the Parts' union) at +3132.

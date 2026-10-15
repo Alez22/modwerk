@@ -5,14 +5,25 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 import { randomUUID, createHash } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
-import { format } from 'node:util'
 import { build } from 'vite'
 import { Bench, device, enumerate } from './usb-bench.mjs'
 import { buildAndSave } from './firmware-download.mjs'
+import { loadPreparedModules } from './frontend-mcp-prepared.mjs'
+import { assertMcpPrivateHost } from './frontend-mcp-private-host.mjs'
+import { saveSavedBackup } from './frontend-mcp-saved-backup.mjs'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 let activeWorkspace = false
 const hash = data => createHash('sha256').update(data).digest('hex')
+/** Frontend errors can contain a megabyte data-URL stack. Log only bounded
+ * messages; objects and error causes may contain account or transport data. */
+export function formatMcpLog(...args) {
+  return args.slice(0, 8).map(value => {
+    const message = value instanceof Error ? value.name + ': ' + value.message
+      : typeof value === 'string' ? value : value !== null && typeof value === 'object' ? '[object]' : String(value)
+    return message.replace(/data:[^\s)]*/g, '[data URL]').slice(0, 1024)
+  }).join(' ').slice(0, 2048)
+}
 const object = (value, keys) => {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) throw new Error('Unexpected arguments.')
   return value
@@ -28,7 +39,7 @@ const TOOLS = [
   tool('site_features', 'Describe supported frontend operations and the limits of API, DOM and hardware evidence.'),
   tool('site_catalogue', 'List instruments and modules from the actual site catalogue, including current USB package availability.', { machine: string, query: string, category: string, beta: { type: 'boolean' } }),
   tool('site_module', 'Read module controls, usage, licence, evidence and compatibility.', { machine: string, id: string }, ['id']),
-  tool('site_selection', 'Validate a card selection using the site rules, or prepare a USB selection and exact Undo packages without device writes.', { machine: string, moduleIds: strings, keepStockFx2: { type: 'boolean' }, usb: { type: 'boolean' }, beta: { type: 'boolean' }, current: { type: 'object' }, capabilities: { type: 'object' } }, ['moduleIds']),
+  tool('site_selection', 'Validate a card selection using the site rules, or prepare a USB selection and exact Undo packages without device writes. Optional base/capabilities describe hypothetical planning only; device review reads the connected unit.', { machine: string, moduleIds: strings, keepStockFx2: { type: 'boolean' }, usb: { type: 'boolean' }, beta: { type: 'boolean' }, current: { type: 'object' }, capabilities: { type: 'object' }, base: string }, ['moduleIds']),
   tool('set_list', 'Read this MCP workspace’s private module sets; browser and other developers’ workspaces are separate.'),
   tool('set_save', 'Create or update a local module set using the frontend validation/current version rules.', { id: string, name: string, machine: string, moduleIds: strings, keepStockFx2: { type: 'boolean' }, usbAudio: { type: 'object' }, removedStockFx: strings }, ['name', 'moduleIds'], true),
   tool('set_delete', 'Delete one set from this isolated MCP workspace.', { id: string }, ['id'], true),
@@ -37,6 +48,9 @@ const TOOLS = [
   tool('api_request', 'Call a supported frontend community API route. Uses startup-selected normal member/developer credentials; server permissions still apply. Writes need --allow-api-writes and confirm=true.', { path: string, method: { enum: ['GET', 'POST', 'PATCH', 'DELETE'] }, body: { type: 'object' }, confirm: { type: 'boolean' } }, ['path'], true),
   tool('firmware_download', 'Build from exact deployed public inputs using local private stock, save files privately and return only a hash/identity receipt. Never sends firmware to MCP.', { request: { type: 'object' } }, ['request'], true),
   tool('device_status', 'Read the connected base identity, inventory, missing modules and bounded diagnostic status through the real site USB client.'),
+  tool('device_load', 'Read one cached CPU/DSP meter snapshot through the real frontend client. Read-only; never runs a self-test. Older bases report unsupported.'),
+  { ...tool('device_saved_backup', 'Read only /MODWERK0.SET and /MODWERK1.SET through the frontend client, save verified bytes in the startup-selected private workspace and return only a metadata receipt. No card writes, memory access, arbitrary paths or recovery qualification. Older bases report unsupported.'),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false } },
   tool('device_review', 'Review a requested set against exact connected base, active digest and verified packages. Returns a short-lived plan; no device changes.', { moduleIds: strings }, ['moduleIds']),
   tool('device_trial', 'Execute a reviewed set through the real frontend link and self-test. A trial requires --allow-device-writes; never accepts automatically.', { review: string }, ['review'], true),
   tool('device_keep', 'Explicitly accept the current successful self-tested trial and save it on the card. Requires --allow-device-writes.', { trial: string }, ['trial'], true),
@@ -52,6 +66,7 @@ export function validateApiPath(path) {
 }
 
 export async function createFrontendTools(options, injected, dependencies = {}) {
+  assertMcpPrivateHost()
   const { root = ROOT, dataDir, apiBase = 'http://127.0.0.1:8788/api', site = 'https://modwerk.app/' } = options
   if (!dataDir) throw new Error('--data-dir is required; choose a private MCP workspace.')
   const api = new URL(apiBase), deployment = new URL(site)
@@ -59,18 +74,18 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   if (deployment.username || deployment.password || deployment.search || deployment.hash || !(deployment.protocol === 'https:' || deployment.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(deployment.hostname))) throw new Error('Invalid deployment URL.')
   await mkdir(dataDir, { recursive: true, mode: 0o700 })
   const directory = await lstat(dataDir)
-  if (!directory.isDirectory() || directory.isSymbolicLink() || process.platform !== 'win32' && directory.mode & 0o077) throw new Error('Use a private directory (mode 0700), not a symlink.')
+  if (!directory.isDirectory() || directory.isSymbolicLink() || directory.mode & 0o077) throw new Error('Use a private directory (mode 0700), not a symlink.')
   const file = join(dataDir, 'sets.json')
   let sets = []
   try {
     const info = await lstat(file)
-    if (!info.isFile() || info.isSymbolicLink() || info.size > 256 * 1024 || process.platform !== 'win32' && info.mode & 0o077) throw new Error('The set file must be private regular JSON (0600), not a symlink.')
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 256 * 1024 || info.mode & 0o077) throw new Error('The set file must be private regular JSON (0600), not a symlink.')
     sets = JSON.parse(await readFile(file, 'utf8'))
   } catch (error) { if (error.code !== 'ENOENT') throw error }
   let credentials
   if (options.sessionFile) {
     const info = await lstat(options.sessionFile)
-    if (!info.isFile() || info.isSymbolicLink() || info.size > 4096 || process.platform !== 'win32' && info.mode & 0o077) throw new Error('Session credentials must be a private regular file (mode 0600).')
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 4096 || info.mode & 0o077) throw new Error('Session credentials must be a private regular file (mode 0600).')
     credentials = object(JSON.parse(await readFile(options.sessionFile, 'utf8')), ['session', 'developer'])
     for (const value of Object.values(credentials)) if (typeof value !== 'string' || value.length > 600) throw new Error('Invalid session credentials.')
   }
@@ -98,13 +113,14 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     finally { await rm(temporary, { force: true }) }
   }
   const manifest = JSON.parse(await readFile(join(root, 'src/engine/assets/octatrack-module-packages.json'), 'utf8'))
-  const catalogue = frontend.createRuntimeCatalogue(manifest)
-  const load = async entry => {
+  const preparedModules = options.preparedModules && await loadPreparedModules(options.preparedModules, manifest, frontend)
+  const catalogue = preparedModules?.catalogue ?? frontend.createRuntimeCatalogue(manifest)
+  const load = preparedModules?.load ?? (async entry => {
     if (!/^octatrack-modules\/[a-z0-9-]+\/[a-zA-Z0-9.-]+\.mwrm$/.test(entry.path)) throw new Error('Unexpected module asset path.')
     const bytes = new Uint8Array(await readFile(join(root, 'public', entry.path)))
     if (bytes.length !== entry.bytes || hash(bytes) !== entry.sha256) throw new Error('The local site package differs from its manifest.')
     return bytes
-  }
+  })
   const storage = () => { const map = new Map(); return { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) } }
   globalThis.localStorage = storage(); globalThis.sessionStorage = storage()
   if (credentials) {
@@ -147,7 +163,13 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     if (unit.getState().status === 'trial') return { state: unit.getState(), before: trial?.before, trial: trial?.id }
     const state = unit.getState()
     if (!/^[0-9a-f]{64}$/.test(state.identity?.base ?? '') || !/^[0-9a-f]{64}$/.test(state.active ?? '')) throw new Error('The device did not provide a verified base and active identity.')
-    const inventory = await kit.readInventory(), missing = await unit.missing(), diagnostics = await unit.health(), after = unit.getState()
+    let inventory
+    if (preparedModules) {
+      const modules = await unit.inventory()
+      if (!modules) throw new Error('The connected base does not list its modules.')
+      inventory = catalogue.inventory(modules)
+    } else inventory = await kit.readInventory()
+    const missing = await unit.missing(), diagnostics = await unit.health(), after = unit.getState()
     if (after.status !== 'ready' || after.identity?.base !== state.identity.base || after.active !== state.active) throw new Error('The device changed while reading; reconnect and review again.')
     return { state: after, inventory, capabilities: after.identity.capabilities, missing, diagnostics }
   }
@@ -158,14 +180,15 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     if (!args.usb) return { availability: frontend.moduleAvailabilityError(selected, !!args.beta), conflicts: frontend.selectionConflicts(selected, args.keepStockFx2 ?? false) }
     const target = { name: 'MCP test set', moduleIds: selected, removedStockFx: [] }, current = args.current ?? { moduleIds: [], removedStockFx: [] }
     ids(current.moduleIds); ids(current.removedStockFx)
-    const prepared = await catalogue.prepare(target, current, load, args.capabilities)
-    return { review: catalogue.review(target, current, args.capabilities), changes: prepared.changes.map(change => ({ module: change.module, bytes: change.data.length, sha256: hash(change.data), undoSha256: change.undo && hash(change.undo) })) }
+    preparedModules?.requireBase([...selected, ...current.moduleIds], args.base)
+    const prepared = await catalogue.prepare(target, current, load, args.capabilities, args.base)
+    return { review: catalogue.review(target, current, args.capabilities, args.base), changes: prepared.changes.map(change => ({ module: change.module, bytes: change.data.length, sha256: hash(change.data), undoSha256: change.undo && hash(change.undo) })) }
   }
   const handlers = {
-    site_features: async () => ({ beta: true, tools: TOOLS.map(item => item.name), coverage: ['instrument/module catalogue, search and module guides', 'card compatibility and USB package preflight/Undo', 'isolated set CRUD/import/export/current versions', 'community API with normal permissions', 'saved public firmware download receipts', 'real site USB review/trial/self-test/Keep/Undo'], limits: ['Domain/API tests do not measure CSS pixels or audible output.', 'OAuth/browser sign-in and upload file selection use their separate existing workflows.', 'No raw memory, key injection, whole-OS flash or automatic Keep.', 'Local sources and private workspace are distinct from a live signed-in browser.'] }),
+    site_features: async () => ({ beta: true, tools: TOOLS.map(item => item.name), coverage: ['instrument/module catalogue, search and module guides', 'card compatibility and USB package preflight/Undo', 'isolated set CRUD/import/export/current versions', 'community API with normal permissions', 'saved public firmware download receipts', 'real site USB review/trial/self-test/Keep/Undo', 'cached live load and fixed saved-module-file backup receipts'], limits: ['Domain/API tests do not measure CSS pixels or audible output.', 'OAuth/browser sign-in and upload file selection use their separate existing workflows.', 'No raw memory, key injection, whole-OS flash or automatic Keep.', 'Local sources and private workspace are distinct from a live signed-in browser.', 'A saved-module-file backup does not qualify recovery or permit Keep over foreign saved files.'] }),
     site_catalogue: async args => {
       const machine = args.machine ?? 'all', octa = frontend.availableModules(!!args.beta).map(module => ({ ...module, machine: 'octatrack', usb: catalogue.ids.includes(module.id) })), digi = frontend.digiModules.map(module => ({ ...module, name: module.title, description: module.summary, machine: module.device }))
-      return { machines: frontend.machines, modules: [...octa, ...digi].filter(module => (machine === 'all' || module.machine === machine) && (!args.category || (module.libraryCategory ?? module.category) === args.category) && (!args.query || (module.name + ' ' + module.description).toLowerCase().includes(args.query.toLowerCase()))) }
+      return { machines: frontend.machines, ...preparedModules ? { privatePreparation: preparedModules.info } : {}, modules: [...octa, ...digi].filter(module => (machine === 'all' || module.machine === machine) && (!args.category || (module.libraryCategory ?? module.category) === args.category) && (!args.query || (module.name + ' ' + module.description).toLowerCase().includes(args.query.toLowerCase()))) }
     },
     site_module: async args => { if ((args.machine ?? 'octatrack') === 'octatrack') { frontend.resolveSelection(ids([args.id])); return frontend.documents[args.id] } const [module] = frontend.resolveDigiSelection(args.machine, ids([args.id])); return module },
     site_selection: selection,
@@ -196,6 +219,23 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
     },
     firmware_download: async args => { if (!options.stock) throw new Error('Choose private stock at startup with --stock.'); return buildAndSave(args.request, { stockPath: options.stock, outputDir: dataDir, site, root }) },
     device_status: snapshot,
+    device_load: async () => {
+      const unit = await connected(), before = unit.getState()
+      if (before.status !== 'ready' || !/^[0-9a-f]{64}$/.test(before.identity?.base ?? '')) throw new Error('The Octatrack must be idle with a verified base identity.')
+      const reading = await unit.liveLoad(), after = unit.getState()
+      if (after.status !== 'ready' || after.identity?.base !== before.identity.base || after.active !== before.active) throw new Error('The device changed during the load read.')
+      return { base: after.identity.base, supported: reading !== undefined, reading: reading ?? null }
+    },
+    device_saved_backup: async () => {
+      if (trial) throw new Error('Finish the current trial before backing up saved files.')
+      const before = await snapshot(), unit = await connected()
+      const snapshots = await unit.savedBackup(), after = await snapshot()
+      if (after.state.status !== 'ready' || after.state.identity.base !== before.state.identity.base || after.state.active !== before.state.active ||
+          JSON.stringify(after.inventory) !== JSON.stringify(before.inventory) || after.diagnostics?.saved !== before.diagnostics?.saved)
+        throw new Error('The device changed during the saved-file backup; no files were saved.')
+      if (!snapshots) return { supported: false, complete: false, recoveryVerified: false, base: after.state.identity.base, files: [] }
+      return saveSavedBackup(dataDir, { base: after.state.identity.base, active: after.state.active }, snapshots, directory)
+    },
     device_review: async args => {
       if (trial) throw new Error('Finish the current trial first.')
       const before = await snapshot(), target = { name: 'MCP reviewed set', moduleIds: ids(args.moduleIds), removedStockFx: [] }
@@ -203,7 +243,8 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
       // Legacy INVENTORY gives a layout, not the exact installed package hash. Preserve existing
       // modules rather than pretending the latest site package is their exact rollback image.
       if (before.inventory.moduleIds.some(id => !target.moduleIds.includes(id))) throw new Error('This base cannot identify exact installed rollback packages. Preserve its existing modules in this test set.')
-      const prepared = await catalogue.prepare(target, before.inventory, load, before.capabilities), review = randomUUID()
+      preparedModules?.requireBase([...target.moduleIds, ...before.inventory.moduleIds], before.state.identity?.base)
+      const prepared = await catalogue.prepare(target, before.inventory, load, before.capabilities, before.state.identity?.base), review = randomUUID()
       for (const [id, item] of reviews) if (item.expires < clock()) reviews.delete(id)
       if (reviews.size >= 10) throw new Error('Finish or expire existing reviews first.')
       reviews.set(review, { before, target, prepared, expires: clock() + 60000 })
@@ -237,6 +278,7 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
   async function finish(args, keep) {
     if (!options.allowDeviceWrites || !trial || args.trial !== trial.id) throw new Error('No matching authorized device trial.')
     if (link.getState().status !== 'trial' || link.getState().identity.base !== trial.base || link.getState().active !== trial.active) throw new Error('Trial identity changed; reconnect and recover.')
+    if (keep && trial.before.diagnostics?.saved === 4) throw new Error('Keep would replace saved files from another base. Their backup and exact recovery must be verified first; Undo remains available.')
     const completed = trial
     if (keep) await link.keep(); else await link.undo()
     if (link.getState().status !== 'ready') throw new Error(link.getState().notice?.text ?? 'Device did not finish the trial.')
@@ -289,12 +331,14 @@ export function createProtocol(service) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  for (const method of ['log', 'info', 'debug', 'warn', 'error']) console[method] = (...args) => process.stderr.write(format(...args) + '\n')
-  const { values } = parseArgs({ options: { 'data-dir': { type: 'string' }, 'frontend-root': { type: 'string' }, 'api': { type: 'string' }, site: { type: 'string' }, 'session-file': { type: 'string' }, stock: { type: 'string' }, 'device-socket': { type: 'string' }, 'allow-api-writes': { type: 'boolean' }, 'allow-device-writes': { type: 'boolean' } } })
-  const service = await createFrontendTools({ root: values['frontend-root'] && resolve(values['frontend-root']), dataDir: values['data-dir'] && resolve(values['data-dir']), apiBase: values.api, site: values.site, sessionFile: values['session-file'], stock: values.stock, deviceSocket: values['device-socket'], allowApiWrites: values['allow-api-writes'], allowDeviceWrites: values['allow-device-writes'] })
+  for (const method of ['log', 'info', 'debug', 'warn', 'error']) console[method] = (...args) => process.stderr.write(formatMcpLog(...args) + '\n')
+  try {
+  const { values } = parseArgs({ options: { 'data-dir': { type: 'string' }, 'frontend-root': { type: 'string' }, 'prepared-modules': { type: 'string' }, 'api': { type: 'string' }, site: { type: 'string' }, 'session-file': { type: 'string' }, stock: { type: 'string' }, 'device-socket': { type: 'string' }, 'allow-api-writes': { type: 'boolean' }, 'allow-device-writes': { type: 'boolean' } } })
+  const service = await createFrontendTools({ root: values['frontend-root'] && resolve(values['frontend-root']), preparedModules: values['prepared-modules'] && resolve(values['prepared-modules']), dataDir: values['data-dir'] && resolve(values['data-dir']), apiBase: values.api, site: values.site, sessionFile: values['session-file'], stock: values.stock, deviceSocket: values['device-socket'], allowApiWrites: values['allow-api-writes'], allowDeviceWrites: values['allow-device-writes'] })
   const protocol = createProtocol(service), input = createInterface({ input: process.stdin, crlfDelay: Infinity })
   let queue = Promise.resolve()
   input.on('line', line => { queue = queue.then(async () => { let reply; try { if (Buffer.byteLength(line) > 64 * 1024) throw new Error('Message too large.'); reply = await protocol(JSON.parse(line)) } catch { reply = { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Invalid JSON-RPC message.' } } } if (reply) process.stdout.write(JSON.stringify(reply) + '\n') }) })
   input.on('close', () => { void queue.finally(() => service.close()) })
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { input.close(); void queue.finally(() => service.close()).finally(() => process.exit(0)) })
+  } catch (error) { process.stderr.write(formatMcpLog(error) + '\n'); process.exitCode = 1 }
 }

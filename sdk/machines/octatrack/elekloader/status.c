@@ -13,6 +13,7 @@
 #include "selftest.h"
 #include "status.h"
 #include "fxids.h"
+#include "load_wire.h"
 void modwerk_status_close_menu(void); /* below, with the menu rows */
 
 #define CUE 0x2a
@@ -37,6 +38,26 @@ uint32_t dl_buffers_in_use(void); /* manager.c (build_core.py's edit): FX1 and F
  * window has measured the timer's rate: nothing counts). */
 volatile uint32_t modwerk_idle_counts, modwerk_idle_gap;
 volatile uint32_t modwerk_status[STATUS_WORDS]; /* per mille, masks, bytes, counts: the report's tail */
+/* The USB IRQ can preempt this task. Publish one complete bank with a single
+ * aligned store; the IRQ only reads the other bank and never waits for us. */
+static volatile struct modwerk_load_cache load_cache[2];
+static volatile uint32_t load_bank;
+static uint32_t load_at[3], load_flags;
+static void publish_load(void)
+{
+    unsigned next = load_bank ^ 1u;
+    volatile struct modwerk_load_cache *cache = &load_cache[next];
+    cache->flags = load_flags; cache->frames = dl_frames;
+    for (unsigned i = 0; i < 3u; ++i) cache->at[i] = load_at[i];
+    for (unsigned i = 0; i < 5u; ++i) cache->values[i] = modwerk_status[i];
+    __asm__ __volatile__("" ::: "memory");
+    load_bank = next;
+}
+unsigned modwerk_status_load(uint8_t *out)
+{
+    modwerk_load_encode(out, modwerk_runtime_ticks, &load_cache[load_bank]);
+    return MODWERK_LOAD_BYTES;
+}
 uint32_t modwerk_status_report(uint32_t *out)
 {
     for (unsigned i = 0; i < STATUS_WORDS; ++i) out[i] = modwerk_status[i];
@@ -71,12 +92,14 @@ void modwerk_status_tick(void)
     if (df) modwerk_status[WRAP] = counts / df, modwerk_idle_gap = counts / df / 362u + 2u; /* about 1 µs */
     uint32_t per = counts / 1000u;
     modwerk_status[CPU] = per && ticks > 30u && di / per < 1000u ? 1000u - di / per : 0;
+    if (per && ticks > 30u && df) { load_flags |= 1u; load_at[0] = modwerk_runtime_ticks; }
     cpu_recent[(ticks / 30u) % 8u] = modwerk_status[CPU]; /* the page's CPU peak: the last four seconds */
     if (reading >= 0) { /* least, most and sum of 1,024 frames, read 24 bits a tick */
         if (modwerk_dsp_meter_core == reading && modwerk_dsp_meter_bits >= (read_words == 1u ? 24u : 72u)) {
             if (read_words == 3u) {
                 modwerk_status[reading ? DSP1_MEAN : DSP0_MEAN] = busy((unsigned)reading, modwerk_dsp_meter[3] >> 10);
                 modwerk_status[reading ? SUM1 : SUM0] = modwerk_dsp_meter[3];
+                load_flags |= 2u << (unsigned)reading; load_at[1u + (unsigned)reading] = modwerk_runtime_ticks;
             }
             modwerk_status[reading ? DSP1_PEAK : DSP0_PEAK] = busy((unsigned)reading, modwerk_dsp_meter[1]);
             modwerk_status_reads = modwerk_status_reads + 1;
@@ -90,6 +113,7 @@ void modwerk_status_tick(void)
     modwerk_status[POOL_USED] = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
     modwerk_status[MODULES] = modwerk_runtime_active();
     modwerk_status[ARENA] = modwerk_dsp_arena[0] | (uint32_t)modwerk_dsp_arena[1] << 16;
+    publish_load();
 }
 
 /* The dialogs: while one shows it takes every key and encoder, so nothing changes under it; NO closes it and the
@@ -175,24 +199,32 @@ extern uint8_t modwerk_test_live_fx[16];
 #endif
 extern volatile uint32_t dl_selection_completed, modwerk_boot_accepted;
 static unsigned memory_left; /* ticks the box still shows */
+static int budget_slot = -1; /* the slot the pick put a module on; -1: an accept over USB (memory only) */
+/* Each core's code words before the pick: what it took is the change, so a second instance on the core or a module
+ * another Part already holds takes +0% (one copy of the code per core), and a swap for a smaller one shows minus.
+ * shortcut: a second pick within the box's 1.5 s counts from before the first, until the box closes. */
+static uint32_t words_before[2];
 static void memory_tick(void)
 {
     static uint32_t completed, accepted;
     static uint8_t before[16];
-    int loaded = modwerk_boot_accepted != accepted;
+    int over_usb = modwerk_boot_accepted != accepted, picked = 0;
     if (dl_selection_completed != completed) { /* a pick changes one slot; a Part change, usually many: no box then */
-        unsigned changed = 0, module = 0;
-        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, module |= (unsigned)fx_in(modwerk_fx_modules, LIVE[i]);
-        loaded |= changed == 1u && module;
+        unsigned changed = 0, module = 0, at = 0;
+        for (unsigned i = 0; i < 16u; ++i) if (LIVE[i] != before[i]) ++changed, at = i, module |= (unsigned)fx_in(modwerk_fx_modules, LIVE[i]);
+        if (changed == 1u && module) picked = 1, budget_slot = (int)at;
     }
-    if (dl_selection_completed != completed || loaded) for (unsigned i = 0; i < 16u; ++i) before[i] = LIVE[i];
+    if (over_usb && !picked) budget_slot = -1;
+    if (dl_selection_completed != completed || over_usb) for (unsigned i = 0; i < 16u; ++i) before[i] = LIVE[i];
     completed = dl_selection_completed, accepted = modwerk_boot_accepted;
-    if (loaded && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
+    if ((picked || over_usb) && (open == CLOSED || open == MEMORY)) open = MEMORY, memory_left = 90u;
     if (open == MEMORY && memory_left && !--memory_left) open = CLOSED;
+    if (open != MEMORY) words_before[0] = dl_residency_words[0], words_before[1] = dl_residency_words[1];
 }
 /* MODULE LOAD (owner, 12 October 2026: "load per module"): each installed module effect, with what its instances
- * cost on each core as a share of the frame, as the LOAD page's bars count. The cores' meters see only their sum, so
- * this is each module's figure times the slots running it: a hardware figure, or 7/4 of an emulator claim (~). */
+ * cost on each core as a share of that core's DSP budget, as the box and the STATUS page's DSP rows count (owner,
+ * 14 October 2026: one denominator). The cores' meters see only their sum, so this is each module's figure times the
+ * slots running it: a hardware figure, or 7/4 of an emulator claim (~). */
 static struct modwerk_module_load modules[MODWERK_FX_IDS];
 static unsigned modules_count(void) { return modwerk_dsp_module_loads(modules); }
 volatile uint32_t modwerk_status_key_at; /* modwerk_runtime_ticks at the last key or knob: dsp.c's compaction waits for quiet */
@@ -205,7 +237,10 @@ int modwerk_status_key(int code, int pressed)
         return 0;
     }
     if (code == CUE) cue = pressed;
-    if (open == MEMORY && pressed) open = CLOSED; /* a popup: the key goes on to stock */
+    if (open == MEMORY && pressed) { /* a popup: YES only closes it (owner, 14 October 2026); any other key goes on to stock */
+        open = CLOSED;
+        if (code == YES) { taken = code; return 1; }
+    }
     if (pressed && (open == MISSING || open == MODULE_LOAD) && code != CUE && !(code == PROJ && cue)) { /* lists */
         unsigned *top = open == MISSING ? &missing_top : &modules_top, n = open == MISSING ? missing[3] : modules_count();
         if (code == UP && *top) --*top;
@@ -425,7 +460,7 @@ static void modules_page(unsigned char *frame)
             if (!slots) *e++ = '-';
             else {
                 if (!m->measured) *e++ = '~';
-                e = number(e, (share(m->cycles * slots, FRAME_CYCLES / 16u) + 5u) / 10u);
+                e = number(e, (share(m->cycles * slots, core ? MODWERK_DSP_ALLOWANCE0 : MODWERK_DSP_ALLOWANCE1) + 5u) / 10u);
                 *e++ = '%';
             }
             *e = 0;
@@ -437,6 +472,20 @@ static void modules_page(unsigned char *frame)
     if (estimate) label(X0 + 4u, Y1 - 8u, "~ ESTIMATE");
     button(frame, X1 - 26u, Y1 - 10u, "YES");
 }
+/* A bar whose last `part` of `permille` is dotted: what one effect adds to what its core already holds. */
+static void share_bar(unsigned char *frame, unsigned x, unsigned y, unsigned w, unsigned h, uint32_t permille, uint32_t part)
+{
+    bar(frame, x, y, w, h, permille, 0);
+    uint32_t n = (w - 2u) * (permille < 1000u ? permille : 1000u) / 1000u, k = (w - 2u) * (part < permille ? part : permille) / 1000u;
+    for (unsigned px = x + 1u + n - k; px < x + 1u + n; ++px)
+        for (unsigned py = y + 1u; py + 2u <= y + h; ++py) if ((px + py) & 1u) fill(frame, px, py, px, py, 0);
+}
+static void plus(unsigned x, unsigned top, uint32_t permille, int minus)
+{
+    char t[8], *s = t;
+    *s++ = minus ? '-' : '+', s = number(s, (permille + 5u) / 10u), *s++ = '%', *s = 0;
+    label(x, top, t);
+}
 static void memory_box(unsigned char *frame)
 {
     static const char *const names[3] = {"T1-4", "T5-8", "POOL"};
@@ -447,6 +496,21 @@ static void memory_box(unsigned char *frame)
     surface[3] = (uint32_t)(uintptr_t)frame;
     fill(frame, 18u, 12u, 109u, 50u, 0);
     outline(frame, 18u, 12u, 109u, 50u);
+    struct modwerk_dsp_budget b;
+    if (budget_slot >= 0 && modwerk_dsp_budget((unsigned)budget_slot, &b)) { /* its core's DSP time and code memory */
+        char where[8] = {'T', (char)('1' + (budget_slot & 7)), ' ', 'F', 'X', (char)(budget_slot < 8 ? '1' : '2'), 0};
+        b.name[15] = 0;
+        for (char *c = b.name; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* as MISSING names them */
+        label(23u, 15u, b.name), label((unsigned)(105 - TEXT_WIDTH(FONT, -1, where)), 15u, where);
+        fill(frame, 18u, 22u, 109u, 22u, 1);
+        const uint32_t dsp = share(b.charge, b.allowance), dsp_part = share(b.effect_cycles, b.allowance),
+                       mem = share(b.words, b.arena), before = share(words_before[b.core], b.arena);
+        label(23u, 26u, "DSP"), share_bar(frame, 45u, 26u, 40, 6, dsp, dsp_part), plus(89u, 26u, dsp_part, 0);
+        label(23u, 34u, "MEM"), share_bar(frame, 45u, 34u, 40, 6, mem, mem > before ? mem - before : 0);
+        plus(89u, 34u, mem > before ? mem - before : before - mem, mem < before);
+        label(23u, 42u, "POOL"), bar(frame, 45u, 42u, 40, 6, used[2], 0), percent(89u, 42u, used[2]);
+        return;
+    }
     label((unsigned)(64 - TEXT_WIDTH(FONT, -1, "MEMORY USED") / 2), 15u, "MEMORY USED");
     fill(frame, 18u, 22u, 109u, 22u, 1);
     for (unsigned i = 0; i < 3u; ++i) {
@@ -466,24 +530,18 @@ void modwerk_status_draw(unsigned char *frame)
     dialog(frame, "MODWERK STATUS");
     uint32_t cpu_peak = 0;
     for (unsigned i = 0; i < 8u; ++i) cpu_peak = cpu_recent[i] > cpu_peak ? cpu_recent[i] : cpu_peak;
-    static const char *const names[3] = {"CPU", "T1-4", "T5-8"};
-    const uint32_t load[3] = {modwerk_status[CPU], modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN]},
-                   peak[3] = {cpu_peak, modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
-    for (unsigned i = 0; i < 3u; ++i) {
-        unsigned y = Y0 + 14u + 8u * i;
-        label(X0 + 4u, y, names[i]);
-        bar(frame, X0 + 30u, y, 58, 6, load[i], peak[i]);
-        percent(X0 + 92u, y, load[i]);
-    }
-    for (unsigned x = X0 + 4u; x < X1 - 3u; x += 2) fill(frame, x, Y0 + 38u, x, Y0 + 38u, 1);
     uint32_t largest, pool = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
-    static const char *const memory[3] = {"P T1-4", "P T5-8", "POOL"};
-    const uint32_t used[3] = {share(dl_residency_words[1], modwerk_dsp_arena[1]), share(dl_residency_words[0], modwerk_dsp_arena[0]),
-                              share(pool, RUNTIME_POOL_BYTES)};
-    for (unsigned i = 0; i < 3u; ++i) {
-        unsigned y = Y0 + 42u + 6u * i;
-        label(X0 + 4u, y - 1u, memory[i]);
-        bar(frame, X0 + 30u, y, 58, 4, used[i], 0);
-        percent(X0 + 92u, y - 1u, used[i]);
+    /* What runs now (measured, with the recent peak's tick), then the DSP budget admission books per core (owner,
+     * 14 October 2026: DSP FULL comes from it, not from the measured load), the code memory and the module pool. */
+    static const char *const names[8] = {"CPU", "T1-4", "T5-8", "DSP T1-4", "DSP T5-8", "MEM T1-4", "MEM T5-8", "POOL"};
+    const uint32_t load[8] = {modwerk_status[CPU], modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN], modwerk_dsp_booked(1),
+                              modwerk_dsp_booked(0), share(dl_residency_words[1], modwerk_dsp_arena[1]),
+                              share(dl_residency_words[0], modwerk_dsp_arena[0]), share(pool, RUNTIME_POOL_BYTES)},
+                   peak[3] = {cpu_peak, modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
+    for (unsigned i = 0; i < 8u; ++i) {
+        unsigned y = Y0 + 13u + 6u * i;
+        label(X0 + 4u, y - 1u, names[i]);
+        bar(frame, X0 + 40u, y, 48, 4, load[i], i < 3u ? peak[i] : 0);
+        percent(X0 + 92u, y - 1u, load[i]);
     }
 }
