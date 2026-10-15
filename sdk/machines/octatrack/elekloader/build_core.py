@@ -336,6 +336,33 @@ DSP_EDITS = {
                    '    return 1;\n'
                    '}\n'
                    'void dl_selection_commit(uint32_t token) {'),
+                  # A move's rollback (phase 7) sends the moved id back to its old copy with one BIND: that copy still
+                  # runs (dl_allocator_move placed the new one clear of every live copy) and stays held until the
+                  # cancel. Sending it to the dry stub, as for code that never ran, would silence a running effect.
+                  # Only an old copy a new copy of this transaction may have overwritten goes to the stub.
+                  ('static void rollback(void) { cancelling=1; }\n',
+                   'static void rollback(void) { cancelling=1; }\n'
+                   '/* Modwerk: 1 when a rollback rebinds p on core c to its live copy (moved, and that copy provably\n'
+                   ' * intact: no span this transaction uploads meets it); sent_back: the job in flight is such a BIND. */\n'
+                   'static unsigned sent_back;\n'
+                   'static unsigned moved_back(unsigned c,unsigned p) {\n'
+                   '    const struct dl_placement *old=&allocator.live[c][p];\n'
+                   '    if(!old->present || !allocator.target[c][p].present || allocator.target[c][p].offset==old->offset) return 0;\n'
+                   '    for(unsigned q=0;q<sizeof allocator.target[c]/sizeof allocator.target[c][0];++q) {\n'
+                   '        const struct dl_placement *t=&allocator.target[c][q];\n'
+                   '        if(!t->present || (allocator.live[c][q].present && allocator.live[c][q].offset==t->offset)) continue;\n'
+                   '        if(t->offset<(unsigned)old->offset+old->words && (unsigned)t->offset+t->words>old->offset) return 0;\n'
+                   '    }\n'
+                   '    return 1;\n'
+                   '}\n'),
+                  ('        unsigned offset=DL_CODE_START+allocator.target[c][p].offset;\n',
+                   '        unsigned back=mode==7 && moved_back(c,p);\n'
+                   '        sent_back=back;\n'
+                   '        unsigned offset=DL_CODE_START+(back ? allocator.live[c][p].offset : allocator.target[c][p].offset);\n'),
+                  ('        } else waiting=dl_command_start(c,mode==3 ? DL_BIND :',
+                   '        } else waiting=dl_command_start(c,mode==3 || back ? DL_BIND :'),
+                  ('                if(phase==4 || dl_bypass_unbound) stubbed[c]|=bit; else stubbed[c]&=~bit;',
+                   '                if(phase==4 || (dl_bypass_unbound && !sent_back)) stubbed[c]|=bit; else stubbed[c]&=~bit;'),
                   # A core's channel held by another job (status.c's meter reads, dsp.c's probes) is a wait, not a
                   # refusal: the next tick tries again. Only a start the transfer layer refused outright refuses.
                   ('        if(!waiting) { report(DL_SELECT_UNAVAILABLE); if(phase==8) { cancelling=1; phase=7; cursor=0; } }',
@@ -737,10 +764,10 @@ WIDTH_EDITS = {
         ('        unsigned c=cursor/32;\n        int s=dl_job_status(c);', '        unsigned c=cursor/DL_PACKAGES;\n        int s=dl_job_status(c);'),
         ('            unsigned bit=1u<<(cursor%32);\n            if(phase==3) stubbed[c]&=~bit;\n'
          '            else if(phase==4 || phase==6 || phase==7) {\n'
-         '                if(phase==4 || dl_bypass_unbound) stubbed[c]|=bit; else stubbed[c]&=~bit;',
+         '                if(phase==4 || (dl_bypass_unbound && !sent_back)) stubbed[c]|=bit; else stubbed[c]&=~bit;',
          '            unsigned id=cursor%DL_PACKAGES;\n            if(phase==3) stubbed[c]=fx_without(stubbed[c],id);\n'
          '            else if(phase==4 || phase==6 || phase==7) {\n'
-         '                stubbed[c]=phase==4 || dl_bypass_unbound ? fx_with(stubbed[c],id) : fx_without(stubbed[c],id);'),
+         '                stubbed[c]=phase==4 || (dl_bypass_unbound && !sent_back) ? fx_with(stubbed[c],id) : fx_without(stubbed[c],id);'),
         ('    while(cursor<64 && !needed(cursor,mode)) ++cursor;\n    if(cursor<64) {\n        unsigned c=cursor/32,p=cursor%32;',
          '    while(cursor<2u*DL_PACKAGES && !needed(cursor,mode)) ++cursor;\n    if(cursor<2u*DL_PACKAGES) {\n'
          '        unsigned c=cursor/DL_PACKAGES,p=cursor%DL_PACKAGES;'),

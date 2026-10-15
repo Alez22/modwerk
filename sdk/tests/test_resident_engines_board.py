@@ -7,8 +7,9 @@ expected words), the controller packages and trust rows (test_controller_board's
 bank's Parts, and a modelled DSP receiver (WRITE into a P array, PLACE and CAS as resident_dsp.receiver_place
 and receiver_control state them, RESET word counts, BIND/UNBIND/BYPASS into a dispatch table that every frame
 checks: each running slot's code whole and where the manager holds it). Modes 12-21 are the evacuation of live FX
-code from the engines' region. No hardware ACK, timing or audio is claimed; the DSP side's own execution is
-test_resident_engines.py's.
+code from the engines' region, 22-25 dl_move's rollback (back to the old copy, or the stub when that copy is not provably
+intact), 26-28 a Part switch while an owned job holds a core (it waits, at most 600 refused starts per owned job). No
+hardware ACK, timing or audio is claimed; the DSP side's own execution is test_resident_engines.py's.
 """
 import importlib.util
 import hashlib
@@ -113,6 +114,15 @@ int test_target(unsigned c, unsigned p) { return allocator.phase && allocator.ta
 unsigned test_active(unsigned i) { return allocator.active[i]; }
 unsigned test_words(unsigned p) { return dl_catalog[p].resident ? 0u : dl_catalog[p].words; }
 unsigned test_phase(void) { return phase; }
+/* dl_move (dsp.c's compaction), whether a core's dispatch of p is the stub, and the owned job the manager last waited for. */
+int test_move(unsigned c, unsigned p, unsigned offset) { return dl_move(c, p, offset); }
+int test_stubbed(unsigned c, unsigned p) { return fx_in(stubbed[c], p); }
+uint32_t test_owned_seen(void) { return owned_seen; }
+/* Made up: an open transaction also plans p on core c at `offset` (no planner does that over live code). */
+void test_inject_target(unsigned c, unsigned p, unsigned offset, unsigned n) { allocator.target[c][p] = (struct dl_placement){(uint16_t)offset, (uint16_t)n, 1}; }
+/* Made up: core c's Y buffer table entry e differs from the plan, so the table step (phase 8) sends one DL_BASE. */
+void test_force_table(unsigned c, unsigned e) { buffers.want[c][e] = buffers.table[c][e] ^ 1u; }
+int test_table_matches(unsigned c, unsigned e) { return buffers.table[c][e] == buffers.want[c][e]; }
 void test_advance(void) { dl_residency_tick(); } /* the manager's UI tick (the native build has no observer) */
 /* Id 0 (NONE) is resident, as stock's is. */
 void test_none(void) { dl_catalog[0] = (struct dl_package){0, 0, 0, 3, 1, 1, 0}; }
@@ -157,6 +167,13 @@ int test_target(unsigned c, unsigned p);
 unsigned test_active(unsigned i);
 unsigned test_words(unsigned p);
 unsigned test_phase(void);
+int test_move(unsigned c, unsigned p, unsigned offset);
+int test_stubbed(unsigned c, unsigned p);
+uint32_t test_owned_seen(void);
+extern volatile uint32_t dl_residency_rollbacks, dl_residency_failures;
+void test_inject_target(unsigned c, unsigned p, unsigned offset, unsigned n);
+void test_force_table(unsigned c, unsigned e);
+int test_table_matches(unsigned c, unsigned e);
 void test_advance(void);
 void test_fx(unsigned p, unsigned n);
 void test_none(void);
@@ -174,12 +191,12 @@ static unsigned refuse_bind[2], drop_bind[2], refuse_once[2]; /* a BIND to this 
 static unsigned dispatch[2][64]; /* 1 + the table offset an id's BIND named (its init), 0 the stub or unbound */
 /* Every frame: each slot runs its id's whole, correct code from where the manager holds it (live, or an open
  * transaction's new copy), never a stub, freed or half-written words. The test FX code is (id << 12) + word. */
-static unsigned frames_checked;
+static unsigned frames_checked, stub_ok; /* stub_ok: an id expected on the dry stub (a rollback that fails closed) */
 static void running_whole(void)
 {
     for (unsigned i = 0; i < 16; ++i) {
         unsigned p = test_active(i), c = (i & 7) < 4 ? 1u : 0u;
-        if (p >= 64 || !test_words(p)) continue;
+        if (p >= 64 || !test_words(p) || (p == stub_ok && !dispatch[c][p])) continue;
         assert(dispatch[c][p]);
         unsigned at = dispatch[c][p] - 1u;
         int live = test_live(c, p), target = test_target(c, p);
@@ -241,6 +258,29 @@ static void dsp(void)
 }
 static void run(unsigned n) { while (n--) { ++ticks; modwerk_controller_tick(); test_advance(); dsp(); dsp(); } }
 static void pump(void) { dsp(); }
+/* A UI tick of the board alone (the manager advances from the selection's own poll). */
+static void board_pump(void) { ++ticks; modwerk_controller_tick(); dsp(); dsp(); }
+/* Mode 28's frames: once the transaction runs, core B's table entry 0 is made to differ; an owned reservation held on
+ * core B is let go 50 frames after the table step (phase 8) first meets it. */
+/* Mode 27's frames: two owned reservations on core A, one after the other, 400 frames each, the second taken in the
+ * frame the first is let go (two jobs of the same sequence, as the board's RESET chunks). */
+static struct dl_owned_job relay;
+static unsigned relay_n;
+static void relay_pump(void)
+{
+    dsp();
+    if (++relay_n % 400u || relay_n > 800u) return;
+    assert(dl_owned_cancel(&relay) == 1);
+    if (relay_n < 800u) assert(dl_owned_command_reserve(0, 78u, DL_PROBE, 0, 0, 0, &relay));
+}
+static struct dl_owned_job held_b;
+static unsigned forced, in_tables;
+static void table_pump(void)
+{
+    dsp();
+    if (!forced && test_phase() >= 2) { test_force_table(1, 0); forced = 1; }
+    if (test_phase() == 8 && dl_owned_holder(1) && ++in_tables == 50) assert(dl_owned_cancel(&held_b) == 1);
+}
 static const struct mu_backend *loader = &modwerk_runtime_backend;
 static enum mu_publication install(const uint8_t *data, unsigned length)
 {
@@ -763,6 +803,118 @@ int main(int argc, char **argv)
         assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY && dl_engine_why[0] == 2);
         run(100);
         assert(trails[0] == from && !dl_engine_evacuations && test_live(0, 4) == (int)(top - 1000u));
+    } else if (mode == 22 || mode == 23 || mode == 24) {
+        /* dl_move's rollback (compaction moves code while it plays): the moved effect keeps running its old copy, which
+         * stays held until the cancel; it is never sent to the dry stub. 22: the new copy's upload refused part way (no
+         * BIND sent); 23: its BIND refused, and the way back refused once (sent again until it lands); 24: its BIND
+         * applied but never answered (the transport times out). Every frame the slot runs whole code from its old copy or,
+         * between an applied BIND and the way back, its new one (running_whole). */
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[4] = 5;
+        assert(test_select(ids, pump) == 1 && test_live(0, 5) == 0 && dispatch[0][5] == 65u);
+        unsigned from = trails[0], rollbacks = dl_residency_rollbacks;
+        if (mode == 22) refuse_write[0] = 64u + 800u + 24u; /* the new copy's second chunk */
+        else if (mode == 23) refuse_bind[0] = 64u + 800u, refuse_once[0] = 64u;
+        else drop_bind[0] = 64u + 800u;
+        assert(test_move(0, 5, 800));
+        run(300);
+        assert(test_idle() && test_live(0, 5) == 0 && dispatch[0][5] == 65u && !test_stubbed(0, 5));
+        assert(dl_residency_rollbacks == rollbacks + 1 && !count_ops(0, from, 5) && !count_ops(0, from, 6));
+        unsigned back = first_op(0, from, 4, 5, 64u);
+        assert(back < trails[0]); /* one BIND back to the old copy */
+        if (mode == 22) assert(count_ops(0, from, 4) == 1 && first_op(0, from, 4, 5, 64u + 800u) == trails[0]);
+        if (mode == 23) assert(first_op(0, back + 1u, 4, 5, 64u) < trails[0]);
+        if (mode == 24) assert(dl_errors && first_op(0, from, 4, 5, 64u + 800u) < back);
+        /* The new copy's words are free again: whatever goes there, the slot never notices. */
+        for (unsigned w = 64u + 800u; w < 64u + 1200u; ++w) P[0][MODWERK_DSP_TABLE0 + w] = 0xdead00u;
+        run(20);
+        /* A later move lands. */
+        refuse_write[0] = refuse_bind[0] = 0;
+        assert(test_move(0, 5, 800));
+        run(300);
+        assert(test_idle() && test_live(0, 5) == 800 && dispatch[0][5] == 64u + 800u + 1u && !test_stubbed(0, 5));
+    } else if (mode == 25) {
+        /* Fail closed: an old copy that a new copy of the same transaction may have overwritten is not rebound; the id
+         * goes to the dry stub, as before. Made up (dl_allocator_move keeps a new copy clear of all live code): id 6 planned
+         * over id 5's old copy, its first chunk refused, so the move rolls back. */
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[4] = 5;
+        assert(test_select(ids, pump) == 1 && test_live(0, 5) == 0);
+        unsigned from = trails[0];
+        assert(test_move(0, 5, 800));
+        test_inject_target(0, 6, 0, 400);
+        refuse_write[0] = 64u; /* id 6's first chunk; id 5's new copy (800) went first */
+        stub_ok = 5;
+        run(300);
+        assert(test_idle() && test_live(0, 5) == 0 && !dispatch[0][5] && test_stubbed(0, 5));
+        assert(first_op(0, from, 6, 5, 0) < trails[0] && first_op(0, from, 4, 5, 64u) == trails[0]);
+    } else if (mode == 26) {
+        /* A Part switch that needs an upload while an owned job holds the core: Sidechain's engine WRITE on core A, then
+         * the board's RESET there. dl_job_status answers -2 for that core; the manager waits and the switch completes
+         * after the job, with no rollback or failure. */
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[0] = 7; /* core B: probes both cores and starts the manager */
+        assert(test_select(ids, pump) == 1);
+        unsigned rollbacks = dl_residency_rollbacks, failures = dl_residency_failures;
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        for (unsigned n = 0; n < 400 && !(mw_engines[0][0].state == MW_ENGINE_WRITING && dl_owned_holder(0)); ++n) board_pump();
+        assert(mw_engines[0][0].state == MW_ENGINE_WRITING && dl_owned_holder(0));
+        uint32_t held = dl_owned_holder(0);
+        unsigned from = trails[0];
+        ids[4] = 5;
+        assert(test_select(ids, board_pump) == 1 && test_owned_seen() >= held);
+        unsigned fx = first_op(0, from, 3, 0, 64u + (unsigned)test_live(0, 5));
+        assert(fx < trails[0]);
+        unsigned engine = trails[0];
+        for (unsigned i = from; i < trails[0]; ++i) if (trail[0][i].op == 3u && trail[0][i].w5 >= 64u + sc) { engine = i; break; }
+        assert(engine < fx); /* the engine's own chunk first */
+        /* The board's RESET on core A. */
+        for (unsigned n = 0; n < 2000 && !(words[0][0] && words[0][0] < totals[0] && dl_owned_holder(0)); ++n) board_pump();
+        assert(words[0][0] && words[0][0] < totals[0] && dl_owned_holder(0));
+        held = dl_owned_holder(0);
+        unsigned reset = words[0][0];
+        from = trails[0];
+        ids[5] = 6;
+        assert(test_select(ids, board_pump) == 1 && test_owned_seen() >= held);
+        assert(first_op(0, from, 3, 0, 64u + (unsigned)test_live(0, 6)) < trails[0] && words[0][0] >= reset);
+        run(400); /* the RESET goes on after the switch */
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1 && words[0][0] == totals[0]);
+        placed_at(0, 1, sc); placed_at(1, 1, sc);
+        assert(dl_residency_rollbacks == rollbacks && dl_residency_failures == failures);
+        assert(dispatch[0][5] == 64u + (unsigned)test_live(0, 5) + 1u && dispatch[0][6] == 64u + (unsigned)test_live(0, 6) + 1u);
+    } else if (mode == 27) {
+        /* The wait is bounded per owned job: two jobs in a row hold core A for 800 frames, and the switch completes after
+         * them; one reservation that never ends refuses the switch after 600 refused starts, as before the wait; once it
+         * is gone, the switch goes through. */
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[0] = 7;
+        assert(test_select(ids, pump) == 1);
+        assert(dl_owned_command_reserve(0, 78u, DL_PROBE, 0, 0, 0, &relay));
+        ids[4] = 6;
+        assert(test_select(ids, relay_pump) == 1 && relay_n > 800u && test_live(0, 6) >= 0);
+        ids[4] = 0;
+        assert(test_select(ids, pump) == 1);
+        struct dl_owned_job stuck;
+        assert(dl_owned_command_reserve(0, 77u, DL_PROBE, 0, 0, 0, &stuck));
+        unsigned failures = dl_residency_failures;
+        ids[4] = 5;
+        assert(test_select(ids, pump) == DL_SELECT_UNAVAILABLE && dl_residency_failures > failures && test_live(0, 5) < 0);
+        assert(dl_owned_cancel(&stuck) == 1);
+        run(50);
+        assert(test_idle() && test_select(ids, pump) == 1 && test_live(0, 5) >= 0);
+    } else if (mode == 28) {
+        /* The same wait in the table step (phase 8): its DL_BASE start meets an owned job holding core B, while the
+         * switch itself loads on core A. It waits, and the switch completes once that job is gone. */
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[0] = 7;
+        assert(test_select(ids, pump) == 1);
+        unsigned rollbacks = dl_residency_rollbacks, failures = dl_residency_failures, from = trails[1];
+        assert(dl_owned_command_reserve(1, 77u, DL_PROBE, 0, 0, 0, &held_b));
+        uint32_t held = dl_owned_holder(1);
+        ids[4] = 5;
+        assert(test_select(ids, table_pump) == 1 && in_tables >= 50 && !dl_owned_holder(1) && test_owned_seen() == held);
+        assert(test_table_matches(1, 0) && first_op(1, from, 7, 0, 0) < trails[1] && test_live(0, 5) >= 0);
+        assert(dl_residency_rollbacks == rollbacks && dl_residency_failures == failures);
     } else assert(0);
     return 0;
 }
@@ -835,7 +987,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 22
+    MODES = 29
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
