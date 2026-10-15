@@ -48,9 +48,10 @@ from remix.stock_guard import stock_dsp_words, stock_guard
 UNIT = "matrix"
 
 # The destination codes, in CUE + LEVEL order (matrix.s dest_names), as the
-# DSP's code table: per code, for CUE, MAIN and PHONES in turn, the number
-# of the list the track joins, 3 x bus + kind (kind 1 stereo, 2 mono left,
-# 3 mono right), or 0 when the code does not reach that bus.
+# DSP's code table: a word per code holding, for CUE, MAIN and PHONES in bits
+# 3..0, 7..4 and 11..8, the number of the list the track joins, 3 x bus +
+# kind (kind 1 stereo, 2 mono left, 3 mono right), or 0 when the code does
+# not reach that bus.
 _KIND = {"off": 0, "st": 1, "L": 2, "R": 3}
 _CODES = (  # (CUE, MAIN, PHONES)
     ("off", "st", "off"),   # 0 MAIN
@@ -68,8 +69,9 @@ _CODES = (  # (CUE, MAIN, PHONES)
     ("off", "off", "R"),    # 12 PHR
     ("off", "off", "off"),  # 13 OFF
 )
-CODE_TABLE = tuple(3 * bus + _KIND[k] if _KIND[k] else 0
-                   for code in _CODES for bus, k in enumerate(code))
+CODE_TABLE = tuple(sum((3 * bus + _KIND[k] if _KIND[k] else 0) << 4 * bus
+                       for bus, k in enumerate(code))
+                   for code in _CODES)
 
 MODULE = Module(
     name="output-matrix",

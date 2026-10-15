@@ -353,3 +353,21 @@ Modwerk's packager and browser builder had no path for DSP code reached only thr
 - **Gate.** `verify.py` on this build: 117/117 (it does not read the LCD).
 
 Not tested: hardware, MKI.
+
+## Smaller core-0 code (15 Oct 2026, emulator only)
+
+P on core 0 goes from 727 words of code + a 42-word table (769) to 657 + 14 (671), with the same output, sample for sample.
+
+- **Changes.** The three bus-ramp routines are one, run through Y pointers; the first-frame start is a second pass of it, which stores the targets as the current values. The per-sample bus ramps and the end-of-frame copy use Y pointers instead of absolute moves. The inputs' cue and DIR gain tests OR the four words together. Address registers move straight to and from Y. Each bus level takes `mpy y0,x0,a b,x0` (the parallel move writes x0 after the multiply reads it). The destination table packs each code's three list numbers into one word (bits 3..0 CUE, 7..4 MAIN, 11..8 PHONES). Hooks, patch sites, Y layout and the phones hook are unchanged.
+- **Same output.** One ot_emu run per scenario on the static build before (`77415bac…5757`) and after (`2ce3d977…32c8`), every core-0 ring word compared from transport start: all 14 codes, five codes with MAIN, CUE and PHONES levels moving, MASTER on with T1 on ALL and with T8 on PHL, MKII with PHL and with levels moving, DIR with levels moving, and destination changes during playback (26 runs). 0 differing samples in all of them. The worst-case runs below also capture identical audio files.
+- **Cost.** `--dsp-stopwatch 0:0x257:0x2d5`, the qualification's worst case (every track on ALL, MAIN/CUE/MIX changed every other frame from frame 60 to 120, all eight tracks to PHN at frame 130), executed instructions per frame:
+
+| MASTER | Before mean / max | After mean / max |
+| --- | --- | --- |
+| on | 2,651 / 4,240 | 2,589 / 4,194 |
+| off | 2,386 / 3,947 | 2,350 / 3,933 |
+
+  The headphone crossfade (`0:0x30a:0x35a`) is unchanged, at most 192. The first frame and a frame that rebuilds the lists run a few more instructions, inside the maxima above.
+- **Gate.** `verify.py` on the new build: 117/117.
+
+Not tested: hardware.
