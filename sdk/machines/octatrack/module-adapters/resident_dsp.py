@@ -40,6 +40,140 @@ SOURCES = {
 }
 
 
+# Reviewed changes to a pinned module DSP source, applied to the resident engine only (the permanent block and the
+# on-demand units alike); the module's own octabam build keeps the author's text. module -> (the pinned source's
+# SHA-256, ((exact old text, exact new text), ...), the changed text's SHA-256, per-core values of the new markers).
+# Each old text must occur exactly once; any drift stops the build.
+#
+# Sidechain Compressor, key phase (owner-approved 15 Oct 2026). Upstream seeds each core's generation counter (GCNT)
+# to 0 at that core's own first block; scdet reads a foreign key two generations behind its OWN counter. Native
+# octabam boots both cores together, so the counters agree and the key is always two blocks late. The base enables
+# core 0 a tick or more before core 1, so the counters differed by a random number of blocks per enable: the key
+# lagged 1 to 4 blocks, and at 4 the reader read the slot the writer was filling. Here a core that is not yet seeded
+# adopts the OTHER core's counter: provisionally at its local track 0 (its first publishes then never land in the
+# slot the other core reads that block) and for good at its local track 2, half a frame from the other core's own
+# advance at its local track 0, so a skew of under two track slots between the cores cannot change the result.
+# Both counters then agree as on a native boot, on every enable and in either order. Reading the writer's counter
+# at each read instead (XBUS's "rotation read" defect) races the writer's advance every block when the reader is
+# on its core's first track: the key then jumps between two and three blocks late (sdk/tests/test_resident_engines.py).
+#
+# Also MON: scdet sets MON_ON[track] on every block it runs with MON on, and only scdet clears it, so a COMPRESSOR
+# taken off a track with MON on left moncommit replaying the last 16-sample key stash there until the next RESET.
+# moncommit now consumes MON_ON (it runs once per track per block, after both FX procs, which set it again).
+_SC_KEY_PHASE = (
+    ('''zz01:
+; -- generation counter advance (Session 77), gated on core-local track 0 --
+        move    x:>$420,a               ; a1 = track index (reload; a/r0/r1/n1/x0
+                                        ; all spent by the loop above)
+        cmp     #>@COREBASE@,a
+        bne     zz30                    ; not this core's local index 0 -> skip
+; GSEED holds the exact sentinel $10000 once this core has ever run this
+; path before -- same "exact match, not nonzero" idiom as MON_ON (this
+; file's own moncommit hazard fix), needed because true cold DSP RAM in a
+; region nothing has ever written before is NOT reliably zero (the
+; "persistent slot" trap) and a plain nonzero test would very likely read
+; boot garbage as "already seeded" and skip the one-time reset to a KNOWN
+; value both cores must agree on. HARDWARE-ONLY validation gap: dsp_host /
+; dsp_host_xcore zero all DSP RAM at their own "boot", so no emulator run
+; can exercise the TRUE cold-boot garbage case -- see NOTES.md.
+        move    #>@GSEED@,r1
+        move    y:(r1),b               ; b = seed sentinel word
+        cmp     #>$10000,b
+        beq     zz29                    ; already seeded -> normal advance
+        move    #1,b                    ; (q2) stores as $10000, matching the
+        move    b,y:(r1)                ; cmp above -- same quirk, same fix
+        move    #>@GCNT@,r1
+        move    #0,b
+        move    b,y:(r1)                ; first-ever block -> generation 0
+        bra     zz30
+zz29:
+''', '''zz01:
+; -- generation counter (Modwerk resident change, 15 Oct 2026): advanced at
+; core-local track 0 once seeded; until then it follows the other core's
+; counter, adopted for good at local track 2 (resident_dsp.py has why) --
+        move    x:>$420,a               ; a1 = track index (reload; a/r0/r1/n1/x0
+                                        ; all spent by the loop above)
+        cmp     #>@COREBASE@,a
+        beq     kph1                    ; local track 0 -> advance, or follow
+        cmp     #>@COREMID@,a
+        bne     zz30                    ; local tracks 1 and 3 -> skip
+        move    #>@GSEED@,r1
+        move    y:(r1),b               ; b = seed sentinel word
+        cmp     #>$10000,b
+        beq     zz30                    ; seeded -> nothing at local track 2
+        bsr     kph2                    ; GCNT = the other core's counter, or 0
+        move    #1,b                    ; (q2) stores as $10000, matching the
+        move    #>@GSEED@,r1
+        move    b,y:(r1)                ; seeded, only after GCNT is written
+        bra     zz30
+kph1:
+        move    #>@GSEED@,r1
+        move    y:(r1),b               ; b = seed sentinel word
+        cmp     #>$10000,b
+        beq     zz29                    ; already seeded -> normal advance
+        bsr     kph2                    ; not yet: follow the other core
+        bra     zz30
+zz29:
+'''),
+    ('''        move    x:>$208,r6              ; --- displaced (move #$6,n6 stays stock) ---
+        rts
+''', '''        move    x:>$208,r6              ; --- displaced (move #$6,n6 stays stock) ---
+        rts
+; GCNT = the other core's counter once that core is seeded, else 0. a, b, r1.
+kph2:
+        move    #0,a
+        move    #>@FGSEED@,r1
+        move    y:(r1),b               ; b = the other core's sentinel
+        cmp     #>$10000,b
+        bne     kph3                    ; not seeded -> 0
+        move    #>@FGCNT@,r1
+        move    y:(r1),b
+        and     #>3,b                   ; (masking risk on b)
+        move    b1,a                   ; (q3) a = clean 0..3
+kph3:
+        move    #>@GCNT@,r1
+        move    a,y:(r1)
+        rts
+'''),
+    ('''        move    y:(r1)+,b             ; b = MON_ON ; r1 now -> MON_KEY[my track]
+''', '''        move    y:(r1),b              ; b = MON_ON ; r1 stays on it
+'''),
+    ('''mc09:
+        move    y:(r1),b              ; b = MON_KEY 0..7 (still via r1, no r2/n2 needed)
+''', '''mc09:
+        move    #0,b
+        move    b,y:(r1)+             ; consume MON_ON (scdet sets it each block
+                                       ; it runs) ; r1 -> MON_KEY[my track]
+        move    y:(r1),b              ; b = MON_KEY 0..7 (still via r1, no r2/n2 needed)
+'''),
+)
+REVIEWED = {
+    'sidechain-compressor': (
+        'aaa1a1c947a8bcb5d19ebc9454ec3f020d1f00afe51fe786fe1f3ed4d5eccde3', _SC_KEY_PHASE,
+        'a850c60dfc8c0d55f8e1f2dcff0437d106ea5e7e64f149b5134644014ec30f1a',
+        {'A': {'@COREMID@': '6', '@FGSEED@': '$3bdfe', '@FGCNT@': '$3bdff'},
+         'B': {'@COREMID@': '2', '@FGSEED@': '$33dfe', '@FGCNT@': '$33dff'}}),
+}
+
+
+def reviewed_source(name, text, tag):
+    """`name`'s pinned DSP text with its reviewed resident changes, per core; fails closed on any drift."""
+    if name not in REVIEWED:
+        return text
+    pinned, changes, result, markers = REVIEWED[name]
+    if hashlib.sha256(text.encode()).hexdigest() != pinned:
+        raise ValueError('A reviewed DSP source changed; review the resident change again: ' + name)
+    for old, new in changes:
+        if text.count(old) != 1:
+            raise ValueError('A reviewed DSP change no longer applies exactly once: ' + name)
+        text = text.replace(old, new)
+    if hashlib.sha256(text.encode()).hexdigest() != result:
+        raise ValueError('A reviewed DSP change differs from the reviewed text: ' + name)
+    for old, new in markers[tag].items():
+        text = text.replace(old, new)
+    return text
+
+
 def verify_sources(sdk):
     sdk = Path(sdk).resolve()
     for path, expected in SOURCES.items():
@@ -102,7 +236,7 @@ def buffer_fits(tag, slot, base, words, active):
 def _section(ob, name, tag, table_address):
     module = ob.modules[name]
     section = module.dsp
-    text = (Path(ob.root) / section.asm).read_text()
+    text = reviewed_source(name, (Path(ob.root) / section.asm).read_text(), tag)
     for old, new in (section.subst or {}).get(tag, {}).items():
         if old not in text:
             raise ValueError('A DSP source substitution disappeared: ' + old)
