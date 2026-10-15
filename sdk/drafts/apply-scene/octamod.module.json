@@ -15,16 +15,17 @@
   "presentation": {
     "label": "Apply Scene",
     "family": "Scenes",
-    "summary": "Hold SCENE A or SCENE B and press YES: the sound the crossfader blends right now becomes the active Part's base sound.",
-    "overview": "Morph between the two scenes with the crossfader, stop where it sounds right, and keep that sound. APPLY SCENE writes the blended value of every parameter either scene locks into the active Part, as if you had turned each knob there yourself. The scenes, the crossfader and the saved Part stay as they were, so the scenes keep morphing from the new base and RELOAD PART takes you back to the last saved Part.",
+    "summary": "Hold SCENE A or SCENE B and press YES: that scene's locked values become the active Part's own. Hold both and press YES to keep the crossfader's current blend.",
+    "overview": "Keep a scene, or keep a blend. SCENE A + YES writes every value scene A locks into the active Part, as if you had turned each knob there yourself; SCENE B + YES does the same for scene B. Hold both scene keys and press YES to write the sound the crossfader plays right now instead. The scenes, the crossfader and the saved Part stay as they were, so the scenes keep morphing from the new base and RELOAD PART takes you back to the last saved Part.",
     "highlights": [
       "Covers every scene-lockable page on all eight audio tracks: SRC (the assigned machine), LFO speed and depth, AMP, FX1 and FX2.",
-      "The value written is the one stock's scene morph plays at the current crossfader position, rounded to the nearest knob step.",
-      "A muted scene counts as not locked, exactly as stock morphs it.",
+      "One scene: its locked values, wherever the crossfader is and even when that scene is muted.",
+      "The blend: the value stock's scene morph plays at the current crossfader position, rounded to the nearest knob step; a muted scene counts as not locked, exactly as stock morphs it.",
       "Nothing new is stored: the result is ordinary Part data that saves, loads and survives a power cycle like a hand-turned knob."
     ],
     "usage": [
-      "Lock some parameters in SCENE A and SCENE B, move the crossfader to the blend you want, then hold SCENE A (or SCENE B) and press YES. SCENE APPLIED confirms it.",
+      "Lock some parameters in SCENE A and SCENE B. Hold SCENE A (or SCENE B) and press YES to make that scene's values the Part's own: SCENE A APPLIED (or SCENE B APPLIED).",
+      "To keep an in-between sound, move the crossfader, hold SCENE A and SCENE B, and press YES: SCENE BLEND APPLIED.",
       "Save the Part to keep it, or press FUNC + CUE (RELOAD PART) to go back to the last saved Part."
     ]
   },
@@ -35,11 +36,12 @@
     "conflicts": [],
     "uiClaims": [
       "key:SCENEA+YES",
-      "key:SCENEB+YES"
+      "key:SCENEB+YES",
+      "key:SCENEA+SCENEB+YES"
     ],
     "limitations": [
-      "SCENE A or B held + YES no longer shows ARM ALL; YES alone still does.",
-      "The crossfader stays where it is: a parameter locked in only one scene moves when you apply, because stock now blends that lock with the new base. A parameter locked in both scenes does not move.",
+      "YES with SCENE A, SCENE B or both held no longer shows ARM ALL; YES alone still does.",
+      "The crossfader stays where it is and the scenes keep their locks: a parameter locked in both scenes keeps its sound, while one locked in only one scene can change (after a one-scene apply it plays that lock at every fader position; after the blend stock blends that lock with the new base).",
       "XVOL and XLV (the crossfader volume locks) have no Part knob and stay scene locks.",
       "Trig locks and LFO modulation are not written into the Part; the result is the sound on steps without a trig lock.",
       "With MASTER TRACK on, track 8's SRC and AMP scene locks are not applied: stock has no knob there.",
@@ -53,8 +55,8 @@
     "recorded": "ot_emu, 15 Oct 2026",
     "storage": {
       "label": "Storage",
-      "display": "448 bytes of ColdFire code in the image's free run; no DSP code, no saved data",
-      "value": 448,
+      "display": "582 bytes of ColdFire code in the image's free run; no DSP code, no saved data",
+      "value": 582,
       "unit": "bytes",
       "method": "static",
       "conditions": "Linked unit size reported by the native build of the apply-scene-stock remix.",
@@ -62,17 +64,17 @@
     },
     "processing": {
       "label": "CPU / DSP load",
-      "display": "None while idle; one apply runs about 2.3 to 5.5 million ColdFire instructions in the UI task",
+      "display": "None while idle; one apply runs about 2.3 to 6.3 million ColdFire instructions in the UI task",
       "value": null,
       "unit": "unknown",
       "method": "emulator",
-      "conditions": "ot_emu, instructions from the YES press to the toast for 106 to 160 parameter writes; no DSP work. Hardware time not measured.",
+      "conditions": "ot_emu, instructions from the YES press to the toast for 110 to 160 parameter writes, in all three modes; no DSP work. Hardware time not measured.",
       "source": "TESTING.md"
     }
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "verify.py under ot_emu (MKII): the applied Part equals the stock morph model at five fader positions, with scene mutes, on all machine types and stock FX pairs; the saved Part, scenes and fader stay untouched; RELOAD PART, Part save, project save and reload and a power cycle keep it. No hardware run yet.",
+    "summary": "verify.py under ot_emu (MKII): one-scene applies equal that scene's locks and the blend equals the stock morph model at five fader positions, with scene mutes and both key orders, on all machine types and stock FX pairs; the saved Part, scenes and fader stay untouched; RELOAD PART, Part save, project save and reload and a power cycle keep it. No hardware run of this source yet.",
     "hardwareStatus": "untested",
     "evidenceRevision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
     "gates": [
@@ -91,8 +93,8 @@
     "location": "Any audio-track page, with SCENE A or SCENE B held.",
     "steps": [
       "Lock parameters in SCENE A and SCENE B as usual (hold the scene key and turn knobs).",
-      "Move the crossfader to the blend you want to keep.",
-      "Hold SCENE A or SCENE B and press YES: SCENE APPLIED.",
+      "Hold SCENE A (or SCENE B) and press YES: that scene's values become the Part's own.",
+      "Or move the crossfader to the blend you want, hold SCENE A and SCENE B, and press YES: SCENE BLEND APPLIED.",
       "Save the Part to keep the result, or RELOAD PART (FUNC + CUE) to undo."
     ],
     "screenshots": []

@@ -11,20 +11,21 @@ APPLY_IMAGE=out/mainos_bus.bin OT_EMU=<octabam>/out/emu/ot_emu \
   python3 modules/apply-scene/verify.py
 ```
 
-The build reports `apply_scene 448 B linked at 0x400d6b80` and `jmp 0x4005e4c8 -> apply_scene:as_yes_hook`. No DSP code and no other site.
+The build reports `apply_scene 582 B linked at 0x400d6b80` and `jmp 0x4005e4c8 -> apply_scene:as_yes_hook`. No DSP code and no other site.
 
 ## What verify.py checked (PASS, ot_emu `--mkii`)
 
 The fixture: octabam's TMPL project, with bank 1 Part 1 (working and saved copies) rewritten. The machines are STATIC, FLEX, THRU, NEIGHBOR, PICKUP, FLEX, STATIC, FLEX, with MASTER TRACK on. Each track has a different stock FX1/FX2 pair with its defaults. Scenes 2 and 10 are selected. Pseudo-random locks sit on about 60 % of the 30 scene bytes of every track, so each track has bytes locked on both sides, on A only, on B only and on neither. These include slots the page does not have, AMP XVOL and XLV. Two unselected scenes also carry locks.
 
-- **The apply.** It ran with SCENE A + YES and SCENE B + YES, alternating, at fader 127, 96, 64, 32 and 0. It wrote 112 to 160 bytes per run. Each time:
-  - Every byte equals the stock morph model, and no other byte of the working Part moved. The model is the A/B blend, the Part value for an unlocked side, the track's weight long, MAC rounding, the nearest step, and the page's own range and enabled slots.
+- **The apply.** The blend (SCENE A and SCENE B held + YES) ran at fader 127, 96, 64, 32 and 0; SCENE A + YES at fader 64 and 0; SCENE B + YES at 96 and 127. Each run wrote about 110 to 160 bytes. Each time:
+  - Every byte equals the model, and no other byte of the working Part moved. One scene: that scene's lock, clamped to the page's range, on enabled slots only; unlocked bytes stay. The blend: the A/B blend, the Part value for an unlocked side, the track's weight long, MAC rounding, the nearest step, and the page's own range and enabled slots.
   - The saved Part, all scene locks, XLV, the scene selection, the mutes and the fader are unchanged.
   - The CS1 working copy equals RAM and the unsaved bit is set.
-  - Exactly one toast appears, with the module's text.
+  - Exactly one toast appears, with the mode's text (SCENE A APPLIED, SCENE B APPLIED, SCENE BLEND APPLIED).
   - RELOAD PART (FUNC + CUE) brings back working = saved.
-- **The model is stock's.** On T3 (THRU) and T8 (the master), at fader 64 with the transport running, the AMP/FX1/FX2 halfwords of the voice records equal the model computed from the live lane. After an apply at the same fader position, the 16 bytes locked in both scenes kept their halfword. The 12 bytes locked in one scene follow the model from the new base.
-- **Scene mutes.** FUNC + SCENE A mutes A, and an apply then treats A as unlocked. With both muted, nothing is written and the Part stays clean.
+- **The keys that are down choose the mode.** Stock's held-scene word (0x460d169c) names only the last scene key pressed and clears when either is released, so the module reads stock's per-key state table instead. SCENE B then SCENE A held + YES runs the blend (the held-scene word reads A only). Both held, then one released, then YES applies the scene still held, in both orders.
+- **The model is stock's.** On T3 (THRU) and T8 (the master), at fader 64 with the transport running, the AMP/FX1/FX2 halfwords of the voice records equal the model computed from the live lane. After a SCENE A apply and, separately, a blend apply at the same fader position, the 16 bytes locked in both scenes kept their halfword. The 12 bytes locked in one scene follow the model from the new base.
+- **Scene mutes.** FUNC + SCENE A mutes A. The blend then treats A as unlocked; SCENE A + YES still applies A's locks. With both muted the blend writes nothing and the Part stays clean, and SCENE B + YES still applies B's locks.
 - **Stock flows.**
   - YES alone still shows ARM ALL: 0x46c7ff64 is set on press and cleared on release, and no apply runs.
   - YES held before SCENE A goes to stock on both edges.
@@ -35,16 +36,16 @@ The fixture: octabam's TMPL project, with bank 1 Part 1 (working and saved copie
   - **Save and reload:** an apply, then Part SAVE (FUNC + PART, SAVE), then PROJECT > SAVE. A fresh boot of the written card loads the applied Part as both working and saved.
   - **Power cycle:** an unsaved apply survives. The second run takes the CS1 and card of the first and does the firmware's own power-up load (`--cs1-in`, `--no-post`). The working Part is byte-identical and all eight machine types are intact, so the power-up check of the Part passed.
 
-Cost under ot_emu, from the YES press to the toast: 2.2 to 3.4 million ColdFire instructions for 106 to 160 writes, and 5.5 million once. Most of it is the stock store and redraw per write. There is no idle cost and no DSP work. Hardware time is not measured.
+Cost under ot_emu, from the YES press to the toast: 2.3 to 3.4 million ColdFire instructions for 110 to 160 writes in all three modes, and 6.3 million once (160 writes). Most of it is the stock store and redraw per write. There is no idle cost and no DSP work. Hardware time is not measured.
 
 ## Stock flows
 
 | Flow | Result |
 |---|---|
 | YES alone (ARM ALL) | unchanged |
-| SCENE + YES | replaced by the apply (deliberate; README) |
+| SCENE A, SCENE B or both + YES | replaced by the apply (deliberate; README) |
 | SCENE + TRIG select, SCENE + knob lock, SCENE + REC/STOP/PLAY | unchanged |
-| FUNC + SCENE mute | unchanged; the apply follows it |
+| FUNC + SCENE mute | unchanged; the blend follows it, a one-scene apply ignores it |
 | RELOAD PART, Part SAVE, PROJECT SAVE, project load, power cycle | unchanged; carry the applied values |
 | MIDI mode | the gesture is not taken (falls through to stock); not run |
 | Pattern or Part change, arranger, sequencer ACT commit | not tested |
@@ -55,29 +56,37 @@ Not run on the unit. The ColdFire cost is in the UI task only, per press; see ab
 
 ## Resources
 
-448 bytes of ColdFire code and data, placed in the image's free run (`0x400d6b80` in the test build). One byte of state (whether the YES press was taken). No DSP memory and no saved data.
+582 bytes of ColdFire code and data, placed in the image's free run (`0x400d6b80` in the test build). One byte of state (whether the YES press was taken). No DSP memory and no saved data.
 
 ## Hardware
 
-Untested. The MKII test image is APPLYSC01: APPLY SCENE alone, static stock, all stock effects. It is the image verify.py passed on: MAIN OS SHA-256 `40f780e65582398bcd6763dc000761b2e3b2817683b252d65cfcca3b68393a70`, card file `OCTATRACK_APPLYSC01.bin` SHA-256 `8ebf93f49077f1e6ef0629153f86537b4888928a7dc221d22e8212afd79e9d0c`. Checklist for the first run:
+### Earlier behaviour on OMXATS30 (15 Oct 2026)
 
-1. Flash APPLYSC01 from the card. It should boot normally and show the image name.
+The user's combined MKII image OMXATS30 carries the earlier source (commit 719926a2-equivalent), where SCENE A + YES and SCENE B + YES both wrote the crossfader blend. Reported by the user: steps 1, 2, 5 and 6 below passed (setup, apply while playing, YES alone shows ARM ALL, RELOAD PART). They also reported that FUNC + SCENE muting "does not seem to work"; not diagnosed further, because it led to the redesign below. These results do not cover the current source. OMXATS30's card-file SHA-256 is not recorded here yet.
+
+### Current source: untested on hardware
+
+The user asked for SCENE A + YES and SCENE B + YES to apply that scene's own locks (muted or not), and for both scene keys + YES to keep the blend. The MKII test image is APPLYSC02: APPLY SCENE alone, static stock, all stock effects. It is the image verify.py passed on: MAIN OS SHA-256 `9aa80b87e3244629dbad4c23230996a6e4f07009e66cd01b571c55843878318f`, card file `OCTATRACK_APPLYSC02.bin` SHA-256 `3aa63d9faedb15a4d38adc13de4f80e97e3aa733d486f98653b86a38f6f7d932`. Checklist:
+
+1. Flash APPLYSC02 from the card. It should boot normally and show the image name.
 2. Set up a test track. On one track playing a loop, hold SCENE A and turn FX1 knob A fully left, then hold SCENE B and turn it fully right. On the same track, lock AMP VOL in SCENE A only.
-3. Apply while playing. Put the crossfader in the middle, hold SCENE A and press YES.
-   - SCENE APPLIED fits the toast.
+3. One scene. Put the crossfader in the middle, hold SCENE A and press YES.
+   - SCENE A APPLIED fits the toast.
+   - FX1 knob A now shows scene A's value (fully left); AMP VOL shows scene A's lock.
    - The sequencer keeps time and there is no dropout or click beyond the parameter change itself.
-   - FX1 knob A now shows about the middle.
-4. Check the scenes afterwards. Move the crossfader to each end: you still hear scene A's and scene B's FX1 value. AMP VOL, locked in one scene only, changed when you applied, as described.
-5. Repeat with SCENE B + YES at another crossfader position.
-6. YES alone still shows ARM ALL.
-7. Press FUNC + CUE (RELOAD PART). Everything returns to the last saved Part.
-8. Check that save and reload keep it.
-   - Apply, then FUNC + PART > SAVE, then PROJECT > SAVE.
-   - Power off and on: the applied values are there.
+4. Repeat with SCENE B + YES: SCENE B APPLIED, FX1 knob A fully right; AMP VOL unchanged (scene B does not lock it).
+5. The blend. Crossfader in the middle, hold SCENE A and SCENE B, press YES: SCENE BLEND APPLIED, FX1 knob A about the middle. Try both press orders.
+6. Move the crossfader to each end: you still hear scene A's and scene B's FX1 value.
+7. YES alone still shows ARM ALL.
+8. Press FUNC + CUE (RELOAD PART). Everything returns to the last saved Part.
+9. Save and reload.
+   - Apply, then FUNC + PART > SAVE, then PROJECT > SAVE. Power off and on: the applied values are there.
    - Apply again without saving, then power off and on: the applied values are still there (unsaved), and RELOAD PART returns to the saved Part.
-9. Check a muted scene. FUNC + SCENE A mutes A; an apply then uses only scene B's locks.
-10. Stress test. Lock many parameters on all eight tracks in both scenes, then apply about ten times while playing at a fast tempo. Listen for dropouts, a stalled sequencer or a frozen screen.
-11. Report:
+10. Scene mutes. Check first that FUNC + SCENE A mutes scene A on its own: the crossfader no longer morphs toward A. Then:
+    - SCENE A + YES still applies A's locks (deliberate).
+    - The blend with A muted uses the Part value on A's side: with the crossfader in the middle the knob lands halfway between its old value and scene B's.
+11. Stress test. Lock many parameters on all eight tracks in both scenes, then apply about ten times in each mode while playing at a fast tempo. Listen for dropouts, a stalled sequencer or a frozen screen.
+12. Report:
     - the image SHA-256;
     - the MKII OS screen;
     - what you ran and what you heard;

@@ -18,21 +18,25 @@ XVOL and XLV included), and locks in two unselected scenes. Tracks 7 and 8
 carry no LFO locks, so their voice records show the bare morph.
 
 What it checks (one interactive boot, then a project reload and a power cycle):
-  1. [SCENE A] or [SCENE B] held + [YES] at fader 127, 96, 64, 32, 0: every
-     page-1 byte of every track equals the stock morph model (A/B lerp, the
-     Part base for an unlocked side, the track's weight long, rounded as the
-     MAC rounds, then to a whole step; disabled slots untouched; clamped to
-     the descriptor); nothing else in the working Part moved; the saved Part,
-     the scene locks, XLV, the selection, the mutes and the fader are
-     unchanged; the unsaved bit is set; the CS1 working copy equals RAM; the
-     toast is the module's text; RELOAD PART (FUNC + CUE) restores working =
-     saved (the unsaved bit is reported, not asserted: stock leaves it set).
+  1. The apply, at fader 127, 96, 64, 32, 0. [SCENE A] + [YES] and [SCENE B]
+     + [YES]: every page-1 byte that scene locks equals its lock (disabled
+     slots untouched; clamped to the descriptor), unlocked bytes stay. Both
+     scene keys + [YES]: every page-1 byte equals the stock morph model (A/B
+     lerp, the Part base for an unlocked side, the track's weight long,
+     rounded as the MAC rounds, then to a whole step). Each time nothing else
+     in the working Part moved; the saved Part, the scene locks, XLV, the
+     selection, the mutes and the fader are unchanged; the unsaved bit is
+     set; the CS1 working copy equals RAM; the toast is the mode's text;
+     RELOAD PART (FUNC + CUE) restores working = saved (the unsaved bit is
+     reported, not asserted: stock leaves it set). The mode follows the keys
+     that are down, in either press order and after one of two is released.
   2. The model is stock's: before an apply, the voice records' AMP/FX
      halfwords of tracks 3 and 8 equal the model from the live lane; after it, at
      the same fader, a byte locked in both scenes is unchanged and a byte
      locked in one follows the model from the new base.
-  3. Scene mutes (FUNC + SCENE): a muted side counts as unlocked; both muted
-     applies nothing and leaves the Part clean.
+  3. Scene mutes (FUNC + SCENE): one scene applies its locks muted or not;
+     in the blend a muted side counts as unlocked, and with both muted the
+     blend applies nothing and leaves the Part clean.
   4. Stock flows: YES alone still shows ARM ALL (0x46c7ff64 set on press,
      cleared on release); a YES held before the scene key goes to stock;
      SCENE + TRIG selects a scene, SCENE + knob writes a lock, SCENE +
@@ -68,6 +72,7 @@ SITE = 0x4005E4C8
 
 # RAM
 BANK_PTR, CUR_PART, SCENE_HELD = 0x46c82456, 0x100b14cf, 0x460d169c
+KEY_STATE = 0x46c7d8f1           # stock's per-key state, 24 bytes a key: nonzero while down
 MUTE_A, MUTE_B, FADER, WEIGHTS = 0x80000006, 0x80000007, 0x460d16c8, 0x80003c60
 CS1_WORK, PART_LEN = 0x100a4ece, 0x18b2
 ARM_HELD, NOTIFY = 0x46c7ff64, 0x4005a2b8
@@ -142,10 +147,16 @@ def s16(v):
     return v - 0x10000 if v & 0x8000 else v
 
 
-def model(img, part, weights, muted, t, master=False):
-    """{part offset: expected byte} for track t: stock's morph rounded to a step."""
+MODES = {"a": (("scene_a",), "SCENE A APPLIED"), "b": (("scene_b",), "SCENE B APPLIED"),
+         "mix": (("scene_a", "scene_b"), "SCENE BLEND APPLIED")}
+
+
+def model(img, part, weights, muted, t, master=False, mode="mix"):
+    """{part offset: expected byte} for track t: one scene's locks, or stock's morph rounded to a step."""
     w = weights[t]
     wa, wb = -s16(w >> 16), -s16(w & 0xffff)
+    if mode != "mix":
+        muted = [False, False]           # one scene applies muted or not
     rows = [None if muted[i] else part[SCN + (part[SEL_A + i] * 8 + t) * 32:][:32] for i in (0, 1)]
     out = {}
     for k in range(30):
@@ -153,12 +164,17 @@ def model(img, part, weights, muted, t, master=False):
         lb = rows[1][k] if rows[1] is not None and rows[1][k] < 128 else None
         off = base_off(part, t, k)
         base = part[off]
-        if la is None and lb is None:
-            continue
-        a = base if la is None else la
-        b = base if lb is None else lb
-        hw = (a * wa + b * wb + 64) >> 7
-        v = (hw + 0x80) >> 8
+        if mode != "mix":
+            v = la if mode == "a" else lb
+            if v is None:
+                continue
+        else:
+            if la is None and lb is None:
+                continue
+            a = base if la is None else la
+            b = base if lb is None else lb
+            hw = (a * wa + b * wb + 64) >> 7
+            v = (hw + 0x80) >> 8
         if v == base:
             continue
         en, mn, cnt = img.page_desc(part, t, k // 6, master)[2][k % 6]
@@ -305,10 +321,14 @@ class Emu:
         self.run(after)
 
     def chord(self, held, name, after=400):
-        self.key(held, True)
-        self.run(150)
+        held = (held,) if isinstance(held, str) else held
+        for k in held:
+            self.key(k, True)
+            self.run(150)
         self.tap(name)
-        self.key(held, False)
+        for k in reversed(held):
+            self.key(k, False)
+            self.run(150)
         self.run(after)
 
     def knob(self, enc, delta):
@@ -349,15 +369,20 @@ class Emu:
 
 
 # ------------------------------------------------------------------ checks
-def apply_case(e, img, label, key, xf, text_addr):
+def apply_case(e, img, label, mode, xf, texts, press=None):
+    """press: run the key sequence itself (default: hold the mode's keys, tap YES)."""
     e.fader(xf)
     before = e.state()
     muted = [before["mutes"][0] != 0, before["mutes"][1] != 0]
     want = {}
     for t in range(8):
-        want.update(model(img, before["W"], before["weights"], muted, t, before["master"]))
+        want.update(model(img, before["W"], before["weights"], muted, t, before["master"], mode))
+    text_addr = texts[mode]
     e.watch([SITE, NOTIFY])
-    e.chord(key, "yes")
+    if press:
+        press()
+    else:
+        e.chord(MODES[mode][0], "yes")
     after = e.state()
     hits = e.hits()
     got = {i: after["W"][i] for i in range(PART_LEN) if after["W"][i] != before["W"][i]}
@@ -398,7 +423,7 @@ def voice_halfwords(e, t):
     return out
 
 
-def sound_case(e, img, xf):
+def sound_case(e, img, xf, mode):
     """T3/T8: AMP/FX halfwords = the model, before and after an apply."""
     e.cmd("frame on")                    # the frame engine: the builder runs the morph
     e.tap("play", after=1500)
@@ -423,16 +448,16 @@ def sound_case(e, img, xf):
            if rec[t][0][k - 12] != pre[t][0][k] and rec[t][1][k - 12] != pre[t][0][k]]
     check(not bad, f"sound xf {s['fader']}: T3/T8 AMP/FX voice halfwords = the model from the live lane"
           + (f"; off at {bad[:6]}" if bad else ""))
-    e.chord("scene_a", "yes")
+    e.chord(MODES[mode][0], "yes")
     e.run(300)
     post = {t: predicted(t, s["weights"][t]) for t in SOUND}
     rec2 = {t: voice_halfwords(e, t) for t in SOUND}
     both = [(t, k) for t in SOUND for k in range(12, 30) if rows[t][0][k] < 128 and rows[t][1][k] < 128]
     one = [(t, k) for t in SOUND for k in range(12, 30) if (rows[t][0][k] < 128) != (rows[t][1][k] < 128)]
     check(all(rec2[t][0][k - 12] == rec[t][0][k - 12] or rec2[t][1][k - 12] == rec[t][1][k - 12] for t, k in both),
-          f"sound: {len(both)} bytes locked in both scenes kept their halfword through the apply")
+          f"sound, {mode}: {len(both)} bytes locked in both scenes kept their halfword through the apply")
     bad = [(t, k) for t, k in one if rec2[t][0][k - 12] != post[t][0][k] and rec2[t][1][k - 12] != post[t][0][k]]
-    check(not bad, f"sound: {len(one)} bytes locked in one scene follow the model from the new base"
+    check(not bad, f"sound, {mode}: {len(one)} bytes locked in one scene follow the model from the new base"
           + (f"; off at {bad[:6]}" if bad else ""))
     e.tap("stop", after=500)
 
@@ -447,11 +472,14 @@ def main():
         print(f"verify apply-scene: SKIP ({IMAGE} has no APPLY SCENE detour at {SITE:#x})")
         return 0
     hook = img.u32(SITE + 2)
-    text = img.d.find(b"SCENE APPLIED\0", hook - BASE, hook - BASE + 0x400)
-    if text < 0:
-        sys.exit("verify apply-scene: the unit's text is not where the detour points")
-    text_addr = BASE + text
-    print(f"verify apply-scene: image {hashlib.sha256(img.d).hexdigest()[:12]}, hook {hook:#x}, text {text_addr:#x}")
+    texts = {}
+    for mode, (_, words) in MODES.items():
+        at = img.d.find(words.encode() + b"\0", hook - BASE, hook - BASE + 0x400)
+        if at < 0:
+            sys.exit(f"verify apply-scene: the unit's text {words!r} is not where the detour points")
+        texts[mode] = BASE + at
+    print(f"verify apply-scene: image {hashlib.sha256(img.d).hexdigest()[:12]}, hook {hook:#x}, "
+          f"texts {', '.join(hex(a) for a in texts.values())}")
     work = pathlib.Path(tempfile.mkdtemp(prefix="apply_scene_verify_"))
     card = build_fixture(img, work)
     shutil.copy2(card, work / "card0.img")
@@ -465,20 +493,62 @@ def main():
               f"fixture loaded: machines {[s0['W'][MACH + t] for t in range(8)]}, scenes {s0['W'][SEL_A]}/{s0['W'][SEL_B]}")
 
         print("verify apply-scene: the apply")
-        for i, xf in enumerate((127, 96, 64, 32, 0)):
-            apply_case(e, img, "SCENE " + "AB"[i % 2] + " + YES", ("scene_a", "scene_b")[i % 2], xf, text_addr)
-            reload_part(e, f"xf {xf}")
+        label = {"a": "SCENE A + YES", "b": "SCENE B + YES", "mix": "SCENE A + B + YES"}
+        for xf in (127, 96, 64, 32, 0):
+            apply_case(e, img, label["mix"], "mix", xf, texts)
+            reload_part(e, f"blend xf {xf}")
+        for mode, xf in (("a", 64), ("b", 96), ("a", 0), ("b", 127)):
+            apply_case(e, img, label[mode], mode, xf, texts)
+            reload_part(e, f"{label[mode]} xf {xf}")
+
+        print("verify apply-scene: the keys that are down choose the mode")
+        def seq(*steps):
+            def run():
+                for k, d in steps:
+                    if k == "yes":
+                        e.tap("yes")
+                    else:
+                        e.key(k, d)
+                        e.run(150)
+                e.run(400)
+            return run
+        held = []
+        def snoop(run):
+            def go():
+                e.key("scene_b", True)
+                e.run(150)
+                e.key("scene_a", True)
+                e.run(150)
+                held.append((e.u32(SCENE_HELD), e.peek(KEY_STATE + 0x19 * 24, 1)[0], e.peek(KEY_STATE + 0x1a * 24, 1)[0]))
+                run()
+            return go
+        apply_case(e, img, "B then A held + YES", "mix", 64, texts,
+                   snoop(seq(("yes", 1), ("scene_a", False), ("scene_b", False))))
+        check(held and held[0][0] == 1 and held[0][1] and held[0][2],
+              f"B then A held: stock's held-scene word names A only ({held[0][0] if held else '?'}), "
+              f"the key table has both")
+        reload_part(e, "B then A")
+        apply_case(e, img, "A + B, B released, YES", "a", 32, texts,
+                   seq(("scene_a", True), ("scene_b", True), ("scene_b", False), ("yes", 1), ("scene_a", False)))
+        reload_part(e, "B released")
+        apply_case(e, img, "A + B, A released, YES", "b", 96, texts,
+                   seq(("scene_a", True), ("scene_b", True), ("scene_a", False), ("yes", 1), ("scene_b", False)))
+        reload_part(e, "A released")
 
         print("verify apply-scene: scene mutes")
         e.chord("func", "scene_a")
         check(e.peek(MUTE_A, 1)[0] != 0, "FUNC + SCENE A mutes scene A")
-        apply_case(e, img, "A muted", "scene_b", 64, text_addr)
-        reload_part(e, "A muted")
+        apply_case(e, img, "A muted, blend", "mix", 64, texts)
+        reload_part(e, "A muted, blend")
+        apply_case(e, img, "A muted, SCENE A + YES", "a", 64, texts)
+        reload_part(e, "A muted, scene A")
         e.chord("func", "scene_b")
         before = e.state()
-        e.chord("scene_a", "yes")
+        e.chord(("scene_a", "scene_b"), "yes")
         after = e.state()
-        check(after["W"] == before["W"] and after["bits"] == before["bits"], "both muted: nothing applied, Part clean")
+        check(after["W"] == before["W"] and after["bits"] == before["bits"], "both muted, blend: nothing applied, Part clean")
+        apply_case(e, img, "both muted, SCENE B + YES", "b", 64, texts)
+        reload_part(e, "both muted, scene B")
         e.chord("func", "scene_a")
         e.chord("func", "scene_b")
         check(e.peek(MUTE_A, 2) == b"\0\0", "mutes cleared again")
@@ -492,7 +562,7 @@ def main():
         e.run(300)
         h = e.hits()
         check(armed == 0xffff and int.from_bytes(e.peek(ARM_HELD, 2), "big") == 0
-              and any(x[1] == 0x4005e294 for x in h) and not any(x[1] == NOTIFY and x[8] == text_addr for x in h),
+              and any(x[1] == 0x4005e294 for x in h) and not any(x[1] == NOTIFY and x[8] in texts.values() for x in h),
               "YES alone: stock ARM ALL (0x46c7ff64 set on press, cleared on release), no apply")
         before = e.state()
         e.key("yes", True)
@@ -548,11 +618,12 @@ def main():
         reload_part(e, "after the stock scene operations")
 
         print("verify apply-scene: the morph is stock's")
-        sound_case(e, img, 64)
-        reload_part(e, "after the sound case")
+        for mode in ("a", "mix"):
+            sound_case(e, img, 64, mode)
+            reload_part(e, f"after the sound case, {mode}")
 
         print("verify apply-scene: Part save, project save")
-        before, after, want = apply_case(e, img, "before saving", "scene_a", 96, text_addr)
+        before, after, want = apply_case(e, img, "before saving", "mix", 96, texts)
         applied = after["W"]
         e.key("func", True)
         e.run(150)
@@ -589,7 +660,7 @@ def main():
     try:
         e3.run(3000)
         e3.tap("yes", after=1500)
-        _, after, want = apply_case(e3, img, "unsaved, before power-off", "scene_b", 32, text_addr)
+        _, after, want = apply_case(e3, img, "unsaved, before power-off", "b", 32, texts)
         e3.run(1000)
         cs1 = e3.peek(0x10000000, 0x100000)
         e3.cmd("card flush", "card")
