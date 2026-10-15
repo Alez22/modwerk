@@ -1495,3 +1495,11 @@ The author reports the release image on an MKII for about ten minutes: DARK
 REV working, two instances on T1 and T5, Part and project save and reload, a
 power cycle, every parameter with LFOs and trigless locks. MKI, MIDI/USB load,
 silicon timing and the USB path on hardware are not reported.
+
+## Apply Scene 0.1.0-experimental — 15 October 2026
+
+Apply Scene is a ColdFire-only scenes module: one detour at the entry of stock's base-layer YES handler and one 636-byte unit. SCENE A or B + YES writes that scene's locks into the active Part; both scene keys + YES writes the crossfader blend.
+
+- **Placement.** The unit is a DRAM unit (`Linked(cpu="5475", dram=True)`, Play Modes' path). As an image-linked ROM unit it took the image's free run before Preview Vol natively, while the browser builder places Preview Vol's fixed-origin ROM unit first: 10 of 130 selections differed. As a DRAM unit `npm run module:verify -- apply-scene` records 58 matching images, 72 matching refusals and 0 mismatches. `module:verify -- --all --check` on this branch shows no mismatch in any selection with Apply Scene; the other modules' recorded mismatches occur only in selections without it (not compared against an untouched main checkout).
+- **Packages.** `build-module-packages.py` lists it as a requested ColdFire module. Its USB package (`--octabam`, ABI 7, one hashed site, no relocations) is byte-identical whether the card build links the unit in the image or in DRAM; it shares no 12-byte run with the stock OS and no 16-byte run (`check_stock_free.py`), and the adapted ot_emu's `sites` scenario installed and removed it on the beta base.
+- **Gate and hardware.** `verify.py` passes 179 checks on the native image of the final source (the applied bytes equal stock's morph model, mutes, key orders, a worst case with every scene byte locked, Part and project save and reload, an emulated power cycle). The contributor ran the USB package of the previous source revision, with the same code, on an MKII over the beta base: all three modes, NOTHING TO APPLY, Keep, Undo, removal and a power cycle ([TESTING.md](../sdk/octabam/modules/apply-scene/TESTING.md)). `evidence/performance.json` leaves the MIDI-flood load and stress rows empty: the module has no frame-interrupt or MIDI work.
