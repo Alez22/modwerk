@@ -60,7 +60,7 @@ export function OctatrackOverview({ link, inventory, sets, needs, health, active
         {testing ? <p className="hub-test" role="status"><span className="unit-led is-load" aria-hidden="true" />Running · {Math.round((state.progress ?? 0) * 100)}%</p>
           : test ? <p className="hub-test"><span className={'unit-led is-' + test.led} aria-hidden="true" />{test.text}</p> : <p className="hub-empty">{unread}</p>}
         {why && !testing && <p className="hub-empty" role="alert">{why[0].toUpperCase() + why.slice(1)}.</p>}
-        {test?.peaks && health && <dl className="hub-peaks" aria-label="Peaks during the test">{([['Main CPU', health.cpu], ['DSP tracks 1–4', health.tracks1to4], ['DSP tracks 5–8', health.tracks5to8]] as const).map(([name, value]) =>
+        {test?.peaks && health && <dl className="hub-peaks" aria-label="Peaks during the test">{([['CPU', health.cpu], ['DSP tracks 1–4', health.tracks1to4], ['DSP tracks 5–8', health.tracks5to8]] as const).map(([name, value]) =>
           <div key={name}><dt>{name}</dt><dd><meter min={0} max={1000} value={value} aria-label={name + ' peak during the test'} aria-valuetext={percent(value)} />{percent(value)}</dd></div>)}</dl>}
         <h3>On the card</h3>
         {card ? <p className="hub-test"><span className={'unit-led is-' + card.led} aria-hidden="true" />{card.text}</p> : <p className="hub-empty">{unread}</p>}
