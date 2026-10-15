@@ -11,7 +11,7 @@ APPLY_IMAGE=out/mainos_bus.bin OT_EMU=<octabam>/out/emu/ot_emu \
   python3 modules/apply-scene/verify.py
 ```
 
-The build reports `apply_scene 582 B linked at 0x400d6b80` and `jmp 0x4005e4c8 -> apply_scene:as_yes_hook`. No DSP code and no other site.
+The build reports `apply_scene 636 B linked at 0x400d6b80` and `jmp 0x4005e4c8 -> apply_scene:as_yes_hook`. No DSP code and no other site.
 
 ## What verify.py checked (PASS, ot_emu `--mkii`)
 
@@ -21,7 +21,8 @@ The fixture: octabam's TMPL project, with bank 1 Part 1 (working and saved copie
   - Every byte equals the model, and no other byte of the working Part moved. One scene: that scene's lock, clamped to the page's range, on enabled slots only; unlocked bytes stay. The blend: the A/B blend, the Part value for an unlocked side, the track's weight long, MAC rounding, the nearest step, and the page's own range and enabled slots.
   - The saved Part, all scene locks, XLV, the scene selection, the mutes and the fader are unchanged.
   - The CS1 working copy equals RAM and the unsaved bit is set.
-  - Exactly one toast appears, with the mode's text (SCENE A APPLIED, SCENE B APPLIED, SCENE BLEND APPLIED).
+  - Exactly one toast appears, with the mode's text (SCENE A APPLIED, SCENE B APPLIED, SCENE BLEND APPLIED), or NOTHING TO APPLY when no byte changed.
+- **Nothing to apply.** SCENE A + YES twice at the same fader: the second press changes no byte and shows NOTHING TO APPLY. It still calls stock's writer for the fixture's 5 locks that stock clamps back to the Part value, so stock marks the Part edited; the Part bytes stay the same. The blend with both scenes muted writes nothing, leaves the Part clean and shows NOTHING TO APPLY.
   - RELOAD PART (FUNC + CUE) brings back working = saved.
 - **The keys that are down choose the mode.** Stock's held-scene word (0x460d169c) names only the last scene key pressed and clears when either is released, so the module reads stock's per-key state table instead. SCENE B then SCENE A held + YES runs the blend (the held-scene word reads A only). Both held, then one released, then YES applies the scene still held, in both orders.
 - **The model is stock's.** On T3 (THRU) and T8 (the master), at fader 64 with the transport running, the AMP/FX1/FX2 halfwords of the voice records equal the model computed from the live lane. After a SCENE A apply and, separately, a blend apply at the same fader position, the 16 bytes locked in both scenes kept their halfword. The 12 bytes locked in one scene follow the model from the new base.
@@ -56,7 +57,7 @@ Not run on the unit. The ColdFire cost is in the UI task only, per press; see ab
 
 ## Resources
 
-582 bytes of ColdFire code and data, placed in the image's free run (`0x400d6b80` in the test build). One byte of state (whether the YES press was taken). No DSP memory and no saved data.
+636 bytes of ColdFire code and data, placed in the image's free run (`0x400d6b80` in the test build). One byte of state (whether the YES press was taken). No DSP memory and no saved data.
 
 ## Hardware
 

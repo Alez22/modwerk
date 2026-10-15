@@ -149,6 +149,7 @@ def s16(v):
 
 MODES = {"a": (("scene_a",), "SCENE A APPLIED"), "b": (("scene_b",), "SCENE B APPLIED"),
          "mix": (("scene_a", "scene_b"), "SCENE BLEND APPLIED")}
+NONE_TEXT = "NOTHING TO APPLY"       # the toast when no value differed from the Part
 
 
 def model(img, part, weights, muted, t, master=False, mode="mix"):
@@ -377,7 +378,8 @@ def apply_case(e, img, label, mode, xf, texts, press=None):
     want = {}
     for t in range(8):
         want.update(model(img, before["W"], before["weights"], muted, t, before["master"], mode))
-    text_addr = texts[mode]
+    changed = {o for o, v in want.items() if v != before["W"][o]}
+    text_addr = texts[mode] if changed else texts["none"]
     e.watch([SITE, NOTIFY])
     if press:
         press()
@@ -405,7 +407,7 @@ def apply_case(e, img, label, mode, xf, texts, press=None):
     if entry and notes:
         print(f"        cost: {notes[0][0] - entry[0][0]} instructions from the YES to the toast "
               f"({len(want)} writes)")
-    return before, after, want
+    return before, after, changed
 
 
 def reload_part(e, label):
@@ -473,7 +475,7 @@ def main():
         return 0
     hook = img.u32(SITE + 2)
     texts = {}
-    for mode, (_, words) in MODES.items():
+    for mode, words in [(m, w) for m, (_, w) in MODES.items()] + [("none", NONE_TEXT)]:
         at = img.d.find(words.encode() + b"\0", hook - BASE, hook - BASE + 0x400)
         if at < 0:
             sys.exit(f"verify apply-scene: the unit's text {words!r} is not where the detour points")
@@ -500,6 +502,10 @@ def main():
         for mode, xf in (("a", 64), ("b", 96), ("a", 0), ("b", 127)):
             apply_case(e, img, label[mode], mode, xf, texts)
             reload_part(e, f"{label[mode]} xf {xf}")
+        apply_case(e, img, "SCENE A + YES", "a", 64, texts)
+        _, _, again = apply_case(e, img, "SCENE A + YES again", "a", 64, texts)    # toast: NOTHING TO APPLY
+        check(not again, "SCENE A + YES twice: the second writes nothing (its toast checked above)")
+        reload_part(e, "applied twice")
 
         print("verify apply-scene: the keys that are down choose the mode")
         def seq(*steps):
@@ -544,9 +550,13 @@ def main():
         reload_part(e, "A muted, scene A")
         e.chord("func", "scene_b")
         before = e.state()
+        e.watch([NOTIFY])
         e.chord(("scene_a", "scene_b"), "yes")
         after = e.state()
-        check(after["W"] == before["W"] and after["bits"] == before["bits"], "both muted, blend: nothing applied, Part clean")
+        notes = [h for h in e.hits() if h[1] == NOTIFY]
+        check(after["W"] == before["W"] and after["bits"] == before["bits"]
+              and len(notes) == 1 and notes[0][8] == texts["none"],
+              "both muted, blend: nothing applied, Part clean, toast NOTHING TO APPLY")
         apply_case(e, img, "both muted, SCENE B + YES", "b", 64, texts)
         reload_part(e, "both muted, scene B")
         e.chord("func", "scene_a")

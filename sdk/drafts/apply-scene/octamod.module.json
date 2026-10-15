@@ -21,7 +21,8 @@
       "Covers every scene-lockable page on all eight audio tracks: SRC (the assigned machine), LFO speed and depth, AMP, FX1 and FX2.",
       "One scene: its locked values, wherever the crossfader is and even when that scene is muted.",
       "The blend: the value stock's scene morph plays at the current crossfader position, rounded to the nearest knob step; a muted scene counts as not locked, exactly as stock morphs it.",
-      "Nothing new is stored: the result is ordinary Part data that saves, loads and survives a power cycle like a hand-turned knob."
+      "Nothing new is stored: the result is ordinary Part data that saves, loads and survives a power cycle like a hand-turned knob.",
+      "Pressing it when nothing would change shows NOTHING TO APPLY."
     ],
     "usage": [
       "Lock some parameters in SCENE A and SCENE B. Hold SCENE A (or SCENE B) and press YES to make that scene's values the Part's own: SCENE A APPLIED (or SCENE B APPLIED).",
@@ -55,8 +56,8 @@
     "recorded": "ot_emu, 15 Oct 2026",
     "storage": {
       "label": "Storage",
-      "display": "582 bytes of ColdFire code in the image's free run; no DSP code, no saved data",
-      "value": 582,
+      "display": "636 bytes of ColdFire code in the image's free run; no DSP code, no saved data",
+      "value": 636,
       "unit": "bytes",
       "method": "static",
       "conditions": "Linked unit size reported by the native build of the apply-scene-stock remix.",

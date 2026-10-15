@@ -25,6 +25,8 @@ The scenes, the scene selection, the scene mutes, the crossfader and the saved P
 | Hold [SCENE B], press [YES] | Writes scene B's locks into the active Part: SCENE B APPLIED |
 | Hold [SCENE A] and [SCENE B], press [YES] | Writes the current crossfader blend into the active Part: SCENE BLEND APPLIED |
 
+When no value differs from the Part (the scene has no locks, you applied the same thing twice, or both scenes are muted for the blend), the screen shows NOTHING TO APPLY instead.
+
 There are no settings.
 
 ## Usage
@@ -60,7 +62,7 @@ Not written: XVOL and XLV (the crossfader volume locks have no Part knob and sta
 - After applying, the crossfader stays where it is and the scenes keep their locks. A parameter locked in both scenes does not change sound. A parameter locked in only one scene can: after a one-scene apply it plays that lock at every fader position, and after the blend stock blends that lock with the new base, so the sound can jump.
 - Undo is stock RELOAD PART, which also discards any other unsaved edits since the last Part save.
 - One apply runs a few million ColdFire instructions in the UI task (measured under the emulator; see TESTING.md). How long that takes on the unit is not measured yet.
-- Patch site: the entry of stock's YES handler (0x4005e4c8). No DSP code, no saved data of its own, 582 bytes of code.
+- Patch site: the entry of stock's YES handler (0x4005e4c8). No DSP code, no saved data of its own, 636 bytes of code.
 - Not tested on hardware yet. See [TESTING.md](TESTING.md).
 
 ## Tests and measurements

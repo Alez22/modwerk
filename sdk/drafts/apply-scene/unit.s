@@ -33,7 +33,9 @@
 | 0x40054cd8(track, flat, value), the MIDI CC store: it refuses disabled
 | slots (AMP XVOL, empty THRU/NEIGHBOR/PICKUP slots), clamps to the
 | descriptor, writes the working Part, its CS1 copy and the live lane, and
-| sets the unsaved bit and edited flags. The saved Part, both scenes, the
+| sets the unsaved bit and edited flags. The toast names the mode, or says
+| NOTHING TO APPLY when no value differed from the Part (no locks, the same
+| apply twice, or the blend with both scenes muted). The saved Part, both scenes, the
 | selection, the mutes and the fader are not touched, so stock RELOAD PART
 | restores the Part as it was last saved.
         .text
@@ -89,7 +91,7 @@ as_yes_hook:
 | d7 track, d6 scene byte k, d5 wA, d4 wB, d3 the LFO/AMP/FX block - 6,
 | a2 the assigned machine's PLAYBACK block, a3/a4 the A/B lock rows (0 =
 | muted; one scene: a3 its row, a4 0), a5 the working Part. 40(%sp)
-| counts the writes, 44(%sp) holds the mode.
+| counts the bytes that changed, 44(%sp) holds the mode.
 as_apply:
         lea     -48(%sp),%sp
         movem.l %d2-%d7/%a2-%a5,(%sp)
@@ -174,7 +176,7 @@ as_apply:
         extb.l  %d2
 4:      move.l  %d1,%d0
         and.l   %d2,%d0
-        bmi.s   .Lnext                  | both unlocked: stock passes the base through
+        bmi.w   .Lnext                  | both unlocked: stock passes the base through
         moveq   #6,%d0
         cmp.l   %d0,%d6
         bge.s   5f
@@ -209,11 +211,25 @@ as_apply:
 .Lwrite:
         cmp.l   %d0,%d1
         beq.s   .Lnext
+        move.l  %d0,%d2                 | the base, kept across the call
         move.l  %d1,-(%sp)              | value
         move.l  %d6,-(%sp)              | flat = the scene byte numbering
         move.l  %d7,-(%sp)              | track
         jsr     (P1_WRITER).l
         lea     12(%sp),%sp
+        | count only a byte that changed: the writer refuses disabled slots
+        | (AMP XVOL) and clamps, so a lock can leave the Part as it was
+        moveq   #6,%d0
+        cmp.l   %d0,%d6
+        bge.s   1f
+        lea     (%a2,%d6.l),%a0
+        bra.s   2f
+1:      movea.l %d3,%a0
+        adda.l  %d6,%a0
+2:      moveq   #0,%d0
+        move.b  (%a0),%d0
+        cmp.l   %d2,%d0
+        beq.s   .Lnext
         addq.l  #1,40(%sp)
 .Lnext:
         addq.l  #1,%d6
@@ -239,7 +255,10 @@ as_apply:
         subq.l  #1,%d0
         beq.s   1f
         lea     as_text_mix(%pc),%a0
-1:      pea     (0x30).w
+1:      tst.l   40(%sp)                 | nothing written: no lock differed from the Part
+        bne.s   2f
+        lea     as_text_none(%pc),%a0
+2:      pea     (0x30).w
         move.l  %a0,-(%sp)
         jsr     (NOTIFY).l
         addq.l  #8,%sp
@@ -263,6 +282,8 @@ as_text_b:
         .asciz  "SCENE B APPLIED"
 as_text_mix:
         .asciz  "SCENE BLEND APPLIED"
+as_text_none:
+        .asciz  "NOTHING TO APPLY"
 | In .text: a DRAM unit's text is RAM, and .data would cost an 8 KB boundary.
 as_taken:
         .byte   0
