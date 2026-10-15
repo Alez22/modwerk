@@ -5,8 +5,10 @@ generated owned transport (host, ASan/UBSan).
 Synthetic: the engine units (words and relocations made up here, relocated by resident_dsp.relocate for the
 expected words), the controller packages and trust rows (test_controller_board's), the FX catalogue and the
 bank's Parts, and a modelled DSP receiver (WRITE into a P array, PLACE and CAS as resident_dsp.receiver_place
-and receiver_control state them, RESET word counts). No hardware ACK, timing or audio is claimed; the DSP side's
-own execution is test_resident_engines.py's.
+and receiver_control state them, RESET word counts, BIND/UNBIND/BYPASS into a dispatch table that every frame
+checks: each running slot's code whole and where the manager holds it). Modes 12-21 are the evacuation of live FX
+code from the engines' region. No hardware ACK, timing or audio is claimed; the DSP side's own execution is
+test_resident_engines.py's.
 """
 import importlib.util
 import hashlib
