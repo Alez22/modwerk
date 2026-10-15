@@ -1,0 +1,91 @@
+import { useEffect, useRef, useState } from 'react'
+import { Icon } from './Icon'
+import { DiagnosticsInvitation } from './DiagnosticsInvitation'
+import { assetUrl } from '../hosting'
+import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
+import { api, post } from '../community/api'
+import { useCommunity } from '../community/context'
+import { diagnosticPreference, type DiagnosticPreference } from '../community/octatrack-diagnostics'
+import { pageBusy } from '../community/public-announcement'
+import { browserRequestsPrivacy } from '../community/usage'
+
+// A new note needs a new id here and in server/auth.ts (OWNER_NOTE).
+const KEY = 'modwerk.owner-note:2026-10-15-beta'
+const WAIT = 10
+let closedThisVisit = false
+export function ownerNoteSeen() {
+  if (closedThisVisit) return true
+  try { return localStorage.getItem(KEY) === 'seen' } catch { return false }
+}
+export function closeOwnerNote() {
+  closedThisVisit = true
+  try { localStorage.setItem(KEY, 'seen') } catch { /* Stays closed for this visit when storage is blocked. */ }
+}
+/** The diagnostics invitation follows the note, even if it was dismissed before, unless sharing is already on or impossible here. */
+export const askForDiagnostics = (preference: DiagnosticPreference, privacy: boolean) => preference.available && !preference.enabled && !privacy
+
+export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJoin: () => void; onLeave: () => Promise<void> }) {
+  const dialog = useRef<HTMLDialogElement>(null), [wait, setWait] = useState(WAIT), [leaving, setLeaving] = useState(false), [error, setError] = useState('')
+  useEffect(() => {
+    const element = dialog.current, previousFocus = document.activeElement
+    element?.showModal(); element?.querySelector('h2')?.focus()
+    return () => { element?.close(); if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus() }
+  }, [])
+  useEffect(() => {
+    if (!wait) return
+    const timer = window.setTimeout(() => setWait(wait - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [wait])
+  async function leave() {
+    if (wait || !window.confirm('Leave the beta? The beta modules and the Octatrack USB page go away for your account, and you can’t rejoin on your own.')) return
+    setLeaving(true); setError('')
+    try { await onLeave() } catch (failure) { setError(failure instanceof Error ? failure.message : 'Couldn’t leave the beta. Please try again.'); setLeaving(false) }
+  }
+  // The note stays up for a few seconds so it gets read, and then only closes through one of its two choices.
+  return <dialog ref={dialog} className="app-dialog owner-note" aria-labelledby="owner-note-title" aria-describedby="owner-note-message" onCancel={event => event.preventDefault()}>
+    <header className="owner-note-head"><img src={assetUrl('modwerk-mark.svg')} width={28} height={28} alt="" /><span>Modwerk beta</span></header>
+    <div className="owner-note-body">
+      <h2 id="owner-note-title" tabIndex={-1}>Hey guys,</h2>
+      <div id="owner-note-message">
+        <p>thanks a lot for testing the beta! From now on, reporting bugs on Discord is mandatory for beta testers – it's the only way I can keep up with them. Here's what I need from you:</p>
+        <ul className="owner-note-asks">
+          <li><strong>Report any bugs on Discord</strong> – please leave them in the <strong>#beta-tester</strong> channel.</li>
+          <li><strong>Match your usernames</strong> – please use the same name on Discord as here (<strong>@{username}</strong>), so I know who's who.</li>
+          <li><strong>Share diagnostics</strong> – I'll ask you right after this note. It shows me where a build or sync went wrong.</li>
+        </ul>
+        <p className="owner-note-warning"><Icon name="warn" size={18} /><span>This firmware is still <strong>highly experimental</strong>. But you can always roll back to the stock firmware.</span></p>
+        <p>If Discord doesn't work for you, you can leave the beta below.</p>
+        <p className="owner-note-sign">Thank you,<br /><strong>Jannik</strong></p>
+      </div>
+    </div>
+    {error && <p className="file-error owner-note-error" role="alert">{error}</p>}
+    <footer className="owner-note-actions">
+      <button type="button" className="owner-note-close" disabled={!!wait || leaving} onClick={() => void leave()}>{leaving ? 'Leaving…' : 'Leave beta'}</button>
+      <a className="button button-primary" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noopener noreferrer" aria-disabled={!!wait || leaving} onClick={event => { if (wait || leaving) event.preventDefault(); else onJoin() }} aria-label="Join Discord (opens in a new tab)"><img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />{wait ? `Join Discord (${wait})` : 'Join Discord'}</a>
+    </footer>
+  </dialog>
+}
+
+/** Beta testers only (App.tsx), until they join Discord, on every device; opens when no other dialog, menu or text field is in use. */
+export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
+  const { session, refresh } = useCommunity(), memberId = session.user!.id
+  const [step, setStep] = useState<'note' | 'diagnostics'>(), [serverDue, setServerDue] = useState<boolean>()
+  useEffect(() => {
+    if (ownerNoteSeen()) return
+    const controller = new AbortController()
+    // A Worker without this note yet falls back to this browser's marker.
+    void api<{ show: boolean }>('/auth/owner-note', { signal: controller.signal }).then(result => { if (!controller.signal.aborted) setServerDue(result.show) }).catch(() => { if (!controller.signal.aborted) setServerDue(true) })
+    return () => controller.abort()
+  }, [memberId])
+  const due = serverDue === true && !ownerNoteSeen()
+  useEffect(() => {
+    if (!enabled || step || !due) return
+    const timer = window.setInterval(() => { if (!pageBusy()) setStep('note') }, 3000)
+    return () => window.clearInterval(timer)
+  }, [enabled, step, due])
+  if (step === 'diagnostics') return <DiagnosticsInvitation onClose={() => setStep(undefined)} />
+  return step === 'note' ? <OwnerNote username={session.user!.username!} onJoin={() => {
+    closeOwnerNote(); void post('/auth/owner-note', {}).catch(() => {}); void post('/auth/beta-discord-invite', {}).catch(() => {})
+    setStep(askForDiagnostics(diagnosticPreference(), browserRequestsPrivacy()) ? 'diagnostics' : undefined)
+  }} onLeave={async () => { await post('/auth/beta-leave', {}); setStep(undefined); await refresh() }} /> : null
+}

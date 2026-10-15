@@ -1,5 +1,4 @@
 import { BetaInvitationPage } from './community/BetaInvitationPage'
-import { BetaDiscordInvitation } from './community/BetaDiscordInvitation'
 import { BrandName } from './components/BrandName'
 import { AccountPage } from './community/AccountPage'
 import { SignupWelcome } from './community/SignupWelcome'
@@ -106,6 +105,7 @@ const OctatrackActivity = lazy(() => beta().then(module => ({ default: module.Oc
 const BaseInstallDialog = lazy(() => beta().then(module => ({ default: module.BaseInstallDialog })))
 const OctatrackDiagnosticsCollector = lazy(() => import('./components/OctatrackDiagnostics').then(module => ({ default: module.OctatrackDiagnosticsCollector })))
 const DiagnosticsInvitationGate = lazy(() => import('./components/DiagnosticsInvitation').then(module => ({ default: module.DiagnosticsInvitationGate })))
+const OwnerNoteGate = lazy(() => import('./components/OwnerNote').then(module => ({ default: module.OwnerNoteGate })))
 const BetaModuleSets = lazy(() => beta().then(module => ({ default: module.BetaModuleSets })))
 const FirmwareFeedbackPreview = import.meta.env.DEV ? lazy(() => import('./components/FirmwareFeedbackPreview')) : () => null
 const firmwareFeedbackPreview = import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'firmware-feedback'
@@ -466,6 +466,7 @@ export default function App() {
       {reportingConfiguration && <ConfigurationReportDialog machine={reportingConfiguration.machine} configurationId={reportingConfiguration.id} onClose={() => setReportingConfiguration(null)} />}
       {configDialog && <ConfigurationDialog mode={configDialog} initialName={configDialog === 'create' ? '' : configDialog === 'duplicate' ? (machineActive?.name ?? '') + ' copy' : machineActive?.name ?? ''} onSubmit={submitConfigurationDialog} onClose={() => { setConfigDialog(null); setCreateDevice(null) }} />}
       <PublicAnnouncement next={route} enabled={newsEnabled} />
+      {betaAccess && <Suspense fallback={null}><OwnerNoteGate key={session.user!.id} enabled={newsEnabled} /></Suspense>}
       <Suspense fallback={null}>
       {usbLink && !hubRoute && !loadingTarget && <OctatrackActivity link={usbLink}/>}
       {openModule && (() => {
@@ -493,7 +494,6 @@ export default function App() {
         </header>
         <main className="workspace-content" id="main-content" ref={mainRef} tabIndex={-1}>
           {firmwareFeedbackPreview && <Suspense fallback={null}><FirmwareFeedbackPreview/></Suspense>}
-          {!accountRoute && !developerRoute && <BetaDiscordInvitation />}
           {!accountRoute && <SignupWelcome key={route} />}
           {!accountRoute && !developerRoute && !configuration && machineView !== 'configuration' && !['admin', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route) && <HardwareFeedbackReminder />}
           {!phoneLayout && !hubRoute && projectNotice}
