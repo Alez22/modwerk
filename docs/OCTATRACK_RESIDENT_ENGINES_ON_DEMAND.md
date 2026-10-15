@@ -61,6 +61,27 @@ measured.
      - An uncertain PLACE or UNPLACE keeps the span for the rest of the boot.
      - The owned channel's existing fail-closed rule stands.
 
+## Measured on the unit (15 October 2026)
+
+- **Arena.** A private development build with `--resident-on-demand` (base `25ab5804…`, nothing placed) leaves 4,418 words on core 0 and 4,546 on core 1. The beta base `362fb24d…` leaves 2,396 and 3,269.
+- **Why it matters.**
+  - On #619's development twin, SPRING REV was refused "DSP MEMORY FULL" on T5–T8 of bank A Part 2: core 0 held FILTER plus the PLATE and DARK REV that Part 1 names (2,102 words), so Spring's 1,063 did not fit beside them.
+  - On the on-demand build all eight picks loaded beside them, 3,165 words on core 0. Playing: T1-4 62 %, T5-8 67 %, ColdFire 50 %, no loader error.
+  - Stock keeps 6,158 words of effect code per core, so a Part with all three reverbs on T5–T8 cannot load on the beta base at all.
+- **Not yet runnable.** Such a base cannot run Sidechain, Output Matrix or Analog BD, because nothing places their engines yet.
+
+## Switch artifacts (first take, 15 October 2026, on the build above)
+
+**Method.** Bank A Part 2's only sounding track (T3) repeats every 4 s bit for bit. Around each switch, the take is compared with the same spot a loop earlier and a loop later.
+
+**Results.**
+- **Stock hard switch (DELAY ↔ NONE):** stays within 38,819 steps (24-bit) of one or the other.
+- **Switches between byte-identical Parts (2 → 3 → 4 → 2), and FILTER → LO-FI:** about 0.5 s where T3 matches neither loop, up to about 9 % of full scale.
+  - It starts about 50 ms after the switch and ends at the same point in the loop each time.
+  - No dropout, no extra click, no loader error.
+
+**Open.** Whether stock does the same is not known. It needs a stock reference (an unmodified OS image, booted from RAM) before it counts as our artifact.
+
 ## Open
 
 - **ColdFire side.** `resident_engines.c`/`.py`: the manager seams (claim, release, dry run, evacuation flag in `place()`), the transport validator for `proc == 1`, and the board seams (place before ENABLE, garbage collection after release).
