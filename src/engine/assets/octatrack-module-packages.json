@@ -177,14 +177,14 @@
       "abi": 8,
       "features": 3,
       "sites": 2,
-      "copies": 7,
+      "copies": 6,
       "fills": 0,
-      "version": "0.1.4-experimental",
+      "version": "0.1.3-experimental",
       "name": "Tape Echo",
       "module": "9f482bb9",
-      "bytes": 112044,
-      "sha256": "b621bc9cb90c28396e3f380b6eb1b6f68abbcb463085774ca2c1e97a90bdefe1",
-      "path": "octatrack-modules/tapeecho/0.1.4-experimental.mwrm"
+      "bytes": 111932,
+      "sha256": "21b953eb038429a5f7428c655cb889aa871e6c794313e51b00568150528630d1",
+      "path": "octatrack-modules/tapeecho/0.1.3-experimental.mwrm"
     },
     {
       "id": "euclid",
