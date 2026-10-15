@@ -13,7 +13,7 @@ import { AUDIO_PREVIEW_GUIDE_HREF, LEGACY_AUDIO_PREVIEW_GUIDE_HREF } from '../co
 import { accountHref } from './member-access'
 import type { BellItem } from './notification-contract'
 import type { NotificationLine } from './notification-text'
-import { dismissPublicAnnouncement, latestPublicAnnouncement, publicAnnouncementDismissed, publicAnnouncementLine } from './public-announcement'
+import { dismissPublicAnnouncement, latestPublicAnnouncement, pageBusy, publicAnnouncementDismissed, publicAnnouncementLine } from './public-announcement'
 import { trackAnnouncement, trackUsage } from './usage'
 
 /** The same card is used in the public prompt and the operator's preview. It never takes focus. `signup` adds Create account to a Discord card. */
@@ -67,7 +67,7 @@ function PublicAnnouncementContent({ memberId, signup, enabled }: { memberId: st
     let timer: number | undefined, cancelled = false
     // Members still claim a handled browser invitation so it stays quiet on other devices too.
     const retired = () => publicAnnouncementDismissed(item.id) || (item.url === DEVELOPMENT_DISCORD_URL && presented.current !== item.id && discordInviteHandledHere())
-    const blocked = () => !enabled || document.visibilityState !== 'visible' || !!document.querySelector('dialog[open], .notification-panel, .mobile-menu-panel, .library-machine-menu, .forum-shoutbox.is-floating, .signup-welcome, .selection-warning') || !!document.activeElement?.matches('input, textarea, [contenteditable="true"]')
+    const blocked = () => !enabled || pageBusy()
     function check() {
       if (retired()) {
         if (memberId && item!.url === DEVELOPMENT_DISCORD_URL) void claimDiscordInvite(memberId).catch(() => {})

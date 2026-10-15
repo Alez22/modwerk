@@ -149,6 +149,7 @@ export default function App() {
   const forumRoute = route === 'forum' || route.startsWith('forum/') || route.startsWith('forum?')
   const developerRoute = route === 'developer' || route.startsWith('developer/')
   const accountRoute = route === 'account' || route.startsWith('account/')
+  const newsEnabled = !accountRoute && !developerRoute && !configuration && machineView !== 'configuration' && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route)
   // One link to the unit for the whole site: it connects by itself whenever an allowed Octatrack is plugged in.
   // Loading a module set sends the site's packages (module-set.ts); the stress test is the base's own self-test.
   // Beta testers, verified administrators and dev builds get the migration's interface; everyone else gets main's.
@@ -458,7 +459,7 @@ export default function App() {
       {configurationsOpen && <ConfigurationBrowser configurations={workspace.configurations} activeId={sidebarConfiguration?.id} currentDevice={machineCanConfigure ? currentDevice.id : 'octatrack'} onSelect={changeConfiguration} onCreate={newConfiguration} onClose={() => setConfigurationsOpen(false)} />}
       {reportingConfiguration && <ConfigurationReportDialog machine={reportingConfiguration.machine} configurationId={reportingConfiguration.id} onClose={() => setReportingConfiguration(null)} />}
       {configDialog && <ConfigurationDialog mode={configDialog} initialName={configDialog === 'create' ? '' : configDialog === 'duplicate' ? (machineActive?.name ?? '') + ' copy' : machineActive?.name ?? ''} onSubmit={submitConfigurationDialog} onClose={() => { setConfigDialog(null); setCreateDevice(null) }} />}
-      <PublicAnnouncement next={route} enabled={!accountRoute && !developerRoute && !configuration && machineView !== 'configuration' && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route)} />
+      <PublicAnnouncement next={route} enabled={newsEnabled} />
       <Suspense fallback={null}>
       {usbLink && !hubRoute && !loadingTarget && <OctatrackActivity link={usbLink}/>}
       {openModule && (() => {
