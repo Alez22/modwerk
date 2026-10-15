@@ -8,6 +8,7 @@ import { moduleSetReview } from '../engine/elekloader/module-set'
 import type { LinkState, OctatrackLink } from '../engine/elekloader/octatrack-link'
 import type { DiagnosticReading } from '../community/octatrack-diagnostics-contract'
 import { OctatrackHub, type HubView } from './OctatrackHub'
+import { recordLoad } from '../hooks/useOctatrackLoad'
 
 vi.mock('./OctatrackDiagnostics', () => ({ OctatrackDiagnosticsSettings: () => null }))
 vi.mock('../engine/elekloader/module-set', async original => ({ ...await original<typeof import('../engine/elekloader/module-set')>(), moduleSetReview: vi.fn() }))
@@ -71,6 +72,8 @@ describe('the Octatrack page', () => {
 
   it('shows the unit’s status from its own records and this browser’s syncs', async () => {
     const set = newConfiguration('Live', ['miniverb', 'synth']), link = unit(), props = callbacks()
+    // The app records the load on every page; Status shows what it recorded.
+    const stop = recordLoad(link as unknown as OctatrackLink); await act(async () => {})
     recordSync({ name: 'Live', modules: 2, outcome: 'failed', message: 'The stress test failed.' }, '2026-10-13T10:00:00.000Z')
     recordSync({ name: 'Live', modules: 2, outcome: 'kept' }, '2026-10-13T11:00:00.000Z')
     await act(() => root.render(createElement(OctatrackHub, { ...props, view: 'status', link, inventory: { moduleIds: ['miniverb', 'synth'], removedStockFx: [] }, sets: [set], selectedId: set.id, header: null, grid: null, card: null })))
@@ -82,6 +85,7 @@ describe('the Octatrack page', () => {
     expect(status).toContain('Failed: the Octatrack’s DSP stopped')
     expect([...open().querySelectorAll('.hub-peaks dd')].map(item => item.textContent)).toEqual(['41%', '24%', '66%'])
     expect(status).toContain('Live load needs a newer Modwerk base')
+    stop()
     expect([...open().querySelectorAll('.hub-console > *')].map(cell => cell.className.split(' ').pop())).toEqual(['hub-cell-cpu', 'hub-cell-dsp1', 'hub-cell-dsp2', 'hub-cell-chart', 'hub-cell-health', 'hub-cell-unit', 'hub-cell-history'])
     expect([...open().querySelectorAll('.hub-history li strong')].map(item => item.textContent)).toEqual(['Live', 'Live'])
     await act(() => button('Report a problem').click())
