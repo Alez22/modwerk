@@ -5,7 +5,7 @@ Hey guys,
 the past week I’ve been working on a big Octatrack update, and I’d love for you to try it before it’s out for everyone.
 
 - Flash modules over USB
-  Install the Modwerk base once from the card, then send modules straight from the site – no card, no reboot.
+  Install the Modwerk base once from the card, then connect directly via USB – no card, no reboot.
 - All modules work together
   All 19 can be on your Octatrack at the same time, including the beta-only POLY8 and Air Chorus.
 - Smarter DSP use
