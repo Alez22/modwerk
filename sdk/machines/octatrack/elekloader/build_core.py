@@ -1109,6 +1109,10 @@ def main():
                              'table-owner storage, so it admits those exact packages')
     parser.add_argument('--resident-stock-hooks', action='store_true',
                         help='Private dormant resident SC/Matrix/Analog BD packing. Does not admit their runtime controllers.')
+    parser.add_argument('--resident-on-demand', action='store_true',
+                        help='With --resident-stock-hooks: leave the SC/Matrix/Analog BD engines out of the permanent block, as '
+                             'relocatable units placed in the arena while a controller holds them '
+                             '(docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md). Work in progress: nothing places them yet.')
     parser.add_argument('--controller-policies', type=Path,
                         help='Private: reviewed controller trust rows (stock_hook_controllers.py) for this exact base link. '
                              'Needs --resident-stock-hooks and --controller-layout.')
@@ -1126,6 +1130,8 @@ def main():
         parser.error('Private saved-set export requires the ordinary DSP loader without probes/burn.')
     if args.resident_stock_hooks and (not args.dsp_loader or args.dsp_probe or args.dsp_burn):
         parser.error('Private resident stock hooks require the ordinary DSP loader, without probes/burn.')
+    if args.resident_on_demand and not args.resident_stock_hooks:
+        parser.error('--resident-on-demand needs --resident-stock-hooks.')
     if bool(args.controller_policies) != bool(args.controller_layout) or (args.controller_policies and not args.resident_stock_hooks):
         parser.error('Controller trust rows need --resident-stock-hooks and the layout their packages were encoded against.')
     global FX_IDS, FX_WORDS
@@ -1253,7 +1259,8 @@ def main():
         from elekloader.sdk.octabam import Octabam
         resident_ob = Octabam(str(APP / 'sdk/octabam'))
         resident_factory = lambda tag, hi: resident_dsp.place_resident(
-            resident_ob, tag, hi, str(source), dsp_packages.assemble)
+            resident_ob, tag, hi, str(source), dsp_packages.assemble,
+            resident_dsp.ALLOWED[tag] if args.resident_on_demand else 0)
     if args.dsp_loader:
         spec = importlib.util.spec_from_file_location('modwerk_dsp_loader', HERE/'dsp_loader.py')
         loader_dsp = importlib.util.module_from_spec(spec); spec.loader.exec_module(loader_dsp)
