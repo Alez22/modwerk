@@ -2,7 +2,7 @@
 
 ## Commands and exact revision
 
-Emulator only, 15 Oct 2026. The source is the commit that adds this file, on branch `claude/apply-scene`. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
+Emulator only, 15 Oct 2026. The source is commit `da2d18e4` on branch `claude/apply-scene`. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
 
 ```sh
 make bus REMIX=apply-scene-stock BUILD=0          # in a scratch copy of sdk/octabam
