@@ -214,7 +214,7 @@ filter section per call follows the clock instead of all nine, and a
 bookkeeping pass with bit-identical output. Going further means lower filter
 orders, which would change the sound.
 
-**Stress** (`perf.py stress --seconds 2`, 104 s, on the 0.1.1 image; 0.1.0 ran 32 s, and the owner waived the longer run for 0.1.1). E-Verb's
+**Stress** (`perf.py stress --seconds 2`, 104 s of host time, on the 0.1.1 image; 0.1.0 ran 32 s. Since 15 October 2026 the audit asks for 2 s, the owner's limit on test length). E-Verb's
 load, driven straight into `dsp_host` on the private image, because
 `stress_project.py` needs a template Octatrack project that isn't available
 here:
@@ -242,9 +242,9 @@ switches and the ColdFire side are not in it.
 
 ```
 ✓ record          dsp record for bbd@0.1.0-experimental
-✓ cycles          4 x 378 = 1512 of 3120 per sample per core (48%), measured 439.44 per instance
-· stock benchmark 439.44 vs CHORUS 293.06 (1.50x); the dearest stock effect is 330.94; justified in the record
-✓ stress          4 per core, eight tracks, 3 LFOs and 17 locked slots, 32 s, no clobber, no hang
+✓ cycles          4 x 378 = 1512 of 3120 per sample per core (48%), measured 399.31 per instance
+· stock benchmark 399.31 vs CHORUS 293.06 (1.36x); the dearest stock effect is 330.94; justified in the record
+✓ stress          4 per core, eight tracks, 3 LFOs and 17 locked slots, 2 s, no clobber, no hang
 ```
 
 What stays free: four BBDs on one core leave 1,608 of the 3,120 usable static
