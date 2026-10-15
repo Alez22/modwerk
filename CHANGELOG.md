@@ -26,6 +26,8 @@
 
 ## 13 October 2026
 
+- Prepared an unsent beta invitation in the existing news email style, with a short, welcoming feature teaser and detailed firmware risks on the site, plus a separate unpublished public announcement. Both explain the 50-person tester pool. Joining requires a verified account and explicit acceptance of the current firmware risks. Admission is capped at 50 across email, public joining and administrator grants; public joining starts closed. Revocation blocks reuse of prior invitations. Beta access appears beside the Modwerk branding. The invitation page prompts visitors to join Discord alongside the risk reminder, and existing testers receive a once-per-account Discord invitation. Consent preferences remain unchanged; invitation acknowledgements are exported and removed with the account.
+
 - Fixed public report replies reaching only the original reporter. GitHub and Modwerk replies now also notify verified members who successfully joined that report through Modwerk, using their authenticated reply receipts. Participants open the public module conversation; private report access, email preferences and digest timing are preserved. Failed replies, typed mentions, self-replies and service-account echoes do not create extra notifications. Existing comments are not replayed automatically.
 - Documentation: added report-communication verification steps that distinguish signed webhook processing, individual bell recipients, digest eligibility and actual mail delivery.
 
