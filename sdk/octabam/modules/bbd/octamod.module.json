@@ -3,7 +3,7 @@
   "id": "bbd",
   "key": "BBD",
   "name": "BBD Delay",
-  "version": "0.1.0-experimental",
+  "version": "0.1.1-experimental",
   "category": "effects",
   "author": {
     "github": "JamCones",
@@ -110,36 +110,35 @@
     "uiClaims": [],
     "limitations": [
       "Hardware qualification is the author's own: about ten minutes on an Octatrack MKII with the release image (two instances, Part/project reload and a power cycle). MKI, MIDI/USB load and silicon timing are untested.",
-      "Card builds only: not offered over USB yet. Its worst case (439 executed instructions per sample with trig splits) is charged above the USB loader's current per-module cycle limit; the USB port follows.",
+      "Over USB it needs the Modwerk beta base with the ev_tail_kill event (ba89721d or later) and keeps its card effect id, 14: a set where another module holds id 14 is refused.",
       "FX2 only: the bucket line needs the 16K-word delay buffer the OS gives FX2 instances.",
-      "With stock DSP code built in, BBD's 1,075 words take the space of SPRING REV and PLATE REV, which leave the FX2 chooser (DARK REV calls a 35-word routine inside SPRING REV's code, so BBD is placed from PLATE REV's start, clear of it); a saved project that uses either on FX2 plays that slot dry. Every other stock effect stays, DARK REV bit-identical to stock. Other modules in the same build can change the choice.",
+      "With stock DSP code built in, BBD's 1,112 words take the space of SPRING REV and PLATE REV, which leave the FX2 chooser (DARK REV calls a 35-word routine inside SPRING REV's code, so BBD is placed from PLATE REV's start, clear of it); a saved project that uses either on FX2 plays that slot dry. Every other stock effect stays, DARK REV bit-identical to stock. Other modules in the same build can change the choice.",
       "Free-running TIME: the DSP side has no tempo word, so the delay does not follow tempo, track speed or swing.",
       "Mono bucket line: the wet is the same on both channels; the dry stays stereo.",
       "Aliasing is the bucket brigade's own: -44 dBc for a 1.1 kHz tone at the fastest clock, -37 dBc at the slowest.",
-      "Dearer than any stock effect: up to 439 executed instructions per sample with trig splits (SPRING REV 314, CHORUS 293, DJ EQ 331), 405 without splits. Four per core fit the static budget; real-chip headroom is not measured.",
-      "STGS, LIM and HPF are on the SETUP page: the OS does not lock, modulate or scene them.",
-      "STOP, STOP, STOP does not cut BBD's tail yet: the stock tail kill tests the stock reverbs' ids only. BBD's DSP takes the signal on a hidden slot; the ColdFire hook that writes it comes in a later version."
+      "Dearer than any stock effect: up to 400 executed instructions per sample with trig splits (SPRING REV 314, CHORUS 293, DJ EQ 331), 363 without splits. Four per core fit the static budget; real-chip headroom is not measured.",
+      "STGS, LIM and HPF are on the SETUP page: the OS does not lock, modulate or scene them."
     ],
     "effectId": 14
   },
   "resources": {
-    "recorded": "2026-10-14",
+    "recorded": "2026-10-15",
     "storage": {
       "label": "DSP program / buffer",
-      "display": "1,075 words / 4K ring",
+      "display": "1,112 words / 4K ring",
       "value": null,
       "unit": "see display",
       "method": "static",
-      "conditions": "1,075 assembled program words on each DSP core in the space of SPRING REV and PLATE REV; a 91-word X state block per instance (r7+$00..$5a); up to 4,095 ring words plus 58 coefficient words of the 16,384 Y words the OS allocates to every FX2 instance.",
+      "conditions": "1,112 assembled program words on each DSP core in the space of SPRING REV and PLATE REV; a 91-word X state block per instance (r7+$00..$5a); up to 4,095 ring words plus 58 coefficient words of the 16,384 Y words the OS allocates to every FX2 instance.",
       "source": "TESTING.md"
     },
     "processing": {
       "label": "DSP instruction peak",
-      "display": "439 instructions/sample per instance",
+      "display": "400 instructions/sample per instance",
       "value": null,
       "unit": "see display",
       "method": "emulator",
-      "conditions": "benchmark_stock_dsp.py's method (one instance per core, 16-sample blocks, null stub subtracted) with SPRING REV, CHORUS and DJ EQ through the same cases: worst case 439.44 with a trig split, 405.00 unsplit. Static loop count 378 cycles/sample. Executed instructions, not chip cycles.",
+      "conditions": "benchmark_stock_dsp.py's method (one instance per core, 16-sample blocks, null stub subtracted) with SPRING REV, CHORUS and DJ EQ through the same cases: worst case 399.31 with a trig split, 363.06 unsplit. Static loop count 378 cycles/sample. Executed instructions, not chip cycles.",
       "source": "TESTING.md"
     },
     "impact": {
@@ -147,19 +146,19 @@
       "cpu": {
         "level": "minimal",
         "basis": "source-estimate",
-        "rationale": "No ColdFire code: the stock parameter pages publish the knobs, as for any FX2 effect.",
+        "rationale": "A few ColdFire instructions run only while STOP, STOP, STOP holds a track (a hook on card builds, the base's ev_tail_kill over USB); the stock parameter pages publish the knobs, as for any FX2 effect.",
         "source": "TESTING.md"
       },
       "dsp": {
         "level": "high",
         "basis": "measured-comparison",
-        "rationale": "439.44 executed instructions/sample worst case with trig splits against SPRING REV 314.19, CHORUS 293.06 and DJ EQ 330.94 (the dearest stock effect) under the same cases; four per core are 1,512 of 3,120 static cycles. Chip timing is unmeasured.",
+        "rationale": "399.31 executed instructions/sample worst case with trig splits against SPRING REV 314.19, CHORUS 293.06 and DJ EQ 330.94 (the dearest stock effect) under the same cases; four per core are 1,512 of 3,120 static cycles. Chip timing is unmeasured.",
         "source": "TESTING.md"
       },
       "memory": {
         "level": "moderate",
         "basis": "source-estimate",
-        "rationale": "1,075 program words per core in the space of SPRING REV and PLATE REV, a 91-word X block per instance, the 16K-word FX2 delay buffer every delay already gets.",
+        "rationale": "1,112 program words per core in the space of SPRING REV and PLATE REV, a 91-word X block per instance, the 16K-word FX2 delay buffer every delay already gets.",
         "source": "TESTING.md"
       }
     }

@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-15",
+    "changes": [
+      "Over USB: BBD Delay loads onto an Octatrack running the Modwerk beta base, in a module set like the other effects. 0.1.0 was refused there because its worst case was over the base's per-effect limit.",
+      "Cheaper worst case, same sound: after a reset (a STGS change, the stop kill or the first call) BBD rebuilt all nine of its clock filter sections in the first call that plays audio, and a trig split put a second full call in the same block. They are now built one call earlier, in the last silent clear call, so the worst case with trig splits drops from 439 to 400 executed instructions per sample (405 to 363 without splits). The output is bit-identical to 0.1.0 except when TIME moves in the two calls around a reset, where the filters start from TIME's value one block earlier and catch up within nine calls; in the gate's worst render the largest difference is 520 LSB (-84 dBFS).",
+      "STOP, STOP, STOP now cuts BBD's tail, as it cuts the stock reverbs': while the kill holds, BBD plays the input exactly and clears its line. On card builds a ColdFire hook does this at the stock tail kill; over USB it is the base's new `ev_tail_kill` event.",
+      "Code size 1,075 to 1,112 DSP words; card builds still give up SPRING REV and PLATE REV and keep DARK REV unchanged."
+    ]
+  },
+  {
     "version": "0.1.0-experimental",
     "date": "2026-10-14",
     "changes": [
