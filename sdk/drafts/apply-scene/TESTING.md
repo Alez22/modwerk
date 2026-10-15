@@ -92,7 +92,8 @@ On the unit, 15 Oct 2026 (user's MKII, OS 1.40C), installed with `npm run device
 
 - NOTHING TO APPLY (the same apply twice, a scene with no locks, the blend with both scenes muted): pass.
 - SCENE A + YES, SCENE B + YES and the blend still apply: pass.
-- Power cycle: afterwards APPLY SCENE was not installed and SCENE + YES did stock's ARM ALL. The power cycle had returned the unit to its flashed base (acf91e0a…), and a kept set belongs to the base it was kept on, so this is not a persistence result for the module. To redo on the flashed base.
+- Power cycle: afterwards APPLY SCENE was not installed and SCENE + YES did stock's ARM ALL. The power cycle had returned the unit to its flashed base (acf91e0a…), and a kept set belongs to the base it was kept on, so this is not a persistence result for the module.
+- Power cycle on the flashed base: reinstalled with `try --accept` on acf91e0a… (generation 1, APPLY SCENE listed). Then apply, Part SAVE, PROJECT SAVE, power off and on. User-reported: APPLY SCENE was still installed and SCENE + YES worked as expected; the applied values were still in the Part, and the scenes were as before the shutdown: pass.
 
 ### da2d18e4: card image checklist
 
