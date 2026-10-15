@@ -2635,6 +2635,36 @@
           "value": 0
         },
         {
+          "offset": 202,
+          "width": 4,
+          "value": 0
+        },
+        {
+          "offset": 250,
+          "width": 4,
+          "value": 0
+        },
+        {
+          "offset": 206,
+          "width": 4,
+          "value": 0
+        },
+        {
+          "offset": 254,
+          "width": 4,
+          "value": 0
+        },
+        {
+          "offset": 222,
+          "width": 4,
+          "value": 0
+        },
+        {
+          "offset": 270,
+          "width": 4,
+          "value": 0
+        },
+        {
           "offset": 154,
           "width": 4,
           "value": 128
@@ -3715,7 +3745,7 @@
       ]
     }
   ],
-  "sourceCommit": "00541e03f394846de9db316bb591c3ab25f4f6f9",
+  "sourceCommit": "ba63307044cfca48dd70a149febbd11baeab0bdf",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
