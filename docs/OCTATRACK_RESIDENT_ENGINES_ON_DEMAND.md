@@ -212,10 +212,10 @@ Twin built from this branch before the base regeneration (on demand, `--dev`, co
 
 ## Where this stands (end of 15 October 2026)
 
-The beta base is regenerated on demand on top of main after #619 (`2acdcc81…`, which adds the startup without the wave's outline and the MODWERK STATUS table; Analog BD's recipe recaptured again, only its image hash changed). Steps 1 and 2 are done (merged with main, 15 October evening). Next:
+The beta base is regenerated on demand on top of main after #619 (`6c95c836…`, which adds the startup without the wave's outline and the two-section MODWERK STATUS page; Analog BD's recipe recaptured again, only its image hash changed). Steps 1 and 2 are done (merged with main, 15 October evening). Next:
 
 1. Changelogs: a 15 October note on the current version of the five base-bound modules (four rebuilt, CC Map bytes unchanged); the Sidechain key-phase note now ships in the beta base.
-2. This note's Status and Open → Beta base, and one line in the beta test plan naming tester base `2acdcc81…` and the finding 17 recapture.
+2. This note's Status and Open → Beta base, and one line in the beta test plan naming tester base `6c95c836…` and the finding 17 recapture.
 3. The checks `npm run pr:ready` runs, serially and memory-capped (the parallel run OOMs the WSL test PC), including `import-module-build --check-only --verify-existing` for the rebuilt packages.
 4. A development twin of exactly this configuration plus `--dev`, then on the unit: boot, the three engines, a Part sweep, an Analog BD reboot. Then the pull request.
 

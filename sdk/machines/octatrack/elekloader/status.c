@@ -530,26 +530,22 @@ void modwerk_status_draw(unsigned char *frame)
     dialog(frame, "MODWERK STATUS");
     uint32_t cpu_peak = 0;
     for (unsigned i = 0; i < 8u; ++i) cpu_peak = cpu_recent[i] > cpu_peak ? cpu_recent[i] : cpu_peak;
-    uint32_t largest, pool = RUNTIME_POOL_BYTES - modwerk_runtime_free(&largest);
-    /* A table (owner, 15 October 2026: every label says what it is): the main CPU, then per DSP chip by its tracks
-     * what runs now (measured, with the recent peak's tick), what admission books (DSP FULL comes from it, not from
-     * the measured load, owner 14 October 2026) and its code memory, then the RAM that holds module code. */
-    static const char *const rows[3] = {"NOW", "BOOKED", "CODE MEM"};
-    const uint32_t dsp[3][2] = {{modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN]}, {modwerk_dsp_booked(1), modwerk_dsp_booked(0)},
-                                {share(dl_residency_words[1], modwerk_dsp_arena[1]), share(dl_residency_words[0], modwerk_dsp_arena[0])}},
-                   peak[2] = {modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK]};
-    label(X0 + 4u, Y0 + 13u, "MAIN CPU"), bar(frame, X0 + 46u, Y0 + 14u, 42, 4, modwerk_status[CPU], cpu_peak);
-    percent(X0 + 92u, Y0 + 13u, modwerk_status[CPU]);
-    label(X0 + 4u, Y0 + 21u, "DSP"), label(X0 + 46u, Y0 + 21u, "T1-4"), label(X0 + 77u, Y0 + 21u, "T5-8");
-    for (unsigned i = 0; i < 3u; ++i) {
-        unsigned top = Y0 + 29u + 8u * i;
-        label(X0 + 8u, top, rows[i]);
-        for (unsigned chip = 0; chip < 2u; ++chip) { /* tracks 1-4 run on core 1, tracks 5-8 on core 0 */
-            unsigned x = X0 + 46u + 31u * chip;
-            bar(frame, x, top + 1u, 11, 4, dsp[i][chip], i == 0 ? peak[chip] : 0);
-            percent(x + 13u, top, dsp[i][chip]);
-        }
+    /* Two questions a player asks (owner, 15 October 2026): how hard it works now, and how much DSP space is left.
+     * Now: the main CPU and each DSP chip by its tracks (measured, with the recent peak's tick). DSP space used: the
+     * fuller of what admission books and the chip's code memory, whichever says DSP MEMORY FULL first (effects and
+     * machines both take it). Tracks 1-4 run on core 1, tracks 5-8 on core 0. */
+    /* each core's arena spelled out: the on-demand build rewrites these reads (resident_engines.py status()) */
+    const uint32_t code[2] = {share(dl_residency_words[0], modwerk_dsp_arena[0]), share(dl_residency_words[1], modwerk_dsp_arena[1])};
+    uint32_t used[2];
+    for (unsigned core = 0; core < 2u; ++core) used[core] = modwerk_dsp_booked(core) > code[core] ? modwerk_dsp_booked(core) : code[core];
+    static const char *const names[7] = {"WORKING NOW", "CPU", "TRACKS 1-4", "TRACKS 5-8", "DSP SPACE USED", "TRACKS 1-4", "TRACKS 5-8"};
+    const uint32_t value[7] = {0, modwerk_status[CPU], modwerk_status[DSP1_MEAN], modwerk_status[DSP0_MEAN], 0, used[1], used[0]},
+                   peak[7] = {0, cpu_peak, modwerk_status[DSP1_PEAK], modwerk_status[DSP0_PEAK], 0, 0, 0};
+    for (unsigned i = 0; i < 7u; ++i) {
+        unsigned y = Y0 + 14u + 7u * i;
+        label(X0 + 4u, y - 1u, names[i]);
+        if (i == 0 || i == 4) continue; /* a heading */
+        bar(frame, X0 + 48u, y, 40, 4, value[i], peak[i]);
+        percent(X0 + 92u, y - 1u, value[i]);
     }
-    label(X0 + 4u, Y0 + 53u, "MODULE RAM"), bar(frame, X0 + 46u, Y0 + 54u, 42, 4, share(pool, RUNTIME_POOL_BYTES), 0);
-    percent(X0 + 92u, Y0 + 53u, share(pool, RUNTIME_POOL_BYTES));
 }

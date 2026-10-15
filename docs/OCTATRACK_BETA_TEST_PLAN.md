@@ -344,7 +344,7 @@ image RAM-booted for the S cases, then the owner flashes it once. Part 1 end to 
 
 Pick up here. In order; **O** needs the owner at the unit.
 
-1. **Finish the engines-on-demand pull request** (branch `claude/octatrack-engines-integration`; steps in `docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md`, "Where this stands"): changelog notes for the five rebuilt base-bound packages, docs, every CI check run serially on the WSL test PC, a development twin of the committed beta base `2acdcc81…` (on demand, merged with main after #619) checked on the unit, then the pull request.
+1. **Finish the engines-on-demand pull request** (branch `claude/octatrack-engines-integration`; steps in `docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md`, "Where this stands"): changelog notes for the five rebuilt base-bound packages, docs, every CI check run serially on the WSL test PC, a development twin of the committed beta base `6c95c836…` (on demand, merged with main after #619) checked on the unit, then the pull request.
 2. **Flash the release base** (O) and check that a kept set survives a power cycle (case 1.18); until now the new bases ran from RAM only.
 3. **FUNC held at boot skips the module restore** (O, edge case 15): the testers' escape hatch if a module breaks a unit at startup. Built, never run. Also run absent-module case (c) of finding 24 with it.
 4. **Finding 6, a base update versus the testers' saved sets:** every beta3 tester's card holds a set for another base and the site refuses Keep there. This release changes the base again, so every tester hits it: give it a migration path.
@@ -421,7 +421,7 @@ On twin3 (`dbd564da…`, twin2 plus a CACHE TEST request) the full set ran the q
 minutes before the owner called it stable: ColdFire CPU 74 to 89 % (one sample at 89 %, near the 90 % limit), core 1
 peaks up to 74 %, core 0 up to 50 %, no loader error, crash or stall. 60 s of MAIN during the soak: no click or dropout
 off the pattern's grid (T2 through Euclid is the only audible track, so this is not a per-module listening test).
-Later twins of run 2 (all with the beta flags plus `--dev`, freed memory filled with illegal instructions): twin8 `f9727992…` (finding 30's fix), twin10 `467f6f17…` (finding 26's per-core fallback), twin12 `85cfe98c…` (STATUS page budget rows); the tester base for all of it was `362fb24d…` (PR #619). #619 merged as `18492110…` (with BBD Delay's chooser row and the startup without the outline); its twin13 `b9cd8d27…` passed the 19-module qualification on the unit on 15 October but for four T5 picks refused by the held union of Parts (E-Verb kept on core 0: 2,029 of 2,396 words), which engines on demand removes. The beta base with engines on demand is `2acdcc81…`.
+Later twins of run 2 (all with the beta flags plus `--dev`, freed memory filled with illegal instructions): twin8 `f9727992…` (finding 30's fix), twin10 `467f6f17…` (finding 26's per-core fallback), twin12 `85cfe98c…` (STATUS page budget rows); the tester base for all of it was `362fb24d…` (PR #619). #619 merged as `18492110…` (with BBD Delay's chooser row and the startup without the outline); its twin13 `b9cd8d27…` passed the 19-module qualification on the unit on 15 October but for four T5 picks refused by the held union of Parts (E-Verb kept on core 0: 2,029 of 2,396 words), which engines on demand removes. The beta base with engines on demand is `6c95c836…`.
 
 ### State at the end of run 1 (14 October 2026)
 
