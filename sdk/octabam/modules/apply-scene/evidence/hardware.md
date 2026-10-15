@@ -20,7 +20,8 @@
 
 ## Limits
 
-- The current source (a90849c9) changes only manifest.py after ae2a6eed: the card build links the unit in the DRAM reserve. Its USB package carries the same code; the published package `0.1.0-experimental.mwrm` (SHA-256 `bd90b397d9dffa8d0159355baf4363e73da7bf18fd6a30624eb9fbdd2d76fb73`) differs from the tested one only in its 16-byte display name (Apply Scene, not APPLY SCENE). It has not been run on the unit.
+- The current source (a90849c9) changes only manifest.py after ae2a6eed: the card build links the unit in the DRAM reserve. Its USB package carries the same code; the published package `0.1.0-experimental.mwrm` (SHA-256 `bd90b397d9dffa8d0159355baf4363e73da7bf18fd6a30624eb9fbdd2d76fb73`) differs from the tested one only in its 16-byte display name (Apply Scene, not APPLY SCENE). It has not been functionally tested on the unit.
+- Install only, not a functional test: the published package bd90b397… was installed and kept on the user's MKII (flashed base 38a0bde1, generation 7) beside LOFI2, Quantize Live Rec and LIFT, and the unit listed it as Apply Scene (module 103be957).
 
 - Values watched on the screen; audio not checked, nothing recorded or timed. No click or freeze was noticed.
 - One unit, one short session, by the contributor.

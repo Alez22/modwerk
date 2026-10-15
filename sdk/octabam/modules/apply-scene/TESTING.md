@@ -86,6 +86,10 @@ Reported through the session "firmware builder", recorded as written.
 - **After removal (user-reported):** SCENE + YES does stock's arming again ("just arms track"); nothing is applied: pass.
 - **Still pending:** persistence across a power cycle.
 
+### Published package (15 Oct 2026)
+
+The site's builder names the package from the catalogue, so the published `0.1.0-experimental.mwrm` (SHA-256 `bd90b397d9dffa8d0159355baf4363e73da7bf18fd6a30624eb9fbdd2d76fb73`, from a90849c9) differs from the tested `c63e2868…` only in its 16-byte display name (Apply Scene); the code bytes are identical. Install only, not a functional test: the published package bd90b397… was installed and kept on the user's MKII (flashed base 38a0bde1, generation 7) beside LOFI2, Quantize Live Rec and LIFT, and the unit listed it as Apply Scene (module 103be957).
+
 ### Current source (ae2a6eed): untested on hardware
 
 Adds NOTHING TO APPLY to da2d18e4; nothing else in the behaviour changed. USB package `apply-scene-ae2a6eed.mwrm`, 758 bytes, SHA-256 `c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163` (`build.py --octabam apply-scene --name "APPLY SCENE" --stock`): ABI 7, one hashed site, 636 bytes of code, no relocations, copies or hooks. Its longest run shared with the stock OS has 11 counted bytes (limit 12); no 16-byte run (check_stock_free). On the beta base rebuilt from main 86e0dfb8 (byte-identical to the committed base, e35da4ae…), the adapted ot_emu's `sites` scenario installed it and its removal restored every site byte. To check on the unit: SCENE A + YES twice shows NOTHING TO APPLY the second time, and so does SCENE + YES on a scene with no locks.
