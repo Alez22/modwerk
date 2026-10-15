@@ -30,7 +30,7 @@ function selftestLine(health: DiagnosticReading) {
 /**
  * Status: one fixed panel of cells, like a control room's, that never grows with its contents. The load meters, the
  * last five minutes, the last self-test and the card, what is on the unit and this browser's syncs; long lists scroll in
- * their cell. Unit readings happen only while it shows; without a unit every cell stays in place, showing what it can.
+ * their cell. The load is recorded on every page; other unit readings happen only while it shows. Without a unit every cell stays in place, showing what it can.
  */
 export function OctatrackOverview({ link, inventory, sets, needs, health, active, selected, onOpen, onSync, onSaveUnit, onReport }: {
   link: OctatrackLink | null; inventory?: Inventory; sets: Configuration[]; needs?: ProjectNeeds; health?: DiagnosticReading | null; active: boolean; selected?: Configuration

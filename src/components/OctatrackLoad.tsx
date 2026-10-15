@@ -14,12 +14,12 @@ const SERIES: { key: keyof Pick<LoadReading, 'cpu' | 'tracks1to4' | 'tracks5to8'
 ]
 
 /** The Status panel's load: three meter cells (the hardware meter windows now) and a cell with the last five minutes,
- * as a graph or a table in the same space. Read only while Status shows. */
+ * as a graph or a table in the same space. Recorded on every page while the unit is idle (recordLoad). */
 export function OctatrackLoad({ link, active }: { link: OctatrackLink | null; active: boolean }) {
-  const { points, notice, clear, now, ready, visible, unsupported } = useOctatrackLoad(link, active), id = useId()
+  const { points, notice, clear, now, ready, unsupported } = useOctatrackLoad(link), id = useId()
   const [table, setTable] = useState(false)
   const last = points.at(-1)
-  const latest = active && ready && visible && last && now - last.at <= 6000 ? last.reading : null
+  const latest = active && ready && last && now - last.at <= 6000 ? last.reading : null
   const observed = points.filter(point => point.reading)
   const off = !link?.getState().identity?.canSubmit || unsupported
   // The chart's takeaway: the highest reading still in the window, and where it was.
@@ -43,7 +43,7 @@ export function OctatrackLoad({ link, active }: { link: OctatrackLink | null; ac
           <figcaption className="load-legend">{SERIES.map(item => <span key={item.key} className={item.className}>{item.title}</span>)}<span className="load-time">5 min ago → now</span></figcaption>
         </figure>
         <div className="load-table" hidden={!table}><table><caption className="sr-only">Readings ({observed.length})</caption><thead><tr><th>Time</th><th>CPU</th><th>Tracks 1–4</th><th>Tracks 5–8</th></tr></thead><tbody>{points.map(point => <tr key={point.at}><td>{new Date(point.at).toLocaleTimeString()}</td><td>{percent(point.reading?.cpu)}</td><td>{percent(point.reading?.tracks1to4)}</td><td>{percent(point.reading?.tracks5to8)}</td></tr>)}</tbody></table></div>
-        <p className="load-note" role="status">{notice || (latest ? 'Every two seconds while this page is open.' : 'Waiting for live load. Syncing takes priority.')}</p>
+        <p className="load-note" role="status">{notice || (latest ? 'Every two seconds while your Octatrack is connected.' : 'Waiting for live load. Syncing takes priority.')}</p>
       </>}
     </section>
   </>
