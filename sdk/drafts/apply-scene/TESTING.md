@@ -88,6 +88,12 @@ Reported through the session "firmware builder", recorded as written.
 
 Adds NOTHING TO APPLY to da2d18e4; nothing else in the behaviour changed. USB package `apply-scene-ae2a6eed.mwrm`, 758 bytes, SHA-256 `c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163` (`build.py --octabam apply-scene --name "APPLY SCENE" --stock`): ABI 7, one hashed site, 636 bytes of code, no relocations, copies or hooks. Its longest run shared with the stock OS has 11 counted bytes (limit 12); no 16-byte run (check_stock_free). On the beta base rebuilt from main 86e0dfb8 (byte-identical to the committed base, e35da4ae…), the adapted ot_emu's `sites` scenario installed it and its removal restored every site byte. To check on the unit: SCENE A + YES twice shows NOTHING TO APPLY the second time, and so does SCENE + YES on a scene with no locks.
 
+On the unit, 15 Oct 2026 (user's MKII, OS 1.40C), installed with `npm run device -- try apply-scene-ae2a6eed.mwrm --accept` on a RAM-booted base e8601162…; the unit listed APPLY SCENE (module 103be957), generation 5. User-reported:
+
+- NOTHING TO APPLY (the same apply twice, a scene with no locks, the blend with both scenes muted): pass.
+- SCENE A + YES, SCENE B + YES and the blend still apply: pass.
+- Power cycle: afterwards APPLY SCENE was not installed and SCENE + YES did stock's ARM ALL. The power cycle had returned the unit to its flashed base (acf91e0a…), and a kept set belongs to the base it was kept on, so this is not a persistence result for the module. To redo on the flashed base.
+
 ### da2d18e4: card image checklist
 
 The user asked for SCENE A + YES and SCENE B + YES to apply that scene's own locks (muted or not), and for both scene keys + YES to keep the blend. The MKII test image is APPLYSC02: APPLY SCENE alone, static stock, all stock effects. It is the image verify.py passed on: MAIN OS SHA-256 `9aa80b87e3244629dbad4c23230996a6e4f07009e66cd01b571c55843878318f`, card file `OCTATRACK_APPLYSC02.bin` SHA-256 `3aa63d9faedb15a4d38adc13de4f80e97e3aa733d486f98653b86a38f6f7d932`. Checklist:
