@@ -17,7 +17,7 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); sessionStorage.cl
 const ready: LinkState = { status: 'ready', identity: { canSubmit: true, base: '5b'.repeat(32), model: 'OCTATRACK MKII' } }
 const reading: DiagnosticReading = { state: 3, failed: 4, modules: 2, dsp: 1, intact: 2, ran: 1, cpu: 412, tracks1to4: 238, tracks5to8: 655, frameGap: 47900, saved: 7, savedCount: 2, live: 2, culprit: 0, refusal: 0 }
 function unit(state: LinkState = ready) {
-  return { getState: () => state, subscribe: () => () => {}, start: () => () => {}, update: vi.fn(), health: vi.fn(async () => reading), liveLoad: vi.fn(async () => undefined), savedBackup: vi.fn(async () => undefined) } as unknown as OctatrackLink & { health: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
+  return { getState: () => state, subscribe: () => () => {}, start: () => () => {}, update: vi.fn(), health: vi.fn(async () => reading), liveLoad: vi.fn(async () => undefined), savedBackup: vi.fn(async () => undefined), test: vi.fn(async () => 'the Octatrack couldn’t start it; stop playback and try again') } as unknown as OctatrackLink & { health: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
 }
 const callbacks = () => ({ onSelect: vi.fn(), onSync: vi.fn(), onInstall: vi.fn(), onNew: vi.fn(), onImport: vi.fn(), onSetAction: vi.fn(), onFill: vi.fn(), onSaveUnit: vi.fn(), onReport: vi.fn() })
 let container: HTMLDivElement, root: ReturnType<typeof createRoot>
@@ -86,6 +86,9 @@ describe('the Octatrack page', () => {
     expect([...open().querySelectorAll('.hub-peaks dd')].map(item => item.textContent)).toEqual(['41%', '24%', '66%'])
     expect(status).toContain('Live load needs a newer Modwerk base')
     stop()
+    // A self-test can be started from here; when the base won’t start it, Status says why.
+    await act(async () => button('Run self-test').click())
+    expect(link.test).toHaveBeenCalledOnce(); expect(open().textContent).toContain('The Octatrack couldn’t start it; stop playback and try again.')
     expect([...open().querySelectorAll('.hub-console > *')].map(cell => cell.className.split(' ').pop())).toEqual(['hub-cell-cpu', 'hub-cell-dsp1', 'hub-cell-dsp2', 'hub-cell-chart', 'hub-cell-health', 'hub-cell-unit', 'hub-cell-history'])
     expect([...open().querySelectorAll('.hub-history li strong')].map(item => item.textContent)).toEqual(['Live', 'Live'])
     await act(() => button('Report a problem').click())
