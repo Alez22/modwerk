@@ -208,6 +208,27 @@
       "path": "octatrack-modules/euclid/0.1.4-experimental.mwrm"
     },
     {
+      "id": "bbd",
+      "slots": "fx2",
+      "cycles": 400,
+      "cyclesKind": "executed",
+      "state": 91,
+      "buffer": 16384,
+      "octabam": true,
+      "pinned": true,
+      "abi": 8,
+      "features": 128,
+      "sites": 0,
+      "copies": 0,
+      "fills": 0,
+      "version": "0.1.1-experimental",
+      "name": "BBD Delay",
+      "module": "16332a40",
+      "bytes": 5322,
+      "sha256": "614bf23b7d8e6811d096d1d3f5934ace9829cef7a2c1026b1bcbccbe59b6a5c9",
+      "path": "octatrack-modules/bbd/0.1.1-experimental.mwrm"
+    },
+    {
       "id": "playmodes",
       "octabam": true,
       "standalone": true,

@@ -105,6 +105,7 @@ stock runs at once. With no taker stock runs. A **table** has no site: modules c
 | `ot_machines` | synth | `mw_machine` | 40 | FM SYNTH: FM/1, admit, defaults, its page, ui tick, render (also unowned FLEX tracks); PROTECT | sdk/octabam/modules/synth/registration.s fm_*, upstream/synth/poly.s sy_render |
 | `ot_sequencer_rows` | synth | `mw_sequencer_rows` | 40 | SCALE, ROOT, GLIDE rows of FM's bundled quantizer | sdk/octabam/modules/synth/upstream/quantizer/quantizer.s (FM's bundled copy, fm_ units) qz_lbl_*, qz_get*, qz_set* |
 | `ot_sequencer_rows` | quantizer | `mw_sequencer_rows` | 50 | SCALE, ROOT, GLIDE rows | sdk/octabam/modules/quantizer/upstream/quantizer/quantizer.s qz_lbl_*, qz_get*, qz_set* |
+| `ev_tail_kill` | bbd | `bbd_tail_kill` | 50 | while the kill holds a track whose FX2 is BBD (id 0x0e), zeroes its slot 11 (+53): BBD plays the input exactly and clears its line until the track's next trig | sdk/octabam/modules/bbd/stopkill.s bbd_kill_hook (the card build's detour at the same site); on the owner's MKII 15 Oct 2026 (dev twin e429b787): slot 11 0 while held, 127 after T1's next trig, the tail cut to -132 dBFS |
 
 ## Reviewed raisers
 
