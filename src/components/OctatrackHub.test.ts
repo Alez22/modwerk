@@ -8,6 +8,7 @@ import { moduleSetReview } from '../engine/elekloader/module-set'
 import type { LinkState, OctatrackLink } from '../engine/elekloader/octatrack-link'
 import type { DiagnosticReading } from '../community/octatrack-diagnostics-contract'
 import { OctatrackHub, type HubView } from './OctatrackHub'
+import { OctatrackActivity } from './OctatrackStatus'
 import { recordLoad } from '../hooks/useOctatrackLoad'
 
 vi.mock('./OctatrackDiagnostics', () => ({ OctatrackDiagnosticsSettings: () => null }))
@@ -127,5 +128,22 @@ describe('the Octatrack page', () => {
     await act(() => root.render(createElement(OctatrackHub, { ...props, view: 'set', link: null, sets: [], header: null, grid: null, card: null })))
     await act(() => button('New module set').click())
     expect(props.onNew).toHaveBeenCalledOnce(); expect(props.onSync).not.toHaveBeenCalled(); expect(props.onInstall).not.toHaveBeenCalled()
+  })
+})
+describe('link results outside the sync dialog', () => {
+  it('shows why the unit could not be opened in the hero, with a way to try again', async () => {
+    const link = unit({ status: 'idle', notice: { tone: 'error', text: 'Chrome couldn’t open the Octatrack. Unplug it, plug it back in and try again.' } })
+    await act(() => root.render(createElement(OctatrackHub, { ...callbacks(), view: 'status', link, sets: [], header: null, grid: null, card: null })))
+    expect(container.querySelector('.hub-hero [role=status]')?.textContent).toContain('Chrome couldn’t open the Octatrack')
+    expect([...container.querySelectorAll('.hub-hero button')].map(item => item.textContent)).toEqual(['Connect'])
+  })
+  it('does not repeat a result the sync dialog already showed, and still shows one that arrives on this page', async () => {
+    let state: LinkState = { ...ready, notice: { tone: 'success', text: 'Kept. Live stays on your Octatrack, also after a restart.' } }
+    const listeners = new Set<() => void>(), link = { ...unit(), getState: () => state, subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } } }
+    await act(() => root.render(createElement(OctatrackActivity, { link: link as unknown as OctatrackLink })))
+    expect(container.querySelector('.octatrack-activity')).toBeNull()
+    await act(() => { state = { ...ready, status: 'trial', module: 'Studio' }; listeners.forEach(listener => listener()) })
+    await act(() => { state = { ...ready, notice: { tone: 'success', text: 'Kept. Studio stays on your Octatrack, also after a restart.' } }; listeners.forEach(listener => listener()) })
+    expect(container.querySelector('.octatrack-activity')?.textContent).toContain('Kept. Studio stays')
   })
 })

@@ -51,6 +51,12 @@ describe('runtime package upgrade review', () => {
     expect(prepareUpdate).toHaveBeenCalledWith(set)
     expect(link.update).toHaveBeenCalledTimes(1)
   })
+  it('reviews against the connected base, as the hub does, so base-bound packages are not taken for an old base', async () => {
+    await load()
+    const { identity } = link.getState()
+    expect(identity?.base).toMatch(/^[0-9a-f]{64}$/)
+    expect(review).toHaveBeenCalledWith(set, inventory, identity?.capabilities, identity?.base)
+  })
   it('requires playback confirmation again when the installed package layout changes', async () => {
     const { prepareUpdate } = await load()
     await act(() => container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())

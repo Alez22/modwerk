@@ -36,7 +36,7 @@ export function LoadDialog({ link, set, inventory, previousName, prepareUpdate, 
   const ending = useRef<'kept' | 'undone'>(undefined), logged = useRef(false)
   const step = loadStep(status, started, preparing)
   const connected = !!state.identity?.canSubmit && status === 'ready'
-  const review = inventory && moduleSetReview(set, inventory, state.identity?.capabilities)
+  const review = inventory && moduleSetReview(set, inventory, state.identity?.capabilities, state.identity?.base)
   const reviewKey = JSON.stringify([set, inventory, state.identity?.base, state.identity?.capabilities])
   const latestReview = useRef(reviewKey), mounted = useRef(false)
   useEffect(() => { latestReview.current = reviewKey }, [reviewKey])

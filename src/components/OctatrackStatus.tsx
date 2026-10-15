@@ -31,7 +31,8 @@ export function OctatrackStatus({ link }: { link: OctatrackLink }) {
 /** A pill while an update runs or waits for Keep or Undo, and for its result, on every page but the configuration page. */
 export function OctatrackActivity({ link }: { link: OctatrackLink }) {
   const state = useOctatrackLink(link), { status, module, notice } = state
-  const [dismissed, setDismissed] = useState<LinkState['notice']>()
+  // A result already there when the pill appears was shown where it happened (the sync dialog, the Octatrack page).
+  const [dismissed, setDismissed] = useState<LinkState['notice']>(() => ACTIVE.includes(link.getState().status) ? undefined : link.getState().notice)
   const result = notice && notice !== dismissed && !ACTIVE.includes(status) ? notice : undefined
   if (!ACTIVE.includes(status) && !result) return null
   return <aside className={'octatrack-activity' + (result?.tone === 'error' ? ' is-error' : '')} aria-label="Octatrack update" role="status">

@@ -188,7 +188,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Waiting for your Octatrack</h3>
       {state.status === 'unsupported' ? <><p>This browser can’t connect to USB devices.</p><p>Open Modwerk in <strong>Chrome or Edge on a computer</strong>, sign in and connect your Octatrack. The base you just installed stays on it.</p></> : <>
         <p>Keep the USB cable connected. Choose your Octatrack in the browser’s device list.</p>
-        <p className="base-install-note" role="status">{found ? 'The downloaded base is confirmed. Returning to your module set…' : state.status === 'connecting' ? 'Connecting to your Octatrack…' : state.status === 'stock' || state.status === 'ready' ? 'The downloaded base hasn’t been confirmed yet. Finish the installation, then connect again.' : 'Once I recognise the installed base, I’ll take you back to your module set automatically.'}</p>
+        <p className="base-install-note" role="status">{found ? 'The downloaded base is confirmed. ' + (returnSetId ? 'Returning to your module set…' : 'Opening your Octatrack’s page…') : state.status === 'connecting' ? 'Connecting to your Octatrack…' : state.status === 'stock' || state.status === 'ready' ? 'The downloaded base hasn’t been confirmed yet. Finish the installation, then connect again.' : 'Once I recognise the installed base, I’ll ' + (returnSetId ? 'take you back to your module set' : 'open your Octatrack’s page') + ' automatically.'}</p>
         {state.notice && <p className="file-error" role="status">{state.notice.text}</p>}
       </>}
     </>}
