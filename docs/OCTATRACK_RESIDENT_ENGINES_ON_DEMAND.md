@@ -161,17 +161,17 @@ Method: as above, all 20 USB audio channels as float32, every comparison against
 
 ## Evacuation: the on-unit test
 
-Not yet run. Twin: `~/.cache/modwerk-local/ot/eod/ev/C-dev` (private, configuration `efbe190c…`), the rows' three trusted packages beside it in `packages/`; Analog BD's recipe recaptured for it as before. Arena with nothing placed: 4,418 words on core A, 4,546 on core B.
+Not yet run. Twin: `~/.cache/modwerk-local/ot/eod/int/C-dev`, built from the integration branch (the evacuation, Sidechain's key phase at 423 words, the restored-Part fix and the two manager fixes; private, configuration `76e15b41…`), the rows' three trusted packages beside it in `packages/`; Analog BD's recipe recaptured for it as before. Its resident block starts where the earlier on-demand twins' did (P 8,122 on core A, 7,561 on core B), so the arena with nothing placed should still be 4,418 words on core A and 4,546 on core B (measured on the earlier on-demand twins, not on this one). The resident twin to compare with is `int/A-dev` (`b39873b4…`). The first version of this test named `ev/C-dev` (`efbe190c…`), built before the merge.
 
 **Why Output Matrix first.** With nothing placed no stock effect is a quarter of core A's arena (SPRING REV 1,063 and DARK REV 1,067 words are under 1,105), so they load from the bottom. With Output Matrix placed (773 words, core A's arena 3,645), SPRING REV is a quarter or more and the allocator puts it at the top, where Sidechain's engine then goes.
 
 **Steps** (stopped, a scratch project whose bank A runs nothing but FILTER/DELAY on T5–T8; the diagnostics addresses are this twin's):
 
 1. RAM-boot the twin; `loader` for the baseline counters.
-2. `try …/packages/output-matrix.mwrm`. View (`mem:0x40ac85e0:44`): core A Output Matrix state 5 at offset 3,645, arena 3,645.
-3. `pick:T5:FX2:SPRING_REV`. `mem:0x40d0a634:6` (the allocator's live record of id 21 on core A: offset, words, present) reads `0a16 0427 01`: 2,582, 1,063 words, at the top.
+2. `try …/packages/output-matrix.mwrm`. View (`mem:0x40ac89e0:44`): core A Output Matrix state 5 at offset 3,645, arena 3,645.
+3. `pick:T5:FX2:SPRING_REV`. `mem:0x40d0ae40:6` (the allocator's live record of id 21 on core A, `allocator` + 150: offset, words, present) reads `0a16 0427 01`: 2,582, 1,063 words, at the top. (`ev/C-dev`'s `0x40d0a634` was `allocator` + 1,686, the target record; it equals the live one once a transaction is retired, and reads zero after a rollback.)
 4. Make T5 sound through it while stopped (best a steady tone into a THRU machine on T5, else a hit with SPRING's decay up and its tail ringing), record the 20 USB channels, then press no key for at least 2 s.
-5. `try …/packages/sidechain-compressor.mwrm` (refused with `RUNTIME_MEMORY` on the previous twin). Within about a second: view byte 42 goes 1 (upload) and 2 (bind) back to 0, byte 43 reads 1; `mem:0x40d09b58:14` (failures, moves, evacuations, then `dl_engine_why` per core) reads 0, 1, 1; `mem:0x40d0a634:6` reads `05ef 0427 01` (moved to 1,519). Then Sidechain as before: core A state 5 at 3,257, arena 3,257, reserve 1,161; core B at 4,158; slot ACTIVE.
+5. `try …/packages/sidechain-compressor.mwrm` (refused with `RUNTIME_MEMORY` on the previous twin). Within about a second: view byte 42 goes 1 (upload) and 2 (bind) back to 0, byte 43 reads 1; `mem:0x40d0a358:14` (failures, moves, evacuations, then `dl_engine_why` per core) reads 0, 1, 1; `mem:0x40d0ae40:6` reads `05ef 0427 01` (moved to 1,519, below its old copy). Then Sidechain as before, at 423 words: core A state 5 at 3,222, arena 3,222, reserve 1,196; core B at 4,123; slot ACTIVE.
 6. `loader`: no rejected packet, no error, no rollback; one more commit.
 
 **Listening.** On T5 (and MAIN), around step 5. Pass: the tone or tail carries on with no step, spike or gap; `octatrack-clicks.py` finds nothing there that is absent from a take of the same sequence without step 5. An artifact would be:
