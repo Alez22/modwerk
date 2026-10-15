@@ -402,7 +402,7 @@ export default function App() {
   const riskAcceptance = <RiskAcceptance checked={riskAccepted.key===firmwareBuild.key&&riskAccepted.accepted} onChange={accepted => setRiskAccepted({key:firmwareBuild.key,accepted})}/>
   // The beta's Octatrack page (#configuration and #octatrack): the sets beside the unit, with the configuration page's
   // header, module grid and card route in it, so nothing the page had is lost.
-  const hubPage = <Suspense fallback={null}><OctatrackHub view={hubView} link={usbLink ?? null} inventory={inventory} sets={configurationsFor('octatrack')} selectedId={active?.id} needs={projectNeeds} onSelect={changeConfiguration} onSync={setLoadingSet} onInstall={() => setBaseInstall('manual')}
+  const hubPage = <Suspense fallback={null}><OctatrackHub view={hubView} link={usbLink ?? null} inventory={inventory} sets={configurationsFor('octatrack')} selectedId={active?.id} needs={projectNeeds} username={session.user?.username} onSelect={changeConfiguration} onSync={setLoadingSet} onInstall={() => setBaseInstall('manual')}
     onNew={() => newConfiguration('octatrack')} onImport={() => importRef.current?.click()} onSetAction={setAction} onSaveUnit={saveUnitAsSet}
     onFill={ids => { for (const id of ids) if (!selectedIds.includes(id)) workspace.toggleModule(id); setSaved(false); setRiskAccepted({key:'',accepted:false}) }}
     onReport={id => { const target = id ?? active?.id; if (target) setReportingConfiguration({ machine: 'octatrack', id: target }) }}
