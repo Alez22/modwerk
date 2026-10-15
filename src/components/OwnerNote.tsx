@@ -10,7 +10,7 @@ import { pageBusy } from '../community/public-announcement'
 import { browserRequestsPrivacy } from '../community/usage'
 
 // A new note needs a new id here and in server/auth.ts (OWNER_NOTE).
-const KEY = 'modwerk.owner-note:2026-10-15-beta'
+const KEY = 'modwerk.owner-note:2026-10-15-beta-2'
 const WAIT = 10
 let closedThisVisit = false
 export function ownerNoteSeen() {
