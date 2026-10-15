@@ -179,12 +179,12 @@
       "sites": 2,
       "copies": 6,
       "fills": 0,
-      "version": "0.1.3-experimental",
+      "version": "0.1.5-experimental",
       "name": "Tape Echo",
       "module": "9f482bb9",
       "bytes": 111932,
       "sha256": "21b953eb038429a5f7428c655cb889aa871e6c794313e51b00568150528630d1",
-      "path": "octatrack-modules/tapeecho/0.1.3-experimental.mwrm"
+      "path": "octatrack-modules/tapeecho/0.1.5-experimental.mwrm"
     },
     {
       "id": "euclid",

@@ -743,7 +743,7 @@
       "id": "tapeecho",
       "key": "TAPE ECHO",
       "name": "Tape Echo",
-      "version": "0.1.3-experimental",
+      "version": "0.1.5-experimental",
       "category": "effects",
       "access": {
         "location": "Audio track FX2 SETUP: Tape Echo in the effect chooser.",
