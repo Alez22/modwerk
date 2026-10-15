@@ -80,7 +80,8 @@ Reported through the session "firmware builder", recorded as written.
   - On a cleared scene, SCENE + YES still shows the toast.
   - No click or freeze seen in earlier testing.
   - Audio was not checked; the user only watched the values update.
-- **Still pending:** that SCENE + YES does nothing after removal, and persistence across a power cycle.
+- **After removal (user-reported):** SCENE + YES does stock's arming again ("just arms track"); nothing is applied: pass.
+- **Still pending:** persistence across a power cycle.
 
 ### Current source: card image checklist
 
