@@ -62,7 +62,7 @@ Not run on the unit. The ColdFire cost is in the UI task only, per press; see ab
 
 ### Earlier behaviour on OMXATS30 (15 Oct 2026)
 
-The user's combined MKII image OMXATS30 carries the earlier source (commit 719926a2-equivalent), where SCENE A + YES and SCENE B + YES both wrote the crossfader blend. Reported by the user: steps 1, 2, 5 and 6 below passed (setup, apply while playing, YES alone shows ARM ALL, RELOAD PART). They also reported that FUNC + SCENE muting "does not seem to work"; not diagnosed further, because it led to the redesign below. These results do not cover the current source. OMXATS30's card-file SHA-256 is not recorded here yet.
+The user's combined MKII image OMXATS30 carries the earlier source (commit 719926a2, the same module tree as 270a2dae), where SCENE A + YES and SCENE B + YES both wrote the crossfader blend. Card file `OCTATRACK_OMXATS30.bin` SHA-256 `7d1fda80c0ee0a24ab34ed073e87e7bc01e2fb05987cd61fb50dbcd4ca69f3be`, MAIN OS SHA-256 `3d620adce09a1239066ca382a6db5787aa70667ee09870fe5c364b8f9340e55e`; verify.py on it 73/73. It also holds Output Matrix, Analog BD 0.1.6 (draft), Quantize Live Rec, RINGMOD SC, LIFT, BS WAVESHAPER and Mini Verb. Reported by the user: steps 1, 2, 5 and 6 below passed (setup, apply while playing, YES alone shows ARM ALL, RELOAD PART). They also reported that FUNC + SCENE muting "does not seem to work"; not diagnosed further, because it led to the redesign below. These results do not cover the current source.
 
 ### Current source: untested on hardware
 
