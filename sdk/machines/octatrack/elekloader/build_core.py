@@ -1112,7 +1112,7 @@ def main():
     parser.add_argument('--resident-on-demand', action='store_true',
                         help='With --resident-stock-hooks: leave the SC/Matrix/Analog BD engines out of the permanent block, as '
                              'relocatable units placed in the arena while a controller holds them '
-                             '(docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md). Work in progress: nothing places them yet.')
+                             '(docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md). Private development: not yet run on hardware.')
     parser.add_argument('--controller-policies', type=Path,
                         help='Private: reviewed controller trust rows (stock_hook_controllers.py) for this exact base link. '
                              'Needs --resident-stock-hooks and --controller-layout.')
@@ -1258,9 +1258,15 @@ def main():
         import dsp_packages
         from elekloader.sdk.octabam import Octabam
         resident_ob = Octabam(str(APP / 'sdk/octabam'))
-        resident_factory = lambda tag, hi: resident_dsp.place_resident(
-            resident_ob, tag, hi, str(source), dsp_packages.assemble,
-            resident_dsp.ALLOWED[tag] if args.resident_on_demand else 0)
+        resident_bundles = {}  # each core's placed block, its on-demand engine units included
+
+        def resident_factory(tag, hi):
+            resident_bundles[tag] = resident_dsp.place_resident(
+                resident_ob, tag, hi, str(source), dsp_packages.assemble,
+                resident_dsp.ALLOWED[tag] if args.resident_on_demand else 0)
+            return resident_bundles[tag]
+        if args.resident_on_demand:  # the ColdFire side (docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md)
+            import resident_engines
     if args.dsp_loader:
         spec = importlib.util.spec_from_file_location('modwerk_dsp_loader', HERE/'dsp_loader.py')
         loader_dsp = importlib.util.module_from_spec(spec); spec.loader.exec_module(loader_dsp)
@@ -1287,8 +1293,12 @@ def main():
                 text = resident_placement.buffers(text)
             elif args.resident_stock_hooks and name == 'manager.c':
                 text = resident_journal.manager(resident_placement.manager(text))
+                if args.resident_on_demand:
+                    text = resident_engines.manager(text)
             if args.resident_stock_hooks and name == 'transfer.c':
                 text = resident_driver.transport(text)
+                if args.resident_on_demand:
+                    text = resident_engines.transport(text)
             if args.resident_stock_hooks and name == 'transfer.h':
                 text = resident_driver.transport_header(text)
             if saved_set_wiring and name == 'transfer.c':
@@ -1323,6 +1333,8 @@ def main():
             (source/'controller_registry.c').write_text('#include "controller_association.h"\n'
                 'struct mw_controller_registry modwerk_controller_registry __attribute__((used,aligned(16)));\n')
             (source / 'dsp.c').write_text(resident_source.sources(APP)['dsp.c'])
+            if args.resident_on_demand:
+                (source / 'dsp.c').write_text(resident_engines.dsp((source / 'dsp.c').read_text()))
         else:
             shutil.copyfile(HERE / 'dsp.c', source / 'dsp.c')
         if saved_set_wiring:
@@ -1330,6 +1342,8 @@ def main():
         shutil.copyfile(HERE / 'dsp_core1.s', source / 'dsp_core1.s')
         for name in ('dsp_journal.h', 'dsp_journal_manager.h', 'fxmap.h', 'fxpage.h', 'fxmap.c', 'fxmap.s', 'fxpage.c', 'fxpage.s', 'status.c', 'status.s', 'status.h', 'load_wire.h', 'selftest.h'):
             shutil.copyfile(HERE / name, source / name)
+        if args.resident_on_demand:
+            (source / 'status.c').write_text(resident_engines.status((source / 'status.c').read_text()))
         for lea, stock_list in ((0x40052496, 0x400d6090), (0x40052706, 0x400d6060)):
             if int.from_bytes(image[lea - device.main_load:lea - device.main_load + 4], 'big') != stock_list:
                 raise ValueError('An FX selector no longer reads its chooser list at %#x.' % lea)
@@ -1346,6 +1360,10 @@ def main():
             (source / 'core-ot.s').write_text(bootstrap.replace(seam, '        jsr     mw_resident_dsp_boot\n' + seam))
             (source / 'resident-dsp-driver.c').write_text(resident_driver.controller_c(resident_boot_prepared))
             dsp_sites += resident_boot_prepared['sites']
+        if args.resident_on_demand:
+            (source / 'resident-engines-data.c').write_text(resident_engines.data_c(resident_bundles))
+            for name in ('resident_engines.c', 'resident_engines.h'):
+                shutil.copyfile(resident_source.RUNTIME / name, source / name)
         chooser_sites, chooser_lists = loader_dsp.choosers(image, FX_IDS)
         # The Part validator (0x40002318; bank load, battery restore) clears an id that reads negative and clamps one
         # above 31 to 31: four `moveq #31` (docs/OCTATRACK_MORE_EFFECT_IDS.md). Past 32 ids they clamp to the last.
@@ -1405,6 +1423,10 @@ def main():
         for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h', 'cue_cfg.s'):
             p = resident_source.RUNTIME / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
+    if args.resident_on_demand:
+        for p in (APP / 'sdk/machines/octatrack/module-adapters/resident_engines.py',
+                  resident_source.RUNTIME / 'resident_engines.c', resident_source.RUNTIME / 'resident_engines.h'):
+            inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
     if args.resident_stock_hooks:
         for name in CONTROLLER_POLICY_SOURCES:
             p = APP / 'sdk/machines/octatrack/module-adapters/controller-policy' / name
@@ -1442,7 +1464,8 @@ def main():
             configuration['dev'] = ['key', 'panel', 'state', 'screen']
     if resident_boot_prepared:
         configuration['dsp']['residentStockHooks'] = dict(schema=1, dormant=True, controllersAdmitted=bool(args.controller_policies),
-            receiptSha256=sha(json.dumps(resident_boot_prepared['receipt'], sort_keys=True, separators=(',', ':')).encode()))
+            receiptSha256=sha(json.dumps(resident_boot_prepared['receipt'], sort_keys=True, separators=(',', ':')).encode()),
+            **({'onDemand': True} if args.resident_on_demand else {}))
     identity = sha(json.dumps(configuration, separators=(',', ':')).encode())
     values = dict(build=identity[:16], os='1.40C', modules='', configuration=identity,
                   source=source_hash, fx1=';'.join(configuration['fx1']),
@@ -1543,6 +1566,8 @@ modwerk_retained_end:
         recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
     if args.resident_stock_hooks:
         recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
+    if args.resident_on_demand:
+        recipe['cflags'].append('-DMODWERK_RESIDENT_ON_DEMAND')
     if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/EVENTS.md)
         recipe['cflags'].append('-DMODWERK_RUNTIME_EVENTS')
         recipe['sources'] += ['runtime_events.s', 'machine_registry.s']

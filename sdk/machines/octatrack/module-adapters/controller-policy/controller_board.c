@@ -5,6 +5,9 @@
 #include "controller_board.h"
 #include "journal.h"
 #include "machine_lifetime.h"
+#ifdef MODWERK_RESIDENT_ON_DEMAND
+#include "resident_engines.h" /* engines on demand: placed before the first RESET, collected once nobody holds them */
+#endif
 
 int modwerk_saved_set_busy(void);
 int dl_hook_buffer_ranges_idle(unsigned);
@@ -324,6 +327,20 @@ static void begin(unsigned at, unsigned c, unsigned op)
     if (mw_controller_transport_begin(&transport, &s->binding, c, op) == MW_CTL_PENDING && op == MW_CTL_ENABLE)
         verified[at] = s->binding.generation;
 }
+#ifdef MODWERK_RESIDENT_ON_DEMAND
+/* Features of every live trusted controller, bound or not yet. */
+static unsigned live_features(void)
+{
+    unsigned features = 0;
+    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
+        const struct runtime_module *m = modwerk_runtime_module(i);
+        struct runtime_owner o; const struct mw_controller_write_policy *p;
+        if (m && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && (p = row_for(o.package_sha256, o.module, o.image_bytes)))
+            features |= p->identity.feature;
+    }
+    return features;
+}
+#endif
 /* A live trusted controller with no slot: reserve and bind its owner generation.
  * At most one other held slot of the feature, a disabled predecessor. */
 static void bind_live(void)
@@ -363,6 +380,11 @@ static void advance(unsigned at)
             if (!jobs(s)) for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) { begin(at, c, MW_CTL_DISABLE); break; }
             break;
         }
+#ifdef MODWERK_RESIDENT_ON_DEMAND
+        /* The engine is written, read back and PLACEd on every required core before any RESET chunk; a
+         * generation that finds it placed (a restore, a successor) adopts it without reloading. */
+        if (mw_engines_place(b->identity.feature, need, b->generation, transport.held) <= 0) break;
+#endif
         for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) {
             if (s->state != MW_CTL_READY && s->acknowledged_words[c] < s->reset_words[c]) begin(at, c, MW_CTL_RESET);
             else if (s->state == MW_CTL_READY && !jobs(s)) begin(at, c, MW_CTL_ENABLE);
@@ -402,8 +424,14 @@ void modwerk_controller_tick(void)
     }
     if (!closed) {
         poll();
+#ifdef MODWERK_RESIDENT_ON_DEMAND
+        mw_engines_poll();
+#endif
         bind_live();
         for (unsigned at = 0; at < MW_CONTROLLER_SLOTS; ++at) if (held(&REGISTRY.slots[at])) advance(at);
+#ifdef MODWERK_RESIDENT_ON_DEMAND
+        mw_engines_collect(modwerk_controller_held(), mask, mask_known, transport.held);
+#endif
     }
     modwerk_machine_unlock(irq);
 }
@@ -421,6 +449,13 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
             if (held(s) && s->binding.identity.feature == incoming->identity.feature &&
                 (s->state == MW_CTL_QUARANTINED || s->binding.identity.module != to->module)) return RUNTIME_CONFLICT;
         }
+#ifdef MODWERK_RESIDENT_ON_DEMAND
+        /* Its engine must fit at the arena's top beside every held or live controller's: a dry run of the claim.
+         * Refused here rather than ever making a Part switch load code; a busy manager lets the tick wait. */
+        int fit = mw_engines_admit(incoming->identity.feature, modwerk_controller_held() | live_features());
+        if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
+        if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;
+#endif
     }
     if (!outgoing) return RUNTIME_OK;
     struct runtime_owner o; struct mw_controller_binding b;
