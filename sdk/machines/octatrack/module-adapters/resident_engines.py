@@ -112,11 +112,13 @@ static int __attribute__((noinline)) engine_dry_run(const fx_set keep[2]) {
  * busy: ask again), -1 no. Only while the manager is idle. No live code may sit in the region (no evacuation
  * yet), and the bank's Part union must still fit under it: the firm modules, plus the stock effects if they fit
  * before the claim. So no Part switch ever has to load code because an engine came. */
+volatile uint8_t dl_engine_why[2]; /* diagnostics: resident_engines.h */
 int dl_engine_claim(unsigned c,unsigned reserve,int commit) {
-    if(c>1 || reserve>engine_arena(c)) return -1;
-    if(reserve<=engine_reserved[c]) return 1;
+    if(c>1) return -1;
+    if(reserve>engine_arena(c)) { dl_engine_why[c]=5; return -1; }
+    if(reserve<=engine_reserved[c]) { dl_engine_why[c]=0; return 1; }
     if(journal_generation || phase || waiting || queued_token || allocator.phase || buffers.open || !dl_residency_enabled ||
-       !modwerk_stock_hook_export_idle() || modwerk_saved_set_busy()) return 0;
+       !modwerk_stock_hook_export_idle() || modwerk_saved_set_busy()) { dl_engine_why[c]=1; return 0; }
     if(!initialized) {
         dl_allocator_init(&allocator,dl_catalog,0,0,MODWERK_DSP_ALLOWANCE0,MODWERK_DSP_ALLOWANCE1);
         dl_buffers_init(&buffers,dl_pmap16);
@@ -127,7 +129,7 @@ int dl_engine_claim(unsigned c,unsigned reserve,int commit) {
         if(!allocator.capacity[k] && engine_arena(k)>engine_reserved[k]) allocator.capacity[k]=(uint16_t)(engine_arena(k)-engine_reserved[k]);
     unsigned low=engine_arena(c)-reserve;
     for(unsigned p=0;p<DL_PACKAGES;++p)
-        if(allocator.live[c][p].present && (unsigned)allocator.live[c][p].offset+allocator.live[c][p].words>low) return -1;
+        if(allocator.live[c][p].present && (unsigned)allocator.live[c][p].offset+allocator.live[c][p].words>low) { dl_engine_why[c]=2; return -1; }
     uint8_t now[16];
     fx_set firm[2],named[2],soft[2],both[2],saved[2]={allocator.keep[0],allocator.keep[1]};
     running(now);
@@ -143,8 +145,12 @@ int dl_engine_claim(unsigned c,unsigned reserve,int commit) {
     allocator.capacity[c]=(uint16_t)low;
     r=engine_dry_run(use);
     allocator.capacity[c]=before; allocator.keep[0]=saved[0]; allocator.keep[1]=saved[1];
-    if(r!=DL_ALLOC_OK) return r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? -1 : 0;
+    if(r!=DL_ALLOC_OK) {
+        dl_engine_why[c]=r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? 3 : 4;
+        return dl_engine_why[c]==3 ? -1 : 0;
+    }
     if(commit) { engine_reserved[c]=(uint16_t)reserve; allocator.capacity[c]=(uint16_t)low; }
+    dl_engine_why[c]=0;
     return 1;
 }
 '''
@@ -184,6 +190,19 @@ def status(text):
             raise ValueError('Resident engines seam changed (status arena reads)')
         text = text.replace(old, 'modwerk_dsp_arena_now(%d)' % core)
     return text
+
+
+DEV_WINDOW = ('    static const uint32_t spans[4][2] = {{0x40000400u, 0x40d00000u}, {0x46000000u, 0x47000000u},',
+              '    static const uint32_t spans[4][2] = {{0x40000400u, 0x46000000u}, {0x46000000u, 0x47000000u},')
+
+
+def dev(text):
+    """dev.c (development bases only): MEM also reads the base's own statics past 0x40d00000 (the loader's, the
+    controller registry, mw_engines), all DDR RAM like the rest of the window; still read-only."""
+    text = _change(text, DEV_WINDOW[0], DEV_WINDOW[1], 'dev MEM window')
+    return _change(text, ' *          only RAM the base knows is RAM: the OS image and base, stock\'s variables, the\n',
+                   ' *          only RAM the base knows is RAM: the OS image and base (with --resident-on-demand all of\n'
+                   ' *          DDR up to 0x46000000, the base\'s statics included), stock\'s variables, the\n', 'dev MEM comment')
 
 
 def dsp(text):

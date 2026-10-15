@@ -17,6 +17,10 @@ int modwerk_machine_stopped(void);
 
 struct mw_engine mw_engines[2][3];
 volatile uint32_t mw_engines_jobs, mw_engines_placed_count, mw_engines_unplaced_count, mw_engines_refused;
+volatile uint8_t mw_engines_wait[2][3], mw_engines_admitted[3];
+#ifdef MODWERK_DEV
+struct mw_engines_view mw_engines_view = {.magic = {'M', 'W', 'E', 'V'}}; /* initialized: in .data, inside the dev MEM window */
+#endif
 enum { LANE_IDLE, LANE_WRITE, LANE_PLACE, LANE_UNPLACE };
 static struct { struct dl_owned_job job; uint8_t op, k; } lane[2];
 /* What each core's buffer holds: engine k + 1 relocated for table offset `offset` (0: nothing yet). A WRITE that
@@ -162,30 +166,46 @@ int mw_engines_place(unsigned feature, unsigned cores, uint32_t generation, cons
         if (!(cores >> c & 1u)) continue;
         struct mw_engine *e = &mw_engines[c][k];
         const struct mw_engine_unit *u = &mw_engine_units[c][k];
-        if (e->state == MW_ENGINE_PLACED) continue;
-        if (!u->count || e->state == MW_ENGINE_STUCK || closed[c]) { stuck = 1; continue; }
+        volatile uint8_t *why = &mw_engines_wait[c][k];
+        if (e->state == MW_ENGINE_PLACED) { *why = MW_WAIT_NONE; continue; }
+        if (!u->count || e->state == MW_ENGINE_STUCK || closed[c]) { stuck = 1, *why = MW_WAIT_STUCK; continue; }
         placed = 0;
         /* One job per core; the board's own job, a playing sequencer or a queued pattern change defer the rest. */
-        if (lane[c].op != LANE_IDLE || busy[c] || !QUIET()) continue;
+        if (lane[c].op != LANE_IDLE) { *why = MW_WAIT_LANE; continue; }
+        if (busy[c]) { *why = MW_WAIT_BOARD; continue; }
+        if (!QUIET()) { *why = MW_WAIT_PLAYING; continue; }
         if (e->state == MW_ENGINE_FREE) {
             int spans[3];
             spans_of(c, spans);
             int at = spot(c, u->count, spans, k);
-            if (at < 0) { mw_engines_refused = mw_engines_refused + 1; continue; }
+            if (at < 0) { mw_engines_refused = mw_engines_refused + 1, *why = MW_WAIT_ROOM; continue; }
             spans[k] = at;
             int claim = dl_engine_claim(c, reserve_of(c, spans), 1);
-            if (claim <= 0) { if (claim < 0) mw_engines_refused = mw_engines_refused + 1; continue; }
+            if (claim <= 0) {
+                if (claim < 0) mw_engines_refused = mw_engines_refused + 1;
+                *why = claim < 0 ? MW_WAIT_CLAIM_REFUSED : MW_WAIT_CLAIM_BUSY;
+                continue;
+            }
             e->offset = (uint16_t)at, e->generation = generation, e->state = MW_ENGINE_CLAIMED;
         }
         int r = e->state == MW_ENGINE_CLAIMED ? reserve(c, LANE_WRITE, k, generation) :
                 e->state == MW_ENGINE_WRITTEN ? reserve(c, LANE_PLACE, k, generation) : 0;
-        if (r > 0) e->state = e->state == MW_ENGINE_CLAIMED ? MW_ENGINE_WRITING : MW_ENGINE_PLACING;
-        else if (r < 0) e->state = MW_ENGINE_STUCK, stuck = 1;
+        if (r > 0) e->state = e->state == MW_ENGINE_CLAIMED ? MW_ENGINE_WRITING : MW_ENGINE_PLACING, *why = MW_WAIT_NONE;
+        else if (r < 0) e->state = MW_ENGINE_STUCK, stuck = 1, *why = MW_WAIT_STUCK;
+        else *why = MW_WAIT_TRANSPORT;
     }
     return stuck ? -1 : (int)placed;
 }
 
+static int admit(unsigned feature, unsigned wanted);
 int mw_engines_admit(unsigned feature, unsigned wanted)
+{
+    int verdict = admit(feature, wanted);
+    unsigned k = index_of(feature);
+    if (k < 3u) mw_engines_admitted[k] = (uint8_t)(verdict + 1);
+    return verdict;
+}
+static int admit(unsigned feature, unsigned wanted)
 {
     unsigned k = index_of(feature);
     if (k > 2u) return MW_ENGINE_STUCK_BOOT;

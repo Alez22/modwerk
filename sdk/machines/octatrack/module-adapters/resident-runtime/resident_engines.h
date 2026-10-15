@@ -33,6 +33,13 @@ extern struct mw_engine mw_engines[2][3];
 /* Diagnostics, never an ABI: owned jobs started, placements and unplacements acknowledged, claims refused. */
 extern volatile uint32_t mw_engines_jobs, mw_engines_placed_count, mw_engines_unplaced_count, mw_engines_refused;
 
+/* Why a placement waits (diagnostics, never an ABI): per core and feature index, as mw_engines_place last left it. */
+enum { MW_WAIT_NONE, MW_WAIT_LANE, MW_WAIT_BOARD, MW_WAIT_PLAYING, MW_WAIT_ROOM, MW_WAIT_CLAIM_BUSY, MW_WAIT_CLAIM_REFUSED,
+       MW_WAIT_TRANSPORT, MW_WAIT_STUCK };
+extern volatile uint8_t mw_engines_wait[2][3];
+/* The last admission verdict per feature index: 0 none yet, else 1 + MW_ENGINE_FITS/MEMORY/STUCK_BOOT. */
+extern volatile uint8_t mw_engines_admitted[3];
+
 /* Relocate a unit for absolute P address `base` into out[0..count). Linear in words plus relocations. */
 void mw_engine_relocate(const struct mw_engine_unit *, uint32_t base, uint32_t *out);
 
@@ -55,8 +62,28 @@ int mw_engines_admit(unsigned feature, unsigned wanted);
  * bit c of `known`), the core is free (`busy`) and the sequencer is quiet. */
 void mw_engines_collect(unsigned held, const uint8_t mask[2], unsigned known, const uint8_t busy[2]);
 
+#ifdef MODWERK_DEV
+/* Development bases only: one fixed block in initialized data (inside the dev MEM window), refreshed on every board
+ * tick. Big-endian, as the ColdFire stores it; byte offsets in comments. */
+struct mw_engines_view {
+    uint8_t magic[4];                 /* 0: "MWEV" */
+    uint8_t state[2][3], wait[2][3];  /* 4, 10: per core, feature index (Sidechain, Output Matrix, Analog BD) */
+    uint16_t offset[2][3];            /* 16: arena offset of the engine (from DL_CODE_START) */
+    uint16_t arena[2], reserved[2];   /* 28, 32: the FX arena now and the words reserved for engines, per core */
+    uint8_t admitted[3], claim_why[2], held, pad[2]; /* 36, 39, 41: verdicts, dl_engine_why, held features */
+    uint32_t jobs, placed, unplaced, refused; /* 44 */
+    struct { uint32_t module, generation; uint8_t state, feature, enable_acks, disable_acks;
+             uint16_t acknowledged[2], reset[2]; } slots[6]; /* 60, 20 bytes each: the controller registry */
+};
+typedef char mw_engines_view_is_180_bytes[(sizeof(struct mw_engines_view) == 180) ? 1 : -1];
+extern struct mw_engines_view mw_engines_view;
+#endif
+
 /* The manager's seams (resident_engines.py's manager transform). Reserve: words taken from the top of the arena. */
 int dl_engine_claim(unsigned core, unsigned reserve, int commit); /* 1 fits (and taken when commit), 0 busy, -1 no */
 void dl_engine_release(unsigned core, unsigned reserve);           /* only ever lowers the reserve */
 unsigned dl_engine_reserved(unsigned core);
+/* Why the last claim on each core answered as it did: 0 fits, 1 manager busy, 2 live FX code in the region, 3 the bank's
+ * Part union would not fit, 4 the dry run was inconclusive, 5 more than the arena. */
+extern volatile uint8_t dl_engine_why[2];
 #endif

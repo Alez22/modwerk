@@ -1238,6 +1238,10 @@ def main():
     for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
             ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s') if args.site_events else ()):
         shutil.copyfile(HERE / name, source / name)
+    if args.dev and args.resident_on_demand:  # dev MEM reaches the engines' diagnostics (resident_engines.dev)
+        sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
+        import resident_engines as dev_engines
+        (source / 'dev.c').write_text(dev_engines.dev((source / 'dev.c').read_text()))
     if args.site_events:  # the tables' records (struct modwerk_machine, struct modwerk_sequencer_rows)
         shutil.copyfile(APP / 'sdk/machines/octatrack/include/modwerk_events.h', source / 'modwerk_events.h')
     # The startup (boot_anim.c) draws the art the shared startup sources describe, with this base's version.

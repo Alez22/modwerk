@@ -484,6 +484,31 @@ int main(int argc, char **argv)
         assert(slot_for(MATRIX, MW_CTL_ACTIVE) && dsp_mask[0] == 2 && !dsp_mask[1]);
         placed_at(0, 2, mx); ordered(0, 2, mx, 0);
         assert(dl_engine_reserved(0) == 773 && !dl_engine_reserved(1) && !trails[1]);
+    } else if (mode == 11) {
+        /* Analog BD from a package no trust row names (same module id, other bytes) is an ordinary package: accepted,
+         * never bound, nothing placed or reserved. The rows' own package then places on both cores, below Sidechain.
+         * The development view shows both. */
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(200);
+        assert(install(pkg_ab_other, sizeof pkg_ab_other) == MU_APPLIED);
+        unsigned jobs = mw_engines_jobs;
+        run(300);
+        assert(!(modwerk_controller_held() & 4u) && mw_engines_jobs == jobs && !mw_engines_admitted[2]);
+        assert(mw_engines[0][2].state == MW_ENGINE_FREE && dl_engine_reserved(0) == 388 && dl_engine_reserved(1) == 388);
+        const struct mw_engines_view *v = &mw_engines_view;
+        assert(!memcmp(v->magic, "MWEV", 4) && v->held == 1 && v->state[0][0] == MW_ENGINE_PLACED && v->state[0][2] == MW_ENGINE_FREE);
+        assert(v->arena[0] == sc && v->reserved[1] == 388 && v->jobs == jobs && v->offset[1][0] == sc);
+        unsigned sc_slot = 6;
+        for (unsigned i = 0; i < 6; ++i) if (v->slots[i].module == SC && v->slots[i].state == MW_CTL_ACTIVE) sc_slot = i;
+        assert(sc_slot < 6 && v->slots[sc_slot].feature == 1 && v->slots[sc_slot].enable_acks == 3 &&
+               v->slots[sc_slot].acknowledged[0] == 1042 && v->slots[sc_slot].reset[1] == 1042);
+        assert(install(removal(AB), 32) == MU_APPLIED);
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        assert(mw_engines_admitted[2] == 1 + MW_ENGINE_FITS);
+        run(800);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dsp_mask[1] == 5);
+        placed_at(0, 4, ab); placed_at(1, 4, ab);
+        assert(v->state[0][2] == MW_ENGINE_PLACED && v->arena[0] == ab && v->held == 5 && v->claim_why[0] == 0 && !v->wait[1][2]);
     } else assert(0);
     return 0;
 }
@@ -525,7 +550,11 @@ def generated(work, units):
     (work / 'resident-engines-data.c').write_text(resident_engines.data_c(units))
     (work / 'expected.h').write_text(expected(units))
     shutil.copyfile(ELEK / 'fxids.h', work / 'fxids.h')
-    (work / 'packages.h').write_text(board.header())
+    # Analog BD built another way (on the unit: the recipe-capture run's output, not the rows' package): the same
+    # module id, other bytes, so no trust row names it.
+    other = board.package(0xabdb1445, bytes((7 * i + 1) & 255 for i in range(128)))
+    (work / 'packages.h').write_text(board.header() + 'static const uint8_t pkg_ab_other[%d] = {%s};\n' % (
+        len(other), ','.join(map(str, other))))
     preamble = board.FIXTURE.split('/* Modelled receiver')[0]
     (work / 'fixture.c').write_text(preamble + 'unsigned modwerk_dsp_arena_now(unsigned);\n'
                                     'static int modwerk_controller_held_matrix(void) { return (modwerk_controller_held() & 2u) != 0; }\n'
@@ -535,7 +564,7 @@ def generated(work, units):
 def build(work):
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', *SANITIZE, '-fno-omit-frame-pointer',
              '-DDL_NATIVE_TEST', '-DMW_CONTROLLER_TRANSPORT_TEST', '-DMW_CONTROLLER_BOARD_TEST', '-DMW_ENGINES_TEST',
-             '-DMODWERK_RESIDENT_STOCK_HOOKS', '-DMODWERK_RESIDENT_ON_DEMAND',
+             '-DMODWERK_RESIDENT_STOCK_HOOKS', '-DMODWERK_RESIDENT_ON_DEMAND', '-DMODWERK_DEV',
              '-DMODWERK_RUNTIME_METADATA_EXTERNAL', '-DMODWERK_FX_IDS=64', '-DMODWERK_DSP_TABLE0=%d' % TABLE,
              '-DMODWERK_DSP_TABLE1=%d' % TABLE, '-DMODWERK_DSP_WORDS0=%d' % WORDS, '-DMODWERK_DSP_WORDS1=%d' % WORDS,
              '-DMODWERK_DSP_ALLOWANCE0=3120', '-DMODWERK_DSP_ALLOWANCE1=3565', '-DBOARD_ROWS', '-DBOARD_MANAGER',
@@ -552,7 +581,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 11
+    MODES = 12
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -666,6 +695,10 @@ int mw_engines_test_quiet(void) { return 1; }
         import resident_source
         dsp = resident_engines.dsp(resident_source.sources()['dsp.c'])
         self.assertIn('out->arena = modwerk_dsp_arena_now(c);', dsp)
+        dev = resident_engines.dev((ELEK / 'dev.c').read_text())  # a development base's MEM reaches the engines' statics
+        self.assertIn('{{0x40000400u, 0x46000000u}', dev)
+        with self.assertRaisesRegex(ValueError, 'seam changed'):
+            resident_engines.dev(dev)
 
 
 if __name__ == '__main__':

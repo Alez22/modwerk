@@ -340,6 +340,30 @@ static unsigned live_features(void)
     }
     return features;
 }
+#ifdef MODWERK_DEV
+/* Development bases: the engines and the controller slots, where the dev MEM request reaches them (resident_engines.h). */
+unsigned modwerk_dsp_arena_now(unsigned);
+static void view(void)
+{
+    struct mw_engines_view *v = &mw_engines_view;
+    for (unsigned c = 0; c < 2u; ++c) {
+        for (unsigned k = 0; k < 3u; ++k)
+            v->state[c][k] = mw_engines[c][k].state, v->wait[c][k] = mw_engines_wait[c][k], v->offset[c][k] = mw_engines[c][k].offset;
+        v->arena[c] = (uint16_t)modwerk_dsp_arena_now(c), v->reserved[c] = (uint16_t)dl_engine_reserved(c), v->claim_why[c] = dl_engine_why[c];
+    }
+    for (unsigned k = 0; k < 3u; ++k) v->admitted[k] = mw_engines_admitted[k];
+    v->held = (uint8_t)modwerk_controller_held();
+    v->jobs = mw_engines_jobs, v->placed = mw_engines_placed_count, v->unplaced = mw_engines_unplaced_count, v->refused = mw_engines_refused;
+    for (unsigned i = 0; i < MW_CONTROLLER_SLOTS; ++i) {
+        const struct mw_controller_slot *s = &REGISTRY.slots[i];
+        v->slots[i].module = s->binding.identity.module, v->slots[i].generation = s->binding.generation;
+        v->slots[i].state = s->state, v->slots[i].feature = s->binding.identity.feature;
+        v->slots[i].enable_acks = s->enable_acks, v->slots[i].disable_acks = s->disable_acks;
+        for (unsigned c = 0; c < 2u; ++c)
+            v->slots[i].acknowledged[c] = (uint16_t)s->acknowledged_words[c], v->slots[i].reset[c] = (uint16_t)s->reset_words[c];
+    }
+}
+#endif
 #endif
 /* A live trusted controller with no slot: reserve and bind its owner generation.
  * At most one other held slot of the feature, a disabled predecessor. */
@@ -433,6 +457,9 @@ void modwerk_controller_tick(void)
         mw_engines_collect(modwerk_controller_held(), mask, mask_known, transport.held);
 #endif
     }
+#if defined(MODWERK_RESIDENT_ON_DEMAND) && defined(MODWERK_DEV)
+    view();
+#endif
     modwerk_machine_unlock(irq);
 }
 
