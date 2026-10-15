@@ -78,7 +78,7 @@ function nativeChange(change, machine) {
     || /^scripts\/(build-module-packages\.py|build-utility-packages\.py|build-usb-audio-packages\.py|build-modules-isolated\.sh|import-module-build\.mjs|module-source\.mjs)$/.test(path)
   return common || /^sdk\/(digitakt|digitone|elemod|machines)\//.test(path) || /^vendor\/elekloader\/(catalog\/|elekloader\.lock\.json$|upstream-catalog\.json$)/.test(path) || /^sdk\/imports\/elekloader-[^/]+\.json$/.test(path)
     || /^sdk\/octabam\/(scripts\/vendor\.sh|tools\/patches\/|tools\/harness\/dsp_host)/.test(path)
-    || /^scripts\/(build-elemod[^/]*|elemod-elf\.mjs|verify-elemod-source-parity\.mjs)$/.test(path)
+    || /^scripts\/(build-elemod[^/]*|elemod-elf\.mjs|verify-elemod-source-parity\.mjs|package-elemod-recipe\.mjs|verify-elemod-release-exports\.mjs)$/.test(path)
     || /^src\/engine\/assets\/elemod\//.test(path)
 }
 function compilerJob(text, name) {
