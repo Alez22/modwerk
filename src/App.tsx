@@ -51,6 +51,7 @@ import { missingFromProject, sameModules, UNIT_STATE, unitState } from './config
 import { ShareModuleButton } from './community/ShareModuleButton'
 import { useBaseInstallPrompt } from './hooks/useBaseInstallPrompt'
 import { OctatrackLinkContext, useInventory, useMissing } from './hooks/useOctatrackLink'
+import { recordLoad } from './hooks/useOctatrackLoad'
 import { pendingBaseInstall } from './config/octatrack-progress'
 import { digiDownloadsEnabled } from './engine/elekloader/protocol'
 import { USB_AUDIO_MODULE, usbAudioLayout, type UsbAudioConfiguration } from './config/usb-audio'
@@ -162,6 +163,7 @@ export default function App() {
   const usbKit = usbLinkPreview || usbAllowed ? unitKit : null
   const usbLink = usbKit?.link
   const inventory = useInventory(usbLink, usbKit?.readInventory), missingOnUnit = useMissing(usbLink)
+  useEffect(() => usbLink ? recordLoad(usbLink) : undefined, [usbLink])
   const unitNeeds = useMemo(() => missingFromProject(missingOnUnit, MODULES.map(module => module.id)), [missingOnUnit])
   const [openModule, setOpenModule] = useState<string>()
   const [baseInstall, setBaseInstall] = useState<'manual' | 'preview' | null>(() => usbPreview === 'diagnostics' ? null : usbPreview === 'base-install' ? 'preview' : pendingBaseInstall() ? 'manual' : null)
@@ -170,7 +172,7 @@ export default function App() {
   // The guided load's Install from the card: the set page with the card install open.
   const [cardOpen, setCardOpen] = useState(false)
   // Once per member with USB access wherever they are, except on account, sign-in, admin and legal pages.
-  const baseInstallPrompt = useBaseInstallPrompt(session.user?.verified ? session.user.id : null, !!usbLink && !usbLinkPreview && !accountRoute && !developerRoute && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route))
+  const baseInstallPrompt = useBaseInstallPrompt(session.user?.verified ? session.user.id : null, !!usbLink && !usbLinkPreview && !accountRoute && !developerRoute && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route), usbLink ?? null)
   useEffect(()=>{if(developerRoute&&!route.startsWith('developer/complete')&&developer&&!developer.user)window.location.replace('#account/developer')},[developerRoute,route,developer])
   const communityRoute = developerRoute || forumRoute || accountRoute || route === 'review' || route === 'admin' || route.startsWith('submit') || !!communityModule
   const allCategory = route.startsWith(ALL_MACHINES + '/') && LIBRARY_CATEGORIES.includes(route.slice(4) as ModuleCategory) ? route.slice(4) as ModuleCategory : undefined
