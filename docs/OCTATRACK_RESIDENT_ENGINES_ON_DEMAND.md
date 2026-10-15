@@ -82,13 +82,32 @@ measured.
 
 **Open.** Whether stock does the same is not known. It needs a stock reference (an unmodified OS image, booted from RAM) before it counts as our artifact.
 
+## Where the ColdFire side plugs in (found 15 October 2026)
+
+- **Upload.** The generated owned transport (`resident_driver.py`, `owned_transport`) already has `dl_owned_upload_reserve(core, generation, upload, job)`. That is an owned DL_WRITE whose chunks are read back.
+  - Relocate the engine's words on the UI task into a per-core buffer.
+  - Upload them with it, then send PLACE as an owned op-10 command: `dl_owned_command_reserve(core, generation, 10, …)`.
+  - The transport's validator has to accept PLACE (word 7 = 1). Today it accepts only CAS (word 7 = 0).
+- **When to place and free.** `resident-runtime/stock_hook_driver.c`:
+  - `mw_hook_driver_begin(feature, …, enable=1)` starts the RESET stream on each core. Place the engine on a core before that core's first RESET chunk, and keep the begin PENDING until PLACE is acknowledged.
+  - `mw_hook_driver_retire` disables. Unplace and free only after both cores are disabled and no holder of the feature remains.
+- **Region.** In the generated `manager.c`, `allocator.capacity[c]` is set once from `dl_pool_words[c] - DL_CODE_START` at the first probe.
+  - Lower it to the lowest placed engine.
+  - Dry-run the bank's Part union with `dl_allocator_prepare` then `dl_allocator_cancel` before claiming.
+  - Refuse (`RUNTIME_MEMORY`) while live FX code sits in the region, until evacuation exists.
+  - The STATUS page and the box after a pick (`status.c`) and `modwerk_dsp_budget` (`dsp.c`) divide by `modwerk_dsp_arena`. They must use the lowered capacity too.
+- **Measuring on the unit.**
+  - Build: `build_core.py --dsp-loader --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners sdk/machines/octatrack/module-adapters/table-owners.json --resident-stock-hooks --resident-on-demand --dev`, with the beta base's stock image and upstream.
+  - RAM-boot it with `npm run device -- boot DIR`.
+  - `octatrack-measure.py` and `octatrack-clicks.py` work on it unchanged.
+
 ## Open
 
 - **ColdFire side.** `resident_engines.c`/`.py`: the manager seams (claim, release, dry run, evacuation flag in `place()`), the transport validator for `proc == 1`, and the board seams (place before ENABLE, garbage collection after release).
-- **Build wiring.** The `--resident-on-demand` flag in `build_core.py`.
+- **Build wiring.** Done (15 October 2026): `build_core.py --resident-stock-hooks --resident-on-demand` passes every engine this core carries (`resident_dsp.ALLOWED[tag]`) to `place_resident`. It is not in the committed beta base. `build_core.py` is part of the base's source hash, so regenerate the base (`npm run octatrack:base … --write`) before this branch becomes a PR.
 - **Native DSP harness.** `sdk/tests/resident_engines_native.cpp` is written but has no Python driver yet.
 - **Host tests.** Place, switch, run, disable, unswitch and free; refusal when full; rollback partway through; Part-switch invariants.
-- **Arena numbers** from a full private base build.
+- **Arena numbers.** Done: 4,418 / 4,546 words (above).
 - **Hardware risks** still to test:
   - Placement uploads while playing should never happen, but the guard has to be shown to hold.
   - The receiver's op-10 frame cost.
