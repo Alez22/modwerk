@@ -26,7 +26,7 @@ it('shows current and historical readings, with separate peaks and an accessible
   expect(container.textContent).toContain('12.3%'); expect(container.textContent).toContain('Recent device peak 45.6%')
   expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toContain('Missing readings')
   expect(container.querySelectorAll('tbody tr')).toHaveLength(1)
-  expect(container.querySelector('.load-highest')?.textContent).toContain('Highest 34.5% · Tracks 5–8')
+  expect(container.querySelector('.load-highest')?.textContent).toContain('Highest 34.5% · DSP tracks 5–8')
   await act(() => container.querySelector<HTMLButtonElement>('button')!.click())
   expect(container.querySelectorAll('tbody tr')).toHaveLength(0)
 })
