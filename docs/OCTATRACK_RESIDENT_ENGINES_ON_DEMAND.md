@@ -1,7 +1,9 @@
 # Resident controller engines on demand (design, work in progress)
 
-Status, 14 October 2026: design plus the DSP-side build slice. Nothing here is
-wired into a base build yet, and nothing has run on hardware.
+Status, 15 October 2026: the DSP side and the ColdFire side are written and
+wired into `build_core.py --resident-stock-hooks --resident-on-demand`, and
+host-tested. Clearing the region of live FX code (evacuation) is not written.
+Nothing of the ColdFire side has run on hardware yet.
 
 ## Goal
 
@@ -42,23 +44,24 @@ measured.
      - PLACE is accepted only while the feature is dormant on this core. The engine must fit whole between offset 64 and the permanent block.
      - Placing again needs an unplace first.
    - **Neither the host nor a module names a DSP address.**
-4. **ColdFire side (planned, not written).**
-   - **Region.** Engines take the top of the core's arena, directly under the permanent block. The FX allocator's `capacity` is lowered to the lowest engine. Compaction and the big-blocks-from-the-top rule keep working against that capacity.
-   - **Holes.** A removed engine above another engine leaves a hole, which the next engine reuses.
-   - **When a claim can happen.** Only while the manager is idle, with no queued pick and no open journal. A dry run (`dl_allocator_prepare` then `cancel`) must show that the bank's Part union still fits under the lowered capacity. That union is the firm modules plus the soft stock effects, if they fit before the claim. Otherwise the claim waits, or admission refuses with `RUNTIME_MEMORY`, so a Part switch never has to load code because of an engine.
-   - **Clearing the region.** If live FX code sits in the region, one automatic transaction re-places only those packages: new copies are uploaded while the old ones run, as `dl_move` does. It runs only while stopped, at least 2 s after the last key and with no pattern queued.
+4. **ColdFire side** (`resident-runtime/resident_engines.c`, its build seams in `resident_engines.py`). Written and host-tested, except the evacuation below.
+   - **Region.** Engines take the top of the core's arena, directly under the permanent block. The manager keeps a per-core reserve; the FX allocator's `capacity` is the arena less that reserve, so it stops at the lowest engine. Compaction (`dl_arena`), `dl_move`, the journal's holes and the big-blocks-from-the-top rule all read that capacity.
+   - **Holes.** Each engine takes the highest span that meets no other engine (top-down first fit). A removed engine above another one leaves a hole, which the next engine reuses without a new claim.
+   - **When a claim can happen.** Only while the manager is idle: no transaction, no queued pick, no open journal, no allocator or buffer transaction. A claim that lowers the capacity refuses while live FX code sits in the new region. It then dry-runs the bank's Part union under the lowered capacity (`dl_allocator_prepare` with every slot empty and the union as `keep`, then `dl_allocator_cancel`). The union is the four Parts' firm modules, plus the stock effects they name if those fit before the claim, plus whatever runs now. If it does not fit, the claim is refused, so a Part switch never has to load code because of an engine.
+   - **Admission.** For an incoming trusted controller (`modwerk_controller_admit`), the same claim runs as a dry run for its engine together with every other held or live controller's unplaced engine. It answers `RUNTIME_MEMORY` when there is no room, live FX code sits in the region or the union would not fit, and `RUNTIME_CONFLICT` when the feature's engine is stuck for this boot. A busy manager does not refuse: the tick's claim waits, so a boot restore is never refused because the project's effects were still loading.
+   - **Clearing the region (not written).** If live FX code sits in the region, admission refuses with `RUNTIME_MEMORY`. Planned: one automatic transaction re-places only those packages, as `dl_move` does (new copies uploaded while the old ones run), only while stopped, at least 2 s after the last key and with no pattern queued.
    - **Upload.**
-     1. Words are unpacked and relocated on the UI task into a per-core buffer, so the frame interrupt scans no relocations.
-     2. They are uploaded with an owned `DL_WRITE`, whose chunks are read back.
-     3. An owned PLACE follows.
-     4. Only then may the board send RESET (which also teaches the pool base), then ENABLE.
+     1. The words are relocated on the UI task into a per-core buffer (`mw_engine_relocate`, linear in words plus relocations), so the frame interrupt scans no relocations: the owned WRITE carries no relocation list.
+     2. They are uploaded with an owned `DL_WRITE` at the engine's table offset. The receiver reads every chunk back through P and refuses a chunk whose sum differs.
+     3. An owned PLACE follows (op 10, word 7 = 1, word 4 the feature, word 5 the table offset).
+     4. Only once PLACE is acknowledged on every required core does the board send its first RESET chunk, then ENABLE. The receiver also refuses to enable a feature whose base word is 0.
+   - **When it runs.** From the board's tick only (`controller_board.c`), when a controller generation of the feature is bound and not yet reset. Never at a Part switch, pattern or bank change, Part reload or project load. A placement or an unplacement starts only while the sequencer is stopped and no pattern change is queued (`modwerk_machine_stopped` and the queued bank/pattern bytes, as compaction reads them); otherwise it waits. Nothing new runs in the frame interrupt.
    - **Lifetime.**
-     - An engine is owned by the controller generation.
-     - A new generation of the same feature adopts an engine whose old slot is disabled (RETIRING, RELEASED or EMPTY) without reloading it. The code is base data, the same for every generation.
-     - An engine is unplaced and freed only when no slot of that feature is held. Quarantine holds it for good.
+     - An engine belongs to its feature, not to one generation. A new generation of the same feature (a replacement, a restore) finds it placed and adopts it without reloading. The code is base data, the same for every generation.
+     - An engine is unplaced (PLACE offset 0) and its span freed only when no slot of that feature is held, the board knows the feature is disabled on that core, and the sequencer is quiet. Quarantine holds it for good.
    - **Rollback.**
-     - A failed WRITE (no PLACE sent) frees the span.
-     - An uncertain PLACE or UNPLACE keeps the span for the rest of the boot.
+     - A failed WRITE (no PLACE sent) frees the span. The owned transport has closed that core for the boot, so nothing more is placed there; an engine already placed on the other core stays until no holder is left, then it is unplaced.
+     - An uncertain PLACE or UNPLACE keeps the span for the rest of the boot, and admission refuses that feature (`RUNTIME_CONFLICT`).
      - The owned channel's existing fail-closed rule stands.
 
 ## Measured on the unit (15 October 2026)
@@ -68,7 +71,7 @@ measured.
   - On #619's development twin, SPRING REV was refused "DSP MEMORY FULL" on T5–T8 of bank A Part 2: core 0 held FILTER plus the PLATE and DARK REV that Part 1 names (2,102 words), so Spring's 1,063 did not fit beside them.
   - On the on-demand build all eight picks loaded beside them, 3,165 words on core 0. Playing: T1-4 62 %, T5-8 67 %, ColdFire 50 %, no loader error.
   - Stock keeps 6,158 words of effect code per core, so a Part with all three reverbs on T5–T8 cannot load on the beta base at all.
-- **Not yet runnable.** Such a base cannot run Sidechain, Output Matrix or Analog BD, because nothing places their engines yet.
+- **Runnable since the ColdFire side (below), not yet on a unit.** That build could not run Sidechain, Output Matrix or Analog BD: nothing placed their engines.
 
 ## Switch artifacts (first take, 15 October 2026, on the build above)
 
@@ -82,34 +85,40 @@ measured.
 
 **Open.** Whether stock does the same is not known. It needs a stock reference (an unmodified OS image, booted from RAM) before it counts as our artifact.
 
-## Where the ColdFire side plugs in (found 15 October 2026)
+## How the ColdFire side plugs in
 
-- **Upload.** The generated owned transport (`resident_driver.py`, `owned_transport`) already has `dl_owned_upload_reserve(core, generation, upload, job)`. That is an owned DL_WRITE whose chunks are read back.
-  - Relocate the engine's words on the UI task into a per-core buffer.
-  - Upload them with it, then send PLACE as an owned op-10 command: `dl_owned_command_reserve(core, generation, 10, …)`.
-  - The transport's validator has to accept PLACE (word 7 = 1). Today it accepts only CAS (word 7 = 0).
-- **When to place and free.** `resident-runtime/stock_hook_driver.c`:
-  - `mw_hook_driver_begin(feature, …, enable=1)` starts the RESET stream on each core. Place the engine on a core before that core's first RESET chunk, and keep the begin PENDING until PLACE is acknowledged.
-  - `mw_hook_driver_retire` disables. Unplace and free only after both cores are disabled and no holder of the feature remains.
-- **Region.** In the generated `manager.c`, `allocator.capacity[c]` is set once from `dl_pool_words[c] - DL_CODE_START` at the first probe.
-  - Lower it to the lowest placed engine.
-  - Dry-run the bank's Part union with `dl_allocator_prepare` then `dl_allocator_cancel` before claiming.
-  - Refuse (`RUNTIME_MEMORY`) while live FX code sits in the region, until evacuation exists.
-  - The STATUS page and the box after a pick (`status.c`) and `modwerk_dsp_budget` (`dsp.c`) divide by `modwerk_dsp_arena`. They must use the lowered capacity too.
+- **Board.** `controller-policy/controller_board.c`, under `#ifdef MODWERK_RESIDENT_ON_DEMAND` (a default base preprocesses to the same code):
+  - Before a bound generation's first RESET, `mw_engines_place` drives the placement on every required core; the slot waits (BOUND) until PLACE is acknowledged everywhere.
+  - Each tick drains the engines' own owned jobs first (`mw_engines_poll`) and ends with `mw_engines_collect`, which unplaces and frees what no held slot names.
+  - `modwerk_controller_admit` dry-runs the claim for an incoming trusted controller (`mw_engines_admit`).
+  - `resident-runtime/stock_hook_driver.c` is not the seam: its enable path is closed in this preparation (`modwerk_stock_hook_begin` refuses every enable), and the board drives the controllers.
+- **Transport.** The engines use the generated owned transport (`resident_driver.py`): `dl_owned_upload_reserve` for the WRITE (no relocation list), `dl_owned_command_reserve(core, generation, 10, feature, table offset, 1)` for PLACE and the same with offset 0 to unplace. `resident_engines.transport` lets the validator accept word 7 = 1 only with one feature bit the core carries and an offset of 0 or inside the arena; word 7 = 0 stays the CAS it was, and any other word 7 is refused.
+- **Manager.** `resident_engines.manager` adds the reserve, `dl_engine_claim` (the dry run, above), `dl_engine_release` and `modwerk_dsp_arena_now`, and the first probe sets the capacity to the arena less the reserve.
+- **Status.** The STATUS page, the box after a pick (`modwerk_dsp_budget`) and the host's ARENA word read `modwerk_dsp_arena_now`, the arena less the engines. Admission's own size check and the descriptor check keep the build's arena.
+- **Data.** `resident-engines-data.c` (generated by `resident_engines.data_c`) holds each core's engine units, three bytes a word, their relocations, and a buffer per core sized to its largest engine. `data_c` refuses a unit whose words do not match its SHA-256 or whose relocations are out of order.
+- **Diagnostics** (read with `mem:` on a development base, addresses in `symbols.json`): `mw_engines[2][3]` (per core and feature: offset from the arena's start, u16; state, u8: 0 free, 1 claimed, 2 writing, 3 written, 4 placing, 5 placed, 6 unplacing, 7 stuck; a pad byte; the generation, u32), `mw_engines_jobs`, `mw_engines_placed_count`, `mw_engines_unplaced_count` and `mw_engines_refused`.
 - **Measuring on the unit.**
-  - Build: `build_core.py --dsp-loader --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners sdk/machines/octatrack/module-adapters/table-owners.json --resident-stock-hooks --resident-on-demand --dev`, with the beta base's stock image and upstream.
+  - Build: `build_core.py --dsp-loader --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners sdk/machines/octatrack/module-adapters/table-owners.json --resident-stock-hooks --resident-on-demand --dev`, with the beta base's stock image and upstream. Then recapture Analog BD's recipe against that build's symbols into a scratch copy of the tree (below), build the controller rows (`base_bound.py rows`) and the base again with `--controller-policies` and `--controller-layout`.
   - RAM-boot it with `npm run device -- boot DIR`.
   - `octatrack-measure.py` and `octatrack-clicks.py` work on it unchanged.
 
+## Checked so far (15 October 2026, no hardware)
+
+- **Host, ColdFire side** (`sdk/tests/test_resident_engines_board.py`, ASan/UBSan): the actual board, loader, generated manager and generated owned transport against a modelled receiver and made-up engine units. Place, switch on, run, switch off, unplace and free; the order WRITE, PLACE, RESET, ENABLE on each core and disable before unplace; the playing guard (no job while playing, none for an unplace either); a full core refused at admission; live FX code in the region refused until it is gone, and a later pick loading below the engines; the bank's Part union refused when it would no longer fit; a WRITE refused part way (that core's span freed, the other core placed, nothing enabled, then unplaced at removal); an uncertain PLACE (span kept, the feature refused afterwards); twelve Part switches starting no engine job, changing no reserve or capacity and loading no code; a successor adopting the placed engine with no new job; hole reuse; Output Matrix on core A only. The C relocator against `resident_dsp.relocate` at eight bases, edge words included.
+- **DSP side** (`sdk/tests/test_resident_engines.py`, in the modwerk-source-tools image; its interpreter is not the chip):
+  - The real units (388, 773 and 998 words) relocated three ways agree word for word at ten arena bases: a fresh assembly at the base, `resident_dsp.relocate`, and the base's C relocator over `data_c`'s data.
+  - `resident_engines_native.cpp` runs the on-demand receiver: it refuses an enable before PLACE, a second PLACE and an unplace while enabled, and its base word names the placed engine. Each stub then runs the engine placed at the arena's top and lower down, against the resident build's stub, from the same X/Y memory and registers: X, Y, the data ALU registers and the instruction counts are equal; an address register differs only where it holds a P address in the engine.
+  - Each stub runs twice: from filled memory (mostly the early return), then from the feature's reset state steered down its working path. Output Matrix's mix and phones paths (188 and 22 instructions, until they leave for stock code) and Analog BD's source on core B (167) ran there. On core A, Analog BD's voice block pointer from that synthetic record lands at X:$f598xx, which the interpreter has no memory for (both builds fault there), so its first 160 instructions are compared. Sidechain's entries ran 28, 18 and 11 interpreter steps in both scenarios (a DO loop counts as one step), so how far into its detector the steered state reached is not shown.
+- **Default builds unchanged.** A base built without `--resident-on-demand` links to the same bytes as before this slice, but for the identity fields (`modwerk_base_digest`, `olog_build`, `olog_configuration`, `olog_source`): checked on the resident development twin, the resident beta configuration (with and without controller rows) and the plain DSP-loader base. `controller_board.c`'s text changed, its object did not.
+- **Analog BD's recipe.** The on-demand base moves the write-lease entries Analog BD's package calls, so its reviewed hash recipe (`machine-recipes.json` imageSha256) has to be recaptured from the stock OS for any base that ships this, as for every base change that moves them (`OCTATRACK_BETA_TEST_PLAN.md`, finding 17). A development twin recaptures it privately (`build.py --capture-stock-recipe`).
+
 ## Open
 
-- **ColdFire side.** `resident_engines.c`/`.py`: the manager seams (claim, release, dry run, evacuation flag in `place()`), the transport validator for `proc == 1`, and the board seams (place before ENABLE, garbage collection after release).
-- **Build wiring.** Done (15 October 2026): `build_core.py --resident-stock-hooks --resident-on-demand` passes every engine this core carries (`resident_dsp.ALLOWED[tag]`) to `place_resident`. It is not in the committed beta base. `build_core.py` is part of the base's source hash, so regenerate the base (`npm run octatrack:base … --write`) before this branch becomes a PR.
-- **Native DSP harness.** `sdk/tests/resident_engines_native.cpp` is written but has no Python driver yet.
-- **Host tests.** Place, switch, run, disable, unswitch and free; refusal when full; rollback partway through; Part-switch invariants.
-- **Arena numbers.** Done: 4,418 / 4,546 words (above).
-- **Hardware risks** still to test:
-  - Placement uploads while playing should never happen, but the guard has to be shown to hold.
-  - The receiver's op-10 frame cost.
-  - The first-frame behaviour of an engine at a new address.
+- **Evacuation.** Live FX code in the region refuses the claim (`RUNTIME_MEMORY`). The allocator places an effect of a quarter of the arena or more from the top, and the bank's Part union stays loaded, so a bank naming such an effect refuses an engine until it is gone. Inferred, not seen: the boot restore installs the saved set after the project's effects loaded, so such a project could come up with "SOME MODULES FAILED". Planned: the `dl_move` transaction above.
+- **Hardware.** Nothing of the ColdFire side has run on a unit:
+  - install, activation, removal and reinstall of each engine, and all three together;
+  - that no Part switch, pattern change or reload starts an engine job (`mw_engines_jobs` stays put) and that switching still sounds as on the resident base;
+  - the receiver's op-10 frame cost, and the first-frame behaviour of an engine at a new address;
   - Analog BD's X tables stay at `$2840` in the DMA block (an existing trap).
+- **Beta base.** `build_core.py` and the resident sources are part of the base's source hash, so regenerate the base (`npm run octatrack:base … --write`) and recapture Analog BD's recipe before this branch ships an on-demand base. The committed beta base is not on-demand.
+- **Arena numbers.** Done: 4,418 / 4,546 words with nothing placed (above); with all three placed, core A keeps 2,259 and core B 3,160.
