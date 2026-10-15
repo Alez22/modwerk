@@ -37,7 +37,9 @@ The fixture: octabam's TMPL project, with bank 1 Part 1 (working and saved copie
   - **Save and reload:** an apply, then Part SAVE (FUNC + PART, SAVE), then PROJECT > SAVE. A fresh boot of the written card loads the applied Part as both working and saved.
   - **Power cycle:** an unsaved apply survives. The second run takes the CS1 and card of the first and does the firmware's own power-up load (`--cs1-in`, `--no-post`). The working Part is byte-identical and all eight machine types are intact, so the power-up check of the Part passed.
 
-Cost under ot_emu, from the YES press to the toast: 2.3 to 3.4 million ColdFire instructions for 110 to 160 writes in all three modes, and 6.3 million once (160 writes). Most of it is the stock store and redraw per write. There is no idle cost and no DSP work. Hardware time is not measured.
+- **The worst case.** Every scene-lockable byte of all eight tracks locked in both selected scenes (scene A at each slot's minimum, scene B at its maximum, poked into the working Part and its CS1 copy): the blend at fader 64 wrote 201 bytes (every enabled slot) as the model, SCENE A 125 and SCENE B 172, each followed by RELOAD PART.
+
+Cost under ot_emu, from the YES press to the toast: 2.3 to 3.4 million ColdFire instructions for 110 to 160 writes in all three modes, 6.3 million once (160 writes), and 8,268,075 for the worst case (201 writes); a repeat apply that changes nothing, 113,287. Most of it is the stock store and redraw per write. There is no idle cost and no DSP work. Hardware time is not measured.
 
 ## Stock flows
 
@@ -125,4 +127,4 @@ The user asked for SCENE A + YES and SCENE B + YES to apply that scene's own loc
 
 ## OT UI capture evidence
 
-Pending. The toast was seen in the emulator framebuffer (`SCENE APPLIED` in the stock toast box).
+`scripts/capture-module-ui.py` on the native build of ae2a6eed (MAIN OS `c4c210ce…`), card staged from octabam's TMPL project; the plan and every PNG's SHA-256 are in `media/capture.json`. The plan locks FX1 BASE to 30 in scene A and 110 in scene B, applies scene A twice (SCENE A APPLIED, then NOTHING TO APPLY), sets the crossfader to 64 (`fader`, added to the capture tool for this) and applies the blend (SCENE BLEND APPLIED). Every image was opened and checked.

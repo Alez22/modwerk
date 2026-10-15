@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "module": "apply-scene",
+  "version": "0.1.0-experimental",
+  "kind": "coldfire",
+  "cycles": {
+    "unit": "cycles/event",
+    "static": null,
+    "measured": 8268075,
+    "budget": 26600000,
+    "method": "measured: executed ColdFire instructions under ot_emu --mkii (verify.py's worst case: every scene byte of all eight tracks locked in both scenes, the blend at fader 64, 201 writes), YES press to toast. No static bound: the per-write cost is stock's store and redraw. Budget: 100 ms at 266 MHz, a key-press responsiveness target."
+  },
+  "load": {
+    "frameUs": 362.8,
+    "stockLongestUs": null,
+    "moduleLongestUs": null,
+    "stockIdlePercent": null,
+    "moduleIdlePercent": null,
+    "method": "Not run: APPLY SCENE does nothing in the frame interrupt or on MIDI; it runs once per key press in the UI task. A cfmeter.py flood comparison would measure no module code."
+  },
+  "stress": {
+    "floodMessagesPerSecond": null,
+    "clockBpm": null,
+    "seconds": null,
+    "stuckNotes": null,
+    "hangs": null,
+    "dropped": null,
+    "droppedExplanation": "Not run: no MIDI handling. The repeated-apply stress is item 11 of TESTING.md's card checklist and is not yet reported on the unit."
+  }
+}

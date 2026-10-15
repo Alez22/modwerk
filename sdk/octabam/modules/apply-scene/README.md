@@ -1,8 +1,7 @@
 # Apply Scene
 
-Version: 0.1.0 · author: @npp1993
+Version: 0.1.0-experimental · author: @npp1993
 
-> **Draft.** This module stays in `sdk/drafts/` until it has a hardware report and screenshots. To build it, copy or link this folder to `modules/apply-scene/` in a scratch copy of `sdk/octabam`. Its manifest paths are relative to that root.
 
 Hold [SCENE A] and press [YES]: scene A's locked values become the active Part's own values. [SCENE B] + [YES] does the same with scene B. Hold both scene keys and press [YES] to keep the sound the crossfader blends right now instead.
 
@@ -75,4 +74,22 @@ Original code by @npp1993, MIT (see [LICENSE](LICENSE)). Stock code is reference
 
 ## Screens and audio
 
-Screenshots are pending.
+Real LCD captures from the headless emulator on a private native build of this source (MAIN OS SHA-256 `c4c210ce…39af3b`), 15 October 2026. They show the interface, not hardware behaviour or sound.
+
+1. ![FX1 FILTER main page with SCENE A held: XLV shown, and the BASE knob highlighted with its scene lock value 30.](media/ot-scene-a-lock.png)
+   Lock a value in a scene the usual way: hold SCENE A and turn a knob. Here FX1's BASE is locked to 30 in scene A; the Part's own value stays 0.
+2. ![FX1 FILTER main page with the SCENE A APPLIED message box over it.](media/ot-scene-a-applied.png)
+   Hold SCENE A and press YES: every value scene A locks is written into the active Part, and SCENE A APPLIED confirms it. SCENE B + YES does the same for scene B.
+3. ![FX1 FILTER main page with no scene held; the BASE knob points low, at about a quarter of its range.](media/ot-after-a.png)
+   Release SCENE A: BASE now shows 30 as the Part's own value, like a knob you turned yourself. The scenes are untouched, and RELOAD PART (FUNC + CUE) brings back the last saved Part.
+4. ![FX1 FILTER main page with the SCENE BLEND APPLIED message box over it; the bottom bar shows the crossfader arrow between scenes 1 and 9.](media/ot-blend-applied.png)
+   To keep an in-between sound, move the crossfader, hold SCENE A and SCENE B, and press YES: the sound the crossfader plays now is written into the Part, and SCENE BLEND APPLIED appears. Here the crossfader is in the middle.
+5. ![FX1 FILTER main page with the NOTHING TO APPLY message box over it.](media/ot-nothing-to-apply.png)
+   When no value would change, for example SCENE A + YES pressed a second time, the screen says NOTHING TO APPLY and the Part stays as it is.
+
+More screenshots:
+
+- ![FX1 FILTER main page with SCENE B held and the BASE knob highlighted with its scene lock value 110.](media/ot-scene-b-lock.png) The same knob locked to 110 in scene B, for the blend in the next steps.
+- ![FX1 FILTER main page with no scene held; the BASE knob points near the middle of its range.](media/ot-after-blend.png) After the blend at the middle of the crossfader, BASE shows the blended value as the Part's own.
+
+There is no audio preview: APPLY SCENE adds no sound of its own.

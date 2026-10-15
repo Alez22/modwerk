@@ -304,6 +304,10 @@ class Emu:
             n -= k
         return out
 
+    def poke(self, a, data):
+        for i in range(0, len(data), 4096):
+            self.cmd(f"poke {a + i:#x} {data[i:i + 4096].hex()}")
+
     def u32(self, a):
         return int.from_bytes(self.peek(a, 4), "big")
 
@@ -408,6 +412,33 @@ def apply_case(e, img, label, mode, xf, texts, press=None):
         print(f"        cost: {notes[0][0] - entry[0][0]} instructions from the YES to the toast "
               f"({len(want)} writes)")
     return before, after, changed
+
+
+def worst_case(e, img, texts):
+    """Lock all 30 bytes of every track in both selected scenes, A at each slot's minimum and B at its maximum, in the
+    working Part and its CS1 copy; then the blend and each scene, each followed by RELOAD PART. Reports the cost."""
+    s = e.state()
+    W, p = bytearray(s["W"]), s["p"]
+    for t in range(8):
+        for side, sel in ((0, W[SEL_A]), (1, W[SEL_B])):
+            row = SCN + (sel * 8 + t) * 32
+            for k in range(30):
+                en, mn, cnt = img.page_desc(W, t, k // 6, s["master"])[2][k % 6]
+                W[row + k] = (mn if side == 0 else mn + cnt - 1) if cnt > 1 else mn
+    w = s["bank"] + 0x8ed80 + p * PART_LEN
+    locked = bytes(W[SCN:SCN + 0x1000])
+    def lock():
+        e.poke(w + SCN, locked)
+        e.poke(CS1_WORK + p * PART_LEN + SCN, locked)
+    lock()
+    check(e.state()["W"] == bytes(W), "worst case: every scene byte locked in both selected scenes (RAM and CS1)")
+    for mode in ("mix", "a", "b"):
+        apply_case(e, img, f"worst case, {mode}", mode, 64, texts)
+        reload_part(e, f"worst case, {mode}")
+        lock()                          # RELOAD PART brings back the saved scenes: lock them again
+    e.poke(w + SCN, bytes(s["W"][SCN:SCN + 0x1000]))
+    e.poke(CS1_WORK + p * PART_LEN + SCN, bytes(s["W"][SCN:SCN + 0x1000]))
+    check(e.state()["W"] == s["W"], "worst case: the fixture's scenes restored")
 
 
 def reload_part(e, label):
@@ -631,6 +662,9 @@ def main():
         for mode in ("a", "mix"):
             sound_case(e, img, 64, mode)
             reload_part(e, f"after the sound case, {mode}")
+
+        print("verify apply-scene: the worst case, every scene byte locked")
+        worst_case(e, img, texts)
 
         print("verify apply-scene: Part save, project save")
         before, after, want = apply_case(e, img, "before saving", "mix", 96, texts)
