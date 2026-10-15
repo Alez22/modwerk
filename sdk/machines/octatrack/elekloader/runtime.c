@@ -25,18 +25,21 @@ void modwerk_machine_retarget(volatile uint32_t *slot, unsigned n, uint32_t gone
 {
     for (unsigned k = 0; k < n; ++k) if (slot[k] == gone) slot[k] = now;
 }
-/* Stock copies a track's machine-type routines (renderers 0x400d6434[type], starts 0x400d6454[type]) into its two
- * per-track slots (0x400d61f0 at a bind, 0x4000bff0; 0x400d61d0), and the frame calls through the slots (0x4000d43c).
- * A module's site on a type entry leaves its routine in the slots of tracks bound while it was live: when the entry
- * goes back to stock, so do those slots, in the same masked span, or the frame keeps calling a module that left (beta
- * run 2, finding 30: FM Synth's sy_render, until an install copied another module over it). */
-#define MACHINE_TYPES 0x400d6434u
-#define MACHINE_SLOTS 0x400d61d0u
+/* Stock binds a track in the frame builder (0x4000aad0, the DSP frame interrupt): on a trig that asks for it, it
+ * copies the renderer of the track's machine type (0x400d6434[type]) into the track's next-renderer slot
+ * (0x400d61f0[track], at 0x4000c004), and each frame copies that into the current-renderer slot (0x400d61d0[track],
+ * 0x4000d514) and calls both (0x4000d43c, 0x4000d52c). Both slots hold renderers only: a start routine is called from
+ * its table (0x400d6454[type], 0x4000d47e) and never copied. A module's site on a renderer entry leaves its routine
+ * in the slots of tracks bound while it was live: when the entry goes back to stock, so do those slots, in the same
+ * masked span, or the frame keeps calling a module that left (beta run 2, finding 30: FM Synth's sy_render, until an
+ * install copied another module over it). */
+#define MACHINE_TYPES 0x400d6434u /* the 8-entry renderer table */
+#define MACHINE_SLOTS 0x400d61d0u /* 8 current renderers, then 8 next renderers (0x400d61f0) */
 void modwerk_machine_types_restored(volatile uint32_t *slots, uint32_t address, uint32_t length, const uint8_t *patched,
                                     const uint8_t *stock)
 {
     for (uint32_t at = (address + 3u) & ~3u; at + 4u <= address + length; at += 4u) {
-        if (at < MACHINE_TYPES || at >= MACHINE_TYPES + 64u) continue; /* the two 8-entry type tables */
+        if (at < MACHINE_TYPES || at >= MACHINE_TYPES + 32u) continue; /* the renderer entries; starts are never copied */
         const uint8_t *g = patched + (at - address), *w = stock + (at - address);
         uint32_t gone = (uint32_t)g[0] << 24 | (uint32_t)g[1] << 16 | (uint32_t)g[2] << 8 | g[3];
         uint32_t now = (uint32_t)w[0] << 24 | (uint32_t)w[1] << 16 | (uint32_t)w[2] << 8 | w[3];
