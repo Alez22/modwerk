@@ -10,7 +10,7 @@ import { pageBusy } from '../community/public-announcement'
 import { browserRequestsPrivacy } from '../community/usage'
 
 // A new note needs a new id here and in server/auth.ts (OWNER_NOTE).
-const KEY = 'modwerk.owner-note:2026-10-15-beta'
+const KEY = 'modwerk.owner-note:2026-10-15-beta-2'
 const WAIT = 10
 let closedThisVisit = false
 export function ownerNoteSeen() {
@@ -44,10 +44,11 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
       <div id="owner-note-message">
         <p>thanks a lot for testing the beta! From now on, reporting bugs on Discord and sharing diagnostics are mandatory for beta testers – it's the only way I can keep up. Here's what I need from you:</p>
         <ul className="owner-note-asks">
-          <li><strong>Report any bugs on Discord</strong> – please leave them in the <strong>#beta-tester</strong> channel.</li>
-          <li><strong>Match your usernames</strong> – please use the same name on Discord as here (<strong>@{username}</strong>), so I know who's who.</li>
+          <li><strong>Report bugs on Discord as they happen</strong> – in the <strong>#beta-tester</strong> channel, right when you run into them.</li>
+          <li><strong>Match your usernames</strong> – your name on Discord must be the same as here (<strong>@{username}</strong>), so I know who's who.</li>
           <li><strong>Share diagnostics</strong> – I'll ask you right after this note. It shows me where a build or sync went wrong.</li>
         </ul>
+        <p>I'll revoke beta access for testers who aren't active on Discord.</p>
         <p className="owner-note-warning"><Icon name="warn" size={18} /><span>This firmware is still <strong>highly experimental</strong>. But you can always roll back to the stock firmware.</span></p>
         <p>If that doesn't work for you, you can leave the beta below.</p>
         <p className="owner-note-sign">Thank you,<br /><strong>Jannik</strong></p>

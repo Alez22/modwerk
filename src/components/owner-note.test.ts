@@ -13,6 +13,8 @@ describe('beta tester note', () => {
     expect(html).toContain('#beta-tester')
     expect(html).toContain('@tester_1')
     expect(html).toContain('mandatory')
+    expect(html).toContain('revoke beta access for testers who')
+    expect(html).toContain('as they happen')
     expect(html).toContain('roll back to the stock firmware')
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Leave beta<\/button>/)
     expect(html).toMatch(new RegExp(`<a[^>]*href="${DEVELOPMENT_DISCORD_URL}"[^>]*aria-disabled="true"[^>]*>.*Join Discord \\(10\\)</a>`))

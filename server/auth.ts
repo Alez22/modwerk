@@ -87,7 +87,7 @@ export async function authentication(request:Request,env:Env,path:string):Promis
  }
  // Shown until the member closes it, then never again on any browser or device. A new note needs a new id here and in src/components/OwnerNote.tsx.
  if(path==='/api/auth/owner-note'){
-  const OWNER_NOTE='2026-10-15-beta',member=needMember(await accountUser(request,env,db))
+  const OWNER_NOTE='2026-10-15-beta-2',member=needMember(await accountUser(request,env,db))
   if(request.method==='GET')return response({show:!await db.prepare('SELECT 1 FROM member_owner_notes WHERE user_id=? AND note=?').bind(member.id,OWNER_NOTE).first()})
   if(request.method!=='POST')throw new HttpError(405,'Use GET or POST for the note.')
   await db.prepare('INSERT OR IGNORE INTO member_owner_notes(user_id,note) VALUES(?,?)').bind(member.id,OWNER_NOTE).run()
