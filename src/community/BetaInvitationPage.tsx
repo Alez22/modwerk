@@ -37,7 +37,7 @@ export function BetaInvitationPage({ campaign }: { campaign: string }) {
     {invitation?.status === 'active' ? <>
       <p role="status">Your account can now use beta features. You’ll see a Beta badge beside Modwerk.</p>
       {discordInvitation}
-      <a className="text-button" href="#library">Explore beta modules</a>
+      <a className="text-button" href="#octatrack/setup">Set up your Octatrack</a>
     </> : <>
       <p>Try early features, including Octatrack USB loading and beta modules. Some features need an Octatrack and a computer.</p>
       <p>The tester pool is limited to <strong>{BETA_TESTER_LIMIT} people</strong>. Places are first come, first served when you accept.{invitation && ` ${invitation.testers} of ${invitation.limit} places are currently taken.`}</p>
