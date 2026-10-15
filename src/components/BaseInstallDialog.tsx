@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { saveFirmware } from '../config/firmware-filename'
 import { finishBaseInstall, pendingBaseInstall, waitForBaseInstall } from '../config/octatrack-progress'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
@@ -148,7 +149,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     {view === 'intro' ? <>
       <LinkHero />
       <h2 id="base-install-title" className="link-title" tabIndex={-1}>Sync to Octatrack <span className="module-beta-badge">Beta</span></h2>
-      <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot. It’s a beta, so please tell me in the forum what goes wrong.</p>
+      <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot. It’s a beta, so please tell me in the <a href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer">development Discord</a> what goes wrong.</p>
       <ul className="link-promises">{ALSO_NEW.map(([icon, lead, rest, explainOnPhone]) => <li key={lead}><span className="link-feature-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><span><strong>{lead}</strong><span className={explainOnPhone ? undefined : 'link-feature-rest'}>{rest}</span></span></li>)}</ul>
       <p className={'link-needs' + (state.status === 'unsupported' ? ' is-missing' : '')}>You need an Octatrack MKII, your OS 1.40C file, a USB cable and Chrome or Edge on a computer.</p>
       {state.status === 'unsupported' && <p className="file-error" role="alert">This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.</p>}
@@ -188,7 +189,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Waiting for your Octatrack</h3>
       {state.status === 'unsupported' ? <><p>This browser can’t connect to USB devices.</p><p>Open Modwerk in <strong>Chrome or Edge on a computer</strong>, sign in and connect your Octatrack. The base you just installed stays on it.</p></> : <>
         <p>Keep the USB cable connected. Choose your Octatrack in the browser’s device list.</p>
-        <p className="base-install-note" role="status">{found ? 'The downloaded base is confirmed. Returning to your module set…' : state.status === 'connecting' ? 'Connecting to your Octatrack…' : state.status === 'stock' || state.status === 'ready' ? 'The downloaded base hasn’t been confirmed yet. Finish the installation, then connect again.' : 'Once I recognise the installed base, I’ll take you back to your module set automatically.'}</p>
+        <p className="base-install-note" role="status">{found ? 'The downloaded base is confirmed. Opening your module set…' : state.status === 'connecting' ? 'Connecting to your Octatrack…' : state.status === 'stock' || state.status === 'ready' ? 'The downloaded base hasn’t been confirmed yet. Finish the installation, then connect again.' : 'Once I recognise the installed base, I’ll open your module set automatically.'}</p>
         {state.notice && <p className="file-error" role="status">{state.notice.text}</p>}
       </>}
     </>}
