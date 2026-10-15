@@ -83,7 +83,20 @@ measured.
   - It starts about 50 ms after the switch and ends at the same point in the loop each time.
   - No dropout, no extra click, no loader error.
 
-**Open.** Whether stock does the same is not known. It needs a stock reference (an unmodified OS image, booted from RAM) before it counts as our artifact.
+**Resolved (15 October 2026, second session).** The resident base does the same: see the next section. The on-demand build does not cause it; whether stock does it is still unproven (stock has no USB audio to record it with).
+
+## Artifact checks on the unit (15 October 2026)
+
+Method: as above, all 20 USB audio channels as float32, every comparison against the loop before or a take of the same command sequence from a fresh boot (two plays with different histories differ; the recorder's floor is about 5e-7). Twins built from one tree: A resident (`--resident-stock-hooks --dev`), B and C on demand (C with the ColdFire side).
+
+- **Idle, nothing placed (B against A).** Same command sequence from a fresh boot: T3 and MAIN equal within 5e-7. Load equal: ColdFire 49.7 %, core 1 34.6 %, core 0 41.9 %, the same idle passes.
+- **Part switches between identical Parts.** Same on A and B: T3 differs from the loop before until its next trig (about 140-900 ms, set by where in the step the switch lands), never above the loop's own peak, no click. With a DELAY on T3 it is an echo of the last 500 ms (the delay becoming audible); without, a small added sound. It looks like the Part's values replacing the current trig's locks until the next trig. Not caused by on demand.
+- **DSP code uploads while playing.** Ten picks on silent tracks on both cores while T3 plays (the path an engine placement takes): T3 and MAIN bit-exact on A and on B.
+- **Placement (C).** Sidechain Compressor: arena 4,418/4,546 to 4,030/4,158 words, back to 4,418/4,546 on removal, placed again on reinstall; no rejection, error or stall.
+- **Placed equals resident.** T5 FX1 COMPRESSOR with KEY T3 and MON ON (T3's key across cores, through both cores' engines): T5 on C equals T5 on A in every sample, once aligned.
+- **Key latency per enable (both builds).** T5 lags T3 by 89 samples after one enable, 121 after another, on A as on C: each core seeds its key counter at its own first frame after its own CAS, and the board enables core 0 a tick or more before core 1. Fix: the reader follows the writer's counter (`scdet`'s foreign path), as native octabam effectively does; about 1 enable in 4 can otherwise read the slot being written. Not done (upstream source).
+- **Silence after a Sidechain enable (both builds, open).** 4 of about 13 enables in a series of RAM boots between different twins without a power cycle silenced every track (exact zeros where the base captures the DSP output, USB stream running, DSPs running, loader clean), until the next boot. Each had a COMPRESSOR with KEY set in the Part. After a power cycle, 0 of 21 enables. T5's monitored copy of T3 was zero too, so T3 is silent before its FX1: the Sidechain DSP code has no path to it (code review), which points at the ColdFire side (renderer, stream) or state left by earlier RAM boots. `snap.sh` snapshots of the renderer slots, running effects and Part are ready for the next occurrence.
+- **Test tooling trap.** A development session left running (`device.mjs serve` restart loop) during `device.mjs boot` knocked the unit off USB until a power cycle, twice: stop and verify it before every boot.
 
 ## How the ColdFire side plugs in
 
@@ -102,7 +115,7 @@ measured.
   - RAM-boot it with `npm run device -- boot DIR`.
   - `octatrack-measure.py` and `octatrack-clicks.py` work on it unchanged.
 
-## Checked so far (15 October 2026, no hardware)
+## Checked in software (15 October 2026)
 
 - **Host, ColdFire side** (`sdk/tests/test_resident_engines_board.py`, ASan/UBSan): the actual board, loader, generated manager and generated owned transport against a modelled receiver and made-up engine units. Place, switch on, run, switch off, unplace and free; the order WRITE, PLACE, RESET, ENABLE on each core and disable before unplace; the playing guard (no job while playing, none for an unplace either); a full core refused at admission; live FX code in the region refused until it is gone, and a later pick loading below the engines; the bank's Part union refused when it would no longer fit; a WRITE refused part way (that core's span freed, the other core placed, nothing enabled, then unplaced at removal); an uncertain PLACE (span kept, the feature refused afterwards); twelve Part switches starting no engine job, changing no reserve or capacity and loading no code; a successor adopting the placed engine with no new job; hole reuse; Output Matrix on core A only. The C relocator against `resident_dsp.relocate` at eight bases, edge words included.
 - **DSP side** (`sdk/tests/test_resident_engines.py`, in the modwerk-source-tools image; its interpreter is not the chip):
@@ -115,9 +128,10 @@ measured.
 ## Open
 
 - **Evacuation.** Live FX code in the region refuses the claim (`RUNTIME_MEMORY`). The allocator places an effect of a quarter of the arena or more from the top, and the bank's Part union stays loaded, so a bank naming such an effect refuses an engine until it is gone. Inferred, not seen: the boot restore installs the saved set after the project's effects loaded, so such a project could come up with "SOME MODULES FAILED". Planned: the `dl_move` transaction above.
-- **Hardware.** Nothing of the ColdFire side has run on a unit:
-  - install, activation, removal and reinstall of each engine, and all three together;
-  - that no Part switch, pattern change or reload starts an engine job (`mw_engines_jobs` stays put) and that switching still sounds as on the resident base;
+- **Hardware.** Sidechain's install, activation, removal and reinstall ran on a unit (above). Still to run:
+  - Output Matrix and Analog BD, and all three together;
+  - that no Part switch, pattern change or reload starts an engine job with an engine placed (`mw_engines_jobs` sits outside the development MEM window; use the loader's accepted counts) and that switching still sounds as on the resident base;
+  - the silence after a Sidechain enable (above), on the resident base first: it is not on-demand's, but it blocks calling Sidechain artifact-free;
   - the receiver's op-10 frame cost, and the first-frame behaviour of an engine at a new address;
   - Analog BD's X tables stay at `$2840` in the DMA block (an existing trap).
 - **Beta base.** `build_core.py` and the resident sources are part of the base's source hash, so regenerate the base (`npm run octatrack:base … --write`) and recapture Analog BD's recipe before this branch ships an on-demand base. The committed beta base is not on-demand.
