@@ -64,11 +64,17 @@ to what the base's source hash covers (this folder, the logger, upload, loader, 
 sources; their `.c`, `.h`, `.s`, `.asm`, `.py` and `.json` files) changes the base, even a file only `--dev` twins
 compile (`dev.c`) or a test there (`test_recipe.py`). `octatrack-base-sources.json` lists those inputs and their hashes, and a test
 (`octatrack-base.test.ts`, no firmware) fails when one changed or a file joined those folders. Rebuild and
-commit it with
+commit it with the beta base's options (the committed base is the beta base):
 
 ```sh
-npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --write
+npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' \
+  --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers --write
 ```
+
+When the change moves the base's write-lease entries, recapture Analog BD's reviewed recipe
+(`module-adapters/machine-recipes.json` imageSha256) against the new base's symbols first, then rebuild the
+module packages (`npm run octatrack:module-packages`) so every base-bound package's `requiredBase` follows
+([beta test plan](../../../../docs/OCTATRACK_BETA_TEST_PLAN.md), finding 17).
 
 Without `--write` it checks the committed files are what this source builds. Both runs check the package is
 stock-free, that the browser's path builds a `.bin` identical to `build_core.py`'s `NOT_FLASH_CANDIDATE.bin`,
