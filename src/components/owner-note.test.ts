@@ -9,7 +9,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.resetModules() })
 describe('beta tester note', () => {
   it('names the channel and the tester, warns, and offers only Leave beta or Join Discord, both locked at first', async () => {
     const { OwnerNote } = await import('./OwnerNote')
-    const html = renderToStaticMarkup(createElement(OwnerNote, { username: 'tester_1', onJoin() {}, async onLeave() {} }))
+    const html = renderToStaticMarkup(createElement(OwnerNote, { username: 'tester_1', onJoin() {}, onLeave() {} }))
     expect(html).toContain('#beta-tester')
     expect(html).toContain('@tester_1')
     expect(html).toContain('mandatory')

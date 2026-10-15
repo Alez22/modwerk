@@ -648,7 +648,6 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .owner-note-actions { display: flex; align-items: center; gap: 10px; padding: 16px 32px; border-top: 1px solid var(--line); }
 .owner-note-close { margin-right: auto; padding: 8px 4px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .owner-note-close:not(:disabled):hover { color: var(--text); }
-.app-dialog.owner-note .owner-note-error { margin: 0 32px 12px; }
 .button-danger { background: #6a3734; border-color: #96514a; color: #ffe1dc; }
 .app-dialog.firmware-download-dialog { background: #2b2023; border-color: #a95757; max-height: calc(100dvh - 32px); overflow-y: auto; }
 .firmware-download-dialog h2 { color: #ffaaaa; margin-bottom: 14px; }
