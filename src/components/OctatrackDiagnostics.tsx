@@ -14,7 +14,7 @@ export function OctatrackDiagnosticsCollector({memberId,link,inventory}: {member
   return null
 }
 /** `username` is the name the owner sees on shared records; testers match it on Discord. */
-export function OctatrackDiagnosticsSettings({username}: {username?: string | null} = {}) {
+export function OctatrackDiagnosticsSettings({username}: {username?: string | null}) {
   const state = useSyncExternalStore(subscribeDiagnosticPreference,diagnosticPreference,diagnosticPreference)
   const [invitation,setInvitation]=useState(false)
   const privacy = browserRequestsPrivacy()
