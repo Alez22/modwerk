@@ -423,9 +423,18 @@ DSP_EDITS = {
                    '        (n==4 ? named : keep)[(i&7)<4 ? 1:0]|=1u<<p;\n'
                    '    }\n'
                    '}\n'
+                   '/* Core c lets go of its Parts\' union for this target when the target adds no module to it, or when\n'
+                   ' * the union is not held now (a bank that never fitted: a Part change there loads either way). */\n'
+                   'static unsigned loose(const uint32_t named[2],unsigned c) {\n'
+                   '    if(!(named[c]&~allocator.keep[c])) return 1;\n'
+                   '    for(unsigned p=0;p<32;++p) if((allocator.keep[c]>>p&1u) && !allocator.live[c][p].present) return 1;\n'
+                   '    return 0;\n'
+                   '}\n'
                    'static unsigned needed(unsigned index,unsigned mode) {'),
-                  # A target naming a module no Part holds yet must fit beside all of them; anything else that does
-                  # not (a bank that never fitted) falls back to loading what it runs.
+                  # A target naming a module no Part holds yet must fit beside all of them on its core, while they are
+                  # held; anything else that does not (a bank that never fitted) falls back to loading what it runs, per
+                  # core (beta run 2: bank A's union was over on both cores, so even Tape Echo's 5 words were refused,
+                  # and a pick on T1 was refused for core 0's union).
                   ('        int r=dl_allocator_prepare(&allocator,desired,current);\n',
                    '        uint32_t named[2],soft[2];\n'
                    '        parts(desired,allocator.keep,named,soft);\n'
@@ -437,8 +446,8 @@ DSP_EDITS = {
                    '            r=dl_allocator_prepare(&allocator,desired,current);\n'
                    '        }\n'
                    '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (allocator.keep[0]|allocator.keep[1]) &&\n'
-                   '           (automatic || !((named[0]&~allocator.keep[0])|(named[1]&~allocator.keep[1])))) {\n'
-                   '            allocator.keep[0]=allocator.keep[1]=0;\n'
+                   '           (automatic || loose(named,0) || loose(named,1))) {\n'
+                   '            for(unsigned c=0;c<2;++c) if(automatic || loose(named,c)) allocator.keep[c]=0;\n'
                    '            r=dl_allocator_prepare(&allocator,desired,current);\n'
                    '        }\n'),
                   ('    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n    if(!changed) return;',
@@ -712,11 +721,17 @@ WIDTH_EDITS = {
         ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (soft[0]|soft[1])) {',
          '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(soft[0]) || fx_any(soft[1]))) {'),
         ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (allocator.keep[0]|allocator.keep[1]) &&\n'
-         '           (automatic || !((named[0]&~allocator.keep[0])|(named[1]&~allocator.keep[1])))) {\n'
-         '            allocator.keep[0]=allocator.keep[1]=0;',
+         '           (automatic || loose(named,0) || loose(named,1))) {\n'
+         '            for(unsigned c=0;c<2;++c) if(automatic || loose(named,c)) allocator.keep[c]=0;',
          '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(allocator.keep[0]) || fx_any(allocator.keep[1])) &&\n'
-         '           (automatic || !(fx_any(fx_less(named[0],allocator.keep[0])) || fx_any(fx_less(named[1],allocator.keep[1]))))) {\n'
-         '            allocator.keep[0]=allocator.keep[1]=(fx_set){{0}};'),
+         '           (automatic || loose(named,0) || loose(named,1))) {\n'
+         '            for(unsigned c=0;c<2;++c) if(automatic || loose(named,c)) allocator.keep[c]=(fx_set){{0}};'),
+        ('static unsigned loose(const uint32_t named[2],unsigned c) {\n'
+         '    if(!(named[c]&~allocator.keep[c])) return 1;\n'
+         '    for(unsigned p=0;p<32;++p) if((allocator.keep[c]>>p&1u) && !allocator.live[c][p].present) return 1;',
+         'static unsigned loose(const fx_set named[2],unsigned c) {\n'
+         '    if(!fx_any(fx_less(named[c],allocator.keep[c]))) return 1;\n'
+         '    for(unsigned p=0;p<DL_PACKAGES;++p) if(fx_in(allocator.keep[c],p) && !allocator.live[c][p].present) return 1;'),
         ('            uint8_t reads[32], now[16];\n            for(unsigned p=0;p<32;++p) reads[p]=dl_catalog[p].buffer;',
          '            uint8_t reads[DL_PACKAGES], now[16];\n            for(unsigned p=0;p<DL_PACKAGES;++p) reads[p]=dl_catalog[p].buffer;'),
         ('        unsigned c=cursor/32;\n        int s=dl_job_status(c);', '        unsigned c=cursor/DL_PACKAGES;\n        int s=dl_job_status(c);'),
