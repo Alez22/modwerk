@@ -33,8 +33,9 @@ MODULE = Module(
     doc="SCENE A or B + YES: that scene's locks become the active Part's base; both scene keys + YES: the crossfader blend.",
     category=Category.PARTS, author="npp1993", author_url="https://github.com/npp1993",
     proof=Proof.PORT, proof_note="ot_emu MKII, 15 Oct 2026 (verify.py); no hardware run yet",
-    # 448 bytes, position-independent: an image zero run, not the DRAM reserve.
-    linked=(Linked("apply_scene", "modules/apply-scene/unit.s"),),
+    # 636 bytes, position-independent, in the DRAM reserve as the site's builder places
+    # Play Modes' unit: the image's free run is where Preview Vol and the caves go.
+    linked=(Linked("apply_scene", "modules/apply-scene/unit.s", cpu="5475", dram=True),),
     detours=(
         Detour(0x4005E4C8, stock_guard(0x4005e4c8, 8, "91fea154aed7ca7f7aed1e03380f8eba791542d2f01b3f4a9b173e2dec9df118"),
                "apply_scene", "as_yes_hook",

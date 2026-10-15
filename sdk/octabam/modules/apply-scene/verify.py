@@ -505,14 +505,19 @@ def main():
         print(f"verify apply-scene: SKIP ({IMAGE} has no APPLY SCENE detour at {SITE:#x})")
         return 0
     hook = img.u32(SITE + 2)
-    texts = {}
-    for mode, words in [(m, w) for m, (_, w) in MODES.items()] + [("none", NONE_TEXT)]:
-        at = img.d.find(words.encode() + b"\0", hook - BASE, hook - BASE + 0x400)
-        if at < 0:
-            sys.exit(f"verify apply-scene: the unit's text {words!r} is not where the detour points")
-        texts[mode] = BASE + at
-    print(f"verify apply-scene: image {hashlib.sha256(img.d).hexdigest()[:12]}, hook {hook:#x}, "
-          f"texts {', '.join(hex(a) for a in texts.values())}")
+    def find_texts(unit):
+        """The toast texts in the unit (read from the image, or from RAM for a DRAM unit loaded at boot)."""
+        texts = {}
+        for mode, words in [(m, w) for m, (_, w) in MODES.items()] + [("none", NONE_TEXT)]:
+            at = unit.find(words.encode() + b"\0")
+            if at < 0:
+                sys.exit(f"verify apply-scene: the unit's text {words!r} is not where the detour points")
+            texts[mode] = hook + at
+        return texts
+    in_image = BASE <= hook < BASE + len(img.d)
+    texts = find_texts(img.d[hook - BASE:hook - BASE + 0x400]) if in_image else None
+    print(f"verify apply-scene: image {hashlib.sha256(img.d).hexdigest()[:12]}, hook {hook:#x} "
+          f"({'in the image' if in_image else 'a DRAM unit, loaded at boot'})")
     work = pathlib.Path(tempfile.mkdtemp(prefix="apply_scene_verify_"))
     card = build_fixture(img, work)
     shutil.copy2(card, work / "card0.img")
@@ -521,6 +526,9 @@ def main():
     try:
         e.run(3000)
         e.tap("yes", after=1500)                       # the clock dialog
+        if texts is None:
+            texts = find_texts(e.peek(hook, 0x400))
+        print(f"verify apply-scene: texts {', '.join(hex(a) for a in texts.values())}")
         s0 = e.state()
         check([s0["W"][MACH + t] for t in range(8)] == list(MACHINES) and s0["W"][SEL_A] == SCENE_A,
               f"fixture loaded: machines {[s0['W'][MACH + t] for t in range(8)]}, scenes {s0['W'][SEL_A]}/{s0['W'][SEL_B]}")
