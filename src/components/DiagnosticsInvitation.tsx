@@ -45,7 +45,7 @@ export function DiagnosticsInvitation({onClose,onLeave,preview=false}: {onClose:
     </ul>
     <p className="diagnostics-connected">Trying the Octatrack beta? Keep this page open and your Octatrack connected so we can receive a report if something fails.</p>
     <DiagnosticDetails/>
-    <p className="diagnostics-choice">{onLeave ? 'Required to stay in the beta; the rest of the site works without it.' : 'Optional.'} Sharing applies to your signed-in sessions for 90 days. You can turn it off and delete reports in Account → Diagnostics anytime.{!onLeave && ' Builds and syncing work either way.'}</p>
+    <p className="diagnostics-choice">{onLeave ? 'Needed for the beta – the rest of the site works without it.' : 'Optional.'} Sharing applies to your signed-in sessions for 90 days. You can turn it off and delete reports in Account → Diagnostics anytime.{!onLeave && ' Builds and syncing work either way.'}</p>
     {privacy && <p className="diagnostics-choice" role="status">Your browser requests privacy, so automatic diagnostics stay off here.</p>}
     {!preview && state.error && <p className="file-error" role="alert">{state.error}</p>}
     <footer className="diagnostics-actions"><button type="button" className="button button-quiet" onClick={onLeave ?? onClose}>{onLeave ? 'Leave beta' : 'Not now'}</button><button type="button" className="button button-primary" disabled={privacy || !preview && (!state.ready || state.busy)} onClick={()=>void share()}>{state.busy && !preview ? 'Saving…' : 'Share diagnostics'}</button></footer>
