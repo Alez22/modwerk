@@ -294,7 +294,7 @@ The former developer workspace becomes Creator settings for claims, support link
 Every report belonged to one module and went to that module's author. A freeze that only happens with two effects loaded, or a build that fails, has no single module to name, so it reached no one, or only whichever author the reporter guessed.
 
 - **A report can be about a whole saved configuration.** It starts from the configuration page, not a module page, and is for problems in the combination or of unknown cause.
-- **Every module's authors receive it** (the owner chose this over owner triage and over a reporter-named suspect). Each distinct author and declared maintainer is mentioned once, and each can see the private details and close or reopen it. The cost is that an author may be pinged for a problem in someone else's module; the report says it concerns the whole configuration, and the cap on mentions stops a very large configuration from pinging dozens of people.
+- **Every module's authors receive it** (superseded on 16 October 2026, below; the owner chose this over owner triage and over a reporter-named suspect). Each distinct author and declared maintainer is mentioned once, and each can see the private details and close or reopen it. The cost is that an author may be pinged for a problem in someone else's module; the report says it concerns the whole configuration, and the cap on mentions stops a very large configuration from pinging dozens of people.
 - **The fix is released by one module,** so `/modwerk resolve` names it. Closing it for another reason works from any of them.
 - **The modules and versions are public;** the build fingerprint, the FX2 setting and the log are not. Authors without a Modwerk account need the list to reproduce the problem, and the `module:<id>` labels reveal it anyway. This widens what a report publishes beyond a module report's single version, so the privacy notice needs the owner's review.
 - **It does not count against a module.** A report that may not be that module's fault stays out of the per-module statistics behind the stability grade; each module's Issues tab still lists and counts it.
@@ -307,3 +307,10 @@ A contributor following a report's "open them on Modwerk" link landed on Creator
 - **New GitHub reports publish everything.** The issue also carries the firmware state, build fingerprint, module configuration and the validated `OCTAMOD.LOG` in a collapsed block (oldest records left out when it would pass GitHub's size limit). The forms say so before posting. Reports filed earlier are never republished; their `public_json` lacks `full`.
 - **Maintainers talk to reporters on GitHub.** Comments reach the reporter on Modwerk; the reporter's replies from Modwerk appear on the issue.
 - **The maintainer report page is gone from the frontend.** `#developer/report/<id>` shows Creator settings, and the report page no longer shows maintainer triage, close or release forms. The private-report API, the reporter's sharing toggle, Creator settings with claims and Ko-fi links, `/modwerk` commands and the release-completion endpoint are unchanged.
+
+## 16 October 2026 — Configuration reports ping no one
+
+Mentioning every module's authors on a configuration report pinged every author in the configuration on every such report (#653, #658, #660), most of them for a problem outside their module.
+
+- **A configuration report mentions no author and sends no maintainer notification.** It keeps its `configuration` and `module:<id>` labels, is listed on each module's Issues tab, and maintainers of any listed module can still manage it.
+- **The owner triages it.** Once it points to one module, whoever narrowed it down mentions that module's author in the issue.
