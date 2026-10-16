@@ -20,9 +20,15 @@
 | 4 | MIXER MIX sets the PHONES level | pass |
 | 5 | OUT CFG back to NORMAL: stock behaviour returns | pass |
 
+## Flashed and power-cycled (same day)
+
+The author then flashed the same base from the card (browser-built `.bin` `ca8b457f…`, identity `3e3e3de1…`). The set kept on the RAM-booted base was restored at once (Output Matrix in INVENTORY); Analog BD, Apply Scene, LOFI2, Quant Live Rec, LIFT and BS WAVESHAPER were then installed and kept beside it. With OUT CFG on MATRIX and a track routed to MNL, a power cycle: all seven modules came back (INVENTORY over USB), OUT CFG still read MATRIX and the track's routing was kept.
+
+**Display issue after the power cycle:** the track's LEV box first showed stock's split bars (half MAIN level, half CUE) instead of Output Matrix's solid bar; pressing CUE redrew it as MNL with a solid full-width bar. Likely cause, not yet confirmed: the base restores the saved module set after the first screen is drawn, and nothing redraws the page once the module's patches are in. A static build has the module from the first draw.
+
 ## Limitations
 
-- RAM-booted base: no power cycle, project save and reload, or Part reload on this version over USB.
+- No project save and reload or Part reload on this version over USB; one power cycle, with the display issue above.
 - Output Matrix alone on the base: no other module installed beside it; MASTER TRACK, STUDIO, the mode conversion's other Parts and banks, and CC 51 out were not checked on the unit for this version.
 - Functional checks by ear; no audio recording or chip timing. The smaller DSP code's sample-identical output is shown in the emulator (TESTING.md), not measured on the unit.
 - One MKII; no MKI.
