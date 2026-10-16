@@ -3,6 +3,7 @@ import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { saveFirmware } from '../config/firmware-filename'
 import { finishBaseInstall, pendingBaseInstall, waitForBaseInstall } from '../config/octatrack-progress'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
+import { unitForPrompt } from '../hooks/useBaseInstallPrompt'
 import { useOctatrackLink } from '../hooks/useOctatrackLink'
 import { RiskAcceptance } from './ConfigurationLayout'
 import { Icon, type IconName } from './Icon'
@@ -115,8 +116,8 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   const stageIndex = stages.indexOf(stage)
   const found = !!pending && state.status === 'ready' && !!state.identity?.canSubmit && state.identity.base === pending.expectedBase
   const canClose = hold === 0 || found
-  // A unit already on a Modwerk base is updated, not installed (the hub sends it here when its base is older).
-  const older = !pending && state.status === 'ready' ? state.identity?.base : undefined
+  // A unit already on an older Modwerk base is updated, not installed (the hub and the update prompt send it here).
+  const older = !pending && unitForPrompt(state) === 'older'
   useEffect(() => {
     if (!pending || !found || finished.current) return
     finished.current = true; finishBaseInstall(); onReady()
@@ -155,7 +156,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
       {state.status === 'unsupported' && <p className="file-error" role="alert">This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.</p>}
     </> : <>
     <header className="base-install-header"><h2 id="base-install-title" tabIndex={-1}>{older ? 'Update' : 'Install'} the Modwerk base <span className="module-beta-badge">Beta</span></h2></header>
-    <p id="base-install-intro" className="base-install-intro">{older ? <>Your Octatrack runs an older Modwerk base (<code>{older.slice(0, 8)}</code>). Install the current one from the card, the same way as the first time.</> : 'A one-time install from your Octatrack’s card.'}</p>
+    <p id="base-install-intro" className="base-install-intro">{older ? <>Your Octatrack runs an older Modwerk base{state.identity && <> (<code>{state.identity.base.slice(0, 8)}</code>)</>}. Install the current one from the card, the same way as the first time.</> : 'A one-time install from your Octatrack’s card.'}</p>
     <ol className="base-install-progress" aria-label="Installation progress">{stages.map((item, index) => <li key={item} aria-current={stage === item ? 'step' : undefined} className={index < stageIndex ? 'is-past' : undefined}><span aria-hidden="true">{index < stageIndex ? <Icon name="check" size={13}/> : index + 1}</span>{['Download', 'Copy', 'Install', 'Connect'][index]}</li>)}</ol>
     <section className="base-install-stage" aria-labelledby="base-stage-title">
     {stage === 'download' && <>
