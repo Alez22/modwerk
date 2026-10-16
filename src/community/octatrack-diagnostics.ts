@@ -7,10 +7,12 @@ import { browserRequestsPrivacy, countOctatrackAction } from './usage'
 import { OCTATRACK_DIAGNOSTICS_VERSION, DIAGNOSTIC_USB_EVENTS, DEVICE_LOG_INCIDENTS, DEVICE_LOG_LOADS, type SiteDiagnosticEvent, type DiagnosticConsent, type DiagnosticLive, type OctatrackDiagnostic } from './octatrack-diagnostics-contract'
 import { subscribeSiteDiagnosticEvents, collectBrowserDiagnosticEvents } from './site-diagnostic-events'
 
-export interface DiagnosticPreference { accountId: string | null; available: boolean; enabled: boolean; ready: boolean; busy: boolean; error: string; notice: string; hasChoice: boolean; lastSent: string | null }
+export interface DiagnosticPreference { accountId: string | null; available: boolean; enabled: boolean; ready: boolean; busy: boolean; error: string; notice: string; hasChoice: boolean; saved: boolean; lastSent: string | null }
 const listeners = new Set<() => void>()
 const locallyStopped = new Set<string>()
-let snapshot: DiagnosticPreference = {accountId:null,available:false,enabled:false,ready:false,busy:false,error:'',notice:'',hasChoice:false,lastSent:null}
+/** `hasChoice`: a choice under the current text that hasn't expired, so the invitation stays away. `saved`: any earlier choice, whose reports can still be deleted. */
+const choice = (saved: DiagnosticConsent) => ({ hasChoice: saved.version === OCTATRACK_DIAGNOSTICS_VERSION && !!saved.changedAt && Date.parse(saved.expiresAt ?? '') > Date.now(), saved: !!saved.changedAt })
+let snapshot: DiagnosticPreference = {accountId:null,available:false,enabled:false,ready:false,busy:false,error:'',notice:'',hasChoice:false,saved:false,lastSent:null}
 let owner: string | null = null, blocked = false, expires = 0
 let preferenceRevision = 0
 let generation = 0, accountApi: ReturnType<typeof scopedApi> | undefined
@@ -31,7 +33,7 @@ export async function changeDiagnosticSharing(enabled: boolean) {
     if (saved.accountId !== member || !enabled && saved.enabled || enabled && (!saved.enabled || saved.version !== OCTATRACK_DIAGNOSTICS_VERSION || !(Date.parse(saved.expiresAt ?? '') > Date.now()))) throw new Error('Your sign-in or diagnostic choice changed in another tab. Refresh and try again.')
     if (enabled && saved.enabled) locallyStopped.delete(member)
     blocked = !saved.enabled; expires = Date.parse(saved.expiresAt ?? '')
-    publish({enabled:saved.enabled,ready:true,available:true,hasChoice:saved.version === OCTATRACK_DIAGNOSTICS_VERSION && !!saved.changedAt,notice:saved.enabled?'Diagnostics sharing is on.':'Sharing stopped. Your shared diagnostics were deleted.',...(!saved.enabled ? {lastSent:null} : {})})
+    publish({enabled:saved.enabled,ready:true,available:true,...choice(saved),notice:saved.enabled?'Diagnostics sharing is on.':'Sharing stopped. Your shared diagnostics were deleted.',...(!saved.enabled ? {lastSent:null} : {})})
     return true
   } catch (error) {
     if (current()) publish({error:enabled ? error instanceof Error ? error.message : 'Couldn’t enable diagnostics.' : 'Sharing stopped on this page. I couldn’t confirm deletion on the server; please try Stop sharing and delete again.'})
@@ -47,7 +49,7 @@ export function collectOctatrackDiagnostics(memberId: string, link: OctatrackLin
   const requests = new AbortController()
   const currentGeneration = ++generation, client = accountApi = scopedApi(), busy = snapshot.busy
   owner = memberId; blocked = locallyStopped.has(memberId); expires = 0
-  publish({accountId:memberId,available:false,enabled:false,ready:false,busy,error:'',notice:'',hasChoice:false,lastSent:null})
+  publish({accountId:memberId,available:false,enabled:false,ready:false,busy,error:'',notice:'',hasChoice:false,saved:false,lastSent:null})
   const current = () => !stopped && generation === currentGeneration && owner === memberId && client.current()
   const allowed = () => current() && snapshot.enabled && !blocked && expires > Date.now() && !browserRequestsPrivacy()
   let siteCleanup: (() => void) | undefined
@@ -68,7 +70,7 @@ export function collectOctatrackDiagnostics(memberId: string, link: OctatrackLin
       if (!current() || snapshot.busy || preferenceRevision !== revision) return false
       if (saved.accountId !== memberId) { publish({enabled:false,ready:false,error:'Your sign-in changed. Refresh this page to manage diagnostics.'}); return false }
       expires = Date.parse(saved.expiresAt ?? '')
-      publish({enabled:saved.enabled && saved.version === OCTATRACK_DIAGNOSTICS_VERSION && !blocked,ready:true,available:true,hasChoice:saved.version === OCTATRACK_DIAGNOSTICS_VERSION && !!saved.changedAt})
+      publish({enabled:saved.enabled && saved.version === OCTATRACK_DIAGNOSTICS_VERSION && !blocked,ready:true,available:true,...choice(saved)})
       if (!saved.enabled) { transfer?.abort(); healthRead?.abort() }
       return true
     } catch { if (current() && preferenceRevision === revision && !snapshot.busy) publish({enabled:false,ready:true,available:false}) }
