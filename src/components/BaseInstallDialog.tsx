@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { saveFirmware } from '../config/firmware-filename'
+import { BETA_RECOVERY_NOTICE } from '../firmware-notices'
 import { finishBaseInstall, pendingBaseInstall, waitForBaseInstall } from '../config/octatrack-progress'
 import type { OctatrackLink } from '../engine/elekloader/octatrack-link'
 import { unitForPrompt } from '../hooks/useBaseInstallPrompt'
@@ -150,9 +151,9 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     {view === 'intro' ? <>
       <LinkHero />
       <h2 id="base-install-title" className="link-title" tabIndex={-1}>Sync to Octatrack <span className="module-beta-badge">Beta</span></h2>
-      <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot. It’s a beta, so please tell me in the <a href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer">development Discord</a> what goes wrong.</p>
+      <p id="base-install-intro" className="base-install-intro">Install the Modwerk base once from the card. After that, modules go straight from this page to your Octatrack, without the card and without a reboot. It’s a beta, so please tell me in <strong>#beta-testers</strong> on the <a href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer">development Discord</a> what goes wrong, not through the report forms on this site.</p>
       <ul className="link-promises">{ALSO_NEW.map(([icon, lead, rest, explainOnPhone]) => <li key={lead}><span className="link-feature-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><span><strong>{lead}</strong><span className={explainOnPhone ? undefined : 'link-feature-rest'}>{rest}</span></span></li>)}</ul>
-      <p className={'link-needs' + (state.status === 'unsupported' ? ' is-missing' : '')}>You need an Octatrack MKII, your OS 1.40C file, a USB cable and Chrome or Edge on a computer.</p>
+      <p className={'link-needs' + (state.status === 'unsupported' ? ' is-missing' : '')}>You need an Octatrack MKII, your OS 1.40C file, a USB cable, Chrome or Edge on a computer, and a CompactFlash card reader in case USB stops working.</p>
       {state.status === 'unsupported' && <p className="file-error" role="alert">This browser can’t talk to USB devices. Open this page in Chrome or Edge on a computer.</p>}
     </> : <>
     <header className="base-install-header"><h2 id="base-install-title" tabIndex={-1}>{older ? 'Update' : 'Install'} the Modwerk base <span className="module-beta-badge">Beta</span></h2></header>
@@ -162,6 +163,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
     {stage === 'download' && <>
       <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Download the base</h3>
       <p>I’ll build it in your browser from your original OS 1.40C file. Your firmware stays on your computer.</p>
+      <p className="base-install-warning" role="note"><Icon name="warn" size={18}/><span><strong>{BETA_RECOVERY_NOTICE}</strong> Keep the original OS 1.40C .bin and .syx on your computer. <a href="#faq" target="_blank" rel="noreferrer">Recovery in the FAQ</a></span></p>
       <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }}/>
       {firmwareReady ? <><p className="base-file-ready"><Icon name="check" size={18}/>Your OS 1.40C file is ready.</p><RiskAcceptance checked={accepted} onChange={setAccepted}/></> : <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get the original OS file? <Icon name="arrow" size={14}/></a>}
       {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}
@@ -184,7 +186,7 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
         <li><strong>Keep the power on while it updates</strong><p>Wait until startup finishes, or the Octatrack explicitly asks you to restart.</p></li>
         <li><strong>Follow the restart prompt, if shown</strong><p>Only then switch the Octatrack off and on again. Leave the USB cable connected.</p></li>
       </ol>
-      <details className="base-install-recovery"><summary>If the Octatrack doesn’t start</summary><p>The original OS can be installed again. Follow <a href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>.</p></details>
+      <details className="base-install-recovery"><summary>If the Octatrack doesn’t start or connect</summary><p>The original OS can be installed again: from the card with a CompactFlash card reader, or as the .syx through a MIDI interface and the startup menu. Follow <a href="#faq" target="_blank" rel="noreferrer">recovery in the FAQ</a>, and tell me in #beta-testers on Discord.</p></details>
     </>}
     {stage === 'connect' && <>
       <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Waiting for your Octatrack</h3>
