@@ -34,7 +34,7 @@ export function DiagnosticsInvitation({onClose,onLeave,preview=false}: {onClose:
     if(preview){onClose();return}
     if(await changeDiagnosticSharing(true) && live.current)onClose()
   }
-  return <dialog ref={dialog} className="diagnostics-invitation" aria-labelledby="diagnostics-title" aria-describedby="diagnostics-intro" onCancel={event=>{event.preventDefault();if(!onLeave)onClose()}}>
+  return <dialog ref={dialog} className="diagnostics-invitation" aria-labelledby="diagnostics-title" aria-describedby="diagnostics-intro" onCancel={event=>{event.preventDefault();if(!onLeave)onClose()}} onClose={event=>{const element=event.currentTarget;if(onLeave&&live.current&&element.isConnected&&!element.open)element.showModal()}}>
     {!onLeave && <button type="button" className="icon-button diagnostics-close" aria-label="Close diagnostics invitation" onClick={onClose}><Icon name="close"/></button>}
     <div className="diagnostics-heading-icon" aria-hidden="true"><Icon name="wave" size={24}/></div>
     <h2 id="diagnostics-title" tabIndex={-1}>Help us find bugs</h2>

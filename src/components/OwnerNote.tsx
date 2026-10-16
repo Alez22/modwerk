@@ -6,7 +6,6 @@ import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { api, post } from '../community/api'
 import { useCommunity } from '../community/context'
 import { diagnosticPreference, subscribeDiagnosticPreference, type DiagnosticPreference } from '../community/octatrack-diagnostics'
-import { pageBusy } from '../community/public-announcement'
 import { browserRequestsPrivacy } from '../community/usage'
 
 // A new note needs a new id here and in server/auth.ts (OWNER_NOTE).
@@ -29,11 +28,11 @@ export const diagnosticsLapsed = (preference: DiagnosticPreference, memberId: st
   preference.accountId === memberId && preference.ready && !preference.hasChoice && askForDiagnostics(preference, privacy)
 
 export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJoin: () => void; onLeave: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null), [wait, setWait] = useState(WAIT), [accepted, setAccepted] = useState(false)
+  const dialog = useRef<HTMLDialogElement>(null), open = useRef(false), [wait, setWait] = useState(WAIT), [accepted, setAccepted] = useState(false)
   useEffect(() => {
     const element = dialog.current, previousFocus = document.activeElement
-    element?.showModal(); element?.querySelector('h2')?.focus()
-    return () => { element?.close(); if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus() }
+    open.current = true; element?.showModal(); element?.querySelector('h2')?.focus()
+    return () => { open.current = false; element?.close(); if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus() }
   }, [])
   useEffect(() => {
     if (!wait) return
@@ -41,16 +40,17 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
     return () => window.clearTimeout(timer)
   }, [wait])
   // The note stays up for a few seconds so it gets read, and then only closes through Leave beta or, once accepted, Join Discord.
+  // Chrome closes a modal on a second Escape (or Android's back) even when the first one was cancelled, so it opens again.
   const locked = !!wait || !accepted
-  return <dialog ref={dialog} className="app-dialog owner-note" aria-labelledby="owner-note-title" aria-describedby="owner-note-message" onCancel={event => event.preventDefault()}>
+  return <dialog ref={dialog} className="app-dialog owner-note" aria-labelledby="owner-note-title" aria-describedby="owner-note-message" onCancel={event => event.preventDefault()} onClose={event => { const element = event.currentTarget; if (open.current && element.isConnected && !element.open) element.showModal() }}>
     <header className="owner-note-head"><img src={assetUrl('modwerk-mark.svg')} width={28} height={28} alt="" /><span>Modwerk beta</span></header>
     <div className="owner-note-body">
       <h2 id="owner-note-title" tabIndex={-1}>Hey guys, please read this before you flash</h2>
       <div id="owner-note-message">
-        <p>thanks a lot for testing the beta! Even if you've seen my last note, please read this one carefully. Everyone has to accept it before going on.</p>
+        <p>thanks a lot for testing the beta! Even if you've seen my last note, please read this one carefully. It stays open until you choose: <strong>accept it and join us on Discord</strong>, or <strong>leave the beta</strong>.</p>
         <p className="owner-note-warning"><Icon name="warn" size={18} /><span><strong>Don't flash the beta unless you can recover without USB.</strong> A tester just reported that after flashing the beta, their Octatrack no longer connected over USB: USB DISK MODE did nothing and Chrome found no device. I don't know the cause yet. Without USB you can't reach the card from your computer, so before you flash, have a <strong>CompactFlash card reader</strong>, and ideally a <strong>MIDI interface</strong> to send Elektron's original OS .syx through the startup menu. Keep the original OS 1.40C .bin and .syx on your computer. <a href="#faq" target="_blank" rel="noreferrer">Recovery steps in the FAQ</a></span></p>
         <ul className="owner-note-asks">
-          <li><strong>Report bugs only on Discord</strong> – in the <strong>#beta-testers</strong> channel, right when you run into them. <strong>Please don't use the report forms on this site</strong> for the beta: I follow beta bugs on Discord only.</li>
+          <li><strong>Be on Discord and stay active there</strong> – report bugs only in the <strong>#beta-testers</strong> channel, right when you run into them. <strong>Please don't use the report forms on this site</strong> for the beta: I follow beta bugs on Discord only.</li>
           <li><strong>Use the same name on Discord as here</strong> (<strong>@{username}</strong>) – so I know who's who.</li>
           <li><strong>Share diagnostics</strong> – I'll ask you right after this note. It helps me see where a build or sync went wrong.</li>
         </ul>
@@ -58,7 +58,7 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
         <p>If this doesn't work for you, you can leave the beta below.</p>
         <p className="owner-note-sign">Thank you,<br /><strong>Jannik</strong></p>
       </div>
-      <label className="risk-accept owner-note-accept"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>I've read this. I won't flash the beta without a CompactFlash card reader (ideally also a MIDI interface) at hand, and I'll report beta bugs only in #beta-testers on Discord, not on this site.</span></label>
+      <label className="risk-accept owner-note-accept"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>I've read this. I won't flash the beta without a CompactFlash card reader (ideally also a MIDI interface) at hand. I'll join #beta-testers on Discord, stay active there and report beta bugs only there, not on this site.</span></label>
     </div>
     <footer className="owner-note-actions">
       <button type="button" className="owner-note-close" disabled={!!wait} onClick={onLeave}>Leave beta</button>
@@ -67,7 +67,8 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
   </dialog>
 }
 
-/** Beta testers only (App.tsx), on every device until they join Discord and share diagnostics; opens when no other dialog, menu or text field is in use.
+/** Beta testers only (App.tsx), on every device until they accept the note, join Discord and share diagnostics, or leave the beta.
+ * It can't be put off: it opens on top of any other dialog as soon as the tab is visible, on every page but the FAQ, the account and the legal pages.
  * After a new consent version, the required diagnostics step comes back on its own. */
 export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
   const { session, refresh } = useCommunity(), memberId = session.user!.id
@@ -84,7 +85,9 @@ export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
   const lapsed = !due && (ownerNoteSeen() || serverDue === false) && diagnosticsLapsed(preference, memberId, browserRequestsPrivacy())
   useEffect(() => {
     if (!enabled || step || !due && !lapsed) return
-    const timer = window.setInterval(() => { if (!pageBusy()) setStep(due ? 'note' : 'diagnostics') }, 3000)
+    const show = () => { if (document.visibilityState === 'visible') setStep(due ? 'note' : 'diagnostics') }
+    show()
+    const timer = window.setInterval(show, 1000)
     return () => window.clearInterval(timer)
   }, [enabled, step, due, lapsed])
   // The note counts as done once the tester accepted it, joined Discord and diagnostics are on (or can't be turned on here).
