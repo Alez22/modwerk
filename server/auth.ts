@@ -76,7 +76,8 @@ export async function authentication(request:Request,env:Env,path:string):Promis
    : discordInvitationClaim(db,member.id)).run()
   return response({show:body.alreadyShown!==true&&claimed.meta.changes===1,...(body.campaign===undefined?{}:{campaign:DISCORD_INVITE_CAMPAIGN})})
  }
- // Asked for on each visit while due; recorded only once the member closes or completes it, so a reload cannot skip it.
+ // Due until the member's unit has reported any Modwerk base; the site records it then. Base updates are prompted from the
+ // connected unit (src/hooks/useBaseInstallPrompt.ts), not from this record, so a new base needs no migration.
  // Due only to beta testers and verified administrators while USB loading is a beta (src/engine/protocol.ts USB_LINK).
  if(path==='/api/auth/base-install-prompt'){
   const member=needMember(await accountUser(request,env,db))
