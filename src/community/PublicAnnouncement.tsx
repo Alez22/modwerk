@@ -4,6 +4,7 @@ import { assetUrl } from '../hosting'
 import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { SUPPORT_URL } from '../config/support'
 import { api, post } from './api'
+import { useReconnectRetry } from './useReconnectRetry'
 import { useCommunity } from './context'
 import { claimDiscordInvite, discordInviteHandledHere } from './discord-invite'
 import discordInvitation from '../../docs/news/development-discord-announcement.json'
@@ -12,7 +13,7 @@ import { AUDIO_PREVIEW_GUIDE_HREF, LEGACY_AUDIO_PREVIEW_GUIDE_HREF } from '../co
 import { accountHref } from './member-access'
 import type { BellItem } from './notification-contract'
 import type { NotificationLine } from './notification-text'
-import { dismissPublicAnnouncement, latestPublicAnnouncement, publicAnnouncementDismissed, publicAnnouncementLine } from './public-announcement'
+import { dismissPublicAnnouncement, latestPublicAnnouncement, pageBusy, publicAnnouncementDismissed, publicAnnouncementLine } from './public-announcement'
 import { trackAnnouncement, trackUsage } from './usage'
 
 /** The same card is used in the public prompt and the operator's preview. It never takes focus. `signup` adds Create account to a Discord card. */
@@ -20,7 +21,8 @@ export function PublicAnnouncementCard({ line, signup, onDismiss, onOpen }: { li
   // Already-published cards and shared links keep working after the walkthrough moves.
   if (line.href === LEGACY_AUDIO_PREVIEW_GUIDE_HREF) line = { ...line, href: AUDIO_PREVIEW_GUIDE_HREF }
   const titleId = useId(), moduleLink = /^#(?:module\/|(?:digitakt|digitone)\/module\/)/.test(line.href), supportLink = !!SUPPORT_URL && line.href === SUPPORT_URL, discordLink = line.href === DEVELOPMENT_DISCORD_URL, previewGuide = line.href === AUDIO_PREVIEW_GUIDE_HREF, external = /^https?:/.test(line.href)
-  const action = <a className="public-announcement-action" href={line.href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})} onClick={() => { if (supportLink) trackUsage('support_link_opened'); onOpen() }}>{supportLink && <Icon name="heart" size={15} />}{discordLink && <img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />}{supportLink ? 'Support on Ko-fi' : discordLink ? 'Join Discord' : previewGuide ? 'Show me how' : moduleLink ? 'Explore module' : 'Take a look'}<Icon name="arrow" size={16} />{external && <span className="sr-only"> (opens in a new tab)</span>}</a>
+  const betaInvite = line.href === '#beta/join/public'
+  const action = <a className="public-announcement-action" href={line.href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})} onClick={() => { if (supportLink) trackUsage('support_link_opened'); onOpen() }}>{supportLink && <Icon name="heart" size={15} />}{discordLink && <img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />}{supportLink ? 'Support on Ko-fi' : discordLink ? 'Join Discord' : betaInvite ? 'Join the beta' : previewGuide ? 'Show me how' : moduleLink ? 'Explore module' : 'Take a look'}<Icon name="arrow" size={16} />{external && <span className="sr-only"> (opens in a new tab)</span>}</a>
   return <section className="public-announcement-card" aria-labelledby={titleId} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onDismiss() } }}>
     <header>
       <span className="public-announcement-brand"><img src={assetUrl('modwerk-mark.svg')} width={28} height={28} alt="" /><span>Modwerk news</span></span>
@@ -50,21 +52,23 @@ export function PublicAnnouncement({ enabled, next }: { enabled: boolean; next: 
 function PublicAnnouncementContent({ memberId, signup, enabled }: { memberId: string | null; signup?: string; enabled: boolean }) {
   const member = !!memberId
   const [item, setItem] = useState<BellItem | null>(null), [visible, setVisible] = useState(false), counted = useRef(''), presented = useRef('')
+  const [failed, setFailed] = useState(false), [revision, setRevision] = useState(0)
   const discord = item?.url === DEVELOPMENT_DISCORD_URL
   useEffect(() => {
     const controller = new AbortController()
     void api<{ items: BellItem[] }>(member ? '/announcements/mine' : '/announcements', { signal: controller.signal }).then(value => {
       // The anonymous feed carries no member state; local dismissal supplies it instead.
-      if (!controller.signal.aborted) setItem(latestPublicAnnouncement(member ? value.items : value.items.map(item => ({ ...item, seen: false }))))
-    }).catch(() => {}) // Optional news never interrupts the local workspace on a failed read.
+      if (!controller.signal.aborted) { setFailed(false); setItem(latestPublicAnnouncement(member ? value.items : value.items.map(item => ({ ...item, seen: false })))) }
+    }).catch(() => { if (!controller.signal.aborted) setFailed(true) }) // Optional news never interrupts the local workspace on a failed read.
     return () => controller.abort()
-  }, [member])
+  }, [member, revision])
+  useReconnectRetry(failed, setRevision)
   useEffect(() => {
     if (!item) return
     let timer: number | undefined, cancelled = false
     // Members still claim a handled browser invitation so it stays quiet on other devices too.
     const retired = () => publicAnnouncementDismissed(item.id) || (item.url === DEVELOPMENT_DISCORD_URL && presented.current !== item.id && discordInviteHandledHere())
-    const blocked = () => !enabled || document.visibilityState !== 'visible' || !!document.querySelector('dialog[open], .notification-panel, .mobile-menu-panel, .library-machine-menu, .forum-shoutbox.is-floating, .signup-welcome, .selection-warning') || !!document.activeElement?.matches('input, textarea, [contenteditable="true"]')
+    const blocked = () => !enabled || pageBusy()
     function check() {
       if (retired()) {
         if (memberId && item!.url === DEVELOPMENT_DISCORD_URL) void claimDiscordInvite(memberId).catch(() => {})

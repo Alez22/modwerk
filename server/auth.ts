@@ -5,6 +5,7 @@ import { emailReady } from './email'
 import { socialProviders } from './social-config'
 import { socialRoutes } from './social'
 import { profileRoutes } from './profile'
+import { betaInvitationRoutes } from './beta-invitations'
 import { memberBetaAccess } from './beta-testers'
 import { moduleAvailabilityError } from '../src/catalog/availability'
 import { DISCORD_INVITE_CAMPAIGN } from '../src/config/development-discord'
@@ -13,7 +14,7 @@ import { discordInvitationClaim } from './discord-invitations'
 export const ADMIN_ACTOR='administrator'
 const ADMIN_SECONDS=8*60*60
 function configuredKey(env:Env){const value=env.ADMIN_KEY_SHA256?.trim().toLowerCase()??'';return /^[a-f0-9]{64}$/.test(value)?value:''}
-function sameDigest(a:string,b:string){if(a.length!==b.length)return false;let difference=0;for(let index=0;index<a.length;index++)difference|=a.charCodeAt(index)^b.charCodeAt(index);return difference===0}
+export function sameDigest(a:string,b:string){if(a.length!==b.length)return false;let difference=0;for(let index=0;index<a.length;index++)difference|=a.charCodeAt(index)^b.charCodeAt(index);return difference===0}
 /** Administration is separate from guest sessions and fails closed until the backend owner configures a key. Rotating the key revokes every administrator session. */
 export async function isAdmin(request:Request,env:Env,db:Database){return !!await adminActor(request,env,db)}
 /**
@@ -61,6 +62,8 @@ export async function authentication(request:Request,env:Env,path:string):Promis
  if(social)return social
  const profile=await profileRoutes(request,env,db,path)
  if(profile)return profile
+ const invitation=await betaInvitationRoutes(request,db,path,(path.startsWith('/api/auth/beta-invitations/')||path==='/api/auth/beta-discord-invite'||path==='/api/auth/beta-leave')?await accountUser(request,env,db):null)
+ if(invitation)return invitation
  if(path==='/api/auth/discord-invite'){
   if(request.method!=='POST')throw new HttpError(405,'Use POST to request the Discord invitation.')
   const member=needMember(await accountUser(request,env,db))
@@ -73,7 +76,8 @@ export async function authentication(request:Request,env:Env,path:string):Promis
    : discordInvitationClaim(db,member.id)).run()
   return response({show:body.alreadyShown!==true&&claimed.meta.changes===1,...(body.campaign===undefined?{}:{campaign:DISCORD_INVITE_CAMPAIGN})})
  }
- // Asked for on each visit while due; recorded only once the member closes or completes it, so a reload cannot skip it.
+ // Due until the member's unit has reported any Modwerk base; the site records it then. Base updates are prompted from the
+ // connected unit (src/hooks/useBaseInstallPrompt.ts), not from this record, so a new base needs no migration.
  // Due only to beta testers and verified administrators while USB loading is a beta (src/engine/protocol.ts USB_LINK).
  if(path==='/api/auth/base-install-prompt'){
   const member=needMember(await accountUser(request,env,db))
@@ -82,11 +86,17 @@ export async function authentication(request:Request,env:Env,path:string):Promis
   await db.prepare('INSERT OR IGNORE INTO member_base_install_prompts(user_id) VALUES(?)').bind(member.id).run()
   return response({ok:true})
  }
+ // Shown until the member closes it, then never again on any browser or device. A new note needs a new id here and in src/components/OwnerNote.tsx.
+ if(path==='/api/auth/owner-note'){
+  const OWNER_NOTE='2026-10-15-beta-2',member=needMember(await accountUser(request,env,db))
+  if(request.method==='GET')return response({show:!await db.prepare('SELECT 1 FROM member_owner_notes WHERE user_id=? AND note=?').bind(member.id,OWNER_NOTE).first()})
+  if(request.method!=='POST')throw new HttpError(405,'Use GET or POST for the note.')
+  await db.prepare('INSERT OR IGNORE INTO member_owner_notes(user_id,note) VALUES(?,?)').bind(member.id,OWNER_NOTE).run()
+  return response({ok:true})
+ }
  if(path==='/api/auth/build-access'&&request.method==='POST'){
   const member=needMember(await accountUser(request,env,db)),body=await jsonBody(request)
-  if(body.betaStartup!==undefined&&typeof body.betaStartup!=='boolean')throw new HttpError(400,'Choose a valid startup preference.')
   const betaAccess=memberBetaAccess(member)||await isAdmin(request,env,db)
-  if(body.betaStartup===true&&!betaAccess)throw new HttpError(403,'Beta tester access is required for the beta startup animation.')
   if(body.moduleIds!==undefined){
    if(!Array.isArray(body.moduleIds)||body.moduleIds.length>64||!body.moduleIds.every(id=>typeof id==='string'))throw new HttpError(400,'Choose valid module IDs.')
    let error:string

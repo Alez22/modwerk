@@ -15,9 +15,8 @@ import { REPORT_OS, useWorkspaceReportContext } from './report-context'
 import { useOtLogFile } from './useOtLogFile'
 
 /**
- * Report a problem with a whole saved configuration, for when no single module is known to be at fault. It reaches
- * the authors and maintainers of every module in the configuration; a problem with one module belongs on that
- * module's own page.
+ * Report a problem with a whole saved configuration, for when no single module is known to be at fault. No author is
+ * pinged until it is narrowed down; a problem with one module belongs on that module's own page.
  */
 export function ConfigurationReportDialog({ machine, configurationId, onClose }: { machine: string; configurationId: string; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), heading = useId(), success = useRef<HTMLDivElement>(null), logHelp = useId()
@@ -113,7 +112,7 @@ export function ConfigurationReportDialog({ machine, configurationId, onClose }:
         </div>
       </div>
       <footer className="configuration-report-footer">
-        <p className="configuration-report-notice">Posts publicly on GitHub for the developers of {catalogued.length === 1 ? 'this module' : 'all ' + count}, under your username: title, description, device and the module list with versions. Your build fingerprint and any log stay private to you, the maintainers and the administrator. Leave out firmware and personal information.</p>
+        <p className="configuration-report-notice">Posts publicly on GitHub under your username: title, description, device, the module list with versions, build fingerprint and any log. Leave out firmware and personal information.</p>
         {error && <p className="file-error" role="alert">{error}</p>}
         <div className="configuration-report-submit">
           <label className="risk-accept"><input type="checkbox" name="notifyUpdates" defaultChecked />Follow new releases of {catalogued.length === 1 ? 'this module' : 'these ' + count}</label>

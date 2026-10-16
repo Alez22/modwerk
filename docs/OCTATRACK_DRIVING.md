@@ -35,7 +35,10 @@ while :; do npm run device -- serve; sleep 1; done
 
 Run it in a terminal of the owner's, or in a background task: those stop after two hours. It starts the USB
 bridge, keeps one connection open, pings every 4 s (so MODWERK CONNECTED shows once) and comes back after a
-RAM boot. One process at a time: a second `serve` or a one-shot `npm run device` fights it for the bridge.
+RAM boot. One process at a time: a second `serve` or a one-shot `npm run device` fights it for the bridge. To let the
+frontend MCP use the unit beside the session, start it with `serve --share /tmp/modwerk-share.sock` and the MCP with
+`--device-socket /tmp/modwerk-share.sock`: each MCP control transfer runs between the session's. Then only one of them
+stages modules at a time (the MCP's sync, or the session's `try`/`remove`); the session reads and presses keys.
 After an unplug, a crash restart or a RAM boot, the bridge can hold a dead handle; `pkill -f usb_bridge;
 pkill -f '^node scripts/device.mjs serve'` and the loop starts both again. Anchor the pattern: without `^` it also
 matches any shell whose command line contains it (the loop's, or the one running `pkill`), and kills that.
@@ -73,12 +76,12 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | `+KEY`, `-KEY` | hold, let go |
 | `encA+3`, `encLEVEL-2`, `fader128` | encoders A-F, LEVEL, the crossfader |
 | `w300` | wait 300 ms (rarely needed: the steps below wait for their own result) |
-| `pick:T1:FX2:SPRING_REV` | pick an effect by name (spaces as `_`), FX1 or FX2: the chooser opens, LEVEL scrolls the exact rows, YES; done once the track runs it (about 120 ms after YES); fails at once if the loader refuses |
+| `pick:T1:FX2:SPRING_REV` | pick an effect by name (spaces as `_`), FX1 or FX2: the chooser opens, LEVEL scrolls the exact rows, YES; done once the track runs it (about 120 ms after YES); fails at once if the loader refuses. A notice on screen eats its first keys and it times out after 5 s: after removing a module the bank names (MISSING MODULES) send `YES` first |
 | `part1`-`part4` | switch Parts (PART + an arrow), done once the Part changed |
 | `ui` | each track's FX1/FX2 as they run, the current track, Part, transport |
 | `stats` | CPU, each core's mean/peak per mille, idle passes |
 | `loader` | packets accepted, rejected, errors, jobs, selections, commits, rollbacks, code words per core |
-| `mem:0x80000ec4:16` | RAM in hex, read-only, any length (not below the image) |
+| `mem:0x80000ec4:16` | RAM in hex, read-only, any length, within 0x40000400-0x40cfffff (short of the pool's end and the loader's statics), 0x46000000-0x46ffffff, 0x80000000-0x8000ffff and the battery RAM's records 0x100f0000-0x100fffff (`dev.c`); the battery-RAM Part copies are outside it |
 | (any sequence) | answers within 20 s beyond its own `w` waits, else an error, and the next request runs |
 | `png:/path.png` | a screenshot, 256 x 128: cheaper to read than the text rendering |
 | `screen` | the screen as block characters (thousands of tokens; avoid) |
@@ -113,7 +116,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | What | Where |
 |---|---|
 | current track, Part | byte `0x80000000`, byte `0x80000003` |
-| what each track runs (FX1 T1-8, then FX2) | 16 bytes at `0x80000ec4`; a Part's effects reach it when the transport starts, not at a stopped pattern change |
+| what each track runs (FX1 T1-8, then FX2) | 16 bytes at `0x80000ec4`; a Part's effects reach it at each track's next trig while playing, not at a stopped pattern change. A track without trigs keeps the last bank's effect (16 October 2026, twin of `38a0bde1`: B01's DELAY never reached trigless tracks that ran DARK REV), so test a pick's admission on tracks with trigs or in a blank project |
 | current bank | `0x46c82456` holds its base: `0x400e21e0 + bank * 0x9b340` |
 | a working Part's effects | 16 bytes at bank base `+ 0x8ed80 + part * 6322` (the whole Part is 6,322 bytes) |
 | the saved copy | bank base `+ 0x9504a + part * 6322` |

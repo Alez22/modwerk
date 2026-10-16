@@ -61,13 +61,20 @@ the package ships literally (`--min 8` lists the chance ones below that: effect 
 
 The committed pair is `src/engine/assets/octatrack-base.elemod` and `octatrack-base-fills.json`. Any change
 to what the base's source hash covers (this folder, the logger, upload, loader, DSP transport and startup
-sources) changes the base. `octatrack-base-sources.json` lists those inputs and their hashes, and a test
+sources; their `.c`, `.h`, `.s`, `.asm`, `.py` and `.json` files) changes the base, even a file only `--dev` twins
+compile (`dev.c`) or a test there (`test_recipe.py`). `octatrack-base-sources.json` lists those inputs and their hashes, and a test
 (`octatrack-base.test.ts`, no firmware) fails when one changed or a file joined those folders. Rebuild and
-commit it with
+commit it with the beta base's options (the committed base is the beta base):
 
 ```sh
-npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --write
+npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' \
+  --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers --write
 ```
+
+When the change moves the base's write-lease entries, recapture Analog BD's reviewed recipe
+(`module-adapters/machine-recipes.json` imageSha256) against the new base's symbols first, then rebuild the
+module packages (`npm run octatrack:module-packages`) so every base-bound package's `requiredBase` follows
+([beta test plan](../../../../docs/OCTATRACK_BETA_TEST_PLAN.md), finding 17).
 
 Without `--write` it checks the committed files are what this source builds. Both runs check the package is
 stock-free, that the browser's path builds a `.bin` identical to `build_core.py`'s `NOT_FLASH_CANDIDATE.bin`,
@@ -125,6 +132,12 @@ python3 -B sdk/runtime/loader/build.py --octabam tapeecho --stock /private/OCTAT
 python3 -B sdk/runtime/loader/build.py --octabam euclid --stock /private/OCTATRACK_OS1.40C.bin \
   --upstream /private/pinned-elekloader --dsp src/engine/assets/dsp-packages.json:euclid \
   --slots both --cycles 143 --cycles-kind executed --state 64 --pinned -o /private/euclid.mwrm
+# Published (owner decision, 14 Oct 2026): TAPE ECHO, EUCLID and Play Modes with --standalone instead of --stock,
+# from their reviewed module-adapters/standalone-recipes.json; their stock-coinciding runs become copies the base
+# takes from its own running stock. npm run octatrack:module-packages builds them so.
+python3 -B sdk/runtime/loader/build.py --octabam tapeecho --standalone \
+  --upstream ~/.cache/modwerk-upstream/elekloader --dsp src/engine/assets/dsp-packages.json:tapeecho \
+  --slots fx2 --cycles 4 --cycles-kind modeled --state 1 --pinned -o tapeecho.mwrm
 ```
 
 ### Runtime compatibility and the card builder
@@ -172,12 +185,27 @@ packages cannot inherit:
   need loader support. A free effect id or a successful ColdFire link proves
   neither layout.
 
+### Diagnostics log
+
+`diag.c` keeps what the unit did in battery RAM (0x100fc000, below `fxmap.c`'s map), so the power cycle a freeze
+needs keeps it: every five minutes the CPU's and each core's mean and peak and how long it played, and incidents
+(each start; the CPU at 90 % or more for a second, not in the first minute; the UI tick standing still five seconds
+while frames run, seen from `dl_frame` in the frame interrupt, with its length once it moves again; a crash or DSP
+stall since the last start) with each track's machine bytes, the effect each slot runs, transport, tempo, stock's top
+input layer and the last 16 keys. Layout in `diag.h`; a new layout needs a new `DIAG_VERSION`. LOG (0xC1, bRequest 37,
+wValue the page, 244 bytes) reads it; the site uploads it only with diagnostics consent
+(`src/engine/elekloader/device-log.ts`). On development bases `npm run device -- diaglog` prints it and
+`freezetest:N` holds the UI tick N seconds (1-10) to try a freeze. Vendor request numbers 31-36 are taken (saved-set
+export 31-33, volatile journal 34-36, which refuses anything else there): pick a new one above 37 and check `ep0.c`.
+
 ### Status page
 
 `status.c` measures, all the time, the ColdFire's load (main's idle spin, timed on DTIM3, `status.s`), each
 DSP core's mean and peak load (core 0's own idle count, core 1's counted wait for core 0, `dsp_receiver.asm`),
-each core's code arena, the delay-buffer blocks and the module pool. CUE + PROJ shows it as a dialog of
-bars (NO closes it), and so does PROJ > MODWERK > LOAD; `npm run device -- stats` prints it from the loader report on development
+each core's code arena, the delay-buffer blocks and the module pool. CUE + PROJ shows it as a dialog (NO closes it),
+and so does PROJ > MODWERK > LOAD: MODWERK STATUS in two sections, WORKING NOW (CPU, then each DSP chip by its tracks,
+measured, with the recent peak; tracks 1-4 run on core 1, tracks 5-8 on core 0) and DSP SPACE USED (per chip, the fuller
+of what admission books and its code memory: what says DSP MEMORY FULL first); `npm run device -- stats` prints it from the loader report on development
 bases. PROJ > MODWERK is a fifth root category (Octabam's MAINMENU.md: the root window is five rows tall, stock fills
 four; `build_core.py` copies the four stock rows and appends it, with its icon and list): LOAD, MODULE LOAD (each
 installed module's share of each core's frame from its own cycle figure, `~` when that is 7/4 of an emulator claim:

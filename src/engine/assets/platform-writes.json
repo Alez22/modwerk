@@ -437,6 +437,25 @@
           "writeLength": 6
         }
       ]
+    },
+    {
+      "moduleId": "bbd",
+      "key": "BBD",
+      "author": "JamCones",
+      "source": "modules/bbd/manifest.py",
+      "sourceSha256": "4979660bdb75d95af3f05ab68a565e4a646a1c329eb0a7f5597b1a840aeb4b51",
+      "detours": [
+        {
+          "address": 1073761548,
+          "length": 10,
+          "sha256": "3b007d2a1b16afbbff30a9df6d28c030691b4f5b3c32626a87be0a7b712408eb",
+          "note": "STOP, STOP, STOP: zero BBD's slot 11, as stock does its reverbs'",
+          "unit": "bbd",
+          "symbol": "bbd_kill_hook",
+          "kind": "jmp",
+          "writeLength": 10
+        }
+      ]
     }
   ],
   "cases": [
@@ -514,18 +533,19 @@
       "sha256": "5d44ce960d87d22af41166c529bfa5e84c0427b8e4afb3d6d2ca8d880f5dcfd7"
     }
   ],
-  "sourceCommit": null,
+  "sourceCommit": "e61274dd6e20304fb5b71d3320c4746f4af7ebeb",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
     "character": "0.1.1-experimental",
-    "miniverb": "0.2.1-experimental",
-    "tapeecho": "0.1.3-experimental",
+    "miniverb": "0.2.2-experimental",
+    "tapeecho": "0.1.5-experimental",
     "euclid": "0.1.4-experimental",
-    "repitch": "0.1.2-experimental",
+    "repitch": "0.2.0-experimental",
     "tapehead": "0.1.2-experimental",
     "airwindows-chorus": "0.1.2-experimental",
     "everb": "0.1.1-experimental",
+    "bbd": "0.1.1-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
@@ -536,9 +556,9 @@
     "sidechain-compressor": "0.1.2-experimental",
     "vector": "0.2.4-experimental",
     "playmodes": "0.1.1-experimental",
-    "mute-modes": "0.1.0-experimental",
+    "mute-modes": "0.2.1-experimental",
     "recorder-loop-fix": "0.1.0-experimental",
-    "poly8": "0.2.7-experimental",
+    "poly8": "0.3.0-experimental",
     "output-matrix": "0.1.0-experimental"
   }
 }

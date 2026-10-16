@@ -1,4 +1,5 @@
-// Does this module fit every Modwerk workflow? Read-only: no firmware, no module code, no network.
+// Does this module fit every Modwerk workflow? Read-only: no firmware, no network; module code runs only as the
+// Octatrack manifests' declarations, read by the cross-compatibility gate.
 //
 //   npm run module:doctor -- <module-id>
 //   npm run module:doctor -- --all        # every catalog module and every Digitakt/Digitone module; CI runs this
@@ -17,37 +18,28 @@ import { moduleSourceFingerprint } from './module-source.mjs'
 import { ANALOG_BD_DSP_COMPANIONS } from '../src/engine/analog-bd-layout.ts'
 import { moduleNativeSourceSha256 } from './module-qualification.mjs'
 import { judgeRecord, ownerWaivedPerformanceRow } from './perf-audit-analysis.mjs'
+import { LINK_DEVICES } from '../src/engine/elektron/elemod.ts'
 
 // Modules first listed on or after this day carry a measured performance record (docs/module-guides/README.md, "Performance"); earlier ones keep their qualification evidence.
 const PERFORMANCE_REQUIRED_FROM = '2026-10-07'
+// Modules first listed on or after this day declare the key gestures and screens they take (compatibility.uiClaims).
+const UI_CLAIMS_REQUIRED_FROM = '2026-10-14'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2), all = args.includes('--all'), ids = args.filter(arg => !arg.startsWith('--'))
 if ((all && ids.length) || (!all && ids.length !== 1)) throw new Error('Usage: npm run module:doctor -- <module-id>   or   npm run module:doctor -- --all')
 const json = path => JSON.parse(readFileSync(resolve(root, path), 'utf8'))
 const exists = path => existsSync(resolve(root, path))
-const catalog = json('sdk/catalog.json'), machineModules = ['digitakt', 'digitone'].flatMap(machine => exists('sdk/' + machine + '/modules') ? readdirSync(resolve(root, 'sdk', machine, 'modules'), { withFileTypes: true }).filter(entry => entry.isDirectory() && !entry.name.startsWith('_')).map(entry => ({ id: entry.name, machine })) : [])
+const catalog = json('sdk/catalog.json'), machineModules = ['digitakt', 'digitone', 'analog-rytm-mkii'].flatMap(machine => exists('sdk/' + machine + '/modules') ? readdirSync(resolve(root, 'sdk', machine, 'modules'), { withFileTypes: true }).filter(entry => entry.isDirectory() && !entry.name.startsWith('_')).map(entry => ({ id: entry.name, machine })) : [])
 
 // An unknown id is answered before any check runs: the rules below take seconds on a large catalogue.
-if (!all && !exists('sdk/octabam/modules/' + ids[0]) && !machineModules.some(item => item.id === ids[0])) { console.error('No module named ' + ids[0] + ' under sdk/octabam/modules, sdk/digitakt/modules or sdk/digitone/modules.'); process.exit(2) }
+if (!all && !exists('sdk/octabam/modules/' + ids[0]) && !machineModules.some(item => item.id === ids[0])) { console.error('No module named ' + ids[0] + ' under sdk/octabam/modules, sdk/digitakt/modules, sdk/digitone/modules or sdk/analog-rytm-mkii/modules.'); process.exit(2) }
 
 // The module and catalog rules every PR already enforces (versions, documentation, qualification, gauges, media): run once.
 const rules = spawnSync(process.execPath, ['scripts/modules.mjs'], { cwd: root, encoding: 'utf8' })
 const rulesProblem = rules.status === 0 ? '' : (rules.stderr.trim().split('\n').filter(line => line && !/^\s+at /.test(line)).slice(-1)[0] ?? 'failed')
-
-// native-metadata.json holds one ledger check per module combination (hundreds of thousands): parse it and count
-// each module's pairs once, not once per module.
-let nativeChecksCache
-function nativeChecks() {
-  if (!nativeChecksCache) {
-    const checks = json('src/catalog/native-metadata.json').checks, pairs = new Map()
-    for (const key of Object.keys(checks)) {
-      const ids = key.split('+')
-      if (ids.length === 2) for (const id of ids) pairs.set(id, (pairs.get(id) ?? 0) + 1)
-    }
-    nativeChecksCache = { checks, pairs }
-  }
-  return nativeChecksCache
-}
+// Cross-compatibility of every active Octatrack module with every other and the base (scripts/module-compat.py): run once.
+const compat = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-B', 'scripts/module-compat.py', '--json'], { cwd: root, encoding: 'utf8' })
+const compatResult = (() => { try { return JSON.parse(compat.stdout) } catch { return null } })(), compatProblems = compatResult?.problems
 
 // The qualification source hash is async; compute it once per module before the checks run.
 const nativeHashes = new Map()
@@ -121,9 +113,25 @@ function octatrack(id) {
     else fail('native comparison', 'no current comparison with native octabam', 'npm run module:verify -- ' + id + ' --os <your OCTATRACK_OS1.40C.bin>')
   }
 
-  const { checks, pairs: pairCounts } = nativeChecks(), pairs = pairCounts.get(id) ?? 0
-  if (!(id in checks)) fail('declaration checks', 'the module alone has no recorded ledger check, so a build of it is refused', 'npm run module:verify -- ' + id + ' --os <your OCTATRACK_OS1.40C.bin> (it records them)')
-  else ok('declaration checks', 'recorded alone and beside ' + pairs + ' other modules')
+  // The card builder's native pair checks (npm run modules:pairs): what the ledger refuses beside this module, in any context.
+  const pairTable = json('src/catalog/compatibility-pairs.json')
+  const collisions = [...new Set(Object.entries(pairTable.clashes).flatMap(([context, found]) => Object.keys(found).filter(key => key.split('+').includes(id))
+    .map(key => (key.split('+').find(other => other !== id) ?? 'alone') + (context ? ' (with ' + context + ')' : ''))))]
+  if (NOT_COMPOSED.includes(id)) info('declaration checks', 'builds only on its own, so it has no pairs')
+  else if (!pairTable.modules.includes(id)) fail('declaration checks', 'the native pair table lacks it, so a build of it is refused', 'npm run modules:pairs -- --write')
+  else ok('declaration checks', 'checked beside ' + (pairTable.modules.length - 1) + ' modules' + (collisions.length ? '; the ledger refuses it beside ' + collisions.join(', ') + ' (each flagged in compatibility.conflicts: npm run modules:pairs)' : '; no collisions'))
+
+  const clashes = compatProblems?.filter(problem => problem.modules.includes(id)) ?? []
+  if (!compatProblems) fail('cross-compatibility', 'the gate did not run: ' + ((compat.stderr || compat.error?.message || '').trim().split('\n').pop() || 'no output'), 'install Python 3.10+, then npm run modules:compat')
+  else if (!entry || paused) info('cross-compatibility', 'compared with every other module once it is listed and not paused (npm run modules:compat)')
+  else if (clashes.length) fail('cross-compatibility', clashes.length + ' clash(es), first: ' + clashes[0].text, clashes[0].fix + ' (' + clashes[0].guide + '); npm run modules:compat -- ' + id + ' lists every one')
+  else ok('cross-compatibility', 'installs beside every other active module and the base (npm run modules:compat)')
+  for (const pending of compatResult?.summary.pending.filter(row => row.modules.includes(id)) ?? []) info('event migration', 'still patches the site of ' + pending.event + ', allowed until: ' + pending.until + ' (docs/module-guides/README.md#events)')
+
+  const uiClaims = document.compatibility.uiClaims
+  if (uiClaims) ok('ui claims', uiClaims.length ? uiClaims.join(', ') : 'none')
+  else if (!entry || (entry.addedAt ?? '').slice(0, 10) >= UI_CLAIMS_REQUIRED_FROM) fail('ui claims', 'compatibility.uiClaims is missing', 'list the key gestures and stock screens it takes, or [] for none (docs/module-guides/README.md#ui-claims)')
+  else info('ui claims', 'not declared (not required before ' + UI_CLAIMS_REQUIRED_FROM + '), so the gate cannot compare its key gestures and screens')
 
   const conflicts = document.compatibility.conflicts ?? []
   info('conflicts', (document.compatibility.effectId != null ? 'effect id ' + document.compatibility.effectId + ': ' + (ANALOG_BD_DSP_COMPANIONS.includes(document.id) ? 'reviewed beside Analog BD, subject to DSP space; ' : 'refused beside Analog BD automatically; ') : '') + (conflicts.length ? 'declared: ' + conflicts.join(', ') : 'none declared') + '. Are they complete? (guide: Integrate)')
@@ -141,7 +149,9 @@ function machineModule({ id, machine }) {
     else lines.push({ state: 'ok', name: 'category guide', detail: 'walk docs/module-guides/' + manifest.category + '.md, and the Digitakt and Digitone section in it' })
   }
   // The browser builds only from the files elekloader's catalog pins (vendor/elekloader/catalog/catalog.json); a mod's id is its catalog id.
-  const pins = json('vendor/elekloader/catalog/catalog.json').mods.filter(mod => mod.id === id && mod.device.startsWith(machine))
+  // elekloader names the Rytm's device analog-rytm-mk2, which the machine id does not start with.
+  const device = LINK_DEVICES.find(item => item.machine === machine)?.key
+  const pins = json('vendor/elekloader/catalog/catalog.json').mods.filter(mod => mod.id === id && (mod.device === device || mod.device.startsWith(machine)))
   if (pins.length) lines.push({ state: 'ok', name: 'browser builder', detail: 'pinned in the elekloader catalog for OS ' + pins.map(mod => mod.os).join(', ') })
   else lines.push({ state: 'fail', name: 'browser builder', detail: 'no pinned .elemod file for ' + machine + ', so the browser cannot build it', fix: 'npm run elekloader:update -- ... (vendor/elekloader/README.md, Updating; docs/ADD_A_MODULE.md, Digitakt and Digitone)' })
   if (rulesProblem) lines.push({ state: 'fail', name: 'module rules', detail: 'npm run modules:check fails: ' + rulesProblem.slice(0, 220), fix: 'fix what it names' })
@@ -174,6 +184,6 @@ for (const id of octatrackIds) {
 }
 const machineIds = all ? machineModules : machineModules.filter(item => ids.includes(item.id))
 for (const item of machineIds) green = report(item.id + ' (' + item.machine + ')', machineModule(item)) && green
-if (!all && !octatrackIds.length && !machineIds.length) { console.error('No module named ' + ids[0] + ' under sdk/octabam/modules, sdk/digitakt/modules or sdk/digitone/modules.'); process.exit(2) }
+if (!all && !octatrackIds.length && !machineIds.length) { console.error('No module named ' + ids[0] + ' under sdk/octabam/modules, sdk/digitakt/modules, sdk/digitone/modules or sdk/analog-rytm-mkii/modules.'); process.exit(2) }
 console.log(green ? '\nEvery integration point is green. Now walk the category checklist in docs/module-guides/.' : '\nFix the lines marked ✗, then run this again.')
 process.exitCode = green ? 0 : 1

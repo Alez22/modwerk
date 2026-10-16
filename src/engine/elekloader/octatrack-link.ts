@@ -18,6 +18,13 @@ export function diagnosticReading(record: SelftestRecord): DiagnosticReading {
 }
 
 export const ELEKTRON_VENDOR_ID = 0x1935
+/** Where a retry alone won't help: Linux needs a udev rule, and Windows binds WinUSB only to the base's interface
+ * (docs/OCTATRACK_HARDWARE_TRAPS.md, USB and EP0), so a unit on the original OS can't be opened there at all. */
+export function openFailure(agent = typeof navigator === 'undefined' ? '' : navigator.userAgent) {
+  const why = /Windows/.test(agent) ? ' On Windows that works only once it runs the Modwerk base: with the original OS, install the base from the card first.'
+    : /Linux/.test(agent) && !/Android/.test(agent) ? ' On Linux, Chrome needs permission first: see Can’t connect? in Setup.' : ''
+  return 'Chrome couldn’t open the Octatrack.' + (why || ' Unplug it, plug it back in and try again.')
+}
 /** Well inside the base's 10 s quiet limit (sdk/runtime/upload/vendor.c mv_tick); any vendor request counts. */
 const KEEPALIVE_MS = 1000
 /** Asked while playing, the base presses STOP itself and answers `unsafe` that once; ask again until it has stopped. */
@@ -78,6 +85,7 @@ const REJECTED: Partial<Record<number, string>> = {
   5: 'The Octatrack is still loading module code. Try again in a moment.',
   6: 'This module needs more DSP time than an effect slot has.',
   7: 'A track is playing this module’s effect, so the Octatrack can’t change it now. Pick another effect on that track, then try again.',
+  9: 'This version of the module changes a part of the Octatrack that the base now shares between modules. Install its newer version.',
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
@@ -253,7 +261,7 @@ export class OctatrackLink {
       if (connection !== this.connection) { if (device.opened) await device.close().catch(() => {}); return }
       console.error(error)
       this.device = undefined
-      this.set({ status: 'idle', notice: { tone: 'error', text: 'Chrome couldn’t open the Octatrack. Unplug it, plug it back in and try again.' } })
+      this.set({ status: 'idle', notice: { tone: 'error', text: openFailure() } })
     }
   }
   /** Claimed only while talking, so other tabs and `npm run device` can use the unit in between. */
@@ -332,9 +340,13 @@ export class OctatrackLink {
   private async install(session: LinkSession, data: Uint8Array, signal?: AbortSignal, progress?: (received: number) => void) {
     const connection = this.connection
     if (data.length > session.status.capacity) throw new UploadDeviceError({ ...session.status, result: 'limit' })
-    await this.whenStopped(() => session.stage({ base: session.status.base, data, sha256: sha(data) }, { signal, progress }))
-    signal?.throwIfAborted() // cancelled, unplugged or left while the last chunk's reply was on its way
-    await session.activate()
+    // A publication the loader refused as busy (a resident controller quiescing before it can leave) drops the staged
+    // package: stage it again. One refused as playing keeps it: publish it again.
+    await this.whenStopped(async () => {
+      if (session.status.phase !== 'verified') await session.stage({ base: session.status.base, data, sha256: sha(data) }, { signal, progress })
+      signal?.throwIfAborted() // cancelled, unplugged or left while the last chunk's reply was on its way
+      await session.activate()
+    })
     this.live(connection); signal?.throwIfAborted()
   }
   /** Put back what the load's kept changes did, newest first, each kept at once; the modules it had no package for. */
@@ -349,14 +361,31 @@ export class OctatrackLink {
   }
   cancel() { this.abort?.abort() }
   /** The base's self-test, as an update's stress test: null when it passed, else why not; progress while it runs. */
-  selftest(): Promise<string | null> {
+  selftest(onRecord?: (record: SelftestRecord) => void): Promise<string | null> {
     if (!this.transport) return Promise.resolve('the Octatrack isn’t connected')
-    return runSelftest(this.transport, { signal: this.abort?.signal, startMs: this.stopWaitMs, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }), record: record => this.diagnostic('selftest', {reading:diagnosticReading(record)}) })
+    return runSelftest(this.transport, { signal: this.abort?.signal, startMs: this.stopWaitMs, progress: (done, total) => this.set({ ...this.state, progress: total ? done / total : 0 }), record: record => { onRecord?.(record); this.diagnostic('selftest', {reading:diagnosticReading(record)}) } })
+  }
+  /** The base's self-test on its own, from Status (PROJ > MODWERK > SELF TEST over USB): it starts only with the
+   * transport stopped and nothing loading. Null when it ran (its record, which Status reads, says how it went), else
+   * why it couldn’t run; progress while it runs. */
+  test(): Promise<string | null> {
+    return this.serial(async () => {
+      const { identity, active } = this.state, connection = this.connection
+      if (this.state.status !== 'ready' || !identity?.canSubmit) return 'the Octatrack isn’t ready'
+      if (!await this.claim()) return 'another app is using the Octatrack'
+      this.abort = new AbortController()
+      this.set({ status: 'testing', identity, active, progress: 0 })
+      let ran = false
+      try { const why = await this.selftest(record => { ran = record.state === 2 || record.state === 3 }); return ran ? null : why } catch { return 'the Octatrack stopped answering it' }
+      finally { await this.release(); if (connection === this.connection) this.set({ status: 'ready', identity, active }) }
+    })
   }
   /** Existing read-only status record; background diagnostics call this only after explicit consent. */
   health(signal?: AbortSignal, allowed: () => boolean = () => true) { return this.read('diagnostic status', transport => transport.selftest(false), signal, allowed).then(record => record ? diagnosticReading(record) : undefined) }
   /** The existing meter windows, without running a self-test or starting DSP work. */
   liveLoad(signal?: AbortSignal, allowed: () => boolean = () => true) { return this.read('load', transport => transport.load(signal), signal, allowed) }
+  /** The unit's own diagnostics log (diag.c); background diagnostics call this only after explicit consent. */
+  deviceLog(signal?: AbortSignal, allowed: () => boolean = () => true) { return this.read('diagnostics log', transport => transport.deviceLog(signal), signal, allowed) }
   /** Private recovery export: holds one link lock for both fixed saved files, with no card writes. */
   savedBackup(signal?: AbortSignal) { return this.read('saved module files', transport => transport.savedBackup(signal), signal) }
   /** The modules the unit's project names that are not installed, while it is idle ([] from a base without MISSING);
@@ -431,7 +460,7 @@ export class OctatrackLink {
       try { clean = await this.cleanUp(settled) } catch { clean = false }
     }
     if (connection !== this.connection) return
-    const why = error instanceof UploadDeviceError && error.status.result === 'rejected' ?
+    const why = error instanceof UploadDeviceError && ['rejected', 'backend'].includes(error.status.result) ?
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal : undefined
     if (connection !== this.connection) return
     this.diagnostic('sync_failed', {error: error instanceof UploadDeviceError ? 'device' : error instanceof StressTestFailure ? 'selftest' : error instanceof UploadUnconfirmedError ? 'transport' : error instanceof StaleLoadError ? 'stale' : error instanceof DOMException && error.name === 'AbortError' ? 'cancelled' : 'unknown', ...(error instanceof UploadDeviceError ? {result:error.status.result} : {}), ...(why !== undefined ? {refusal:why} : {})})
@@ -473,7 +502,7 @@ export class OctatrackLink {
     }
   }
   private async loaderBusy(error: unknown) {
-    return error instanceof UploadDeviceError && error.status.result === 'rejected' &&
+    return error instanceof UploadDeviceError && ['rejected', 'backend'].includes(error.status.result) &&
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal === 5
   }
   private startKeepalive() {

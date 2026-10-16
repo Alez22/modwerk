@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { removalPackage } from './module-set'
-import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
+import { LinkBusyError, OctatrackLink, openFailure, tabLocks } from './octatrack-link'
 import { UploadUnconfirmedError } from './upload-session'
 import { UsbVendorTransport } from './upload-usb'
 
@@ -46,6 +46,12 @@ describe('finding the unit', () => {
     const cancelled=expect(reading).rejects.toBeInstanceOf(LinkBusyError)
     await settle();allowed=false;controller.abort();complete();await cancelled
     expect(transfer).not.toHaveBeenCalled();expect(release).toHaveBeenCalledTimes(1)
+  })
+  it('says why the unit can’t be opened where a retry alone won’t help', () => {
+    expect(openFailure('Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0')).toContain('Can’t connect? in Setup')
+    expect(openFailure('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0')).toContain('install the base from the card first')
+    expect(openFailure('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/141.0')).toBe('Chrome couldn’t open the Octatrack. Unplug it, plug it back in and try again.')
+    expect(openFailure('Mozilla/5.0 (Linux; Android 15) Chrome/141.0')).toContain('Unplug it')
   })
   it('reports a browser without WebUSB instead of offering a dead button', () => {
     expect(new OctatrackLink(undefined).getState().status).toBe('unsupported')
@@ -205,6 +211,17 @@ describe('sending a module', () => {
     setTimeout(() => { unit.refusal = undefined }, 50)
     await link.update('PREVIEW VOL', one)
     expect(link.getState().status).toBe('trial')
+  })
+  it('stages again when the loader refused the publication as busy (a controller quiescing before it leaves)', async () => {
+    const { unit, link } = await linked()
+    unit.publishRefusal = 5 // the board answers busy once and quiesces; the base dropped the staged package
+    setTimeout(() => { unit.publishRefusal = undefined }, 50)
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().status).toBe('trial')
+    await link.undo()
+    unit.publishRefusal = 7 // anything else stays a refusal, in words
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().notice?.text).toMatch(/A track is playing this module’s effect/)
   })
   it('recovers from a missing reply without asking to unplug', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)
@@ -436,6 +453,25 @@ describe('loading a module set', () => {
     const { unit, link } = await loaded()
     unit.unplug()
     expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: 'USB disconnected. Your Octatrack is between the two module sets: sync one of them again.' } })
+  })
+})
+
+describe('the self-test from Status', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+  const record = (state: number, failed = 0) => ({ state, failed, modules: 1, dsp: 1, intact: 1, ran: 1, peaks: { cpu: 0, tracks1to4: 0, tracks5to8: 0 }, done: 1, total: 2, frameGap: 0, saved: 0, savedCount: 0, live: 1, culprit: 0, culpritName: '', refusal: 0 })
+  it('runs on its own while idle, shows progress, and leaves the result to the base’s record', async () => {
+    const { link } = await linked(), seen: string[] = []
+    const stop = link.subscribe(() => seen.push(link.getState().status))
+    vi.spyOn(UsbVendorTransport.prototype, 'selftest').mockResolvedValueOnce(record(1)).mockResolvedValueOnce(record(3, 4))
+    expect(await link.test()).toBeNull()
+    expect(seen).toContain('testing'); expect(link.getState().status).toBe('ready')
+    stop()
+  })
+  it('says why when the base won’t start it', async () => {
+    const { link } = await linked()
+    vi.spyOn(UsbVendorTransport.prototype, 'selftest').mockResolvedValue(record(0))
+    expect(await link.test()).toBe('the Octatrack couldn’t start it; stop playback and try again')
+    expect(link.getState().status).toBe('ready')
   })
 })
 

@@ -8,12 +8,14 @@ import { OctatrackLink, type LinkDevice, type LinkSession, type LinkUsb } from '
 import { UploadDeviceError } from '../engine/elekloader/upload-session.ts'
 import { SELFTEST_BYTES, VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
 import type { UploadPhaseName, UploadResultName, UploadStatus } from '../engine/elekloader/upload-wire.ts'
+import baseBinding from '../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
 
-export const FAKE_BASE = '5b'.repeat(32)
+/** The published base, so the pretend unit is a tester who is up to date (older bases are told to update). */
+export const FAKE_BASE: string = baseBinding.identity
 const ascii = (text: string) => Array.from(text, char => char.charCodeAt(0))
 /** IDENTIFY as sdk/runtime/upload/vendor.c sends it: version 1, can submit, limits, base, model. */
 const identity = Uint8Array.from([...ascii('MWUI'), 1, 1, 0, 1, 0x10, 0x34, 0, 0x98, 0, 0, 0, 0,
-  ...Array.from({ length: 32 }, () => 0x5b), ...ascii('OCTATRACK MKII'), 0, 0, ...new Array(8).fill(0)])
+  ...Array.from({ length: 32 }, (_, i) => parseInt(FAKE_BASE.slice(2 * i, 2 * i + 2), 16)), ...ascii('OCTATRACK MKII'), 0, 0, ...new Array(8).fill(0)])
 
 type Listener = (event: { device: LinkDevice }) => void
 export interface FakeUnit {
@@ -36,6 +38,9 @@ export interface FakeUnit {
   status?: boolean
   /** The loader refuses the next load with this reason (loader.h runtime_refusal), as the base's record reports it. */
   refusal?: number
+  /** The loader refuses the next publications with this reason, after staging (a resident controller quiescing: 5);
+   * the base then drops the staged package. */
+  publishRefusal?: number
   /** Rollbacks the loader cannot switch yet (an effect's code still being published): the controller stays in recovery. */
   stuck?: number
   /** The runtime ids (hex) of the modules the kept runtime packages installed, as INVENTORY lists them, and each kept
@@ -83,14 +88,15 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
           ;[380 + wave(0), 520 + wave(2), 640, 260 + wave(4), 410].forEach((value, i) => load.setUint32(28 + 4 * i, value))
           return { status: 'ok', data: load }
         }
-        if (setup.request === 21 && unit.status && unit.refusal === undefined) { // passed, peaks, saved on the card and read back
+        if (setup.request === 21 && unit.status && (unit.refusal ?? unit.publishRefusal) === undefined) { // passed, peaks, saved on the card and read back
           const record = new DataView(new ArrayBuffer(SELFTEST_BYTES)), count = unit.installed.moduleIds.length
           ;[[0, 2], [3, count], [7, 410], [8, 655], [9, 470], [14, 47900], [15, 7], [16, count], [17, count]].forEach(([at, value]) => record.setUint32(4 * at, value))
           return { status: 'ok', data: record }
         }
-        if (setup.request !== 21 || unit.refusal === undefined) return { status: 'stall' }
+        const refusal = unit.refusal ?? unit.publishRefusal
+        if (setup.request !== 21 || refusal === undefined) return { status: 'stall' }
         const record = new DataView(new ArrayBuffer(SELFTEST_BYTES)) // the base's record, idle, with its last refusal
-        record.setUint32(92, unit.refusal)
+        record.setUint32(92, refusal)
         return { status: 'ok', data: record }
       },
     }
@@ -138,7 +144,10 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
         }
         return step('verified')
       },
-      activate: () => step('pending'),
+      activate: async () => {
+        if (!unit.publishRefusal) return step('pending')
+        await wait(); throw new UploadDeviceError(status = { ...status, phase: 'ready', result: 'backend' }) // the package dropped
+      },
       startTrial: async () => status = { ...await step('trial'), active: staged },
       holdTrial: () => step('pending', unit.playing ? 'unsafe' : undefined),
       accept: async () => {

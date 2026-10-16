@@ -85,17 +85,18 @@ describe('private consented Octatrack diagnostics',()=>{
     expect(db.prepare('SELECT count(*) AS n FROM octatrack_diagnostic_events').get()).toEqual({n:0})
     expect(db.prepare('SELECT count(*) AS n FROM octatrack_diagnostic_consent').get()).toEqual({n:0})
   })
-  it('requires fresh consent for the disclosed browser and build failure purpose',async()=>{
+  it('requires fresh consent for new reports and keeps those sent under the earlier text',async()=>{
     vi.useFakeTimers({toFake:['Date']})
     const acceptedAt=new Date('2026-10-13T12:00:00.000Z')
     vi.setSystemTime(acceptedAt)
     const {call,db,env,consent,send}=await fixture(), token='c'.repeat(64)
     await consent(true,token);await send(undefined,token)
     db.prepare("UPDATE octatrack_diagnostic_consent SET version='2026-10-12' WHERE user_id='member'").run()
-    expect(await(await call('/octatrack/diagnostics/consent','GET',undefined,token)).json()).toMatchObject({accountId:'member',enabled:false,version})
+    // The stored version tells the site to ask again; a new consent text alone doesn't delete earlier reports.
+    expect(await(await call('/octatrack/diagnostics/consent','GET',undefined,token)).json()).toMatchObject({accountId:'member',enabled:false,version:'2026-10-12'})
     expect((await send(undefined,token)).status).toBe(403)
     await cleanupOctatrackDiagnostics(env.DB!)
-    expect(db.prepare('SELECT count(*) AS n FROM octatrack_diagnostic_events').get()).toEqual({n:0})
+    expect(db.prepare('SELECT count(*) AS n FROM octatrack_diagnostic_events').get()).toEqual({n:1})
     // Equal timestamps cannot supersede the prior consent decision.
     expect(await(await consent(true,token)).json()).toMatchObject({enabled:false})
     expect((await send(undefined,token)).status).toBe(403)
@@ -114,6 +115,23 @@ describe('private consented Octatrack diagnostics',()=>{
     await consent(false)
     expect((await send(payload)).status).toBe(403)
     expect(db.prepare('SELECT count(*) AS n FROM octatrack_diagnostic_events').get()).toEqual({n:0})
+  })
+  it('lets the read-only diagnostics key page through records and nothing else',async()=>{
+    const {db,env,consent,send,data}=await fixture(),key='d'.repeat(64),first=data(),second=data()
+    const read=(path:string,value=key)=>handleCommunity(new Request('https://api.example.test/api'+path,{headers:{'X-Modwerk-Diagnostics':value,'CF-Connecting-IP':'192.0.2.1'}}),env)
+    expect((await read('/admin/octatrack/diagnostics')).status).toBe(403)
+    env.DIAGNOSTICS_READ_KEY_SHA256=await digest(key)
+    await consent();await send(first);await send(second)
+    const older=new Date(Date.now()-120000).toISOString(),newer=new Date(Date.now()-60000).toISOString()
+    db.prepare('UPDATE octatrack_diagnostic_events SET created_at=? WHERE event_id=?').run(older,first.id)
+    db.prepare('UPDATE octatrack_diagnostic_events SET created_at=? WHERE event_id=?').run(newer,second.id)
+    const ids=async(path:string)=>(await(await read(path)).json()).events.map((entry:{eventId:string})=>entry.eventId)
+    expect(await ids('/admin/octatrack/diagnostics')).toEqual([second.id,first.id])
+    expect(await ids('/admin/octatrack/diagnostics?since='+older)).toEqual([first.id,second.id])
+    expect(await ids('/admin/octatrack/diagnostics?since='+newer)).toEqual([second.id])
+    expect((await read('/admin/octatrack/diagnostics?since=yesterday')).status).toBe(400)
+    expect((await read('/admin/octatrack/diagnostics','f'.repeat(64))).status).toBe(403)
+    for(const path of ['/admin/insights','/admin/statistics','/admin/account-requests'])expect((await read(path)).status).toBe(403)
   })
   it('rejects arbitrary text, raw logs, unknown modules, invalid readings and extra consent fields',async()=>{
     const {call,consent,send,data}=await fixture();await consent()
@@ -173,7 +191,7 @@ describe('private consented Octatrack diagnostics',()=>{
   })
   it('accepts only fixed browser events and required build categories after opt-in',async()=>{
     const {call,db,consent,send}=await fixture(), token='c'.repeat(64)
-    const browser=()=>({id:crypto.randomUUID(),event:'browser_error',phase:'browser'})
+    const browser=()=>({id:crypto.randomUUID(),event:'browser_error',phase:'browser',area:'octatrack',kind:'TypeError'})
     expect((await send(browser(),token)).status).toBe(403)
     await consent(true,token)
     for(const event of ['browser_error','unhandled_rejection'])expect((await send({...browser(),event},token)).status).toBe(200)
@@ -186,12 +204,28 @@ describe('private consented Octatrack diagnostics',()=>{
     expect(events.every((entry:{data:{event:string}})=>['browser_error','unhandled_rejection','build_failed'].includes(entry.data.event))).toBe(true)
     expect(db.prepare('SELECT count(*) AS n FROM usage_visitors').get()).toEqual({n:0})
   })
+  it('accepts live load, unresponsive and the unit’s log only in their fixed shapes',async()=>{
+    const {consent,send}=await fixture(), token='c'.repeat(64);await consent(true,token)
+    const ids={id:crypto.randomUUID(),phase:'ready',base:'a'.repeat(64)}, live={samples:10,cpu:[400,600],dsp1to4:[200,250]}
+    const load={seq:3,boot:1,minute:5,cpu:[400,600],dsp1to4:[200,250],dsp5to8:[300,350],samples:600,playing:300}
+    const incident={seq:4,boot:1,second:9,kind:'freeze',a:0,cpu:950,dsp1to4:0,dsp5to8:0,machines:Array(24).fill(1),fx:Array(16).fill(2),keys:Array(16).fill(255),screen:0x400cbf2c,tempo24:2880,playing:true}
+    const fresh=<T extends object>(value:T)=>({...value,id:crypto.randomUUID()})
+    for(const value of [{...ids,event:'load',live},{...ids,event:'unresponsive',reason:'ui',live},{...ids,event:'unresponsive',reason:'usb'},
+      {...ids,event:'device_log',log:{loads:[load],incidents:[]}},{...ids,event:'device_log',log:{loads:[],incidents:[incident]}}])expect((await send(fresh(value),token)).status).toBe(200)
+    const cases=[{...ids,event:'load'},{...ids,event:'load',live:{...live,cpu:[400,1001]}},{...ids,event:'load',live:{...live,note:'x'}},{...ids,event:'load',live,reason:'ui'},
+      {...ids,event:'unresponsive',reason:'other'},{...ids,event:'health',live},{...ids,event:'device_log',log:{loads:[],incidents:[]}},
+      {...ids,event:'device_log',log:{loads:[load],incidents:[]},modules:[]},{...ids,event:'device_log',log:{loads:[{...load,name:'x'}],incidents:[]}},
+      {...ids,event:'device_log',log:{loads:[],incidents:[{...incident,kind:'other'}]}},{...ids,event:'device_log',log:{loads:[],incidents:[{...incident,keys:Array(17).fill(1)}]}},
+      {...ids,event:'device_log',log:{loads:[],incidents:[{...incident,fx:Array(16).fill(256)}]}},{...ids,event:'device_log',log:{loads:Array(41).fill(load),incidents:[]}},
+      {...ids,event:'device_log',log:{loads:[],incidents:Array(11).fill(incident)}},{...ids,event:'sync_failed',log:{loads:[load],incidents:[]}}]
+    for(const value of cases)expect((await send(fresh(value),token)).status).toBe(400)
+  })
   it('rejects raw browser/build data and cross-event USB fields instead of storing them',async()=>{
     const {consent,send}=await fixture(), token='c'.repeat(64);await consent(true,token)
-    const browser={id:crypto.randomUUID(),event:'browser_error',phase:'browser'}
+    const browser={id:crypto.randomUUID(),event:'browser_error',phase:'browser',area:'octatrack',kind:'TypeError'}
     const build={id:crypto.randomUUID(),event:'build_failed',phase:'composing',buildKind:'octatrack-firmware',error:'build'}
     const cases=[{...browser,error:'unknown'},{...browser,stack:'private stack'},{...browser,url:'https://private.example.test'},{...browser,path:'/private/project'},
-      {...browser,filename:'private.bin'},{...browser,message:'private error'},{...browser,base:'a'.repeat(64)},{...browser,modules:[]},{...browser,phase:'sending'},
+      {...browser,filename:'private.bin'},{...browser,message:'private error'},{...browser,base:'a'.repeat(64)},{...browser,modules:[]},{...browser,phase:'sending'},{...browser,area:'/private/route'},{...browser,kind:'private message'},{...browser,area:undefined},
       {...build,phase:'sending'},{...build,buildKind:'private file name'},{...build,error:'private failure'},{...build,reading:{}},{...build,result:'ok'},{...build,packages:[]},
       {...build,phase:undefined},{...build,buildKind:undefined},{...build,error:undefined},{id:crypto.randomUUID(),event:'sync_failed',phase:'browser'},
       {id:crypto.randomUUID(),event:'sync_failed',phase:'sending',buildKind:'elekloader'},{id:crypto.randomUUID(),event:'sync_failed',phase:'sending',error:'input'}]

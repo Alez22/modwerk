@@ -5,9 +5,10 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { manifestBuildFields } from './module-source.mjs'
 
-const moduleFolder = /^sdk\/(octabam|digitakt|digitone)\/modules\/[^/]+\//
-const manifest = /^sdk\/(octabam|digitakt|digitone)\/modules\/[^/]+\/(octamod|modwerk)\.module\.json$/
-const catalogs = new Set(['src/catalog/module-documents.json', 'src/catalog/machine-modules.json'])
+const moduleFolder = /^sdk\/(octabam|digitakt|digitone|analog-rytm-mkii)\/modules\/[^/]+\//
+const manifest = /^sdk\/(octabam|digitakt|digitone|analog-rytm-mkii)\/modules\/[^/]+\/(octamod|modwerk)\.module\.json$/
+const digiManifest = /^sdk\/(digitakt|digitone|analog-rytm-mkii)\/modules\/[^/_][^/]*\/modwerk\.module\.json$/
+const catalogs = new Set(['src/catalog/module-documents.json'])
 const json = text => text === null ? null : JSON.parse(text)
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item)
@@ -26,7 +27,7 @@ function catalogIdentity(value) {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, catalogIdentity(item)]))
 }
 export function isDocumentationPath(path) {
-  return path === 'src/community/module-changelogs.json' || /\.md$/i.test(path) || !!(moduleFolder.test(path) && /^(media|presentation|evidence)\//.test(path.replace(moduleFolder, '')) && /\.(png|svg|jpe?g|webp|gif|wav|mp3|flac|ogg|mp4|webm|json|txt)$/i.test(path))
+  return /^src\/community\/module-changelogs\/[a-z0-9-]+\.json$/.test(path) || /\.md$/i.test(path) || !!(moduleFolder.test(path) && /^(media|presentation|evidence)\//.test(path.replace(moduleFolder, '')) && /\.(png|svg|jpe?g|webp|gif|wav|mp3|flac|ogg|mp4|webm|json|txt)$/i.test(path))
     || moduleFolder.test(path) && path.endsWith('/qualification.example.json')
     || /^docs\/.*\.(png|svg|jpe?g|webp|gif)$/i.test(path)
 }
@@ -37,6 +38,16 @@ export function isDocumentationChange({ path, before, after, regular = true }) {
   if (manifest.test(path)) return canonical(withoutDocumentation(json(before))) === canonical(withoutDocumentation(json(after)))
   if (catalogs.has(path)) return canonical(catalogIdentity(json(before))) === canonical(catalogIdentity(json(after)))
   return false
+}
+
+/** Whether a change needs no new module version. A Digitakt/Digitone manifest edit that changes only documentation or
+ * compatibility.conflicts needs none, as on the Octatrack, whose version rule compares build fields only: flags are
+ * compatibility metadata that a newer module's arrival can change. It still runs every check. */
+export function isVersionNeutralChange(change) {
+  const { path, before, after } = change
+  if (!digiManifest.test(path) || before === null || after === null) return isDocumentationChange(change)
+  const strip = text => { const document = withoutDocumentation(json(text)); return { ...document, compatibility: { ...document.compatibility, conflicts: null } } }
+  return canonical(strip(before)) === canonical(strip(after))
 }
 
 function digiFirmwareFields(text) {
@@ -65,9 +76,9 @@ function nativeChange(change, machine) {
   if (machine === 'octatrack') return common || /^sdk\/octabam\/(modules|platform|tools|dsp|licenses)\//.test(path)
     || path === 'sdk/catalog.json' || /^src\/engine\/assets\/(?!elemod\/)/.test(path)
     || /^scripts\/(build-module-packages\.py|build-utility-packages\.py|build-usb-audio-packages\.py|build-modules-isolated\.sh|import-module-build\.mjs|module-source\.mjs)$/.test(path)
-  return common || /^sdk\/(digitakt|digitone|elemod|machines)\//.test(path) || /^vendor\/elekloader\/(catalog\/|elekloader\.lock\.json$)/.test(path)
+  return common || /^sdk\/(digitakt|digitone|analog-rytm-mkii|elemod|machines)\//.test(path) || /^vendor\/elekloader\/(catalog\/|elekloader\.lock\.json$|upstream-catalog\.json$)/.test(path) || /^sdk\/imports\/elekloader-[^/]+\.json$/.test(path)
     || /^sdk\/octabam\/(scripts\/vendor\.sh|tools\/patches\/|tools\/harness\/dsp_host)/.test(path)
-    || /^scripts\/(build-elemod[^/]*|elemod-elf\.mjs|verify-elemod-source-parity\.mjs)$/.test(path)
+    || /^scripts\/(build-elemod[^/]*|elemod-elf\.mjs|verify-elemod-source-parity\.mjs|package-elemod-recipe\.mjs|verify-elemod-release-exports\.mjs)$/.test(path)
     || /^src\/engine\/assets\/elemod\//.test(path)
 }
 function compilerJob(text, name) {
@@ -86,9 +97,11 @@ function workerCatalog(value) {
 // Whole trees the Worker compiles from: a test checks that every file worker.ts imports falls under these, so a new
 // import cannot silently miss the deploy. A few frontend-only files here only cause a harmless extra deploy.
 const workerTrees = /^(server|migrations|src\/(community|catalog|devices|config|legal))\//
-const workerFiles = ['worker.ts', 'wrangler.worker.jsonc', 'package-lock.json', 'src/hosting.ts', 'src/support.ts', 'sdk/catalog.json', '.github/workflows/worker.yml', '.github/module-authors.json']
+const workerFiles = ['worker.ts', 'wrangler.worker.jsonc', 'package-lock.json', 'src/hosting.ts', 'src/support.ts', 'sdk/catalog.json', 'docs/news/008-beta-invitation.draft.json', '.github/workflows/worker.yml', '.github/module-authors.json']
 function workerChange({ path, before, after }) {
   if (catalogs.has(path) && before !== null && after !== null) return canonical(workerCatalog(json(before))) !== canonical(workerCatalog(json(after)))
+  // The Worker bundles the generated (uncommitted) Digitakt/Digitone list, which follows these manifests.
+  if (digiManifest.test(path)) return before === null || after === null || canonical(workerCatalog({ modules: [json(before)] })) !== canonical(workerCatalog({ modules: [json(after)] }))
   if (/\.test\.ts$/.test(path) || /\.tsx$/.test(path) || isDocumentationPath(path)) return false
   return workerTrees.test(path) || workerFiles.includes(path)
 }

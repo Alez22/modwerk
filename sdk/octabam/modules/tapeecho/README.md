@@ -230,7 +230,7 @@ These are actual headless-emulator LCD captures. See [TESTING.md](TESTING.md),
 
 ## Overview
 
-Published editorial version: **0.1.3-experimental**. The original record above, including its older version label and all measured resource figures, is preserved verbatim. This release adds documentation and an isolated audio comparison; it keeps the 0.1.2-experimental runtime and historical hardware status.
+Published version: **0.1.5-experimental**, a rollback of 0.1.4 to the 0.1.3-experimental code. The original record above, including its older version label and all measured resource figures, is preserved verbatim. 0.1.3 added documentation and an isolated audio comparison; 0.1.5 keeps that and the 0.1.2-experimental runtime and historical hardware status.
 
 Tape Echo is a mono single-head echo in Octatrack 1.40C FX2, with stereo dry output, tempo-synced or free timing, pitch movement and tape-age texture. The Controls section above describes every active control and the disabled detail page.
 

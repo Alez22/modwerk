@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / 'sdk/machines/octatrack/module-adapters'
 ELEK = ROOT / 'sdk/machines/octatrack/elekloader'
 RUNTIME = ADAPTER / 'resident-runtime'
-sys.path.insert(0, str(ADAPTER))
+sys.path.append(str(ADAPTER))
 import resident_boot as boot
 import resident_dsp as dsp
 import resident_driver as driver
@@ -56,7 +56,7 @@ class ResidentDriver(unittest.TestCase):
         # Substitute only the timer's MMIO read, never the job/packet/ACK logic.
         clock = '*(volatile uint32_t *)0xfc07c00cu'
         self.assertEqual(texts['transfer.c'].count(clock), 1)
-        texts['transfer.c'] = '#include <stdint.h>\nextern volatile uint32_t test_clock;\n' + texts['transfer.c'].replace(clock, 'test_clock')
+        texts['transfer.c'] = '#include <stdint.h>\nextern volatile uint32_t test_clock;\n' + texts['transfer.c'].replace(clock, 'test_clock') + '\nvoid modwerk_diag_frame(void) {}\n'
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             for name, text in texts.items():

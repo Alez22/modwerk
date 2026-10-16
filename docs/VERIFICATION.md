@@ -1,5 +1,48 @@
 # Verification record
 
+## Six Digitakt mods by sumedho on Core 2.1 — 14 October 2026
+
+Source: `sdk/digitakt/dependencies/{machine-pages,dt-support}` and
+`sdk/digitakt/modules/{midi-retrig,cc-names,euclidean,ram-machines,note-accumulator,sample-tools}`,
+also published at [sumedho/digirequests](https://github.com/sumedho/digirequests)
+`8eba613dc3e0b1698797609256fd4081923b4ef2`.
+
+**Core.** The mods run on the catalogue's Core 2.1, so no core is added.
+Machine Pages 1.2 is irpina's 1.1 adapted to Core 2.1:
+- it reads a machine descriptor's UI tail itself instead of calling Core
+  3.0's `core_machine_ui`;
+- three firmware locations come from per-OS `cflags` and `defsym`.
+
+`scripts/elemod-dependencies.mjs` leaves `core` to the machine's interface.
+`scripts/verify-elemod-matrix.mjs` links the catalogue's pinned Core 2.1.
+
+**Compilation and exports.** `scripts/build-elemod-packages.mjs` compiles the
+eight objects for OS 1.53 and 1.54 with local m68k-elf GCC 16.2.0; no Docker
+runtime was available. `scripts/package-elemod-recipe.mjs` exports the 16
+packages under `sdk/imports/packages/`.
+
+**Native parity.** `scripts/verify-elemod-matrix.mjs` compares the compiled
+objects with the author's native Elekloader build of the same sources.
+- Every object matches semantically. The only differences allowed are the
+  non-executable `DT_OS154` selector and Sample Tools' added DIGISLICER
+  conflict.
+- All 63 feature selections per OS, 126 in total, link with Core 2.1 to the
+  native MAIN byte for byte, through Modwerk's linker and the vendored kit.
+- The all-mods MAIN is `ce2c0bd0…` on 1.53 and `14469be1…` on 1.54.
+
+**Browser catalogue.** Machine Pages, DT Support and the six mods are pinned
+through `--overlay` files in `sdk/imports/elekloader-*-2026-10-14.json`. Each
+pin names the Modwerk commit that adds its package.
+
+**Emulator and load.** The 13 regression cases of the author's 1.54
+integration pass on both OSes: 26 runs, 0 failures. Render-load comparisons
+with stock are in each module's `TESTING.md`. The worst audio block with all
+six mods is 73% of the budget, against 62% for stock.
+
+**Test change.** `src/community/service.test.ts` likes and rates every Digi
+module as one member, and 18 modules exceed the 30-per-hour community limit.
+The test now clears `rate_limits` per module; the limit itself is unchanged.
+
 ## Digi EQ 1.0.2-experimental — 11 October 2026
 
 For issue [#185](https://github.com/repeat98/modwerk/issues/185), the native page-clear callback now resets all sixteen EQ band parameters; the EQ box aligns with the pattern header at x=13. Filter DSP and stored EQ layout are unchanged. Source-only packages from commit `1107d484c8d7ad84cfff14917b34acdcb83a53e6` replace the two 1.0b pins through `npm run elekloader:update`; kit 0.5.0 remains unchanged and the catalogue revision is `94516877d374af1e7c14a69c6c7602773590e8045fd8f3b8c1fcaa47e155f6fc`.
@@ -1388,3 +1431,67 @@ E-Verb is in none of them.
 
 No hardware result exists for 0.1.1; the owner's MKII report covers 0.1.0.
 Publication needs the owner's approval of this exact source.
+
+## Mini Verb DSP cost — 13 October 2026
+
+Mini Verb 0.2.2-experimental removes two coefficient reloads that loaded the
+value `y1` already held. Its modeled sample loop falls from 415 to 411 cycles
+(the Octatrack loader's 7/4 charge from 727 to 720, within the smaller core's
+726 one-module allowance). The disassembled programs differ in exactly those
+two instructions. All 75 native DSP checks pass, including new gates that find
+0.2.2 bit-identical to the published 0.2.1 program with eight moving instances,
+every trigger split on both cores and a 0.9 FS input at TONE 0, 64 and 127; the
+builder-path dspbench agrees at splits 0, 1, 7 and 15.
+
+Under Air Chorus's matched protocol (one instance per core, X:0 audio, null stub
+subtracted, splits 0–15, every SPRING TYPE and moving controls), worst-case
+SPRING REV executes 314.0 instructions/sample and Mini Verb 0.2.2 362.75
+(1.155×; 0.2.1 364.75, 0.2.0 360.75), identical on both cores. These are
+executed instructions, not chip cycles. The only chip timing is 0.2.0's 665
+cycles/sample on the owner's MKII. Native/browser parity, the isolated package
+build, owner approval, hardware and chip timing of 0.2.2 are still required.
+
+## BBD Delay 0.1.0-experimental — 14 October 2026
+
+BBD Delay enters the FX2 catalogue as a new module by JamCones under MIT: a
+bucket-brigade delay in 1,075 DSP56300 words with a compander, clock-tracking
+anti-alias and reconstruction filters, a clocked bucket line, a resonant
+feedback tilt, an exact-loop freeze, a feedback governor and a 20-400 Hz input
+high-pass (HPF). FX id 14.
+
+`module:verify` compared the browser builder with native octabam on the
+author's own 1.40C file: of BBD's 130 selections, 53 module-owned images match
+(22 identical outright, 31 outside the platform writes) and 77 refusals agree,
+with no mismatches (`sdk/native-comparisons/bbd.json`). The pair ledger finds no
+clash between BBD and any other module, so BBD declares no conflicts. Analog
+BD's native verifier passes against the build with BBD in it. BBD needs an entry in `src/engine/assets/static-dsp.json` (FX id 14, priority
+16), like E-Verb, before the browser places its code.
+
+Beside the stock effects the site gives up SPRING REV and PLATE REV: BBD would
+fit in SPRING REV's space, but DARK REV calls a 35-word routine at SPRING
+REV+820. BBD is placed from PLATE REV's base and ends before that routine; a
+render gate runs DARK REV on both cores with fixed and moving controls and
+finds it bit-identical to the stock OS. The browser's default BBD build equals
+the author-tested MAIN `bc53d1b3e96a4c22d5efb426c880d08e26d4f0288dccbe8ffaf43e25a18fb3ba`
+byte for byte.
+
+All 51 native-image render gates pass, including the DSP against its float
+reference (HPF at 1, 64 and 127: −67.8 to −71.7 dB), eight-instance isolation
+under guard and dirty start, and the stop-kill input. A matched benchmark
+measures at most 439.44 executed instructions per sample with a trig split
+(SPRING REV 314.19, CHORUS 293.06, DJ EQ 330.94 under the same cases), and a
+32-second, eight-instance stress run finds no clobber or hang. The static
+block bound is 11,248 modeled cycles per instance, 44,992 for four per core
+against the 49,920 module allowance.
+
+STOP, STOP, STOP does not cut BBD's tail in this release: the stock tail kill
+tests the stock reverbs' ids only. BBD's DSP takes the signal on a hidden slot
+(11); the ColdFire hook that writes it is left for the USB port, by the
+owner's choice.
+
+BBD is not offered over USB in this release. Its USB package (ABI 6, 5,014 bytes, stock-free under the publisher's scans) is refused by the loader's development-base cycle admission (`sdk/machines/octatrack/elekloader/dsp.c`): a module's executed figure is charged at 7/4 and one instance must fit beside seven stock slots, so the limit is 3,120 - 7 x 342 = 726 and BBD's 440 is charged 770. In `ot_emu` on a `--dsp-loader --dev` base with the author's project, `verify-octatrack-dsp-loader.mjs pick` installed E-Verb and ran it on T1 and T5, and refused BBD at VERIFY. The package is left out until the USB port settles the figure (a release base admits hardware-timed figures).
+
+The author reports the release image on an MKII for about ten minutes: DARK
+REV working, two instances on T1 and T5, Part and project save and reload, a
+power cycle, every parameter with LFOs and trigless locks. MKI, MIDI/USB load,
+silicon timing and the USB path on hardware are not reported.

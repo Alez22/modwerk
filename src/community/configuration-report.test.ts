@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { issueMarkdown, issueTitle, type MirroredIssue } from '../../server/github'
 import { DEVICES_BY_ID } from '../devices/registry'
-import { catalogModules, CONFIGURATION_MODULES_REQUIRED, CONFIGURATION_REPORT_MAX_OWNERS, configurationOwners, configurationSummary, validateConfigurationReportContext } from './configuration-report'
-import { IssueInputError } from './issue-context'
+import { catalogModules, CONFIGURATION_MODULES_REQUIRED, configurationSummary, validateConfigurationReportContext } from './configuration-report'
+import { IssueInputError, type IssueContext } from './issue-context'
 import { ModuleIssueCard } from './ModuleIssues'
 import { communityModule } from './modules'
 import type { PublicModuleIssue } from './issue-tracker'
@@ -44,11 +44,7 @@ describe('which modules a configuration report is about', () => {
     expect(() => validateConfigurationReportContext(base, log.summary)).toThrow('structured reports only')
   })
 
-  it('names each current maintainer once, ignoring case, in configuration order', () => {
-    expect(configurationOwners([{ id: 'sidechain-compressor' }, { id: 'miniverb' }, { id: 'repitch' }, { id: 'unknown' }])).toEqual(['Zac-Kyoti', 'repeat98'])
-    expect(configurationOwners([{ id: 'miniverb' }, { id: 'synth' }, { id: 'sidechain-compressor' }])).toEqual(['repeat98', 'timhastie', 'Zac-Kyoti'])
-    expect(configurationOwners([{ id: 'cc-map' }, { id: 'recorder-loop-fix' }, { id: 'spectrum' }])).toEqual([])
-    expect(configurationOwners([{ id: 'cc-map' }, { id: 'miniverb' }, { id: 'recorder-loop-fix' }])).toEqual(['repeat98'])
+  it('counts the modules', () => {
     expect(configurationSummary(1)).toBe('1 module')
     expect(configurationSummary(3)).toBe('3 modules')
   })
@@ -56,11 +52,7 @@ describe('which modules a configuration report is about', () => {
 
 describe('the public GitHub issue for a configuration', () => {
   const issue = (owners: string[]): MirroredIssue => ({ id: 'r', module_id: 'miniverb', scope: 'configuration', moduleIds: ['miniverb', 'synth'], title: 'Freeze', reporter: 'someone', owners, details: { device: 'Octatrack MKII · OS 1.40C', version: '2 modules', steps: '', expected: '', actual: 'It freezes', modules: [{ id: 'miniverb', name: 'Mini Verb', version: '0.2.0' }, { id: 'synth', name: 'FM Synth', version: '0.1.2' }] } })
-  it('mentions at most the cap of handles and drops anything that is not a GitHub login', () => {
-    const owners = Array.from({ length: 40 }, (_, index) => 'author' + index)
-    const markdown = issueMarkdown(issue([...owners, 'not a login']), 'https://modwerk.app/')
-    expect(markdown.match(/@author\d+/g)).toHaveLength(CONFIGURATION_REPORT_MAX_OWNERS)
-    expect(markdown).not.toContain('not a login')
+  it('is titled for the whole configuration', () => {
     expect(issueTitle(issue([]))).toBe('[configuration] Freeze')
   })
   it('puts a module report’s issue unchanged: module id title, one version row and the plain resolve command', () => {
@@ -70,6 +62,22 @@ describe('the public GitHub issue for a configuration', () => {
     expect(markdown).toContain('`/modwerk resolve <published-version> verified-download`')
     expect(markdown).not.toMatch(/whole configuration|Configuration \|/)
     expect(issueTitle({ module_id: 'miniverb', title: 'Freeze' })).toBe('[miniverb] Freeze')
+  })
+  it('publishes a full report’s configuration and log, leaving out the oldest records to fit GitHub', () => {
+    const records = Array.from({ length: 3000 }, (_, index) => String(index).padStart(5, '0') + ' 00000000 I TEST 0001 00000000 00000000')
+    const log = ['# OCTAMOD-LOG v2', '# configuration=```x', '# boot=1', ...records, '# complete=00000000'].join('\n')
+    const context: IssueContext = { machine: 'octatrack', model: 'mk2', flash: 'flashed', os: '1.40C', modules: [{ id: 'miniverb', version: '0.2.0' }], keepStockFx2: null, build: 'c'.repeat(64) }
+    const markdown = issueMarkdown({ ...issue([]), scope: 'module', moduleIds: undefined, details: { ...issue([]).details, modules: undefined, version: '0.2.0', full: true }, context, log }, 'https://modwerk.app/')
+    expect(markdown.length).toBeLessThan(60000)
+    expect(markdown).toContain('| Build fingerprint | `' + 'c'.repeat(64) + '` |')
+    expect(markdown).toContain('### Configuration\n\n- `miniverb` 0.2.0')
+    expect(markdown).toContain('Everything the reporter submitted is in this issue.')
+    expect(markdown).toMatch(/OCTAMOD\.LOG \(oldest \d+ records left out to fit GitHub\)/)
+    // The backticks in the header lengthen the fence; boot and completion lines stay in place.
+    expect(markdown).toContain('````text\n# OCTAMOD-LOG v2\n# configuration=```x\n# boot=1\n')
+    expect(markdown).toContain(records.at(-1) + '\n# complete=00000000\n````')
+    expect(markdown).not.toContain(records[0])
+    expect(markdown).toContain('### Module maintainer actions')
   })
 })
 

@@ -8,15 +8,18 @@ import { moduleSetReview } from '../engine/elekloader/module-set'
 import type { LinkState, OctatrackLink } from '../engine/elekloader/octatrack-link'
 import type { DiagnosticReading } from '../community/octatrack-diagnostics-contract'
 import { OctatrackHub, type HubView } from './OctatrackHub'
+import { OctatrackActivity } from './OctatrackStatus'
+import { recordLoad } from '../hooks/useOctatrackLoad'
+import baseBinding from '../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
 
 vi.mock('./OctatrackDiagnostics', () => ({ OctatrackDiagnosticsSettings: () => null }))
 vi.mock('../engine/elekloader/module-set', async original => ({ ...await original<typeof import('../engine/elekloader/module-set')>(), moduleSetReview: vi.fn() }))
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); sessionStorage.clear(); localStorage.clear() })
 
-const ready: LinkState = { status: 'ready', identity: { canSubmit: true, base: '5b'.repeat(32), model: 'OCTATRACK MKII' } }
+const ready: LinkState = { status: 'ready', identity: { canSubmit: true, base: baseBinding.identity, model: 'OCTATRACK MKII' } }
 const reading: DiagnosticReading = { state: 3, failed: 4, modules: 2, dsp: 1, intact: 2, ran: 1, cpu: 412, tracks1to4: 238, tracks5to8: 655, frameGap: 47900, saved: 7, savedCount: 2, live: 2, culprit: 0, refusal: 0 }
 function unit(state: LinkState = ready) {
-  return { getState: () => state, subscribe: () => () => {}, start: () => () => {}, update: vi.fn(), health: vi.fn(async () => reading), liveLoad: vi.fn(async () => undefined), savedBackup: vi.fn(async () => undefined) } as unknown as OctatrackLink & { health: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
+  return { getState: () => state, subscribe: () => () => {}, start: () => () => {}, update: vi.fn(), health: vi.fn(async () => reading), liveLoad: vi.fn(async () => undefined), savedBackup: vi.fn(async () => undefined), test: vi.fn(async () => 'the Octatrack couldn’t start it; stop playback and try again') } as unknown as OctatrackLink & { health: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
 }
 const callbacks = () => ({ onSelect: vi.fn(), onSync: vi.fn(), onInstall: vi.fn(), onNew: vi.fn(), onImport: vi.fn(), onSetAction: vi.fn(), onFill: vi.fn(), onSaveUnit: vi.fn(), onReport: vi.fn() })
 let container: HTMLDivElement, root: ReturnType<typeof createRoot>
@@ -46,12 +49,21 @@ describe('the Octatrack page', () => {
     expect(container.querySelector('.hub-set-open[aria-current="page"] strong')?.textContent).toBe('Studio')
     expect(open().querySelector('h2')?.textContent).toBe('Studio')
     expect(open().querySelector('.hub-sync')?.textContent).toContain('Adds 1 · Removes 1')
-    expect(vi.mocked(moduleSetReview)).toHaveBeenLastCalledWith(second, inventory, undefined)
+    expect(vi.mocked(moduleSetReview)).toHaveBeenLastCalledWith(second, inventory, undefined, ready.identity?.base)
     expect(props.onSync).not.toHaveBeenCalled(); expect(link.update).not.toHaveBeenCalled()
     await act(() => button('Sync to Octatrack').click())
     expect(props.onSync).toHaveBeenCalledExactlyOnceWith(second.id); expect(link.update).not.toHaveBeenCalled()
   })
 
+  it('asks a unit on an older base to install the current one before anything syncs', async () => {
+    const set = newConfiguration('Live', ['miniverb']), props = callbacks(), inventory = { moduleIds: [], removedStockFx: [] }
+    const link = unit({ status: 'ready', identity: { canSubmit: true, base: 'a'.repeat(64), model: 'OCTATRACK MKII' } })
+    vi.mocked(moduleSetReview).mockReturnValue({ changes: { add: ['miniverb'], remove: [], stockOff: [], stockOn: [] }, updates: [], needsSync: true, problem: undefined })
+    await act(() => root.render(createElement(OctatrackHub, { ...props, view: 'set', link, inventory, sets: [set], selectedId: set.id, header: null, grid: null, card: null })))
+    expect(open().querySelector('.hub-sync')?.textContent).toContain('Install the latest Modwerk base')
+    await act(() => button('Install latest base').click())
+    expect(props.onInstall).toHaveBeenCalledOnce(); expect(link.update).not.toHaveBeenCalled()
+  })
   it('acts on one set from its row menu and starts an empty set from what is on the unit', async () => {
     const live = newConfiguration('Live', ['miniverb']), empty = newConfiguration('Empty', [])
     const props = callbacks(), inventory = { moduleIds: ['miniverb', 'synth'], removedStockFx: [] }
@@ -71,6 +83,8 @@ describe('the Octatrack page', () => {
 
   it('shows the unit’s status from its own records and this browser’s syncs', async () => {
     const set = newConfiguration('Live', ['miniverb', 'synth']), link = unit(), props = callbacks()
+    // The app records the load on every page; Status shows what it recorded.
+    const stop = recordLoad(link as unknown as OctatrackLink); await act(async () => {})
     recordSync({ name: 'Live', modules: 2, outcome: 'failed', message: 'The stress test failed.' }, '2026-10-13T10:00:00.000Z')
     recordSync({ name: 'Live', modules: 2, outcome: 'kept' }, '2026-10-13T11:00:00.000Z')
     await act(() => root.render(createElement(OctatrackHub, { ...props, view: 'status', link, inventory: { moduleIds: ['miniverb', 'synth'], removedStockFx: [] }, sets: [set], selectedId: set.id, header: null, grid: null, card: null })))
@@ -82,6 +96,10 @@ describe('the Octatrack page', () => {
     expect(status).toContain('Failed: the Octatrack’s DSP stopped')
     expect([...open().querySelectorAll('.hub-peaks dd')].map(item => item.textContent)).toEqual(['41%', '24%', '66%'])
     expect(status).toContain('Live load needs a newer Modwerk base')
+    stop()
+    // A self-test can be started from here; when the base won’t start it, Status says why.
+    await act(async () => button('Run self-test').click())
+    expect(link.test).toHaveBeenCalledOnce(); expect(open().textContent).toContain('The Octatrack couldn’t start it; stop playback and try again.')
     expect([...open().querySelectorAll('.hub-console > *')].map(cell => cell.className.split(' ').pop())).toEqual(['hub-cell-cpu', 'hub-cell-dsp1', 'hub-cell-dsp2', 'hub-cell-chart', 'hub-cell-health', 'hub-cell-unit', 'hub-cell-history'])
     expect([...open().querySelectorAll('.hub-history li strong')].map(item => item.textContent)).toEqual(['Live', 'Live'])
     await act(() => button('Report a problem').click())
@@ -117,8 +135,32 @@ describe('the Octatrack page', () => {
     expect(open().querySelector<HTMLButtonElement>('.samples-actions button')?.disabled).toBe(false)
     await act(() => root.render(createElement(OctatrackHub, { ...props, view: 'setup', link: null, sets: [], header: null, grid: null, card: createElement('p', null, 'Card route') })))
     expect(open().textContent).toContain('This browser can’t use USB'); expect(open().textContent).toContain('Card route')
+    expect(open().textContent).not.toContain('Can’t connect?')
     await act(() => root.render(createElement(OctatrackHub, { ...props, view: 'set', link: null, sets: [], header: null, grid: null, card: null })))
     await act(() => button('New module set').click())
     expect(props.onNew).toHaveBeenCalledOnce(); expect(props.onSync).not.toHaveBeenCalled(); expect(props.onInstall).not.toHaveBeenCalled()
+  })
+})
+describe('link results outside the sync dialog', () => {
+  it('shows why the unit could not be opened in the hero, with a way to try again', async () => {
+    const link = unit({ status: 'idle', notice: { tone: 'error', text: 'Chrome couldn’t open the Octatrack. Unplug it, plug it back in and try again.' } })
+    await act(() => root.render(createElement(OctatrackHub, { ...callbacks(), view: 'status', link, sets: [], header: null, grid: null, card: null })))
+    expect(container.querySelector('.hub-hero [role=status]')?.textContent).toContain('Chrome couldn’t open the Octatrack')
+    expect([...container.querySelectorAll('.hub-hero button')].map(item => item.textContent)).toEqual(['Connect'])
+  })
+  it('gives Linux and Windows their own connection steps in Setup', async () => {
+    await act(() => root.render(createElement(OctatrackHub, { ...callbacks(), view: 'setup', link: unit({ status: 'idle' }), sets: [], header: null, grid: null, card: null })))
+    expect(open().textContent).toContain('Can’t connect?')
+    expect(open().querySelector('.hub-code')?.textContent).toContain('ATTR{idVendor}=="1935", TAG+="uaccess"')
+    expect(open().textContent).toContain('only once it runs the Modwerk base')
+  })
+  it('does not repeat a result the sync dialog already showed, and still shows one that arrives on this page', async () => {
+    let state: LinkState = { ...ready, notice: { tone: 'success', text: 'Kept. Live stays on your Octatrack, also after a restart.' } }
+    const listeners = new Set<() => void>(), link = { ...unit(), getState: () => state, subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } } }
+    await act(() => root.render(createElement(OctatrackActivity, { link: link as unknown as OctatrackLink })))
+    expect(container.querySelector('.octatrack-activity')).toBeNull()
+    await act(() => { state = { ...ready, status: 'trial', module: 'Studio' }; listeners.forEach(listener => listener()) })
+    await act(() => { state = { ...ready, notice: { tone: 'success', text: 'Kept. Studio stays on your Octatrack, also after a restart.' } }; listeners.forEach(listener => listener()) })
+    expect(container.querySelector('.octatrack-activity')?.textContent).toContain('Kept. Studio stays')
   })
 })
