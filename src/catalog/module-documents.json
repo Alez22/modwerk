@@ -6999,7 +6999,7 @@
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "The image gate passes 117 checks under the ColdFire port: every destination, mono sums, MAIN against stock, the level law, MKII, MASTER, mute, DIR, the declick, every mode-conversion rule by the keys (including track 8 as the master and the power-cycle copies), CC 51 out and a power cycle. On an MKII the author tested routing, levels, the MIXER, everyday flows, saving and power and the conversion (functional report, 7–9 Oct 2026). No timed stress run, no chip timing. 0.1.1 over USB on the MKII (RAM-booted beta base, 16 Oct 2026): MATRIX on and off, the always-on LEV label, routing to MAIN, CUE, PHONES, a mono jack and OFF, and the PHONES level all passed; no power cycle on this version.",
+        "summary": "The image gate passes 117 checks under the ColdFire port: every destination, mono sums, MAIN against stock, the level law, MKII, MASTER, mute, DIR, the declick, every mode-conversion rule by the keys (including track 8 as the master and the power-cycle copies), CC 51 out and a power cycle. On an MKII the author tested routing, levels, the MIXER, everyday flows, saving and power and the conversion (functional report, 7–9 Oct 2026). No timed stress run, no chip timing. 0.1.1 over USB on the MKII (RAM-booted beta base, 16 Oct 2026): MATRIX on and off, the always-on LEV label, routing to MAIN, CUE, PHONES, a mono jack and OFF, and the PHONES level all passed and, on the flashed base, a power cycle kept MATRIX, the routing and the module set (the LEV box needed a redraw).",
         "hardwareStatus": "reported",
         "evidenceRevision": "44738eaf4d935438bfae0899dd5287e2b2d10b20",
         "gates": [
@@ -7120,9 +7120,9 @@
             "tester": "npp1993",
             "sourceRevision": "44738eaf4d935438bfae0899dd5287e2b2d10b20",
             "imageSha256": "5ca0afbf038e17f7919c4d7cfb6ef518e3a4d9c41a12cfa69f59f1ac64a2acc4",
-            "summary": "Over USB on an Octatrack MKII: a RAM-booted beta base built from this source (identity 3e3e3de1..., MAIN 5ca0afbf...) with the 0.1.1 package (e2df2fbf...) installed by trial, rollback and then trial and keep. The author checked: the switch into MATRIX and back to NORMAL, the always-on destination label in the LEV box, CUE + LEVEL routing to MAIN, CUE, PHONES, a mono jack and OFF on a playing track with the audio where the label says, and MIX as the PHONES level. All passed.",
+            "summary": "Over USB on an Octatrack MKII: a RAM-booted beta base built from this source (identity 3e3e3de1..., MAIN 5ca0afbf...) with the 0.1.1 package (e2df2fbf...) installed by trial, rollback and then trial and keep. The author checked: the switch into MATRIX and back to NORMAL, the always-on destination label in the LEV box, CUE + LEVEL routing to MAIN, CUE, PHONES, a mono jack and OFF on a playing track with the audio where the label says, and MIX as the PHONES level. All passed. Then flashed the same base: with MATRIX selected and a track on MNL, a power cycle restored all seven installed modules, MATRIX and the routing; the LEV box first showed stock's split bars until CUE redrew it.",
             "limitations": [
-              "RAM-booted base: no power cycle, project save and reload or Part reload on this version over USB.",
+              "One power cycle on the flashed base; no project save and reload or Part reload on this version over USB. After the power cycle the LEV box showed stock's split bars until CUE redrew the page (display only; routing was right).",
               "Output Matrix alone on the base; MASTER TRACK, STUDIO, conversions in other Parts and banks and CC 51 out not checked on the unit for this version.",
               "Checked by ear; no audio recording or chip timing. The smaller DSP code's identical output is shown in the emulator only.",
               "The first trial's rollback was refused once (needs-recovery) and completed by the base without a further command.",
