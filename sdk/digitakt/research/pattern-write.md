@@ -2,7 +2,18 @@
 
 Research for a pattern generator mod (a meloDICEr-style random melody generator): how a mod can write trigs, NOTE, VELOCITY and LENGTH into the active pattern, as a user's edit would, from the UI task.
 
-**Status:** static analysis of the stock OS 1.54 MAIN image only. Nothing here has run on a unit. Confidence: **H** read in the code, **M** strong inference, **G** guess. [Hardware checks](#hardware-checks) lists what to confirm with [dtpeek.py](dtpeek.py) before any mod relies on it. OS 1.53 is not mapped yet (see [OS 1.53](#os-153)).
+**Status:** static analysis of the stock OS 1.54 MAIN image, then checked in the digiemu emulator (see [Emulator results](#emulator-results)). Nothing here has run on a unit. Confidence: **H** read in the code, **M** strong inference, **G** guess, **E** confirmed in the emulator. [Hardware checks](#hardware-checks) lists what to confirm with [dtpeek.py](dtpeek.py) before any mod relies on it. OS 1.53 is not mapped yet (see [OS 1.53](#os-153)).
+
+## Emulator results
+
+digidice ([sdk/drafts/digidice](../../drafts/digidice/README.md)) and a probe mod were run in digiemu v0.4.1 on OS 1.54 (report: [evidence/emulator.md](../../drafts/digidice/evidence/emulator.md)).
+
+- **E:** the trig, NOTE, VEL and LEN setters called from `ev_tick` and `ev_key` write the bytes listed under [Track data](#track-data) (flags +0x000, VEL +0x080, LEN +0x0C0, NOTE +0x280). The track's own setters notify; no extra `changed(NULL)` was needed.
+- **E:** the sequencer plays the edit at once. Voice starts and the recorded audio follow the written steps and notes, so the "mirror" question below does not affect a generator.
+- **E:** on an audio track NOTE 60 is C5 (0), no transpose. On MIDI tracks the same setters and layout work (track 9 written, track 1 unchanged).
+- **E:** the LEN index counts eighths of a step up to 4 steps (index 0–31), then quarters to 8 steps (32–47), then halves to 16 steps (48–63).
+- **E:** a key event's flags (`ev+16`) carry 1 for a press, 2 with FUNC held, 4 for a double press and 0x10 for a release. Two presses of TRIG 140 ms apart arrive as `19/1` then `19/5`; 960 ms apart, both are `19/1`. Stock OS 1.54 does nothing extra on a double press on TRIG. FUNC+YES and FUNC+NO are stock ("Prj must be re-saved!" on an unsaved project); FUNC+BANK is the metronome.
+- **Not confirmed:** the undo snapshot. The arguments in [Recommended call sequence](#recommended-call-sequence-m) (`…, 0, 0, 1`) match no stock caller; the stock ones pass `(1, 0, 1)` (CLEAR PATTERN), `(1, 1, 0)`, `(0, 1, 0)` and `(1, 0, 0)`. Runs with a snapshot hit digiemu's own OS 1.54 heap fault (stock stops the same way after CLEAR PATTERN), so the snapshot could not be judged there. digidice v1 takes none.
 
 The MAIN image loads at `0x40000400`. Every routine takes its arguments on the stack, `this` first; the result is in d0.
 

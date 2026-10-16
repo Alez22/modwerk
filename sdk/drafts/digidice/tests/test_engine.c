@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "engine.h"
+#include "../src/engine.h"
 
 static int failures, checks;
 
