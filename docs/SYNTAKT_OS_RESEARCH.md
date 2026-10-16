@@ -9,7 +9,7 @@ Tags: **[OBS]** seen in the image, **[INF]** inference from what was seen, **[PU
 | Input | Identity |
 | --- | --- |
 | `Syntakt_OS1.42.syx` (primary) | 2,572,064 bytes, SHA-256 `ded3c59fdb909eb9e2c3307b30a486452c8fa6947b12c14e0ce35a187b7f37c1`, version field `1.42`, build id `0097`, build timestamp section `2026-09-30 11:17:25` |
-| `Syntakt_OS1.40.syx` (comparison) | 2,398,240 bytes, SHA-256 `7781245917cd3b0334e85da252846c0dc81a676ec0873b735cf51d9029e88ebf`, version field `1.40`, build id `0082`, build timestamp `2026-03-03 15:33:53`. This is **1.40**, not the 1.40A file (`266a5a30…`) the machine profile lists; every 1.40A feature string is already present in it, so the two 1.40 builds are close but not proven identical [OBS/INF] |
+| `Syntakt_OS1.40.syx` (comparison) | 2,398,240 bytes, SHA-256 `7781245917cd3b0334e85da252846c0dc81a676ec0873b735cf51d9029e88ebf`, version field `1.40`, build id `0082`, build timestamp `2026-03-03 15:33:53`. This is **1.40**, not the 1.40A file (`266a5a30…`) the machine profile lists; every 1.40A feature string is already present in it; the 1.40A file arrived later and is a relinked build of the same length, surveyed in §5.1 [OBS] |
 | Main OS image 1.42 (section 3, unpacked) | 3,442,576 bytes, SHA-256 `1a9723b19fb54d0566c1f690379d2e6dfe43227f77e170ad731dd029430eb3e7` |
 | Main OS image 1.40 (section 3, unpacked) | 3,344,272 bytes, SHA-256 `847b1e539e581e226df8e705dcb8913fb686d2bc96bf1bb3a155b593b2a67d77` |
 
@@ -207,6 +207,20 @@ Not found: the frame buffer and draw path (the display DMA stream on channel 15 
 
 Candidate reserved ranges unreferenced in both releases: the SRAM tail and the image fill (§3). Candidate hook sites with identical displaced bytes in both: P1, P2, the vector filler, the image header. Sites that drift: the main-init call (target), everything inside relocated code.
 
+### 5.1 The other two releases (1.40A, 1.41): container survey only
+
+Files received after the analysis above: `Syntakt_OS1.40A.syx` (2,398,496 bytes, SHA-256 `266a5a3022ff565bf470173147b7f3005b7da8ef80724b6271836818ac2b5828`, version field reads `.40A` because the field holds four characters, build stamp `2026-04-23 11:03:03`) and `Syntakt_OS1.41.syx` (2,571,424 bytes, SHA-256 `8e2488f462c4a5656396a895f113bcd415e9900fa8709340dccf45d4cb9ed19e`, version field `1.41`, build stamp `2026-09-08 14:39:29`). Surveyed with the repository's container reader only (section hashes, image diffs, the two guard windows); no disassembly [OBS].
+
+| Item | 1.40 | 1.40A | 1.41 | 1.42 |
+| --- | --- | --- | --- | --- |
+| main OS image (section 3) | 3,344,272 B, `847b1e53…` | 3,344,272 B, `8510e477…` | 3,438,480 B, `8cf2b4b4…` | 3,442,576 B, `1a9723b1…` |
+| bootstrap (2), RAM stage (4) | `c99c81ad…`, `705ea1f2…` | same as 1.40 | `9fa34a83…`, `6c162682…` | same as 1.41 |
+| UI-MCU image (8) | absent | absent | 159,948 B, `6943b2f2…` | same as 1.41 |
+| sections 1, 6, 7 (second CPU) | identical in all four | | | |
+| P1 guard (0x400004b2, 8 B) and SP word (0x400004f4) | identical in all four (`02baba67…`, 0x48000000) | | | |
+
+Consequences. (1) **1.40A is a different build of the same length**, not 1.40 with a data fix: 2.69 MB of the 3.34 MB image differ in 231,679 ranges, most of them 1–3 bytes with no constant word delta, which is a relink with moved code. The 1.40 stock map (protected ranges, SRAM-init source data, heap descriptor, SysEx tables) therefore does not transfer to 1.40A; binding 1.40A needs its own disassembly run. The guards refuse it today, as designed. (2) 1.41 → 1.42 is likewise a relink (2.58 MB differ) with section 3 growing 4,096 bytes; the UI-MCU image and the new bootstrap and RAM stage shipped in 1.41 and are byte-identical in 1.42, so the §5 "bootstrap finding" holds for 1.41 as well. (3) The hook site and the initial stack are stable across every shipped build of this line, which strengthens the P1 choice but proves nothing about the memory map of the two unanalysed releases. Full analysis of 1.40A or 1.41 is worth doing only if the owner wants units on those releases supported without updating to 1.42; it is a rerun of the A1–A4 pipeline per release, not new research.
+
 ## 6. What hardware can enforce (A5)
 
 The main OS writes only CACR, ACR0 and VBR; it never writes the MMU base register, so the V4e MMU is off [OBS], and turning it on would change every stock access path (out of scope and unprovable here). ACR1 (data) and ACR2/ACR3 (instruction) are unused, but ACRs cover 16 MB-granular windows and the stock image shares its first 16 MB with its own initialised data and BSS, so no ACR can write-protect stock code or fence a sub-megabyte reserved region. **Hardware cannot enforce the invariants.** Residual risk, stated exactly: a stray pointer write by stock or by a mod cannot be ruled out statically, and the hardware-observed runtime page writer (L9) has no static bound.
@@ -221,7 +235,7 @@ Statically guaranteed, for a build the allocator/linker accepts: the output cont
 
 **Recommendation: reuse `elemod`.** Evidence: the Syntakt's container is the same `ELE3`/SysEx scheme with the main OS as section 3 at 0x40000400, staged at 0x40200000 and depacked in place exactly as the Digitakt profile describes; the repository's linker already implements guarded sites, whole-instruction and PC-relative checks, named claims, protected ranges, area placement and fail-closed refusals; the ColdFire family and the boot shape match. Differences the profile must carry: the appended tail lies inside the BSS-clear range, so the Syntakt core's boot hook is P1 (before the clear), not a main-init call; the device profile offers no SDRAM area until the owner's decision; `flashAt` is 0x80000 (observed) and the container limit is the 2 MB receive-buffer bound (inferred); the four CPUs/chips (main, second ColdFire, FPGAs, UI MCU) stay untouchable.
 
-The owner must decide: (1) accepting a Syntakt entry in the shared `ElemodMachine`, `ELE3_DEVICES` and `LINK_DEVICES` tables (shared builder code); (2) the SDRAM mod region: candidate B (SP relocation) or A (heap block), each after a hardware stress qualification, or neither; (3) whether the 2 MB container bound is acceptable as the flash limit until the flash geometry is read from a unit; (4) whether supporting the 1.40 file is wanted, since 1.40A is the shipped build of that line and its image was not available here (the profile's 1.40A entry stays listed but no core release binds to it).
+The owner must decide: (1) accepting a Syntakt entry in the shared `ElemodMachine`, `ELE3_DEVICES` and `LINK_DEVICES` tables (shared builder code); (2) the SDRAM mod region: candidate B (SP relocation) or A (heap block), each after a hardware stress qualification, or neither; (3) whether the 2 MB container bound is acceptable as the flash limit until the flash geometry is read from a unit; (4) whether supporting the 1.40 file is wanted, since 1.40A is the shipped build of that line and, being a relink (§5.1), needs its own analysis run before it can bind (the profile's 1.40A entry stays listed but no core release binds to it); the same applies to 1.41.
 
 ## 9. Integration plan (Stage B) and risk register
 
@@ -238,7 +252,7 @@ Deferred to owner review: the SDRAM region (A/B), events (§4.4), the second CPU
 | Risk | Likelihood | Impact | Mitigation |
 | --- | --- | --- | --- |
 | The runtime page writer (L9) also reaches a region a later core offers | medium | brick-free crash at runtime (recover by reflashing stock) | offer no SDRAM until a hardware stress run with maximum samples passes on the exact build |
-| 1.40A differs from the 1.40 file in the patched region | low (P1 identical across 1.40 and 1.42) | build refused by guard, not a crash | guards are per release hash; a 1.40A file matches no release and is refused |
+| 1.40A differs from the 1.40 file in the patched region | none at P1 (identical in 1.40, 1.40A, 1.41 and 1.42, §5.1); elsewhere it is a different build | build refused by guard, not a crash | guards are per release hash; a 1.40A file matches no release and is refused |
 | Container exceeds what the flash or the in-OS upgrade accepts | low with the 2 MB bound | upgrade refused or, worse, a partial flash | bound enforced; the first trial build should be flashed from the startup menu over DIN with stock at hand |
 | In-place depack overrun | low | hang at the logo (Synthack observed this with zero padding) | margin check on every build |
 | The boot hook runs with a stale SRAM tail | none by design | — | SRAM init precedes P1 |

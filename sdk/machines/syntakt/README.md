@@ -6,7 +6,7 @@ Status: **research, core started**. The OS files are understood and rebuilt, mod
 
 The Syntakt uses the `elemod` platform ([platform decision](../../../docs/SYNTAKT_OS_RESEARCH.md#8-platform-decision-brief)): the same `ELE3` container and SysEx transport as the Digitakt, the main OS as section 3 at 0x40000400 staged at 0x40200000, the same guarded-site linker. What differs: the appended tail lies inside the memory the OS zeroes at reset, so the core's hook is the BSS-clear entry rather than a main-initialisation call; the machine has a second ColdFire, two FPGAs and a UI MCU whose images stay byte-identical in every build.
 
-Supported releases (file and image hashes in `sdk/syntakt/core/stock-map.json`): 1.40 (the analysed file; 1.40A's image was not available and matches no release) and 1.42.
+Supported releases (file and image hashes in `sdk/syntakt/core/stock-map.json`): 1.40 (the analysed file) and 1.42. 1.40A and 1.41 are relinked builds (research report §5.1) that match no release and are refused until analysed.
 
 ## Core interface
 
