@@ -10,8 +10,8 @@ import { pageBusy } from '../community/public-announcement'
 import { browserRequestsPrivacy } from '../community/usage'
 
 // A new note needs a new id here and in server/auth.ts (OWNER_NOTE).
-const KEY = 'modwerk.owner-note:2026-10-15-beta-2'
-const WAIT = 10
+const KEY = 'modwerk.owner-note:2026-10-16-beta-3'
+const WAIT = 15
 let closedThisVisit = false
 export function ownerNoteSeen() {
   if (closedThisVisit) return true
@@ -29,7 +29,7 @@ export const diagnosticsLapsed = (preference: DiagnosticPreference, memberId: st
   preference.accountId === memberId && preference.ready && !preference.hasChoice && askForDiagnostics(preference, privacy)
 
 export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJoin: () => void; onLeave: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null), [wait, setWait] = useState(WAIT)
+  const dialog = useRef<HTMLDialogElement>(null), [wait, setWait] = useState(WAIT), [accepted, setAccepted] = useState(false)
   useEffect(() => {
     const element = dialog.current, previousFocus = document.activeElement
     element?.showModal(); element?.querySelector('h2')?.focus()
@@ -40,27 +40,29 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
     const timer = window.setTimeout(() => setWait(wait - 1), 1000)
     return () => window.clearTimeout(timer)
   }, [wait])
-  // The note stays up for a few seconds so it gets read, and then only closes through one of its two choices.
+  // The note stays up for a few seconds so it gets read, and then only closes through Leave beta or, once accepted, Join Discord.
+  const locked = !!wait || !accepted
   return <dialog ref={dialog} className="app-dialog owner-note" aria-labelledby="owner-note-title" aria-describedby="owner-note-message" onCancel={event => event.preventDefault()}>
     <header className="owner-note-head"><img src={assetUrl('modwerk-mark.svg')} width={28} height={28} alt="" /><span>Modwerk beta</span></header>
     <div className="owner-note-body">
-      <h2 id="owner-note-title" tabIndex={-1}>Hey guys,</h2>
+      <h2 id="owner-note-title" tabIndex={-1}>Hey guys, please read this before you flash</h2>
       <div id="owner-note-message">
-        <p>thanks a lot for testing the beta! To keep up with all the bugs coming in, I need every beta tester to do a few things from now on:</p>
+        <p>thanks a lot for testing the beta! Even if you've seen my last note, please read this one carefully. Everyone has to accept it before going on.</p>
+        <p className="owner-note-warning"><Icon name="warn" size={18} /><span><strong>Don't flash the beta unless you can recover without USB.</strong> A tester just reported that after flashing the beta, their Octatrack no longer connected over USB: USB DISK MODE did nothing and Chrome found no device. I don't know the cause yet. Without USB you can't reach the card from your computer, so before you flash, have a <strong>CompactFlash card reader</strong>, and ideally a <strong>MIDI interface</strong> to send Elektron's original OS .syx through the startup menu. Keep the original OS 1.40C .bin and .syx on your computer. <a href="#faq" target="_blank" rel="noreferrer">Recovery steps in the FAQ</a></span></p>
         <ul className="owner-note-asks">
-          <li><strong>Report bugs on Discord as they happen</strong> – in the <strong>#beta-tester</strong> channel, right when you run into them.</li>
+          <li><strong>Report bugs only on Discord</strong> – in the <strong>#beta-testers</strong> channel, right when you run into them. <strong>Please don't use the report forms on this site</strong> for the beta: I follow beta bugs on Discord only.</li>
           <li><strong>Use the same name on Discord as here</strong> (<strong>@{username}</strong>) – so I know who's who.</li>
           <li><strong>Share diagnostics</strong> – I'll ask you right after this note. It helps me see where a build or sync went wrong.</li>
         </ul>
-        <p>The beta is limited to 50 people, so if you're not active on Discord, I'll pass your place on to someone else.</p>
-        <p className="owner-note-warning"><Icon name="warn" size={18} /><span>This firmware is still <strong>highly experimental</strong> – but you can always roll back to the stock firmware.</span></p>
+        <p>The beta is limited to 50 people, so if you're not active on Discord, I'll pass your place on to someone else. This firmware is still <strong>highly experimental</strong>.</p>
         <p>If this doesn't work for you, you can leave the beta below.</p>
         <p className="owner-note-sign">Thank you,<br /><strong>Jannik</strong></p>
       </div>
+      <label className="risk-accept owner-note-accept"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>I've read this. I won't flash the beta without a CompactFlash card reader (ideally also a MIDI interface) at hand, and I'll report beta bugs only in #beta-testers on Discord, not on this site.</span></label>
     </div>
     <footer className="owner-note-actions">
       <button type="button" className="owner-note-close" disabled={!!wait} onClick={onLeave}>Leave beta</button>
-      <a className="button button-primary" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noopener noreferrer" aria-disabled={!!wait} onClick={event => { if (wait) event.preventDefault(); else onJoin() }} aria-label="Join Discord (opens in a new tab)"><img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />{wait ? `Join Discord (${wait})` : 'Join Discord'}</a>
+      <a className="button button-primary" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noopener noreferrer" aria-disabled={locked} onClick={event => { if (locked) event.preventDefault(); else onJoin() }} aria-label="Accept and join Discord (opens in a new tab)"><img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" />{wait ? `Accept & join Discord (${wait})` : 'Accept & join Discord'}</a>
     </footer>
   </dialog>
 }
@@ -85,7 +87,7 @@ export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
     const timer = window.setInterval(() => { if (!pageBusy()) setStep(due ? 'note' : 'diagnostics') }, 3000)
     return () => window.clearInterval(timer)
   }, [enabled, step, due, lapsed])
-  // The note counts as done once the tester joined Discord and diagnostics are on (or can't be turned on here).
+  // The note counts as done once the tester accepted it, joined Discord and diagnostics are on (or can't be turned on here).
   const done = () => { closeOwnerNote(); void post('/auth/owner-note', {}).catch(() => {}); setStep(undefined) }
   async function leave() {
     if (!window.confirm('Leave the beta? The beta modules and the Octatrack USB page go away for your account. If you want back in later, just ask me on Discord.')) return

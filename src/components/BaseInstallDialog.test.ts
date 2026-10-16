@@ -62,6 +62,8 @@ describe('resuming the first base installation', () => {
     expect(benefit.textContent).toContain('Effects load as needed, sharing one copy of their code between tracks on the same DSP core.')
     expect(benefit.querySelector('.link-feature-rest')).toBeNull()
     expect(container.textContent).toContain('Stock effects stay')
+    expect(container.querySelector('.link-needs')?.textContent).toContain('CompactFlash card reader in case USB stops working')
+    expect(container.querySelector('#base-install-intro')?.textContent).toContain('not through the report forms on this site')
   })
   it('waits through an original-OS connection and returns to the set when a base reconnects', async () => {
     waitForBaseInstall('b'.repeat(64), FAKE_BASE, undefined, 'studio')
@@ -76,6 +78,7 @@ describe('resuming the first base installation', () => {
   it('shows one task at a time and only promotes Connect after a download', async () => {
     const { onReady } = await mount('stock')
     expect(button('Connect Octatrack')).toBeUndefined()
+    expect(container.querySelector('.base-install-warning')?.textContent).toContain('Don’t flash the beta unless you can recover without the Octatrack’s USB')
     expect(container.textContent).not.toContain('Copy the file to your card')
     await act(() => container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
     await act(async () => button('Download base .bin').click())
