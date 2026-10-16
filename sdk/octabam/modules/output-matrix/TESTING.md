@@ -371,3 +371,7 @@ P on core 0 goes from 727 words of code + a 42-word table (769) to 657 + 14 (671
 - **Gate.** `verify.py` on the new build: 117/117.
 
 Not tested: hardware.
+
+## 0.1.1 over USB (16 Oct 2026, MKII)
+
+The label and the smaller core-0 code on the beta base: a RAM-booted base built from this source (identity `3e3e3de1…`, MAIN.raw `5ca0afbf…`) with the 0.1.1 package (`e2df2fbf…`). The author checked the switch into MATRIX and back to NORMAL, the always-on LEV label, CUE + LEVEL routing to MAIN, CUE, PHONES, a mono jack and OFF on a playing track, and MIX as the PHONES level: all passed. The first trial's rollback was refused once (`needs-recovery`) and completed by the base on its own. No power cycle, project or Part reload, MASTER TRACK or other modules beside it on this version. Details: [evidence/usb-hardware.md](evidence/usb-hardware.md).
