@@ -27,8 +27,8 @@ export function useBaseInstallPrompt(memberId: string | null, enabled: boolean, 
     void api<{ show: boolean }>('/auth/base-install-prompt', { signal: controller.signal }).then(result => { if (!controller.signal.aborted) setDue(result.show) }).catch(() => {})
     return () => controller.abort()
   }, [memberId, enabled])
-  // Recorded once per visit; unplugging afterwards must not bring the install prompt back.
-  useEffect(() => { if (due && (unit === 'current' || unit === 'older')) { setDue(false); void post('/auth/base-install-prompt', {}).catch(() => {}) } }, [due, unit])
+  // Recorded once per visit, idempotently; unplugging afterwards must not bring the install prompt back.
+  useEffect(() => { if (due && (unit === 'current' || unit === 'older')) void post('/auth/base-install-prompt', {}).catch(() => {}).finally(() => setDue(false)) }, [due, unit])
   const wanted = unit === 'older' || due && unit === 'none'
   useEffect(() => {
     if (!wanted || open || quiet || !enabled) return
