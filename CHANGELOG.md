@@ -1,5 +1,9 @@
 # Application changelog
 
+## 16 October 2026
+
+- Members who agreed to share diagnostics before the consent version changed to `2026-10-15.1` (#657) are asked again. The site was told they had already chosen, because the server always answered with the current version, so they shared nothing and saw no invitation. The same would have happened to everyone when their 90-day consent ran out. A new consent version also no longer deletes the reports already shared: they stay until the member stops sharing, the consent expires or a report is 30 days old, as the privacy page says. The reports shared before 16 October were deleted and can't be recovered. Stop sharing and delete stays available to anyone with an earlier choice. Checked with server and collector tests; not yet seen on the live site.
+
 ## 15 October 2026
 
 - Fixed the Octatrack beta base breaking one DSP engine when another is removed. With two of Sidechain Compressor, Output Matrix and Analog BD installed, removing one could clear a bit in the address where the other's placed engine starts (its DSP code then ran from one or more words too early), and left the removed engine marked ready without its reset. Example: Analog BD installed before Sidechain Compressor, then Sidechain removed; core 0 (tracks 5-8) jumped into Analog BD's engine one word short. The DSP receiver now looks at its ready word again before clearing the removed engine's bit. A two-engine test in the DSP interpreter fails without the fix and passes with it; the base is rebuilt (`99336d35…`). Not yet run on the unit.
