@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Icon } from './Icon'
 import { DiagnosticsInvitation } from './DiagnosticsInvitation'
 import { assetUrl } from '../hosting'
 import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
 import { api, post } from '../community/api'
 import { useCommunity } from '../community/context'
-import { diagnosticPreference, type DiagnosticPreference } from '../community/octatrack-diagnostics'
+import { diagnosticPreference, subscribeDiagnosticPreference, type DiagnosticPreference } from '../community/octatrack-diagnostics'
 import { pageBusy } from '../community/public-announcement'
 import { browserRequestsPrivacy } from '../community/usage'
 
@@ -23,6 +23,10 @@ export function closeOwnerNote() {
 }
 /** The required diagnostics step follows the note, even if the invitation was dismissed before, unless sharing is already on or impossible here. */
 export const askForDiagnostics = (preference: DiagnosticPreference, privacy: boolean) => preference.available && !preference.enabled && !privacy
+/** A tester past the note whose consent predates the current version (#657 reset everyone's) shares nothing until asked again.
+ * One who turned sharing off under the current version made that choice; it isn't asked here. */
+export const diagnosticsLapsed = (preference: DiagnosticPreference, memberId: string, privacy: boolean) =>
+  preference.accountId === memberId && preference.ready && !preference.hasChoice && askForDiagnostics(preference, privacy)
 
 export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJoin: () => void; onLeave: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), [wait, setWait] = useState(WAIT)
@@ -61,7 +65,8 @@ export function OwnerNote({ username, onJoin, onLeave }: { username: string; onJ
   </dialog>
 }
 
-/** Beta testers only (App.tsx), on every device until they join Discord and share diagnostics; opens when no other dialog, menu or text field is in use. */
+/** Beta testers only (App.tsx), on every device until they join Discord and share diagnostics; opens when no other dialog, menu or text field is in use.
+ * After a new consent version, the required diagnostics step comes back on its own. */
 export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
   const { session, refresh } = useCommunity(), memberId = session.user!.id
   const [step, setStep] = useState<'note' | 'diagnostics'>(), [serverDue, setServerDue] = useState<boolean>()
@@ -72,12 +77,14 @@ export function OwnerNoteGate({ enabled }: { enabled: boolean }) {
     void api<{ show: boolean }>('/auth/owner-note', { signal: controller.signal }).then(result => { if (!controller.signal.aborted) setServerDue(result.show) }).catch(() => { if (!controller.signal.aborted) setServerDue(true) })
     return () => controller.abort()
   }, [memberId])
+  const preference = useSyncExternalStore(subscribeDiagnosticPreference, diagnosticPreference, diagnosticPreference)
   const due = serverDue === true && !ownerNoteSeen()
+  const lapsed = !due && (ownerNoteSeen() || serverDue === false) && diagnosticsLapsed(preference, memberId, browserRequestsPrivacy())
   useEffect(() => {
-    if (!enabled || step || !due) return
-    const timer = window.setInterval(() => { if (!pageBusy()) setStep('note') }, 3000)
+    if (!enabled || step || !due && !lapsed) return
+    const timer = window.setInterval(() => { if (!pageBusy()) setStep(due ? 'note' : 'diagnostics') }, 3000)
     return () => window.clearInterval(timer)
-  }, [enabled, step, due])
+  }, [enabled, step, due, lapsed])
   // The note counts as done once the tester joined Discord and diagnostics are on (or can't be turned on here).
   const done = () => { closeOwnerNote(); void post('/auth/owner-note', {}).catch(() => {}); setStep(undefined) }
   async function leave() {

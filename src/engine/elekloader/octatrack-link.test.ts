@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
 import { removalPackage } from './module-set'
-import { LinkBusyError, OctatrackLink, tabLocks } from './octatrack-link'
+import { LinkBusyError, OctatrackLink, openFailure, tabLocks } from './octatrack-link'
 import { UploadUnconfirmedError } from './upload-session'
 import { UsbVendorTransport } from './upload-usb'
 
@@ -46,6 +46,12 @@ describe('finding the unit', () => {
     const cancelled=expect(reading).rejects.toBeInstanceOf(LinkBusyError)
     await settle();allowed=false;controller.abort();complete();await cancelled
     expect(transfer).not.toHaveBeenCalled();expect(release).toHaveBeenCalledTimes(1)
+  })
+  it('says why the unit can’t be opened where a retry alone won’t help', () => {
+    expect(openFailure('Mozilla/5.0 (X11; Linux x86_64) Chrome/141.0')).toContain('Can’t connect? in Setup')
+    expect(openFailure('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0')).toContain('install the base from the card first')
+    expect(openFailure('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/141.0')).toBe('Chrome couldn’t open the Octatrack. Unplug it, plug it back in and try again.')
+    expect(openFailure('Mozilla/5.0 (Linux; Android 15) Chrome/141.0')).toContain('Unplug it')
   })
   it('reports a browser without WebUSB instead of offering a dead button', () => {
     expect(new OctatrackLink(undefined).getState().status).toBe('unsupported')

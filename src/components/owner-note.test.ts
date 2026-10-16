@@ -29,6 +29,17 @@ describe('beta tester note', () => {
     expect(askForDiagnostics(preference, true)).toBe(false)
   })
 
+  it('asks again after a new consent version, but not a tester who turned sharing off under the current one', async () => {
+    const { diagnosticsLapsed } = await import('./OwnerNote')
+    const preference = { accountId: 'm1', ready: true, available: true, enabled: false, hasChoice: false } as DiagnosticPreference
+    expect(diagnosticsLapsed(preference, 'm1', false)).toBe(true)
+    expect(diagnosticsLapsed({ ...preference, hasChoice: true }, 'm1', false)).toBe(false)
+    expect(diagnosticsLapsed({ ...preference, enabled: true }, 'm1', false)).toBe(false)
+    expect(diagnosticsLapsed({ ...preference, ready: false }, 'm1', false)).toBe(false)
+    expect(diagnosticsLapsed(preference, 'm2', false)).toBe(false)
+    expect(diagnosticsLapsed(preference, 'm1', true)).toBe(false)
+  })
+
   it('shows once per browser, and once per visit when storage is blocked', async () => {
     const storage = new Map<string, string>()
     vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) })
