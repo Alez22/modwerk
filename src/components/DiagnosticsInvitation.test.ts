@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DiagnosticsInvitation, DiagnosticsInvitationGate } from './DiagnosticsInvitation'
 import type { LinkState, OctatrackLink } from '../engine/elekloader/octatrack-link'
 const mocked = vi.hoisted(() => ({
-  state: { accountId: 'member' as string | null, available: true, enabled: false, ready: true, busy: false, error: '', notice: '', hasChoice: false, lastSent: null },
+  state: { accountId: 'member' as string | null, available: true, enabled: false, ready: true, busy: false, error: '', notice: '', hasChoice: false, saved: false, lastSent: null },
   listeners: new Set<() => void>(), share: vi.fn(), privacy: false,
 }))
 vi.mock('../community/octatrack-diagnostics', () => ({
@@ -23,7 +23,7 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0))
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); mocked.privacy = false
   linkState = { status: 'ready', identity }; linkListeners.clear()
-  mocked.state = { accountId: 'member', available: true, enabled: false, ready: true, busy: false, error: '', notice: '', hasChoice: false, lastSent: null }
+  mocked.state = { accountId: 'member', available: true, enabled: false, ready: true, busy: false, error: '', notice: '', hasChoice: false, saved: false, lastSent: null }
   mocked.share.mockResolvedValue(true); localStorage.clear()
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
