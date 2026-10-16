@@ -3,7 +3,7 @@
   "id": "output-matrix",
   "key": "OUTPUT MATRIX",
   "name": "Output Matrix",
-  "version": "0.1.0-experimental",
+  "version": "0.1.1-experimental",
   "category": "system",
   "author": {
     "github": "npp1993",
@@ -38,7 +38,7 @@
     ],
     "limitations": [
       "Builds with the stock DSP code built in and takes a given-up stock effect's program memory on core 0. The builder chooses it: SPRING REV first, then PLATE REV or DARK REV when other modules also need room. The given-up effect leaves the FX2 menu.",
-      "The MATRIX mixdown costs core 0 up to about 210 more instructions per sample than stock (every track on ALL, MASTER on, bus levels moving); every track on MAIN adds about 20.",
+      "The MATRIX mixdown costs core 0 up to about 208 more instructions per sample than stock (every track on ALL, MASTER on, bus levels moving); every track on MAIN adds about 20.",
       "Switching to or from MATRIX rewrites every Part's LEVEL and cue bytes (and, into NORMAL, the project's cue settings) by documented rules; save to keep it.",
       "A MATRIX project opened on a stock OS loads as STUDIO with tiny cue levels; switch to NORMAL or STUDIO before flashing another OS.",
       "Changes core 0's mixdown and headphone crossfade; other modules that hook those sites are refused by the ledger.",
@@ -50,20 +50,20 @@
     "recorded": "Measured in the ColdFire port (instructions) and from the build report",
     "storage": {
       "label": "Memory",
-      "display": "1,610 B DRAM + 769 DSP P words + 193 DSP Y words",
-      "value": 4496,
+      "display": "1,678 B DRAM + 671 DSP P words + 193 DSP Y words",
+      "value": 4270,
       "unit": "bytes",
       "method": "static",
-      "conditions": "ColdFire unit .text 1,464 B and .data 146 B (runtime ELF); DSP P code 727 words and a 42-word table in SPRING REV's harvested span on core 0; DSP Y $c00..$cc0. No per-track copies, no audio buffers.",
+      "conditions": "ColdFire unit .text 1,532 B and .data 146 B (m68k-elf-as section sizes of matrix.s); DSP P code 657 words and a 14-word table in SPRING REV's harvested span on core 0 (727 + 42 before 0.1.1); DSP Y $c00..$cc0. No per-track copies, no audio buffers.",
       "source": "TESTING.md"
     },
     "processing": {
       "label": "DSP core 0 mixdown",
-      "display": "≤ 277 instructions/sample (stock 67)",
-      "value": 277,
+      "display": "≤ 275 instructions/sample (stock 67)",
+      "value": 275,
       "unit": "instructions/sample",
       "method": "emulator",
-      "conditions": "Executed instructions of the mixdown (P:$257..$2d5) and headphone crossfade (P:$30a..$35a) per 16-sample frame, every track on ALL, MASTER on, MAIN/CUE/PHONES levels moving, including the frame that rebuilds the routing lists: 4,240 + 192 per frame (4,336 before the 12-word trim, TESTING.md). Stock: 880 + 191. Cycles and bus stalls are not modelled.",
+      "conditions": "Executed instructions of the mixdown (P:$257..$2d5) and headphone crossfade (P:$30a..$35a) per 16-sample frame, every track on ALL, MASTER on, MAIN/CUE/PHONES levels moving, including the frame that rebuilds the routing lists: 4,194 + 192 per frame, rounded up per sample (0.1.0: 4,240 + 192; 4,336 before the 12-word trim, TESTING.md). Stock: 880 + 191. Cycles and bus stalls are not modelled.",
       "source": "TESTING.md"
     },
     "impact": {
@@ -77,13 +77,13 @@
       "dsp": {
         "level": "low",
         "basis": "measured-comparison",
-        "rationale": "Up to about 210 extra instructions per sample on core 0 (about 7% of 3,120); about 20 with every track on MAIN.",
+        "rationale": "Up to about 208 extra instructions per sample on core 0 (about 7% of 3,120); about 20 with every track on MAIN.",
         "source": "TESTING.md"
       },
       "memory": {
         "level": "low",
         "basis": "measured-comparison",
-        "rationale": "1,610 bytes of DRAM code and data, 769 DSP program words reused from SPRING REV and 193 DSP Y words.",
+        "rationale": "1,678 bytes of DRAM code and data, 671 DSP program words reused from SPRING REV and 193 DSP Y words.",
         "source": "TESTING.md"
       }
     }
