@@ -18,6 +18,13 @@ export function diagnosticReading(record: SelftestRecord): DiagnosticReading {
 }
 
 export const ELEKTRON_VENDOR_ID = 0x1935
+/** Where a retry alone won't help: Linux needs a udev rule, and Windows binds WinUSB only to the base's interface
+ * (docs/OCTATRACK_HARDWARE_TRAPS.md, USB and EP0), so a unit on the original OS can't be opened there at all. */
+export function openFailure(agent = typeof navigator === 'undefined' ? '' : navigator.userAgent) {
+  const why = /Windows/.test(agent) ? ' On Windows that works only once it runs the Modwerk base: with the original OS, install the base from the card first.'
+    : /Linux/.test(agent) && !/Android/.test(agent) ? ' On Linux, Chrome needs permission first: see Can’t connect? in Setup.' : ''
+  return 'Chrome couldn’t open the Octatrack.' + (why || ' Unplug it, plug it back in and try again.')
+}
 /** Well inside the base's 10 s quiet limit (sdk/runtime/upload/vendor.c mv_tick); any vendor request counts. */
 const KEEPALIVE_MS = 1000
 /** Asked while playing, the base presses STOP itself and answers `unsafe` that once; ask again until it has stopped. */
@@ -254,7 +261,7 @@ export class OctatrackLink {
       if (connection !== this.connection) { if (device.opened) await device.close().catch(() => {}); return }
       console.error(error)
       this.device = undefined
-      this.set({ status: 'idle', notice: { tone: 'error', text: 'Chrome couldn’t open the Octatrack. Unplug it, plug it back in and try again.' } })
+      this.set({ status: 'idle', notice: { tone: 'error', text: openFailure() } })
     }
   }
   /** Claimed only while talking, so other tabs and `npm run device` can use the unit in between. */

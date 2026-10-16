@@ -1,5 +1,10 @@
 # Application changelog
 
+## 16 October 2026
+
+- Beta testers are asked to share diagnostics again after a new consent version. The note that requires it showed once per account, so testers who went through it before the consent version changed to `2026-10-15.1` (#657) shared nothing afterwards: their records were deleted with the old version and only the optional invitation came back, after a USB connection. On 16 October the pull held 0 records against 22 syncs the day before. Now a beta tester whose consent isn't for the current version gets the required step again on any page (Share diagnostics or Leave beta). A tester who turned sharing off under the current version isn't asked. Checked with unit tests; not yet seen on the live site.
+- When Chrome can't open the Octatrack, the message now says why on Linux and Windows instead of only "unplug it and try again" (reported on Discord: an MKI on Chromium/Ubuntu and on Chrome/Windows). On Linux, Chrome needs a udev rule, now shown with the commands under Setup → Can't connect?, and Chromium from the Snap Store also needs its `raw-usb` connection. On Windows the Octatrack can be opened only once it runs the Modwerk base, because Windows binds WinUSB only to the base's interface. Checked with unit tests; the rule and the snap step have not been run on a Linux computer here, and neither has a Windows connection with the original OS.
+
 ## 15 October 2026
 
 - Fixed the Octatrack beta base breaking one DSP engine when another is removed. With two of Sidechain Compressor, Output Matrix and Analog BD installed, removing one could clear a bit in the address where the other's placed engine starts (its DSP code then ran from one or more words too early), and left the removed engine marked ready without its reset. Example: Analog BD installed before Sidechain Compressor, then Sidechain removed; core 0 (tracks 5-8) jumped into Analog BD's engine one word short. The DSP receiver now looks at its ready word again before clearing the removed engine's bit. A two-engine test in the DSP interpreter fails without the fix and passes with it; the base is rebuilt (`99336d35…`). Not yet run on the unit.
