@@ -1296,7 +1296,7 @@
       "caveLimit": 1074625596
     }
   ],
-  "sourceCommit": "e61274dd6e20304fb5b71d3320c4746f4af7ebeb",
+  "sourceCommit": "1ba324004b56b0a051b8f01d06c41f39bb08626b",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -1307,7 +1307,7 @@
     "repitch": "0.2.0-experimental",
     "tapehead": "0.1.2-experimental",
     "airwindows-chorus": "0.1.2-experimental",
-    "everb": "0.1.1-experimental",
+    "everb": "0.1.2-experimental",
     "bbd": "0.1.1-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",

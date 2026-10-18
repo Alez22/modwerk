@@ -104,7 +104,13 @@ python3 modules/everb/perf.py stress <out> --seconds 2       # the stress run (a
 == everb: all gates pass
 ```
 
-PACKAGES
+Packages: compiled from the source commit in the pinned network-free toolchain (`scripts/build-modules-isolated.sh`) and
+imported; they differ from main only in E-Verb's version, its DSP code and source provenance. The USB runtime package is
+rebuilt for 0.1.2 and declares 15,870 buffer words. `npm run module:verify -- everb`: 126 selections, 42 matching
+module-owned images (20 identical outright, 22 outside platform writes), 84 matching refusals, zero mismatches; E-Verb
+with Sidechain Compressor builds with and without the stock FX2 effects. No selection that 0.1.1's record shares changed
+between built and refused, and every DSP-space refusal overruns by 61 words or more, so none comes from the 14 added
+words. The Analog BD composition proofs, re-exported natively, are identical apart from their source-tree pin.
 
 **Gate limits found while preparing 0.1.2.** These belong to 0.1.1's gates and are unchanged; they are recorded so the
 next change does not read them as regressions.
