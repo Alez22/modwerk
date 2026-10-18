@@ -1449,7 +1449,8 @@ for 2.5 turns of the ring, with REV off and on and at full cyclic depth: 0.1.1
 writes all 514 words, 0.1.2 writes none, its frame loop reaches the last ring
 word, and it renders bit-identically with the window filled. Every tested
 setting with PRE at 123 or below renders bit-identically to 0.1.1, and the
-other 27 gates print 0.1.1's output except PRE 127's onset. The matched
+other 27 gates print 0.1.1's output except the placement lines and PRE 127's
+onset. The matched
 benchmark reproduces 0.1.1's figures; the per-call bound is still 47,680
 modeled cycles per core per block.
 

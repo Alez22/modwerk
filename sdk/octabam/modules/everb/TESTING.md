@@ -63,7 +63,7 @@ python3 modules/everb/perf.py stress <out> --seconds 2       # the stress run (a
 | `verify.py` window: Sidechain's window words written on T7 (Y:$30000) and T3 (Y:$38000), at REV off and on with DPTH +63 and at DPTH −64, 5,000 blocks of loud noise at SIZE 127, PRE 127, DCY 100 (2.5 ring turns) | FAIL: 514 of 514 in all six runs | PASS: 0 of 514; +$3DFD holds audio, so the frame loop reaches the boundary |
 | the same with the window and +$3DFD filled with 0x5a5a5a first: output against the unfilled run | identical (its clear wipes the window first) | identical: the window is never read |
 | against 0.1.1: 18 renders (six static settings, moving knobs on all eleven, on SIZE/DPTH/SPD and on PRE/REV, each unsplit and split 5) | | bit-identical in the 10 with PRE at 123 or below (the defaults, PRE 0, moving SIZE/DPTH/SPD); the 8 others set PRE 127 or move it through 124–127 |
-| `verify.py` | 27 gates pass | 28 gates pass: the 27 with output identical to 0.1.1's except PRE 127's onset (228.12 ms, pre-delay 227.12), and window |
+| `verify.py` | 27 gates pass | 28 gates pass: the 27 with output identical to 0.1.1's except the two placement lines (1,602 words, 435 free) and PRE 127's onset (228.12 ms, pre-delay 227.12), and window |
 | `func_stops.py` on the image | every knob 0, 64, 127 | the same, all eight checks pass |
 | `perf.py bench`: E-Verb worst unsplit / with splits; SPRING REV, DARK REV, PLATE REV, DJ EQ | 375.81 / 381.69; 314.19, 242.38, 218.25, 330.94 | identical |
 | `perf.py stress`: eight instances behind DJ EQ, LFOs, locks, splits, `-guard -dirty` | 32 s on 0.1.0: no hang, 0 stray, 0 clobbers, peak 2806.0 / 2793.6 | 2 s (2.8 ring turns): no hang, 0 stray, 0 clobbers, peak 2803.6 / 2792.6 |
@@ -118,16 +118,19 @@ next change does not read them as regressions.
 - *Zipper.* The census reads one alignment. A knob change waits for its knob group (one of four, refreshed in turn), so
   where an event falls in that four-block cycle, and the tone's phase there, decide what one render sees. Over 16
   alignments (events 0–3 blocks later × tone phase 0, 1/8, 1/4, 3/8 of a cycle), 0.1.1 flags SIZE 20↔110 with the
-  modulation off at 4 (worst −59 dBFS), SPD at DPTH 32 at 6 (−61) and SIZE at DPTH 100 at 2 (−61). Two control builds,
-  made on the first draft's source, show what the census can and cannot catch. One refreshes SIZE's glide slope only
-  every fourth block, the zipper TESTING.md describes for an earlier build, reads −140
-  at the gate's alignment and flags at 8 of 16 (−56): the gate does not guard SIZE's slope refresh. SIZE's two-stage glide
-  is refreshed on every call by construction (`generate.py`, before the split test). A control with DCY, ABSB and PRE
-  landing on their target at their group's block instead of gliding flags PRE at 16 of 16 and ABSB at 13; DCY stays under
-  the limit (−76 dBFS).
+  modulation off at 4 (worst −59 dBFS), SPD at DPTH 32 at 6 (−61) and SIZE at DPTH 100 at 2 (−61); 0.1.2 gives the same
+  counts. Two control builds on the 0.1.2 source show what the gate catches:
+  - SIZE's glide slope refreshed only every fourth block (the zipper TESTING.md describes for an earlier build): the gate
+    fails it at its own alignment (SIZE up −66, down −63 dBFS), but over 16 alignments SIZE flags at only 7 and SIZE at
+    DPTH 100 at 5 (the local review's runs), so the catch depends on the alignment. SIZE's two-stage glide is refreshed
+    on every call by construction (`generate.py`, before the split test).
+  - DCY, ABSB and PRE landing on their target at their group's block instead of gliding: the gate fails on ABSB (down
+    −61 dBFS); PRE reads −140 at the gate's alignment and DCY stays under the limit (−78 and −85). Over 16 alignments PRE
+    flags at 14, ABSB at 12 and DCY at none (the local review's runs): unsmoothed PRE escapes the gate's own alignment.
 - *DPTH locks.* The ratio of the largest step while locking to the largest held is a ratio of two maxima over noise. Over
   8 noise seeds at the gate's nine settings it reaches +3.3 dB on 0.1.1 at seed 34, past the 1.25× limit (+1.9 dB).
-  Without the read floor, the bug the gate was written for, it reaches +18.7 to +19.9 dB.
+  Without the read floor, the bug the gate was written for, the gate fails at its own seed: +20.2 dB at SPD 0, SIZE 127
+  (0.2 against −20.0 dBFS), +17.6 at SPD 64, SIZE 127 and +11.8 at SPD 0, SIZE 64.
 
 **Sound audit**, repeated on the 0.1.2 image the way "Sound quality" below describes (the method reproduces 0.1.1's
 tables there exactly). At the defaults (PRE 25) the table is byte-identical to 0.1.1's. At the dearest settings, which
