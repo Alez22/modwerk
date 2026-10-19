@@ -95,8 +95,9 @@ export async function authentication(request:Request,env:Env,path:string):Promis
   return response({ok:true})
  }
  if(path==='/api/auth/build-access'&&request.method==='POST'){
-  const member=needMember(await accountUser(request,env,db)),body=await jsonBody(request)
-  const betaAccess=memberBetaAccess(member)||await isAdmin(request,env,db)
+  // Guests can build too; beta-only modules still need a verified beta member.
+  const user=await accountUser(request,env,db),body=await jsonBody(request)
+  const betaAccess=(!!user&&memberBetaAccess(user))||await isAdmin(request,env,db)
   if(body.moduleIds!==undefined){
    if(!Array.isArray(body.moduleIds)||body.moduleIds.length>64||!body.moduleIds.every(id=>typeof id==='string'))throw new HttpError(400,'Choose valid module IDs.')
    let error:string
