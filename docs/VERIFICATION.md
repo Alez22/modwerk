@@ -1460,6 +1460,39 @@ E-Verb is in none of them.
 No hardware result exists for 0.1.1; the owner's MKII report covers 0.1.0.
 Publication needs the owner's approval of this exact source.
 
+## E-Verb ring clear of Sidechain's key window — 18 October 2026
+
+E-Verb 0.1.2-experimental answers #696. Sidechain Compressor keeps its
+cross-core key window in the last 514 words of the bank-track-3 FX2 slots
+(T7 and T3), and E-Verb's ring was modulo 16,384: on those tracks it wrote and
+read the whole window, and Sidechain's tap wrote into its delay lines. The ring
+now wraps at 15,870 words (m4 = m5 = `$3dfd`; the FX2 slot bases are
+16K-aligned), and the start-up clear stays inside it while keeping 0.1.1's
+128 dry calls. The 499 words come off the top of the pre-delay: PRE keeps its
+law and is clamped at 227 ms, so PRE 124 to 127 change (they rose to 250 ms).
+The native manifest and the runtime package declare 15,870 buffer words.
+
+A new render gate marks the window on both cores and runs the dearest settings
+for 2.5 turns of the ring, with REV off and on and at full cyclic depth: 0.1.1
+writes all 514 words, 0.1.2 writes none, its frame loop reaches the last ring
+word, and it renders bit-identically with the window filled. Every tested
+setting with PRE at 123 or below renders bit-identically to 0.1.1, and the
+other 27 gates print 0.1.1's output except the placement lines and PRE 127's
+onset. The matched
+benchmark reproduces 0.1.1's figures; the per-call bound is still 47,680
+modeled cycles per core per block.
+
+The native/browser matrix has 126 selections: 42 matching module-owned images
+(20 identical outright, 22 outside platform writes), 84 matching refusals and
+zero mismatches. E-Verb with Sidechain Compressor builds with and without the
+stock FX2 effects. No selection shared with 0.1.1's record changed between
+built and refused, and every DSP-space refusal overruns by 61 words or more, so
+none comes from the 14 added program words. The Analog BD composition proofs,
+re-exported natively, are identical apart from the source-tree pin.
+
+No hardware result exists for 0.1.1 or 0.1.2; the owner's MKII report covers
+0.1.0. Publication needs the owner's approval of this exact source.
+
 ## Mini Verb DSP cost — 13 October 2026
 
 Mini Verb 0.2.2-experimental removes two coefficient reloads that loaded the
