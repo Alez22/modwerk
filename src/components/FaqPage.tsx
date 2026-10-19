@@ -308,7 +308,7 @@ const SEARCH_TEXT = new Map(SECTIONS.flatMap(section => section.questions.map(qu
   (section.title + ' ' + question.title + ' ' + question.keywords + ' ' + answerText(question.answer)).toLowerCase(),
 ])))
 
-export function FaqPage({ previewGuide = false }: { previewGuide?: boolean }) {
+export function FaqPage({ previewGuide = false, open }: { previewGuide?: boolean; open?: string }) {
   const [query, setQuery] = useState('')
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
   const searching = terms.length > 0
@@ -332,7 +332,7 @@ export function FaqPage({ previewGuide = false }: { previewGuide?: boolean }) {
     {searching && <p className="faq-results" role="status">{count} {count === 1 ? 'answer' : 'answers'} found</p>}
     {sections.map(section => <section className="faq-section" key={section.title} aria-label={section.title}>
       <h2>{section.title}</h2>
-      <div className="faq-questions">{section.questions.map(question => <details className="faq-question" key={question.id + (searching ? '-search' : '')} open={previewGuide || searching || question.id === 'base-firmware'}>
+      <div className="faq-questions">{section.questions.map(question => <details className="faq-question" key={question.id + (searching ? '-search' : '')} open={previewGuide || searching || question.id === 'base-firmware' || question.id === open} id={'faq-' + question.id}>
         <summary>{question.title}<Icon name="plus" size={17} /></summary>
         <div className="faq-answer">{question.answer}</div>
       </details>)}</div>
