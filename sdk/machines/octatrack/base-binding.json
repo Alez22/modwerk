@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "identity": "3e3e3de1f350781b0d5b91736f77e7f3753ac9987f499cc83b32cd02568a36fc",
+ "identity": "9280d48412eb0017c7cf8bc81ac0eadbb85f610dcf133175d52899c75ae916ca",
  "arena": 1088568800,
- "pool": 1086625872,
+ "pool": 1086626384,
  "symbols": {
   "modwerk_controller_write_begin": 1084865596,
   "modwerk_controller_write_end": 1084865624,
-  "modwerk_cue_cfg_clamp": 1085022008,
-  "modwerk_raise_ev_mute_keep": 1085024094
+  "modwerk_cue_cfg_clamp": 1085022520,
+  "modwerk_raise_ev_mute_keep": 1085024606
  },
  "controllers": {
   "sidechain-compressor": "fdfddb9d93a28c2c8d8c83a9c430dab1a09f0df2e416a24a4b37c7e23d6f5227",
