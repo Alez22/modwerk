@@ -434,6 +434,31 @@ enumerated on the Mac: no Elektron device at all, not a dead bridge handle.
 Only a power cycle brought USB back. The same image had RAM-booted cleanly
 before and did again after.
 
+## ColdFire and DSP load
+
+Measured with `stats` on the owner's MKII, dev twin `82b9bef4`, 19 October
+2026, in a scratch project (trigs on T1-T5). The ColdFire figure moves by
+several points with the page on screen, so compare only readings taken on the
+same page.
+
+- **Bare base:** about 42-47 % CPU, nothing installed. No stock-OS reference
+  has been measured on this unit yet.
+- **ColdFire cost of an installed module**, from removing modules one at a time
+  with nothing in use:
+  - FM Synth: about 8 points while installed, even when no track uses it, and
+    about 5 more while a track plays it.
+  - Repitch: about 2 points.
+  - BBD, Tape Echo, TapeHead, E-Verb, Mini Verb: 0.5 points or less each.
+  - Air Chorus: within noise.
+- **DSP cost of a module effect** is on its core: BBD picked on T6 took core
+  T5-8 from about 44 % to 54 %, with no ColdFire change.
+- **DSP FULL:** with FM Synth on T1 and Mini Verb, E-Verb and Tape Echo on
+  T2/T3/T5, TapeHead on T4 and Air Chorus on T8 were refused.
+- **Testers' layout** (FM Synth plus four module effects, a tester's
+  "sluggish knobs" report): about 65 % CPU stopped, about 73 % playing. The
+  unit's own log shows a 100 % peak in every five-minute window, as testers'
+  logs do even on the bare base.
+
 ## The emulator and the tools
 
 What `ot_emu` does not show:
