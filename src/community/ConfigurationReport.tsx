@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Icon } from '../components/Icon'
 import { DEVICES_BY_ID } from '../devices/registry'
 import { post } from './api'
-import { BugReportSuccess } from './BugReportNotice'
+import { BetaReportReminder, BugReportSuccess } from './BugReportNotice'
 import { catalogModules, configurationSummary } from './configuration-report'
 import { useCommunity } from './context'
 import { FLASH_STATES, OT_MODELS, type FlashState, type IssueContext, type OtModel } from './issue-context'
@@ -78,6 +78,7 @@ export function ConfigurationReportDialog({ machine, configurationId, onClose }:
       <footer className="configuration-report-footer"><div className="dialog-actions"><button type="button" className="button button-primary" onClick={onClose}>Close</button></div></footer>
     </> : !session.user?.verified ? <div className="configuration-report-body"><MemberPrompt /></div> : <form className="community-form configuration-report-form" aria-busy={busy} onSubmit={event => void send(event)}>
       <div className="configuration-report-body">
+        <BetaReportReminder />
         <p className="configuration-report-intro">For a problem in the combination, or when you do not know which module is to blame. If one module clearly misbehaves, report it on that module’s page.</p>
         <section className="configuration-report-config" aria-label="Configuration">
           <div className="configuration-report-config-head"><span>Configuration</span><strong>{file.log ? 'Read from ' + OT_LOG_NAME : resolved.name || 'Not saved'}</strong><small>{count}</small></div>

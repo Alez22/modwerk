@@ -467,7 +467,8 @@ export default function App() {
       {reportingConfiguration && <ConfigurationReportDialog machine={reportingConfiguration.machine} configurationId={reportingConfiguration.id} onClose={() => setReportingConfiguration(null)} />}
       {configDialog && <ConfigurationDialog mode={configDialog} initialName={configDialog === 'create' ? '' : configDialog === 'duplicate' ? (machineActive?.name ?? '') + ' copy' : machineActive?.name ?? ''} onSubmit={submitConfigurationDialog} onClose={() => { setConfigDialog(null); setCreateDevice(null) }} />}
       <PublicAnnouncement next={route} enabled={newsEnabled} />
-      {betaAccess && <Suspense fallback={null}><OwnerNoteGate key={session.user!.id} enabled={newsEnabled} /></Suspense>}
+      {/* The beta note is required: everywhere but the pages it and the diagnostics step link to, and the account (export, deletion). */}
+      {betaAccess && <Suspense fallback={null}><OwnerNoteGate key={session.user!.id} enabled={!accountRoute && !['faq', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route)} /></Suspense>}
       {import.meta.env.DEV && usbPreview === 'beta-note' && <Suspense fallback={null}><OwnerNotePreview /></Suspense>}
       <Suspense fallback={null}>
       {usbLink && !hubRoute && !loadingTarget && <OctatrackActivity link={usbLink}/>}

@@ -356,7 +356,7 @@
     "order": 60,
     "name": "Syntakt",
     "status": "research",
-    "summary": "OS 1.40, 1.40A and 1.42 files documented and rebuilt byte-identical; modified builds boot on a unit. Core started: a boot probe links and verifies locally; no SDRAM for mods is proven yet.",
+    "summary": "OS 1.40, 1.40A and 1.42 documented; 1.40A and 1.42 rebuilt byte-identical; modified builds boot on a unit. Core started: a boot probe links and verifies locally; no SDRAM for mods yet.",
     "steps": {
       "format": "done",
       "rebuild": "done",

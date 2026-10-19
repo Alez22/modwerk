@@ -46,4 +46,4 @@ It links the probe into the owner's stock file, runs the checker, rebuilds the c
 1. Register the Syntakt in the shared linker and container tables.
 2. Choose and qualify an SDRAM region for mods: the SP-relocated top window (a 4-byte data patch at 0x400004f4) or a heap block taken at initialisation.
 3. Accept the 2 MB container bound as the flash limit until the flash geometry is read from a unit.
-4. Keep the analysed 1.40 file as a supported release beside 1.40A (whose image was not available) or drop it.
+4. Keep the analysed 1.40 file as a supported release beside 1.40A (surveyed at container level only, [research report §5.1](../../../docs/SYNTAKT_OS_RESEARCH.md)) or drop it.
