@@ -1310,7 +1310,7 @@
           "name": "MIX",
           "default": 127,
           "count": 128,
-          "doc": "Dry/wet; zero is exact passthrough",
+          "doc": "Dry/wet; zero is exact passthrough, 127 fully wet (the input through the pulsed filter or amp)",
           "labels": null
         }
       ],
@@ -3571,6 +3571,7 @@
         "limitations": [
           "Output only, fixed 44.1 kHz / 24-bit; USB input and Crossbar variants are excluded.",
           "One audio layout per build; shared USB MIDI is included.",
+          "Like every DRAM module, gives up about 10 MB of sample memory: projects that filled Flex/recorder memory can show OUT OF MEMORY. Shorten recorder reservations or load long samples into Static (#433).",
           "Outbox assignments are a plan and must be applied in Elektron’s Outbox app.",
           "At full speed, track feeds fall back to a stereo sum and Main + Cue to Main.",
           "Post-LEVEL tracks exclude MAIN LEVEL and master effects on tracks 1–7. With a master track, tracks 1–7 lead track 8 by 32 samples.",
@@ -4136,6 +4137,8 @@
         "limitations": [
           "Parts store stock FLEX kind 1 plus FM/1 in unused NEIGHBOR control bytes. A stock build reads the track as FLEX; it does not synthesize FM. Choose stock explicitly before downgrading.",
           "LFO3 speed/depth become VOIC/CHRD; LFO3 depth is muted. ATK/HOLD/REL remain inherited stock AMP controls and drive the synth’s own envelope.",
+          "ATK 0 with a short HOLD or REL starts and stops each voice abruptly and can click; raise ATK a few steps or lengthen REL (#557).",
+          "LFO1/LFO2 destinations keep FLEX's names: STRT is RATO, LEN is INDX, RATE is FINE, RTRG is FDBK, RTIM is DEC (#589). Whether LFOs on them change the FM sound is not tested.",
           "The matching quantizer is bundled privately because the engine shares its mailbox and fixed scale accessor. Do not also select the public Scale Quantizer.",
           "Cannot combine with Analog BD or the public Scale Quantizer because their native hooks overlap. Compatible mixed builds have native/browser byte-parity evidence; mixed audio loads have not been stress-tested.",
           "MIDI selector recovery and one-track mono/four-voice playback are emulator-tested. External MIDI note/CC traffic, saved project/Part reloads, legato, modulation, maximum simultaneous tracks and hardware timing remain unqualified.",
@@ -5540,7 +5543,8 @@
           "The DRAM loader reserves 1,707 audio pages (10,487,808 bytes) shared across DRAM modules.",
           "ColdFire resource pricing is a conditional static model, not measured chip timing. See TESTING.md for event-rate and memory-service assumptions.",
           "Part/project save-reload, fresh saved-project load and battery-RAM-only restart pass in the ColdFire emulator with two distinct instances. Physical reboot, working audio after transitions and mixed-module audio stress remain unverified under the owner exception for this version.",
-          "Keeps existing S2 version 1/2 saved settings. Already reset projects cannot be reconstructed; restore a known-good project/card backup."
+          "Keeps existing S2 version 1/2 saved settings. Already reset projects cannot be reconstructed; restore a known-good project/card backup.",
+          "Open (#596, from the source, not yet reproduced): switching a VECTOR track back to STATIC/FLEX leaves settings bytes that, with SPAN 8 or higher, can empty the bank after a save and reboot. Set SPAN to 7 or lower before switching back, or keep the track on VECTOR."
         ]
       },
       "resources": {
