@@ -1460,6 +1460,10 @@ E-Verb is in none of them.
 No hardware result exists for 0.1.1; the owner's MKII report covers 0.1.0.
 Publication needs the owner's approval of this exact source.
 
+## Play Modes 0.2.0-experimental — 19 October 2026
+
+Play Modes 0.2.0-experimental (STEP REPEAT by pgstath, #706) was merged without its owner approval, so `modules:check` and the release-notes test stopped both deploys. The owner approved this exact native source (`sdk/playmodes-build-approval.json`, `da8e028b…`) with hardware testing waived. `npm run module:verify -- playmodes` on the owner's original 1.40C: 60 native module-owned images match the browser builder, 66 refusals match, 0 mismatches, of 126 selections. Play Modes is not in Analog BD's proof matrix; only that file's module source-tree hash moved with the rebuilt packages. Not played on a unit.
+
 ## E-Verb ring clear of Sidechain's key window — 18 October 2026
 
 E-Verb 0.1.2-experimental answers #696. Sidechain Compressor keeps its
