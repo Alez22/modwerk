@@ -2878,7 +2878,7 @@
       "donorSha256": "3b3f9b15f2f6addfea9fc281f5b9fdf054bf305778059b8d43db41d390f0401f",
       "fx2Slot": 1074618440,
       "slotSha256": "79bc740214b4d029e385d06d21e224d04e8f91b53fb26ea08ffa4e5d70964b7a",
-      "sourceSha256": "75e05aa32e0160f76b81f4d60ad1ed2cdd89148691129e9dee1118d77a528363",
+      "sourceSha256": "657103ed759afecbe86b6be4388619f01e1f4ffda820cee83a5427eb58dd4592",
       "integers": [
         {
           "offset": 3,
@@ -3756,7 +3756,7 @@
     "repitch": "0.2.0-experimental",
     "tapehead": "0.1.2-experimental",
     "airwindows-chorus": "0.1.2-experimental",
-    "everb": "0.1.1-experimental",
+    "everb": "0.1.2-experimental",
     "bbd": "0.1.1-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
