@@ -108,8 +108,9 @@ holds the chord for that step.
   the first 15,870 words and never writes or reads the last 514 (+$3DFE..+$3FFF), where Sidechain
   Compressor keeps its cross-core key window on T3 and T7 ([#696](https://github.com/repeat98/modwerk/issues/696)).
   Effect ID 0x1b (27).
-- **Projects saved with 0.1.1** load unchanged and sound the same, unless PRE is 124 or higher: those
-  settings now play 227 ms (they gave 230 to 250 ms).
+- **Projects saved with 0.1.1** store the same knob values, so they should sound the same unless PRE
+  is 124 or higher: those settings now play 227 ms (they gave 230 to 250 ms). Reloading a 0.1.1
+  project into 0.1.2 is not tested.
 - **Hardware report:** the owner reports a positive MKII functional audition of 0.1.0 on EVRB01T01.
   Detailed coverage and unreported tests remain explicit in [the hardware report](evidence/owner-hardware.md).
   0.1.1 and 0.1.2 have not run on hardware. 0.1.1 changed four editor words in E-Verb's FX2 page
