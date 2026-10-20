@@ -10,7 +10,7 @@ void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the b
 #define MW_STAMP(k) ((void)0)
 #endif
 
-struct crash { uint32_t magic, count, frame, pc, d[8], a[7], sp, stack[8], seen; };
+struct crash { uint32_t magic, count, frame, pc, d[8], a[7], sp, stack[8], seen, code[8]; }; /* code: 32 bytes at the PC (crash.s) */
 #define REC ((volatile struct crash *)0x100ff800u)
 #define MAGIC 0x4d574352u /* "MWCR" */
 #define VECTORS ((volatile uint32_t *)0x40000000u) /* the vector base (0x400b9668 holds it) */
@@ -19,13 +19,13 @@ struct crash { uint32_t magic, count, frame, pc, d[8], a[7], sp, stack[8], seen;
 void mw_crash(void);
 volatile uint32_t modwerk_crash_test; /* dev.c: crash on the next tick, to test this */
 
-/* Sys task, ev_tick (60 Hz). Access and address errors, illegal and unsupported instructions, privilege and format
- * errors: the exceptions stock code never takes on purpose. */
+/* Sys task, ev_tick (60 Hz). Access and address errors, illegal, unimplemented (line F) and unsupported
+ * instructions, privilege and format errors: the exceptions stock code never takes on purpose. */
 void modwerk_crash_tick(void);
 void modwerk_crash_tick(void)
 {
     MW_STAMP(7);
-    static const uint8_t vectors[] = {2, 3, 4, 8, 14, 61};
+    static const uint8_t vectors[] = {2, 3, 4, 8, 11, 14, 61};
     static uint32_t ticks;
     if (!ticks)
         for (unsigned i = 0; i < sizeof vectors; ++i) VECTORS[vectors[i]] = (uint32_t)(uintptr_t)mw_crash;
