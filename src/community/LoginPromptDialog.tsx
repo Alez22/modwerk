@@ -5,7 +5,13 @@ import { Icon } from '../components/Icon'
 /** The sign-in prompt. Without `action` it is the firmware build gate, which `onSkip` lets a guest pass; with one ("Sign in to like this module") it explains what a free account unlocks. */
 export function LoginPromptDialog({next,onClose,action,onSkip}:{next:string;onClose:()=>void;action?:string;onSkip?:()=>void}) {
   const dialog=useRef<HTMLDialogElement>(null),signIn=useRef<HTMLAnchorElement>(null)
+  const [skipWait,setSkipWait]=useState(5),hasSkip=!!onSkip
   useEffect(()=>{const element=dialog.current,previousFocus=document.activeElement;element?.showModal();signIn.current?.focus();return()=>{element?.close();if(previousFocus instanceof HTMLElement)previousFocus.focus()}},[])
+  useEffect(()=>{
+    if(!hasSkip||!skipWait)return
+    const timer=window.setTimeout(()=>setSkipWait(skipWait-1),1000)
+    return()=>window.clearTimeout(timer)
+  },[hasSkip,skipWait])
   return <dialog ref={dialog} className="app-dialog login-prompt-dialog" aria-labelledby="login-prompt-title" aria-describedby="login-prompt-message login-prompt-notice login-prompt-privacy" onCancel={event=>{event.preventDefault();onClose()}} onKeyDown={event=>event.stopPropagation()}>
     <header className="login-prompt-header">
       <h2 id="login-prompt-title">{action??'Sign in to build firmware'}</h2>
@@ -21,7 +27,7 @@ export function LoginPromptDialog({next,onClose,action,onSkip}:{next:string;onCl
       <a ref={signIn} className="button button-primary" href={accountHref('login',next)} onClick={onClose}>Sign in</a>
       <a className="button button-quiet" href={accountHref('register',next)} onClick={onClose}>Create account</a>
     </div>
-    {onSkip&&<button type="button" className="text-button login-prompt-skip" onClick={onSkip}>Skip for now</button>}
+    {onSkip&&<button type="button" className="text-button login-prompt-skip" disabled={skipWait>0} onClick={onSkip}>{skipWait?`Skip for now (${skipWait}s)`:'Skip for now'}</button>}
   </dialog>
 }
 /** Lets a visitor press a member-only control: `prompt` opens the dialog instead of the action, and `next` (or a per-action
