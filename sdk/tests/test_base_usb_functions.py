@@ -31,10 +31,11 @@ class BaseUsbFunctions(unittest.TestCase):
     def test_shared_midi_receiver_matches_its_licensed_import(self):
         import json
         record = json.loads((ROOT / 'sdk/imports/shared-usb-midi-reconnect-ab911d96.json').read_text())
-        imported = record['files'][0]
-        source = ROOT / 'sdk/octabam' / imported['path']
-        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), imported['vendoredSha256'])
-        self.assertEqual(imported['sourceSha256'], imported['vendoredSha256'])
+        for imported in record['files']:
+            with self.subTest(path=imported['path']):
+                source = ROOT / imported['path']
+                self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), imported['vendoredSha256'])
+                self.assertEqual(imported['sourceSha256'], imported['vendoredSha256'])
 
     def test_all_output_layouts_preserve_speed_packets_and_class_entities(self):
         for audio in [None, *functions.AUDIO_LAYOUTS]:
@@ -144,7 +145,7 @@ class BaseUsbFunctions(unittest.TestCase):
                 for name in ('modwerk_ep0_dispatch', 'modwerk_ep0_poll', 'modwerk_ep0_bus_reset', 'modwerk_engine_idle',
                              'olog_idle_hook', 'modwerk_ep0_reply')))
             midi = assemble('usbmidi', functions.midi_source((ROOT / 'sdk/octabam/platform/usb-midi/usbmidi.s').read_text()))
-            receive = assemble('usbmidi_rx', (ROOT / 'sdk/octabam/platform/usb-midi/usbmidi_rx.s').read_text())
+            receive = assemble('usbmidi_rx', (ROOT / 'sdk/machines/octatrack/elekloader/usbmidi_rx.s').read_text())
             def link(objects, origin):
                 script, elf, raw = root / 'usb.ld', root / 'usb.elf', root / 'usb.bin'
                 script.write_text(builder.SCRIPT % origin)

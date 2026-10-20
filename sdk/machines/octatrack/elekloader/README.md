@@ -233,7 +233,7 @@ interface, class `ff/4d/01`), the two length clamps and the shims. Every
 replaced or skipped stock span is hash-guarded against your firmware. USB
 MIDI and USB Audio are base-owned features in the beta composite configuration
 (`base_usb_functions.py`); modules cannot patch those sites separately. The
-shared MIDI receiver lives in `sdk/octabam/platform/usb-midi/usbmidi_rx.s`.
+shared MIDI receiver lives in [`usbmidi_rx.s`](usbmidi_rx.s), beside its upstream MIT licence.
 Both reset/session-end paths retire its old session before continuing to the
 audio/stock handler, and SET_CONFIGURATION flushes EP2 before rewriting its
 queue heads. The legacy card module retains its own earlier source until its
@@ -243,7 +243,9 @@ separate, versioned update; a base fix does not update that card download.
 bus reset against a private source-linked base in `ot_emu`. Its negative
 control must show stale clocks and an EP2 IN prime before reconfiguration;
 the candidate must show neither. It is endpoint-lifecycle evidence, not an
-audio-quality or host-driver test. Complete an IDENTIFY transfer after the
+audio-quality or host-driver test. On the twenty-channel base, add
+`--audio-interface 5` to check that audio resets to alternate setting zero
+and reopens EP3 with whole sample frames alongside MIDI. Complete an IDENTIFY transfer after the
 SET_CONFIGURATION status before calling a sender in the bench: stock primes
 that status before its MIDI initialization body finishes.
 
