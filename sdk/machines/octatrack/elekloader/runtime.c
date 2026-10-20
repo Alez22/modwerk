@@ -100,12 +100,14 @@ uint8_t *modwerk_machine_code(uint32_t address) { return (uint8_t *)(uintptr_t)(
 /* build_core.py --cached-modules: module code runs from the cached alias, so whatever the data cache holds of an
  * extent must reach memory before the instruction cache fetches it (loader.c, fxpage.c). CPUSHL names a line by its
  * set and way (An[1:0] the way), not by its address: push every way of each set the range maps to. That pushes and,
- * with CACR's DPI clear as stock leaves it, invalidates the range's lines and any others in those sets. 0x2000
- * bytes of sets cover a 4-way cache of up to 32 KB (a 16 KB one ignores bit 12 and sees them twice), so a longer
- * range pushes everything once. The NOP waits for the pushes to reach memory. */
+ * with CACR's DPI clear as stock leaves it, invalidates the range's lines and any others in those sets. Every line
+ * of the range, by its own address: a shortcut that pushed 0x2000 bytes of sets "once for the whole cache" left half
+ * of a 17 KB extent (VECTOR) dirty on the owner's MKII (beta finding 60: memory still held the BSS zeros at the
+ * module's ui_tick entry while the data cache held its code), so this cache has more sets than address bits 12:4
+ * name. The NOP waits for the pushes to reach memory. */
 void modwerk_machine_flush_data(uint32_t address, uint32_t length)
 {
-    uint32_t from = address & ~15u, to = length >= 0x2000u ? from + 0x2000u : address + length;
+    uint32_t from = address & ~15u, to = address + length;
     for (uint32_t line = from; line < to; line += 16u)
         for (uint32_t way = 0; way < 4u; ++way) __asm__ __volatile__("cpushl %%dc,(%0)" :: "a"(line | way) : "memory");
     __asm__ __volatile__("nop" ::: "memory");
