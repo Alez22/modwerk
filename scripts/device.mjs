@@ -378,10 +378,12 @@ console.log(`${identity.model}, base ${identity.base.slice(0, 16)}…`)
 const interrupt = new AbortController()
 process.once('SIGINT', () => { console.log('interrupted: rolling back'); process.exitCode = 130; interrupt.abort() })
 
-/** While the unit plays, the base presses STOP and refuses with `unsafe`; retry for 3 s as the site does. */
+/** While the unit plays, the base presses STOP and refuses with `unsafe`; retry for 3 s as the site does. A rollback
+ * the loader could not switch yet answers `needs-recovery` and stays in recovery, from where it rolls back again
+ * (OctatrackLink.whenStopped); given up at once, it left the unit in recovery until the base's own timeout. */
 async function stopping(step) {
   for (const start = Date.now(); ; await wait(200)) {
-    try { return await step() } catch (error) { if (error.status?.result !== 'unsafe' || Date.now() - start > 3000) throw error }
+    try { return await step() } catch (error) { if (!['unsafe', 'needs-recovery'].includes(error.status?.result) || Date.now() - start > 3000) throw error }
   }
 }
 
@@ -408,7 +410,7 @@ async function trial(session, pkg) {
   }
   await stopping(() => session.holdTrial())
   if (values.accept && !interrupt.signal.aborted) { await session.accept(); console.log('accepted') }
-  else { await session.rollback(); console.log('rolled back' + (values.accept ? '' : ' (pass --accept to keep it)')) }
+  else { await stopping(() => session.rollback()); console.log('rolled back' + (values.accept ? '' : ' (pass --accept to keep it)')) }
   const left = Date.now(), status = await session.leaveUploadMode()
   console.log(`left upload mode in ${Date.now() - left} ms`) // the card-set save runs first, in the same task
   return status
