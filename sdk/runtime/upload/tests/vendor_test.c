@@ -21,6 +21,8 @@ enum mu_result counted_disconnect(struct mu_context *c)
 #define CHECK(x) do { if (!(x)) { failures++; fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); } } while (0)
 
 static int ok(void *p) { (void)p; return 1; }
+static unsigned restore_pending;
+static int restore(void *p) { (void)p; if(restore_pending) { --restore_pending;return 0; } return 1; }
 static int prepare(void *p, const uint8_t *d, uint32_t n) { (void)p; (void)d; (void)n; return 1; }
 static enum mu_publication publish(void *p) { (void)p; return MU_APPLIED; }
 static uint8_t stage[65536], base[32], session[32], active[32];
@@ -29,12 +31,13 @@ static struct mv_transport t;
 
 static void reset_all(void)
 {
-    struct mu_backend b = {0, ok, ok, ok, prepare, ok, publish, ok, ok};
+    struct mu_backend b = {0, ok, ok, ok, prepare, ok, publish, restore, ok};
     memset(base, 0x31, 32); memset(session, 0x52, 32); memset(active, 0x41, 32);
     memset(&controller, 0, sizeof controller);
     if (!mu_init(&controller, stage, sizeof stage, base, session, active, 0, &b)) abort();
     if (!mv_init(&t, 6, base, "OCTATRACK TEST", MV_CAN_SUBMIT)) abort();
     executed = disconnected = 0;
+    restore_pending=0;
 }
 static void put32(uint8_t *p, uint32_t n) { p[0]=(uint8_t)(n>>24); p[1]=(uint8_t)(n>>16); p[2]=(uint8_t)(n>>8); p[3]=(uint8_t)n; }
 static uint32_t get32(const uint8_t *p) { return (uint32_t)p[0]<<24 | (uint32_t)p[1]<<16 | (uint32_t)p[2]<<8 | p[3]; }
@@ -294,9 +297,22 @@ static void random_events(void)
     printf("random events: %u accepted frames executed once each, %u disconnects\n", accepted, disconnected);
 }
 
+static void complete_disconnected_set(void)
+{
+    reset_all();controller.phase=MU_PUBLISHING;controller.active_known=0;
+    controller.publication_started=1;controller.offer.transaction=10;
+    memcpy(controller.previous,active,32);restore_pending=2;
+    CHECK(mv_reset(&t) && mv_service(&t,&controller));
+    CHECK(controller.disconnecting && controller.phase==MU_RECOVERY && restore_pending==1);
+    CHECK(mv_service(&t,&controller) && controller.disconnecting && restore_pending==0);
+    CHECK(mv_service(&t,&controller) && !controller.disconnecting && controller.phase==MU_NORMAL);
+    CHECK(disconnected==3 && !memcmp(controller.active,active,32));
+    CHECK(!mv_service(&t,&controller) && disconnected==3);
+}
 int main(void)
 {
     routing(); identity(); exchange(); incomplete(); resets(); lease(); random_events();
+    complete_disconnected_set();
     if (failures) { fprintf(stderr, "%u vendor transport checks failed\n", failures); return 1; }
     puts("Vendor transport: routing, identity, exchange, incomplete frames, resets, the host time limit and random events passed.");
     return 0;

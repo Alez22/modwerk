@@ -162,6 +162,7 @@ def tools(entry, upstream):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('--check', action='store_true', help='rebuild and compare; write nothing, exit 1 on a difference')
+    ap.add_argument('--base-only', action='store_true', help='rebind only packages that name the base; preserve other published bytes')
     ap.add_argument('--stock', type=Path, help='the stock OS (.bin): fail on any run of it copied into a package')
     ap.add_argument('--upstream', type=Path, default=Path.home() / '.cache/modwerk-upstream/elekloader')
     ap.add_argument('--prepare-ports', help='comma-separated reviewed private ports; never changes published packages')
@@ -196,6 +197,12 @@ def main():
     failed, entries = 0, []
     with tempfile.TemporaryDirectory() as work:
         for entry in manifest['packages']:
+            if a.base_only and not entry.get('base'):
+                data = (PUBLIC / entry['path']).read_bytes()
+                if len(data) != entry['bytes'] or hashlib.sha256(data).hexdigest() != entry['sha256']:
+                    sys.exit('%s: the published package is missing or changed.' % entry['id'])
+                entries.append(entry)
+                continue
             version = versions[entry['id']]
             if entry.get('slots') and dsp[entry['id']]['version'] != version:
                 sys.exit('%s: dsp-packages.json holds %s, the catalogue %s; rebuild it with dsp_packages.py first.' % (
@@ -220,7 +227,7 @@ def main():
                 print('%-18s %s %s' % (entry['id'], made['sha256'][:16], 'identical' if same else 'DIFFERS: run without --check'))
                 failed += not same
             else:
-                if not entries[:-1]:  # only the current versions stay published
+                if not a.base_only and not entries[:-1]:  # only the current versions stay published
                     shutil.rmtree(PUBLIC / 'octatrack-modules', ignore_errors=True)
                 (PUBLIC / path).parent.mkdir(parents=True, exist_ok=True)
                 (PUBLIC / path).write_bytes(data)

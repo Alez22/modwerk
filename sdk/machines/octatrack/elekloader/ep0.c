@@ -318,6 +318,16 @@ uint32_t modwerk_ep0_dispatch(void)
         out[6] |= 1u; /* feature bit 8: this base writes its own container to NOR over USB (flash.c) */
         return n;
     }
+#ifdef MODWERK_RUNTIME_SETS
+    /* Exact baseline identity; only cached copies in the ISR. A stale cache
+     * wakes its engine owner and refuses this read until it is refreshed. */
+    if(r.action==MV_STALL && SETUP[0]==MV_RESULT_TYPE && SETUP[1]==38u && !SETUP[2] && !SETUP[3] &&
+       SETUP[4]==MODWERK_VENDOR_INTERFACE && !SETUP[5] && SETUP[6]==40u && !SETUP[7]) {
+        unsigned n=modwerk_runtime_set_identity(out);
+        if(!n) { wake();return MODWERK_EP0_REFUSE; }
+        modwerk_ep0_reply=out;return n;
+    }
+#endif
     /* INVENTORY (0xC1, bRequest 27, wValue the first entry, wLength 316): the installed modules (loader.c
      * modwerk_runtime_list), so the site can make the unit match a module set; 13 a page, so a host asks on from
      * wValue 13 while a page comes back full. Read-only. */
@@ -491,6 +501,7 @@ static void ep0_tick(void)
         heard = activity, quiet = 0;
     } else if (quiet < HOST_TIMEOUT_TICKS) ++quiet;
     if (started && controller_started && mv_tick(vendor(), controller.phase != MU_NORMAL, HOST_TIMEOUT_TICKS)) wake();
+    if (controller_started && controller.disconnecting) wake(); /* finish all rows of an abandoned set */
     if (modwerk_boot_tick()) wake(); /* an armed RAM boot is due */
     if (held) held = 0, wake(); /* the engine runs only when woken; an idle unit sends it nothing else */
     /* A kept set the card gate held back (playing, the card busy) or a failed write whose retry is due: twice a
@@ -565,6 +576,9 @@ void modwerk_engine_idle(void)
     }
 #endif
     modwerk_modset_service();
+#ifdef MODWERK_RUNTIME_SETS
+    modwerk_runtime_set_refresh();
+#endif
     if (!wake_posted) return;
     wake_posted = 0;
     if (!settled()) { held = 1; (void)mv_service_held(UNCACHED(&transport), &controller); return; }

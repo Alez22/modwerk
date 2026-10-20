@@ -1,21 +1,16 @@
-# Stopped upload controller (development only)
+# Stopped upload controller
 
-This is original, freestanding ColdFire C for the first Elekloader runtime
-loader. It manages a bounded update transaction, decodes a bounded request
-frame and carries frames over an EP0 vendor transport. It is **not connected
-to USB or the stock firmware**, has no shipping
-catalogue entry, does not execute modules and is not a flash candidate. The
-production Octatrack builder remains unchanged. Keep the whole migration on
-`codex/octatrack-elekloader-migration` until its implementation and hardware
-qualification are stable; the foundation-only PR was closed at the owner's
-request on 9 October 2026.
+This is original, freestanding ColdFire C used by the Octatrack beta base.
+It manages a bounded transaction over an EP0 vendor transport; the machine
+adapter owns execution, quiescence and persistence. Native compilation and
+host tests do not qualify a new base for hardware or flash.
 
 ## Implemented contract
 
 The caller supplies an exclusively owned staging region, exact base identity,
 fresh session identity, current module-set digest/generation and a complete
 device backend. There is no default memory address or free-memory assumption.
-The protocol maximum is 1 MiB; it is not an OT reservation or a measured RAM
+The protocol maximum is 2 MiB; it is not an OT reservation or a measured RAM
 budget. SHA-256 integrity is not module authorization or an execution sandbox.
 
 1. Enter upload mode. The backend must hold transport and live recording and
@@ -43,6 +38,18 @@ budget. SHA-256 integrity is not module authorization or an execution sandbox.
    or callbacks prevent a hold, or restoration is unconfirmed, recovery
    remains pending. The real device adapter must expose and retry that state;
    a disconnect alone cannot prove rollback.
+
+Whole-set backends may return `MU_PUBLISHING_MORE`. Wire v1 appends phase
+`publishing` (7) and result `progress` (12), preserving all earlier values.
+Each repeated Commit uses the same transaction, digest and generation. A
+prefix has unknown active identity and cannot be accepted or released into
+trial. The last row publishes the offer identity and advances generation
+once. Rollback may need several engine turns; it retains recovery ownership
+until every row is restored. After disconnect the device retries that work
+without another host request or ten-second lapse; playback and recording
+still prevent a switch. The TypeScript session stops using a connection
+after an ambiguous reply, and reconnect recovery explicitly adopts the
+remaining transaction for Undo.
 
 One engine-task owner serializes requests. USB interrupts must queue bounded
 frames for that owner; hashing, admission and callbacks never run in an audio
@@ -90,9 +97,9 @@ successful transfer or reconnect as successful activation.
 `vendor.c` carries one wire frame at a time over vendor control requests to
 a Modwerk interface with no endpoints (class `0xFF`, subclass `0x4D`,
 protocol 1). EP3 OUT, the only free endpoint, stays available for USB Audio
-In. The transport is **not connected to the USB stack**; see the
-[migration record](../../../docs/OCTATRACK_ELEKLOADER_MIGRATION.md#what-the-imported-usb-stack-leaves-for-the-vendor-interface)
-for the glue still missing.
+In. The Octatrack beta base connects it through
+[`ep0.c`](../../machines/octatrack/elekloader/ep0.c): interrupts queue frames
+and the engine task executes them.
 
 | Request | bmRequestType | bRequest | wValue | wIndex | Data |
 | --- | --- | --- | --- | --- | --- |

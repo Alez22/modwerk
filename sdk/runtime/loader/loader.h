@@ -113,6 +113,16 @@ enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CO
 
 /* The controller's staging buffer is the machine's; it must hold RUNTIME_PACKAGE_BYTES. */
 extern const struct mu_backend modwerk_runtime_backend;
+/* Whole-set backend, gated by MODWERK_RUNTIME_SETS and capability 512. It
+ * uses the production module admission/switches and retains every predecessor
+ * through trial. Publish may return MU_PUBLISHING_MORE; never implicit Keep. */
+int modwerk_runtime_set_busy(void);
+#ifdef MODWERK_RUNTIME_SETS
+extern const struct mu_backend modwerk_runtime_set_backend;
+int modwerk_runtime_handle_reserved(uint32_t module, unsigned handle);
+unsigned modwerk_runtime_set_identity(uint8_t *out);
+void modwerk_runtime_set_refresh(void);
+#endif
 extern struct modwerk_runtime_api modwerk_runtime_api;
 /* A trampoline reads each position once, then calls its hook. Memory is
  * reclaimed only when no paused task holds an address inside it, so a hook

@@ -14,6 +14,7 @@
 #include "loader.h"
 #include "context.h"
 #include "journal.h"
+#include "set_package.h"
 
 #define OWNERS (2u * RUNTIME_MODULES) /* live, the transaction's two and those waiting to be reclaimed */
 static uint8_t pool[RUNTIME_POOL_BYTES] __attribute__((aligned(16)));
@@ -36,6 +37,21 @@ static enum runtime_refusal refusal;
 struct journal_row { struct runtime_module *before,*after; uint32_t before_generation,after_generation,module; uint16_t position; uint8_t published,touched,needs_restore; uint8_t package_sha256[MU_DIGEST_BYTES]; };
 struct runtime_journal { struct journal_row row[RUNTIME_JOURNAL_ROWS]; struct runtime_journal_progress progress; uint8_t preparing; };
 static struct runtime_journal journal;
+#ifdef MODWERK_RUNTIME_SETS
+/* The production lifecycle's whole-set owner. Its rows pin both images even
+ * while the manager runs the trial. The private DSP journal is exclusive. */
+static struct {
+    struct journal_row row[RUNTIME_SET_CHANGES];
+    unsigned count, published;
+    int preparing, complete;
+} change_set;
+#define SET_ROWS change_set.count
+#define SET_CAPABILITY 512u
+#else
+#define SET_ROWS 0u
+#define SET_CAPABILITY 0u
+#endif
+int modwerk_runtime_set_busy(void) { return SET_ROWS != 0; }
 #ifndef MODWERK_RUNTIME_JOURNAL_EXTERNAL
 __attribute__((weak)) int modwerk_machine_journal_enabled(void) { return 0; }
 __attribute__((weak)) int modwerk_machine_journal_begin_safe(void) { return 0; }
@@ -96,7 +112,8 @@ unsigned modwerk_runtime_capabilities(uint8_t *out)
 {
     out[0] = 'M'; out[1] = 'W'; out[2] = 'C'; out[3] = 'P';
     out[4] = 1; out[5] = RUNTIME_ABI;
-    out[6] = (uint8_t)(RUNTIME_CAPABILITY_FLAGS >> 8); out[7] = (uint8_t)(RUNTIME_CAPABILITY_FLAGS | (RUNTIME_SITE_EVENTS ? 128u : 0u));
+    unsigned flags = RUNTIME_CAPABILITY_FLAGS | (RUNTIME_SITE_EVENTS ? 128u : 0u) | SET_CAPABILITY;
+    out[6] = (uint8_t)(flags >> 8); out[7] = (uint8_t)flags;
     out[8] = (uint8_t)(RUNTIME_SITES >> 8); out[9] = (uint8_t)RUNTIME_SITES;
     out[10] = (uint8_t)(RUNTIME_COPIES >> 8); out[11] = (uint8_t)RUNTIME_COPIES;
     return 12u;
@@ -142,6 +159,12 @@ static int roomless(unsigned position, const uint32_t *hook)
         for (unsigned k = 0; k < RUNTIME_MODULES; ++k) n += k != position && live[k] && live[k]->hook[e];
         for (unsigned k = 0; k < journal.progress.records; ++k)
             n += journal.row[k].position != position && journal.row[k].after && journal.row[k].after->hook[e];
+#ifdef MODWERK_RUNTIME_SETS
+        for (unsigned k=0;k<change_set.count;++k) {
+            const struct journal_row *r=&change_set.row[k];
+            n += r->position!=position && r->after && r->after->hook[e] && (!live[r->position] || !live[r->position]->hook[e]);
+        }
+#endif
         if (n > event_room[e - RUNTIME_EVENTS]) { refused_event = e; return 1; }
     }
     return 0;
@@ -304,6 +327,10 @@ static int reachable(const struct runtime_module *m)
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) if (live[i] == m) return 1;
     for (unsigned i=0; i<journal.progress.records; ++i)
         if (journal.row[i].before==m || journal.row[i].after==m) return 1;
+#ifdef MODWERK_RUNTIME_SETS
+    for (unsigned i=0; i<change_set.count; ++i)
+        if (change_set.row[i].before==m || change_set.row[i].after==m) return 1;
+#endif
     return m == candidate || m == previous;
 }
 /* Locked: free every extent that no position, the transaction or a paused
@@ -583,6 +610,9 @@ static unsigned position_of(uint32_t id)
         if (live[i] && live[i]->id == id) return i;
         unsigned reserved=0;
         for(unsigned k=0;k<journal.progress.records;k++) reserved |= journal.row[k].position==i;
+#ifdef MODWERK_RUNTIME_SETS
+        for(unsigned k=0;k<change_set.count;k++) reserved |= change_set.row[k].position==i;
+#endif
         if (!live[i] && !reserved && free == RUNTIME_MODULES) free = i;
     }
     return free;
@@ -598,6 +628,13 @@ static int claimed(unsigned position, uint32_t address, uint32_t n)
         for(uint32_t i=0;m && journal.row[k].position!=position && i<m->sites;i++)
             if(address<m->site[i].address+m->site[i].length && m->site[i].address<address+n) return 1;
     }
+#ifdef MODWERK_RUNTIME_SETS
+    for(unsigned k=0;k<change_set.count;k++) {
+        const struct runtime_module *m=change_set.row[k].after;
+        for(uint32_t i=0;m && change_set.row[k].position!=position && i<m->sites;i++)
+            if(address<m->site[i].address+m->site[i].length && m->site[i].address<address+n) return 1;
+    }
+#endif
     return 0;
 }
 
@@ -633,6 +670,9 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
 {
     (void)u;
     if(modwerk_runtime_volatile_busy() && !journal.preparing) return refuse(RUNTIME_BUSY);
+#ifdef MODWERK_RUNTIME_SETS
+    if(change_set.count && !change_set.preparing) return refuse(RUNTIME_BUSY);
+#endif
     candidate = 0; prepared = 0; refusal = RUNTIME_OK;
     if (length < 28u || data[0] != 'M' || data[1] != 'W' || data[2] != 'R' || data[3] != 'M' || be16(data + 4) < 3u ||
         be16(data + 4) > 8u || be16(data + 6) & ~(be16(data + 4) == 8u ? 7u : be16(data + 4) >= 6u ? 3u : 0u)) return refuse(RUNTIME_MALFORMED);
@@ -900,7 +940,7 @@ void modwerk_runtime_journal_snapshot(struct runtime_journal_progress *out)
 enum runtime_journal_result modwerk_runtime_journal_begin(void)
 {
     uint32_t lock=modwerk_machine_lock();
-    int ok=!modwerk_runtime_volatile_busy() && !held && !prepared && !candidate && !previous &&
+    int ok=!modwerk_runtime_volatile_busy() && !modwerk_runtime_set_busy() && !held && !prepared && !candidate && !previous &&
         journal.progress.generation!=UINT32_MAX && modwerk_machine_stopped() && modwerk_machine_journal_enabled()==1 &&
         modwerk_machine_journal_begin_safe()==1;
     if(ok) {
@@ -1027,3 +1067,144 @@ enum runtime_journal_result modwerk_runtime_journal_step(const struct runtime_co
     modwerk_machine_unlock(lock);
     return observed==RJ_UNKNOWN?RJ_UNCERTAIN:observed==RJ_REJECTED?RJ_REFUSED:RJ_PENDING;
 }
+
+#ifdef MODWERK_RUNTIME_SETS
+/* Whole-set transactions use the same production per-module lifecycle as a
+ * one-package upload. Publication is stopped and bounded to one row per host
+ * command, so DSP/controller work can advance between commands. No earlier
+ * row is accepted, persisted, or released while another row is being tried. */
+int modwerk_runtime_handle_reserved(uint32_t module, unsigned handle)
+{
+    for (unsigned i=0; i<change_set.count; ++i) {
+        const struct journal_row *r=&change_set.row[i];
+        if (r->module!=module && ((r->before && r->before->dsp.count && r->before->dsp.id==handle) ||
+            (r->after && r->after->dsp.count && r->after->dsp.id==handle))) return 1;
+    }
+    return 0;
+}
+static uint8_t set_identity_cache[40];
+static uint32_t set_identity_epoch;
+unsigned modwerk_runtime_set_identity(uint8_t *out)
+{
+    if(!set_identity_cache[5] || set_identity_epoch!=owner_epoch ||
+       modwerk_runtime_set_busy() || modwerk_runtime_volatile_busy()) return 0;
+    for(unsigned i=0;i<40u;++i) out[i]=set_identity_cache[i];
+    return 40u;
+}
+/* Engine task only. EP0 copies these cached facts and never hashes or scans. */
+void modwerk_runtime_set_refresh(void)
+{
+    if(set_identity_cache[5] && set_identity_epoch==owner_epoch) return;
+    uint8_t digest[32];uint32_t lock=modwerk_machine_lock();
+    if(!modwerk_runtime_set_busy() && !modwerk_runtime_volatile_busy() && modwerk_runtime_journal_digest(digest)) {
+        uint8_t *out=set_identity_cache;unsigned count=modwerk_runtime_active();
+        out[5]=0;out[0]='M';out[1]='W';out[2]='S';out[3]='D';out[4]=1;
+        out[6]=(uint8_t)(count>>8);out[7]=(uint8_t)count;
+        for(unsigned i=0;i<32u;++i) out[8+i]=digest[i];
+        set_identity_epoch=owner_epoch;
+        __asm__ __volatile__("" ::: "memory");out[5]=1;
+    }
+    modwerk_machine_unlock(lock);
+}
+static int set_row_valid(const struct journal_row *r, int published)
+{
+    struct runtime_journal_view v;
+    return journal_view(r,&v) && live[r->position]==(published?r->after:r->before);
+}
+static void set_end(const struct runtime_context *context)
+{
+    change_set.count=change_set.published=0;change_set.preparing=change_set.complete=0;
+    candidate=previous=0;prepared=0;
+    reclaim(context);
+}
+static int __attribute__((used)) set_prepare_context(void *u,const uint8_t *data,uint32_t bytes,const struct runtime_context *context)
+{
+    const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
+    if(change_set.count || candidate || prepared || previous || modwerk_runtime_volatile_busy()) return refuse(RUNTIME_BUSY);
+    int count=runtime_set_parse(data,bytes,packages,lengths);
+    if(!count) return refuse(RUNTIME_MALFORMED);
+    uint8_t digest[MU_DIGEST_BYTES];uint32_t lock=modwerk_machine_lock();
+    int ok=modwerk_runtime_journal_digest(digest) && same_digest(digest,data+48);
+    modwerk_machine_unlock(lock);
+    if(!ok) return refuse(RUNTIME_STOCK); /* the reviewed baseline has changed */
+    for(int i=0;i<count;++i) {
+        change_set.preparing=1;ok=prepare_context(u,packages[i],lengths[i],context);change_set.preparing=0;
+        if(!ok) return 0; /* discard owns every already-prepared image */
+        struct journal_row r={live[slot],candidate,0,0,be32(packages[i]+28),(uint16_t)slot,0,0,0,{0}};
+        struct runtime_owner o;
+        lock=modwerk_machine_lock();
+        if(r.before) { ok=modwerk_runtime_owner_snapshot(r.before->dsp.image,&o);r.before_generation=o.generation; }
+        if(ok && r.after) { ok=modwerk_runtime_owner_snapshot(r.after->dsp.image,&o);r.after_generation=o.generation; }
+        if(ok) { change_set.row[change_set.count++]=r;candidate=0;prepared=0; }
+        modwerk_machine_unlock(lock);
+        if(!ok) return refuse(RUNTIME_BUSY);
+    }
+    /* Every candidate now has its own position, memory and immutable owner.
+     * A set cannot exceed the identity/persistence census, even if each row fits. */
+    unsigned target=modwerk_runtime_active();
+    for(unsigned i=0;i<change_set.count;++i) target+=!!change_set.row[i].after-!!change_set.row[i].before;
+    if(target>RUNTIME_JOURNAL_ROWS) return refuse(RUNTIME_FULL);
+    return 1;
+}
+static int set_discard(void *u)
+{
+    (void)u;
+    if(change_set.published) return 0;
+    if(candidate) forget(candidate);
+    for(unsigned i=0;i<change_set.count;++i) if(change_set.row[i].after) forget(change_set.row[i].after);
+    change_set.count=0;change_set.complete=0;candidate=0;prepared=0;
+    return 1;
+}
+static enum mu_publication __attribute__((used)) set_publish_context(void *u,const struct runtime_context *context)
+{
+    (void)u;
+    if(!change_set.count || change_set.complete) return MU_UNCERTAIN;
+    unsigned i=change_set.published;
+    if(i>=change_set.count) return MU_UNCERTAIN;
+    struct journal_row *r=&change_set.row[i];
+    uint32_t lock=modwerk_machine_lock();int valid=set_row_valid(r,0);modwerk_machine_unlock(lock);
+    if(!valid) return MU_UNCERTAIN;
+    if(!switch_to(r->position,r->after,context)) { refusal=RUNTIME_BUSY;return MU_PUBLISHING_MORE; }
+    r->published=1;++change_set.published;
+    if(change_set.published<change_set.count) return MU_PUBLISHING_MORE;
+    change_set.complete=1;return MU_APPLIED;
+}
+static int __attribute__((used)) set_restore_context(void *u,const struct runtime_context *context)
+{
+    (void)u;
+    if(change_set.published) {
+        struct journal_row *r=&change_set.row[change_set.published-1u];
+        uint32_t lock=modwerk_machine_lock();int valid=set_row_valid(r,1);modwerk_machine_unlock(lock);
+        if(!valid || !switch_to(r->position,r->before,context)) return 0;
+        r->published=0;--change_set.published;
+        if(change_set.published) return 0; /* recovery retains every image until the last row is restored */
+    }
+    set_end(context);return 1;
+}
+static int __attribute__((used)) set_retire_context(void *u,const struct runtime_context *context)
+{
+    (void)u;
+    if(!change_set.complete || change_set.published!=change_set.count) return 0;
+    uint32_t lock=modwerk_machine_lock();int valid=1;
+    for(unsigned i=0;i<change_set.count && valid;++i) valid=set_row_valid(&change_set.row[i],1);
+    modwerk_machine_unlock(lock);
+    if(!valid) return 0;
+    set_end(context);return 1;
+}
+#ifdef __m68k__
+extern int modwerk_set_prepare(void *,const uint8_t *,uint32_t);
+extern enum mu_publication modwerk_set_publish(void *);
+extern int modwerk_set_restore(void *),modwerk_set_retire(void *);
+RUNTIME_CONTEXT_WRAPPER(modwerk_set_prepare,set_prepare_context,RUNTIME_CONTEXT_THREE,80);
+RUNTIME_CONTEXT_WRAPPER(modwerk_set_publish,set_publish_context,RUNTIME_CONTEXT_ONE,72);
+RUNTIME_CONTEXT_WRAPPER(modwerk_set_restore,set_restore_context,RUNTIME_CONTEXT_ONE,72);
+RUNTIME_CONTEXT_WRAPPER(modwerk_set_retire,set_retire_context,RUNTIME_CONTEXT_ONE,72);
+#else
+static int modwerk_set_prepare(void *u,const uint8_t *data,uint32_t n) { return set_prepare_context(u,data,n,0); }
+static enum mu_publication modwerk_set_publish(void *u) { return set_publish_context(u,0); }
+static int modwerk_set_restore(void *u) { return set_restore_context(u,0); }
+static int modwerk_set_retire(void *u) { return set_retire_context(u,0); }
+#endif
+const struct mu_backend modwerk_runtime_set_backend={0,enter,safe,leave,modwerk_set_prepare,set_discard,
+    modwerk_set_publish,modwerk_set_restore,modwerk_set_retire};
+#endif

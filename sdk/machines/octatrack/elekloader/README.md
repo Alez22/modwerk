@@ -22,13 +22,12 @@ owner's original firmware. Generated stock-bearing recipes, packages, maps,
 images and proofs stay outside Git; the one committed package carries no
 stock bytes ([the base in the browser](#the-base-in-the-browser)).
 
-The bounded upload controller is compiled into the prototype but has no
-lifecycle backend or module executor connected: its USB-reachable
-controller refuses every state change (below). This prototype is
-**not a flash candidate**. Native linking and Python/TypeScript byte parity
-do not establish safe boot, logger retention, cache handling or hardware
-behaviour. The current identity describes only the base; arbitrary module
-selections still need exact identity integration before public use.
+The beta base connects the bounded upload controller to the runtime loader,
+DSP/controller admission and saved-set lifecycle. A newly rebuilt candidate
+still needs exact-build qualification: native linking and Python/TypeScript
+byte parity do not establish safe boot, logger retention, cache handling,
+audio or physical reboot persistence. Keep private candidates out of release
+until those results and owner review are recorded.
 
 Use Node 24, the reviewed GNU `m68k-elf` toolchain, a clean Elekloader checkout
 at `vendor/elekloader/kit/kit.json`'s commit (`npm run upstream:tools` keeps one
@@ -68,13 +67,28 @@ commit it with the beta base's options (the committed base is the beta base):
 
 ```sh
 npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' \
-  --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers --write
+  --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers --module-sets --write
 ```
 
 When the change moves the base's write-lease entries, recapture Analog BD's reviewed recipe
 (`module-adapters/machine-recipes.json` imageSha256) against the new base's symbols first, then rebuild the
-module packages (`npm run octatrack:module-packages`) so every base-bound package's `requiredBase` follows
+module packages (`npm run octatrack:module-packages -- --base-only`) so every base-bound package's `requiredBase` follows
 ([beta test plan](../../../../docs/OCTATRACK_BETA_TEST_PLAN.md), finding 17).
+
+`--base-only` source-builds the five packages linked to the new base and
+checks the remaining published files against their manifest hashes without
+rebuilding or deleting them. Use the full generator for a separately qualified
+module update; existing standalone recipes may name earlier source/tool inputs.
+
+`--module-sets` enables the candidate whole-set lifecycle (MWCP feature 512,
+[`MWMS/MWSD`](../../../runtime/loader/README.md#several-modules-at-once)). It
+uses the production module admission and DSP/controller lifecycle, retaining
+every baseline image until one Keep or complete Undo. The separate private
+volatile journal stays closed. Qualify the exact generated base and packages
+before release: mixed add/replace/remove, real self-test, Keep/Undo, unplug
+at each publication boundary, both DSP cores and Part/project/power-cycle
+persistence. Source tests and browser/native byte parity do not provide those
+hardware results.
 
 Without `--write` it checks the committed files are what this source builds. Both runs check the package is
 stock-free, that the browser's path builds a `.bin` identical to `build_core.py`'s `NOT_FLASH_CANDIDATE.bin`,

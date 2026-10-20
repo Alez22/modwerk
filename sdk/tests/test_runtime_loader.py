@@ -32,10 +32,14 @@ class LoaderTests(unittest.TestCase):
             self.skipTest('no host C compiler')
         octatrack = ('-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')
         # the default, the Octatrack's, and both with build_core.py --cached-modules
-        for defines in ((), octatrack, ('-DMODWERK_CACHED_MODULES',), octatrack + ('-DMODWERK_CACHED_MODULES',)):
+        for defines in ((), octatrack, ('-DMODWERK_CACHED_MODULES',), octatrack + ('-DMODWERK_CACHED_MODULES',),
+                        octatrack + ('-DMODWERK_RUNTIME_SETS',),
+                        octatrack + ('-DMODWERK_RUNTIME_SETS', '-DMODWERK_CACHED_MODULES')):
             with self.subTest(defines), tempfile.TemporaryDirectory() as temp:
                 subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', *defines, '-I', LOADER,
-                                '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/host_test.c', '-o', temp + '/t'],
+                                    '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/host_test.c',
+                                    *([ROOT / 'sdk/runtime/upload/upload.c'] if '-DMODWERK_RUNTIME_SETS' in defines else []),
+                                    '-o', temp + '/t'],
                                check=True, capture_output=True)
                 result = subprocess.run([temp + '/t'], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)

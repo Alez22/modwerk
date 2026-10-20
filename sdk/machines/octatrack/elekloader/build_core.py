@@ -1370,6 +1370,8 @@ def main():
     parser.add_argument('--cached-modules', action='store_true',
                         help='Prototype, for a development twin: runtime modules run from the pool\'s cached alias, '
                              'not the uncached one (sdk/runtime/loader/README.md, "Cached modules"). Off by default.')
+    parser.add_argument('--module-sets', action='store_true',
+                        help='Private whole-set transaction candidate. Retains every predecessor through Keep/Undo; needs exact hardware qualification.')
     parser.add_argument('--fx-ids', type=int, choices=(32, 128), default=128,
                         help='with --dsp-loader: the base\'s effect ids (fxids.h, the dispatch and chooser tables; '
                              'docs/OCTATRACK_MORE_EFFECT_IDS.md). 32, the old width, only to bisect a fault.')
@@ -1459,7 +1461,7 @@ def main():
     for name in ('upload.c', 'upload.h', 'sha256.c', 'wire.c', 'wire.h', 'vendor.c', 'vendor.h'):
         shutil.copyfile(upload / name, source / name)
     loader = APP / 'sdk/runtime/loader'
-    for name in ('loader.c', 'loader.h', 'modwerk_module.h', 'context.h', 'journal.h'):
+    for name in ('loader.c', 'loader.h', 'modwerk_module.h', 'context.h', 'journal.h', 'set_package.h'):
         shutil.copyfile(loader / name, source / name)
     if saved_set_root:
         for name in saved_set_files:
@@ -1718,6 +1720,8 @@ def main():
                          usb=dict(interfaces=['msc', 'modwerk-vendor'], vendor=1, submit=True, backend='runtime-loader-3'),
                          boot='ram-1', **({'dev': ['key', 'panel', 'state', 'screen', 'usb-audio-main-cue']} if args.dev else {}),
                          **({'cachedModules': 'prototype-1'} if args.cached_modules else {}))
+    if args.module_sets:
+        configuration['usb']['moduleSets'] = 'mwms-1'
     if args.dsp_loader:
         configuration.update(dsp=dict(loader='dsp-dynload-3', stock='on-demand', rows='runtime',
                                       allowance=DSP_ALLOWANCE, reserve=DSP_RESERVE, probe=args.dsp_probe, burn=args.dsp_burn, hook=args.dsp_hook, arena=[dsp_layout[t]['tableWords'] - loader_dsp.SAVED for t in 'AB']))
@@ -1829,6 +1833,8 @@ modwerk_retained_end:
          for key, field in (('TABLE', 'table'), ('WORDS', 'tableWords'), ('MISS', 'miss'), ('METER', 'meter'))] if args.dsp_loader else [])
     if args.cached_modules:  # loader.c, runtime.c, fxpage.c, controller_board.c
         recipe['cflags'].append('-DMODWERK_CACHED_MODULES')
+    if args.module_sets:
+        recipe['cflags'].append('-DMODWERK_RUNTIME_SETS')
     if args.saved_set_export:
         recipe['cflags'].append('-DMODWERK_SAVED_SET_EXPORT')
     if args.resident_stock_hooks:

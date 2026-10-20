@@ -57,7 +57,8 @@ describe('preparing a module set', () => {
   it('removes first, then installs, each with the package that undoes it', async () => {
     const current = inventoryFrom([{ handle: 27, layout: 1, module: '873d83cc', name: 'E-Verb' }, { handle: 0xff, layout: 0, module: '0000002a', name: '' }])
     expect(current).toEqual({ moduleIds: ['everb', '0000002a'], removedStockFx: [] })
-    const { name, changes } = await prepareModuleSet({ name: 'Live', moduleIds: ['tapehead', 'miniverb'] }, current, load)
+    const { name, changes } = await prepareModuleSet({ name: 'Live', moduleIds: ['tapehead', 'miniverb'] }, current, load,
+      { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 })
     expect(name).toBe('Live')
     expect(changes.map(change => change.module)).toEqual(['E-Verb', '0000002a', 'TapeHead', 'Mini Verb'])
     expect(changes[0]).toEqual({ module: 'E-Verb', data: removalPackage('everb'), undo: file(manifest.packages[0].path) })
@@ -70,7 +71,7 @@ describe('preparing a module set', () => {
   })
   it('preflights each package’s actual requirements and composes every published package on a capable base', async () => {
     const target = { name: 'All published', moduleIds: USB_MODULE_IDS }, fetched = vi.fn(load)
-    const events = { abi: 8, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+    const events = { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
     await expect(prepareModuleSet(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
     await expect(prepareModuleSet(target, empty, fetched, { ...events, features: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired) // Repitch subscribes
     await expect(prepareModuleSet(target, empty, fetched, { ...events, abi: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired)

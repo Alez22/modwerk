@@ -168,6 +168,32 @@ hook index. MWCP feature 128 says the base has events.
 
 ## Several modules at once
 
+The `MODWERK_RUNTIME_SETS` candidate adds MWCP feature **512** and the
+[`MWMS v1` bundle](set_package.h): an 80-byte header binds the exact base and
+the baseline's sorted `(module id, package SHA-256)` digest; up to 20 unique
+length-prefixed MWRM changes follow, with zero padding to four bytes. The
+resulting census is bounded to 20 modules. The existing single-package
+protocol and ABI remain available.
+
+All candidates are admitted before publication. Both generations keep their
+pool extents, dispatch positions and DSP handles until one complete Keep or
+reverse-order restoration. Publication advances one row per engine command
+while the transport stays held. A prefix reports `publishing`, an unknown
+active identity and no generation change. Only completion starts trial.
+Keep seals the saved set once; nothing saves a prefix. Undo and abandoned
+session recovery restore the actual retained images, including packages the
+website no longer has. Both generations must fit concurrently; site ownership,
+event capacity and the production DSP/controller safety checks can refuse or
+delay a change. This does not enable the separate experimental volatile DSP
+journal or relax its trust and reclamation gates.
+
+Octatrack request **38** returns a cached 40-byte `MWSD v1` baseline record
+(`magic, version, known, count u16, digest[32]`). The engine computes it; EP0
+only copies a complete record for the current owner epoch, otherwise stalls
+and wakes the engine. Never hash packages or scan patched sites in a USB ISR.
+Host/controller/loader and simulated-card regressions cover interruption and
+torn writes. Exact-build hardware, audio and reboot persistence remain open.
+
 - **Admission before anything changes.** A package is refused, with the
   live set untouched, when another live module patches any byte of its
   sites (Elekloader's own rule: one owner per byte), when `RUNTIME_MODULES`

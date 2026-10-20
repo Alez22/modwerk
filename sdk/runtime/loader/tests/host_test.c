@@ -226,6 +226,10 @@ static void site7(uint32_t address, uint32_t length, uint32_t keep, uint32_t che
 static int bytes_at(uint32_t address, const uint8_t *bytes, uint32_t length) { return !memcmp(stock + (address - STOCK), bytes, length); }
 static uint32_t word(uint32_t address) { return be32(stock + (address - STOCK)); }
 
+#ifdef MODWERK_RUNTIME_SETS
+#include "set_test.h"
+#endif
+
 int main(void)
 {
     const uint32_t four = 4, twice[2] = {4, 4};
@@ -235,7 +239,7 @@ int main(void)
     uint8_t capabilities[14]; memset(capabilities, 0xa5, sizeof capabilities);
     CHECK(modwerk_runtime_capabilities(capabilities) == 12u);
     CHECK(!memcmp(capabilities, "MWCP", 4) && capabilities[4] == 1 && capabilities[5] == 8);
-    CHECK(be16(capabilities + 6) == 7 && be16(capabilities + 8) == 128 && be16(capabilities + 10) == 128);
+    CHECK(be16(capabilities + 6) == (7u | SET_CAPABILITY) && be16(capabilities + 8) == 128 && be16(capabilities + 10) == 128);
     CHECK(capabilities[12] == 0xa5 && capabilities[13] == 0xa5);
 
     struct runtime_module alias_group; memset(&alias_group, 0, sizeof alias_group);
@@ -833,6 +837,9 @@ int main(void)
     }
     CHECK(modwerk_runtime_active()==2 && live[0]==baseline0 && live[1]==baseline1);
     CHECK(modwerk_runtime_free(0)==baseline_free && !memcmp(stock,baseline_stock,sizeof stock));
+#ifdef MODWERK_RUNTIME_SETS
+    set_checks();
+#endif
 #ifdef MODWERK_CACHED_MODULES
     /* Every install pushed its extent exactly once (each one takes an owner generation, and nothing refuses after the
      * push), followed by an invalidation; frees, discards, rollbacks and removals pushed nothing; nothing used the

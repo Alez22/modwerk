@@ -245,6 +245,7 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
       if ((!capabilities && (abi > 6 || features)) || capabilities && (abi > capabilities.abi || (features & capabilities.features) !== features || sites > capabilities.maxSites || copies > capabilities.maxCopies))
         throw new BaseUpdateRequired()
     }
+    if (steps.length > 1 && !(capabilities && capabilities.features & RuntimeFeature.moduleSets)) throw new BaseUpdateRequired()
   }
   const inventory = (modules: MissingModule[]): Inventory => {
     const moduleIds: string[] = [], runtimeGroups: NonNullable<Inventory['runtimeGroups']> = []

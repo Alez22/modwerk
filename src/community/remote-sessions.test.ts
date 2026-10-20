@@ -84,7 +84,9 @@ describe('remote debug sessions', () => {
     expect((await call(`/admin/remote-sessions/${second.id}/ticket`, 'POST', {}, '', admin)).status).toBe(409)
     const history = await (await call('/remote-sessions', 'GET', undefined, member)).json()
     expect(history.current).toBeNull()
-    expect(history.sessions.map((item: { status: string; endedBy: string | null }) => [item.status, item.endedBy])).toEqual([['ended', 'member'], ['declined', null]])
+    // Both requests can share the same created_at second; this tests the
+    // recorded outcomes, not an unspecified order between equal timestamps.
+    expect(history.sessions.map((item: { status: string; endedBy: string | null }) => [item.status, item.endedBy]).sort()).toEqual([['declined', null], ['ended', 'member']])
   })
   it('lets the administrator end or withdraw, and expires what nobody answered', async () => {
     const { call, ask, admin, env } = await fixture()

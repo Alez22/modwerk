@@ -7,7 +7,7 @@
 #include <string.h>
 #include <errno.h>
 
-struct fault { const char *name; unsigned restores; };
+struct fault { const char *name; unsigned restores, publishes; };
 static int is(void *p, const char *name) { return strcmp(((struct fault *)p)->name, name) == 0; }
 static int enter(void *p) { return !is(p, "enter"); }
 static int safe(void *p) { return !is(p, "unsafe"); }
@@ -20,6 +20,7 @@ static int prepare(void *p, const uint8_t *data, uint32_t length)
 static int discard(void *p) { return !is(p, "discard"); }
 static enum mu_publication publish(void *p)
 {
+    if(is(p,"progress") && ((struct fault *)p)->publishes++<2u) return MU_PUBLISHING_MORE;
     return is(p, "publish") ? MU_UNCERTAIN : is(p, "unchanged") ? MU_UNCHANGED : MU_APPLIED;
 }
 static int restore(void *p)
@@ -32,7 +33,7 @@ int main(int argc, char **argv)
 {
     static uint8_t stage[MU_MAX_BYTES];
     uint8_t base[32], session[32], active[32], frame[MU_WIRE_MAX], response[MU_WIRE_RESPONSE], header[4];
-    struct fault f = {argc > 1 ? argv[1] : "none", 0};
+    struct fault f = {argc > 1 ? argv[1] : "none", 0, 0};
     uint32_t generation = 0;
     if (argc > 2) {
         char *end = NULL;
