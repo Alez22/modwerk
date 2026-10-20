@@ -23,6 +23,7 @@
 #include "usb_base.h"
 #include "runtime.h"
 #include "boot.h"
+#include "flash.h"
 #ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
 #include "volatile_service.h"
 #endif
@@ -313,7 +314,9 @@ uint32_t modwerk_ep0_dispatch(void)
     if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 29 && !SETUP[2] && !SETUP[3] &&
         SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && SETUP[6] == 12u && !SETUP[7]) {
         modwerk_ep0_reply = out;
-        return modwerk_runtime_capabilities(out);
+        unsigned n = modwerk_runtime_capabilities(out);
+        out[6] |= 1u; /* feature bit 8: this base writes its own container to NOR over USB (flash.c) */
+        return n;
     }
     /* INVENTORY (0xC1, bRequest 27, wValue the first entry, wLength 316): the installed modules (loader.c
      * modwerk_runtime_list), so the site can make the unit match a module set; 13 a page, so a host asks on from
@@ -577,7 +580,7 @@ void modwerk_engine_idle(void)
         mu_sha256((const uint8_t *)seed, sizeof seed, session);
         session[0] |= 1u;
         if (!mu_init(&controller, modwerk_boot_staging(), BOOT_IMAGE_BYTES,
-                     modwerk_base_digest, session, modwerk_base_digest, 0, &modwerk_boot_backend)) return;
+                     modwerk_base_digest, session, modwerk_base_digest, 0, &modwerk_flash_backend)) return;
         controller_started = 1;
     }
 #ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL

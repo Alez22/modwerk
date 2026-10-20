@@ -7,7 +7,10 @@ import { runSelftest, waitUntilSaved } from './selftest.ts'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { UploadDeviceError, UploadSession, UploadUnconfirmedError } from './upload-session.ts'
 import type { UploadResultName } from './upload-wire.ts'
-import { findVendorInterface, UsbVendorTransport, type ControlDevice, type MissingModule, type SelftestRecord, type VendorIdentity } from './upload-usb.ts'
+import { findVendorInterface, RuntimeFeature, UsbVendorTransport, type ControlDevice, type MissingModule, type SelftestRecord, type VendorIdentity } from './upload-usb.ts'
+import * as formats from '../../../vendor/elekloader/kit/src/formats.ts'
+import type { ElekFile } from '../../../vendor/elekloader/kit/src/elek.ts'
+import { OCTATRACK } from '../../../vendor/elekloader/kit/src/devices.ts'
 import type { OctatrackDiagnostic, DiagnosticReading } from '../../community/octatrack-diagnostics-contract'
 
 export type LinkDiagnostic = Omit<OctatrackDiagnostic, 'id' | 'modules'>
@@ -48,7 +51,10 @@ export interface LinkUsb {
 }
 export type LinkSession = Pick<UploadSession, 'status' | 'connectionTrusted' | 'stage' | 'activate' | 'startTrial' | 'holdTrial' |
   'accept' | 'rollback' | 'cancel' | 'adopt' | 'leaveUploadMode'>
-type Connect = (transport: UsbVendorTransport, base: string) => Promise<LinkSession>
+type Connect = (transport: UsbVendorTransport, base: string, options?: { timeoutMs?: number }) => Promise<LinkSession>
+/** A base update over USB, step by step: the new base staged and started from RAM (the trial), then, running, writing its own
+ * container to NOR and restarting on it. */
+export type BaseUpdateStep = 'staging' | 'starting' | 'started' | 'writing' | 'restarting' | 'done'
 
 /** One step of a module set load: a runtime package, and the package that puts back what it changes (absent when the
  * site has none, such as for a removed module it does not publish). */
@@ -160,7 +166,7 @@ export class OctatrackLink {
   private serial<T>(job: () => Promise<T>): Promise<T> { return this.locks.request(LOCK, {}, job) }
 
   /** `usb` defaults to the browser's WebUSB; null stands for a browser without it. */
-  constructor(usb: LinkUsb | null | undefined = webUsb(), connectSession: Connect = (transport, base) => UploadSession.connect(transport, base), stopWaitMs = 3000, locks: UsbLocks = siteLocks()) {
+  constructor(usb: LinkUsb | null | undefined = webUsb(), connectSession: Connect = (transport, base, options) => UploadSession.connect(transport, base, options), stopWaitMs = 3000, locks: UsbLocks = siteLocks()) {
     this.usb = usb; this.connectSession = connectSession; this.stopWaitMs = stopWaitMs; this.locks = locks
     this.state = { status: usb ? 'idle' : 'unsupported' }
   }
@@ -424,6 +430,73 @@ export class OctatrackLink {
   }
   keep() { return this.finish(true) }
   undo() { return this.finish(false) }
+
+  /** The connected base writes its own container to NOR over USB (flash.c; capability feature bit 8). */
+  canUpdateBase() { return ((this.state.identity?.capabilities?.features ?? 0) & RuntimeFeature.baseUpdate) !== 0 }
+  /**
+   * Update the base over USB, the card being for the first install only. `bin` is the kit's card file (buildBase)
+   * and `expected` its identity. First the trial: the new base is staged and RAM-booted, and the unit must come back
+   * on it (a power cycle returns to the flashed base when it does not). Then the write: that base, running, is given
+   * its own container; it refuses any other base's, writes NOR with stock's OS UPGRADE routines, verifies it and
+   * restarts on NOR once accepted. Only a power cut during the write itself needs the card or MIDI recovery.
+   */
+  async updateBase(bin: Uint8Array, expected: string, report: (step: BaseUpdateStep, fraction?: number) => void = () => {}, signal?: AbortSignal) {
+    const file = formats.parse(bin, OCTATRACK) as ElekFile, container = file.container, image = file.section(3)
+    if (this.state.status !== 'ready' || !this.state.identity?.canSubmit) throw new Error('Connect the Octatrack first.')
+    let current = this.state.identity.base
+    const armedFrom: string[] = []
+    // Only the flashed base's gate reads the mailbox: armed from a RAM-booted base, the unit comes back on the flashed one, which arms it properly.
+    while (current !== expected) {
+      if (!this.canUpdateBase()) throw new Error('This base can’t update itself over USB yet. Install the current base from the card once; after that, updates go over USB.')
+      if (armedFrom.includes(current)) throw new Error(`The Octatrack came back on base ${current.slice(0, 8)}, not the new one. A power cycle returns to the flashed base.`)
+      armedFrom.push(current)
+      report('staging', 0)
+      const connection = this.connection
+      await this.sendBase(current, image, 60000, fraction => report('staging', fraction), signal, session => session.activate().then(() => {}))
+      report('starting')
+      current = await this.returned(connection, signal)
+    }
+    report('started')
+    report('writing', 0)
+    const connection = this.connection
+    await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => { await session.activate(); await session.accept() })
+    report('restarting')
+    const back = await this.returned(connection, signal)
+    if (back !== expected) throw new Error(`After the write the Octatrack came back on base ${back.slice(0, 8)}, not the new one.`)
+    report('done')
+  }
+  /** One upload to the idle unit, then `then` on its session: a RAM boot's image, or the container the base writes. */
+  private sendBase(base: string, data: Uint8Array, timeoutMs: number, progress: (fraction: number) => void, signal: AbortSignal | undefined, then: (session: LinkSession) => Promise<void>) {
+    const connection = this.connection
+    return this.serial(async () => {
+      this.live(connection)
+      if (!this.transport || this.state.status !== 'ready') throw new Error('The Octatrack isn’t idle (' + this.state.status + ').')
+      if (!await this.claim()) throw new Error('Another tab or app holds the Octatrack.')
+      try {
+        const session = await this.connectSession(this.transport, base, { timeoutMs })
+        this.live(connection)
+        await this.whenStopped(() => session.stage({ base, data, sha256: sha(data) }, { signal, progress: (done, total) => progress(done / total) }))
+        await then(session)
+      } finally { await this.release() }
+    })
+  }
+  /** The unit going away (the connection counter moves on) and coming back after a restart: the base it reports then. */
+  private returned(connection: number, signal?: AbortSignal, timeoutMs = 90000) {
+    return new Promise<string>((resolve, reject) => {
+      const done = (settle: () => void) => { stop(); clearTimeout(timer); signal?.removeEventListener('abort', aborted); settle() }
+      const aborted = () => done(() => reject(new DOMException('The base update was cancelled.', 'AbortError')))
+      const timer = setTimeout(() => done(() => reject(new Error('The Octatrack did not come back within 90 s. A power cycle boots its flashed base.'))), timeoutMs)
+      const check = () => {
+        const { status, identity } = this.state
+        if (this.connection === connection) return
+        if (status === 'ready') done(() => identity ? resolve(identity.base) : reject(new Error('The Octatrack came back on a base this page can’t talk to.')))
+        else if (status === 'stock') done(() => reject(new Error('The Octatrack came back on the stock OS.')))
+      }
+      const stop = this.subscribe(check)
+      signal?.addEventListener('abort', aborted)
+      check()
+    })
+  }
 
   private async finish(keep: boolean) {
     const session = this.session, module = this.state.module, connection = this.connection

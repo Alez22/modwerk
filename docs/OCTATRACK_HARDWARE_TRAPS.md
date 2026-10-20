@@ -173,6 +173,23 @@ same base before and after, its identity answers before the reset fires.
 Wait for a failed request, then for HELLO (the engine refuses SUBMIT for a
 moment after the restart).
 
+## Writing NOR over USB
+
+**Stock's OS UPGRADE reads the whole card file into RAM, then erases and programs NOR from there** (1.40C:
+the sector erase at `0x40020628`, the 256-byte page program at `0x400206f4`, the 37 sector starts at `0x400a95c0`,
+8 KB boot sectors from `0x4000` then 64 KB to `0x1f0000`). Both routines unlock, command and poll the chip
+themselves and mask interrupts only around the command bytes, so calling them from the engine task keeps the
+frame interrupt within its limit. The file buffer stock uses (`0x46147b2c`, its length at `0x46147b28`) is not
+free in normal operation (a 28-byte-record list lives there too): the base copies the container into its own
+reserve instead (`flash.c`). The bootloader depacks NOR from `0x4012`, the section header, and checks nothing: an
+image that does not boot is recovered over DIN MIDI only, so the base writes only a container that depacks to the
+base it is itself running (`sdk/machines/octatrack/elekloader/README.md`, "Updating the base over USB").
+
+**Not yet seen on a unit (20 October 2026):** the USB write is host-tested against a NOR model and the stock
+routines are read, not run; the first hardware run is the owner's call, with a MIDI interface at hand. Qualify
+the written base after a sustained power-off too, not only the soft restart that follows the write (a tester reported a base stalling at the logo only after minutes
+powered off, 18 October 2026).
+
 ## Simulating the user
 
 **Never post key event records to stock's queues directly.** It crashed the

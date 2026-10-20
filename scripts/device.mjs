@@ -12,6 +12,7 @@
 //   npm run device -- remove [MODULE.mwrm] [--accept]   # that file's module, else module 0
 //   npm run device -- lifecycle
 //   npm run device -- boot BUILD_DIR [--chunk 4096]  # RAM boot: build_core.py's output, no flashing; serve: 'boot DIR 4096'
+//   npm run device -- flash BUILD_DIR               # after `boot BUILD_DIR`: that base writes itself to NOR and restarts on it
 //   npm run device -- key PLAY | FUNC+FX1 | 0x27    # development bases (build_core.py --dev)
 //   npm run device -- screen [--png FILE] [--scale 1-4]  # the display, in block characters or as a PNG (4x unless --scale)
 //   npm run device -- ui                            # tracks, effects and transport as text, read from RAM (MEM)
@@ -40,6 +41,8 @@ import { homedir, tmpdir } from 'node:os'
 import { rmSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { sha } from '../vendor/elekloader/kit/src/bytes.ts'
+import * as formats from '../vendor/elekloader/kit/src/formats.ts'
+import { OCTATRACK } from '../vendor/elekloader/kit/src/devices.ts'
 import { UploadSession } from '../src/engine/elekloader/upload-session.ts'
 import { findVendorInterface, UsbVendorTransport } from '../src/engine/elekloader/upload-usb.ts'
 import { DEVICE_LOG_PAGE, DEVICE_LOG_PAGES, DEVICE_LOG_REQUEST, parseDeviceLog } from '../src/engine/elekloader/device-log.ts'
@@ -57,10 +60,10 @@ const { values, positionals: [command, file] } = parseArgs({ allowPositionals: t
   chunk: { type: 'string' }, // boot: bytes a frame (4096 for the flashed usbtest9 on macOS; docs/OCTATRACK_HARDWARE_TRAPS.md)
 } })
 let seconds = Number(values.seconds)
-if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
+if (!['serve', 'status', 'stats', 'try', 'remove', 'lifecycle', 'boot', 'flash', 'key', 'screen', 'state', 'enc', 'fader', 'loader', 'report', 'probe', 'meter', 'missing', 'ui', 'do', 'mem'].includes(command) || (['try', 'boot', 'flash', 'key', 'enc', 'fader', 'probe', 'meter', 'do', 'mem'].includes(command) && !file) ||
   (['serve', 'status', 'stats', 'lifecycle', 'screen', 'state', 'loader', 'report', 'missing', 'ui'].includes(command) && file) ||
   !Number.isInteger(seconds) || seconds < 1 || seconds > 3600 || (values.chunk && !(Number(values.chunk) >= 1 && Number(values.chunk) <= 4096 && Number.isInteger(Number(values.chunk))))) {
-  console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR [--chunk 1-4096] | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
+  console.error('Usage: device.mjs status | stats | try MODULE.mwrm [--seconds 1-3600] [--accept] | remove [MODULE.mwrm] [--accept] | lifecycle | boot BUILD_DIR [--chunk 1-4096] | flash BUILD_DIR | key NAME[+NAME] | screen | state | loader | report | probe 0|1 | meter 0|1 | missing | ui | do SEQUENCE | mem ADDR LENGTH | enc A+3 | fader 0-255 [--socket PATH] [--emulator]')
   process.exit(2)
 }
 
@@ -447,9 +450,9 @@ if (command === 'serve') {
     console.log = (...a) => out.push(a.join(' '))
     try {
       const [verb, arg, chunk] = line.trim().split(/\s+/)
-      if (verb === 'boot') { // the unit reboots and this link goes with it: hand the bridge to a one-shot boot, then exit (run serve in a loop)
+      if (verb === 'boot' || verb === 'flash') { // the unit reboots and this link goes with it: hand the bridge to a one-shot boot or flash, then exit (run serve in a loop)
         bench.socket.end(); await wait(300)
-        const r = spawnSync(process.execPath, [process.argv[1], 'boot', arg, '--socket', values.socket, ...(chunk ? ['--chunk', chunk] : [])], { encoding: 'utf8', timeout: 180000 })
+        const r = spawnSync(process.execPath, [process.argv[1], verb, arg, '--socket', values.socket, ...(chunk ? ['--chunk', chunk] : [])], { encoding: 'utf8', timeout: 400000 })
         out.push(r.stdout, r.stderr, 'serve exits; the loop restarts it'); setTimeout(() => process.exit(0), 200)
       } else if (verb === 'recover') { // a transaction left behind (an install whose reply went missing): undo it, as the site does
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
@@ -550,7 +553,7 @@ if (command === 'serve') {
   }
   if (command === 'state') { const [stopped, recording] = await devIn(6, 0, 2); console.log(stopped ? 'stopped' : 'playing', recording ? '(recording)' : ''); process.exit(0) }
   // A whole OS image takes the unit (and far longer the emulator) a while to hash.
-  const session = await UploadSession.connect(transport, identity.base, { timeoutMs: command === 'boot' ? 60000 : 10000 })
+  const session = await UploadSession.connect(transport, identity.base, { timeoutMs: command === 'flash' ? 180000 : command === 'boot' ? 60000 : 10000 })
   if (command === 'status') console.log(state(session.status), '\nDIAG', await diag() ?? 'not answered')
   if (command === 'lifecycle') await runLifecycle(unit, index, console.log)
   if (command === 'remove') {
@@ -564,6 +567,25 @@ if (command === 'serve') {
     // shortcut: runtime module files do not name their base yet, so any file is offered to the connected base,
     // whose loader validates it; bind the base once the hook ABI defines module files.
     console.log(state(await retried(() => trial(session, { base: identity.base, data, sha256: sha(data) }))))
+  }
+  if (command === 'flash') {
+    // The base writes its own container to NOR (flash.c): `boot DIR` first, then this on that base. The plain ELEK
+    // container is the .bin deciphered; the base refuses any other base's and verifies NOR before it restarts on it.
+    const parsed = formats.parse(new Uint8Array(readFileSync(join(file, 'NOT_FLASH_CANDIDATE.bin'))), OCTATRACK), container = parsed.container
+    const expected = JSON.parse(readFileSync(join(file, 'proofs.json'), 'utf8')).configurationHash
+    if (identity.base !== expected) throw new Error(`The unit runs base ${identity.base.slice(0, 16)}…, not ${expected.slice(0, 16)}…: RAM-boot it first (boot DIR); a base writes only itself.`)
+    let shown = 0
+    await session.stage({ base: identity.base, data: container, sha256: sha(container) }, { signal: interrupt.signal, chunk: values.chunk ? Number(values.chunk) : undefined, progress: (done, total) => {
+      if (Math.floor(10 * done / total) > shown) console.log(`  staged ${10 * (shown = Math.floor(10 * done / total))}%`)
+    } })
+    console.log('writing NOR (the base erases, programs and verifies; keep the power on)…')
+    await session.activate()
+    console.log('written and verified; accepting: the unit restarts on NOR half a second on')
+    await session.accept()
+    bench.socket.end()
+    const back = await rebooted()
+    if (back.base !== expected) throw new Error(`The unit came back on base ${back.base.slice(0, 16)}…, not the one written.`)
+    console.log(`flashed over USB: base ${expected.slice(0, 16)}… (power cycles boot it now)`)
   }
   if (command === 'boot') {
     const image = new Uint8Array(readFileSync(join(file, 'MAIN.raw')))
