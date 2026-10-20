@@ -231,8 +231,21 @@ install anyway. [`usb_base.py`](usb_base.py) generates 41-byte configurations
 (stock mass storage, byte for byte USB MIDI's, plus an endpoint-free vendor
 interface, class `ff/4d/01`), the two length clamps and the shims. Every
 replaced or skipped stock span is hash-guarded against your firmware. USB
-MIDI and USB Audio claim the same sites, so they cannot be combined with this
-base yet; they have to become base features.
+MIDI and USB Audio are base-owned features in the beta composite configuration
+(`base_usb_functions.py`); modules cannot patch those sites separately. The
+shared MIDI receiver lives in `sdk/octabam/platform/usb-midi/usbmidi_rx.s`.
+Both reset/session-end paths retire its old session before continuing to the
+audio/stock handler, and SET_CONFIGURATION flushes EP2 before rewriting its
+queue heads. The legacy card module retains its own earlier source until its
+separate, versioned update; a base fix does not update that card download.
+
+`scripts/verify-octatrack-usb-reconnect.py` runs four unplug/replug cycles and a
+bus reset against a private source-linked base in `ot_emu`. Its negative
+control must show stale clocks and an EP2 IN prime before reconfiguration;
+the candidate must show neither. It is endpoint-lifecycle evidence, not an
+audio-quality or host-driver test. Complete an IDENTIFY transfer after the
+SET_CONFIGURATION status before calling a sender in the bench: stock primes
+that status before its MIDI initialization body finishes.
 
 [`ep0.c`](ep0.c) runs the [EP0 transport](../../../runtime/upload/README.md#ep0-vendor-transport-version-1)
 in the USB ISR and its controller on the engine task:

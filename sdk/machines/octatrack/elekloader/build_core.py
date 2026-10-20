@@ -1642,7 +1642,7 @@ def main():
                                    if usb_functions else usb.assembly(args.dev))
     if usb_functions:
         (source/'usbmidi.s').write_text(usb_functions.midi_source((usb.OCTABAM / 'platform/usb-midi/usbmidi.s').read_text()))
-        (source/'usbmidi_rx.s').write_text((usb.OCTABAM / 'modules/usb-audio-out-tracks-main-cue/usbmidi_rx.s').read_text())
+        (source/'usbmidi_rx.s').write_text((usb.OCTABAM / 'platform/usb-midi/usbmidi_rx.s').read_text())
         if args.usb_audio:
             (source/'usbaudio.s').write_text(usb_functions.audio_storage_source(
                 usb_functions.audio_source(usb.AUDIO_SOURCE.read_text())))
@@ -1673,7 +1673,7 @@ def main():
     if usb_functions:
         for path in (Path(usb_functions.__file__), usb.AUDIO_DESCRIPTORS,
                      usb.OCTABAM / 'platform/usb-midi/usbmidi.s',
-                     usb.OCTABAM / 'modules/usb-audio-out-tracks-main-cue/usbmidi_rx.s') + ((usb.AUDIO_SOURCE,) if args.usb_audio else ()):
+                     usb.OCTABAM / 'platform/usb-midi/usbmidi_rx.s') + ((usb.AUDIO_SOURCE,) if args.usb_audio else ()):
             inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if args.dsp_loader:
         for name in ('src/engine/assets/stock-dsp-metadata.json', 'src/engine/assets/chooser-metadata.json',

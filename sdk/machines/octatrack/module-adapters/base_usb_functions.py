@@ -158,7 +158,17 @@ def assembly(base, descriptors, audio=None):
     lengths = {len(blob) for blob in blobs.values()}
     if len(lengths) != 1:
         raise ValueError('USB configurations must share a single guarded clamp length.')
-    text = base.ASSEMBLY.format(length=lengths.pop(), **(base.AUDIO_TAILS if audio else base.STOCK_TAILS))
+    # These sites belong to the base once. End MIDI's old session before
+    # the audio/stock reset tails; SET_CONFIGURATION also flushes EP2 before
+    # its queue heads are rewritten. Neither endpoint may retain old traffic.
+    tails = dict(base.AUDIO_TAILS if audio else base.STOCK_TAILS)
+    if audio:
+        for name in ('reset_tail', 'session_end_tail'):
+            tails[name] = 'jsr     usbmidi_rx_bus_end\n    ' + tails[name]
+    else:
+        tails.update(reset_tail='jmp     usbmidi_rx_reset_shim',
+                     session_end_tail='jmp     usbmidi_rx_sessend_shim')
+    text = base.ASSEMBLY.format(length=lengths.pop(), **tails)
     blobs.update(modwerk_device=base.device(True), modwerk_bos=base.bos(), modwerk_msos20=base.msos20())
     for name, blob in blobs.items():
         alignment = max(64, 1 << (len(blob) - 1).bit_length())

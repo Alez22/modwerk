@@ -13,7 +13,7 @@ Read [the module guides index](README.md) first. A module that sends or reacts t
 - [ ] **Feedback.** When a MIDI message changes a value, the panel shows it (`verify_ccfeedback.py`), including values that are parameter-locked or LFO-modulated at that moment. **Verify** the interaction and record the result.
 - [ ] **Parameter locks and LFOs.** A CC-driven parameter and a lock or LFO on the same parameter: say which wins, and test it.
 - [ ] **USB:** the device enumerates as the instrument's own identity, with the interfaces the host expects (`verify_usb.py` checks the Elektron 1935:0002 identity, the MSC interface and the INQUIRY and CSW responses). Sample alignment and channel layout are tested (`verify_usb_align.py`, `verify_usb_in.py`), startup behaviour is stated (USB Audio reports a reordering burst 0.5–1.5 s after the stream opens), and the hosts you measured are named: "Windows and Linux hosts have not been measured" is a legitimate sentence, an omission is not.
-- [ ] **Dependencies are explicit.** USB Audio brings the internal USB MIDI module; only one USB output layout can be composed.
+- [ ] **Shared USB ownership is explicit.** The card composer includes the internal USB MIDI platform code; the beta base owns the USB functions and their shared reset/ISR sites. Use that shared SDK/base code, never depend on another catalogue module. Only one USB output layout can be composed.
 
 ## MIDI generators and MIDI effects
 
@@ -32,7 +32,7 @@ A **MIDI generator** makes notes or controllers from the transport (an arpeggiat
 
 ## Integrate
 
-- [ ] Conflicts and dependencies are declared in `compatibility`; USB Audio needs USB MIDI and the composer adds it.
+- [ ] Conflicts are declared in `compatibility`; shared audio/MIDI endpoint and descriptor ownership belongs to the SDK/base, not to a second catalogue module.
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots of the setting that enables it (`PROJ` → `MIDI` → `CONTROL` for CC Map).
 - [ ] A module with no Octatrack page of its own (an automatic USB module) uses the narrow `access.noUiReason` and still documents the host connection and routing. See [MODULE_UI_CAPTURES.md](../MODULE_UI_CAPTURES.md).
 - [ ] `evidence/performance.json` passes `npm run perf:audit -- check` ([Performance](README.md#performance)).

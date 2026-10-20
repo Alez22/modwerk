@@ -28,6 +28,14 @@ descriptors = load('authored_usb_functions', 'sdk/octabam/platform/usb-midi/desc
 
 
 class BaseUsbFunctions(unittest.TestCase):
+    def test_shared_midi_receiver_matches_its_licensed_import(self):
+        import json
+        record = json.loads((ROOT / 'sdk/imports/shared-usb-midi-reconnect-ab911d96.json').read_text())
+        imported = record['files'][0]
+        source = ROOT / 'sdk/octabam' / imported['path']
+        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), imported['vendoredSha256'])
+        self.assertEqual(imported['sourceSha256'], imported['vendoredSha256'])
+
     def test_all_output_layouts_preserve_speed_packets_and_class_entities(self):
         for audio in [None, *functions.AUDIO_LAYOUTS]:
             for high in (False, True):
@@ -89,6 +97,17 @@ class BaseUsbFunctions(unittest.TestCase):
             self.assertNotIn('.set usbmidi_rx_isr_shim,', text)
             self.assertEqual(base.msos20()[22], 1)  # WinUSB still binds vendor interface 1.
 
+    def test_reset_and_session_end_also_retire_the_shared_midi_session(self):
+        for audio in [None, *functions.AUDIO_LAYOUTS]:
+            text = functions.assembly(base, descriptors, audio)
+            for label, midi, continuation in (
+                    ('modwerk_bus_reset_shim', 'usbmidi_rx_reset_shim', 'audio_reset_shim'),
+                    ('modwerk_session_end_shim', 'usbmidi_rx_sessend_shim', 'audio_sessend_shim')):
+                body = text.split(label + ':', 1)[1].split('\n\n', 1)[0]
+                self.assertIn('jsr     modwerk_ep0_bus_reset', body)
+                self.assertIn('jsr     usbmidi_rx_bus_end\n    jmp     ' + continuation if audio else
+                              'jmp     ' + midi, body)
+
     def test_one_isr_owner_and_full_guarded_midi_sender_span(self):
         old = functions.MIDI_DETOURS
         self.addCleanup(setattr, functions, 'MIDI_DETOURS', old)
@@ -125,7 +144,7 @@ class BaseUsbFunctions(unittest.TestCase):
                 for name in ('modwerk_ep0_dispatch', 'modwerk_ep0_poll', 'modwerk_ep0_bus_reset', 'modwerk_engine_idle',
                              'olog_idle_hook', 'modwerk_ep0_reply')))
             midi = assemble('usbmidi', functions.midi_source((ROOT / 'sdk/octabam/platform/usb-midi/usbmidi.s').read_text()))
-            receive = assemble('usbmidi_rx', (ROOT / 'sdk/octabam/modules/usb-audio-out-tracks-main-cue/usbmidi_rx.s').read_text())
+            receive = assemble('usbmidi_rx', (ROOT / 'sdk/octabam/platform/usb-midi/usbmidi_rx.s').read_text())
             def link(objects, origin):
                 script, elf, raw = root / 'usb.ld', root / 'usb.elf', root / 'usb.bin'
                 script.write_text(builder.SCRIPT % origin)
@@ -147,6 +166,9 @@ class BaseUsbFunctions(unittest.TestCase):
                         original_image, original_symbols, _ = link([*objects, original_audio], 0)
                         objects.append(assemble('audio', functions.audio_storage_source(source)))
                     image, symbols, bss = link(objects, 0)
+                    # Upstream cleanup clears the accumulator through this
+                    # guarded layout; pin the actual linked symbols too.
+                    self.assertEqual(symbols['usbmidi_tx_acc_len'], symbols['usbmidi_up'] + 4)
                     if audio:
                         ring = [81920, 65536, 8192, 16384, 8192][functions.AUDIO_LAYOUTS[audio]]
                         for name, size in [('aud_ring', ring), ('aud_sum', 8192)]:
