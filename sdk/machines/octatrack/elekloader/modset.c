@@ -139,7 +139,7 @@ int modwerk_modset_keep(const uint8_t *const package[], const uint32_t bytes[], 
     return 1;
 }
 /* The journal accepted that Keep: the set is the kept set, saved as an accepted install is. */
-void modwerk_modset_kept(void) { if (keep_bytes) seal(keep_count, keep_bytes), pending = 1, retry_at = 0, keep_bytes = 0, modwerk_diag_set(); }
+void modwerk_modset_kept(void) { if (keep_bytes) seal(keep_count, keep_bytes), pending = 1, retry_at = 0, keep_bytes = 0; }
 /* MWVS flags, read by the USB interrupt: 1 while the set's last change is not confirmed on the card, 3 once a
  * write of it failed (retried every ten seconds). */
 unsigned modwerk_modset_unsaved(void) { return pending ? 1u | (unsigned)(modwerk_modset_result == SAVE_FAILED) << 1 : 0u; }
@@ -211,6 +211,7 @@ static void restore(void)
     if (!wa && !wb) {
         if (modwerk_modset_result != FOREIGN) modwerk_modset_result = a || b ? DAMAGED : NONE_SAVED;
         for (unsigned i = 0; i < HEADER; ++i) set[i] = 0;
+        modwerk_diag_set(); /* nothing restored: the log says so */
         return;
     }
     slot = wb && (!wa || gb > ga) ? 1u : 0u; /* the newer one; the next save goes to the other */
@@ -250,6 +251,6 @@ void modwerk_modset_service(void)
     if (!restored) { if (TICKS > 180u) restore(); return; } /* three seconds in: the project and the card are up */
     if (!pending || TICKS < retry_at) return;
     slot ^= 1u;
-    if (store(slot)) pending = 0, modwerk_modset_result = SAVED;
+    if (store(slot)) pending = 0, modwerk_modset_result = SAVED, modwerk_diag_set(); /* the set as the card holds it, in the unit's log */
     else slot ^= 1u, retry_at = TICKS + 600u, modwerk_modset_result = SAVE_FAILED; /* ten seconds, then again */
 }
