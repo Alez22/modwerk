@@ -58,6 +58,11 @@ The sections below this one describe 12 October. This one sums up the beta diagn
 - That night's private images and helper scripts stayed on the first Mac (`~/.cache/modwerk-local/ot/beta-night`);
   firmware and images never go into Git. On another machine:
   1. Run `npm run upstream:tools`. `build_core.py` refuses an Elekloader checkout other than `kit.json`'s commit.
+     Build with the pinned m68k-elf toolchain (GCC 16.2.0, binutils 2.47, `sdk/build/Dockerfile`), for example
+     `m68k-elf-*` wrappers that `docker exec` into a `modwerk-source-tools` container, first on `PATH`. A
+     distribution cross GCC compiles Analog BD differently, and the base build then stops with "The reviewed
+     runtime recipe does not match the exact source/image inputs." On WSL (20 October) this rebuilt `9280d484`,
+     `.bin` `fae18e2e…`.
   2. Build a `--dev` twin and drive the unit as [OCTATRACK_DRIVING.md](OCTATRACK_DRIVING.md) says.
   3. Find Part bytes with `mem` (the guide's table): a pattern's trig masks are its first 8 bytes per track, 2,330
      bytes apart, and FX page-2 settings are at Part `0x2fe + 30·track + 6·fx`.
