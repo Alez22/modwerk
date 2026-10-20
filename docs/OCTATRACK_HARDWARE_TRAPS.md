@@ -361,6 +361,14 @@ record MAIN with SRC3 = MAIN; leaked frames are the muted audio. Sweeping a knob
 through a heavy mode and back flipped the stuck states. The emulator models
 neither contention nor interrupt latency, so neither shows there.
 
+*The data cache and module memory (cached modules):* the pool is cached copy-back, so code written through the
+cached alias sits dirty in the data cache until CPUSHL pushes each line. CPUSHL names a line by set and way, and this
+cache has more sets than address bits 12:4 name: a push that walked `0x2000` bytes of sets "once for the whole cache"
+left half of a 17 KB extent in the cache while memory still held the BSS zeros, and the first call into it hit an
+illegal instruction (`ori.b`, beta finding 60). Push every line of a range by its own address. The crash record
+reads the PC's bytes both cached and through the uncached alias so this is visible: equal bytes mean a wrong jump or
+a stale instruction cache, zeros or other bytes uncached mean the push did not happen.
+
 ## Patching stock code
 
 **A detour returns after the whole span it displaced, never into it.** The
