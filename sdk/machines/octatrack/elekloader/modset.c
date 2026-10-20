@@ -231,6 +231,8 @@ static void restore(void)
 }
 /* ep0.c holds host frames until the restore has run: an install before it would race it, and the restore would undo it. */
 int modwerk_modset_restored(void) { return (int)restored; }
+/* ep0.c's tick wakes the engine for this: a kept set not yet on the card whose save may run now (first try or retry). */
+int modwerk_modset_due(void) { return restored && pending && TICKS >= retry_at && !VOLATILE_BLOCKED(); }
 #ifdef MODWERK_SAVED_SET_EXPORT
 /* A restored baseline without a staged package or any queued/retrying save. */
 int modwerk_modset_export_idle(void) { return restored && !pending && !candidate && !VOLATILE_BLOCKED(); }
