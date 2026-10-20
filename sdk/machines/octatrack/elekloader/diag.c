@@ -50,12 +50,13 @@ typedef char diag_fits_battery_ram[0x100fc000u + sizeof(struct diag_log) <= 0x10
 #define SCREEN (*(volatile uint32_t *)0x460d165cu)         /* stock's list of input layers, the top one (status.c) */
 #define RUNNING(i) (((const volatile uint8_t *)0x80000ec4u)[i]) /* fxmap.c: FX1 T1-T8, then FX2 */
 #define DTCN3 (*(volatile uint32_t *)0xfc07c00cu)
-#include "../../../runtime/loader/loader.h"
+unsigned modwerk_runtime_list(uint8_t *out, unsigned first, unsigned most); /* loader.c: ep0.c's INVENTORY entries, 24 bytes each, the id at +4 */
 static unsigned installed(uint32_t *ids, unsigned most)
 {
-    unsigned n = 0;
-    for (unsigned i = 0; i < RUNTIME_MODULES && n < most; ++i) { const struct runtime_module *m = modwerk_runtime_module(i); if (m) ids[n++] = m->id; }
-    return n;
+    uint8_t list[4u + 24u * 14u];
+    unsigned got = (modwerk_runtime_list(list, 0, most < 14u ? most : 14u) - 4u) / 24u;
+    for (unsigned i = 0; i < got; ++i) ids[i] = (uint32_t)list[8u + 24u * i] << 24 | (uint32_t)list[9u + 24u * i] << 16 | (uint32_t)list[10u + 24u * i] << 8 | list[11u + 24u * i];
+    return got;
 }
 #endif
 
