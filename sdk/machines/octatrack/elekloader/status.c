@@ -552,7 +552,7 @@ int modwerk_status_refused(unsigned reason)
     unsigned slot = refused[1], id = refused[2], c = (slot & 7u) < 4u ? 1u : 0u;
     refused_reason = reason, refused_core = c, refused_booked = modwerk_dsp_booked(c), refused_words = dl_residency_words[c];
     refused_arena = c ? modwerk_status[ARENA] >> 16 : modwerk_status[ARENA] & 0xffffu; /* the arena as the page reads it */
-    refused_name[0] = 0;
+    for (unsigned i = 0; i < sizeof refused_name; ++i) refused_name[i] = 0; /* a shorter name after a longer one */
     for (unsigned k = 0, n = modules_count(); k < n; ++k)
         if (modules[k].id == id) for (unsigned i = 0; i < 16u; ++i) refused_name[i] = modules[k].name[i];
 #ifndef MODWERK_HOST
@@ -574,7 +574,9 @@ static void refused_box(unsigned char *frame)
     outline(frame, 18u, 12u, 109u, 50u);
     unsigned slot = refused[1], c = refused_core;
     char where[8] = {'T', (char)('1' + (slot & 7u)), ' ', 'F', 'X', (char)(slot < 8u ? '1' : '2'), 0};
-    label(23u, 15u, refused_reason == 3u ? "DSP FULL" : "DSP MEMORY FULL"), label((unsigned)(105 - TEXT_WIDTH(FONT, -1, where)), 15u, where);
+    const char *title = refused_reason == 3u ? "DSP FULL" : "DSP MEMORY FULL";
+    if (TEXT_WIDTH(FONT, -1, title) + TEXT_WIDTH(FONT, -1, where) + 6 > 82) title += 4; /* "MEMORY FULL": clear of the slot */
+    label(23u, 15u, title), label((unsigned)(105 - TEXT_WIDTH(FONT, -1, where)), 15u, where);
     fill(frame, 18u, 22u, 109u, 22u, 1);
     char need[32], *e = need;
     for (const char *t = refused_name[0] ? refused_name : "THIS EFFECT"; *t && e < need + 16; ) *e++ = *t++;
