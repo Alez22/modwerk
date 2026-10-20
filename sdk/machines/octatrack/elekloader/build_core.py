@@ -1791,7 +1791,7 @@ modwerk_retained_end:
     parsed = formats.load(str(args.stock))[0]
     linked = formats.main_image(formats.parse(outputs['bin'], device), device)
     main_packed, run_proof = run_pack.pack(linked, manifest['link']['layout'], mapping, device.main_load, aplib.pack_section)
-    outputs = formats.write(parsed, formats.pack_main(main_packed), device, manifest['version'])
+    outputs = formats.write(parsed, formats.pack_main(main_packed, device), device, manifest['version'])
     manifest.update(main_sha256=sha(main_packed), main_len=len(main_packed),
                     output=formats.verify(outputs, parsed, main_packed, device, manifest['version']))
     for ext, data in outputs.items():
