@@ -2,6 +2,8 @@
 
 ## 20 October 2026
 
+- Documentation: clarified that screenshots are allowed without opening, navigating or controlling a browser. Recorded screenshot capture as a requested developer-MCP capability that is not implemented; unavailable capture remains an explicit visual-evidence gap.
+
 - The firmware build sign-in prompt now waits five seconds before enabling Skip for now, with the remaining seconds shown on the button. Reopening the prompt restarts the wait; Sign in, Create account and Cancel stay available immediately. Guests can still build for the rest of the visit after skipping.
 
 - These Octatrack fixes come in one more base update: testers update to `aba30393…` (`.bin` `4e11c525…`). The five base-bound USB packages rebuild byte-identical against it, so only the base they require moves; Analog BD's recipe is unchanged. Its flash and power-on qualification is still open.
