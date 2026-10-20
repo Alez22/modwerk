@@ -99,7 +99,8 @@ describe('Octatrack firmware boot name', () => {
 describe('placement diagnosis', () => {
   it('stops trying removals for a selection once a newer one arrives', async () => {
     // Recorded with stock FX2 off, as is each selection one module smaller, so the diagnosis composes candidates.
-    const crowded = ['miniverb', 'tapeecho', 'euclid', 'repitch', 'tapehead', 'analog-bassdrum', 'previewvol', 'sidechain-compressor', 'playmodes', 'mute-modes', 'recorder-loop-fix']
+    // Without Mini Verb: beside Sidechain Compressor it is a declared conflict, refused before any composition.
+    const crowded = ['tapeecho', 'euclid', 'repitch', 'tapehead', 'analog-bassdrum', 'previewvol', 'sidechain-compressor', 'playmodes', 'mute-modes', 'recorder-loop-fix']
     const compose = vi.mocked(composeSelection), original = compose.getMockImplementation()!
     let attempts = 0, reached = () => {}
     const second = new Promise<void>(resolve => { reached = resolve })
