@@ -173,7 +173,9 @@ async function pick(track, slot, wanted) {
   for (let i = 0; i < tables.count && id < 0; i++)
     if (ids[i] && Buffer.from(await mem(ids[i] + 9, 13)).toString('latin1').replace(/\0.*$/s, '').toLowerCase() === wanted.toLowerCase()) id = i
   if (id < 0 || id >= tables.count || (typeof wanted === 'number' && !rows[id])) throw new Error('No ' + wanted + ' in the FX' + slot + ' chooser.')
-  await run(`T${track + 1} FX${slot} FUNC+FX${slot} w150`)
+  // NO first: right after a pick on another track the next FUNC+FX can be lost, and the LEVEL turn below then changes that
+  // track's level in the Part instead of scrolling (owner's MKII, 20 October 2026)
+  await run(`NO w300 T${track + 1} FX${slot} FUNC+FX${slot} w150`)
   const cursor = await mem(slot === 1 ? 0x460d5c94 : 0x460d5ca8, 4)
   const move = rows[id] - new DataView(cursor.buffer, cursor.byteOffset, 4).getUint32(0) // the chooser's cursor (dsp.c)
   if (move) await run(`encLEVEL${move < 0 ? '-' : '+'}${Math.abs(move)} w100`) // LEVEL scrolls the chooser, a row a detent
