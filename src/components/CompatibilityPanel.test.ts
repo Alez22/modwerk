@@ -6,7 +6,8 @@ import { explainBuildFailure } from '../engine/build-errors'
 import type { BuildView } from '../hooks/useFirmwareBuild'
 import type { SelectionConflict } from '../catalog/selection-conflicts'
 
-const reportedSelection = ['euclid', 'vector', 'sidechain-compressor', 'tapehead', 'tapeecho', 'miniverb', 'previewvol', 'repitch']
+// The reported selection without Mini Verb: beside Sidechain Compressor it is a declared conflict now, which the panel shows first.
+const reportedSelection = ['euclid', 'vector', 'sidechain-compressor', 'tapehead', 'tapeecho', 'previewvol', 'repitch']
 function render(state: BuildView['state'], error?: string, ids = reportedSelection) {
   return renderToStaticMarkup(createElement(CompatibilityPanel, { ids, keepStockFx2: false, buildState: state, buildError: error, onFix: () => {} }))
 }
@@ -14,7 +15,7 @@ function render(state: BuildView['state'], error?: string, ids = reportedSelecti
 describe('configuration placement status', () => {
   it('renders named placement failures and complete verified removal choices', () => {
     const conflict: SelectionConflict = { id: 'build-placement-space', title: 'This selection needs more menu and patch space', description: 'Mute Modes menu and patch code does not fit (208 bytes needed, 60 bytes available). Removing one module is insufficient.', moduleIds: ['mute-modes'], fixes: [{ label: 'Remove Euclid + Mute Modes', removeIds: ['euclid', 'mute-modes'] }] }
-    const ids = ['miniverb', 'tapeecho', 'euclid', 'repitch', 'tapehead', 'analog-bassdrum', 'previewvol', 'sidechain-compressor', 'playmodes', 'mute-modes', 'recorder-loop-fix']
+    const ids = ['tapeecho', 'euclid', 'repitch', 'tapehead', 'analog-bassdrum', 'previewvol', 'sidechain-compressor', 'playmodes', 'mute-modes', 'recorder-loop-fix']
     const props = { ids, keepStockFx2: false, buildState: 'error' as const, buildError: conflict.description, buildConflict: conflict, onFix: () => {} }
     const html = renderToStaticMarkup(createElement(CompatibilityPanel, props))
     expect(html).toContain('compatibility-conflict')

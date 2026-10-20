@@ -86,7 +86,9 @@
   "compatibility": {
     "firmware": "1.40C",
     "location": "FX2",
-    "conflicts": [],
+    "conflicts": [
+      "sidechain-compressor"
+    ],
     "limitations": [
       "Stored projects, locks, scenes and LFO destinations use parameter slots: old MIX in slot C becomes TONE. Reassign Mix to slot F and set Tone to 64.",
       "Physical hardware, chip timing, complete runtime memory bounds, played automation, Part/project persistence and physical reboot remain unverified for this source. The noise in report #428 has not been reproduced on hardware.",
