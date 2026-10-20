@@ -5,6 +5,7 @@ import { SignupWelcome } from './community/SignupWelcome'
 import { HardwareFeedbackReminder } from './community/HardwareFeedbackReminder'
 import { HardwareFeedbackCheckIn } from './community/HardwareFeedbackCheckIn'
 import { NotificationBell } from './community/NotificationBell'
+import { useRemoteSessionSeen } from './community/remote-session-signal'
 import { PublicAnnouncement } from './community/PublicAnnouncement'
 import { useMembersOnline } from './community/useMembersOnline'
 import { MembersOnlineChip } from './community/MembersOnline'
@@ -105,6 +106,7 @@ const OctatrackActivity = lazy(() => beta().then(module => ({ default: module.Oc
 const BaseInstallDialog = lazy(() => beta().then(module => ({ default: module.BaseInstallDialog })))
 const OctatrackDiagnosticsCollector = lazy(() => import('./components/OctatrackDiagnostics').then(module => ({ default: module.OctatrackDiagnosticsCollector })))
 const DiagnosticsInvitationGate = lazy(() => import('./components/DiagnosticsInvitation').then(module => ({ default: module.DiagnosticsInvitationGate })))
+const RemoteSessionGate = lazy(() => import('./components/RemoteSession').then(module => ({ default: module.RemoteSessionGate })))
 const OwnerNoteGate = lazy(() => import('./components/OwnerNote').then(module => ({ default: module.OwnerNoteGate })))
 const OwnerNotePreview = lazy(() => import('./components/OwnerNote').then(module => ({ default: module.OwnerNotePreview })))
 const BetaModuleSets = lazy(() => beta().then(module => ({ default: module.BetaModuleSets })))
@@ -178,6 +180,7 @@ export default function App() {
   // The guided load's Install from the card: the set page with the card install open.
   const [cardOpen, setCardOpen] = useState(false)
   // Once per member with USB access wherever they are, except on account, sign-in, admin and legal pages.
+  const remoteSessionSeen = useRemoteSessionSeen()
   const baseInstallPrompt = useBaseInstallPrompt(session.user?.verified ? session.user.id : null, !!usbLink && !usbLinkPreview && !accountRoute && !developerRoute && !route.startsWith('submit') && !['admin', 'review', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route), usbLink ?? null)
   useEffect(()=>{if(developerRoute&&!route.startsWith('developer/complete')&&developer&&!developer.user)window.location.replace('#account/developer')},[developerRoute,route,developer])
   const communityRoute = developerRoute || forumRoute || accountRoute || route === 'review' || route === 'admin' || route.startsWith('submit') || !!communityModule
@@ -469,6 +472,7 @@ export default function App() {
       {configDialog && <ConfigurationDialog mode={configDialog} initialName={configDialog === 'create' ? '' : configDialog === 'duplicate' ? (machineActive?.name ?? '') + ' copy' : machineActive?.name ?? ''} onSubmit={submitConfigurationDialog} onClose={() => { setConfigDialog(null); setCreateDevice(null) }} />}
       <PublicAnnouncement next={route} enabled={newsEnabled} />
       {/* The beta note is required: everywhere but the pages it and the diagnostics step link to, and the account (export, deletion). */}
+      {remoteSessionSeen && session.user?.verified && <Suspense fallback={null}><RemoteSessionGate key={session.user.id} /></Suspense>}
       {betaAccess && <Suspense fallback={null}><OwnerNoteGate key={session.user!.id} enabled={!accountRoute && !faqRoute && !['privacy', 'impressum', 'community-rules', 'report-content'].includes(route)} /></Suspense>}
       {import.meta.env.DEV && usbPreview === 'beta-note' && <Suspense fallback={null}><OwnerNotePreview /></Suspense>}
       <Suspense fallback={null}>
