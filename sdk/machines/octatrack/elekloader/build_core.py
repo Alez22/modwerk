@@ -1483,7 +1483,7 @@ def main():
         usb_functions = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_functions)
         spec = importlib.util.spec_from_file_location('modwerk_authored_usb_descriptors', usb.AUDIO_DESCRIPTORS)
         usb_descriptors = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_descriptors)
-    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
+    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'flash.c', 'flash.h', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
             ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s') if args.site_events else ()):
         shutil.copyfile(HERE / name, source / name)
     if args.dev and args.resident_on_demand:  # dev MEM reaches the engines' diagnostics (resident_engines.dev)
