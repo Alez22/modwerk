@@ -33,8 +33,11 @@ For each image:
 The emulator flushes immediately and does not model physical host packet
 scheduling. These results do not prove audible routing, channel alignment,
 post-fader behavior, host-driver recovery, module companions or persistence.
-The sixth catalogue layout, `tracks-post`, is absent from the base's current
-five-layout source/CLI and was not tested or silently substituted.
+At the source commit named above, the sixth catalogue layout, `tracks-post`,
+was absent from the base's five-layout source/CLI; it was not tested or
+silently substituted in this run. The later shared stock-data recipe and
+six-layout build preparation have their own source-built results; these
+older image identities are not relabelled.
 
 Exact private image identities (hashes only; no firmware is committed):
 

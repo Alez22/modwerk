@@ -239,6 +239,18 @@ audio/stock handler, and SET_CONFIGURATION flushes EP2 before rewriting its
 queue heads. The legacy card module retains its own earlier source until its
 separate, versioned update; a base fix does not update that card download.
 
+The private builder also accepts `--usb-audio 'USB AUDIO OUT TRACKS POST'`.
+Only that layout uses the already imported selected-layout audio/descriptor
+source; the other five retain their original source. `usb_post.py` reads
+core 0's X:0x6c00 quarter-sine table from verified local 1.40C. The package
+omits it through a named `usb-post-xlv` fill: unlike 24-bit DSP code, these
+256 words become 32-bit big-endian ColdFire data. The browser uses the same
+bounded recipe, shared with the card composer's gain-table validation.
+Never ship literal reconstructed table words or rely on a raw-byte scan to
+recognize an expanded encoding. This does not add runtime settings or
+admit the USB Audio catalogue module to USB sync. POST still needs its own
+signal/ramp/scene, EMAC preservation, timing and physical qualification.
+
 `scripts/verify-octatrack-usb-reconnect.py` runs four unplug/replug cycles and a
 bus reset against a private source-linked base in `ot_emu`. Its negative
 control must show stale clocks and an EP2 IN prime before reconfiguration;

@@ -17,6 +17,8 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 APP = HERE.parents[3]
+_spec = importlib.util.spec_from_file_location('modwerk_usb_post', HERE / 'usb_post.py')
+usb_post = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(usb_post)
 VERSION = '0.3.1-modwerk-dev.1'
 # Resident controller trust: association, the scoped write lease, its resolver and the board-compiled policy table.
 CONTROLLER_POLICY_SOURCES = ('controller_policy.c', 'controller_policy.h', 'controller_association.c', 'controller_association.h',
@@ -1297,9 +1299,10 @@ def strip(document, fills, words, image, load):
     firmware. In a section (the ColdFire's packed copies) a word is big-endian, in a DSP payload site little-endian."""
     document = json.loads(json.dumps(document))
     for fill in sorted(fills, key=lambda f: -f['offset']):  # from the end: earlier offsets stay where they were
-        start, end = fill['offset'], fill['offset'] + 3 * fill['count']
+        width = usb_post.width(fill)
+        start, end = fill['offset'], fill['offset'] + width * fill['count']
         if 'section' in fill:
-            expected = b''.join(w.to_bytes(3, 'big') for w in words(fill))
+            expected = b''.join(w.to_bytes(width, 'big') for w in words(fill))
             kept, removed, at = [], b'', 0
             for part in document['sections'][fill['section']]['parts']:
                 size = len(part[1]) // 2 if part[0] == 'hex' else part[2]
@@ -1335,7 +1338,7 @@ def main():
     parser.add_argument('--usb-midi', action='store_true',
                         help='Private composite-base preparation: bounded USB MIDI receive/transmit plus vendor and MSC.')
     parser.add_argument('--usb-audio', choices=('USB AUDIO OUT TRACKS MAIN CUE', 'USB AUDIO OUT TRACKS',
-                        'USB AUDIO OUT MASTER', 'USB AUDIO OUT MAIN CUE', 'USB AUDIO OUT MAIN'),
+                        'USB AUDIO OUT MASTER', 'USB AUDIO OUT MAIN CUE', 'USB AUDIO OUT MAIN', usb_post.LAYOUT),
                         help='Private composite-base preparation: one authored output layout, with internal USB MIDI. Requires exact new-base qualification.')
     parser.add_argument('--dsp-hook', choices=tuple(DSP_HOOK_EDITS), default='guard',
                         help="with --dsp-loader: the state-7 entry, guard (default); usbin, pretend, noflags, long: hardware bisect variants")
@@ -1481,7 +1484,8 @@ def main():
         spec = importlib.util.spec_from_file_location('modwerk_base_usb_functions',
             APP / 'sdk/machines/octatrack/module-adapters/base_usb_functions.py')
         usb_functions = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_functions)
-        spec = importlib.util.spec_from_file_location('modwerk_authored_usb_descriptors', usb.AUDIO_DESCRIPTORS)
+        audio_path, descriptor_path = usb.audio_paths(args.usb_audio)
+        spec = importlib.util.spec_from_file_location('modwerk_authored_usb_descriptors', descriptor_path)
         usb_descriptors = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_descriptors)
     for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'flash.c', 'flash.h', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
             ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s') if args.site_events else ()):
@@ -1645,8 +1649,12 @@ def main():
         (source/'usbmidi_rx.s').write_text((HERE / 'usbmidi_rx.s').read_text())
         if args.usb_audio:
             (source/'usbaudio.s').write_text(usb_functions.audio_storage_source(
-                usb_functions.audio_source(usb.AUDIO_SOURCE.read_text())))
-            (source/'remix.inc').write_text(usb_functions.audio_include(args.usb_audio))
+                usb_functions.audio_source(audio_path.read_text())))
+            audio_inc = usb_functions.audio_include(args.usb_audio)
+            if args.usb_audio == usb_post.LAYOUT:
+                post_curve = usb_post.image_words(image, device, dsp)
+                audio_inc += usb_post.include(post_curve)
+            (source/'remix.inc').write_text(audio_inc)
     elif args.dev:  # USB AUDIO OUT MAIN CUE (usb_base.py): Octabam's source with our interface numbers
         (source/'usbaudio.s').write_text(usb.audio_assembly())
         (source/'remix.inc').write_text(usb.AUDIO_INC)
@@ -1671,9 +1679,9 @@ def main():
         for path in (usb.AUDIO_SOURCE, usb.AUDIO_DESCRIPTORS):
             inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if usb_functions:
-        for path in (Path(usb_functions.__file__), usb.AUDIO_DESCRIPTORS,
+        for path in (Path(usb_functions.__file__), descriptor_path,
                      usb.OCTABAM / 'platform/usb-midi/usbmidi.s',
-                     HERE / 'usbmidi_rx.s') + ((usb.AUDIO_SOURCE,) if args.usb_audio else ()):
+                     HERE / 'usbmidi_rx.s') + ((audio_path,) if args.usb_audio else ()):
             inputs[str(path.relative_to(APP))] = sha(path.read_bytes())
     if args.dsp_loader:
         for name in ('src/engine/assets/stock-dsp-metadata.json', 'src/engine/assets/chooser-metadata.json',
@@ -2002,7 +2010,10 @@ modwerk_retained_end:
                             dsp_layout[t]['residentHooks'])
                 else:
                     fills.append(dict(tag=t, fx=fx, first=0, count=len(words), section=section, offset=offset))
-        recovered = lambda f: (dsp_layout[f['tag']]['words'][f['fx']] if 'fx' in f else
+        if args.usb_audio == usb_post.LAYOUT:
+            section, offset = document['symbols']['post_xlv']
+            fills.append(usb_post.fill(section, offset))
+        recovered = lambda f: (post_curve if 'curve' in f else dsp_layout[f['tag']]['words'][f['fx']] if 'fx' in f else
                                dsp_layout[f['tag']]['shared'][f['shared']])[f['first']:f['first'] + f['count']]
         (out/'base.elemod').write_text(json.dumps(strip(document, fills, recovered, image, device.main_load), indent=1)+'\n')
         (out/'base-fills.json').write_text(json.dumps(fills, indent=1)+'\n')

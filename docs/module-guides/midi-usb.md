@@ -13,6 +13,7 @@ Read [the module guides index](README.md) first. A module that sends or reacts t
 - [ ] **Feedback.** When a MIDI message changes a value, the panel shows it (`verify_ccfeedback.py`), including values that are parameter-locked or LFO-modulated at that moment. **Verify** the interaction and record the result.
 - [ ] **Parameter locks and LFOs.** A CC-driven parameter and a lock or LFO on the same parameter: say which wins, and test it.
 - [ ] **USB:** the device enumerates as the instrument's own identity, with the interfaces the host expects (`verify_usb.py` checks the Elektron 1935:0002 identity, the MSC interface and the INQUIRY and CSW responses). Sample alignment and channel layout are tested (`verify_usb_align.py`, `verify_usb_in.py`), startup behaviour is stated (USB Audio reports a reordering burst 0.5–1.5 s after the stream opens), and the hosts you measured are named: "Windows and Linux hosts have not been measured" is a legitimate sentence, an omission is not.
+- [ ] **Stock tables stay local.** A POST producer's gain curve is DSP data expanded to 32-bit ColdFire words. Use the shared named reconstruction recipe, with a bounded source span and no literal table in packages; a raw stock-byte scan alone does not prove a changed encoding is stock-free.
 - [ ] **Shared USB ownership is explicit.** The card composer includes the internal USB MIDI platform code; the beta base owns the USB functions and their shared reset/ISR sites. Use that shared SDK/base code, never depend on another catalogue module. Only one USB output layout can be composed.
 
 ## MIDI generators and MIDI effects
@@ -41,6 +42,8 @@ A **MIDI generator** makes notes or controllers from the transport (an arpeggiat
 ## Test
 
 Flood and stop it: notes, CC and clock at the wire rate, stopped mid-note, a Part change while it runs, and count what is left sounding and what was dropped. `verify_midi.py`, `verify_ccmap.py`, `verify_usb.py`, `verify_usb_align.py` and `verify_usb_in.py` are the patterns. A host-side test is part of the work: name the operating system, the USB speed and the software you used, or say "not tested".
+
+Match startup settings in native/worker image comparisons. The worker defaults to docking startup; the USB layout verifier explicitly requests classic startup to match its native composition. Different startup hooks are a real image difference, not a USB layout regression.
 
 ## Digitakt and Digitone
 

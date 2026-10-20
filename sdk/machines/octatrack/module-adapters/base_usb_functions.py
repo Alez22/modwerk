@@ -14,6 +14,7 @@ AUDIO_LAYOUTS = {
     'USB AUDIO OUT MASTER': 2,
     'USB AUDIO OUT MAIN CUE': 3,
     'USB AUDIO OUT MAIN': 4,
+    'USB AUDIO OUT TRACKS POST': 5,
 }
 MIDI_IAD = bytes([8, 11, 1, 2, 1, 0, 0, 0])
 # These are the existing USB MIDI manifest's guarded, non-shared sites. The
@@ -117,7 +118,10 @@ def audio_include(key):
     return '| base-owned USB output, without an input function\n.set USB_LAYOUT, %d\n.set USB_IN, 0\n' % AUDIO_LAYOUTS[key]
 
 
-DMA_BLOCK_SHA256 = '0cef06f0a138ebb8026a3bad9a847a0befac64d0da961561f3fe8fe3c5ebf35c'
+DMA_BLOCK_SHA256 = {
+    '0cef06f0a138ebb8026a3bad9a847a0befac64d0da961561f3fe8fe3c5ebf35c',
+    '3eaf6de20d102ef734621d904b480d7fbb5efb10d1fed13fc823e892ce0f37e3',  # licensed selected-layout source's trailing alignment
+}
 
 
 def audio_storage_source(text):
@@ -137,7 +141,7 @@ def audio_storage_source(text):
     # The EP3 dTDs and packets the controller DMAs: reached only through the uncached alias, which the boot clear
     # also writes, and audio_dtds_clear zeroes the dTDs at every EP3 start and stop. Same size, alignment and order.
     dma = '    .balign 32\naud_dtds:'
-    if text.count(dma) != 1 or hashlib.sha256(text[text.index(dma):].encode()).hexdigest() != DMA_BLOCK_SHA256:
+    if text.count(dma) != 1 or hashlib.sha256(text[text.index(dma):].encode()).hexdigest() not in DMA_BLOCK_SHA256:
         raise ValueError('The authored zero-only audio DMA block changed.')
     return text.replace(dma, '    .bss\n' + dma)
 

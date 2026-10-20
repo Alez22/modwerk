@@ -2170,10 +2170,13 @@ unit:
   a reference design, not hot switching or a completed Modwerk port. Keep
   settings ownership in the shared base and qualify the supported layouts,
   MIDI, mass storage and rollback before admitting the catalogue selection.
-- Migration boundary checked on 21 October: the base's current source/CLI
-  covers five output layouts; the catalogue has a sixth, post-fader TRACKS.
-  Its producer and guarded stock gain table need a separate port, not a
-  substituted pre-fader layout. `InventoryTarget` currently carries module
+- Migration preparation on 21 October: the private base builder now covers
+  all six output layouts, including post-fader TRACKS. Its named stock-data
+  recipe removes the 256-word gain curve from the package and reconstructs
+  32-bit ColdFire data from the verified local OS, independently of the
+  catalogue card module. These are separate per-layout images, not one
+  switchable all-profile base. This is build preparation, not a settings lifecycle
+  or a physical post-fader result. `InventoryTarget` currently carries module
   IDs and removed stock FX, not `usbAudio`: migration must carry and compare
   the validated device profile too, so unchanged module IDs cannot hide a
   layout change. Outbox output assignments remain host routing, not device
@@ -2181,9 +2184,15 @@ unit:
   transaction generation must all survive review/reconnect verification;
   today a bus reset aborts an open runtime trial, so intentional
   re-enumeration needs an explicit recovery phase before this can ship.
-  [Additional layout and concurrent-stream results](../sdk/machines/octatrack/evidence/usb-base-layouts-20261021.md)
-  are software preparation plus one exact-base physical trial/Undo, not
-  qualification of settings, removal or persistence.
+  Bind that one-use transition to the reviewed session, base, old/new
+  profiles and generation; do not suppress rollback for unrelated resets.
+  Removal must report and prove audio disabled, rather than only removing
+  a marker from the module inventory.
+  [Six-layout reconstruction and fresh-base results](../sdk/machines/octatrack/evidence/usb-post-base-20261021.json)
+  separate software POST preparation from the ordinary twenty-channel base's
+  physical trial/Undo/capture. Neither qualifies settings, removal or persistence.
+  [Earlier results](../sdk/machines/octatrack/evidence/usb-base-layouts-20261021.md)
+  retain their original image identities.
 - The emulator models EP0–EP3, transfers up to 8 KiB and no packet timing.
   Its source here cannot build as is: the CPU cores under `sdk/octabam/vendor/`
   and `remixes/` are absent, and the 27 USB checks used a private adapter.
