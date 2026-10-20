@@ -477,6 +477,17 @@ exists yet: the meter's 41 % idle is stock's own tasks.
 each hook's entry and some exits; read it over `mem` twice some seconds apart and divide by 132 for µs (`modwerk_cost[15]`
 counts ticks, `[13]` compositions, `[11]` frames, `[19]` fx map checks). A tester base has none of it.
 
+*Reading the battery-RAM log (diag.c):* an OS upgrade leaves the same trace as a hang. Stock halts the DSPs for the
+upgrade while the loader may still have a job open, so the next boot logs a `stall` (reason 1, frames stopped) after a
+`hot` record at 100 % CPU whose last keys are the PROJECT > SYSTEM > OS UPGRADE walk (PROJ, arrows, YES). Seen on the
+owner's MKII flashing `a0dd21c4` (20 October 2026) and in every tester stall of the 16-20 October pull. Until the start
+record carries the base id, read a stall followed by a start on another base as an upgrade.
+
+*The DSP peak meter:* a core's peak (status.c, the diag log's five-minute windows) is the busiest single frame of a
+1,024-frame receiver window. A self-test that runs DSP modules, or a sync, leaves the window at 99.7-99.8 % although
+the mean stays flat and the audio is fine; a stock effect load does not. Read the self-test's longest frame for
+overload, not the peak (finding 59 in the beta test plan).
+
 ## The emulator and the tools
 
 What `ot_emu` does not show:
