@@ -424,10 +424,10 @@ DSP_EDITS = {
                    '    return result;'),
                   # Preload the union of the bank's Parts: every transaction also holds the effects the four Parts
                   # name (allocator.c's keep), so a Part change only flips dispatch, and the observer reloads when
-                  # that changes (a project or bank load, a Part edit). Modules are kept firmly; the bank's stock
-                  # effects too while they fit, else they load as a Part selects them (a Part change then waits
-                  # for an upload: COMPRESSOR, 9 packets, on the unit, 11 October 2026). Memory is admitted over
-                  # the union, cycles over the target, which is one Part.
+                  # that changes (a project or bank load, a Part edit). While it fits; else the bank gives way and
+                  # code loads as a Part selects it (a Part change then waits for an upload: COMPRESSOR, 9 packets,
+                  # on the unit, 11 October 2026). Modules were kept firmly here; ON_DEMAND_EDITS lets them go too.
+                  # Memory is admitted over the union, cycles over the target, which is one Part.
                   ('static unsigned observed_valid=0;',
                    'static unsigned observed_valid=0;\nstatic uint32_t observed_held[2]={0,0},observed_played[2]={0,0}; /* parts() when last observed */'),
                   ('static unsigned needed(unsigned index,unsigned mode) {',
@@ -894,6 +894,59 @@ TRANSITION_EDITS = {
     ),
 }
 for _name, _edits in TRANSITION_EDITS.items():
+    WIDTH_EDITS[_name] = WIDTH_EDITS.get(_name, ()) + _edits
+
+# Everything on the DSP loads on demand (owner, 20 October 2026: "meant for all things on the DSP"; a Part switch may
+# wait for an upload): module effects give way as stock ones do, so a module never needs the bank's other Parts' code
+# beside it. Short of room a core's share of the bank goes, first all but the Parts the patterns play (and the current
+# and queued one), then those too, down to what the request runs; one core at a time before both. This replaces the
+# firm modules and loose() (a request adding a module had to fit beside every module the Parts name). Applied with
+# WIDTH_EDITS, after TRANSITION_EDITS.
+ON_DEMAND_EDITS = {
+    'manager.c': (
+        ('/* What the current bank\'s four Parts name, per core: modules (keep), stock effects loaded on demand\n'
+         ' * (soft), and the modules ids names (named).',
+         '/* What the current bank\'s four Parts name, per core: modules (keep), stock effects (soft), the modules ids\n'
+         ' * names (named), and of keep and soft what the Parts the patterns play name (played); all of it on demand.'),
+        ('        if(n==4) named[k]=fx_with(named[k],p); else keep[k]=fx_with(keep[k],p);',
+         '        if(n==4) { named[k]=fx_with(named[k],p); continue; }\n'
+         '        keep[k]=fx_with(keep[k],p);\n'
+         '        if(n==5 || (parts_used>>n&1u)) played[k]=fx_with(played[k],p);'),
+        ('/* Core c lets go of its Parts\' union for this target when the target adds no module to it, or when\n'
+         ' * the union is not held now (a bank that never fitted: a Part change there loads either way). */\n'
+         'static unsigned loose(const fx_set named[2],unsigned c) {\n'
+         '    if(!fx_any(fx_less(named[c],allocator.keep[c]))) return 1;\n'
+         '    for(unsigned p=0;p<DL_PACKAGES;++p) if(fx_in(allocator.keep[c],p) && !allocator.live[c][p].present) return 1;\n'
+         '    return 0;\n'
+         '}\n', ''),
+        ('        fx_set firm[2]={allocator.keep[0],allocator.keep[1]};\n', ''),
+        ('        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (!fx_same(played[0],soft[0]) || !fx_same(played[1],soft[1]))) {\n'
+         '            allocator.keep[0]=fx_or(firm[0],played[0]); allocator.keep[1]=fx_or(firm[1],played[1]);\n'
+         '            r=dl_allocator_prepare(&allocator,desired,current);\n'
+         '        }\n'
+         '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(soft[0]) || fx_any(soft[1]))) {\n'
+         '            allocator.keep[0]=firm[0]; allocator.keep[1]=firm[1];\n'
+         '            r=dl_allocator_prepare(&allocator,desired,current);\n'
+         '        }\n'
+         '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && !trimming && (fx_any(allocator.keep[0]) || fx_any(allocator.keep[1])) &&\n'
+         '           (automatic || loose(named,0) || loose(named,1))) {\n'
+         '            for(unsigned c=0;c<2;++c) if(automatic || loose(named,c)) allocator.keep[c]=(fx_set){{0}};\n'
+         '            r=dl_allocator_prepare(&allocator,desired,current);\n'
+         '        }\n',
+         '        /* Short of room the bank gives way (ON_DEMAND_EDITS): core 0, core 1, then both, to the played Parts, then to none. */\n'
+         '        if(!trimming) {\n'
+         '            fx_set base[2]={allocator.keep[0],allocator.keep[1]};\n'
+         '            for(unsigned t=0;t<2 && (r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION);++t)\n'
+         '                for(unsigned m=1;m<4 && (r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION);++m) {\n'
+         '                    for(unsigned k=0;k<2;++k) allocator.keep[k]=m>>k&1u ? (t ? (fx_set){{0}} : played[k]) : base[k];\n'
+         '                    unsigned same=fx_same(allocator.keep[0],base[0]) && fx_same(allocator.keep[1],base[1]);\n'
+         '                    if(m==3) { base[0]=allocator.keep[0]; base[1]=allocator.keep[1]; }\n'
+         '                    if(!same) r=dl_allocator_prepare(&allocator,desired,current);\n'
+         '                }\n'
+         '        }\n'),
+    ),
+}
+for _name, _edits in ON_DEMAND_EDITS.items():
     WIDTH_EDITS[_name] = WIDTH_EDITS.get(_name, ()) + _edits
 
 # DSP FULL and DSP MEMORY FULL say why (owner, 20 October 2026: testers took the bare popup for a bug): the manager
