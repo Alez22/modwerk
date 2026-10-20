@@ -28,7 +28,7 @@ export function readiness({ dirty = [], behind = false, remote = 'upstream', reg
 
 async function main(argv) {
   const root = fileURLToPath(new URL('../', import.meta.url))
-  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trimEnd()
   const option = name => { const index = argv.indexOf(name); return index < 0 ? null : argv[index + 1] }
   const remotes = git('remote').split('\n')
   const remote = option('--remote') ?? (remotes.includes('upstream') ? 'upstream' : 'origin')

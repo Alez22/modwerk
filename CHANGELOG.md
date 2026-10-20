@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- Development checks: readiness diagnostics retain Git's leading status column, so the first changed file's name is printed in full instead of losing its first character.
+
 - Development checks: the USB Audio native verifier now handles the worker's Vite base-package URL import and development flag under Node 24, and explicitly matches classic startup between its native and worker builds. Previously it stopped on the .elemod extension, then compared classic firmware with the worker's newer docking default.
 
 - Octatrack base preparation: build the sixth USB output layout, post-fader Tracks, using the already licensed source and an explicit stock-data fill. Native packaging strips its gain table; the browser reconstructs the 32-bit data from the verified local OS with the same validation as the card composer. The ordinary twenty-channel base keeps its existing producer and interfaces. USB settings, install/removal and persistence remain staging; no public card version or hardware post-fader claim is added.
