@@ -55,7 +55,21 @@ Cost under ot_emu, from the YES press to the toast: 2.3 to 3.4 million ColdFire 
 
 ## Performance
 
-Not run on the unit. The ColdFire cost is in the UI task only, per press; see above. evidence/performance.json is not written yet.
+Not run on the unit. Everything below is ot_emu (`--mkii --dsp`, the ColdFire port built from the `upstream:tools` Octabam checkout 67e5ea37 with the DSP56300/68k cores of a local Octabam checkout), 20 Oct 2026, and does not count as hardware evidence. The port prices every instruction at one step of its own clock, so its microseconds and instruction counts are not the unit's time. The figures above (8,268,075 for verify.py's worst case) were taken with the frame engine off, `--interactive`'s default.
+
+Setup: two native static-stock images built in a private copy of this source's `sdk/octabam`, one with CF METER + CF METER IDLE (upstream Octabam's probe; not in Modwerk) and the stock effects, one with APPLY SCENE added; verify.py's fixture project with T8 FX2 = CF METER and every scene byte of all eight tracks locked in both scenes except T8's FX2 page (CF METER's knobs); transport playing, fader 64. The flood is one three-byte MIDI message per ms (note on, note off 4 ms later and CCs on channels 1-8 and 11, about 1,000 a second) plus clock at 240 BPM. Handler entries of the MIDI thread were counted with the port's PC watch (note on `0x4000e018`, note off `0x4000db98`, CC `0x4000e79c`, clock `0x40005a48`, start, stop).
+
+`npm run perf:audit -- check sdk/octabam/modules/apply-scene/evidence/performance.json`:
+
+| row | result |
+|---|---|
+| cycles | ✗ no static bound (below) |
+| stock benchmark | ✓ the longest frame interrupt grows by 6.9 us (1.9% of the 362.8 us frame), idle falls by 3.6 points vs stock |
+| stress | ✓ 1000 messages/s at 240 BPM for 62 s, no stuck note, no hang, 0 dropped |
+
+- **Load (10 s per run, cfmeter.py --dump, five 2 s cycles each).** The flood alone: longest frame interrupt 129.3 us on the stock image, 129.1 us with APPLY SCENE; idle 62.38 % on both. The flood plus SCENE A, SCENE B or both + YES every 0.65 s (16 applies): 129.0 us and 62.43 % on the stock image with the same presses, 135.9 us and 58.78 % with APPLY SCENE. CF METER IDLE reads 0 % on both images (the port fast-forwards main's idle park), so idle is the port's own share: 100 × (1 − executed instructions / (3,990 instructions per sample × elapsed samples)).
+- **Stress (62 s, APPLY SCENE image; the same run on the stock image for comparison).** 62,098 messages and 5,963 clocks; STOP with a note held at 7, 22, 37 and 52 s, then Part 2, PLAY, Part 1 (by calling stock's own selection routine `0x4004a8a4`: PART + TRIG did not change the Part in the port's panel script); an apply every 5 s (11, up to 6,832,603 instructions each). No handler saw fewer entries than messages sent (a few types one or two more, on the stock image too: the watch counting an entry twice). Nothing went to MIDI OUT; the per-channel note bookkeeping at the end equals the stock image's. No samples are loaded and no MIDI track plays notes in this project, so an audible stuck note could not occur here. Frames ran to the end and a SCENE A + YES after the last STOP was answered.
+- **Cycles.** With the frame engine on, the blend with every scene byte of all eight tracks locked (231 writes, T8's FX2 page included) ran 11,083,553 instructions from YES to the toast, interrupts in that window included; SCENE A 4,104,661 (143 writes), SCENE B 5,966,265 (193 writes). A static bound is not given: almost all of it is stock's page-1 writer `0x40054cd8`, one call per write, which took 76 to 1,404,162 instructions per write in the blend, depending on the parameter. The rest of the event (the module's own code and the interrupts that landed outside the writer calls) was 10,462 to 397,135. The budget (100 ms at 266 MHz) is a responsiveness target, not a measured limit.
 
 ## Resources
 

@@ -7247,11 +7247,11 @@
         },
         "processing": {
           "label": "CPU / DSP load",
-          "display": "None while idle; 2.3-8.3 M ColdFire instructions per apply (emulator)",
+          "display": "None while idle; 2.3-11.1 M ColdFire instructions per apply (emulator)",
           "value": null,
           "unit": "unknown",
           "method": "emulator",
-          "conditions": "ot_emu, executed instructions from the YES press to the toast: 110 to 160 parameter writes in all three modes, and 201 with every scene byte locked; no DSP work. Hardware time not measured.",
+          "conditions": "ot_emu, executed instructions from the YES press to the toast: 110 to 160 parameter writes in all three modes, 201 with every scene byte locked (frame engine off), and 11.1 M for 231 writes with the frame engine on, interrupts included; no DSP work. Under a MIDI flood in ot_emu nothing changes between presses. Hardware time not measured.",
           "source": "TESTING.md"
         },
         "impact": {
@@ -7259,7 +7259,7 @@
           "cpu": {
             "level": "low",
             "basis": "measured-comparison",
-            "rationale": "No idle cost. One press runs in the UI task: 2.3 to 6.3 million executed ColdFire instructions for 110 to 160 parameter changes under ot_emu, 8.3 million for the 201 changes of the worst case, most of it stock's own store and redraw per change. Time on the unit is not measured.",
+            "rationale": "No idle cost. One press runs in the UI task: 2.3 to 6.3 million executed ColdFire instructions for 110 to 160 parameter changes under ot_emu, 8.3 million for the 201 changes of the worst case (11.1 million for 231 changes with the frame engine running, interrupts included), most of it stock's own store and redraw per change. Time on the unit is not measured.",
             "source": "TESTING.md"
           },
           "dsp": {
@@ -7302,19 +7302,19 @@
             "screenshotStyle": "black-and-white"
           },
           "moduleVersion": "0.1.0-experimental",
-          "sourceSha256": "5b3a830aabe0fd9f677f97c76f535f44682ab68c9285bc0b1c4e71f11cb9b29f",
+          "sourceSha256": "37051fcea2b241e80d78c3ae8aed63414da53f9a8adcbcac29ad9546c5b7efce",
           "imageSha256": "c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163",
           "cycles": [
             {
               "processor": "coldfire",
-              "worstCase": 8268075,
-              "maxConfiguration": 8268075,
+              "worstCase": 11083553,
+              "maxConfiguration": 11083553,
               "maxInstances": 1,
               "budget": 26600000,
               "unit": "cycles/event",
               "method": "emulator",
               "conditions": {
-                "parameterExtremes": "Every scene-lockable byte of all eight tracks locked in both selected scenes, scene A at each slot's minimum and scene B at its maximum, so every enabled slot changes: 201 writes for the blend at fader 64 (8,268,075 instructions), 125 for SCENE A and 172 for SCENE B.",
+                "parameterExtremes": "Every scene-lockable byte of all eight tracks locked in both selected scenes, scene A at each slot's minimum and scene B at its maximum, so every enabled slot changes: 201 writes for the blend at fader 64 (8,268,075 instructions, frame engine off), 125 for SCENE A and 172 for SCENE B; with the frame engine on and T8's FX2 page locked too, 231 writes and 11,083,553 instructions, interrupts in that window included.",
                 "parameterModulation": "Not applicable: one apply per press, outside the audio frame. The written values are Part bytes that the stock morph, LFOs and trig locks read as usual.",
                 "modeSwitching": "All three modes (SCENE A, SCENE B, both keys), both key orders, one key released from both, scene mutes, and a repeat apply that changes nothing (113,287 instructions).",
                 "maxLoad": "The worst event is the blend with every enabled slot changing. Executed ColdFire instructions under ot_emu from the YES press to the toast; one instance. Budget: 100 ms of ColdFire time at 266 MHz, a responsiveness target for a key press, not a measured limit.",

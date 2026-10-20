@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "moduleId": "apply-scene",
   "moduleVersion": "0.1.0-experimental",
-  "moduleSourceSha256": "5b3a830aabe0fd9f677f97c76f535f44682ab68c9285bc0b1c4e71f11cb9b29f",
+  "moduleSourceSha256": "37051fcea2b241e80d78c3ae8aed63414da53f9a8adcbcac29ad9546c5b7efce",
   "revision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
   "originalOsSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e",
   "pool": [
@@ -144,8 +144,8 @@
       },
       "native": {
         "bytes": 1113353,
-        "osSha256": "e6fc09e91be18f467ca0b2d66fbff9621a5faf854cb4cf0d640352dd7cf4af57",
-        "maskedOsSha256": "b11728dc41379f922cfac0d2f7a3d6414f6c54bb4e45467c6d0536a412678603"
+        "osSha256": "01ed27bf991618a608d325e2a9db8c17518301595249b0b60a8dde986d51be74",
+        "maskedOsSha256": "28dd910fed00f8f21e22ec140840bdc7fda24272af482021faed1d4cd7b8b0a7"
       },
       "result": "masked"
     },
@@ -174,8 +174,8 @@
       },
       "native": {
         "bytes": 1113353,
-        "osSha256": "321c047d720329c570e879de23eac7df869d27ca9060a85f37290187af3ba799",
-        "maskedOsSha256": "7b4c0068693880a26a9c0d412b6f71344f3f8e2e964bddd4ac18d1df00eb826b"
+        "osSha256": "f3f9e6b98b6d5cde52644b28bc85dcffa5e281952368b50e5283b684eca44ab7",
+        "maskedOsSha256": "2740ddce770926abfc20ef478564620a16b17fd4490b7cccdca8a6b9332d1608"
       },
       "result": "masked"
     },
@@ -583,8 +583,8 @@
       },
       "native": {
         "bytes": 1113353,
-        "osSha256": "42190c2b7b409172a08af6faf8b62e57234ff55d786ff4b7e6bfb752133220ce",
-        "maskedOsSha256": "5d0828ac1e81e088b44be6220d79489e8813bad8b9294bb193d20c671c313305"
+        "osSha256": "ca79463d24f3c003f0d96e7f33aabd54dac1a95778f32e19591082952124f42e",
+        "maskedOsSha256": "f08b12008ad2b16ac63efcdd5b0242086354e5296e52302fe1d2dc44b6f5128c"
       },
       "result": "masked"
     },
@@ -613,8 +613,8 @@
       },
       "native": {
         "bytes": 1113353,
-        "osSha256": "786382ee4da0fba19397a87facf666a98bd3c0e5c232d01503494ac5c205be63",
-        "maskedOsSha256": "55bf1369e080a16865936c4dea56a41baa443ffa3871d1620bcb2682fdcb3400"
+        "osSha256": "47d25dbd60834ea2853ab30b1d265c94c8d73189a52b9794daeb3b18d266fe95",
+        "maskedOsSha256": "f352d21d2eef4d7208f4843ce1f75f084ebd0ad0f599e6190792c245a5d03077"
       },
       "result": "masked"
     },
@@ -1295,9 +1295,9 @@
         ]
       },
       "native": {
-        "bytes": 1118515,
-        "osSha256": "74c82ea3c861e86814fee641248117fad8f023fd3146577d43919141d3297162",
-        "maskedOsSha256": "28a17cd53666b1fdaacd820210506af1402361f8209637d8fc93af6dcedd4cbc"
+        "bytes": 1119294,
+        "osSha256": "50b77e2568436b218d860b2fda86eed51856f6c8e1f69fbd60f99bb35ec9c948",
+        "maskedOsSha256": "7da59d11628b1b82b94d2e6a3f817e866125e61fcc8087c6aa77f110df856688"
       },
       "result": "masked"
     },
@@ -1323,9 +1323,9 @@
         "fx2": []
       },
       "native": {
-        "bytes": 1118515,
-        "osSha256": "5a6e960714a57f5741fc53bf4bf95ba046b4a26107ff465cebe44ea494bd0a07",
-        "maskedOsSha256": "d3c958e5b088357204f7bef255e176769850534b525f7a1d4be52bce5b963eab"
+        "bytes": 1119294,
+        "osSha256": "da822aafeb9a49811d96879073b5611dade70bdf6e625f3cb9fcd3fe395e0031",
+        "maskedOsSha256": "a858e525329fb9ee16075f9d679cfb9bd211347f7e71346554d811822009a401"
       },
       "result": "masked"
     },
@@ -1509,9 +1509,9 @@
         ]
       },
       "native": {
-        "bytes": 1114516,
-        "osSha256": "91384ee3fce7a7fa78e2e9e03555f5baed0f47e32df903dfc781fe42bc001f5f",
-        "maskedOsSha256": "ad90733dc1f55904238dc72d15864c49a7eaaf78303c75efa97801b56fc1f0f3"
+        "bytes": 1114543,
+        "osSha256": "18dcca46971dda4793e9b62eb12a82ba06e43e3d466dc9cc11a107770a386051",
+        "maskedOsSha256": "31c9ae60fd026adcee0649bb2db58411f646ede4ebbdae9c11487acfb145a638"
       },
       "result": "masked"
     },
@@ -1537,9 +1537,9 @@
         "fx2": []
       },
       "native": {
-        "bytes": 1114516,
-        "osSha256": "441874bf3f64c57b7a634439fbea21a0a3877c763afce07dede600aa51bbce60",
-        "maskedOsSha256": "7d0809086222b5541d146ff60991d10885fd54dc6c1d156f46b9918be31258d3"
+        "bytes": 1114543,
+        "osSha256": "e67e9cc25de6c4feb0374be15df4ee25679e21a25c1b42a2369a7c89b46be956",
+        "maskedOsSha256": "437526a414e58b9ecbdec0c0ba4857aab3ca69058a9b8ccb65d9021e47f72f3b"
       },
       "result": "masked"
     },
@@ -4186,9 +4186,9 @@
         ]
       },
       "native": {
-        "bytes": 1223408,
-        "osSha256": "9ac141368f569c41913fee42682c8a7e95bedd3077529ad11e6f859dc9c50e3f",
-        "maskedOsSha256": "714e46120dc2d9d067551948c7a139d779a426cba089f818d1f070d9614bb632"
+        "bytes": 1224199,
+        "osSha256": "380cb8675aa3837927ca038fcd377acd95166f8b62ca64ebd72246ce2511a369",
+        "maskedOsSha256": "a55b04ed806d2dfe4d42bc00ef382e8af8f5707f5448e179e2ef62863ea14978"
       },
       "result": "masked"
     },
@@ -4220,9 +4220,9 @@
         ]
       },
       "native": {
-        "bytes": 1223408,
-        "osSha256": "ef32c76d6ad5d3bf41e838360ce9c56fa4b10791cf1e7cfb89b7f7c595d74985",
-        "maskedOsSha256": "af4ec25a37ec3765ec27cadf464532e759b26398dcefb62271f5f452b779f401"
+        "bytes": 1224199,
+        "osSha256": "7fc876d26d9f8d00e45703d83f14305b72912721a0dd13c50f56ec56bfbb11e1",
+        "maskedOsSha256": "55a46f476f55dd846b5ad8a63bb5cadedc5cea046dae666ab9db6ccedfdb651d"
       },
       "result": "masked"
     },
@@ -4464,9 +4464,9 @@
         ]
       },
       "native": {
-        "bytes": 1227075,
-        "osSha256": "3027e4cd19891b5cd568649193a4833d6c0fb9072c9b417617b3507a67c4a859",
-        "maskedOsSha256": "00b6dd51d3dca30b082f0fbf21c0c0053c4aec296aaabdc2da5acf91c35e90d4",
+        "bytes": 1227101,
+        "osSha256": "f0c0a5cb3507e8b24f045bc58a597d2e1a22d41a18f593ea8ce8d5a087231ce5",
+        "maskedOsSha256": "ba21f457e154760ac4a1e9df3884a467678e68a81025b62151847b881cbc330b",
         "platformArena": true
       },
       "result": "masked"
@@ -4500,9 +4500,9 @@
         ]
       },
       "native": {
-        "bytes": 1227075,
-        "osSha256": "cac6705e8591dac3b938bf1cb957d5733ec55a32f6527bb6a240172e570eb233",
-        "maskedOsSha256": "8466060d0692f67449c6e2544cd90d9a73ff79e8ac32bb6d5c4e172652aed760",
+        "bytes": 1227101,
+        "osSha256": "e07f6512d73466b8c18085437db0708f41a8c1126d0e9fcfb9f1c73d906eefd3",
+        "maskedOsSha256": "b22228a8f0ebfd438e9caa01c702034be8553be1f38cf9467845982eb149e4e7",
         "platformArena": true
       },
       "result": "masked"
@@ -4738,7 +4738,7 @@
         ]
       },
       "native": {
-        "refused": "past the stock zero run (or into the long chooser list)"
+        "refused": "Tape TIME formatter: 244 B fits neither the clone window (from 0x400d7b80) nor the overflow run"
       },
       "result": "refused"
     },
@@ -4779,7 +4779,7 @@
         ]
       },
       "native": {
-        "refused": "past the stock zero run (or into the long chooser list)"
+        "refused": "Tape TIME formatter: 244 B fits neither the clone window (from 0x400d7b80) nor the overflow run"
       },
       "result": "refused"
     },
@@ -4987,7 +4987,7 @@
         ]
       },
       "native": {
-        "refused": "past the stock zero run (or into the long chooser list)"
+        "refused": "Tape TIME formatter: 244 B fits neither the clone window (from 0x400d7c00) nor the overflow run"
       },
       "result": "refused"
     },
@@ -5249,7 +5249,7 @@
         ]
       },
       "native": {
-        "refused": "past the stock zero run (or into the long chooser list)"
+        "refused": "label formatters do not fit: EUCLID slot 6 needs 350 B; the clone window ends at 0x400d7bbc and the overflow run at 0x400d2ce0 (next free 0x400d2c84)"
       },
       "result": "refused"
     },
@@ -5294,7 +5294,7 @@
         ]
       },
       "native": {
-        "refused": "seek-bind counter cave not free"
+        "refused": "label formatters do not fit: EUCLID slot 7 needs 72 B; the clone window ends at 0x400d7c3c and the overflow run at 0x400d2ce0 (next free 0x400d2cd8)"
       },
       "result": "refused"
     },
@@ -5612,9 +5612,9 @@
         ]
       },
       "native": {
-        "bytes": 1231995,
-        "osSha256": "1307a8273fdd2165fa01eedd82f477ba04df202acc3539eed583b495934e6822",
-        "maskedOsSha256": "193e738dc0422252d093558bfe5e36b82836b486793ed27c62f81cf55641eadc"
+        "bytes": 1232763,
+        "osSha256": "c0cc8508abe652101f4f96bc6b43617d255028a79dfec56b4956bb51432e31d9",
+        "maskedOsSha256": "6b9aacea4d1875d90d62d0043341ca0c71cd2d8eb1454b0a60c6319c945d944d"
       },
       "result": "masked"
     },
@@ -5653,9 +5653,9 @@
         ]
       },
       "native": {
-        "bytes": 1231995,
-        "osSha256": "1ae415a84eac16bb52d650c865e7068f5328936d252f3cd2845a01d57afe7e67",
-        "maskedOsSha256": "6c0e29708dbb78a32c2a87916da175988bd00642399240bfa9f651af10743c12"
+        "bytes": 1232763,
+        "osSha256": "9e1ad7fc1a961817e3296849d53a6e2f5c6727711c0d990569c7b032cc694c1f",
+        "maskedOsSha256": "84e15aaf87b16e0c04f5a748f48b671b98c6e3c0e36db4707e00a390e1e327b7"
       },
       "result": "masked"
     },
@@ -5696,9 +5696,9 @@
         ]
       },
       "native": {
-        "bytes": 1126830,
-        "osSha256": "ef380dddafb3ee6351cfee2e17a5282f1cfce411ecaeed60f1fa41b16186005e",
-        "maskedOsSha256": "4c1143d90319513f80dbc1038a1c4198c200bd9bb18685250081fd819dfad1b5"
+        "bytes": 1126855,
+        "osSha256": "0df563bbed9b202653f6f1505dfa1adf779c77958af3ac78e69006ff36071d81",
+        "maskedOsSha256": "3cce56463f357b3fa0f1c692baf9f77e8f7d00dc0605e5ba1b66c63bce57a30c"
       },
       "result": "masked"
     },
@@ -5725,9 +5725,9 @@
         "fx2": []
       },
       "native": {
-        "bytes": 1126830,
-        "osSha256": "4b43a24ceefe30395da5029ce3f9e8e5e6128964a2954c05e9d81970db345f89",
-        "maskedOsSha256": "319b9a6cd4f62cb677fa9c19c694c148ea5ff1e94dd318895016762a55a676ca"
+        "bytes": 1126855,
+        "osSha256": "88240cb2ca6c431825a4246755405d4479edbbaf1e430fbf11143324b2b0a39c",
+        "maskedOsSha256": "5b47973b23eb1eb3569b05713398b9e56a8801ecbb4318e60f713188866c29f1"
       },
       "result": "masked"
     },
@@ -5818,7 +5818,7 @@
         ]
       },
       "native": {
-        "refused": "seek-bind counter cave not free"
+        "refused": "seek-bind counter cave: 16 B fits neither the clone window (from 0x400d7c80) nor the overflow run"
       },
       "result": "refused"
     },
@@ -6034,9 +6034,9 @@
         ]
       },
       "native": {
-        "bytes": 1129663,
-        "osSha256": "162078d848f085974c4f3e0b71e3b14defc25a73a9730a2567f830c7782dfe25",
-        "maskedOsSha256": "b50ad565dfb4f2567500256732aefd095b8591ef568fd0a4c3f62f5e9e9c54be"
+        "bytes": 1129701,
+        "osSha256": "19cf2fe8c9af9c0b432e5c7ad3b19ea2d6487605f65a0e9743d2acc7959d42fa",
+        "maskedOsSha256": "dd749ace2766512dabc1fc22088cf8761c8d91379469f08f5bab2e8aa79a5761"
       },
       "result": "masked"
     },
@@ -6072,9 +6072,9 @@
         ]
       },
       "native": {
-        "bytes": 1129663,
-        "osSha256": "d16ba3730a374f649669d77241c00d90a2b4397c3887516449e8aeba72c96735",
-        "maskedOsSha256": "360f016d2fc679af601352ca5d7120578e6ea4b8675be91c10d032b1e2c04b51"
+        "bytes": 1129701,
+        "osSha256": "d61c605b62e66a314b06c7d5b669bebf826b35448b7df711f07beb45e572b870",
+        "maskedOsSha256": "0620dc497a6c1fa07afaf0f85da773d96cbeee688df8b9abeaf11ad131fbb490"
       },
       "result": "masked"
     }
