@@ -996,11 +996,15 @@ static void together(volatile struct selftest *t)
     }
     if (st_step == WAIT) {
         unsigned id = st_queue[0], i = st_slot;
-        if (settled(st_want)) {
+        /* A refusal first: the manager leaves code loaded until it needs the room, so a module it refused here can
+         * still be bound from an earlier run and read as settled (owner's MKII, 20 October 2026: E-Verb refused on
+         * T6 for cycles beside Air Chorus on T5, counted as run, then failed the stress as refused). */
+        int refused = dl_residency_failures != st_failures && dl_publication_idle();
+        if (!refused && settled(st_want)) {
             if (st_batch < 8u) batch_ids[st_batch] = (uint8_t)id;
             t->track[i & 7u] = (uint8_t)id, t->ran = t->ran + 1, t->done = t->done + 1, ++st_batch;
             st_used |= 1u << (i & 7u), st_try = 0;
-        } else if ((dl_residency_failures != st_failures && dl_publication_idle()) || st_ticks > 120u) {
+        } else if (refused || st_ticks > 120u) {
             st_want[i] = st_base[i], set_live(st_want); /* refused: its core is full */
             if (!st_batch) { ++st_try, st_step = RESET, st_ticks = 0; return; } /* alone: the next attempt */
             st_later[st_deferred++] = (uint8_t)id, st_used |= 1u << (i & 7u); /* first in the next batch, alone */
