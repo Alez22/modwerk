@@ -89,6 +89,7 @@ MANAGER_UNIT = r'''
 #include <stdint.h>
 static uint32_t auto_serial = 0x80000000u;
 static unsigned observed_valid;
+static uint8_t observed[16]; /* the refusal note reads it (the native build has no observer) */
 static uint8_t last[16];
 uint32_t test_bank = 0x400e21e0u;
 uint8_t dl_journal_test_live[16];
@@ -1072,6 +1073,21 @@ int main(int argc, char **argv)
         memcpy(ids, test_parts[0], 16);
         assert(test_select(ids, pump) == 1);
         for (unsigned p = 41; p <= 44; ++p) assert(test_live(0, p) >= 0);
+    } else if (mode == 38) {
+        /* The refusal box blames the slot that asks for code memory: a switch whose first changed slot (T2 FX1) runs an
+         * effect core B already holds (7, loaded for the bank) and whose T5-T7 need 2,200 of core A's 1,936 words names
+         * T5 FX1 (900 words, not loaded), not T2. */
+        extern volatile uint32_t dl_refusal[8];
+        test_fx(11, 700); test_fx(12, 600);
+        memset(test_parts, 0, sizeof test_parts);
+        test_parts[0][0] = 5; test_parts[0][4] = 6; test_parts[1][1] = 7;
+        uint8_t ids[16];
+        memcpy(ids, test_parts[0], 16);
+        assert(test_select(ids, pump) == 1 && test_live(1, 7) >= 0);
+        memset(ids, 0, 16);
+        ids[0] = 5; ids[1] = 7; ids[4] = 3; ids[5] = 11; ids[6] = 12;
+        assert(test_select(ids, pump) == DL_SELECT_MEMORY);
+        assert(dl_refusal[0] == 2u && dl_refusal[1] == 4u && dl_refusal[2] == 3u && dl_refusal[5] == 900u);
     } else assert(0);
     return 0;
 }
@@ -1095,6 +1111,10 @@ def generated(work, units):
             text = resident_engines.transport(resident_driver.transport(text))
         elif name == 'transfer.h':
             text = resident_driver.transport_header(text)
+        if name == 'manager.c':  # the refusal box's note, as build_core.py applies it (status.c's box is not built here)
+            for old, new in core.REFUSAL_EDITS['manager.c']:
+                assert text.count(old) == 1, old[:60]
+                text = text.replace(old, new)
         if name in zero_state.UNITS:
             text = zero_state.unit(name, text, reference)
         if name == 'transfer.c':
@@ -1148,7 +1168,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 38
+    MODES = 39
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
