@@ -793,6 +793,43 @@ WIDTH_EDITS = {
          'int dl_placed(unsigned c,unsigned p) { return c<2 && p<DL_PACKAGES && allocator.live'),
     ),
 }
+# DSP FULL and DSP MEMORY FULL say why (owner, 20 October 2026: testers took the bare popup for a bug): the manager
+# notes what a refused set asked for, and dl_ui shows status.c's refusal box instead when it can. Applied after every
+# other seam but zero_state's, to the text they leave.
+REFUSAL_EDITS = {
+    'manager.c': (
+        ('static void report(int error) {',
+         '/* What the last refused set asked for (status.c\'s refusal box): [0] why (1 DSP time, 2 code memory, 3 a Y\n'
+         ' * buffer), [1] the first slot it changes (16: none), [2] the effect it asks for there, [3] the one it replaces,\n'
+         ' * [4] the cycles it adds there (signed), [5] its code words when not loaded on that core, [6] the buffer-reading\n'
+         ' * effects running on that core and slot kind (at most [7]), [7] that kind\'s usable blocks on the core. */\n'
+         'volatile uint32_t dl_refusal[8];\n'
+         'static void refusal_note(unsigned why) {\n'
+         '    unsigned slot=16;\n'
+         '    for(unsigned i=0;i<16;++i) if(desired[i]!=allocator.active[i]) { slot=i; break; }\n'
+         '    dl_refusal[0]=why; dl_refusal[1]=slot;\n'
+         '    if(slot>15) return;\n'
+         '    unsigned id=desired[slot],old=allocator.active[slot],c=(slot&7u)<4u ? 1u : 0u,k=slot>=8u,readers=0,usable=0;\n'
+         '    int32_t add=(int32_t)(id<DL_PACKAGES ? dl_catalog[id].cycles : 0u)-(int32_t)(old<DL_PACKAGES ? dl_catalog[old].cycles : 0u);\n'
+         '    dl_refusal[2]=id; dl_refusal[3]=old; dl_refusal[4]=(uint32_t)add;\n'
+         '    dl_refusal[5]=id<DL_PACKAGES && !allocator.live[c][id].present ? dl_catalog[id].words : 0u;\n'
+         '    for(unsigned i=k*8u;i<k*8u+8u;++i)\n'
+         '        if(((i&7u)<4u ? 1u : 0u)==c && observed[i]<DL_PACKAGES && dl_catalog[observed[i]].buffer) ++readers;\n'
+         '    for(unsigned b=0;b<4u;++b) usable+=buffers.valid[c][k]>>b&1u;\n'
+         '    dl_refusal[6]=readers<usable ? readers : usable; dl_refusal[7]=usable;\n'
+         '}\n'
+         'static void report(int error) {'),
+        ('        if(r<0) {\n            report(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? DL_SELECT_MEMORY :',
+         '        if(r<0) {\n            refusal_note(r==DL_ALLOC_CYCLES ? 1u : r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? 2u : 0u);\n'
+         '            report(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? DL_SELECT_MEMORY :'),
+        ('                dl_allocator_cancel(&allocator,current);\n                report(DL_SELECT_MEMORY); phase=0; return;',
+         '                dl_allocator_cancel(&allocator,current);\n                refusal_note(3u); report(DL_SELECT_MEMORY); phase=0; return;')),
+    'transfer.c': (
+        ('extern void dl_residency_tick(void);\nvoid dl_ui(void) {',
+         'extern void dl_residency_tick(void);\nint modwerk_status_refused(unsigned reason); /* status.c: its box, or 0 */\nvoid dl_ui(void) {'),
+        ('        dl_show_message(text,0x30);', '        if(reason<2u || !modwerk_status_refused(reason)) dl_show_message(text,0x30);')),
+}
+
 DSP_HOOK_EDITS = {
     'guard': {'hooks.s': GUARD_ENTRY},
     'pretend': {'hooks.s': GUARD_ENTRY + (('        moveq #1,%d2\n        move.l %d2,dl_phase\n        bra dl_write\n',
@@ -1339,6 +1376,10 @@ def main():
                 text = saved_set_wiring.transfer(text, args.resident_stock_hooks)
             elif saved_set_wiring and name == 'selection.c':
                 text = saved_set_wiring.selection(text)
+            for old, new in REFUSAL_EDITS.get(name, ()):
+                if text.count(old) != 1:
+                    raise ValueError('Octabam DSP loader refusal seam changed in %s; review the port.' % name)
+                text = text.replace(old, new)
             if args.resident_stock_hooks and name in zero_state.UNITS:  # last, after every other seam
                 text = zero_state.unit(name, text, preserved_dynload)
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
