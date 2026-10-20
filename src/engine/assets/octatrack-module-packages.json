@@ -91,6 +91,21 @@
       "path": "octatrack-modules/previewvol/0.1.2-experimental.mwrm"
     },
     {
+      "id": "apply-scene",
+      "octabam": true,
+      "abi": 7,
+      "features": 1,
+      "sites": 1,
+      "copies": 0,
+      "fills": 0,
+      "version": "0.1.0-experimental",
+      "name": "Apply Scene",
+      "module": "103be957",
+      "bytes": 758,
+      "sha256": "bd90b397d9dffa8d0159355baf4363e73da7bf18fd6a30624eb9fbdd2d76fb73",
+      "path": "octatrack-modules/apply-scene/0.1.0-experimental.mwrm"
+    },
+    {
       "id": "repitch",
       "octabam": true,
       "abi": 8,
