@@ -56,7 +56,7 @@ Firmware stays on the user's device throughout import, persistence, composition 
 
 Never distribute Elektron firmware, extracted routines/tables or stock-containing generated artifacts. Derive stock content from the user's own verified file at composition time. SDK automation compiles original or properly licensed module source only, without firmware.
 
-Configuration builds perform compatibility, placement and packaging integrity checks. They do not run the octabam stress/emulator suite. Downloads require real browser composition, native byte-parity and rejection evidence and container validation. The active path composes verified selections without the dynamic DSP loader, which remains disabled after its hardware failure. Byte parity does not establish hardware safety. See [verification status](VERIFICATION.md) for evidence and remaining qualification.
+Configuration builds perform compatibility, placement and packaging integrity checks. They do not run the octabam stress/emulator suite. Downloads require real browser composition, native byte-parity and rejection evidence and container validation. The card configuration path composes verified selections without the dynamic DSP loader. The Octatrack beta's USB base is built with it (`--dsp-loader`); its early hardware failures are fixed and recorded in [the hardware traps](OCTATRACK_HARDWARE_TRAPS.md). Byte parity does not establish hardware safety. See [verification status](VERIFICATION.md) for evidence and remaining qualification.
 
 ## Contributions and approval
 
