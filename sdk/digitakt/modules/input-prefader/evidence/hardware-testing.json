@@ -45,8 +45,12 @@
   "limitations": [
     "Pattern changes and sampling from the inputs were not tested.",
     "Firmware was not read back from the device; the builds are identified by their SysEx hashes.",
-    "Durations were not reported per build.",
-    "The power-on difference with Digi Health and Digi EQ also occurs without this module (control build); its cause in those modules is not identified."
+    "The power-on difference with Digi Health and Digi EQ also occurs without this module (control build); its cause in those modules is not identified.",
+    "Test time was reported as a total (about one to two hours of use), not per build."
   ],
-  "packageParity": "The isolated Docker build (toolchain image sha256:f5c85e78…4854) of commit 08ab54e6, packaged with scripts/package-elemod-recipe.mjs and linked with Core 2.1, gives the MAIN image and SysEx of both hardware-tested builds byte for byte (ddf836a3…40fa64 alone, a60b869f…ea6aa6 with Digi Health and Digi EQ)."
+  "packageParity": "The isolated Docker build (toolchain image sha256:f5c85e78…4854) of commit 08ab54e6, packaged with scripts/package-elemod-recipe.mjs and linked with Core 2.1, gives the MAIN image and SysEx of both hardware-tested builds byte for byte (ddf836a3…40fa64 alone, a60b869f…ea6aa6 with Digi Health and Digi EQ).",
+  "usage": {
+    "statement": "ive been playing around with it for about an hour or 2 without any issues whatsoever.",
+    "durationMinutes": "60-120, as reported"
+  }
 }

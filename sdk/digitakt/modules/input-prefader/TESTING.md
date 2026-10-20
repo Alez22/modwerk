@@ -66,6 +66,8 @@ Builds sent with Elektron Transfer. Source into IN L and IN R, the inputs' DEL a
 
 **Control**, Core 2.1 + Digi Health 1.0 + Digi EQ 1.0.2-experimental without this module, `.syx` SHA-256 `e4c11db6…49b02`: "fx become awake at power on, but only after about 5-10 seconds". The power-on difference in build B therefore comes from those modules, not from this one.
 
+**Use.** After these steps the author played with the module for "about an hour or 2 without any issues whatsoever".
+
 0.1.0's hardware results for INPUT SENDS PRE (2026-10-19, `e0f55015…4b89` and `3e8e6422…07d3`) are in the module's history; step 7 rechecked it on this build.
 
 ## Stock flows compared

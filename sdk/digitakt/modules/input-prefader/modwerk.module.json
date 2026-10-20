@@ -110,8 +110,8 @@
       "release": "1.54",
       "testedOn": "2026-10-20",
       "tester": "draadpiraat",
-      "durationMinutes": 20,
-      "summary": "draadpiraat flashed the module-alone build and a build with Digi Health and Digi EQ on their Digitakt I, OS 1.54. Module alone, all seven steps passed: the KEEP FX AWAKE row appears unticked; unticked the input effects stay silent after power-on until a trig, as stock; ticked they come back without a trig after a double STOP and after a project load; a double STOP still cuts the tail completely; unticked again it is stock; INPUT SENDS PRE still gives a fully wet input at LEV 0. With Digi Health and Digi EQ the same steps passed, except that the input effects were already awake at power-on with the row unticked; a control build of Digi Health and Digi EQ without this module showed the same, after 5-10 seconds.",
+      "durationMinutes": 60,
+      "summary": "draadpiraat flashed the module-alone build and a build with Digi Health and Digi EQ on their Digitakt I, OS 1.54. Module alone, all seven steps passed: the KEEP FX AWAKE row appears unticked; unticked the input effects stay silent after power-on until a trig, as stock; ticked they come back without a trig after a double STOP and after a project load; a double STOP still cuts the tail completely; unticked again it is stock; INPUT SENDS PRE still gives a fully wet input at LEV 0. With Digi Health and Digi EQ the same steps passed, except that the input effects were already awake at power-on with the row unticked; a control build of Digi Health and Digi EQ without this module showed the same, after 5-10 seconds. The author then played with it for about one to two hours without any issues.",
       "limitations": [
         "Pattern changes and sampling from the inputs were not tested.",
         "Firmware was not read back from the device; the builds are identified by their SysEx hashes.",
