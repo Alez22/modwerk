@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.2.3-experimental",
+    "date": "2026-10-20",
+    "changes": [
+      "Mini Verb no longer writes into Sidechain Compressor's key window. Its delay ring ran over the whole 16K FX2 slot, though its lines end at 13,749 words, and on T3 and T7 the last 514 words of that slot are Sidechain's cross-core key window, so a card build with both could leak one track's audio into another. The ring now wraps at 15,870 words and the start-up clear stays inside it. Mini Verb and Sidechain Compressor can be picked together in a card build again.",
+      "Output is bit-identical to 0.2.2-experimental in native DSP tests: eight moving instances, every trigger split on both DSP cores, and a hot input at TONE 0, 64 and 127. It stays dry for the same 128 calls at start-up. Guarded renders of eight instances, including a 30-second moving render over dirty memory, write nothing past the ring, and the same guard catches 0.2.2 writing past it. Controls, defaults, saved projects, FX ID 0x17 and the cost per sample are unchanged; the program grows by six words outside the sample loop.",
+      "Over USB the base still keeps Mini Verb, like every custom FX2 effect, off T3 and T7 while Sidechain Compressor is installed, because it has no reviewed buffer size for it yet. Not tested on hardware; Mini Verb beside Sidechain on one unit, played automation, persistence and physical reboot remain unverified."
+    ]
+  },
+  {
     "version": "0.2.2-experimental",
     "date": "2026-10-13",
     "changes": [

@@ -64,8 +64,6 @@ room lengths, modulation clock or existing DECAY/DAMP/MOD/RATE mappings.
 
 ## Compatibility and limitations
 
-Not offered beside Sidechain Compressor. Mini Verb's 16K ring passes over the last 514 words of its FX2 slot. On T3 and T7 those words are Sidechain Compressor's cross-core key window, so the key window and the reverb would corrupt each other. A Mini Verb version that stops its ring at 15,870 words, as E-Verb 0.1.2 does, can drop this.
-
 FX2, Octatrack OS 1.40C; own effect ID 0x17 beside DARK REV. No parameter or
 project-layout migration is needed from 0.2.0. The wider mixer can change
 otherwise unclipped output by up to 8 of the 24-bit least significant bits;
@@ -98,10 +96,10 @@ assembles with the existing common native assembler and its disassembly audit,
 then runs the existing DSP host against the developer's private stock payloads.
 It does not substitute for native/browser composition parity or chip timing.
 
-The 16K ring allocation and its occupied 13,750 positions are unchanged.
+The ring wraps at 15,870 words of its 16K allocation (0.2.3); its lines occupy 13,750 positions, and the slot's last 514 words, Sidechain Compressor's key window on T3 and T7, are never touched.
 Tone adds target/current state at X:(r7+$2e/$2f) and left/right pole history at
 X:(r7+$3c/$3d), within the original X:(r7+$20..$3f) block. Initialization still
-clears all 32 scalar words and progressively clears the same 16K ring.
+clears all 32 scalar words and progressively clears the ring in the same 128 dry calls: the first four clear nothing, the other 124 clear 128 words each inside it.
 The 0.2.1 mixer added four program words and four instructions per stereo
 sample, with no additional scalar or ring state; 0.2.2 removes four program
 words and two instructions per sample from the sample loop (411 instead of 415
