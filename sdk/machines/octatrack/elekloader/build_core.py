@@ -429,24 +429,33 @@ DSP_EDITS = {
                   # for an upload: COMPRESSOR, 9 packets, on the unit, 11 October 2026). Memory is admitted over
                   # the union, cycles over the target, which is one Part.
                   ('static unsigned observed_valid=0;',
-                   'static unsigned observed_valid=0;\nstatic uint32_t observed_held[2]={0,0}; /* parts() when last observed */'),
+                   'static unsigned observed_valid=0;\nstatic uint32_t observed_held[2]={0,0},observed_played[2]={0,0}; /* parts() when last observed */'),
                   ('static unsigned needed(unsigned index,unsigned mode) {',
                    '/* What the current bank\'s four Parts name, per core: modules (keep), stock effects loaded on demand\n'
                    ' * (soft), and the modules ids names (named). A pattern queued from another bank adds the Part it will\n'
                    ' * play: queued bank and pattern 0x800065bf/c0, equal to the current ones when nothing waits; its Part,\n'
                    ' * bank + pattern * 0x8ed8 + 0x8e57 (Octabam PARTS.md). */\n'
+                   '/* The bank\'s Parts its 16 patterns play (bank + pattern * 0x8ed8 + 0x8e57) and the current one, as a mask:\n'
+                   ' * what is held when the whole bank does not fit (owner, 20 October 2026: every selected effect stays loaded\n'
+                   ' * while it fits; short of room, the Parts the patterns play come first, so play never waits for an upload). */\n'
+                   'static unsigned part_mask(uint32_t bank) {\n'
+                   '    unsigned part=*(volatile uint8_t *)0x80000003u,m=part<4u ? 1u<<part : 0u;\n'
+                   '    for(unsigned p=0;bank && p<16u;++p) { unsigned q=*(volatile uint8_t *)(uintptr_t)(bank+p*0x8ed8u+0x8e57u); if(q<4u) m|=1u<<q; }\n'
+                   '    return m;\n'
+                   '}\n'
                    'extern const uint32_t modwerk_dsp_modules;\n'
-                   'static void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2],uint32_t soft[2]) {\n'
+                   'static void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2],uint32_t soft[2],uint32_t played[2]) {\n'
                    '    uint32_t bank=*(volatile uint32_t *)0x46c82456u;\n'
-                   '    keep[0]=keep[1]=named[0]=named[1]=soft[0]=soft[1]=0;\n'
+                   '    keep[0]=keep[1]=named[0]=named[1]=soft[0]=soft[1]=played[0]=played[1]=0;\n'
                    '    unsigned qb=*(volatile uint8_t *)0x800065bfu,qp=*(volatile uint8_t *)0x800065c0u,qpart=4u;\n'
+                   '    unsigned parts_used=part_mask(bank);\n'
                    '    uint32_t queued=0x400e21e0u+qb*0x9b340u;\n'
                    '    if(bank && qb<16u && qp<16u && queued!=bank) qpart=*(volatile uint8_t *)(uintptr_t)(queued+qp*0x8ed8u+0x8e57u);\n'
                    '    for(unsigned n=0;n<6;++n) for(unsigned i=0;i<16;++i) {\n'
                    '        unsigned p=n==4 ? ids[i] : n==5 ? (qpart<4u ? *(volatile uint8_t *)(uintptr_t)(queued+0x8ed80u+qpart*6322u+i) : 255u)\n'
                    '                 : bank ? *(volatile uint8_t *)(uintptr_t)(bank+0x8ed80u+n*6322u+i) : 255u;\n'
                    '        if(p>=32 || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
-                   '        if(!(modwerk_dsp_modules>>p&1u)) { if(n!=4) soft[(i&7)<4 ? 1:0]|=1u<<p; continue; }\n'
+                   '        if(!(modwerk_dsp_modules>>p&1u)) { if(n!=4) { soft[(i&7)<4 ? 1:0]|=1u<<p; if(n==5 || (parts_used>>n&1u)) played[(i&7)<4 ? 1:0]|=1u<<p; } continue; }\n'
                    '        (n==4 ? named : keep)[(i&7)<4 ? 1:0]|=1u<<p;\n'
                    '    }\n'
                    '}\n'
@@ -463,11 +472,15 @@ DSP_EDITS = {
                   # core (beta run 2: bank A's union was over on both cores, so even Tape Echo's 5 words were refused,
                   # and a pick on T1 was refused for core 0's union).
                   ('        int r=dl_allocator_prepare(&allocator,desired,current);\n',
-                   '        uint32_t named[2],soft[2];\n'
-                   '        parts(desired,allocator.keep,named,soft);\n'
+                   '        uint32_t named[2],soft[2],played[2];\n'
+                   '        parts(desired,allocator.keep,named,soft,played);\n'
                    '        uint32_t firm[2]={allocator.keep[0],allocator.keep[1]};\n'
                    '        allocator.keep[0]|=soft[0]; allocator.keep[1]|=soft[1];\n'
                    '        int r=dl_allocator_prepare(&allocator,desired,current);\n'
+                   '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (played[0]!=soft[0] || played[1]!=soft[1])) {\n'
+                   '            allocator.keep[0]=firm[0]|played[0]; allocator.keep[1]=firm[1]|played[1];\n'
+                   '            r=dl_allocator_prepare(&allocator,desired,current);\n'
+                   '        }\n'
                    '        if((r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (soft[0]|soft[1])) {\n'
                    '            allocator.keep[0]=firm[0]; allocator.keep[1]=firm[1];\n'
                    '            r=dl_allocator_prepare(&allocator,desired,current);\n'
@@ -479,11 +492,11 @@ DSP_EDITS = {
                    '        }\n'),
                   ('    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n    if(!changed) return;',
                    '    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n'
-                   '    uint32_t held[2],named[2],soft[2];\n'
-                   '    parts(ids,held,named,soft);\n'
+                   '    uint32_t held[2],named[2],soft[2],played[2];\n'
+                   '    parts(ids,held,named,soft,played);\n'
                    '    held[0]|=soft[0]; held[1]|=soft[1];\n'
-                   '    if(held[0]!=observed_held[0] || held[1]!=observed_held[1]) changed=1;\n'
-                   '    observed_held[0]=held[0]; observed_held[1]=held[1];\n'
+                   '    if(held[0]!=observed_held[0] || held[1]!=observed_held[1] || played[0]!=observed_played[0] || played[1]!=observed_played[1]) changed=1;\n'
+                   '    observed_held[0]=held[0]; observed_held[1]=held[1]; observed_played[0]=played[0]; observed_played[1]=played[1];\n'
                    '    if(!changed) return;'),
                   ('    if(token!=current) return DL_SELECT_UNAVAILABLE;\n    advance(); return result;',
                    '    if(token!=current && token!=queued_token) return DL_SELECT_UNAVAILABLE;\n'
@@ -722,32 +735,36 @@ WIDTH_EDITS = {
     'manager.c': (
         ('extern struct dl_package dl_catalog[32];', 'extern struct dl_package dl_catalog[DL_PACKAGES];'),
         ('extern struct code dl_codes[2][32];', 'extern struct code dl_codes[2][DL_PACKAGES];'),
-        ('static uint32_t observed_held[2]={0,0};', 'static fx_set observed_held[2];'),
+        ('static uint32_t observed_held[2]={0,0},observed_played[2]={0,0};', 'static fx_set observed_held[2],observed_played[2];'),
         ('static uint32_t stubbed[2]={0,0};', 'static fx_set stubbed[2];'),
         ('extern const uint32_t dl_stub_at_boot;', 'extern const fx_set dl_stub_at_boot;'),
         ('        for(unsigned p=0;p<32;++p) if(allocator.live[c][p].present) words+=allocator.live[c][p].words;',
          '        for(unsigned p=0;p<DL_PACKAGES;++p) if(allocator.live[c][p].present) words+=allocator.live[c][p].words;'),
-        ('extern const uint32_t modwerk_dsp_modules;\nstatic void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2],uint32_t soft[2]) {',
-         'static void parts(const uint8_t ids[16],fx_set keep[2],fx_set named[2],fx_set soft[2]) {'),
-        ('    keep[0]=keep[1]=named[0]=named[1]=soft[0]=soft[1]=0;',
-         '    for(unsigned c=0;c<2;++c) keep[c]=named[c]=soft[c]=(fx_set){{0}};'),
+        ('extern const uint32_t modwerk_dsp_modules;\nstatic void parts(const uint8_t ids[16],uint32_t keep[2],uint32_t named[2],uint32_t soft[2],uint32_t played[2]) {',
+         'static void parts(const uint8_t ids[16],fx_set keep[2],fx_set named[2],fx_set soft[2],fx_set played[2]) {'),
+        ('    keep[0]=keep[1]=named[0]=named[1]=soft[0]=soft[1]=played[0]=played[1]=0;',
+         '    for(unsigned c=0;c<2;++c) keep[c]=named[c]=soft[c]=played[c]=(fx_set){{0}};'),
         ('        if(p>=32 || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
-         '        if(!(modwerk_dsp_modules>>p&1u)) { if(n!=4) soft[(i&7)<4 ? 1:0]|=1u<<p; continue; }\n'
+         '        if(!(modwerk_dsp_modules>>p&1u)) { if(n!=4) { soft[(i&7)<4 ? 1:0]|=1u<<p; if(n==5 || (parts_used>>n&1u)) played[(i&7)<4 ? 1:0]|=1u<<p; } continue; }\n'
          '        (n==4 ? named : keep)[(i&7)<4 ? 1:0]|=1u<<p;',
          '        if(p>=DL_PACKAGES || dl_catalog[p].resident || !(dl_catalog[p].slots&(i<8 ? 1u:2u))) continue;\n'
          '        unsigned k=(i&7)<4 ? 1:0;\n'
-         '        if(!fx_in(modwerk_fx_modules,p)) { if(n!=4) soft[k]=fx_with(soft[k],p); continue; }\n'
+         '        if(!fx_in(modwerk_fx_modules,p)) { if(n!=4) { soft[k]=fx_with(soft[k],p); if(n==5 || (parts_used>>n&1u)) played[k]=fx_with(played[k],p); } continue; }\n'
          '        if(n==4) named[k]=fx_with(named[k],p); else keep[k]=fx_with(keep[k],p);'),
         ('    unsigned c=index/32,p=index%32;\n    if(mode==6)', '    unsigned c=index/DL_PACKAGES,p=index%DL_PACKAGES;\n    if(mode==6)'),
         ('!allocator.live[c][p].present && !((stubbed[c]>>p)&1u);', '!allocator.live[c][p].present && !fx_in(stubbed[c],p);'),
         ('            if(desired[i]<32 && !dl_catalog[desired[i]].resident) probe=1;',
          '            if(desired[i]<DL_PACKAGES && !dl_catalog[desired[i]].resident) probe=1;'),
-        ('        uint32_t named[2],soft[2];\n        parts(desired,allocator.keep,named,soft);\n'
+        ('        uint32_t named[2],soft[2],played[2];\n        parts(desired,allocator.keep,named,soft,played);\n'
          '        uint32_t firm[2]={allocator.keep[0],allocator.keep[1]};\n'
          '        allocator.keep[0]|=soft[0]; allocator.keep[1]|=soft[1];',
-         '        fx_set named[2],soft[2];\n        parts(desired,allocator.keep,named,soft);\n'
+         '        fx_set named[2],soft[2],played[2];\n        parts(desired,allocator.keep,named,soft,played);\n'
          '        fx_set firm[2]={allocator.keep[0],allocator.keep[1]};\n'
          '        allocator.keep[0]=fx_or(allocator.keep[0],soft[0]); allocator.keep[1]=fx_or(allocator.keep[1],soft[1]);'),
+        ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (played[0]!=soft[0] || played[1]!=soft[1])) {\n'
+         '            allocator.keep[0]=firm[0]|played[0]; allocator.keep[1]=firm[1]|played[1];',
+         '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (!fx_same(played[0],soft[0]) || !fx_same(played[1],soft[1]))) {\n'
+         '            allocator.keep[0]=fx_or(firm[0],played[0]); allocator.keep[1]=fx_or(firm[1],played[1]);'),
         ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (soft[0]|soft[1])) {',
          '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(soft[0]) || fx_any(soft[1]))) {'),
         ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (allocator.keep[0]|allocator.keep[1]) &&\n'
@@ -780,12 +797,12 @@ WIDTH_EDITS = {
          '           (((stubbed[c]|dl_stub_at_boot)>>p)&1u)) {',
          '        if(p!=last[i] && p<DL_PACKAGES && !dl_catalog[p].resident && !slot_bound(c,p) &&\n'
          '           (fx_in(stubbed[c],p) || fx_in(dl_stub_at_boot,p))) {'),
-        ('    uint32_t held[2],named[2],soft[2];\n    parts(ids,held,named,soft);\n'
+        ('    uint32_t held[2],named[2],soft[2],played[2];\n    parts(ids,held,named,soft,played);\n'
          '    held[0]|=soft[0]; held[1]|=soft[1];\n'
-         '    if(held[0]!=observed_held[0] || held[1]!=observed_held[1]) changed=1;',
-         '    fx_set held[2],named[2],soft[2];\n    parts(ids,held,named,soft);\n'
+         '    if(held[0]!=observed_held[0] || held[1]!=observed_held[1] || played[0]!=observed_played[0] || played[1]!=observed_played[1]) changed=1;',
+         '    fx_set held[2],named[2],soft[2],played[2];\n    parts(ids,held,named,soft,played);\n'
          '    held[0]=fx_or(held[0],soft[0]); held[1]=fx_or(held[1],soft[1]);\n'
-         '    if(!fx_same(held[0],observed_held[0]) || !fx_same(held[1],observed_held[1])) changed=1;'),
+         '    if(!fx_same(held[0],observed_held[0]) || !fx_same(held[1],observed_held[1]) || !fx_same(played[0],observed_played[0]) || !fx_same(played[1],observed_played[1])) changed=1;'),
         ('        if(p>=32 || !dl_catalog[p].qualified', '        if(p>=DL_PACKAGES || !dl_catalog[p].qualified'),
         ('int dl_bound(unsigned c,unsigned p) { return c<2 && p<32 && slot_bound(c,p); }',
          'int dl_bound(unsigned c,unsigned p) { return c<2 && p<DL_PACKAGES && slot_bound(c,p); }'),
@@ -793,6 +810,90 @@ WIDTH_EDITS = {
          'int dl_placed(unsigned c,unsigned p) { return c<2 && p<DL_PACKAGES && allocator.live'),
     ),
 }
+# A change that fits the arena from scratch but not beside the code live now (DL_ALLOC_TRANSITION) is not refused
+# (owner, 20 October 2026; beta findings 54 and 35): the manager first retires, in a transaction of its own, the code no
+# slot runs and the request's keep set does not hold (a trim: nothing a track runs changes, so nothing is heard), and when
+# the running code itself blocks, the old code of the slots the request changes (an unload: those slots run the dry stub
+# until the request binds the new code and the setter applies it, a short gap where before the change was refused).
+# The request runs queued after it; each request gets at most one trim and one unload. Applied with WIDTH_EDITS, so the
+# host tests that rebuild the manager (sdk/tests) carry it.
+TRANSITION_EDITS = {
+    'manager.c': (
+        ('static void begin(const uint8_t *ids,uint32_t token,unsigned is_auto) {\n'
+         '    bytes(desired,ids,16); current=token; automatic=is_auto;\n',
+         'static unsigned trimming,queued_auto,trim_stage; /* Modwerk: a retirement before a queued request, that request\'s\n'
+         '                                                   * kind, and what it got (1 a trim, 2 an unload) */\n'
+         'static uint32_t trimmed_for;\n'
+         'static fx_set trim_keep[2];\n'
+         'volatile uint32_t dl_trims,dl_unloads; /* diagnostics */\n'
+         'static void begin(const uint8_t *ids,uint32_t token,unsigned is_auto) {\n'
+         '    bytes(desired,ids,16); current=token; automatic=is_auto; trimming=0;\n'),
+        ('static uint32_t queued_token=0;\nstatic void advance(void) {\n',
+         'static uint32_t queued_token=0;\n'
+         '/* Code live on a core that no slot of `now` runs and the keep set of the last try does not hold: a retirement frees it. */\n'
+         'static unsigned droppable(const uint8_t now[16]) {\n'
+         '    for(unsigned c=0;c<2;++c) for(unsigned p=0;p<DL_PACKAGES;++p) {\n'
+         '        if(!allocator.live[c][p].present || fx_in(allocator.keep[c],p)) continue;\n'
+         '        unsigned runs=0;\n'
+         '        for(unsigned i=0;i<16;++i) if(((i&7)<4 ? 1u:0u)==c && now[i]==p) runs=1;\n'
+         '        if(!runs) return 1;\n'
+         '    }\n'
+         '    return 0;\n'
+         '}\n'
+         '/* The request in flight waits; a transaction of the running set and that keep retires the rest first. An unload\n'
+         ' * also takes the slots the request changes to NONE: their old code goes while the dry stub runs there, until the\n'
+         ' * request binds the new code and the setter applies it. 0 when it would free nothing. */\n'
+         'static int make_room(unsigned unload) {\n'
+         '    uint8_t now[16];\n'
+         '    running(now);\n'
+         '    /* An unload: a changed slot\'s old effect goes, unless the request runs it elsewhere on the core (that stays). */\n'
+         '    if(unload) for(unsigned i=0;i<16;++i) if(desired[i]!=now[i]) {\n'
+         '        unsigned p=now[i],c=(i&7)<4 ? 1u:0u,kept_on=0;\n'
+         '        for(unsigned j=0;j<16;++j) if(((j&7)<4 ? 1u:0u)==c && desired[j]==p) kept_on=1;\n'
+         '        if(!kept_on) now[i]=0;\n'
+         '    }\n'
+         '    if(!droppable(now)) return 0;\n'
+         '    bytes(queued_ids,desired,16); queued_token=current; queued_auto=automatic;\n'
+         '    trim_keep[0]=allocator.keep[0]; trim_keep[1]=allocator.keep[1];\n'
+         '    trimmed_for=current; trim_stage=unload ? 2u : 1u;\n'
+         '    if(++auto_serial==0) auto_serial=0x80000000u;\n'
+         '    begin(now,auto_serial,1); trimming=1;\n'
+         '    if(unload) dl_unloads=dl_unloads+1; else dl_trims=dl_trims+1;\n'
+         '    return 1;\n'
+         '}\n'
+         'static void advance(void) {\n'),
+        ('begin(queued_ids,t,0); }\n', 'begin(queued_ids,t,queued_auto); queued_auto=0; }\n'),
+        ('        allocator.keep[0]=fx_or(allocator.keep[0],soft[0]); allocator.keep[1]=fx_or(allocator.keep[1],soft[1]);\n',
+         '        allocator.keep[0]=fx_or(allocator.keep[0],soft[0]); allocator.keep[1]=fx_or(allocator.keep[1],soft[1]);\n'
+         '        if(trimming) { allocator.keep[0]=trim_keep[0]; allocator.keep[1]=trim_keep[1]; soft[0]=soft[1]=played[0]=played[1]=(fx_set){{0}}; }\n'),
+        ('(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && (fx_any(allocator.keep[0]) || fx_any(allocator.keep[1])) &&\n'
+         '           (automatic || loose(named,0) || loose(named,1))) {',
+         '(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION) && !trimming && (fx_any(allocator.keep[0]) || fx_any(allocator.keep[1])) &&\n'
+         '           (automatic || loose(named,0) || loose(named,1))) {'),
+        ('        if(r<0) {\n            report(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? DL_SELECT_MEMORY :',
+         '        if(r==DL_ALLOC_TRANSITION && !trimming) {\n'
+         '            unsigned stage=current==trimmed_for ? trim_stage : 0u; /* what this request already got */\n'
+         '            if((stage<1u && make_room(0)) || (stage<2u && make_room(1))) return;\n'
+         '        }\n'
+         '        if(r<0) {\n            report(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? DL_SELECT_MEMORY :'),
+        # A request a retirement put behind it is not the transaction in flight: its answer is WAIT, never the
+        # retirement's own result word (which reads READY once that commits).
+        ('    for(unsigned n=0;n<4 && phase && phase!=5 && !waiting;++n) advance();\n    return result;',
+         '    for(unsigned n=0;n<4 && phase && phase!=5 && !waiting;++n) advance();\n    return token==current ? result : DL_SELECT_WAIT;'),
+        ('    begin(ids,token,0);advance();return result;\n', '    begin(ids,token,0);advance();return token==current ? result : DL_SELECT_WAIT;\n'),
+        # A request unloaded for and then dropped (another pick replaced it): its slots run the stub on their old ids,
+        # and the observer loads those back. The observer waits while a request is queued, so it never reloads what a
+        # retirement just freed for that request.
+        ('void dl_selection_cancel(uint32_t token) {\n    if(token==queued_token) queued_token=0;\n',
+         'void dl_residency_nudge(void);\n'
+         'void dl_selection_cancel(uint32_t token) {\n'
+         '    if(token==queued_token) { queued_token=0; if(trim_stage==2u && trimmed_for==token) dl_residency_nudge(); }\n'),
+        ('    reinit();\n    if(phase) return;\n', '    reinit();\n    if(phase || queued_token) return;\n'),
+    ),
+}
+for _name, _edits in TRANSITION_EDITS.items():
+    WIDTH_EDITS[_name] = WIDTH_EDITS.get(_name, ()) + _edits
+
 # DSP FULL and DSP MEMORY FULL say why (owner, 20 October 2026: testers took the bare popup for a bug): the manager
 # notes what a refused set asked for, and dl_ui shows status.c's refusal box instead when it can. Applied after every
 # other seam but zero_state's, to the text they leave.
