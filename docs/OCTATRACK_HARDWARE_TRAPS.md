@@ -466,7 +466,10 @@ the tick, `modwerk_fxmap_generation` took 410-446 µs on its own: the fx map's 3
 tick (fixed: 8 µs, the whole sum once in 60 calls). With that and the Part-union scan every fourth tick, the tick
 hooks cost 311 µs (1.9 %) and the base about 2.5 %. With FM Synth and five effects installed the tick hooks cost
 530-550 µs: `controller_tick` 170-180 µs (it derives every installed module's trust binding each tick) and
-`dsp_tick` 240-250 µs (the compaction planner plans both cores each idle tick). A page of ours that is open costs
+`dsp_tick` 240-250 µs (the compaction planner plans both cores each idle tick); both fixed: the binding is derived
+again only when the runtime's owners change (or one waits), the planner holds off until a commit, a rollback or an
+arena change. Then: 175 µs a tick idle (1.1 %), 280 µs with that layout (1.7 %); the base about 1.7 % in all. A page
+of ours that is open costs
 its drawing on every composition: MISSING MODULES 818 µs (4.9 %), the STATUS page about 1 ms. No stock-OS baseline
 exists yet: the meter's 41 % idle is stock's own tasks.
 
