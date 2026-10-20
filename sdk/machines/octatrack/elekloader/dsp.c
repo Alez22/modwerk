@@ -842,7 +842,7 @@ void modwerk_selftest_refresh(void)
 {
     modwerk_selftest.saved = modwerk_modset_result, modwerk_selftest.saved_count = modwerk_modset_count;
     modwerk_selftest.live = modwerk_runtime_active();
-    modwerk_selftest.refusal = modwerk_runtime_refusal();
+    { extern volatile uint32_t modwerk_flash_refusal; modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal : modwerk_runtime_refusal(); } /* flash.h: a refused or failed base write, apart from the loader's */
 }
 enum { PLACE, WAIT, HOLD, CODE, CLEAR, EMPTY, RESET };
 /* st_live: what each slot ran before the test; st_base: the batch's background, that with a core the batch emptied
