@@ -36,11 +36,13 @@ export function ForumShowcase({ machine, category, shareHref, layout = 'strip' }
     void api<ForumShowcaseItem[]>('/forum/showcase' + (query ? '?' + query : '')).then(value => { if (!cancelled) setItems(value) }).catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }
   }, [query])
+  // Reset the scroll container with each feed: snapping must not retain the trailing invitation when cards replace placeholders.
+  const feedKey = JSON.stringify([query, items?.map(item => item.id)])
   // Without media storage nobody can share here, and on a failed load the feed below still works.
   if (!session.forumMedia || failed) return null
   return <section className="forum-showcase" data-layout={layout} aria-labelledby="forum-showcase-title" aria-busy={!items}>
     <div className="forum-list-heading"><h2 id="forum-showcase-title">{layout === 'grid' ? 'Latest shares' : 'Fresh from the community'}</h2>{layout === 'strip' && <a className="text-button" href={'#forum?category=showcase' + (machine ? '&machine=' + machine : '')}>Browse the Showcase<Icon name="arrow" size={13} /></a>}</div>
-    <ul className="forum-showcase-strip" data-empty={items?.length === 0 || undefined}>
+    <ul key={feedKey} className="forum-showcase-strip" data-empty={items?.length === 0 || undefined}>
       {items ? items.map(item => <Card key={item.id} item={item} />) : [0, 1, 2].map(index => <li key={index} className="forum-showcase-card forum-showcase-loading" aria-hidden="true"><div className="forum-showcase-cover" /><div className="forum-showcase-copy"><span /><span /></div></li>)}
       <li className="forum-showcase-invite"><a href={shareHref}>
         <span className="forum-showcase-invite-icon"><Icon name="plus" size={20} /></span>
