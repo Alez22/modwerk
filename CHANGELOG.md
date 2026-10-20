@@ -1,5 +1,9 @@
 # Application changelog
 
+## 21 October 2026
+
+- USB integration preparation: recorded source-built native/browser parity and high/full-speed emulator checks for the four smaller base output layouts and MIDI-only, plus a physical Tape Echo self-test/trial/Undo during a continuous twenty-channel capture on base `98ec6014`. Documented the missing post-fader base port and profile/reconnect transaction boundaries. No module lifecycle, audible continuity, persistence or public card update is claimed.
+
 ## 20 October 2026
 
 - Octatrack base candidate: retire the shared USB MIDI session on bus reset and disconnect, flush both MIDI endpoints before reconfiguration, and discard queued traffic from the previous connection. This ports Octabam’s MIT reconnect cleanup; USB Audio reports #548 and #689 remain open pending exact-build audio recovery checks. Card USB Audio 0.2.0 is unchanged.

@@ -2170,6 +2170,20 @@ unit:
   a reference design, not hot switching or a completed Modwerk port. Keep
   settings ownership in the shared base and qualify the supported layouts,
   MIDI, mass storage and rollback before admitting the catalogue selection.
+- Migration boundary checked on 21 October: the base's current source/CLI
+  covers five output layouts; the catalogue has a sixth, post-fader TRACKS.
+  Its producer and guarded stock gain table need a separate port, not a
+  substituted pre-fader layout. `InventoryTarget` currently carries module
+  IDs and removed stock FX, not `usbAudio`: migration must carry and compare
+  the validated device profile too, so unchanged module IDs cannot hide a
+  layout change. Outbox output assignments remain host routing, not device
+  profile state. The base's immutable build identity, active profile and
+  transaction generation must all survive review/reconnect verification;
+  today a bus reset aborts an open runtime trial, so intentional
+  re-enumeration needs an explicit recovery phase before this can ship.
+  [Additional layout and concurrent-stream results](../sdk/machines/octatrack/evidence/usb-base-layouts-20261021.md)
+  are software preparation plus one exact-base physical trial/Undo, not
+  qualification of settings, removal or persistence.
 - The emulator models EP0–EP3, transfers up to 8 KiB and no packet timing.
   Its source here cannot build as is: the CPU cores under `sdk/octabam/vendor/`
   and `remixes/` are absent, and the 27 USB checks used a private adapter.
