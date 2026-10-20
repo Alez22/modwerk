@@ -4,6 +4,64 @@ The owner froze this work on 12 October 2026 to hand it to other agents. It sums
 four to five agents worked in parallel. The detailed records are the docs linked below; this page says where
 everything stands and what is open. Read it top to bottom before touching anything.
 
+## Latest state (frozen 20 October 2026, morning)
+
+The sections below this one describe 12 October. This one sums up the beta diagnostics follow-up of 19-20 October.
+
+**Shipped and live** (merged by the owner on 20 October):
+- **#712, base `9280d484…`.** A COMPRESSOR set up by Sidechain Compressor no longer empties the current bank at
+  power-on. Beta finding 47 in [OCTATRACK_BETA_TEST_PLAN.md](OCTATRACK_BETA_TEST_PLAN.md) has the details; the
+  trap is in [OCTATRACK_HARDWARE_TRAPS.md](OCTATRACK_HARDWARE_TRAPS.md), "The boot validates the bank before any
+  module is back".
+  - The base is built with the Elekloader kit 0.6.0 that `kit.json` pins since #699: core 0.3.1, and
+    `build_core.py` passes the device to `pack_main`.
+  - The live site's bundle names `9280d484`, so testers get the base update and resync once.
+- **#713, `npm run diagnostics:pull`.** Restarts come from the unit's own log. Each boot's set reload is named
+  (`RESTORED` n/n, nothing saved, another base's set and so on). Bases are compared with `origin/main`, and the card
+  build's refused selections are listed apart from the failures.
+
+**Open, in order:**
+1. **Power-on qualification of `9280d484`.** So far only RAM boots have been run, which run the same restore. On
+   the flashed tester base:
+   1. Install Sidechain and a module effect over USB.
+   2. Pick COMPRESSOR on a track, set its KEY (SETUP encoder C, about four steps per entry) and save.
+   3. Power-cycle.
+   4. The bank must come back with its trigs, machines and effects, and the side-chain values must be kept.
+2. **Tester messages** (the owner posts them):
+   - **The blank bank and its two recoveries.** First, don't save or edit, and power-cycle once more: the
+     validator's fixes stay in the battery copy, so the next boot restores the bank, with Sidechain's KFLT reset.
+     Second, PROJECT > RELOAD gives back the last save.
+   - **Ask for reports.** Ask the reporter of the lost project to file the empty FM Synth machine page, and the
+     tester with sluggish knobs and DSP FULL to file their set.
+   - **#677:** on Windows 10 the Modwerk USB device showed as disabled in Device Manager, and enabling it fixed
+     the connection.
+3. **Local package checks fail on main.** These are `test_base_bound` (CC Map) and `test_runtime_loader`'s
+   published-packages rebuild; CI skips both without the Elekloader checkout, and `npm run pr:ready` reports Not
+   ready for every PR until they're fixed.
+   - CC Map's and Mute Modes' recipes (`candidate-recipes.json`) still name kit 0.5.0's tool digests; nothing else
+     in them differs.
+   - Play Modes', Tape Echo's and Euclid's recipes (`standalone-recipes.json`) are stale against #706 and #708.
+   - Refreshing reviewed recipes is the owner's or the module owners' call.
+4. **CPU.** FM Synth costs about 8 ColdFire points while installed, even unused; see "ColdFire and DSP load" in
+   the traps doc. Why knobs lag about a second with FM Synth plus four effects is not found. Testers' logs show
+   100 % peaks every five minutes even on the bare base, and no stock-OS reference has been measured on the unit.
+5. **Not looked at yet:**
+   - one tester's browser unhandled rejections;
+   - a set deletion the site didn't recognise (Discord);
+   - syncs refused because a track plays the module's effect (UX);
+   - #695, waiting for its reporter.
+
+**The owner's MKII as left:**
+- It's RAM-booted on a dev twin of #712's source (`82b9bef4`), with eight modules installed and the owner's
+  LIVE/MODWERK-TEST2 loaded and stopped. A power cycle returns it to the flashed base (`99336d35`).
+- LIVE/PROJECT 261019 on the card is a disposable scratch project.
+- That night's private images and helper scripts stayed on the first Mac (`~/.cache/modwerk-local/ot/beta-night`);
+  firmware and images never go into Git. On another machine:
+  1. Run `npm run upstream:tools`. `build_core.py` refuses an Elekloader checkout other than `kit.json`'s commit.
+  2. Build a `--dev` twin and drive the unit as [OCTATRACK_DRIVING.md](OCTATRACK_DRIVING.md) says.
+  3. Find Part bytes with `mem` (the guide's table): a pattern's trig masks are its first 8 bytes per track, 2,330
+     bytes apart, and FX page-2 settings are at Part `0x2fe + 30·track + 6·fx`.
+
 ## The goal
 
 Roll the Elekloader migration out to beta testers. They build the Modwerk base in the browser from their own
