@@ -38,7 +38,7 @@ const render = (machine?: string) => act(async () => root.render(createElement(C
 }, createElement(ForumShowcase, { machine, shareHref: '#forum/new?category=showcase' }))))
 const strip = () => container.querySelector<HTMLUListElement>('.forum-showcase-strip')!
 
-it('starts at the newest share when cards replace loading placeholders, without retaining the trailing snap target', async () => {
+it('resets to the invitation and newest shares when cards replace loading placeholders', async () => {
   const response = pendingFeed()
   vi.mocked(api).mockReturnValueOnce(response.promise)
   await render()
@@ -48,7 +48,8 @@ it('starts at the newest share when cards replace loading placeholders, without 
   expect(strip().scrollLeft).toBe(0)
   expect(strip()).not.toBe(loading)
   expect(strip().querySelector('.forum-showcase-invite')).not.toBe(invite)
-  expect(strip().querySelector('.forum-showcase-title')?.textContent).toBe('Share newest')
+  expect([...strip().children].map(item => item.querySelector('strong, .forum-showcase-title')?.textContent))
+    .toEqual(['Share yours', 'Share newest', 'Share older', 'Share oldest'])
 
   // Ordinary parent renders must keep the reader's chosen position.
   strip().scrollLeft = 244
@@ -58,7 +59,7 @@ it('starts at the newest share when cards replace loading placeholders, without 
   expect(strip().scrollLeft).toBe(244)
 })
 
-it('starts the filtered feed at its newest share after scrolling to the invitation', async () => {
+it('starts the filtered feed at its newest shares after scrolling through posts', async () => {
   vi.mocked(api).mockResolvedValueOnce([share('newest'), share('older')])
   await render()
   strip().scrollLeft = 488

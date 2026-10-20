@@ -2,6 +2,7 @@
 
 ## 20 October 2026
 
+- The forum's Share yours tile now comes first on the left, followed by the newest community posts. This order also applies to the Showcase gallery and loading state.
 - The forum's Fresh from the community strip starts at the newest shares when cards finish loading or the filtered feed changes. Scroll snapping could keep the trailing Share yours tile in view instead, hiding new posts to the left. Ordinary renders preserve the reader's chosen scroll position. Checked with DOM regressions for initial loading and a changed machine filter; actual browser snapping has not been visually verified.
 
 ## 19 October 2026
