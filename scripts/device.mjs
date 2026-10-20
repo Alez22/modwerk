@@ -345,11 +345,13 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       if (!log) console.log('diaglog: no log yet')
       else {
         console.log(`diaglog boot ${log.boot} seq ${log.seq}: ${log.incidents.length} incidents, ${log.loads.length} loads`)
-        for (const r of log.incidents) console.log(`  #${r.seq} boot ${r.boot} +${r.second}s ${r.kind} a=${r.a} cpu ${r.cpu / 10}% T1-4 ${r.dsp1to4 / 10}% T5-8 ${r.dsp5to8 / 10}% ` +
+        for (const r of log.incidents) console.log(`  #${r.seq} boot ${r.boot} +${r.second}s ${r.kind} a=${r.kind === 'base' ? r.a.toString(16).padStart(8, '0') : r.kind === 'set' ? r.a + ' [' + [...r.machines, ...r.fx, ...r.keys].slice(0, 4 * r.a).map((b, i, all) => i % 4 ? '' : all.slice(i, i + 4).map(x => x.toString(16).padStart(2, '0')).join('')).filter(Boolean).join(' ') + ']' : r.a} cpu ${r.cpu / 10}% T1-4 ${r.dsp1to4 / 10}% T5-8 ${r.dsp5to8 / 10}% ` +
           `${r.playing ? 'playing' : 'stopped'} tempo ${(r.tempo24 / 24).toFixed(1)} screen 0x${r.screen.toString(16)} keys ${r.keys.filter(k => k !== 255).map(k => k.toString(16)).join(',')} ` +
           `fx ${r.fx.map(f => f.toString(16)).join(',')} machines ${r.machines.join(',')}`)
         for (const r of log.loads.slice(-6)) console.log(`  #${r.seq} boot ${r.boot} min ${r.minute} cpu ${r.cpu.map(v => v / 10).join('/')}% T1-4 ${r.dsp1to4.map(v => v / 10).join('/')}% ` +
-          `T5-8 ${r.dsp5to8.map(v => v / 10).join('/')}% playing ${r.playing}/${r.samples}`)
+          `T5-8 ${r.dsp5to8.map(v => v / 10).join('/')}% playing ${r.playing}/${r.samples}` + (r.frameGap !== undefined ? ` frame gap ${r.frameGap} us, tick gap ${r.tickGap} frames` : ''))
+        if (log.crash) console.log(`  crash record ${log.crash.count}: vector ${log.crash.vector} PC 0x${log.crash.pc.toString(16)} code ${log.crash.code.map(w => w.toString(16).padStart(8, '0')).join(' ')} uncached ${log.crash.memory.map(w => w.toString(16).padStart(8, '0')).join(' ')}`)
+        if (log.stall) console.log(`  stall record ${log.stall.count}: reason ${log.stall.reason} tick ${log.stall.ticks}, ${log.stall.report.length} report words`)
       }
     }
     else if (step === 'crash') { // crash.c's record in battery RAM: what the last error exception was, and where

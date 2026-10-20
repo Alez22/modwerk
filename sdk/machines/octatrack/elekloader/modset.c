@@ -25,6 +25,7 @@
 #define HEADER 84u
 #define SET_BYTES (RUNTIME_POOL_BYTES + 0x1000u) /* the pool's worth of packages, and the header */
 extern const uint8_t modwerk_base_digest[32];
+void modwerk_diag_set(void); /* diag.c: the installed set, into the unit's log */
 extern const struct mu_backend modwerk_runtime_backend;
 struct file_object { uint32_t word[6]; };
 #ifdef MODWERK_HOST
@@ -138,7 +139,7 @@ int modwerk_modset_keep(const uint8_t *const package[], const uint32_t bytes[], 
     return 1;
 }
 /* The journal accepted that Keep: the set is the kept set, saved as an accepted install is. */
-void modwerk_modset_kept(void) { if (keep_bytes) seal(keep_count, keep_bytes), pending = 1, retry_at = 0, keep_bytes = 0; }
+void modwerk_modset_kept(void) { if (keep_bytes) seal(keep_count, keep_bytes), pending = 1, retry_at = 0, keep_bytes = 0, modwerk_diag_set(); }
 /* MWVS flags, read by the USB interrupt: 1 while the set's last change is not confirmed on the card, 3 once a
  * write of it failed (retried every ten seconds). */
 unsigned modwerk_modset_unsaved(void) { return pending ? 1u | (unsigned)(modwerk_modset_result == SAVE_FAILED) << 1 : 0u; }
@@ -228,6 +229,7 @@ static void restore(void)
     modwerk_modset_result = installed == count ? RESTORED : REFUSED;
     if (installed) SAY(installed == count ? "MODULES LOADED" : "SOME MODULES FAILED");
     else SAY("MODULES NOT LOADED");
+    modwerk_diag_set(); /* diag.c: the set this boot runs, in the unit's log */
 }
 /* ep0.c holds host frames until the restore has run: an install before it would race it, and the restore would undo it. */
 int modwerk_modset_restored(void) { return (int)restored; }

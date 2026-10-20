@@ -6,6 +6,8 @@
 #define MODWERK_RUNTIME_VOLATILE_JOURNAL
 #include "sha256.c"
 #include "modset.c"
+static unsigned set_records;
+void modwerk_diag_set(void) { ++set_records; } /* diag.c: counted here */
 #include <stdio.h>
 #include <string.h>
 
