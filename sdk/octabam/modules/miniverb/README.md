@@ -64,8 +64,6 @@ room lengths, modulation clock or existing DECAY/DAMP/MOD/RATE mappings.
 
 ## Compatibility and limitations
 
-Not offered beside Sidechain Compressor. Mini Verb's 16K ring passes over the last 514 words of its FX2 slot. On T3 and T7 those words are Sidechain Compressor's cross-core key window, so the key window and the reverb would corrupt each other. A Mini Verb version that stops its ring at 15,870 words, as E-Verb 0.1.2 does, can drop this.
-
 FX2, Octatrack OS 1.40C; own effect ID 0x17 beside DARK REV. No parameter or
 project-layout migration is needed from 0.2.0. The wider mixer can change
 otherwise unclipped output by up to 8 of the 24-bit least significant bits;

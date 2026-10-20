@@ -95,10 +95,6 @@
     "FX2 buffer meets a declared range: bbd's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x33dfe..0x33fff",
     "FX2 buffer meets a declared range: bbd's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x3bdfe..0x3bfff"
    ],
-   "miniverb+sidechain-compressor": [
-    "FX2 buffer meets a declared range: miniverb's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x33dfe..0x33fff",
-    "FX2 buffer meets a declared range: miniverb's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x3bdfe..0x3bfff"
-   ],
    "quantizer+synth": [
     "ColdFire cave: quantizer's linked unit qzk and synth's linked unit fm_qzk both claim 0x400d2cb0",
     "ColdFire cave: quantizer's linked unit qzs and synth's linked unit fm_qzs both claim 0x400d2ca8",
@@ -164,10 +160,6 @@
    "bbd+sidechain-compressor": [
     "FX2 buffer meets a declared range: bbd's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x33dfe..0x33fff",
     "FX2 buffer meets a declared range: bbd's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x3bdfe..0x3bfff"
-   ],
-   "miniverb+sidechain-compressor": [
-    "FX2 buffer meets a declared range: miniverb's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x33dfe..0x33fff",
-    "FX2 buffer meets a declared range: miniverb's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x3bdfe..0x3bfff"
    ]
   },
   "poly8+synth": {
@@ -178,10 +170,6 @@
    "bbd+sidechain-compressor": [
     "FX2 buffer meets a declared range: bbd's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x33dfe..0x33fff",
     "FX2 buffer meets a declared range: bbd's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x3bdfe..0x3bfff"
-   ],
-   "miniverb+sidechain-compressor": [
-    "FX2 buffer meets a declared range: miniverb's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x33dfe..0x33fff",
-    "FX2 buffer meets a declared range: miniverb's FX2 buffer (+$0..+$3fff) and sidechain-compressor's the cross-core key window: GSEED, GCNT, 4 tracks x 4 generations x 32 words both claim shared 0x3bdfe..0x3bfff"
    ]
   }
  }
