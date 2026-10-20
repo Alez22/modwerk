@@ -131,8 +131,9 @@ export function BaseInstallDialog({ link, launch = false, firmwareReady, firmwar
   const canClose = (hold === 0 || found) && !updating
   // A unit already on an older Modwerk base is updated, not installed (the hub and the update prompt send it here).
   const older = !pending && unitForPrompt(state) === 'older'
-  // Over USB when the connected base writes itself (flash.c): the card stays for the first install and as the fallback.
-  const overUsb = stage === 'download' && !card && (usb !== null || older && link.canUpdateBase())
+  // Over USB from any older base (every base RAM-boots the new one, which writes itself: flash.c); the card stays for
+  // the first install and as the fallback after an error.
+  const overUsb = stage === 'download' && !card && (usb !== null || older)
   useEffect(() => {
     if (!pending || !found || finished.current) return
     finished.current = true; finishBaseInstall(); onReady()

@@ -45,11 +45,14 @@ describe('the base dialog for a unit on an older base', () => {
     expect(onReady).toHaveBeenCalledTimes(1)
     expect(container.textContent).toContain('Done. Your Octatrack runs the new base.')
   })
-  it('keeps the card steps for a base that cannot write itself', async () => {
+  it('offers the USB update from any older base, and the card steps after a failure', async () => {
     const { update } = await older(false)
-    expect(buttonNamed('Update over USB')).toBeUndefined()
+    update.mockImplementation(async () => { throw new Error('The Octatrack did not come back within 90 s.') })
+    expect(buttonNamed('Update over USB')).toBeDefined(); expect(buttonNamed('Download base .bin')).toBeUndefined()
+    click(container.querySelector('.risk-accept input')!); click(buttonNamed('Update over USB')!); await settle(); await settle()
+    expect(container.textContent).toContain('did not come back within 90 s')
+    click(buttonNamed('Update from the card')!)
     expect(buttonNamed('Download base .bin')).toBeDefined()
     expect(container.textContent).toContain('from the card, the same way as the first time')
-    expect(update).not.toHaveBeenCalled()
   })
 })

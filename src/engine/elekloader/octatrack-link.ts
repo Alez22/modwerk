@@ -439,6 +439,8 @@ export class OctatrackLink {
    * on it (a power cycle returns to the flashed base when it does not). Then the write: that base, running, is given
    * its own container; it refuses any other base's, writes NOR with stock's OS UPGRADE routines, verifies it and
    * restarts on NOR once accepted. Only a power cut during the write itself needs the card or MIDI recovery.
+   * Every base since the beta RAM-boots, so the trial starts from any of them; only the base that writes needs
+   * the capability, and it is the new one.
    */
   async updateBase(bin: Uint8Array, expected: string, report: (step: BaseUpdateStep, fraction?: number) => void = () => {}, signal?: AbortSignal) {
     const file = formats.parse(bin, OCTATRACK) as ElekFile, container = file.container, image = file.section(3)
@@ -447,7 +449,6 @@ export class OctatrackLink {
     const armedFrom: string[] = []
     // Only the flashed base's gate reads the mailbox: armed from a RAM-booted base, the unit comes back on the flashed one, which arms it properly.
     while (current !== expected) {
-      if (!this.canUpdateBase()) throw new Error('This base can’t update itself over USB yet. Install the current base from the card once; after that, updates go over USB.')
       if (armedFrom.includes(current)) throw new Error(`The Octatrack came back on base ${current.slice(0, 8)}, not the new one. A power cycle returns to the flashed base.`)
       armedFrom.push(current)
       report('staging', 0)
@@ -457,6 +458,7 @@ export class OctatrackLink {
       current = await this.returned(connection, signal)
     }
     report('started')
+    if (!this.canUpdateBase()) throw new Error('The new base can’t write itself over USB, so install it from the card. A power cycle returns the Octatrack to its current base.')
     report('writing', 0)
     const connection = this.connection
     await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => { await session.activate(); await session.accept() })

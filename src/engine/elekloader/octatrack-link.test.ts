@@ -550,7 +550,7 @@ describe('updating the base over USB', () => {
     expect(dedupe(steps)).toEqual(['staging', 'starting', 'staging', 'starting', 'started', 'writing', 'restarting', 'done'])
     expect(unit.flashed).toBe(expected)
   })
-  it('skips the trial when the new base already runs, and writes nothing new for a base without the capability', async () => {
+  it('skips the trial when the new base already runs, and refuses after the trial when the new base cannot write itself', async () => {
     const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
     unit.base = expected; unit.unplug(); unit.plug('base'); await vi.waitFor(() => expect(link.getState().identity?.base).toBe(expected))
     await link.updateBase(bin, expected, step => steps.push(step))
@@ -558,7 +558,9 @@ describe('updating the base over USB', () => {
     const older = fakeUnit(); older.updatesBase = false
     const old = new OctatrackLink(older.usb, fakeSession(older), 300)
     old.start(); await vi.waitFor(() => expect(old.getState().status).toBe('ready'))
-    await expect(old.updateBase(bin, expected)).rejects.toThrow('from the card once')
-    expect(older.flashed).toBe(FAKE_BASE)
+    const steps2: string[] = []
+    await expect(old.updateBase(bin, expected, step => steps2.push(step))).rejects.toThrow('install it from the card')
+    expect(dedupe(steps2)).toEqual(['staging', 'starting', 'started']) // the trial ran; nothing was written
+    expect(older.flashed).toBe(FAKE_BASE); expect(older.base).toBe(expected)
   })
 })
