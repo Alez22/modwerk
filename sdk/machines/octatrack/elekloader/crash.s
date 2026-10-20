@@ -4,7 +4,8 @@
 | cycle would). Stock's own handler shows the exception screen and halts until a power cycle.
 | The record (crash.c's struct crash): magic, count, the exception frame's two longs (format, vector, FS and SR;
 | PC), d0-d7, a0-a6, the stack pointer, eight longs above the frame, and eight longs at the PC when it lies in
-| SDRAM (0x40000000-0x40ffffff: what the CPU fetched from, for a stale-code or wrong-jump diagnosis).
+| SDRAM (0x40000000-0x40ffffff), read through the cache and again through the uncached alias: whether memory
+| and the data cache agree, for a stale-code or wrong-jump diagnosis.
 | ColdFire V4e; assemble with -mcpu=54455.
         .set    REC,   0x100ff800      | battery RAM nothing else uses (fxmap.c)
         .set    MAGIC, 0x4d574352      | "MWCR"
@@ -35,6 +36,12 @@ mw_crash:
 4:      move.l  (%a1)+,(%a2)+
         subq.l  #1,%d0
         bne.s   4b
+        move.l  (4,%sp),%a1             | the same bytes through the uncached alias: memory itself
+        adda.l  #0x08000000,%a1
+        moveq   #8,%d0
+6:      move.l  (%a1)+,(%a2)+
+        subq.l  #1,%d0
+        bne.s   6b
 3:      move.l  #MAGIC,%d0
         cmp.l   (%a0),%d0
         beq.s   2f

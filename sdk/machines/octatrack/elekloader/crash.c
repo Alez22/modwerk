@@ -10,7 +10,7 @@ void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the b
 #define MW_STAMP(k) ((void)0)
 #endif
 
-struct crash { uint32_t magic, count, frame, pc, d[8], a[7], sp, stack[8], seen, code[8]; }; /* code: 32 bytes at the PC (crash.s) */
+struct crash { uint32_t magic, count, frame, pc, d[8], a[7], sp, stack[8], seen, code[8], memory[8]; }; /* code: 32 bytes at the PC, read cached; memory: the same through the uncached alias (crash.s) */
 #define REC ((volatile struct crash *)0x100ff800u)
 #define MAGIC 0x4d574352u /* "MWCR" */
 #define VECTORS ((volatile uint32_t *)0x40000000u) /* the vector base (0x400b9668 holds it) */
