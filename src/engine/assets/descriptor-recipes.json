@@ -1147,7 +1147,7 @@
           "value": "MIX"
         }
       ],
-      "sourceSha256": "e18af286c50d9778cb60ddbe8b9348c4b4a71c04cb45171419d4d2a6681cc31c"
+      "sourceSha256": "42e2dde8b2005fb0c41ca02c6b898f1ffb2b6c441b9d4cda1022a8eefbc73724"
     },
     {
       "id": "modulation",
@@ -3745,12 +3745,12 @@
       ]
     }
   ],
-  "sourceCommit": "62dfa8e9fc492fcb53805273186f78088925a53e",
+  "sourceCommit": "203edb598ff8edc3c0842c0dbae962e44720a06a",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
     "character": "0.1.1-experimental",
-    "miniverb": "0.2.2-experimental",
+    "miniverb": "0.2.3-experimental",
     "tapeecho": "0.1.5-experimental",
     "euclid": "0.1.4-experimental",
     "repitch": "0.2.0-experimental",
