@@ -1074,18 +1074,18 @@ int main(int argc, char **argv)
         assert(test_select(ids, pump) == 1);
         for (unsigned p = 41; p <= 44; ++p) assert(test_live(0, p) >= 0);
     } else if (mode == 38) {
-        /* The refusal box blames the slot that asks for code memory: a switch whose first changed slot (T2 FX1) runs an
-         * effect core B already holds (7, loaded for the bank) and whose T5-T7 need 2,200 of core A's 1,936 words names
-         * T5 FX1 (900 words, not loaded), not T2. */
+        /* The refusal box blames the core that overflows: a switch whose first changed slot (T2 FX1) asks for 10 (500
+         * words, not loaded) on core B, which fits, while T5-T7 need 2,200 of core A's 1,936 words names T5 FX1 (900
+         * words, not loaded), not T2. */
         extern volatile uint32_t dl_refusal[8];
-        test_fx(11, 700); test_fx(12, 600);
+        test_fx(10, 500); test_fx(11, 700); test_fx(12, 600);
         memset(test_parts, 0, sizeof test_parts);
-        test_parts[0][0] = 5; test_parts[0][4] = 6; test_parts[1][1] = 7;
+        test_parts[0][0] = 5; test_parts[0][4] = 6;
         uint8_t ids[16];
         memcpy(ids, test_parts[0], 16);
-        assert(test_select(ids, pump) == 1 && test_live(1, 7) >= 0);
+        assert(test_select(ids, pump) == 1);
         memset(ids, 0, 16);
-        ids[0] = 5; ids[1] = 7; ids[4] = 3; ids[5] = 11; ids[6] = 12;
+        ids[0] = 5; ids[1] = 10; ids[4] = 3; ids[5] = 11; ids[6] = 12;
         assert(test_select(ids, pump) == DL_SELECT_MEMORY);
         assert(dl_refusal[0] == 2u && dl_refusal[1] == 4u && dl_refusal[2] == 3u && dl_refusal[5] == 900u);
     } else assert(0);
