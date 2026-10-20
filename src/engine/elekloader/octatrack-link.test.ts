@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
-import { FAKE_BASE, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
+import { FAKE_BASE, fakeBaseOf, fakeSession, fakeUnit } from '../../dev/octatrack-link-fake'
+import { packSection } from '../../../vendor/elekloader/kit/src/codec/aplib.ts'
+import { encodeBin } from '../../../vendor/elekloader/kit/src/elek.ts'
 import { removalPackage } from './module-set'
 import { LinkBusyError, OctatrackLink, openFailure, tabLocks } from './octatrack-link'
 import { UploadUnconfirmedError } from './upload-session'
@@ -517,5 +519,48 @@ describe('several tabs of the site', () => {
     await waiting
     expect(b.getState()).toMatchObject({ status: 'trial', module: 'Set B' })
     await b.keep()
+  })
+})
+
+describe('updating the base over USB', () => {
+  // A card file as buildBase makes one: the kit's container around a small packed image.
+  function fakeBin() {
+    const image = new Uint8Array(70000)
+    for (let i = 0; i < image.length; i++) image[i] = (i * 7) & 0xff
+    image.set([0x4f, 0xef, 0xff, 0xe4])
+    const section = packSection(image), head = new TextEncoder().encode('ELEK0178     1.40C')
+    const container = new Uint8Array(Math.ceil((head.length + section.length) / 4) * 4)
+    container.set(head); container.set(section, head.length)
+    return { bin: encodeBin(container, 0x2f1349d2), image, expected: fakeBaseOf(image) }
+  }
+  const dedupe = (steps: string[]) => steps.filter((step, i) => step !== steps[i - 1])
+  it('RAM-boots the new base, has it write itself to NOR and comes back on it', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    await link.updateBase(bin, expected, step => steps.push(step))
+    expect(dedupe(steps)).toEqual(['staging', 'starting', 'started', 'writing', 'restarting', 'done'])
+    expect(unit.flashed).toBe(expected)
+    expect(link.getState()).toMatchObject({ status: 'ready', identity: { base: expected }, active: expected })
+  })
+  it('arms the trial again from the flashed base when the unit was running another from RAM', async () => {
+    const unit = fakeUnit(), link = new OctatrackLink(unit.usb, fakeSession(unit), 300)
+    unit.base = 'cc'.repeat(32) // a RAM-booted twin: its gate does not read the mailbox
+    link.start(); await vi.waitFor(() => expect(link.getState().status).toBe('ready'))
+    const { bin, expected } = fakeBin(), steps: string[] = []
+    await link.updateBase(bin, expected, step => steps.push(step))
+    expect(dedupe(steps)).toEqual(['staging', 'starting', 'staging', 'starting', 'started', 'writing', 'restarting', 'done'])
+    expect(unit.flashed).toBe(expected)
+  })
+  it('skips the trial when the new base already runs, and refuses after the trial when the new base cannot write itself', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    unit.base = expected; unit.unplug(); unit.plug('base'); await vi.waitFor(() => expect(link.getState().identity?.base).toBe(expected))
+    await link.updateBase(bin, expected, step => steps.push(step))
+    expect(dedupe(steps)).toEqual(['started', 'writing', 'restarting', 'done'])
+    const older = fakeUnit(); older.updatesBase = false
+    const old = new OctatrackLink(older.usb, fakeSession(older), 300)
+    old.start(); await vi.waitFor(() => expect(old.getState().status).toBe('ready'))
+    const steps2: string[] = []
+    await expect(old.updateBase(bin, expected, step => steps2.push(step))).rejects.toThrow('install it from the card')
+    expect(dedupe(steps2)).toEqual(['staging', 'starting', 'started']) // the trial ran; nothing was written
+    expect(older.flashed).toBe(FAKE_BASE); expect(older.base).toBe(expected)
   })
 })
