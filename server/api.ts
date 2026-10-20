@@ -37,6 +37,7 @@ import { handleGithubWebhook, githubConfig, mirrorIssue, setGithubIssueState } f
 import { publicIssueReplies } from './issue-replies'
 import { createConfigurationReport } from './configuration-reports'
 import { octatrackDiagnosticRoutes } from './octatrack-diagnostics'
+import { remoteSessionRoutes } from './remote-sessions'
 import { IssueInputError, validateIssueContext, validateLogMissing } from '../src/community/issue-context'
 import { OT_LOG_MAX_BYTES, OtLogError, parseOtLog } from '../src/community/ot-log'
 
@@ -97,6 +98,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     const adminId = await adminActor(request,env,db), admin = !!adminId
     const diagnostics = await octatrackDiagnosticRoutes(request,db,user,admin,env.DIAGNOSTICS_READ_KEY_SHA256)
     if (diagnostics) return diagnostics
+    const remote = await remoteSessionRoutes(request,env,db,user,adminId)
+    if (remote) return remote
     const push = await pushRoutes(request,env,db,user,admin)
     if(push)return push
     const signedDeveloper = await developerUser(request,env,db)

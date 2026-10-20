@@ -116,7 +116,9 @@ export class LinkBusyError extends Error { readonly retry = true }
 
 /** The Web Locks the link takes, so tabs of the site never claim the unit at once (`navigator.locks`; tests share a fake). */
 export interface UsbLocks { request<T>(name: string, options: { signal?: AbortSignal }, job: (lock: unknown) => Promise<T>): Promise<T> }
-const LOCK = 'modwerk-octatrack-usb', READ_WAIT_MS = 1000
+/** The Web Lock every USB job of the site takes; a remote debug session holds it for its whole length. */
+export const USB_LOCK = 'modwerk-octatrack-usb'
+const LOCK = USB_LOCK, READ_WAIT_MS = 1000
 /** Without Web Locks: one job at a time within this tab, as before; `signal` gives up a turn not yet started. */
 export function tabLocks(): UsbLocks {
   let queue: Promise<unknown> = Promise.resolve()
@@ -127,7 +129,7 @@ export function tabLocks(): UsbLocks {
     return !signal ? run : Promise.race([run, new Promise<never>((_, reject) => signal.addEventListener('abort', () => { if (!started) reject(signal.reason) }, { once: true }))])
   } }
 }
-const siteLocks = (): UsbLocks => (globalThis.navigator as Navigator & { locks?: UsbLocks } | undefined)?.locks ?? tabLocks()
+export const siteLocks = (): UsbLocks => (globalThis.navigator as Navigator & { locks?: UsbLocks } | undefined)?.locks ?? tabLocks()
 
 export function webUsb(): LinkUsb | undefined {
   return typeof navigator !== 'undefined' && globalThis.isSecureContext ? (navigator as Navigator & { usb?: LinkUsb }).usb : undefined

@@ -230,6 +230,17 @@ To read shared diagnostics, run `npm run diagnostics:pull`; agents working for t
 
 Additional idle `health()` reads require current opt-in. Refresh consent before polling; skip a pending refresh, cancel queued reads on withdrawal and recheck consent after acquiring the USB interface, immediately before transfer. Simulated previews never upload diagnostics. Fixed daily sync-action totals use the separate identifier-free count path, follow the existing count preference and browser privacy signals, and expire after 30 days; do not attach account, device, module or session identifiers.
 
+### Remote debug sessions
+
+An administrator can ask a verified member for a read-only remote debug session (`server/remote-sessions.ts`, `server/remote-relay.ts`, `src/components/RemoteSession.tsx`); [the MCP guide](FRONTEND_MCP.md#a-members-unit-through-a-remote-session) describes running one. Rules:
+
+- Nothing reaches the unit before the member presses Accept in the dialog, which names the requester, quotes the reason, gives the length (5 to 60 minutes) and says what can and cannot be read, and that the administrator may use Anthropic's Claude. Accepting is the click that opens Chrome's device picker. Consent is per session and versioned (`REMOTE_SESSION_CONSENT_VERSION`); a new scope or purpose needs a new version and text, here and on the privacy page.
+- The member's browser is the gatekeeper: it holds the device and the site's USB lock (`USB_LOCK`) for the whole session and checks every request with `remoteTransferRefusal`, which the relay applies too. Stage 1 is read-only. Never widen the allowlist without a new scope, new consent text and owner review.
+- While a session runs, a banner lists every request and offers End; ending, closing or reloading the tab ends it. The administrator can end it too, and the relay's alarm ends it on time.
+- Only administrators can ask (`/api/admin/remote-sessions`), at most one open request per member, 20 requests an hour per administrator and 5 a day per member. The request reaches the member through the bell's minute poll (`remoteSession` on `/api/notifications/unread`); there is no email or push.
+- The WebSocket opens with a one-time ticket (60 s) because browsers can't send a bearer token there. The Worker's Durable Object binding `REMOTE_SESSIONS` exists only in `wrangler.worker.jsonc`; the Pages Functions backend answers 503.
+- The record (`remote_sessions`) keeps who asked, why, the answer, consent version, start, end, who ended it and request counts per kind for 90 days, never the bytes read. It is part of the account export and is deleted with the account.
+
 ### Issue reports
 
 New module bugs use the module page’s amber “Report an issue” action. Module discussions warn before posting and offer to copy the written draft into that form; the forum composer cannot create bug reports.
