@@ -1,12 +1,13 @@
 --- a/dsp.c
 +++ b/dsp.c
-@@ -1249,6 +1249,88 @@
+@@ -1249,6 +1249,114 @@
  /* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3
   * (132 MHz), to find how long the frame chain survives a held-off frame interrupt. Off the USB request path. */
  volatile uint32_t modwerk_dsp_mask_test;
 +#if defined(MODWERK_RESIDENT_STOCK_HOOKS) && !defined(MODWERK_HOST)
 +#include "stock_hook_driver.h"
 +#include "stock_hook_resources.h"
++#include "loader.h" /* ABI 9 claims: struct runtime_dsp_claim, the live modules */
 +int modwerk_saved_set_busy(void);
 +int dl_hook_buffer_ranges_idle(unsigned);
 +int modwerk_stock_hook_fixed_ranges_idle(unsigned);
@@ -57,8 +58,33 @@
 +    stock_hook_init();
 +    if (modwerk_saved_set_busy()) return 0;
 +    if (modwerk_stock_hook_buffer_policy(core, id, &exact)) claim = exact;
++    /* ABI 9: nor a live package's DSP claim (loader.h; modwerk_machine_dsp_claims_admit checked it against the buffers). */
++    for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
++        const struct runtime_module *m = modwerk_runtime_module(i);
++        for (unsigned j = 0; m && j < m->dsp.claim_count; ++j) {
++            const struct runtime_dsp_claim *q = &m->dsp.claims[j];
++            struct mw_hook_span s = {q->address, q->words, q->core, q->space == 1u ? MW_HOOK_X : MW_HOOK_Y};
++            if (!mw_hook_buffer_clear_of(core, kind, block, &claim, &s, 1)) return 0;
++        }
++    }
 +    return mw_hook_buffer_permitted_held(mw_stock_hooks_held(&stock_hook_driver.leases) | modwerk_controller_held(),
 +                                         core, kind, block, &claim);
++}
++/* ABI 9 claims (loader.h), locked at admission: never a base feature's words but reads inside a feature the package
++ * requires (dsp_ledger.h), and no live or planned buffer under them. Another live module's claims are the loader's. */
++int dl_hook_claims_idle(const struct mw_hook_span *, unsigned);
++int modwerk_machine_dsp_claims_admit(unsigned requires, const struct runtime_dsp_claim *claims, unsigned n)
++{
++    struct mw_hook_span spans[RUNTIME_DSP_CLAIMS];
++    if (n > RUNTIME_DSP_CLAIMS || (n && !claims)) return RUNTIME_MALFORMED;
++    for (unsigned i = 0; i < n; ++i) {
++        spans[i] = (struct mw_hook_span){claims[i].address, claims[i].words, claims[i].core, claims[i].space == 1u ? MW_HOOK_X : MW_HOOK_Y};
++        if (!mw_hook_claim_permitted(requires, &spans[i], claims[i].access & RUNTIME_CLAIM_WRITE ? 1u : 0u)) return RUNTIME_CONFLICT;
++    }
++    if (!n) return RUNTIME_OK;
++    if (modwerk_saved_set_busy()) return RUNTIME_BUSY;
++    int idle = dl_hook_claims_idle(spans, n);
++    return idle > 0 ? RUNTIME_OK : idle < 0 ? RUNTIME_BUSY : RUNTIME_MEMORY;
 +}
 +int modwerk_stock_hook_begin(unsigned feature, uint32_t module, uint32_t generation, int enable)
 +{
@@ -89,7 +115,7 @@
  void modwerk_dsp_tick(void)
  {
      modwerk_dsp_watch_ticks = modwerk_dsp_watch_ticks + 1; /* the watchdog's heartbeat */
-@@ -1261,9 +1343,14 @@
+@@ -1261,9 +1369,14 @@
      }
      static int unpacked;
      if (!unpacked) unpacked = 1, modwerk_dsp_unpack();
@@ -107,7 +133,7 @@
      if (probing >= 0 && dl_job_status((unsigned)probing) != 0) {
          if (dl_job_status((unsigned)probing) > 0) modwerk_dsp_probes_ok = modwerk_dsp_probes_ok + 1;
          else modwerk_dsp_probes_failed = modwerk_dsp_probes_failed + 1;
-@@ -1272,7 +1359,7 @@
+@@ -1272,7 +1385,7 @@
      }
      if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
      else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
@@ -333,7 +359,7 @@
          btst    #1,y:<<$ffffd3
          brkcs
  c1over:
-@@ -534,6 +549,16 @@
+@@ -534,6 +549,18 @@
          nop
  missactual:
          nop
@@ -346,6 +372,8 @@
 +hookpos2:
 +        nop
 +hookpos4:
++        nop
++hookpos8:                              ; the key bus's reset cursor
 +        nop
  idlewin:                                  ; never executed: the load meter (see frame): frames left,
          nop                             ; least, most, sum and missed of this window

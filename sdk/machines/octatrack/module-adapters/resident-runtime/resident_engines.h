@@ -5,7 +5,7 @@
 
 /* Resident controller engines on demand (docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md). Only a base built with
  * --resident-on-demand compiles this unit (MODWERK_RESIDENT_ON_DEMAND). Each on-demand engine (Sidechain 1, Output
- * Matrix 2, Analog BD 4) is a relocatable unit (resident_dsp.engine_unit) the build stores per core. While a
+ * Matrix 2, Analog BD 4, the key bus 8: a base feature, docs/OCTATRACK_PACKAGE_DSP_HOOKS.md) is a relocatable unit (resident_dsp.engine_unit) the build stores per core. While a
  * controller generation holds its feature, the unit is relocated on the UI task into a per-core buffer, uploaded
  * at the top of that core's arena with an owned WRITE (every chunk read back on the DSP), then PLACEd (op 10,
  * word 7 = 1) so the receiver's base word names it. Only then may the board RESET and ENABLE the feature. When no
@@ -29,22 +29,23 @@ struct mw_engine_unit {
     const uint16_t *relocations;
     uint16_t count, relocation_count;
 };
-extern const struct mw_engine_unit mw_engine_units[2][3];  /* [core][feature index: 1, 2, 4] */
+#define MW_ENGINE_FEATURES 4u                                /* feature indices: 1, 2, 4, 8 */
+extern const struct mw_engine_unit mw_engine_units[2][MW_ENGINE_FEATURES];  /* [core][feature index] */
 extern uint32_t *const mw_engine_buffer[2];                /* per core, sized to its largest unit */
 
 enum mw_engine_state { MW_ENGINE_FREE, MW_ENGINE_CLAIMED, MW_ENGINE_WRITING, MW_ENGINE_WRITTEN, MW_ENGINE_PLACING,
                        MW_ENGINE_PLACED, MW_ENGINE_UNPLACING, MW_ENGINE_STUCK };
 struct mw_engine { uint16_t offset; uint8_t state, pad; uint32_t generation; }; /* offset: from DL_CODE_START */
-extern struct mw_engine mw_engines[2][3];
+extern struct mw_engine mw_engines[2][MW_ENGINE_FEATURES];
 /* Diagnostics, never an ABI: owned jobs started, placements and unplacements acknowledged, claims refused. */
 extern volatile uint32_t mw_engines_jobs, mw_engines_placed_count, mw_engines_unplaced_count, mw_engines_refused;
 
 /* Why a placement waits (diagnostics, never an ABI): per core and feature index, as mw_engines_place last left it. */
 enum { MW_WAIT_NONE, MW_WAIT_LANE, MW_WAIT_BOARD, MW_WAIT_PLAYING, MW_WAIT_ROOM, MW_WAIT_CLAIM_BUSY, MW_WAIT_CLAIM_REFUSED,
        MW_WAIT_TRANSPORT, MW_WAIT_STUCK, MW_WAIT_EVACUATION };
-extern volatile uint8_t mw_engines_wait[2][3];
+extern volatile uint8_t mw_engines_wait[2][MW_ENGINE_FEATURES];
 /* The last admission verdict per feature index: 0 none yet, else 1 + MW_ENGINE_FITS/MEMORY/STUCK_BOOT. */
-extern volatile uint8_t mw_engines_admitted[3];
+extern volatile uint8_t mw_engines_admitted[MW_ENGINE_FEATURES];
 
 /* Relocate a unit for absolute P address `base` into out[0..count). Linear in words plus relocations. */
 void mw_engine_relocate(const struct mw_engine_unit *, uint32_t base, uint32_t *out);
@@ -54,6 +55,10 @@ void mw_engine_relocate(const struct mw_engine_unit *, uint32_t base, uint32_t *
 void mw_engines_poll(void);
 /* Every core in `cores` has `feature`'s engine placed and its PLACE acknowledged. */
 int mw_engines_ready(unsigned feature, unsigned cores);
+/* Every feature the board wants placed now (held controllers, what they imply, the key bus for its readers). A claim
+ * reserves room for each wanted engine not yet placed on that core as well, so engines wanted together (Sidechain and
+ * the key bus) take their region in one claim and live FX code there moves once, in one evacuation. */
+void mw_engines_want(unsigned features);
 /* Drive placement of `feature` on `cores` for a controller generation: 1 placed everywhere, 0 not yet (a job in
  * flight, the sequencer playing, the manager busy, an evacuation running or waiting, no room), -1 never this boot (an
  * uncertain PLACE). A core whose `busy` entry is set (the board's own job holds it) is left alone. Live FX code in the
@@ -66,7 +71,9 @@ int mw_engines_place(unsigned feature, unsigned cores, uint32_t generation, cons
  * (no place, or an evacuation failed on that core this boot), or the bank's Part union would no longer fit under them
  * (the board answers RUNTIME_MEMORY); MW_ENGINE_STUCK_BOOT: the engine is stuck for this boot (RUNTIME_CONFLICT). */
 enum { MW_ENGINE_FITS, MW_ENGINE_MEMORY, MW_ENGINE_STUCK_BOOT };
-int mw_engines_admit(unsigned feature, unsigned wanted);
+int mw_engines_admit(unsigned feature, unsigned wanted); /* `wanted` with what it implies (Sidechain: the key bus) */
+/* ABI 9: the base features this base provides to packages (loader.h): the key bus. */
+unsigned modwerk_machine_dsp_features(void);
 /* Unplace and free every engine no held slot names: only when its feature is known dormant on that core (`mask`,
  * bit c of `known`), the core is free (`busy`) and the sequencer is quiet. */
 void mw_engines_collect(unsigned held, const uint8_t mask[2], unsigned known, const uint8_t busy[2]);
@@ -76,16 +83,17 @@ void mw_engines_collect(unsigned held, const uint8_t mask[2], unsigned known, co
  * tick. Big-endian, as the ColdFire stores it; byte offsets in comments. */
 struct mw_engines_view {
     uint8_t magic[4];                 /* 0: "MWEV" */
-    uint8_t state[2][3], wait[2][3];  /* 4, 10: per core, feature index (Sidechain, Output Matrix, Analog BD) */
-    uint16_t offset[2][3];            /* 16: arena offset of the engine (from DL_CODE_START) */
-    uint16_t arena[2], reserved[2];   /* 28, 32: the FX arena now and the words reserved for engines, per core */
-    uint8_t admitted[3], claim_why[2], held;   /* 36, 39, 41: verdicts, dl_engine_why, held features */
-    uint8_t evacuation, evacuations;           /* 42: dl_engine_evacuation(); 43: done (low nibble) | failed << 4, mod 16 */
-    uint32_t jobs, placed, unplaced, refused; /* 44 */
+    uint8_t state[2][4], wait[2][4];  /* 4, 12: per core, feature index (Sidechain, Output Matrix, Analog BD, key bus) */
+    uint16_t offset[2][4];            /* 20: arena offset of the engine (from DL_CODE_START) */
+    uint16_t arena[2], reserved[2];   /* 36, 40: the FX arena now and the words reserved for engines, per core */
+    uint8_t admitted[4], claim_why[2], held;   /* 44, 48, 50: verdicts, dl_engine_why, held features (8: the key bus) */
+    uint8_t evacuation, evacuations;           /* 51: dl_engine_evacuation(); 52: done (low nibble) | failed << 4, mod 16 */
+    uint8_t keybus, keybus_reset[2];           /* 53: key bus wanted | lane op core 0 << 1 | core 1 << 4; 54: reset words / 8 */
+    uint32_t jobs, placed, unplaced, refused; /* 56 */
     struct { uint32_t module, generation; uint8_t state, feature, enable_acks, disable_acks;
-             uint16_t acknowledged[2], reset[2]; } slots[6]; /* 60, 20 bytes each: the controller registry */
+             uint16_t acknowledged[2], reset[2]; } slots[6]; /* 72, 20 bytes each: the controller registry */
 };
-typedef char mw_engines_view_is_180_bytes[(sizeof(struct mw_engines_view) == 180) ? 1 : -1];
+typedef char mw_engines_view_is_192_bytes[(sizeof(struct mw_engines_view) == 192) ? 1 : -1];
 extern struct mw_engines_view mw_engines_view;
 #endif
 

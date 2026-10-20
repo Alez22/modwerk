@@ -94,7 +94,7 @@ int mw_controller_transport_begin(struct mw_controller_transport *t,const struct
            !dl_owned_reset_reserve(c,b->generation,b->identity.feature,offset,count,words,&receipt)) goto out;
     } else if(op==MW_CTL_ENABLE || op==MW_CTL_DISABLE) {
         uint32_t mask=0;
-        if(t->policy->receiver_mask(t->context,b,c,&mask)!=1 || mask&~(c ? 5u:7u)) goto out;
+        if(t->policy->receiver_mask(t->context,b,c,&mask)!=1 || mask&~(c ? 13u:15u)) goto out; /* 8: the key bus (controller_board.c) */
         uint32_t desired=op==MW_CTL_ENABLE ? mask|b->identity.feature : mask&~b->identity.feature;
         if(!dl_owned_command_reserve(c,b->generation,10u,mask,desired,0,&receipt)) goto out;
     } else goto out;

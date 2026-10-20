@@ -4,6 +4,7 @@
  * no relocation list (each word is final before the WRITE is reserved). */
 #include "resident_engines.h"
 #include "transfer.h"
+#include "dsp_ledger.h"
 
 #ifdef MW_ENGINES_TEST
 int mw_engines_test_quiet(void);
@@ -22,9 +23,11 @@ int modwerk_dsp_moves_idle(void);                                       /* dsp.c
 #define SETTLED() (modwerk_runtime_ticks - modwerk_status_key_at >= 120u && modwerk_dsp_moves_idle())
 #endif
 
-struct mw_engine mw_engines[2][3];
+struct mw_engine mw_engines[2][MW_ENGINE_FEATURES];
 volatile uint32_t mw_engines_jobs, mw_engines_placed_count, mw_engines_unplaced_count, mw_engines_refused;
-volatile uint8_t mw_engines_wait[2][3], mw_engines_admitted[3];
+volatile uint8_t mw_engines_wait[2][MW_ENGINE_FEATURES], mw_engines_admitted[MW_ENGINE_FEATURES];
+/* ABI 9 (loader.h): a package may require the key bus; the board holds it for them (controller_board.c). */
+unsigned modwerk_machine_dsp_features(void) { return MW_DSP_KEYBUS; }
 #ifdef MODWERK_DEV
 struct mw_engines_view mw_engines_view = {.magic = {'M', 'W', 'E', 'V'}}; /* initialized: in .data, inside the dev MEM window */
 #endif
@@ -36,8 +39,11 @@ static struct { uint16_t offset; uint8_t k; } buffered[2];
 /* A job of ours failed or is uncertain on this core: the owned transport closed it for the boot (its fail-closed
  * rule), so nothing more is placed or unplaced there. Placed engines stay placed, free spans stay free. */
 static uint8_t closed[2];
+static unsigned wanted_now; /* mw_engines_want */
+void mw_engines_want(unsigned features) { wanted_now = features; }
 
-static unsigned index_of(unsigned feature) { return feature == 1u ? 0u : feature == 2u ? 1u : feature == 4u ? 2u : 3u; }
+static unsigned index_of(unsigned feature)
+{ return feature == 1u ? 0u : feature == 2u ? 1u : feature == 4u ? 2u : feature == 8u ? 3u : MW_ENGINE_FEATURES; }
 static unsigned arena(unsigned c) { return dl_pool_words[c] > DL_CODE_START ? dl_pool_words[c] - DL_CODE_START : 0u; }
 
 void mw_engine_relocate(const struct mw_engine_unit *u, uint32_t base, uint32_t *out)
@@ -52,14 +58,14 @@ void mw_engine_relocate(const struct mw_engine_unit *u, uint32_t base, uint32_t 
 
 /* The highest offset in core c's arena where n words meet no engine span but `skip`'s (top-down first fit, holes
  * reused). spans[k] < 0: none. -1: no room. */
-static int spot(unsigned c, unsigned n, const int spans[3], unsigned skip)
+static int spot(unsigned c, unsigned n, const int spans[MW_ENGINE_FEATURES], unsigned skip)
 {
     unsigned top = arena(c);
     if (!n || n > top) return -1;
     int at = (int)(top - n);
     for (unsigned moved = 1; moved;) {
         moved = 0;
-        for (unsigned k = 0; k < 3u; ++k) {
+        for (unsigned k = 0; k < MW_ENGINE_FEATURES; ++k) {
             if (k == skip || spans[k] < 0) continue;
             int end = spans[k] + (int)mw_engine_units[c][k].count;
             if (at < end && at + (int)n > spans[k]) {
@@ -71,21 +77,21 @@ static int spot(unsigned c, unsigned n, const int spans[3], unsigned skip)
     }
     return at;
 }
-static void spans_of(unsigned c, int spans[3])
+static void spans_of(unsigned c, int spans[MW_ENGINE_FEATURES])
 {
-    for (unsigned k = 0; k < 3u; ++k) spans[k] = mw_engines[c][k].state == MW_ENGINE_FREE ? -1 : (int)mw_engines[c][k].offset;
+    for (unsigned k = 0; k < MW_ENGINE_FEATURES; ++k) spans[k] = mw_engines[c][k].state == MW_ENGINE_FREE ? -1 : (int)mw_engines[c][k].offset;
 }
 /* What the region must reserve for these spans: from the lowest up to the arena's top. */
-static unsigned reserve_of(unsigned c, const int spans[3])
+static unsigned reserve_of(unsigned c, const int spans[MW_ENGINE_FEATURES])
 {
     unsigned low = arena(c);
-    for (unsigned k = 0; k < 3u; ++k) if (spans[k] >= 0 && (unsigned)spans[k] < low) low = (unsigned)spans[k];
+    for (unsigned k = 0; k < MW_ENGINE_FEATURES; ++k) if (spans[k] >= 0 && (unsigned)spans[k] < low) low = (unsigned)spans[k];
     return arena(c) - low;
 }
 /* A span left the region: give the FX allocator back everything below the lowest engine still there. */
 static void shrink(unsigned c)
 {
-    int spans[3];
+    int spans[MW_ENGINE_FEATURES];
     spans_of(c, spans);
     unsigned reserve = reserve_of(c, spans);
     if (reserve < dl_engine_reserved(c)) dl_engine_release(c, reserve);
@@ -131,7 +137,7 @@ void mw_engines_poll(void)
 int mw_engines_ready(unsigned feature, unsigned cores)
 {
     unsigned k = index_of(feature);
-    if (k > 2u || !cores || cores > 3u) return 0;
+    if (k >= MW_ENGINE_FEATURES || !cores || cores > 3u) return 0;
     for (unsigned c = 0; c < 2u; ++c)
         if ((cores >> c & 1u) && (!mw_engine_units[c][k].count || mw_engines[c][k].state != MW_ENGINE_PLACED)) return 0;
     return 1;
@@ -168,7 +174,7 @@ static int reserve(unsigned c, unsigned op, unsigned k, uint32_t generation)
 int mw_engines_place(unsigned feature, unsigned cores, uint32_t generation, const uint8_t busy[2])
 {
     unsigned k = index_of(feature), placed = 1, stuck = 0;
-    if (k > 2u || !cores || cores > 3u || !generation) return -1;
+    if (k >= MW_ENGINE_FEATURES || !cores || cores > 3u || !generation) return -1;
     for (unsigned c = 0; c < 2u; ++c) {
         if (!(cores >> c & 1u)) continue;
         struct mw_engine *e = &mw_engines[c][k];
@@ -181,11 +187,17 @@ int mw_engines_place(unsigned feature, unsigned cores, uint32_t generation, cons
         if (lane[c].op != LANE_IDLE) { *why = MW_WAIT_LANE; continue; }
         if (busy[c]) { *why = MW_WAIT_BOARD; continue; }
         if (e->state == MW_ENGINE_FREE) {
-            int spans[3];
+            int spans[MW_ENGINE_FEATURES];
             spans_of(c, spans);
             int at = spot(c, u->count, spans, k);
             if (at < 0) { mw_engines_refused = mw_engines_refused + 1, *why = MW_WAIT_ROOM; continue; }
             spans[k] = at;
+            /* Room for the other wanted engines not yet here too, where they will go: one region, one claim. */
+            for (unsigned j = 0; j < MW_ENGINE_FEATURES; ++j) {
+                if (j == k || !(wanted_now >> j & 1u) || spans[j] >= 0 || !mw_engine_units[c][j].count) continue;
+                int other = spot(c, mw_engine_units[c][j].count, spans, j);
+                if (other >= 0) spans[j] = other;
+            }
             unsigned need = reserve_of(c, spans);
             /* A claim the reserve already covers (an evacuation lowered the capacity for it) is bookkeeping only, taken
              * at once so the reserve never waits unowned; a new claim, and any code move, only while quiet. */
@@ -213,22 +225,22 @@ int mw_engines_admit(unsigned feature, unsigned wanted)
 {
     int verdict = admit(feature, wanted);
     unsigned k = index_of(feature);
-    if (k < 3u) mw_engines_admitted[k] = (uint8_t)(verdict + 1);
+    if (k < MW_ENGINE_FEATURES) mw_engines_admitted[k] = (uint8_t)(verdict + 1);
     return verdict;
 }
 static int admit(unsigned feature, unsigned wanted)
 {
     unsigned k = index_of(feature);
-    if (k > 2u) return MW_ENGINE_STUCK_BOOT;
+    if (k >= MW_ENGINE_FEATURES) return MW_ENGINE_STUCK_BOOT;
     for (unsigned c = 0; c < 2u; ++c)
         if (mw_engine_units[c][k].count && (mw_engines[c][k].state == MW_ENGINE_STUCK ||
                                             (closed[c] && mw_engines[c][k].state != MW_ENGINE_PLACED))) return MW_ENGINE_STUCK_BOOT;
-    wanted |= feature;
+    wanted = MW_DSP_IMPLIED(wanted | feature); /* a Sidechain's engine comes with the key bus's */
     for (unsigned c = 0; c < 2u; ++c) {
-        int spans[3];
+        int spans[MW_ENGINE_FEATURES];
         unsigned add = 0;
         spans_of(c, spans);
-        for (unsigned j = 0; j < 3u; ++j) {
+        for (unsigned j = 0; j < MW_ENGINE_FEATURES; ++j) {
             if (!(wanted >> j & 1u) || !mw_engine_units[c][j].count || spans[j] >= 0) continue;
             int at = spot(c, mw_engine_units[c][j].count, spans, j);
             if (at < 0) return MW_ENGINE_MEMORY;
@@ -245,10 +257,10 @@ void mw_engines_collect(unsigned held, const uint8_t mask[2], unsigned known, co
         /* An evacuation lowers the capacity for the engine that asked; if that engine's feature is let go before it
          * claims, nothing frees its span: give the words back once no held feature's engine still waits here. */
         unsigned owed = 0;
-        for (unsigned k = 0; k < 3u; ++k)
+        for (unsigned k = 0; k < MW_ENGINE_FEATURES; ++k)
             owed |= (held >> k & 1u) && mw_engine_units[c][k].count && mw_engines[c][k].state == MW_ENGINE_FREE;
         if (!owed) shrink(c);
-        for (unsigned k = 0; k < 3u; ++k) {
+        for (unsigned k = 0; k < MW_ENGINE_FEATURES; ++k) {
             struct mw_engine *e = &mw_engines[c][k];
             if ((held >> k & 1u) || lane[c].op != LANE_IDLE || busy[c] || closed[c] || !QUIET()) continue;
             if (e->state == MW_ENGINE_CLAIMED || e->state == MW_ENGINE_WRITTEN) free_span(c, k); /* never PLACEd */

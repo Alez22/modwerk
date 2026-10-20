@@ -1573,7 +1573,8 @@ def main():
                 text = zero_state.unit(name, text, preserved_dynload)
             (source / ('dsp_hooks.s' if name == 'hooks.s' else name)).write_text(text)
         if args.resident_stock_hooks:
-            for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h'):
+            for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h',
+                         'dsp_ledger.h'):
                 shutil.copyfile(resident_source.RUNTIME / name, source / name)
             # Explicit strong empty bridge: this size/preparation baseline refuses
             # every unreviewed policy and never starts controller activation.
@@ -1684,7 +1685,9 @@ def main():
             p = APP / 'sdk/machines/octatrack/module-adapters' / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
         inputs.update({'sdk/octabam/' + p: h for p, h in resident_dsp.verify_sources(resident_ob.root).items()})
-        for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h', 'cue_cfg.s'):
+        for name in ('dsp-sites.json', 'dsp_sites.py'):  # the ledger dsp_ledger.h is generated from
+            inputs['sdk/machines/octatrack/' + name] = sha((APP / 'sdk/machines/octatrack' / name).read_bytes())
+        for name in ('stock_hooks.c', 'stock_hooks.h', 'stock_hook_driver.c', 'stock_hook_driver.h', 'stock_hook_resources.c', 'stock_hook_resources.h', 'dsp_ledger.h', 'cue_cfg.s'):
             p = resident_source.RUNTIME / name
             inputs[str(p.relative_to(APP))] = sha(p.read_bytes())
     if args.resident_on_demand:

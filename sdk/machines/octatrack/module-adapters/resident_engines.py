@@ -19,7 +19,7 @@ runtime is resident-runtime/resident_engines.c; docs/OCTATRACK_RESIDENT_ENGINES_
 import hashlib
 
 CORES = ('A', 'B')
-FEATURES = (1, 2, 4)
+FEATURES = (1, 2, 4, 8)  # resident_dsp.FEATURES: Sidechain, Output Matrix, Analog BD, the key bus
 
 
 def _change(text, old, new, what):
@@ -66,7 +66,7 @@ def data_c(bundles):
             most = max(most, len(words))
         rows.append('{' + ', '.join(row) + '}')
         largest.append(most)
-    lines.append('const struct mw_engine_unit mw_engine_units[2][3] = {%s};' % ', '.join(rows))
+    lines.append('const struct mw_engine_unit mw_engine_units[2][MW_ENGINE_FEATURES] = {%s};' % ', '.join(rows))
     lines += ['static uint32_t mw_engine_buffer_%d[%d];' % (core, most) for core, most in enumerate(largest)]
     lines.append('uint32_t *const mw_engine_buffer[2] = {mw_engine_buffer_0, mw_engine_buffer_1};')
     return '\n'.join(lines) + '\n'
@@ -340,11 +340,11 @@ def manager(text):
 
 def transport(text):
     """The generated transfer.c, after resident_driver.transport."""
-    return _change(text, '    if(op==10u && (id&~(c ? 5u:7u) || init&~(c ? 5u:7u) || proc)) return 0;',
-                   '    if(op==10u && (proc>1u || (!proc && (id&~(c ? 5u:7u) || init&~(c ? 5u:7u))))) return 0;\n'
+    return _change(text, '    if(op==10u && (id&~(c ? 13u:15u) || init&~(c ? 13u:15u) || proc)) return 0;',
+                   '    if(op==10u && (proc>1u || (!proc && (id&~(c ? 13u:15u) || init&~(c ? 13u:15u))))) return 0;\n'
                    '    /* PLACE (word 7 = 1): one on-demand feature this core carries; offset 0 unplaces, else a table\n'
                    '     * offset inside the arena (the receiver bounds the engine\'s end by its permanent block). */\n'
-                   '    if(op==10u && proc==1u && ((id!=1u && id!=2u && id!=4u) || id&~(c ? 5u:7u) ||\n'
+                   '    if(op==10u && proc==1u && ((id!=1u && id!=2u && id!=4u && id!=8u) || id&~(c ? 13u:15u) ||\n'
                    '       (init && (init<DL_CODE_START || init>=dl_pool_words[c])))) return 0;', 'transport PLACE')
 
 
@@ -374,12 +374,52 @@ def dev(text):
                    ' *          DDR up to 0x46000000, the base\'s statics included), stock\'s variables, the\n', 'dev MEM comment')
 
 
+KEYBUS_CHARGE = r'''/* Resident engines on demand: the key bus's tap (dsp_ledger.h), a per-core price like a source engine's. It runs for
+ * every track of each core while the key bus is enabled, whoever holds it, so it is charged once on both cores while the
+ * board holds its engine (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md, cost model (iii)): executed instructions per sample for a
+ * core's four tracks, counted statically from the source, at 7/4 like every emulator figure until it is timed on a unit. */
+#include "dsp_ledger.h"
+#define KEYBUS_MODULE 0x4b425553u
+static unsigned keybus_at(unsigned c, uint32_t module)
+{
+    for (unsigned e = 0; e < SOURCE_ENGINES; ++e) if (source_engine[c][e].module == module) return e;
+    return SOURCE_ENGINES;
+}
+/* 1: already charged on both cores, or it would fit beside every slot and source of each core now. */
+int modwerk_dsp_keybus_fits(void)
+{
+    uint32_t e = charged(MW_DSP_KEYBUS_EXECUTED, RUNTIME_EXECUTED);
+    for (unsigned c = 0; c < 2u; ++c) {
+        if (keybus_at(c, KEYBUS_MODULE) < SOURCE_ENGINES) continue;
+        if (keybus_at(c, 0) == SOURCE_ENGINES ||
+            slot_charge(c) + modwerk_dsp_source_charge(c) + e > (c ? MODWERK_DSP_ALLOWANCE1 : MODWERK_DSP_ALLOWANCE0)) return 0;
+    }
+    return 1;
+}
+/* on 1: charge it on both cores (1 done, 0 it does not fit: nothing changes); on 0: let it go. Machine lock held. */
+int modwerk_dsp_keybus_charge(int on)
+{
+    if (!on) { modwerk_dsp_source_engine_off(KEYBUS_MODULE); return 1; }
+    if (!modwerk_dsp_keybus_fits()) return 0;
+    for (unsigned c = 0; c < 2u; ++c)
+        if (keybus_at(c, KEYBUS_MODULE) == SOURCE_ENGINES) {
+            unsigned e = keybus_at(c, 0);
+            source_engine[c][e].module = KEYBUS_MODULE, source_engine[c][e].cycles = charged(MW_DSP_KEYBUS_EXECUTED, RUNTIME_EXECUTED);
+        }
+    return 1;
+}
+'''
+
+
 def dsp(text):
     """The private resident dsp.c: the box after a pick (modwerk_dsp_budget) reads the lowered arena."""
     text = _change(text, 'extern const uint16_t modwerk_dsp_arena[2];',
                    'extern const uint16_t modwerk_dsp_arena[2];\nunsigned modwerk_dsp_arena_now(unsigned); /* resident engines on demand */',
                    'dsp declaration')
     text = _change(text, 'out->arena = modwerk_dsp_arena[c];', 'out->arena = modwerk_dsp_arena_now(c);', 'dsp budget')
+    # The key bus's tap (controller_board.c holds it): a per-core price, charged as a source engine is.
+    text = _change(text, '/* A module id with no module: the null stub runs there, free on both slots. */\n',
+                   KEYBUS_CHARGE + '/* A module id with no module: the null stub runs there, free on both slots. */\n', 'dsp key bus price')
     # An evacuation (resident_engines.c) waits as compaction does: no self-test, no rebind, no pick waiting.
     return _change(text, 'static void compact_tick(void)\n',
                    '/* Resident engines on demand: code may move for an engine now (resident_engines.c adds the transport\n'

@@ -25,4 +25,10 @@ int mw_hook_buffer_permitted_held(unsigned held,unsigned core,unsigned kind,unsi
  * Shared X/Y/P aliases are compared across both cores. Incomplete means closed. */
 int mw_hook_ranges_idle(unsigned feature,const struct mw_hook_span *live,unsigned live_count,
                         const struct mw_hook_span *target,unsigned target_count,unsigned complete_cores);
+/* ABI 9: may a package that requires `requires` (base feature bits) claim this span (writes 1: it writes there)?
+ * Never a base feature's words, but reads wholly inside a feature it requires (dsp_ledger.h). */
+int mw_hook_claim_permitted(unsigned requires,const struct mw_hook_span *claim,unsigned writes);
+/* 1 when no span meets the Y block a slot's buffer of that kind would take at `block` on `core`. */
+int mw_hook_buffer_clear_of(unsigned core,unsigned kind,unsigned block,const struct mw_hook_buffer_claim *claim,
+                            const struct mw_hook_span *spans,unsigned n);
 #endif

@@ -27,7 +27,9 @@ int main(void) {
     assert(!dl_hook_reset_start(0,1,0,25,words));
     assert(!dl_hook_reset_start(2,1,0,1,words));
     assert(!dl_hook_reset_start(1,2,0,1,words));
-    assert(!dl_hook_reset_start(0,8,0,1,words));
+    assert(!dl_hook_reset_start(0,16,0,1,words));
+    assert(!dl_hook_reset_start(0,8,511,2,words)); /* the key bus: one owned range per chunk, 512 then 514 */
+    assert(!dl_hook_reset_start(1,8,1026,1,words) && !dl_hook_reset_start(1,8,1020,7,words));
     assert(!dl_hook_reset_start(0,1,527,2,words));
     assert(!dl_hook_reset_start(0,1,1042,1,words));
     words[0]=0x1000000u;
@@ -43,7 +45,7 @@ int main(void) {
         assert(dl_job_status(core)==0); dl_job_release(core);
         assert(dl_job_status(core)==0); /* release cannot abandon a pending ACK */
         answer(core,0); assert(dl_job_status(core)==1); dl_job_release(core);
-        assert(!dl_command_start(core,10,0,8,0));
+        assert(!dl_command_start(core,10,0,16,0)); /* no such feature (8 is the key bus, on both cores) */
         assert(!dl_command_start(core,10,0,1,1));
         if(core) assert(!dl_command_start(core,10,0,2,0));
         assert(dl_command_start(core,10,0,5,0)); dl_frame(); checksum(core);

@@ -130,7 +130,8 @@ class ResidentDriver(unittest.TestCase):
             changed = changed.replace(old, new)
         private = driver.transport(changed)
         self.assertIn('dl_hook_reset_start', private)
-        self.assertIn('offset<528u && count>528u-offset', private)
+        self.assertIn('unsigned split=feature==1u ? 528u : feature==8u ? 512u : 0u;', private)  # one owned range per chunk
+        self.assertIn('feature==8u ? 1026u', private)  # the key bus
         self.assertIn('op!=10u', private)
         self.assertEqual((core.DYNLOAD / 'transfer.c').read_text(), original)
         with self.assertRaisesRegex(ValueError, 'seam changed'):

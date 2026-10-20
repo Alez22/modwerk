@@ -3,8 +3,8 @@
 Status, 20 October 2026: a proposal, implemented locally with option B (the base-owned key bus) chosen: first on
 `claude/package-dsp-hooks` (old main, 15-16 October), now redone on `claude/keybus` from main `e370b78e` after the
 review below. The owner has not reviewed it: the questions at the end are open, and the base, the loader ABI and the
-receiver change only on that branch until he does. Hardware facts are quoted from the documents named; nothing new was
-measured on a unit for this note.
+receiver change only on that branch until he does. Hardware facts are quoted from the documents named, except the
+key bus's own run on an MKII (20 October 2026, "On the unit" below).
 
 ## Review against main `e370b78e` (20 October 2026)
 
@@ -270,6 +270,66 @@ track's own core reads the local bus (this block's audio if the key track is dis
 after), a reader on the other core reads the window two generations behind its own core's counter (#640's phase rule:
 32 samples). A reader writes nothing in the bus or the window. RINGMOD SC is the first reader; CHARACTER 0.1.2's KEY
 (today upstream's bus server at y:$990/$991, or NOBUS_KEY) is planned as the second, once RINGMOD SC's is proven.
+
+**Checked in software (`claude/keybus`, 20 October 2026).** None of it on a unit.
+
+- `dsp_sites.py --check` (`test_dsp_sites.py`): every catalogued site's payload addresses and stock guard match its
+  module's manifest on main (Output Matrix 0.1.1's included), and the three original features' regions match
+  `resident_dsp.resource_ranges`.
+- DSP interpreter (`test_resident_engines.py`, the vendored dsp56300 build; not the chip): the units relocate alike
+  three ways at ten bases (Sidechain's detector 322 words, the key bus 101, 423 together as before); the split leaves
+  the permanent block word for word the unsplit text; three engines placed and enabled on each core, Sidechain and then
+  the key bus disabled, leave every other base word intact and refuse a re-enable without a RESET. Key latency with
+  the tap and the detector assembled as two units placed apart (`split`) as with the resident text: a key from the other
+  core two blocks late (32 samples) for every enable offset from -5 to 5 frames, five fixed core skews and a moving one,
+  never the slot being written; a key on the reader's own core 0 blocks (key track dispatched first) or 1 block (16
+  samples, after) on every enable offset.
+- Host, ColdFire side (`test_resident_engines_board.py` modes 39-40, `test_controller_board.py`, ASan/UBSan): a reader
+  alone places, resets (1,026 words) and enables the bus on both cores and pays its price; Sidechain beside it needs no
+  second bus job and never enables before the bus is on (`sc_before_bus`); removal in both orders; with no room for the
+  price a reader is refused (`RUNTIME_CYCLES`) while Sidechain is still admitted and charged nothing, as on main; the bus
+  waits while a slot buffer covers its window. The loader's ABI 9 parsing, claims and refusals (`host_test.c`,
+  `test_runtime_loader.py`).
+- The beta base, regenerated with main's flags (main's `6650236a` first rebuilt byte-identical, `.bin` `18cdd7b4`):
+  `d0acb53f…` (`.bin` `de2653e2`). Its DSP arena with nothing placed is 4,304 words on core 0 and 4,432 on core 1, 112
+  fewer on each than `6650236a` (the receiver's feature 8 and the key bus's base word); Sidechain's engines still take
+  423 words together. The ColdFire code grew, so the write-lease entries moved: Analog BD's recipe was recaptured
+  (image hash only) and the bound packages relinked. Sidechain's package is the same 1,236 bytes but for the two
+  lease-entry addresses it calls (4 bytes); Output Matrix's and Analog BD's differ only in those addresses, Recorder
+  Loop Fix's in its base hashes, CC Map's not at all.
+
+**On the unit (MKII, OS 1.40C, 20 October 2026).** Run on a development twin of `d0acb53f`: the same source and
+beta flags plus `--dev` (identity `c8ad288e…`, `.bin` `e3b44075`), RAM-booted, never flashed, with the packages relinked
+to it (Sidechain `cd2dbe13`, Analog BD `5616af29`, Output Matrix `129cd5b2`). The twin differs from the beta base only
+in its development requests, and in Analog BD's recipe hash for its own link; `d0acb53f` itself has not run on a unit.
+Driven over USB, ears by the owner of the unit; takes, `mem:` dumps and the 20-channel recordings kept privately.
+
+- Boot: every engine free, arena 4,304 / 4,432, nothing reserved, receiver masks `00 00`.
+- Sidechain installed: the key bus at 4,203 / 4,331 and Sidechain's engine directly under it at 3,881 / 4,009 (arena
+  3,881 / 4,009, 423 words reserved per core), masks `09 09`, the bus's reset complete (1,026 words per core), the slot
+  ACTIVE with both enables, nothing charged for the tap. During a reinstall a reader of the masks every ~150 ms saw
+  `00 00` ×9, `08 08` ×6, `09 09` ×45: the bus on before Sidechain on both cores, never Sidechain without it.
+- Key latency (20 USB channels, cross-correlation of the receiver's channel with T3's; COMPRESSOR with KEY T3 and MON
+  ON): T5 (other core) 32 samples, correlation 1.0000, on all 23 onsets of the first take and on every onset of each
+  of five removal and reinstall cycles; T4 (same core, after T3) 0 samples and T2 (same core, before T3) 16 samples,
+  12 of 12 onsets each. As 6650236a gave for the cross-core case (5 of 5, on-demand doc).
+- Sidechain ACTIVE: SPRING REV, PLATE REV and DARK REV on T5-T7 FX2 accepted, no refusal; load while playing CPU
+  80.4 %, T1-4 193/217 ‰, T5-8 417/418 ‰ (not compared with `6650236a` in the same session). Stock DARK REV on T7 FX2
+  and SPRING REV on T3 FX2, the key window's slots, accepted.
+- BBD on T5-T8 FX2: only T5 accepted, T6-T8 refused for DSP time ("NEEDS +11 %"), the same with Sidechain removed,
+  so no effect of the bus. No module buffer takes those slots' block on this base anyway (no reviewed head proof), so
+  there was no buffer for the window rule to refuse.
+- Removal: masks `00 00`, every engine free, arena back to 4,304 / 4,432, the slot RELEASED with both disables.
+- Analog BD, Output Matrix and Sidechain together: every engine placed (Output Matrix on core 0 only), arena 2,208 /
+  3,011, masks `0f 0d`, three slots ACTIVE; Parts 1-4 twice while playing started no engine job and no loader packet.
+  Analog BD's drum and Output Matrix's MATRIX routing as before (by ear). All three removed (Output Matrix only once
+  OUT CFG was back on NORMAL, as designed): arena back, every engine free.
+- Ten removals and reinstalls of Sidechain with T3 playing, a take after each: T3 and MAIN at their usual peaks every
+  time, no silence after an enable. Sidechain ducking from its key checked by ear.
+- Not run: a reader (none exists yet), a side-by-side on `6650236a` in the same session, the tap's chip-cycle cost,
+  and a power cycle on a key bus base.
+- Bench notes: a reinstalled COMPRESSOR comes back with KEY OFF and MON OFF, and the encoder steps are not linear, so
+  check KEY and MON on a screenshot every time; an install or removal over USB stops the transport.
 
 **Follow-up, not implemented: a gated tap.** Superseded as written: the layout below puts want words at
 `+$3DF6..+$3DFD` of the window's slot, which E-Verb 0.1.2's and Mini Verb 0.2.3's rings now use (review, change 2); it
