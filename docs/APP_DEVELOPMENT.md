@@ -78,6 +78,10 @@ On desktop (above 1100px), module detail pages offer left and right chevrons and
 
 Inputs, tab lists, menus, media controls and open dialogs retain their arrow-key behavior. Phones and smaller layouts retain the normal module page without side chevrons or global arrow-key navigation.
 
+### Mobile configurations
+
+Phones (up to 600px) and touch-only tablets use `useMobileWorkspace`: discovery, module selection, compatibility claims, JSON import/export and forum sharing remain available. Firmware file pickers, build/download actions and Octatrack unit installation/sync panels do not mount. The beta Octatrack route opens its module-set editor even from a unit-page deep link. Octatrack JSON transfers preserve `classicStartup` alongside module/USB and chooser settings. JSON files move sets between devices; browser storage is local and does not sync. Desktop build authorization, risk acceptance and exact-build qualification remain required. Keep mobile compatibility copy at the claims/estimate level: it is not placement or hardware verification.
+
 ## Run locally
 
 The shared dark palette is defined by the semantic colour tokens at the top of

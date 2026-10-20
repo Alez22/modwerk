@@ -1,3 +1,5 @@
+import { useMobileWorkspace } from '../hooks/useMobileWorkspace'
+import { ConfigurationHandoff } from '../components/ConfigurationHandoff'
 import { DigiModPreview } from './DigiModPreview'
 export { DigiModPreview } from './DigiModPreview'
 export { DigiModDetail } from './DigiModDetail'
@@ -120,6 +122,7 @@ export function MachineLibrary({ device, query, category, octatrackModules: octa
     mods: DIGI_MODS.filter(mod => mod.device === id && (!category || mod.libraryCategory === category) && (libraryFamily === 'all' || mod.category === libraryFamily) && (mod.title + ' ' + mod.summary + ' ' + mod.author + ' ' + contributorSearchText(mod.contributors)).toLowerCase().includes(term))
       .sort((a,b) => compareModules({id: id + '-' + a.id, name: a.title, authorName: a.author, updatedAt: a.updatedAt}, {id: id + '-' + b.id, name: b.title, authorName: b.author, updatedAt: b.updatedAt}, sort, statistics)),
   }))
+  const mobile = useMobileWorkspace()
   function browseResults() {
     onBrowse?.({
       route: !device ? 'all' + (category ? '/' + category : '') : deviceHref(device.id, category ?? '').slice(1),
@@ -142,7 +145,7 @@ export function MachineLibrary({ device, query, category, octatrackModules: octa
     {phone ? resultsSlot && createPortal(<LibraryResultsBar summary={resultsSummary} sort={sort} onSortChange={onSortChange} family={libraryFamily} onFamilyChange={onFamilyChange} families={typeCounts} allCount={scopeFamilies.length} disabled={!hasMods} />, resultsSlot) : <LibraryTools family={libraryFamily} families={families} onFamilyChange={onFamilyChange} sort={sort} onSortChange={onSortChange} comparisonCount={comparison.length} onCompare={onOpenComparison} buildHref={hasMods ? deviceHref(device?.id ?? 'octatrack', 'configuration') : null} buildLabel={hasMods ? 'Build firmware for ' + (device?.name ?? 'Octatrack') : 'No modules to build yet'} machine={machinePicker} disabled={!hasMods} />}
     {device || !total ? <div className="library-subheading"><span>{term ? 'Results for “' + query.trim() + '”' : 'Explore the collection'}</span><span className="subtle">{device ? device.name + (device.firmware ? ' · OS ' + device.firmware.releases.join(' / ') : ' · no modules yet') : 'All machines'}</span></div> : null}
     {shownGroups.map(group => <section key={group.device.id} className={'machine-section' + (onlyGroup ? ' is-only-group' : '')} aria-labelledby={!device ? 'machine-' + group.device.id : undefined}>
-      {!device && <div className="library-subheading"><span id={'machine-' + group.device.id}>{group.device.name} <span className="subtle">· {group.count} {group.count === 1 ? 'module' : 'modules'}{group.device.status === 'preview' ? ' · preview' : ''}</span></span><div className="machine-library-actions"><a className="text-button" href={deviceHref(group.device.id)}>Open {group.device.name} library <Icon name="arrow" size={13} /></a>{group.device.id !== 'octatrack' && <a className="button button-primary" href={deviceHref(group.device.id,'configuration')} aria-label={'Build firmware for ' + group.device.name}><Icon name="sliders" size={16}/>Build firmware</a>}</div></div>}
+      {!device && <div className="library-subheading"><span id={'machine-' + group.device.id}>{group.device.name} <span className="subtle">· {group.count} {group.count === 1 ? 'module' : 'modules'}{group.device.status === 'preview' ? ' · preview' : ''}</span></span><div className="machine-library-actions"><a className="text-button" href={deviceHref(group.device.id)}>Open {group.device.name} library <Icon name="arrow" size={13} /></a>{group.device.id !== 'octatrack' && <a className="button button-primary" href={deviceHref(group.device.id,'configuration')} aria-label={(mobile ? 'Open configuration for ' : 'Build firmware for ') + group.device.name}><Icon name="sliders" size={16}/>{mobile ? 'Open configuration' : 'Build firmware'}</a>}</div></div>}
       <div className="module-grid">{group.cards}</div>
     </section>)}
     {hasMods ? <>
@@ -158,7 +161,8 @@ export function MachineLibrary({ device, query, category, octatrackModules: octa
 export function DigiConfiguration({ device, configuration, configurations, onSelect, onDialog, onToggle, onImport, onReport }: { device: DigiDevice; onReport: () => void; configuration?: Configuration; configurations: Configuration[]; onSelect: (id: string) => void; onDialog: (mode: 'create' | 'rename' | 'duplicate' | 'delete') => void; onToggle: (id: string) => void; onImport: (configuration: ReturnType<typeof parseDigiSelection>) => void }) {
   const w = useSetWords()
   const importRef = useRef<HTMLInputElement>(null), [buildResults, setBuildResults] = useState<HTMLDivElement | null>(null), [importError, setImportError] = useState(''), [importNotes, setImportNotes] = useState<string[]>([]), [exported, setExported] = useState('')
-  const firmware = useDigiFirmware(device.id)
+  const mobile = useMobileWorkspace()
+  const firmware = useDigiFirmware(device.id, !mobile)
   const ids = configuration?.moduleIds ?? []
   const selection = DIGI_MODS.filter(mod => mod.device === device.id && ids.includes(mod.id))
   const estimate = estimateCombination(device.id, ids, firmware.firmware?.release)
@@ -190,14 +194,14 @@ export function DigiConfiguration({ device, configuration, configurations, onSel
             </div>
             {estimate.clashes.map((clash, index) => <p key={clash.claim + index} className="file-error" role="alert">{clash.mods.join(' and ')} cannot be used together: {clash.claim}.</p>)}
           </section>
-          <section className="configuration-section" aria-labelledby="digi-firmware-title"><div className="section-title"><h2 id="digi-firmware-title">Base firmware</h2><span className="subtle">Read locally</span></div>
+          {!mobile && <section className="configuration-section" aria-labelledby="digi-firmware-title"><div className="section-title"><h2 id="digi-firmware-title">Base firmware</h2><span className="subtle">Read locally</span></div>
             <DigiFirmwarePanel name={device.name} releases={device.firmware?.releases ?? []} firmware={firmware} />
-          </section>
+          </section>}
           <div ref={setBuildResults} className="build-results" />
         </div>
         <div className="configuration-checkout">
-          <section className={'compatibility-panel compatibility-' + (estimate.fits && !estimate.clashes.length ? 'clear' : 'conflict')} aria-live="polite" aria-labelledby="digi-compatibility-title"><div className="compatibility-heading"><span className="compatibility-icon"><Icon name={estimate.fits && !estimate.clashes.length ? 'shield' : 'sliders'} size={20}/></span><div><h2 id="digi-compatibility-title">{!estimate.fits || estimate.clashes.length ? 'Your selection needs a change' : selection.length ? 'No declared conflicts' : 'Choose your modules'}</h2><p>{!estimate.fits || estimate.clashes.length ? 'Review the resources below and choose a compatible set.' : selection.length ? 'Choose your base firmware for placement checks.' : 'Add a module from the library, or build the core alone. Compatibility updates as you make changes.'}</p></div></div></section>
-          <div className="checkout-card"><MemberGate action="build firmware" next={device.id+'/configuration'}><DigiBuildPanel device={device} firmware={firmware} moduleIds={ids} onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported===exportKey} canExport={!!configuration} results={buildResults}/></MemberGate></div>
+          <section className={'compatibility-panel compatibility-' + (estimate.fits && !estimate.clashes.length ? 'clear' : 'conflict')} aria-live="polite" aria-labelledby="digi-compatibility-title"><div className="compatibility-heading"><span className="compatibility-icon"><Icon name={estimate.fits && !estimate.clashes.length ? 'shield' : 'sliders'} size={20}/></span><div><h2 id="digi-compatibility-title">{!estimate.fits || estimate.clashes.length ? 'Your selection needs a change' : selection.length ? 'No declared conflicts' : 'Choose your modules'}</h2><p>{!estimate.fits || estimate.clashes.length ? 'Review the resources below and choose a compatible set.' : selection.length ? mobile ? 'Module claims were checked. Placement checks happen on a computer with your base firmware.' : 'Choose your base firmware for placement checks.' : 'Add a module from the library, or build the core alone. Compatibility updates as you make changes.'}</p></div></div></section>
+          <div className="checkout-card">{mobile ? <ConfigurationHandoff onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported === exportKey} canExport={!!configuration} /> : <MemberGate action="build firmware" next={device.id+'/configuration'}><DigiBuildPanel device={device} firmware={firmware} moduleIds={ids} onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported===exportKey} canExport={!!configuration} results={buildResults}/></MemberGate>}</div>
         </div>
       </div>
     </div>
@@ -222,11 +226,11 @@ function Hero({ device, children, embedded = false }: { device: DeviceProfile; c
 
 // Machines without mods: the library page becomes an invitation to open the first one.
 export function EmptyMachine({ device, machinePicker, embedded = false }: { device: DeviceProfile; machinePicker?: ReactNode; embedded?: boolean }) {
-  const repository = issueRepository()
+  const repository = issueRepository(), mobile = useMobileWorkspace()
   return (
     <div className="device-page">
       {machinePicker && <div className="discovery-tools">{machinePicker}</div>}
-      <Hero device={device} embedded={embedded}><div className="device-hero-actions">{device.id === 'digitakt-ii' && device.sdk && <a className="button button-primary" href={deviceHref(device.id, 'configuration')}><Icon name="sliders" size={16} />Open local build preview</a>}<a className="button button-quiet" href={repository + '/blob/main/docs/ADD_A_MACHINE.md'} target="_blank" rel="noreferrer"><Icon name="plus" size={16} />Open a device PR</a><a className="button button-quiet" href="#forum"><Icon name="message" size={16} />Discuss in the forum</a></div></Hero>
+      <Hero device={device} embedded={embedded}><div className="device-hero-actions">{device.id === 'digitakt-ii' && device.sdk && <a className="button button-primary" href={deviceHref(device.id, 'configuration')}><Icon name="sliders" size={16} />{mobile ? 'Open configuration' : 'Open local build preview'}</a>}<a className="button button-quiet" href={repository + '/blob/main/docs/ADD_A_MACHINE.md'} target="_blank" rel="noreferrer"><Icon name="plus" size={16} />Open a device PR</a><a className="button button-quiet" href="#forum"><Icon name="message" size={16} />Discuss in the forum</a></div></Hero>
       <section className="device-invite"><h2>Be the first to mod the {device.name}</h2><p>Nobody has published a working mod for this machine yet. Modwerk never hosts firmware: every build starts from the stock OS file each owner downloads from Elektron, so the work is in understanding that file and sharing only your own code.</p></section>
       <section className="configuration-section" aria-labelledby="ladder-title">
         <div className="section-title"><h2 id="ladder-title">Road to the first mod</h2><span className="subtle">{stepsDone(device)} of {DEVICE_STEPS.length} done</span></div>
