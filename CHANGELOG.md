@@ -10,6 +10,8 @@
   - A RAM-boot restore did not show it on any base, because the screen redraws as the module loads and the dialog opens.
   - `6650236a` itself (20 October): RAM-booted, then Output Matrix `9f97f3bd` installed over USB showed MNL with a solid bar at once. Flashed, its first boot restored Output Matrix and the box read MNL with a solid bar after MODULES LOADED, with no key pressed. With Analog BD, Apply Scene, LOFI2, Quant Live Rec and LIFT kept beside it, a power cycle restored all six and the box again read MNL with a solid bar. The unfixed base was not flashed for a side-by-side power cycle on the same day; the 16 October report is the before.
 
+- Fixed an intermittent remote-session regression-test failure on busy CI runners. The simulated message test now waits for delivery across both relay hops instead of assuming it finishes within 5 ms, exercises slower delivery and closes its fake session even if the assertion fails. The website and remote-session permissions are unchanged.
+
 - Documentation: clarified that screenshots are allowed without opening, navigating or controlling a browser. Recorded screenshot capture as a requested developer-MCP capability that is not implemented; unavailable capture remains an explicit visual-evidence gap.
 
 - The firmware build sign-in prompt now waits five seconds before enabling Skip for now, with the remaining seconds shown on the button. Reopening the prompt restarts the wait; Sign in, Create account and Cancel stay available immediately. Guests can still build for the rest of the visit after skipping.
