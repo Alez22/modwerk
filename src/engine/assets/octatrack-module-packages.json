@@ -273,7 +273,7 @@
       "bytes": 1236,
       "sha256": "fdfddb9d93a28c2c8d8c83a9c430dab1a09f0df2e416a24a4b37c7e23d6f5227",
       "path": "octatrack-modules/sidechain-compressor/0.1.2-experimental.mwrm",
-      "requiredBase": "3e3e3de1f350781b0d5b91736f77e7f3753ac9987f499cc83b32cd02568a36fc"
+      "requiredBase": "9280d48412eb0017c7cf8bc81ac0eadbb85f610dcf133175d52899c75ae916ca"
     },
     {
       "id": "output-matrix",
@@ -289,7 +289,7 @@
       "bytes": 3740,
       "sha256": "e2df2fbfff7f956846c030a87c50ff391af427b8719d40018e6449cef8e48acd",
       "path": "octatrack-modules/output-matrix/0.1.1-experimental.mwrm",
-      "requiredBase": "3e3e3de1f350781b0d5b91736f77e7f3753ac9987f499cc83b32cd02568a36fc"
+      "requiredBase": "9280d48412eb0017c7cf8bc81ac0eadbb85f610dcf133175d52899c75ae916ca"
     },
     {
       "id": "cc-map",
@@ -305,7 +305,7 @@
       "bytes": 966,
       "sha256": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
       "path": "octatrack-modules/cc-map/0.1.2-experimental.mwrm",
-      "requiredBase": "3e3e3de1f350781b0d5b91736f77e7f3753ac9987f499cc83b32cd02568a36fc"
+      "requiredBase": "9280d48412eb0017c7cf8bc81ac0eadbb85f610dcf133175d52899c75ae916ca"
     },
     {
       "id": "recorder-loop-fix",
@@ -321,7 +321,7 @@
       "bytes": 1818,
       "sha256": "ad2522060cb48adec49a2847b80757c7cebb489ae1bb9b3e4d5b8b97d5093f71",
       "path": "octatrack-modules/recorder-loop-fix/0.1.0-experimental.mwrm",
-      "requiredBase": "3e3e3de1f350781b0d5b91736f77e7f3753ac9987f499cc83b32cd02568a36fc"
+      "requiredBase": "9280d48412eb0017c7cf8bc81ac0eadbb85f610dcf133175d52899c75ae916ca"
     },
     {
       "id": "analog-bassdrum",
@@ -337,7 +337,7 @@
       "bytes": 6676,
       "sha256": "20211430d3c9eafd3253a50ebf936357ae6847420ac41717b8bcea28eec9f1ac",
       "path": "octatrack-modules/analog-bassdrum/0.1.5-experimental.mwrm",
-      "requiredBase": "3e3e3de1f350781b0d5b91736f77e7f3753ac9987f499cc83b32cd02568a36fc"
+      "requiredBase": "9280d48412eb0017c7cf8bc81ac0eadbb85f610dcf133175d52899c75ae916ca"
     }
   ]
 }

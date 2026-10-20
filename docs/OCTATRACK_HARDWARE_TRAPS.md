@@ -415,7 +415,49 @@ reads STATIC with stock defaults, no track is ever bound (renderer slots stay
 the battery copy. A module whose Part bytes stock would reject must be kept
 from the validator by the base itself, before the module is installed (beta
 finding 24: Analog BD; reproduced on `ot_emu` with `--cs1-in --no-post`, twin
-`43fe3fc4`).
+`43fe3fc4`). That includes a module that gives a stock effect's slots new
+meanings: Sidechain Compressor's KEY, KFLT and KGN in COMPRESSOR's page-2 slots
+8-11 wiped testers' current banks at every power-on (finding 47; a RAM boot of
+the owner's MKII twin of `a1471aeb` did the same). The restore also runs a
+pattern validator (`0x4009a670`, not hooked) on all 16 patterns, so pattern
+bytes a module writes need the same care. To test a module for this, set it up
+in a scratch project's current bank and RAM-boot: the restore and both
+validators run as at power-up. A refused restore has already written its fixes
+into the battery copy, so the next boot restores the bank with those values
+changed (Sidechain's KFLT 64 became 1). To recover a bank lost this way, do not
+save or edit: power-cycle once more, or PROJECT > RELOAD the last save from the
+card.
+
+**A RAM boot can come back without USB.** On 19 October 2026 one RAM boot of a
+dev twin (`82b9bef4`) ran for over 15 minutes (its log has loads) but never
+enumerated on the Mac: no Elektron device at all, not a dead bridge handle.
+Only a power cycle brought USB back. The same image had RAM-booted cleanly
+before and did again after.
+
+## ColdFire and DSP load
+
+Measured with `stats` on the owner's MKII, dev twin `82b9bef4`, 19 October
+2026, in a scratch project (trigs on T1-T5). The ColdFire figure moves by
+several points with the page on screen, so compare only readings taken on the
+same page.
+
+- **Bare base:** about 42-47 % CPU, nothing installed. No stock-OS reference
+  has been measured on this unit yet.
+- **ColdFire cost of an installed module**, from removing modules one at a time
+  with nothing in use:
+  - FM Synth: about 8 points while installed, even when no track uses it, and
+    about 5 more while a track plays it.
+  - Repitch: about 2 points.
+  - BBD, Tape Echo, TapeHead, E-Verb, Mini Verb: 0.5 points or less each.
+  - Air Chorus: within noise.
+- **DSP cost of a module effect** is on its core: BBD picked on T6 took core
+  T5-8 from about 44 % to 54 %, with no ColdFire change.
+- **DSP FULL:** with FM Synth on T1 and Mini Verb, E-Verb and Tape Echo on
+  T2/T3/T5, TapeHead on T4 and Air Chorus on T8 were refused.
+- **Testers' layout** (FM Synth plus four module effects, a tester's
+  "sluggish knobs" report): about 65 % CPU stopped, about 73 % playing. The
+  unit's own log shows a 100 % peak in every five-minute window, as testers'
+  logs do even on the bare base.
 
 ## The emulator and the tools
 
