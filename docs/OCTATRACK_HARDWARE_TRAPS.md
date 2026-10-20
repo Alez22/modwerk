@@ -9,6 +9,7 @@ in [sdk/octabam/AGENTS.md](../sdk/octabam/AGENTS.md); the long record with
 every run is [OCTATRACK_ELEKLOADER_MIGRATION.md](OCTATRACK_ELEKLOADER_MIGRATION.md).
 
 Each entry: what you see, why, the rule, and the build it was observed on.
+Entries reported from other units, rather than seen on the owner's, say so.
 
 ## USB and EP0
 
@@ -316,10 +317,13 @@ Static E-Verb and dynamic E-Verb share effect id 27, so installing E-Verb
 started an upload at once on a project that already used it. Test the loader
 on a blank project first.
 
-**dsp_asm writes a backward `brclr` target absolute.** The chip reads that word as a displacement (stock's
-self-wait at P:$57 is `0cd341 000000`); dsp_asm emitted `0cd341 001000` for a branch back to $1000. Loop
-with `do forever` and `brkcs` instead (core 1's counted wait), and keep labels from being parts of other
-labels (dsp_asm substitutes label text anywhere: `c1wait` inside `c1waited` stopped the build).
+**dsp_asm writes a `brclr` label target absolute, forward or back.** The chip reads that word as a displacement
+(stock's self-wait at P:$57 is `0cd341 000000`); dsp_asm emitted `0cd341 001000` for a branch back to $1000, and
+the label's address for a forward branch too (a branch four words ahead at P:$1098 went to P:$2134 and core 0
+ran off the end of P memory, reported 16 October 2026). An assemble-and-decode roundtrip does not catch it: a
+decoded label matches any number. Loop with `do forever` and `brkcs` instead (core 1's counted wait), or write
+the displacement as a number and check it against the listing. Keep labels from being parts of other labels
+(dsp_asm substitutes label text anywhere: `c1wait` inside `c1waited` stopped the build).
 
 **Don't use `rep` in DSP code that runs every frame; use a DO loop.**
 A calibration build spending 2,000 more cycles a frame with `rep` on both cores
@@ -395,6 +399,46 @@ CARD then stopped on stock's exception screen (`VEC:04`, illegal
 instruction, `ADDR:400888CC`) and USB went away until a power cycle, with the
 project file half-written (`dsp3-R4`). The build now refuses any absolute
 jump in the base's assembly that lands strictly inside a patched site.
+
+**Stock can branch into the middle of a span a detour displaced.** That
+build check covers the base's own jumps, not stock's. A scale quantizer's
+eight-byte detour at `0x400449b8` displaced a stack push that a second
+stock path (MIDI TRACK > CHROMATIC) enters directly at `0x400449be`. Audio
+CHROMATIC worked through the detour; the MIDI path skipped the push, the
+formatter popped four bytes too many and returned into the LCD surface
+(`VEC:04` at `0x400bf10a`). Reported from a tester's MKII, 15 October 2026,
+and reproduced on the ColdFire emulator. Before taking a span, look for
+stock branches to every instruction after its first; shorten the detour
+and keep a shared target stock (Quantizer 0.1.3, its TESTING.md).
+
+**One copy of the arena base literal is not the arena.** The sample arena's
+stock base address is the operand of 23 instructions. 22 of them are the
+arena. The 23rd, at `0x400254f8`, ends PURGE SAMPLES' walk over the 16
+sample banks, and holds the same value only because the banks end where the
+arena starts. Moved with the base, the walk runs past the banks, reads off
+the end of RAM and the unit freezes on PURGE SAMPLES. Reported from a
+tester's MKII, 16 October 2026, and reproduced on the ColdFire emulator.
+Anything that moves the arena base leaves that operand (`0x400254fa`)
+stock. Elekloader's core-ot does from 0.3.1; check every other list of
+arena writes, such as `src/engine/assets/platform-writes.json` and
+`sdk/octabam/tools/remix/arena.py`, the same way.
+
+**`movem.l …,(%sp)` writes over the caller's frame.** `(%sp)` is plain
+indirect (mode 2): it stores at sp and leaves sp where it was, so a
+register save without a reserved frame overwrites the return address and
+whatever lies above it, and the restore reads it back. The ColdFire has no
+predecrement `movem`, so reserve first: `lea -N(%sp),%sp`, `movem.l
+…,(%sp)`, and the reverse on the way out, as `hooks.s` and `rom_gate.s` do.
+GCC's own output always reserves; hand-written saves are the risk. Reported
+from a USB module's control-transfer handler, 19 October 2026.
+
+**A non-zero popup pointer does not mean FX SETUP is open.** `0x460d175c`
+points at a popup object shared by MIXER, TEMPO and other dialogs. Check its
+open flag and SETUP's geometry before calling the FX window's draw. A
+lock-byte or memory check can pass while the screen stays stale: stock's
+trig-down redraws the main page only, and that redraw does not repaint the
+SETUP popup, so refresh the FX window yourself after an edit. Reported 16
+October 2026; verify page edits on the decoded LCD, not in memory alone.
 
 **Base seams must leave catalogue modules' sites alone.** The runtime loader
 patches only over the exact stock bytes a package expects, so a base site on
@@ -512,6 +556,32 @@ record carries the base id, read a stall followed by a start on another base as 
 1,024-frame receiver window. A self-test that runs DSP modules, or a sync, leaves the window at 99.7-99.8 % although
 the mean stays flat and the audio is fine; a stock effect load does not. Read the self-test's longest frame for
 overload, not the peak (finding 59 in the beta test plan).
+
+## Cold starts and card writes
+
+**A cold start can stall at the logo where a quick restart does not.** An
+early-startup change passed emulator boots and quick power cycles on a
+tester's MKII, then stalled at the logo after several minutes powered off
+(reported 18 October 2026). Moving the small activation helper into the
+resident OS image fixed repeated cold starts on that unit; the module itself
+still runs from RAM. The mechanism is not known: it does not show a defect
+in RAM execution, the loader or the cache. Keep startup gates and activation
+helpers resident where you can, publish a callback only once its runtime is
+ready, and qualify a startup change after a sustained power-off as well as
+a quick restart. The emulator models neither cache, reset settling nor RAM
+retention.
+
+**A card-write completion interrupt can run before the bookkeeping it
+reads.** Stock's first-sector PIO write lowers the interrupt mask again
+before it sends the 256 data words and before it advances the buffer pointer
+and the remaining-sector count. If the engine task is preempted after the
+last word, the completion interrupt sees the old count, polls for a data
+request the card has already finished, and spins for ever; the engine never
+resumes to fix the count. Seen only on the ColdFire emulator, as a gate hang
+(15 October 2026); whether real card timing opens the window is not
+measured. When a hang follows card writes, ask what an interrupt handler
+reads while the producer is mid-update before chasing parsers, names or
+card latency.
 
 ## The emulator and the tools
 
