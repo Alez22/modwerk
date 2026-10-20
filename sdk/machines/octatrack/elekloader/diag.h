@@ -48,4 +48,14 @@ void modwerk_diag_tick(void);                          /* ev_tick */
 int modwerk_diag_key(int code, int pressed);           /* ev_key: remembers presses, takes none */
 void modwerk_diag_frame(void);                         /* dl_frame, in the frame interrupt */
 unsigned modwerk_diag_read(uint8_t *out, unsigned page); /* ep0.c LOG: DIAG_PAGE bytes of the log */
+#ifdef MODWERK_DEV
+/* Development builds: what the base's own hooks cost, in DTIM3 counts (132 MHz), read over MEM. The tick chain is
+ * stamped in its order (runtime_tick 1, ep0_tick 2 and its end 3, dl_ui 4, status_tick 5 and its end 6, crash_tick 7,
+ * diag_tick 8 and its end 9), so cost[k] is the time from stamp k to stamp k + 1: [1] runtime_tick, [2] ep0_tick,
+ * [3] dsp_tick, [4] dl_ui, [5] status_tick, [6] controller_tick, [7] crash_tick, [8] diag_tick; [0] the whole chain,
+ * [15] its ticks. The draw chain: [12] boot_draw to the end of status_draw (stamps 12, 13). [14] mw_ui_tick (14, 15).
+ * [10] dl_frame's body, [11] its frames (transfer.c, build_core.py). */
+extern volatile uint32_t modwerk_cost[24];
+void modwerk_cost_stamp(unsigned k);
+#endif
 #endif

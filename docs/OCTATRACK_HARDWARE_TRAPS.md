@@ -459,6 +459,21 @@ same page.
   unit's own log shows a 100 % peak in every five-minute window, as testers'
   logs do even on the bare base.
 
+**The base's own CPU cost, measured** (owner's MKII, 20 October 2026, development twins with the profile below;
+stopped, nothing installed, no page of ours open): the tick hooks 843 µs a tick (5.1 % of the CPU), the draw hooks
+28 µs a composition (0.2 %), `dl_frame` 1.1 µs a frame (0.3 %), `mw_ui_tick` 18 µs (0.1 %): about 5.7 % in all. Of
+the tick, `modwerk_fxmap_generation` took 410-446 µs on its own: the fx map's 3 KB checksum in battery RAM, every
+tick (fixed: 8 µs, the whole sum once in 60 calls). With that and the Part-union scan every fourth tick, the tick
+hooks cost 311 µs (1.9 %) and the base about 2.5 %. With FM Synth and five effects installed the tick hooks cost
+530-550 µs: `controller_tick` 170-180 µs (it derives every installed module's trust binding each tick) and
+`dsp_tick` 240-250 µs (the compaction planner plans both cores each idle tick). A page of ours that is open costs
+its drawing on every composition: MISSING MODULES 818 µs (4.9 %), the STATUS page about 1 ms. No stock-OS baseline
+exists yet: the meter's 41 % idle is stock's own tasks.
+
+*The profile* (development bases only): `modwerk_cost[24]` (diag.h) accumulates DTIM3 counts between stamps at
+each hook's entry and some exits; read it over `mem` twice some seconds apart and divide by 132 for µs (`modwerk_cost[15]`
+counts ticks, `[13]` compositions, `[11]` frames, `[19]` fx map checks). A tester base has none of it.
+
 ## The emulator and the tools
 
 What `ot_emu` does not show:

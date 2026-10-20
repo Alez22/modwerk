@@ -3,6 +3,12 @@
  * vectors, records the crash in battery RAM and restarts the unit; after the restart the base says so once, and
  * the record stays for a host to read. */
 #include <stdint.h>
+#ifdef MODWERK_DEV
+void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the base's hooks */
+#define MW_STAMP(k) modwerk_cost_stamp(k)
+#else
+#define MW_STAMP(k) ((void)0)
+#endif
 
 struct crash { uint32_t magic, count, frame, pc, d[8], a[7], sp, stack[8], seen; };
 #define REC ((volatile struct crash *)0x100ff800u)
@@ -18,6 +24,7 @@ volatile uint32_t modwerk_crash_test; /* dev.c: crash on the next tick, to test 
 void modwerk_crash_tick(void);
 void modwerk_crash_tick(void)
 {
+    MW_STAMP(7);
     static const uint8_t vectors[] = {2, 3, 4, 8, 14, 61};
     static uint32_t ticks;
     if (!ticks)

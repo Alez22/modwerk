@@ -10,6 +10,12 @@
  * recorded since the last start (crash.c, dsp.c). An incident keeps what the unit was doing. */
 #include <stdint.h>
 #include "diag.h"
+#ifdef MODWERK_DEV
+void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the base's hooks */
+#define MW_STAMP(k) modwerk_cost_stamp(k)
+#else
+#define MW_STAMP(k) ((void)0)
+#endif
 
 extern volatile uint32_t modwerk_status[];      /* status.c: CPU, core 0 mean, peak, core 1 mean, peak (per mille) */
 extern volatile uint32_t modwerk_runtime_ticks; /* runtime.c: counts the UI tick */
@@ -118,6 +124,24 @@ static void start(volatile struct diag_log *l)
 }
 
 #ifdef MODWERK_DEV
+/* The hooks' cost (diag.h): each stamp closes the span the one before it opened. */
+volatile uint32_t modwerk_cost[24];
+static uint32_t cost_at[24];
+void modwerk_cost_stamp(unsigned k)
+{
+    uint32_t now = DTCN3;
+    cost_at[k] = now;
+    if (k >= 2u && k <= 9u) modwerk_cost[k - 1u] += now - cost_at[k - 1u];
+    if (k == 9u) modwerk_cost[0] += now - cost_at[1], ++modwerk_cost[15];
+    if (k == 13u) modwerk_cost[12] += now - cost_at[12], ++modwerk_cost[13];
+    if (k == 15u) modwerk_cost[14] += now - cost_at[14];
+    if (k == 16u) modwerk_cost[16] += now - cost_at[4];   /* dl_selection_tick */
+    if (k == 17u) modwerk_cost[17] += now - cost_at[16];  /* dl_residency_tick */
+    if (k == 20u) modwerk_cost[20] += now - cost_at[12];  /* boot_draw */
+    if (k == 21u) modwerk_cost[21] += now - cost_at[20];  /* the bus between boot_draw and runtime_draw */
+    if (k == 22u) modwerk_cost[22] += now - cost_at[21];  /* runtime_draw */
+    if (k == 13u) modwerk_cost[23] += now - cost_at[22];  /* status_draw */
+}
 /* dev.c's FREEZE TEST: the UI tick stands still this many seconds (the timer runs at 132 MHz), audio and USB go on. */
 volatile uint32_t modwerk_diag_test_freeze;
 static void test_freeze(void)
@@ -130,7 +154,12 @@ static void test_freeze(void)
 static void test_freeze(void) {}
 #endif
 
+static void diag_tick(void);
 void modwerk_diag_tick(void)
+{
+    MW_STAMP(8); diag_tick(); MW_STAMP(9);
+}
+static void diag_tick(void)
 {
     volatile struct diag_log *l = LOG;
     if (!started) { start(l); started = 1; return; }

@@ -29,6 +29,12 @@
 #ifdef MODWERK_SAVED_SET_EXPORT
 #include "saved_set_session.h"
 #endif
+#ifdef MODWERK_DEV
+void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the base's hooks */
+#define MW_STAMP(k) modwerk_cost_stamp(k)
+#else
+#define MW_STAMP(k) ((void)0)
+#endif
 
 #define UNCACHED(p) ((void *)((uintptr_t)(p) + 0x08000000u))
 #define REG(a) (*(volatile uint32_t *)(a))
@@ -460,7 +466,12 @@ void modwerk_ep0_bus_reset(void)
 #define HOST_TIMEOUT_TICKS 600u
 int modwerk_modset_due(void); /* modset.c: a kept set waits for its save */
 void modwerk_ep0_tick(void);
+static void ep0_tick(void);
 void modwerk_ep0_tick(void)
+{
+    MW_STAMP(2); ep0_tick(); MW_STAMP(3);
+}
+static void ep0_tick(void)
 {
 #ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
     if(volatile_started && modwerk_volatile_tick(VOLATILE_SERVICE,modwerk_runtime_ticks)) wake();

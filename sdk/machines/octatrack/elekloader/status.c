@@ -15,6 +15,12 @@
 #include "fxids.h"
 #include "load_wire.h"
 void modwerk_status_close_menu(void); /* below, with the menu rows */
+#ifdef MODWERK_DEV
+void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the base's hooks */
+#define MW_STAMP(k) modwerk_cost_stamp(k)
+#else
+#define MW_STAMP(k) ((void)0)
+#endif
 
 #define CUE 0x2a
 #define PROJ 0x1c
@@ -80,7 +86,12 @@ static unsigned waited;
 static uint32_t cpu_recent[8];
 static void missing_check(void);
 static void memory_tick(void);
+static void status_tick(void);
 void modwerk_status_tick(void)
+{
+    MW_STAMP(5); status_tick(); MW_STAMP(6);
+}
+static void status_tick(void)
 {
     modwerk_status_close_menu();
     memory_tick();
@@ -608,7 +619,12 @@ static void refused_box(unsigned char *frame)
     label(23u, 34u, "DSP"), share_bar(frame, 45u, 34u, 40, 6, dsp, dsp_add), percent(89u, 34u, dsp);
     label(23u, 42u, "MEM"), share_bar(frame, 45u, 42u, 40, 6, mem, mem_add), percent(89u, 42u, mem);
 }
+static void status_draw(unsigned char *frame);
 void modwerk_status_draw(unsigned char *frame)
+{
+    MW_STAMP(22); status_draw(frame); MW_STAMP(13);
+}
+static void status_draw(unsigned char *frame)
 {
     if (open == REFUSED) { refused_box(frame); return; }
     if (open == MEMORY) { memory_box(frame); return; }

@@ -16,6 +16,12 @@
  * saved registers (the kernel's tasks, Octabam docs/firmware/KERNEL.md) for
  * an address inside a site before it writes. */
 #include "runtime.h"
+#ifdef MODWERK_DEV
+void modwerk_cost_stamp(unsigned k); /* diag.c: the development profile of the base's hooks */
+#define MW_STAMP(k) modwerk_cost_stamp(k)
+#else
+#define MW_STAMP(k) ((void)0)
+#endif
 
 #define STOCK_FROM 0x40000400u      /* the OS image in RAM */
 #define BOOTLOADER_FROM 0x400de1e0u /* what the OS re-flashes the bootloader from; bank data follows it */
@@ -203,6 +209,7 @@ static uintptr_t hook(unsigned position, enum runtime_event e)
 }
 void modwerk_runtime_tick(void)
 {
+    MW_STAMP(1);
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
         uintptr_t f = hook(i, RUNTIME_TICK);
         if (f) ((void (*)(struct modwerk_runtime_api *))f)(&modwerk_runtime_api);
@@ -211,6 +218,7 @@ void modwerk_runtime_tick(void)
 }
 void modwerk_runtime_draw(unsigned char *frame)
 {
+    MW_STAMP(21);
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
         uintptr_t f = hook(i, RUNTIME_DRAW);
         if (f) ((void (*)(unsigned char *))f)(frame);

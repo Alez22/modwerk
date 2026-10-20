@@ -492,6 +492,8 @@ DSP_EDITS = {
                    '        }\n'),
                   ('    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n    if(!changed) return;',
                    '    for(unsigned i=0;i<16;++i) if(ids[i]!=observed[i]) changed=1;\n'
+                   '    static unsigned observe_phase; /* the bank\'s Parts (about 140 uncached reads) every fourth tick, unless the live set changed */\n'
+                   '    if(!changed && (++observe_phase&3u)) return;\n'
                    '    uint32_t held[2],named[2],soft[2],played[2];\n'
                    '    parts(ids,held,named,soft,played);\n'
                    '    held[0]|=soft[0]; held[1]|=soft[1];\n'
@@ -1452,6 +1454,14 @@ def main():
             text = (DYNLOAD / name).read_text()
             preserved_dynload = text
             edits = DSP_EDITS.get(name, ()) + WIDTH_EDITS.get(name, ()) + DSP_HOOK_EDITS[args.dsp_hook].get(name, ())
+            if name == 'transfer.c' and args.dev:  # the development profile of the frame path (diag.h modwerk_cost)
+                edits += (('void dl_ui(void) {\n    dl_selection_tick();\n    dl_residency_tick();\n',
+                           'void dl_ui(void) {\n    void modwerk_cost_stamp(unsigned);\n    modwerk_cost_stamp(4);\n    dl_selection_tick(); modwerk_cost_stamp(16);\n    dl_residency_tick(); modwerk_cost_stamp(17);\n'),
+                          ('unsigned dl_frame(void) {\n',
+                           'extern volatile uint32_t modwerk_cost[24];\nstatic unsigned dl_frame_body(void);\n'
+                           'unsigned dl_frame(void) {\n    uint32_t t0=*(volatile uint32_t *)0xfc07c00cu; unsigned r=dl_frame_body();\n'
+                           '    modwerk_cost[10]+=*(volatile uint32_t *)0xfc07c00cu-t0; ++modwerk_cost[11]; return r;\n}\n'
+                           'static unsigned dl_frame_body(void) {\n'),)
             if name == 'transfer.c' and args.dsp_probe == 'W':
                 # One word per upload packet: the count of accepted packets before a reject is the exact
                 # index of the first word the DSP read back wrong (device report rejected0/accepted0).
