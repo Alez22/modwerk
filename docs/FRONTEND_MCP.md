@@ -235,6 +235,23 @@ bytes read. Results from a member's unit are that member's hardware evidence
 only when they also confirm what they did on the unit; the relay itself proves
 nothing about audio, persistence or reboots.
 
+## Screenshots and visual evidence
+
+Screenshots are allowed for visual review. Capture an already displayed page
+without opening, navigating or controlling a browser, or inspect supplied/retained
+images. Browser-control, computer-use and Playwright site testing remain excluded.
+Record the route/state, viewport and source revision when known. If the capture
+source is unavailable, report that limitation and continue with source/API/DOM
+evidence; do not switch to browser automation to obtain an image.
+
+**Requested capability, not implemented (20 October 2026):** add read-only
+screenshot capture to the developer MCP so an agent can inspect the displayed
+interface without driving the browser. The current MCP has no screenshot tool
+or rendered-pixel source; `site_features` and `api_request` return domain/API data.
+A future tool needs a separate capture source and should return the image with
+its available page/state provenance. Until implemented, an MCP response cannot
+stand in for a screenshot or establish rendered-layout quality.
+
 ## Evidence and testing
 
 Run the repository's normal locked checks and MCP regressions before hardware:
