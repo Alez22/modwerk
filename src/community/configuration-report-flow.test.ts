@@ -31,7 +31,7 @@ async function fixture({ github = true }: { github?: boolean } = {}) {
   let live = true
   vi.stubGlobal('fetch', vi.fn(async (value: string | URL, init: RequestInit = {}) => {
     const url = String(value), method = init.method ?? 'GET', body = init.body ? JSON.parse(String(init.body)) : undefined
-    if (url === f.env.APP_URL + 'module-releases.json') return Response.json({ format: 'modwerk-module-releases-v1', modules: ['miniverb', 'repitch', 'sidechain-compressor'].map(id => { const module = communityModule(id)!; return { id, name: module.name, version: live ? module.version : '0.0.0', href: module.href, ...(live ? { notes: { ...moduleChangelogs[id].find(entry => entry.version === module.version), announce: true } } : {}) } }) })
+    if (url === f.env.APP_URL + 'module-releases.json') return Response.json({ format: 'modwerk-module-releases-v1', modules: ['miniverb', 'repitch', 'sidechain-compressor'].map(id => { const module = communityModule(id)!; return { id, name: module.name, version: live ? module.version : '0.0.0', href: module.href, ...(live ? { notes: { ...moduleChangelogs[id].find(entry => entry.version === module.version) } } : {}) } }) })
     requests.push({ url, method, body })
     if (method === 'GET') return Response.json(comments)
     if (method === 'POST' && url.endsWith('/issues')) return Response.json({ number: 321, html_url: 'https://github.com/repeat98/modwerk/issues/321' }, { status: 201 })
