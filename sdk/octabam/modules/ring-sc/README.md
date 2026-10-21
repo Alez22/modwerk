@@ -2,7 +2,7 @@
 
 ![A kick on the key track and another track's level dipping with each of its cycles](presentation/thumbnail.svg)
 
-Version: 0.2.0-experimental · author: @npp1993
+Version: 0.2.0-experimental · author: Nathaniel Pavel (@npp1993)
 
 ## Overview
 
@@ -72,7 +72,7 @@ For the cleanest duck put the key on a track the instrument handles before the d
 
 ## Authorship and licences
 
-Original code, tests and documentation by Nathaniel Pawelczyk (@npp1993), MIT ([LICENSE](LICENSE)). It reads the Modwerk base's key bus, which is Sidechain Compressor's key tap and bus layout, by Zac Kyoti (@Zac-Kyoti) and the OT Kyoti FW contributors (MIT), made a base feature; none of that code is in this module. No Elektron firmware, extracted routine or table is included.
+Original code, tests and documentation by Nathaniel Pavel (@npp1993), MIT ([LICENSE](LICENSE)). It reads the Modwerk base's key bus, which is Sidechain Compressor's key tap and bus layout, by Zac Kyoti (@Zac-Kyoti) and the OT Kyoti FW contributors (MIT), made a base feature; none of that code is in this module. No Elektron firmware, extracted routine or table is included.
 
 ## Screens and audio
 

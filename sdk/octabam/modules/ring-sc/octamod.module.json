@@ -7,8 +7,9 @@
   "category": "effects",
   "author": {
     "github": "npp1993",
+    "name": "Nathaniel Pavel",
     "credits": [
-      "npp1993: DSP, module, tests and documentation (MIT)",
+      "Nathaniel Pavel",
       "Zac-Kyoti: Sidechain Compressor's key tap and bus layout, which the Modwerk base's key bus that this module reads is made of"
     ]
   },
@@ -251,7 +252,7 @@
   "license": {
     "spdx": "MIT",
     "file": "LICENSE",
-    "declaration": "Original code, tests and documentation by npp1993, MIT. It reads the Modwerk base's key bus, which is Sidechain Compressor's tap and bus layout (Zac-Kyoti, MIT) made a base feature; none of that code is in this module."
+    "declaration": "Original code, tests and documentation by Nathaniel Pavel (@npp1993), MIT. It reads the Modwerk base's key bus, which is Sidechain Compressor's tap and bus layout (Zac-Kyoti, MIT) made a base feature; none of that code is in this module."
   },
   "media": [
     {
@@ -259,7 +260,7 @@
       "captureType": "emulator",
       "caption": "Hold FUNC and press FX1 on the track you want ducked, turn LEVEL to RINGMOD SC and press YES. This page holds MODE; leave it on DUCK to start.",
       "alt": "FX1 SETUP with RINGMOD SC highlighted in the effect list and MODE reading DUCK.",
-      "credit": "npp1993 (headless capture)",
+      "credit": "Nathaniel Pavel",
       "license": "LicenseRef-OT-UI-Documentation",
       "source": "original",
       "otUi": {
@@ -276,7 +277,7 @@
       "captureType": "emulator",
       "caption": "Press FX1 for the main page. KEY is off, so the track passes untouched until you choose a key track.",
       "alt": "The RINGMOD SC main page with six knobs: KEY, DPTH and KLPF over ATK, HOLD and REL.",
-      "credit": "npp1993 (headless capture)",
+      "credit": "Nathaniel Pavel",
       "license": "LicenseRef-OT-UI-Documentation",
       "source": "original",
       "otUi": {
@@ -293,7 +294,7 @@
       "captureType": "emulator",
       "caption": "Turn encoder A until KEY reads the kick's track, here T1. The track dips with each kick; DPTH (encoder B) sets how deep.",
       "alt": "The main page with KEY reading T1.",
-      "credit": "npp1993 (headless capture)",
+      "credit": "Nathaniel Pavel",
       "license": "LicenseRef-OT-UI-Documentation",
       "source": "original",
       "otUi": {
@@ -310,7 +311,7 @@
       "captureType": "emulator",
       "caption": "Hold FUNC and press FX1, set MODE to RING and press FX1 again: the key track multiplies the audio. ATK, HOLD and REL become SLEW, S&H and BIAS; at 0 they leave the plain ring modulator.",
       "alt": "The main page in RING mode: KEY, DPTH and KLPF over SLEW, S&H and BIAS.",
-      "credit": "npp1993 (headless capture)",
+      "credit": "Nathaniel Pavel",
       "license": "LicenseRef-OT-UI-Documentation",
       "source": "original",
       "otUi": {
