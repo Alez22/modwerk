@@ -233,13 +233,13 @@ h2 { font-size: 16px; letter-spacing: -.15px; font-weight: 600; }
   .module-card .module-preview { height: 150px; }
   .module-card-body { padding: 14px 16px 10px; }
   .module-card-title { align-items: center; }
-  .add-button { display: inline-flex; gap: 6px; width: auto; height: 40px; margin-top: 0; padding: 0 14px; border-radius: 8px; font-size: 13px; }
+  .add-button { display: inline-flex; gap: 6px; width: auto; height: 44px; margin-top: 0; padding: 0 14px; border-radius: 8px; font-size: 13px; }
   .add-button span { display: inline; }
   .card-description { display: -webkit-box; font-size: 14px; line-height: 1.6; -webkit-line-clamp: 3; }
   .card-bottom { font-size: 13px; }
   .card-stats { gap: 4px 14px; }
   .card-proof { font-size: 12px; }
-  .card-proof label { min-height: 40px; margin-right: -12px; padding: 0 12px; }
+  .card-proof label { min-height: 44px; margin-right: -12px; padding: 0 12px; }
   /* The whole card opens the module page; its own controls stay on top. */
   .module-card-heading > a::before { content: ""; position: absolute; inset: 0; }
   .add-button, .card-credit a, .card-proof label { position: relative; z-index: 1; }
@@ -1805,7 +1805,7 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
   .sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 12px; margin-bottom: 4px; padding: 20px 4px 4px 14px; background: var(--surface-raised); }
   .sheet-head strong { flex: 1; font-size: 15px; font-weight: 600; color: #e6e6ee; }
   .sheet-handle { position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: #4a4a55; }
-  .sheet-close { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #a0a0ac; }
+  .sheet-close { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--muted); }
   .sheet-close:active { background: var(--surface-hover); color: var(--text); }
   .mobile-menu-panel a { min-height: 50px; font-size: 16px; }
 }
