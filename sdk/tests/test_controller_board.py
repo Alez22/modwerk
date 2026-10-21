@@ -91,7 +91,23 @@ def header():
         packed = ab_records(core)
         text += 'static uint8_t ab_x_%d[%d] = {%s};\n' % (core, len(packed), ','.join(map(str, packed)))
         text += 'static const uint32_t ab_expect_%d[%d] = {%s};\n' % (core, AB_WORDS, ','.join(map(str, ab_words(core))))
+    reader = closed_reader()
+    text += 'static const uint8_t pkg_closed_reader[%d] __attribute__((unused)) = {%s};\n' % (len(reader), ','.join(map(str, reader)))
     return text + '#define ROWS %s\n#define ROW_COUNT %d\n' % (rows, len(PACKAGES) - len(UNTRUSTED))
+
+
+def closed_reader():
+    """An ABI 9 package that requires the key bus (a reader), tiny synthetic DSP words."""
+    import importlib.util
+    specs = [importlib.util.spec_from_file_location(n, ROOT / 'sdk/runtime/loader' / f) for n, f in
+             (('closed_loader_build', 'build.py'), ('closed_loader_abi9', 'abi9.py'))]
+    build, abi9 = (importlib.util.module_from_spec(spec) for spec in specs)
+    for spec, module in zip(specs, (build, abi9)):
+        spec.loader.exec_module(module)
+    data = abi9.upgrade(build.package(b'', 0, [], [], name='kbcl', dsp=dict(
+        words=[0x0c0000 + i for i in range(8)], relocations=[], effect=30, slots=1, init=0, proc=1, cycles=100, kind=1,
+        state=4, buffer=0, name='CLOSED', layout=1)), abi9.base_features(['keybus']))
+    return data[:28] + (0x6b62636c).to_bytes(4, 'big') + data[32:]
 
 
 FIXTURE = r'''
@@ -102,7 +118,7 @@ FIXTURE = r'''
 #include "controller_board.h"
 #include "packages.h"
 volatile uint32_t test_clock;
-static unsigned sr, flags[2], saved_busy, buffers_idle = 1, ui_clear = 1, refuse_cas;
+static unsigned sr, flags[2], saved_busy, buffers_idle = 1, bus_idle = 1, ui_clear = 1, refuse_cas;
 static uint8_t mode_live, mode_cs1;
 unsigned modwerk_dsp_flags(unsigned c) { return flags[c]; }
 void modwerk_diag_frame(void) {} /* diag.c: the frame interrupt's freeze watch */
@@ -130,7 +146,7 @@ void board_manager_running(unsigned slot, unsigned id);
 void board_manager_init(void);
 #else
 void dl_residency_tick(void) {}
-int dl_hook_buffer_ranges_idle(unsigned feature) { (void)feature; return (int)buffers_idle; }
+int dl_hook_buffer_ranges_idle(unsigned feature) { return (int)(feature == 8u ? bus_idle : buffers_idle); }
 #endif
 unsigned modwerk_controller_policy_entries(void) { return 0; }
 uint8_t mw_controller_board_test_read8(uint32_t a) { return a == 0x80000037u ? mode_live : a == 0x100b1497u ? mode_cs1 : 0xff; }
@@ -156,11 +172,15 @@ struct mw_controller_registry modwerk_controller_registry;
 #define MODWERK_HOST
 #include "controller_write_lease.c"
 
+#ifndef BOARD_ROWS
+unsigned modwerk_machine_dsp_features(void) { return 8u; } /* the loader offers the key bus; the board must refuse it */
+#endif
 /* Modelled receiver: a reset ACKs and counts words per feature; a CAS ACKs only
  * with the expected mask and only enabling features whose reset completed;
- * disabling invalidates readiness (resident_dsp.receiver_control). */
-static unsigned dsp_mask[2], words[2][3], answered[2], cas_count, ab_wrong;
-static const unsigned totals[3] = {1042, 193, 3776};
+ * disabling invalidates readiness (resident_dsp.receiver_control). Feature 8 is the
+ * key bus, the board's own: Sidechain enables only once it is on, on that core. */
+static unsigned dsp_mask[2], words[2][4], answered[2], cas_count, ab_wrong, sc_before_bus;
+static const unsigned totals[4] = {1042, 193, 3776, 1026};
 static void dsp(void)
 {
     dl_frame();
@@ -169,8 +189,9 @@ static void dsp(void)
         answered[c] = dl_tx[c][1];
         unsigned reject = 0, op = dl_tx[c][2];
         if (op == 11u) {
-            unsigned f = dl_tx[c][7], k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : 3;
-            reject = k > 2 || dl_tx[c][5] != words[c][k] || (dsp_mask[c] & f);
+            unsigned f = dl_tx[c][7], k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
+            if (k <= 3 && !dl_tx[c][5] && !(dsp_mask[c] & f)) words[c][k] = 0; /* offset 0: a fresh start (hookready cleared) */
+            reject = k > 3 || dl_tx[c][5] != words[c][k] || (dsp_mask[c] & f);
             /* Analog BD's engine is reset to its boot record, word for word (24-bit: high 16, low 8). */
             for (unsigned i = 0; !reject && k == 2 && i < dl_tx[c][4]; ++i)
                 if (((unsigned)dl_tx[c][8 + 2 * i] << 8 | dl_tx[c][9 + 2 * i]) != (c ? ab_expect_1 : ab_expect_0)[dl_tx[c][5] + i]) ++ab_wrong;
@@ -179,9 +200,11 @@ static void dsp(void)
             unsigned expected = dl_tx[c][4], desired = dl_tx[c][5], on = desired & ~expected;
             ++cas_count;
             reject = refuse_cas || expected != dsp_mask[c] || ((on & 1u) && words[c][0] != totals[0]) ||
-                ((on & 2u) && words[c][1] != totals[1]) || ((on & 4u) && words[c][2] != totals[2]);
+                ((on & 2u) && words[c][1] != totals[1]) || ((on & 4u) && words[c][2] != totals[2]) ||
+                ((on & 8u) && words[c][3] != totals[3]);
+            if (!reject && (on & 1u) && !(desired & 8u)) ++sc_before_bus;
             if (!reject) {
-                for (unsigned f = 1; f <= 4; f <<= 1) if ((expected & f) && !(desired & f)) words[c][f >> 1] = 0;
+                for (unsigned f = 1, k = 0; f <= 8; f <<= 1, ++k) if ((expected & f) && !(desired & f)) words[c][k] = 0;
                 dsp_mask[c] = desired;
             }
         } else continue;
@@ -278,13 +301,16 @@ int main(int argc, char **argv)
     unsigned mode = (unsigned)strtoul(argv[1], 0, 10); /* two digits from mode 10 */
     enum runtime_refusal why;
 #ifndef BOARD_ROWS
-    /* Default base: no rows, nothing activates, every package is ordinary. */
+    /* Default base: no rows, nothing activates, every package is ordinary; but a key bus reader is refused, before the
+     * first tick and on a closed board: nothing would ever hold the bus for it. */
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
     run(4);
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
     run(50);
     assert(!modwerk_controller_held() && !cas_count && !dsp_mask[0] && !lease(SC, 1));
     assert(install(removal(SC), 32) == MU_APPLIED);
-    (void)mode; (void)why; (void)install_refused;
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
+    (void)mode;
     return 0;
 #else
     memcpy(donor, donor_original, sizeof donor);
@@ -301,17 +327,51 @@ int main(int argc, char **argv)
     if (mode == 2) {
         /* A genuine overlap: Sidechain waits, untouched; Output Matrix (Y $c00) is not held up by it. */
         assert(slot_for(SC, MW_CTL_BOUND) && !words[0][0] && !words[1][0] && !dsp_mask[0] && !dsp_mask[1]);
+        assert(!words[0][3] && !words[1][3]); /* nor the key bus: its window is under the module's ring too */
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
         run(60);
         assert(slot_for(MATRIX, MW_CTL_ACTIVE) && slot_for(SC, MW_CTL_BOUND) && dsp_mask[0] == 2);
         board_manager_running(14, 13); /* the module gives way to stock's delay */
         run(120);
     }
-    assert(slot_for(SC, MW_CTL_ACTIVE) && (dsp_mask[0] & 1u) && dsp_mask[1] == 1);
-    assert(words[0][0] == 1042 && words[1][0] == 1042 && lease(SC, 1));
+    assert(slot_for(SC, MW_CTL_ACTIVE) && (dsp_mask[0] & 1u) && dsp_mask[1] == 9 && (dsp_mask[0] & 8u));
+    assert(words[0][0] == 1042 && words[1][0] == 1042 && words[0][3] == 1026 && words[1][3] == 1026 && lease(SC, 1) && !sc_before_bus);
     (void)why; (void)install_refused;
     return 0;
 #endif
+    if (mode == 14) {
+        /* The scrub never writes over a slot buffer: Sidechain's bus let go while a buffer covers the window (as the
+         * manager would say) leaves the seed alone and keeps the window held; once the buffer is gone, the one chunk. */
+        run(2);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(120);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
+        bus_idle = 0;
+        assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
+        run(20);
+        assert(install(removal(SC), 32) == MU_APPLIED);
+        run(20);
+        assert(slot_for(SC, MW_CTL_RELEASED) && !dsp_mask[0] && !dsp_mask[1] && !words[0][3] && !words[1][3]);
+        assert(modwerk_controller_held() & 8u); /* the seed is not zeroed yet: the window stays the bus's */
+        bus_idle = 1;
+        run(4);
+        assert(words[0][3] == 24 && words[1][3] == 24 && !modwerk_controller_held());
+        return 0;
+    }
+    if (mode == 13) {
+        /* The key bus held up (a slot buffer over its window, as the manager would say): Sidechain resets and is READY,
+         * and is not enabled on either core until the bus is on there; then the bus first, Sidechain after it. */
+        bus_idle = 0;
+        run(2);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_READY) && !dsp_mask[0] && !dsp_mask[1] && !sc_before_bus && !words[0][3] && !words[1][3]);
+        assert(words[0][0] == 1042 && words[1][0] == 1042 && !lease(SC, 1) && (modwerk_controller_held() & 8u));
+        bus_idle = 1;
+        run(200);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && !sc_before_bus && lease(SC, 1));
+        return 0;
+    }
     if (mode == 10) ab_x_1[4] ^= 1; /* core B's engine record names another address: Analog BD never resets */
     if (mode == 7) donor[300] ^= 1; /* not the stock descriptor the record names: no page, still a working controller */
     run(2);
@@ -319,7 +379,7 @@ int main(int argc, char **argv)
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
     assert(!lease(SC, 1) && (mode == 7 || page_is(0, SC))); /* published, not yet reset and enabled */
     run(120);
-    assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+    assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && !sc_before_bus);
     if (mode == 7) {
         donor[300] ^= 1; assert(page_is(0, SC)); donor[300] ^= 1;
         assert(lease(SC, 1));
@@ -331,11 +391,11 @@ int main(int argc, char **argv)
         donor[200] ^= 1;
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
         run(5);
-        assert(slot_for(SC, MW_CTL_QUARANTINED) && dsp_mask[0] == 1);
+        assert(slot_for(SC, MW_CTL_QUARANTINED) && dsp_mask[0] == 9);
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_CONFLICT);
         return 0;
     }
-    assert(words[0][0] == 1042 && words[1][0] == 1042 && modwerk_controller_held() == 1);
+    assert(words[0][0] == 1042 && words[1][0] == 1042 && words[0][3] == 1026 && modwerk_controller_held() == 9);
     assert(lease(SC, 1) && !lease(SC, 2));
     if (mode == 0) {
         /* Removal: refused until both cores ACKed the disable, then released. */
@@ -344,25 +404,28 @@ int main(int argc, char **argv)
         run(1);
         assert(!lease(SC, 1) && page_is(0, SC)); /* page gone before the hooks; disabling: no writes */
         run(10);
-        assert(slot_for(SC, MW_CTL_RETIRING) && !dsp_mask[0] && !dsp_mask[1]);
+        assert(slot_for(SC, MW_CTL_RETIRING) && dsp_mask[0] == 8 && dsp_mask[1] == 8); /* the bus stays while it is held */
         ui_clear = 0;
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_IN_USE);
         ui_clear = 1;
         assert(install(removal(SC), 32) == MU_APPLIED);
-        run(2);
-        assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && page_is(0, SC));
+        run(4); /* released on the first tick, the key bus let go on the next, its disable ACKed on the third, the scrub
+                 * (its one offset-0 chunk) started then and ACKed by the fourth */
+        assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && page_is(0, SC) && !dsp_mask[0] && !dsp_mask[1]);
+        /* Its disable invalidated the bus's reset; then one offset-0 chunk zeroed the window's seed (the scrub). */
+        assert(words[0][3] == 24 && words[1][3] == 24);
         /* Installing it again binds a new owner generation from scratch; no earlier decision carries over. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         assert(!lease(SC, 1));
         run(120);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && lease(SC, 1) && page_is(1, SC));
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && lease(SC, 1) && page_is(1, SC) && !sc_before_bus);
     } else if (mode == 1) {
         /* An abandoned removal: disabled, then restored through a full reset. */
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
         run(10);
-        assert(slot_for(SC, MW_CTL_RETIRING) && !dsp_mask[0] && page_is(0, SC));
+        assert(slot_for(SC, MW_CTL_RETIRING) && dsp_mask[0] == 8 && page_is(0, SC));
         run(700);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1 && lease(SC, 1) && page_is(1, SC));
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && lease(SC, 1) && page_is(1, SC));
     } else if (mode == 2) {
         /* Same-feature replacement: predecessor disabled, successor bound with it
          * as previous, reset and enabled, then the predecessor retires. */
@@ -372,13 +435,13 @@ int main(int argc, char **argv)
         run(120);
         const struct mw_controller_slot *next = slot_for(SC, MW_CTL_ACTIVE);
         assert(next && next->binding.image_bytes == 96 && next->previous < MW_CONTROLLER_SLOTS && slot_for(SC, MW_CTL_RELEASED));
-        assert(dsp_mask[0] == 1 && dsp_mask[1] == 1 && lease(SC, 1) && page_is(1, SC)); /* the successor's formatter */
+        assert(dsp_mask[0] == 9 && dsp_mask[1] == 9 && lease(SC, 1) && page_is(1, SC)); /* the successor's formatter */
     } else if (mode == 3) {
         /* Matrix beside it: core A only; removal refuses in MATRIX mode. */
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
         run(40);
-        assert(slot_for(MATRIX, MW_CTL_ACTIVE) && dsp_mask[0] == 3 && dsp_mask[1] == 1 && words[1][1] == 0);
-        assert(lease(MATRIX, 2) && lease(SC, 1) && modwerk_controller_held() == 3);
+        assert(slot_for(MATRIX, MW_CTL_ACTIVE) && dsp_mask[0] == 11 && dsp_mask[1] == 9 && words[1][1] == 0);
+        assert(lease(MATRIX, 2) && lease(SC, 1) && modwerk_controller_held() == 11);
         mode_live = 2;
         assert(install_refused(removal(MATRIX), 32, &why) && why == RUNTIME_IN_USE);
         run(5);
@@ -390,7 +453,7 @@ int main(int argc, char **argv)
         run(10);
         assert(install(removal(MATRIX), 32) == MU_APPLIED);
         run(2);
-        assert(slot_for(MATRIX, MW_CTL_RELEASED) && dsp_mask[0] == 1 && lease(SC, 1));
+        assert(slot_for(MATRIX, MW_CTL_RELEASED) && dsp_mask[0] == 9 && lease(SC, 1));
     } else if (mode == 4) {
         /* A refused CAS is unknown DSP state: quarantined, held, never retried. */
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
@@ -401,7 +464,7 @@ int main(int argc, char **argv)
         assert(!lease(MATRIX, 2) && lease(SC, 1));
         assert(install_refused(removal(MATRIX), 32, &why) && why == RUNTIME_CONFLICT);
         run(40);
-        assert(cas_count == before + 1 && modwerk_controller_held() == 3);
+        assert(cas_count == before + 1 && modwerk_controller_held() == 11);
     } else if (mode == 5) {
         /* Another module cannot take a held resident engine; an untrusted
          * build of the module is an ordinary, inert package. */
@@ -413,29 +476,29 @@ int main(int argc, char **argv)
         assert(!lease(SC, 1) && !dsp_mask[0] && !dsp_mask[1] && slot_for(SC, MW_CTL_RETIRING) == 0);
         assert(install(removal(SC), 32) == MU_APPLIED && install(pkg_rival, sizeof pkg_rival) == MU_APPLIED);
         run(120);
-        assert(slot_for(0x12345678u, MW_CTL_ACTIVE) && dsp_mask[0] == 1);
+        assert(slot_for(0x12345678u, MW_CTL_ACTIVE) && dsp_mask[0] == 9);
     } else if (mode == 9) {
         /* Analog BD beside it, on both cores: its engine reset to its boot record word for word, then enabled. */
         assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
         assert(!lease(AB, 4));
         run(500);
-        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dsp_mask[1] == 5 && !ab_wrong);
-        assert(words[0][2] == 3776 && words[1][2] == 3776 && modwerk_controller_held() == 5);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 13 && dsp_mask[1] == 13 && !ab_wrong);
+        assert(words[0][2] == 3776 && words[1][2] == 3776 && modwerk_controller_held() == 13);
         assert(lease(AB, 4) && !lease(AB, 1) && lease(SC, 1));
         assert(install_refused(removal(AB), 32, &why) && why == RUNTIME_BUSY);
         run(1);
         assert(!lease(AB, 4));
         run(10);
-        assert(slot_for(AB, MW_CTL_RETIRING) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(slot_for(AB, MW_CTL_RETIRING) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
         assert(install(removal(AB), 32) == MU_APPLIED);
         run(2);
-        assert(slot_for(AB, MW_CTL_RELEASED) && modwerk_controller_held() == 1 && lease(SC, 1));
+        assert(slot_for(AB, MW_CTL_RELEASED) && modwerk_controller_held() == 9 && lease(SC, 1));
     } else if (mode == 10) {
         /* A record that is not its engine's: never reset or enabled, so never a lease; Sidechain unaffected. */
         assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
         run(500);
         assert(!slot_for(AB, MW_CTL_ACTIVE) && !(dsp_mask[0] & 4u) && !(dsp_mask[1] & 4u) && !lease(AB, 4));
-        assert(lease(SC, 1) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(lease(SC, 1) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
     } else if (mode == 6) {
         /* Saved-set export blocks control writes and new jobs, not progress after. */
         saved_busy = 1;
@@ -623,7 +686,7 @@ class ControllerBoard(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp); self.generated(work)
             binary = self.build(work, True)
-            for mode in range(13):
+            for mode in range(15):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)

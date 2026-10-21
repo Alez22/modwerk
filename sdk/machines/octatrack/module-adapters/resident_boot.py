@@ -120,7 +120,7 @@ def prepare(image, device, dsp, layout):
     No files or firmware are written. `layout` is the real private resident
     dsp_loader.recipe result. The returned source embeds only authored records.
     """
-    from resident_dsp import resource_ranges
+    from resident_dsp import boot_ranges, resource_ranges
     lines = ['        .section .boot,"ax"', '        .globl mw_resident_dsp_boot',
              'mw_resident_dsp_boot:', '        lea -48(%sp),%sp',
              '        movem.l %d0-%d7/%a0-%a3,(%sp)']
@@ -140,7 +140,7 @@ def prepare(image, device, dsp, layout):
         if guard != address.to_bytes(4, 'big'):
             raise ValueError('Original DSP upload pointer changed')
         ranges = [('x', 0x2840, 0x3700 - 0x2840)] + [(r['space'], r['address'], r['words'])
-                  for r in resource_ranges(tag) if r['space'] == 'y']
+                  for r in boot_ranges(tag) if r['space'] == 'y']
         for space, address_owned, words in ranges:
             if any(sp == {'x': 1, 'y': 2}[space] and lo < address_owned + words and address_owned < lo + count
                    for sp, lo, count, _ in original_records):

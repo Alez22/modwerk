@@ -84,6 +84,7 @@ enum mu_result mu_enter(struct mu_context *c)
 enum mu_result mu_begin(struct mu_context *c, const struct mu_offer *o)
 {
     if (!live(c) || !o) return MU_STATE;
+    if (c->disconnecting) return MU_NEEDS_RECOVERY;
     if ((c->phase == MU_RECEIVING || c->phase == MU_VERIFIED) && matches(&c->offer, o))
         return safe(c) ? MU_OK : MU_UNSAFE;
     if (c->phase != MU_READY) return MU_STATE;
@@ -142,18 +143,24 @@ enum mu_result mu_commit(struct mu_context *c, uint32_t tx)
     if (c->phase == MU_PENDING || c->phase == MU_TRIAL || (c->outcome == OUTCOME_ACCEPT &&
         (c->phase == MU_READY || c->phase == MU_NORMAL))) return MU_OK;
     if (c->phase == MU_RECOVERY) return MU_NEEDS_RECOVERY;
-    if (c->phase != MU_VERIFIED) return MU_STATE;
+    if (c->phase != MU_VERIFIED && c->phase != MU_PUBLISHING) return MU_STATE;
     if (!safe(c)) return MU_UNSAFE;
-    if (!digest_matches(c)) {
+    if (c->phase == MU_VERIFIED && !digest_matches(c)) {
         enum mu_result result = discard(c);
         return result == MU_OK ? MU_HASH : result;
     }
     /* Hashing is task work; recheck the hold immediately before publication. */
     if (!safe(c)) return MU_UNSAFE;
-    copy(c->previous, c->active, MU_DIGEST_BYTES);
+    if (c->phase == MU_VERIFIED) copy(c->previous, c->active, MU_DIGEST_BYTES);
     c->publication_started = 1;
     enum mu_publication result = c->backend.publish(c->backend.user);
+    if (result == MU_PUBLISHING_MORE) {
+        c->active_known = 0; c->phase = MU_PUBLISHING;
+        return MU_PROGRESS;
+    }
     if (result == MU_UNCHANGED) {
+        /* Only the first publication call can prove no row ever changed. */
+        if (c->phase == MU_PUBLISHING) { c->phase = MU_RECOVERY; c->active_known = 0; return MU_NEEDS_RECOVERY; }
         c->publication_started = 0;
         enum mu_result cleanup = discard(c);
         return cleanup == MU_OK ? MU_BACKEND : cleanup;
@@ -163,7 +170,7 @@ enum mu_result mu_commit(struct mu_context *c, uint32_t tx)
         return MU_NEEDS_RECOVERY;
     }
     copy(c->active, c->offer.digest, MU_DIGEST_BYTES); ++c->generation;
-    c->phase = MU_PENDING;
+    c->active_known = 1; c->phase = MU_PENDING;
     return MU_OK;
 }
 enum mu_result mu_accept(struct mu_context *c, uint32_t tx)
@@ -190,7 +197,7 @@ enum mu_result mu_rollback(struct mu_context *c, uint32_t tx)
     if (!live(c)) return MU_STATE;
     if (!token(c, tx)) return MU_STALE;
     if (c->outcome == OUTCOME_ROLLBACK && (c->phase == MU_READY || c->phase == MU_NORMAL)) return MU_OK;
-    if (c->phase != MU_PENDING && c->phase != MU_RECOVERY) return MU_STATE;
+    if (c->phase != MU_PENDING && c->phase != MU_RECOVERY && c->phase != MU_PUBLISHING) return MU_STATE;
     if (!safe(c)) return MU_UNSAFE;
     if (!c->publication_started) return discard(c);
     if (c->backend.restore(c->backend.user) != 1) {
@@ -215,6 +222,7 @@ int mu_disconnecting;
 enum mu_result mu_disconnect(struct mu_context *c)
 {
     if (!live(c)) return MU_STATE;
+    c->disconnecting = 1;
     enum mu_result result = MU_OK;
     if (c->phase == MU_TRIAL) {
         mu_disconnecting = 1;
@@ -223,6 +231,8 @@ enum mu_result mu_disconnect(struct mu_context *c)
         if (result != MU_OK) return result;
     }
     if (c->phase == MU_RECEIVING || c->phase == MU_VERIFIED) result = mu_abort(c, c->offer.transaction);
-    else if (c->phase == MU_PENDING || c->phase == MU_RECOVERY) result = mu_rollback(c, c->offer.transaction);
-    return result == MU_OK ? mu_leave(c) : result;
+    else if (c->phase == MU_PENDING || c->phase == MU_RECOVERY || c->phase == MU_PUBLISHING) result = mu_rollback(c, c->offer.transaction);
+    if (result == MU_OK) result = mu_leave(c);
+    if (result == MU_OK && c->phase == MU_NORMAL) c->disconnecting = 0;
+    return result;
 }

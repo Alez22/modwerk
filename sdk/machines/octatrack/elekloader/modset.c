@@ -15,11 +15,17 @@
 #include <stdint.h>
 #include "upload.h"
 #include "loader.h"
+#include "set_package.h"
 #ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
 #include "volatile_service.h"
-#define VOLATILE_BLOCKED() modwerk_runtime_volatile_busy()
+#define JOURNAL_BLOCKED() modwerk_runtime_volatile_busy()
 #else
-#define VOLATILE_BLOCKED() 0
+#define JOURNAL_BLOCKED() 0
+#endif
+#ifdef MODWERK_RUNTIME_SETS
+#define VOLATILE_BLOCKED() (JOURNAL_BLOCKED() || modwerk_runtime_set_busy())
+#else
+#define VOLATILE_BLOCKED() JOURNAL_BLOCKED()
 #endif
 
 #define HEADER 84u
@@ -87,10 +93,66 @@ static void seal(uint32_t count, uint32_t bytes)
 }
 
 /* boot.c, at prepare and accept: what the host staged, and that it stays. */
-void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes) { if (!VOLATILE_BLOCKED()) candidate = package, candidate_bytes = bytes; }
+void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes)
+{ if (!JOURNAL_BLOCKED()) candidate = package, candidate_bytes = bytes; }
+#ifdef MODWERK_RUNTIME_SETS
+/* Pure preflight over the old saved set and the complete incoming change set.
+ * No intermediate accepted package reaches set[] or the card. With a null
+ * argument it rechecks the retained candidate immediately before Keep. */
+int modwerk_modset_check_set(const uint8_t *data,uint32_t length)
+{
+    const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
+    if(!data) data=candidate,length=candidate_bytes;
+    int n=runtime_set_parse(data,length,packages,lengths);
+    if(!n || !restored || pending) return 0;
+    uint32_t ids[RUNTIME_JOURNAL_ROWS],old_ids[RUNTIME_JOURNAL_ROWS];
+    uint8_t sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],old_sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],digest[32];
+    unsigned count=0,old_count=0;uint32_t end=HEADER,total=used();
+    for(uint32_t at=HEADER;at<total;) {
+        if(total-at<8u || old_count==RUNTIME_JOURNAL_ROWS) return 0;
+        uint32_t id=be32(set+at),bytes=be32(set+at+4);
+        if(bytes>total-at-8u || ((bytes+3u)&~3u)>total-at-8u) return 0;
+        old_ids[old_count]=id;mu_sha256(set+at+8,bytes,old_sha+32u*old_count++);
+        int changed=0;for(int i=0;i<n;++i) changed|=id==module_of(packages[i],lengths[i]);
+        if(!changed) { ids[count]=id;for(unsigned k=0;k<32u;++k) sha[32u*count+k]=old_sha[32u*(old_count-1u)+k];++count;end+=8u+((bytes+3u)&~3u); }
+        at+=8u+((bytes+3u)&~3u);
+    }
+    if(!runtime_journal_set_digest(old_ids,old_sha,old_count,digest)) return 0;
+    for(unsigned i=0;i<32u;++i) if(digest[i]!=data[48+i]) return 0;
+    for(int i=0;i<n;++i) if(!removes(packages[i],lengths[i])) {
+        if(count==RUNTIME_JOURNAL_ROWS || lengths[i]>SET_BYTES-end || 8u+((lengths[i]+3u)&~3u)>SET_BYTES-end) return 0;
+        ids[count]=module_of(packages[i],lengths[i]);mu_sha256(packages[i],lengths[i],sha+32u*count++);
+        end+=8u+((lengths[i]+3u)&~3u);
+    }
+    return runtime_journal_set_digest(ids,sha,count,digest);
+}
+/* Already preflighted before retirement. Remove changed records, append all
+ * surviving replacements, then seal one generation for the entire Keep. */
+static void accept_set(const uint8_t *data,uint32_t length)
+{
+    const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
+    int n=runtime_set_parse(data,length,packages,lengths);uint32_t end=used(),count=be32(set)==0x4d575354u?be32(set+12):0;
+    for(uint32_t at=HEADER;at<end;) {
+        uint32_t bytes=be32(set+at+4),step=8u+((bytes+3u)&~3u);int changed=0;
+        for(int i=0;i<n;++i) changed|=be32(set+at)==module_of(packages[i],lengths[i]);
+        if(!changed) { at+=step;continue; }
+        for(uint32_t k=at;k+step<end;++k) set[k]=set[k+step];
+        end-=step;--count;
+    }
+    for(int i=0;i<n;++i) if(!removes(packages[i],lengths[i])) {
+        uint32_t padded=(lengths[i]+3u)&~3u;put32(set+end,module_of(packages[i],lengths[i]));put32(set+end+4,lengths[i]);
+        for(uint32_t k=0;k<padded;++k) set[end+8u+k]=k<lengths[i]?packages[i][k]:0;
+        end+=8u+padded;++count;
+    }
+    seal(count,end);candidate=0;pending=1;retry_at=0;
+}
+#endif
 void modwerk_modset_accepted(void)
 {
     if (VOLATILE_BLOCKED() || !candidate) return;
+#ifdef MODWERK_RUNTIME_SETS
+    if(candidate_bytes>=RUNTIME_SET_HEADER && be32(candidate)==RUNTIME_SET_MAGIC) { accept_set(candidate,candidate_bytes);return; }
+#endif
     uint32_t id = module_of(candidate, candidate_bytes), n = used(), count = be32(set) == 0x4d575354u ? be32(set + 12) : 0;
     /* Drop the module's earlier package, then append the new one unless it removes the module. */
     for (uint32_t at = HEADER; at < n;) {

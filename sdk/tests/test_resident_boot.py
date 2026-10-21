@@ -95,7 +95,7 @@ class ResidentBoot(unittest.TestCase):
             image[pointer - device.main_load:pointer - device.main_load + 4] = address.to_bytes(4, 'big')
             image[address - device.main_load:address - device.main_load + len(raw)] = raw
             device.dsp_payloads[tag] = (address, len(raw))
-            ranges = resident_dsp.resource_ranges(tag)
+            ranges = resident_dsp.boot_ranges(tag)
             layout[tag] = dict(residentUploadRecords=[dict(space='x', address=0x2840, words=[0] * (0x3700 - 0x2840))] +
                                [dict(space='y', address=r['address'], words=[0] * r['words']) for r in ranges if r['space'] == 'y'],
                                residentHooks=dict(allowed=resident_dsp.ALLOWED[tag]))

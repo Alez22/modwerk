@@ -279,13 +279,22 @@ describe('frontend MCP reviewed device transactions', () => {
     expect(link.keeps).toBe(0)
   })
 
-  it('refuses a multiple-change trial before the site link could accept intermediate changes', async () => {
-    const plan = await service.call('device_review', { moduleIds: ['everb', 'tapehead', 'airwindows-chorus'] })
-    expect(plan.changes).toHaveLength(2)
-    await expect(service.call('device_trial', { review: plan.review })).rejects.toThrow(/one|single|multiple/i)
+  it('refuses a multiple-change review on an older base before sending anything', async () => {
+    await expect(service.call('device_review', { moduleIds: ['everb', 'tapehead', 'airwindows-chorus'] })).rejects.toThrow(/base/i)
     expect(link.updates).toHaveLength(0)
     expect(link.keeps).toBe(0)
     expect(link.undos).toBe(0)
+    expect((await service.call('device_status')).inventory.moduleIds).toEqual(['everb'])
+  })
+  it('reviews, trials and Undoes several changes as one set on a capable base', async () => {
+    link.state.identity.capabilities = { abi: 8, features: 7 | 512, maxSites: 128, maxCopies: 128 }
+    const plan = await service.call('device_review', { moduleIds: ['tapehead', 'airwindows-chorus'] })
+    expect(plan.changes).toHaveLength(3)
+    const started = await service.call('device_trial', { review: plan.review })
+    expect(started.state.status).toBe('trial')
+    expect(link.updates).toHaveLength(1); expect(link.keeps).toBe(0)
+    await service.call('device_undo', { trial: started.trial })
+    expect(link.undos).toBe(1); expect(link.keeps).toBe(0)
     expect((await service.call('device_status')).inventory.moduleIds).toEqual(['everb'])
   })
 

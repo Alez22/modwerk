@@ -36,7 +36,7 @@ def transport(text):
         text = text.replace(old, new)
     change('op!=DL_BASE && op!=DL_PEEK)) return 0;',
            'op!=DL_BASE && op!=DL_PEEK && op!=10u)) return 0;\n'
-           '    if(op==10u && (id&~(c ? 5u:7u) || init&~(c ? 5u:7u) || proc)) return 0;')
+           '    if(op==10u && (id&~(c ? 13u:15u) || init&~(c ? 13u:15u) || proc)) return 0;')
     change('opcode==DL_BASE || opcode==DL_PEEK || opcode==DL_SUM) {',
            'opcode==DL_BASE || opcode==DL_PEEK || opcode==DL_SUM || opcode==10u) {')
     change('        if(opcode==DL_WRITE) {', '        if(opcode==DL_WRITE || opcode==11u) {')
@@ -44,9 +44,10 @@ def transport(text):
            '            t[7]=(uint16_t)(opcode==11u ? j->id:j->expected); t[56]=(uint16_t)(j->expected>>16);')
     change('int dl_job_status(unsigned c) {', '''/* Fixed feature/logical-offset upload; the DSP maps its owned ranges independently. */
 int dl_hook_reset_start(unsigned c,unsigned feature,unsigned offset,unsigned count,const uint32_t *words) {
-    unsigned total=feature==1u ? 1042u : feature==2u ? 193u : feature==4u ? 3776u : 0u;
+    unsigned total=@TOTAL@;
+    unsigned split=@SPLIT@; /* one owned range per chunk */
     if(c>1 || jobs[c].state || !total || (c && feature==2u) || !words || !count || count>DL_DATA ||
-       offset>=total || count>total-offset || (feature==1u && offset<528u && count>528u-offset)) return 0;
+       offset>=total || count>total-offset || (split && offset<split && count>split-offset)) return 0;
     for(unsigned i=0;i<count;++i) if(words[i]>0xffffffu) return 0;
     jobs[c].upload.words=words; jobs[c].upload.relocations=0; jobs[c].upload.relocation_count=0;
     jobs[c].upload.count=(uint16_t)count; jobs[c].upload.offset=(uint16_t)offset;
@@ -54,7 +55,20 @@ int dl_hook_reset_start(unsigned c,unsigned feature,unsigned offset,unsigned cou
     publish(); jobs[c].state=1; return 1;
 }
 int dl_job_status(unsigned c) {''')
+    # The reset totals and first-range splits are the ledger's (dsp-sites.json; dsp_sites.py --check proves them).
+    totals, firsts = _ledger_resets()
+    text = text.replace('@TOTAL@', ' : '.join('feature==%du ? %du' % (f, n) for f, n in totals.items()) + ' : 0u', 1)
+    text = text.replace('@SPLIT@', ' : '.join('feature==%du ? %du' % (f, n) for f, n in firsts.items() if n) + ' : 0u', 1)
     return owned_transport(text)
+
+
+def _ledger_resets():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location('dsp_sites_ledger', Path(__file__).resolve().parents[1] / 'dsp_sites.py')
+    sites = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sites)
+    return sites.reset_words(sites.load())
 
 
 OWNED_HEADER = '''
@@ -100,6 +114,8 @@ int dl_owned_lease_release(uint32_t generation);
 /* The ticket of the owned job holding core c (reserved, submitted or not yet released), 0 none. While one holds it,
  * a legacy start refuses and dl_job_status answers -2: the manager waits for it (resident_journal.py). */
 uint32_t dl_owned_holder(unsigned core);
+/* Whether this boot's owned channel to core c is closed (it never reopens): a board job there can never run. */
+int dl_owned_closed(unsigned core);
 #endif
 '''
 
@@ -286,6 +302,7 @@ static int owned_idle(void) {
     return !jobs[0].state && !jobs[1].state && !pending[0] && !pending[1] && !owned_jobs[0].ticket && !owned_jobs[1].ticket;
 }
 uint32_t dl_owned_holder(unsigned c) { return c<2 ? owned_jobs[c].ticket : 0u; }
+int dl_owned_closed(unsigned c) { return c<2 && owned_closed[c]; }
 int dl_owned_lease_acquire(uint32_t generation) {
     if(DL_OWNED_DISABLED || !generation) return 0;
     uint16_t saved=owned_mask();

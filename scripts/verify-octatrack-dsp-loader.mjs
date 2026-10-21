@@ -294,7 +294,7 @@ if (mode === 'dumps') {
         const caps = await bench.controlIn(0xc1, 29, 0, index, 12)
         assert(caps && caps.length === 12, 'ABI 8 capabilities are readable')
         assert.equal(caps.toString('ascii', 0, 4), 'MWCP')
-        assert.equal(caps[4], 1); assert.equal(caps[5], 8)
+        assert.equal(caps[4], 1); assert(caps[5] >= 8, 'the base takes ABI 8 packages') // ABI 9 bases since base features
         assert.equal(caps.readUInt16BE(6), 7, 'only CF, copies and fills are supported')
         assert.equal(caps.readUInt16BE(8), 128); assert.equal(caps.readUInt16BE(10), 128)
         console.log(`capabilities: ${caps.toString('hex')}`)

@@ -205,17 +205,27 @@ export class UploadSession {
   async activate() {
     return this.exclusive(async () => {
       const offer = this.owned()
-      if (this.status.phase !== 'verified') throw new Error('Verify the staged package before activation.')
-      const status = await this.control('commit', offer.transaction, status => {
-        this.sameTransaction(status, offer)
-        if (status.result !== 'ok') this.expect(['verified', 'ready', 'recovery'].includes(status.phase) && status.generation === offer.generation &&
-          (status.active === offer.previous || status.phase === 'recovery' && !status.activeKnown),
-        'Failed publication did not confirm the previous set or recovery state.')
-        else {
-          this.publishedSet(status, offer)
-          this.expect(status.phase === 'pending', 'Publication did not retain a stopped trial configuration.')
+      if (!['verified', 'publishing'].includes(this.status.phase)) throw new Error('Verify the staged package before activation.')
+      const deadline = Date.now() + this.timeout
+      let status: UploadStatus
+      do {
+        status = await this.control('commit', offer.transaction, status => {
+          this.sameTransaction(status, offer)
+          if (status.result === 'progress') this.expect(status.phase === 'publishing' && !status.activeKnown &&
+            status.generation === offer.generation && status.received === offer.length, 'Publication progress changed its transaction binding.')
+          else if (status.result !== 'ok') this.expect(['verified', 'ready', 'recovery', 'publishing'].includes(status.phase) && status.generation === offer.generation &&
+            (status.active === offer.previous || ['recovery', 'publishing'].includes(status.phase) && !status.activeKnown),
+          'Failed publication did not confirm the previous set or recovery state.')
+          else {
+            this.publishedSet(status, offer)
+            this.expect(status.phase === 'pending', 'Publication did not retain a stopped trial configuration.')
+          }
+        })
+        if (status.result === 'progress') {
+          if (Date.now() >= deadline) return this.uncertain('Module-set publication did not finish before its deadline.')
+          await new Promise(resolve => setTimeout(resolve, 25))
         }
-      })
+      } while (status.result === 'progress')
       if (status.result !== 'ok' && status.phase === 'ready') this.offer = undefined // the base dropped the package
       this.ok(status)
       return status
@@ -260,7 +270,7 @@ export class UploadSession {
   private async rollbackInternal() {
     const offer = this.owned()
     if (this.status.phase === 'trial') await this.holdTrialInternal()
-    if (!['pending', 'recovery'].includes(this.status.phase)) throw new Error('There is no retained publication to roll back.')
+    if (!['pending', 'recovery', 'publishing'].includes(this.status.phase)) throw new Error('There is no retained publication to roll back.')
     const before = this.status, published = before.phase === 'pending' || !before.activeKnown
     const generation = before.generation + (published ? 1 : 0)
     const status = await this.control('rollback', offer.transaction, status => {
@@ -310,7 +320,7 @@ export class UploadSession {
       this.offer = { transaction: status.currentTransaction, generation: status.generation, previous: status.active!, digest: '', length: status.received }
       return true
     }
-    if (!['pending', 'trial', 'recovery'].includes(status.phase) || !status.currentTransaction) return false
+    if (!['pending', 'trial', 'recovery', 'publishing'].includes(status.phase) || !status.currentTransaction) return false
     this.offer = { transaction: status.currentTransaction, generation: status.generation - (status.activeKnown ? 1 : 0), previous: '',
       digest: status.active ?? '', length: status.received }
     return true

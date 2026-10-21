@@ -177,7 +177,7 @@ export async function encodeVolatileBundle(base: string, baseline: string, offer
     const view = new DataView(record.data.buffer)
     // Full ABI reconstruction remains the board's independent job, including reviewed removal packages.
     if (view.byteLength < 32 || view.getUint32(0) !== 0x4d57524d ||
-      view.getUint16(4) < 4 || view.getUint16(4) > 8 || view.getUint32(28) !== record.module) fail('package identity/header mismatch')
+      view.getUint16(4) < 4 || view.getUint16(4) > 9 || view.getUint32(28) !== record.module) fail('package identity/header mismatch')
     if (!record.participants.length) fail('empty participant association')
     for (const participant of record.participants) {
       uint(participant, 0xffffffff, true) // Canonical module ID, not an ordinal; board associations establish trust.
