@@ -53,6 +53,7 @@ mw_wide_dial:
         .global mw_knob_step
         .equ    MW_STEPPER, 0x4003240c                  | the default stepper: (slot, detents, value) -> value
         .equ    MW_KNOB_REC, 0x46c7dede                 | 20 B a knob: +8 the step threshold, +16 the count
+        .equ    MW_KNOB_RUN, 0x46c7d244                 | 20 B a knob: +0 the running remainder (the stepper's)
         .equ    MW_P_COUNT, 0x9a                        | descriptor: count, 4 B a slot
         .equ    MW_STOCK_END, 0x400de1e0                | the end of the OS image's descriptors (fxpage.c DONOR_HIGH)
 
@@ -75,5 +76,12 @@ mw_knob_step:
         move.l  %d0,%d1                                 | as stock: no select steps faster than one of 40
 1:      move.l  #32768,%d0
         divs.l  %d1,%d0
+        cmp.l   8(%a0),%d0
+        beq.s   2f                                      | staged as stock would: the turn's remainder stays
         move.l  %d0,8(%a0)
+        sub.l   #MW_KNOB_REC-MW_KNOB_RUN,%a0            | a new step: as stock's stager (0x400326d4) does with one,
+        clr.l   (%a0)                                   | clear the knob's running record (+0 the remainder the
+        clr.l   4(%a0)                                  | stepper carries between detents), so a 0..127 knob after
+        clr.l   8(%a0)                                  | a select's step neither jumps nor steps back
+        clr.l   12(%a0)
 2:      jmp     (MW_STEPPER).l
