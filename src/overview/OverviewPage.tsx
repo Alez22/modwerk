@@ -23,7 +23,7 @@ export function OverviewPage({ overview }: { overview: Overview }) {
     <header className="overview-heading">
       <div>
         <h1>Choose your machine</h1>
-        <p><span><b>{overview.modules}</b> modules by <b>{overview.creators}</b> creators</span><span className="overview-key" aria-label="Modules by category">{overview.categories.map(item => <span key={item.category}><i className={'is-' + item.category} aria-hidden="true" /><b>{item.count}</b> {item.label}</span>)}</span></p>
+        <p><span><b>{overview.modules}</b> modules by <b>{overview.creators}</b> developers</span><span className="overview-key" aria-label="Modules by category">{overview.categories.map(item => <span key={item.category}><i className={'is-' + item.category} aria-hidden="true" /><b>{item.count}</b> {item.label}</span>)}</span></p>
       </div>
       <div className="overview-chips" role="group" aria-label="Show machines">{FILTERS.map(item => <button key={item.id} type="button" className={'overview-chip is-' + item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.id !== 'all' && <i aria-hidden="true" />}<span className="overview-chip-label">{item.label}</span>{item.short !== item.label && <span className="overview-chip-short" aria-hidden="true">{item.short}</span>}<small>{count(item.id)}</small></button>)}</div>
     </header>

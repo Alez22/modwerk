@@ -63,6 +63,6 @@ describe('overview page', () => {
     expect((html.match(/Programming experience needed/g) ?? []).length).toBe(locked.filter(item => !item.coreReady).length)
     expect((html.match(/>Build the first mod</g) ?? []).length).toBe(locked.filter(item => item.coreReady).length)
     expect(html.indexOf('href="#submit"')).toBeLessThan(html.indexOf('href="' + overview.machines.find(machine => !machine.count)!.href + '"'))
-    expect(html).toContain('<b>' + overview.modules + '</b> modules by <b>' + overview.creators + '</b> creators')
+    expect(html).toContain('<b>' + overview.modules + '</b> modules by <b>' + overview.creators + '</b> developers')
   })
 })
