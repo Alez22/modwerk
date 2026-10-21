@@ -1,26 +1,26 @@
 {
  "schema": 1,
- "identity": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376",
+ "identity": "8f61aa234722d242de92d0771fdcd772aded996281955c87babab555380cf3b8",
  "arena": 1089453536,
  "pool": 1087507808,
  "symbols": {
-  "modwerk_controller_write_begin": 1084868520,
-  "modwerk_controller_write_end": 1084868548,
-  "modwerk_cue_cfg_clamp": 1085038304,
-  "modwerk_raise_ev_mute_keep": 1085040390
+  "modwerk_controller_write_begin": 1084868548,
+  "modwerk_controller_write_end": 1084868576,
+  "modwerk_cue_cfg_clamp": 1085038332,
+  "modwerk_raise_ev_mute_keep": 1085040418
  },
  "controllers": {
-  "sidechain-compressor": "f149663ba9895acbdebf4d139382728ff3c58bd660d5311b2da164614900e065",
-  "output-matrix": "0ce1065780d9888dd1ab55106adedbe86096a30edf130376c6e0d0d436d67961",
-  "analog-bassdrum": "371a126db2705aa2de3de4558e15ab33277f5a0982e6ddfd4e7bf094de8d686e"
+  "sidechain-compressor": "0db70d21c6c865597e285ec875c90c837e090bf07cd08b19916fdd3b9dc67ae8",
+  "output-matrix": "0d188fc73300e0cde28f0e1784353470a25cbf6a8c7d5255142e102e853e64ad",
+  "analog-bassdrum": "e33ceb56e8a8b8976a708aca0679411f699e673f88643abaced24521e2186e15"
  },
  "variants": {
-  "tracks-main-cue": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376",
-  "tracks": "fc2349e0dcbc55262459421335c0ed88319b993b4775b9fc49e541dd1d9e084c",
-  "tracks-post": "bac890dad93e3f66ec2d22f000d6fb2a982dc436279a139dcf8351d83f696ed2",
-  "main-cue": "5d47d9ae590e488b6ac3cc08161b1e5cb0a9ac49416898e3c9ab4103e9f23aaf",
-  "main": "d82a07605d820629962d574400f6730aa17c461e07a340f0de4b8d24a603a96d",
-  "master": "2268e4d981f424bfaf5116effd2b17a69931427a94becf1a434300e13d264e1f",
-  "off": "194371752cd38ccc6d45f8bc078c3558a3ae2ec598b589590a8f9512fc9852d1"
+  "tracks-main-cue": "8f61aa234722d242de92d0771fdcd772aded996281955c87babab555380cf3b8",
+  "tracks": "31aebf1b0c0e813adab8d61f3a87138317aef397cea7e9de198ddae30645f6a6",
+  "tracks-post": "5624bb136e4975b1e50e92cc4bb458344cd45b964b4e6898f6a952a74302d9a1",
+  "main-cue": "0a6892e9ac10755e3fda469ae34ea01c98b91ee9c31f5ddbce15f39fafdd10f6",
+  "main": "0a81194b671cd464fbf984e94dcc520e357b6a1438b4e96b2f3e6e35fc3afbf7",
+  "master": "805d9db368d51512db92dbab3812c2836bdaa4f7aacf087b7d2ac295fdba0da9",
+  "off": "1d3299e86a98bf1641c3228513c82701b36ed8b611358b7a252923a661357c28"
  }
 }
