@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture the real OT LCD from a locally built image; never build/upload firmware.
 
-The plan contains panel presses, encoder turns, waits and PNG filenames. Only
+The plan contains panel presses, encoder turns, crossfader positions, waits and PNG filenames. Only
 the rendered LCD PNGs and their JSON provenance leave the temporary workspace.
 Use a reviewed emulator and a locally built image matching the module version.
 """
@@ -82,7 +82,7 @@ def main():
     shots, held = set(), set()
     for action in plan:
         if not isinstance(action, dict) or len(action) != 1:
-            parser.error('Each action contains exactly one of press, hold, release, encoder, wait, capture.')
+            parser.error('Each action contains exactly one of press, hold, release, encoder, fader, wait, capture.')
         key, value = next(iter(action.items()))
         if key in ('press', 'hold', 'release'):
             if not isinstance(value, list) or not value or any(not isinstance(v, str) or v not in KEYS for v in value) or len(set(value)) != len(value):
@@ -99,6 +99,9 @@ def main():
         elif key == 'encoder':
             if not isinstance(value, dict) or set(value) != {'name', 'delta'} or value['name'] not in ENCODERS or type(value['delta']) is not int or not -127 <= value['delta'] <= 127:
                 parser.error('encoder needs a supported name and signed delta in -127..127.')
+        elif key == 'fader':
+            if type(value) is not int or not 0 <= value <= 127:
+                parser.error('fader is a crossfader position 0 (scene A) to 127 (scene B).')
         elif key == 'wait':
             if type(value) is not int or not 1 <= value <= 10000:
                 parser.error('wait is 1–10000 emulated milliseconds.')
@@ -205,6 +208,9 @@ def main():
                         send(f'run {args.key_ms}')
                 elif key == 'encoder':
                     send(f"knob {0x30 | ENCODERS[value['name']]} {value['delta'] & 255}")
+                    send('run 200')
+                elif key == 'fader':
+                    send(f'key {0x40:#x} {2 * value + 1:#x}')  # the panel's crossfader report
                     send('run 200')
                 elif key == 'wait':
                     send(f'run {value}')

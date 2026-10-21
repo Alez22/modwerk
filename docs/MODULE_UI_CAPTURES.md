@@ -120,6 +120,8 @@ For scene editing, `hold` keeps panel keys down while turning an encoder;
 `release` must release those keys before the plan ends. For example:
 `{"hold":["SCENE A"]}`, `{"encoder":{"name":"A","delta":4}}`,
 `{"capture":"ot-scene-lock.png"}`, `{"release":["SCENE A"]}`.
+`{"fader":64}` sets the crossfader (0 is the scene A end, 127 the scene B
+end) for scene morphs; the emulator otherwise boots with it at 0.
 The supported UI keys also include `SCENE B`, `TRIG1`–`TRIG16`, MKII `AED`,
 `PUSH A`–`PUSH F` and `PUSH LEVEL` for physical encoder presses.
 `MIXER` opens the MIXER page.
