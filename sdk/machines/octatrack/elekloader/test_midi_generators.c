@@ -21,8 +21,15 @@ static struct segment segments[] = {
     {0x46c76dc0u, sizeof live, live}, {0x46c7d340u, sizeof window, window}, {0x46c82456u, 4, bankptr},
     {0x100f8598u, 4, dirtyflag},
 };
+/* Longs the unit reads at 2-aligned addresses (the ColdFire allows it, the host's sanitizer does not): each gets its
+ * own aligned word, looked up before the segments. */
+static struct { uint32_t addr; uint32_t word; } longs[16];
+static unsigned nlongs;
+static void unaligned(uint32_t a) { longs[nlongs++].addr = a; }
 static uint8_t *host_at(uint32_t a)
 {
+    for (unsigned i = 0; i < nlongs; ++i)
+        if (a - longs[i].addr < 4) return (uint8_t *)&longs[i].word + (a - longs[i].addr);
     for (unsigned i = 0; i < sizeof segments / sizeof *segments; ++i)
         if (a - segments[i].base < segments[i].size) return segments[i].bytes + (a - segments[i].base);
     fprintf(stderr, "unmapped %#x\n", a); exit(2);
@@ -87,6 +94,9 @@ static void stock_key(unsigned code, unsigned edge) { if (code == 0x31 && edge =
 
 int main(void)
 {
+    unaligned(0x80000012u); unaligned(0x460d173au); unaligned(0x40100000u + 0x9b332u);
+    static const uint8_t cached[4] = {0x20, 0x31, 0x32, 0x33};
+    for (unsigned k = 0; k < 4; ++k) for (unsigned e = 0; e < 3; ++e) unaligned(0x46c7d8deu + 24u * cached[k] + 4u * e);
     put_u32(0x46c82456u, 0x40100000u);
     put_u32(0x80000010u, 0); put_u32(0x80000012u, 1);  /* MIDI mode */
     U8(0x100b14ccu) = T; U8(0x100b14cfu) = 0;
