@@ -339,6 +339,25 @@ int main(int argc, char **argv)
     (void)why; (void)install_refused;
     return 0;
 #endif
+    if (mode == 14) {
+        /* The scrub never writes over a slot buffer: Sidechain's bus let go while a buffer covers the window (as the
+         * manager would say) leaves the seed alone and keeps the window held; once the buffer is gone, the one chunk. */
+        run(2);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(120);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
+        bus_idle = 0;
+        assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_BUSY);
+        run(20);
+        assert(install(removal(SC), 32) == MU_APPLIED);
+        run(20);
+        assert(slot_for(SC, MW_CTL_RELEASED) && !dsp_mask[0] && !dsp_mask[1] && !words[0][3] && !words[1][3]);
+        assert(modwerk_controller_held() & 8u); /* the seed is not zeroed yet: the window stays the bus's */
+        bus_idle = 1;
+        run(4);
+        assert(words[0][3] == 24 && words[1][3] == 24 && !modwerk_controller_held());
+        return 0;
+    }
     if (mode == 13) {
         /* The key bus held up (a slot buffer over its window, as the manager would say): Sidechain resets and is READY,
          * and is not enabled on either core until the bus is on there; then the bus first, Sidechain after it. */
@@ -390,7 +409,8 @@ int main(int argc, char **argv)
         assert(install_refused(removal(SC), 32, &why) && why == RUNTIME_IN_USE);
         ui_clear = 1;
         assert(install(removal(SC), 32) == MU_APPLIED);
-        run(4); /* released on the first tick, the key bus let go on the next, its disable ACKed on the third */
+        run(4); /* released on the first tick, the key bus let go on the next, its disable ACKed on the third, the scrub
+                 * (its one offset-0 chunk) started then and ACKed by the fourth */
         assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && page_is(0, SC) && !dsp_mask[0] && !dsp_mask[1]);
         /* Its disable invalidated the bus's reset; then one offset-0 chunk zeroed the window's seed (the scrub). */
         assert(words[0][3] == 24 && words[1][3] == 24);
@@ -666,7 +686,7 @@ class ControllerBoard(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             work = Path(temp); self.generated(work)
             binary = self.build(work, True)
-            for mode in range(14):
+            for mode in range(15):
                 with self.subTest(mode=mode):
                     result = subprocess.run([str(binary), str(mode)], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)

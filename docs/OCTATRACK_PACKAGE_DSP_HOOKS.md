@@ -355,13 +355,21 @@ the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and
   its price. And a reader's admission always asks the engines' dry run (`mw_engines_admit(KEYBUS, ...)`, which says
   FITS when the bus is already placed), so a stuck bus engine refuses a second reader instead of admitting it.
 - **A stale seed (second review, 21 October 2026).** A disable left the window's seed mark and counter as the tap last
-  wrote them, and a later placement reset the bus first and reached the seed only at its 22nd chunk; a reader that
+  wrote them, and a later placement reset the bus first and reached the seed only at its 23rd chunk (with the bus's 512 words first); a reader that
   checks the mark (RINGMOD SC does) installed meanwhile on a track that already runs it took the dead bus for a live
   one and read frozen frames. Now the window comes first in the key bus's reset (dsp-sites.json, resident_dsp's ranges,
   in the same order: `dsp_sites.py --check` compares it), and after a run the board zeroes the seed with one offset-0
-  chunk (KB_SCRUB) before it lets the window go. Board test mode 43. The base was regenerated again for it:
-  `0b84bb65…` (`.bin` `5ffdff9f`); the MKII re-check below ran on the twin of `b3ac5155`, before this fix, and the next
-  MKII session re-checks the new twin.
+  chunk (KB_SCRUB) before it lets the window go. Board test mode 43.
+- **The same class, third review (21 October 2026).** A reader checks its own core's seed but reads another core's keys
+  from that core's half of the window, which only a full reset makes fresh (the scrub zeroes the seed alone); so a core
+  now enables only once both cores' resets are complete (or the other core's bus is on), and an unknown core keeps both
+  off. Enabling both within a frame or two of each other keeps the tap's phase rule and the 0/16/32 latency, and
+  Sidechain still enables only after the bus on its core. And a reader arriving while the bus is being let go (a core
+  disabling or scrubbing, or off with a live seed) is told to retry (`RUNTIME_BUSY`) rather than admitted to a stale
+  mark. Board tests 43 (the window held, tick by tick, while a seed is live), 44 (a reader during the disable and the
+  scrub), 45 (Sidechain arriving mid-scrub), 46 (one core's reset lagging) and the controller board's 14 (no scrub over a
+  slot buffer). The base was regenerated for these: see the CHANGELOG for its identity; the MKII re-check below ran on
+  the twin of `b3ac5155`, before them, and the next MKII session re-checks the new twin.
 - **One ledger.** The board's key bus constants (its bit, reset total 1,026 and first range 514, what Sidechain
   implies, each feature's cores), the transport's reset totals and splits and the engines' feature index now come from
   `dsp_ledger.h` (generated from `dsp-sites.json`, so `dsp_sites.py --check` covers them).

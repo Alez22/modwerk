@@ -87,7 +87,7 @@ static int nonzero(const uint8_t *p, unsigned n) { while (n--) if (*p++) return 
 static unsigned cores(unsigned feature) { return MW_DSP_CORES(feature); }
 /* stock_hooks reset totals, from the ledger (dsp_sites.py --check keeps them equal to resident_dsp.resource_ranges):
  * SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A; Analog BD X $2840-$36ff on both cores; the key
- * bus Y $800+$200 and the shared tail $202. */
+ * bus the shared tail $202 first (its seed and counter lead it), then Y $800+$200. */
 #define AB_WORDS MW_DSP_RESET_WORDS(MW_DSP_ANALOG_BD)
 #define KEYBUS MW_DSP_KEYBUS /* the key bus: a base feature, held for packages and Sidechain */
 #define KEYBUS_WORDS MW_DSP_RESET_WORDS(MW_DSP_KEYBUS)
@@ -488,7 +488,12 @@ static void keybus_tick(void)
             if (busy[c] || !(mask_known >> c & 1u) || (mask[c] & KEYBUS)) continue;
             /* Its reset and its tap write the bus and the window: never while a slot buffer is there. */
             if (dl_hook_buffer_ranges_idle(KEYBUS) != 1) break;
-            (void)keybus_start(c, kb_reset[c] < KEYBUS_WORDS ? KB_RESET : KB_ENABLE);
+            /* A core enables only once the other core's reset is complete too (or it is on there already): a reader
+             * keyed from the other core reads that core's half of the window, and until its reset it may hold an earlier
+             * run's frames (the scrub zeroes only the seed). An unknown core keeps both off: readers then pass audio. */
+            unsigned o = 1u - c;
+            if (kb_reset[c] < KEYBUS_WORDS) (void)keybus_start(c, KB_RESET);
+            else if ((mask[o] & KEYBUS) || ((mask_known >> o & 1u) && kb_reset[o] >= KEYBUS_WORDS)) (void)keybus_start(c, KB_ENABLE);
         }
     } else if (!kb_wanted) {
         for (unsigned c = 0; c < 2u; ++c) {
@@ -657,6 +662,10 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
      * dry run says FITS then; a stuck engine refuses), and the tap's price unless another reader pays it. Sidechain's
      * engine and the bus share nothing but the bus words. */
     if (to && to->present && (to->requires & KEYBUS)) {
+        /* Not while the bus is being let go: a core disabling or scrubbing, or off with its seed not yet zeroed, still
+         * shows the last run's mark, which the reader would take for a live bus for a job round trip. Retry. */
+        for (unsigned c = 0; c < 2u; ++c)
+            if (kb_lane[c].op == KB_DISABLE || kb_lane[c].op == KB_SCRUB || (kb_dirty[c] && !(mask[c] & KEYBUS))) return RUNTIME_BUSY;
         int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
         if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
         if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;

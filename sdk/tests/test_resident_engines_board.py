@@ -212,6 +212,8 @@ static unsigned window_dirty[2];
 /* The tap has run since the window's seed was last zeroed (mode 43): an enabled bus seeds it; only an offset-0 key bus
  * chunk (the window first, dsp-sites.json) zeroes it again. */
 static unsigned seed_live[2];
+/* Frames for which the modelled receiver leaves a core's RESET chunks unanswered (mode 46: a core whose reset lags). */
+static unsigned stall_reset[2];
 /* The key bus's tap price (dsp.c's resident_engines.dsp seam): whether it would fit, and whether it is charged. */
 static unsigned kb_fits = 1, kb_charged;
 int modwerk_dsp_keybus_fits(void) { return (int)(kb_fits || kb_charged); }
@@ -250,6 +252,7 @@ static void dsp(void)
     dl_frame();
     for (unsigned c = 0; c < 2; ++c) {
         if (dl_tx[c][0] != DL_MAGIC || dl_tx[c][1] == answered[c]) continue;
+        if (dl_tx[c][2] == 11u && stall_reset[c]) { --stall_reset[c]; continue; }
         answered[c] = dl_tx[c][1];
         unsigned reject = 0, op = dl_tx[c][2], w4 = dl_tx[c][4], w5 = dl_tx[c][5], w7 = dl_tx[c][7];
         assert(trails[c] < 8192);
@@ -1217,7 +1220,16 @@ int main(int argc, char **argv)
         assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && seed_live[0] && seed_live[1]);
         unsigned from[2] = {trails[0], trails[1]};
         assert(install(removal(READER), 32) == MU_APPLIED);
-        run(50);
+        /* Tick by tick, the scrub's answer held back a few frames: while a core's seed is live, the board holds the
+         * window (no buffer may take it), also once that core's bus is off. */
+        stall_reset[0] = stall_reset[1] = 8;
+        unsigned off_live = 0;
+        for (unsigned t = 0; t < 50; ++t) {
+            run(1);
+            if (seed_live[0] || seed_live[1]) assert(modwerk_controller_held() & 8u);
+            for (unsigned c = 0; c < 2; ++c) off_live += seed_live[c] && !(dsp_mask[c] & 8u);
+        }
+        assert(off_live > 2); /* ticks with the bus off and its seed not yet zeroed did occur */
         assert(!dsp_mask[0] && !dsp_mask[1] && !seed_live[0] && !seed_live[1] && !modwerk_controller_held());
         for (unsigned c = 0; c < 2; ++c) {
             unsigned i = from[c], cas = 0;
@@ -1233,6 +1245,60 @@ int main(int argc, char **argv)
         remove_module(SC);
         run(20);
         assert(!dsp_mask[0] && !dsp_mask[1] && !seed_live[0] && !seed_live[1] && !modwerk_controller_held());
+    } else if (mode == 44) {
+        /* A reader arriving while the bus is let go is told to retry (RUNTIME_BUSY) while a core disables, scrubs or
+         * still has a live seed with the bus off there: it would take the last run's mark for a live bus. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        static uint8_t second[sizeof pkg_reader];
+        memcpy(second, pkg_reader, sizeof second);
+        second[31] ^= 1u; /* another reader */
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        unsigned busy_seen = 0;
+        for (unsigned t = 0; t < 50 && (seed_live[0] || seed_live[1] || (mw_engines_view.keybus & 0x7eu)); ++t) {
+            run(1);
+            unsigned ops = mw_engines_view.keybus;
+            int letting_go = ((ops >> 1 & 7u) == 3u || (ops >> 1 & 7u) == 5u || (ops >> 4 & 7u) == 3u || (ops >> 4 & 7u) == 5u ||
+                              ((seed_live[0] && !(dsp_mask[0] & 8u)) || (seed_live[1] && !(dsp_mask[1] & 8u))));
+            if (letting_go) assert(refused(second, sizeof second) == RUNTIME_BUSY), ++busy_seen;
+        }
+        assert(busy_seen && !seed_live[0] && !seed_live[1]);
+        assert(install(second, sizeof second) == MU_APPLIED); /* scrubbed: admitted */
+        run(200);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && words[0][3] == 1026 && words[1][3] == 1026);
+    } else if (mode == 45) {
+        /* A want arriving mid-scrub (Sidechain, which no scrub holds back): the scrub finishes, then a full reset from
+         * offset 0 and the bus before Sidechain on both cores. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        unsigned t = 0;
+        while (!((mw_engines_view.keybus >> 1 & 7u) == 5u || (mw_engines_view.keybus >> 4 & 7u) == 5u)) { run(1); assert(++t < 50); }
+        unsigned from[2] = {trails[0], trails[1]};
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && !sc_before_bus);
+        assert(words[0][3] == 1026 && words[1][3] == 1026 && seed_live[0] && seed_live[1]);
+        for (unsigned c = 0; c < 2; ++c) { /* after the scrub's own chunk, the reset starts again at 0 */
+            unsigned i = from[c], resets = 0, first = 1;
+            for (; i < trails[c]; ++i) if (trail[c][i].op == 11u && trail[c][i].w7 == 8u) {
+                if (first && trail[c][i].w5) assert(0); /* never resumed past the seed */
+                first = 0, ++resets;
+            }
+            assert(resets >= 43);
+        }
+    } else if (mode == 46) {
+        /* One core's reset lags (its chunks answered late): the other core waits, its bus not enabled, until both
+         * resets are complete, so no reader reads that core's half of the window before it is fresh. */
+        stall_reset[1] = 40;
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        unsigned waited = 0;
+        for (unsigned t = 0; t < 300 && (dsp_mask[0] & dsp_mask[1] & 8u) != 8u; ++t) {
+            run(1);
+            if (words[1][3] < 1026) assert(!(dsp_mask[0] & 8u)), waited += words[0][3] == 1026;
+            if (words[0][3] < 1026) assert(!(dsp_mask[1] & 8u));
+        }
+        assert(waited && dsp_mask[0] == 8 && dsp_mask[1] == 8 && seed_live[0] && seed_live[1]);
     } else assert(0);
     return 0;
 }
@@ -1318,7 +1384,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 44
+    MODES = 47
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
