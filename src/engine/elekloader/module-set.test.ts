@@ -13,7 +13,7 @@ const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
   it('publishes each listed module with its checked runtime identity, ABI and record counts', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'bbd', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'quantize-live-rec-toggle', 'recorder-loop-fix', 'analog-bassdrum'])
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'previewvol', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'bbd', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'quantize-live-rec-toggle', 'recorder-loop-fix', 'analog-bassdrum', 'usb-audio-out-tracks-main-cue'])
     for (const entry of manifest.packages) {
       const data = file(entry.path), view = new DataView(data.buffer), abi = view.getUint16(4)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)
@@ -177,7 +177,9 @@ describe('ABI 9 packages: base features and DSP claims', () => {
   })
   it('offers a reader only to a base known to have the key bus, with the guided update saying why', async () => {
     const { catalogue, data } = reader(), fetched = vi.fn(async () => data)
-    expect(KEY_BUS_BASES).toEqual([baseBinding.identity])
+    const variants = Object.values((baseBinding as { variants?: Record<string, string> }).variants ?? {})
+    expect(new Set(KEY_BUS_BASES)).toEqual(new Set([baseBinding.identity, ...variants])) // every USB Audio layout of it
+    for (const base of variants) expect(catalogue.review(target, empty, keybus, base).problem).toBeUndefined()
     // The published base is built with the resident engines on demand, the only bases with the key bus.
     expect(readFileSync(new URL('../../../scripts/octatrack-base.mjs', import.meta.url), 'utf8')).toMatch(/The beta base:\n.*--resident-on-demand/)
     for (const base of [undefined, 'b'.repeat(64)]) {
