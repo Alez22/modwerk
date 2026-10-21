@@ -42,7 +42,7 @@ export function developHref(machine: string) { return '#submit?machine=' + machi
 // How simple building a module is, said as the steps rather than as a promise about the reader. It holds for a machine
 // with a core; unlocking a machine (understanding, rebuilding and booting its firmware, then a core) is reverse engineering
 // and needs programming experience.
-export const DEVELOP_PITCH = 'Describe your idea, paste the starter prompt into Claude or ChatGPT, and build the module together with the coding assistant, step by step.'
+export const DEVELOP_PITCH = 'Describe your idea, paste the starter prompt into your AI assistant, and build the module together with the coding assistant, step by step.'
 export const UNLOCK_NOTE = 'Unlocking a machine is reverse engineering and needs programming experience. Once it has a core, its modules start from the same starter prompt as every other.'
 
 export function machineOverview(octatrack: readonly FirmwareModule[], digi: readonly DigiMod[] = DIGI_MODS): Overview {

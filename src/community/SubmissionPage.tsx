@@ -39,7 +39,7 @@ export function SubmissionPage({ moduleId = '', machine: initialMachine }: { mod
     {!module && !locked && <DevelopIntro />}
 
     <section className="configuration-section developer-start" aria-labelledby="agent-start-title">
-      <div className="developer-section-heading"><h2 id="agent-start-title">Your starter prompt</h2><span className="subtle">{module ? 'Open your agent in your Modwerk fork' : 'Paste it into Claude or ChatGPT, or straight into your coding agent'}</span></div>
+      <div className="developer-section-heading"><h2 id="agent-start-title">Your starter prompt</h2><span className="subtle">{module ? 'Open your agent in your Modwerk fork' : 'Paste it into your AI assistant or straight into your coding agent'}</span></div>
       <div className="developer-task-choice" role="group" aria-label="Development task">
         <button type="button" aria-pressed={task === 'create'} onClick={() => setTask('create')}><strong>New module or port</strong><span>First release</span></button>
         <button type="button" aria-pressed={task === 'update'} onClick={() => setTask('update')}><strong>Fix or update</strong><span>Existing module</span></button>
@@ -72,7 +72,7 @@ function DevelopIntro() {
     <div><h2>How it works <span className="subtle">You decide, the assistant does the coding</span></h2>
       <ol className="develop-steps">
         <li><span className="develop-step-number">01</span><h3>Describe your idea</h3><p>Choose your machine and say what the mod should do, in plain words. Below, this page turns it into your starter prompt.</p><span className="develop-step-who">You · 2 minutes</span></li>
-        <li><span className="develop-step-number">02</span><h3>Paste it into Claude or ChatGPT</h3><p>It asks which computer you use, then sets up GitHub, your copy of Modwerk and the coding assistant with you, one step at a time. No terminal experience assumed.</p><span className="develop-step-who">The chat guides you</span></li>
+        <li><span className="develop-step-number">02</span><h3>Paste it into your AI assistant</h3><p>It asks which computer you use, then sets up GitHub, your copy of Modwerk and the coding assistant with you, one step at a time. No terminal experience assumed.</p><span className="develop-step-who">The chat guides you</span></li>
         <li><span className="develop-step-number">03</span><h3>Build and test together</h3><p>The assistant writes the module, runs the checks and helps you test it. Then it opens the pull request, and your first release is reviewed before it goes live.</p><span className="develop-step-who">The assistant codes, you test</span></li>
       </ol>
     </div>
