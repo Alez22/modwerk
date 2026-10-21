@@ -76,6 +76,10 @@ or proof of compatibility. The directory's own Modwerk sharing card is separate;
 see [social-preview artwork](SOCIAL-PREVIEW.md#other-projects-directory).
 Omit `--refresh` to resume missing previews after a transient download failure.
 
+### Phone sheet keyboard behavior
+
+Phone filter, machine and navigation sheets use `useSheetFocus` alongside the scroll lock. They focus their current choice, keep Tab inside, make the covered app inert and restore the trigger after removing inert on dismissal. Preserve these behaviors when changing portal placement, and keep native-dialog handoffs from having their focus stolen. DOM tests cover focus and filter behavior; rendered layout, actual touch and assistive-technology behavior still need review on the candidate preview.
+
 ### Module navigation
 
 On desktop (above 1100px), module detail pages offer left and right chevrons and Left/Right arrow keys to move through the catalog results that were visible when a module was opened. The result order includes the selected machine, category, search, type and sort; All machines continues across machine groups in their displayed order. Paging stops at each end. “Back to results” restores the same filters. The last result selection stays in this tab's session storage so refreshing a module page keeps the context; unavailable storage still permits paging during the visit. Direct pages outside that result selection keep their usual library link.

@@ -17,6 +17,8 @@
 
 - Documentation: clarified that screenshots are allowed without opening, navigating or controlling a browser. Recorded screenshot capture as a requested developer-MCP capability that is not implemented; unavailable capture remains an explicit visual-evidence gap.
 
+- Phone filter, machine and navigation sheets now keep keyboard focus inside, make the covered page inert and return focus after dismissal. Navigation also closes when the viewport changes. Add, Compare and sheet-close touch targets are at least 44px tall in phone layouts.
+
 - The firmware build sign-in prompt now waits five seconds before enabling Skip for now, with the remaining seconds shown on the button. Reopening the prompt restarts the wait; Sign in, Create account and Cancel stay available immediately. Guests can still build for the rest of the visit after skipping.
 
 - The Octatrack build status now explains when the flashing-risk acknowledgement is the remaining step before building or downloading. Existing file-specific recovery confirmation and download checks remain required.
