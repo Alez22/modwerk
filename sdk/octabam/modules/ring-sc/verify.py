@@ -20,7 +20,8 @@ Gates:
      bit for bit; a silent key does too in DUCK. So does any setting while the
      key bus is not live on the module's core (no seed mark, a wrong one, or a
      counter out of range): a card image has no bus.
-  3. DUCK and RING match model() within TOL over their knobs, with the
+  3. DUCK and RING match model() within TOL over their knobs (in RING ATK,
+     HOLD and REL are SLEW, S&H and BIAS), with the
      first-block ramps included; DUCK's ATK at 32
      takes about 205 samples; a steady 55 Hz key holds the duck steady (no
      buzz at twice its frequency) and a decaying one lets it recover without
@@ -39,6 +40,14 @@ Gates:
      switch with the key's state cleared, depth back from the next call), and
      no output step exceeds a quarter of the input's level, where an unfaded
      switch can step by twice it.
+ 10. RING's three key stages on a steady input under a full-scale 55 Hz key:
+     a. S&H 8 holds each key for exactly 128 samples;
+     b. SLEW 60 drives the gain with the key's level: it never goes below 0
+        and swings less than half the input, where SLEW 0 rings down to -1;
+     c. BIAS 127 keeps the gain above -1% with a mean near h = 127/256 (AM:
+        the dry signal stays), where BIAS 0 reaches -1.
+     (RING with all three at 0 is 0.1's ring modulator bit for bit: compared
+     against 0.1 in TESTING.md, not here.)
 """
 import math
 import os
@@ -191,9 +200,10 @@ def model(key, audio, kn, delay=0, sched=None):
     one = FULL / Q
     lim = lambda v: max(-1.0, min(one, v))
     key = [0] * (32 * delay) + key
-    d = warm = cnt = 0
+    d = warm = cnt = shc = 0
+    h = 0
     cfg = (0, 0)
-    lp = e = cur = last = 0.0
+    lp = e = cur = last = held = env = 0.0
     out = []
     for blk in range(len(audio) // 32):
         kn = (sched or {}).get(blk, kn)
@@ -208,7 +218,8 @@ def model(key, audio, kn, delay=0, sched=None):
             warm -= 1
             quiet = True
             if warm == 0:
-                lp = e = cur = last = 0.0
+                lp = e = cur = last = held = env = 0.0
+                shc = 0
         w = dpth << 16
         d, dstep = _ramp(d, 0 if quiet else ((w << 24) >> 7) + (w << 24))
         m, ks = cfg
@@ -218,6 +229,9 @@ def model(key, audio, kn, delay=0, sched=None):
             continue
         c = _p(klpf) / Q
         decay, slow = (FULL - _q(rel)) / Q if rel else 0.0, (FULL - _q(atk)) / Q if atk else 0.0
+        if m:
+            per = 16 * hold                                # S&H: a new key every 16v samples
+            h, hstep = _ramp(h, (rel << 15) << 24)         # BIAS: h = v/256, ramped as the depth is
         for f in range(16):
             i = blk * 32 + f * 2
             km = (key[i] + key[i + 1]) / 2 / Q
@@ -237,9 +251,19 @@ def model(key, audio, kn, delay=0, sched=None):
                     x = seg[f * 2 + ch] / Q
                     out.append(lim(x - x * (e * (d / Q))) * Q)
             else:
+                shc -= 1                                   # S&H: period 0 takes every key
+                if shc <= 0:
+                    shc, held = per, kg
+                k = held
+                ak = min(abs(k), one)                      # SLEW's level, kept at 0 too
+                env = math.floor((ak - ak * slow + env * slow) * Q) / Q
+                if slow:
+                    k = env
+                k = lim(k - k * (h / Q) + h / Q)
+                h += hstep
                 for ch in (0, 1):
                     x = seg[f * 2 + ch] / Q
-                    out.append(lim(x - x * (d / Q) + x * ((d / Q) * kg)) * Q)
+                    out.append(lim(x - x * (d / Q) + x * ((d / Q) * k)) * Q)
                 d += dstep
     return out
 
@@ -285,7 +309,7 @@ def main():
         worst, at = 0.0, None
         cases = [knobs(mode=m, atk=a, rel=r, klpf=l, dpth=d, hold=h)
                  for m in (0, 1) for a in (0, 50, 127) for r in (0, 45, 100, 127)
-                 for l in (127, 90, 30, 0) for d in (127, 70) for h in ((34, 0, 127) if m == 0 else (34,))]
+                 for l in (127, 90, 30, 0) for d in (127, 70) for h in (34, 0, 127)]
         for kn in cases:
             got, _ = rig.run(kick, bass, kn)
             e = err(got, model(kick, bass, kn))
@@ -391,8 +415,8 @@ def main():
 
         worst_db, at = -999.0, None
         for name, mode, slot in (("DPTH", 0, 1), ("KLPF", 0, 2), ("ATK", 0, 3), ("HOLD", 0, 4), ("REL", 0, 5),
-                                 ("DPTH", 1, 1), ("KLPF", 1, 2)):
-            base = knobs(mode=mode, rel=0)
+                                 ("DPTH", 1, 1), ("KLPF", 1, 2), ("SLEW", 1, 3), ("BIAS", 1, 5)):
+            base = knobs(mode=mode, rel=0, hold=34 if mode == 0 else 0)
             base[slot] = 20
             sched = ",".join(f"{110 + 2 * k}:1:{slot}={20 + k}" for k in range(1, 91))
             moved, _ = rig.run(steady, tone_in, base, extra=("-sched", sched))
@@ -402,6 +426,32 @@ def main():
                 worst_db, at = db, f"{name} in {'RING' if mode else 'DUCK'}"
         gate("9 no knob steps at the block rate", worst_db <= -70.0,
              f"(loudest {worst_db:.0f} dBFS at {at})" if at else "(none above the steady render)")
+
+        # RING's key stages, on a steady input under a full-scale key (0.25 * 4).
+        nr = 9600
+        level = Q // 4
+        flat_r = stereo([level] * nr)
+        key_r = stereo(sine(55, 0.25, nr))
+        tail = lambda y: [v / level for v in y[2 * 3000::2]]
+        got, _ = rig.run(key_r, flat_r, knobs(mode=1, atk=0, hold=8, rel=0))
+        left = got[2 * 3000::2]
+        runs, run = [], 1
+        for i in range(1, len(left)):
+            if left[i] == left[i - 1]:
+                run += 1
+            else:
+                runs.append(run)
+                run = 1
+        inner = set(runs[1:])
+        gate("10a S&H 8: each key held for 128 samples", inner == {128}, f"(run lengths {sorted(inner)[:4]})")
+        plain = tail(rig.run(key_r, flat_r, knobs(mode=1, atk=0, hold=0, rel=0))[0])
+        slewed = tail(rig.run(key_r, flat_r, knobs(mode=1, atk=60, hold=0, rel=0))[0])
+        gate("10b SLEW 60: the gain follows the key's level", min(slewed) >= 0 and max(slewed) - min(slewed) < 0.5
+             and min(plain) < -0.9, f"(gain {min(slewed):.3f}..{max(slewed):.3f}; SLEW 0 reaches {min(plain):.3f})")
+        biased = tail(rig.run(key_r, flat_r, knobs(mode=1, atk=0, hold=0, rel=127))[0])
+        mean = sum(biased) / len(biased)
+        gate("10c BIAS 127: the dry signal stays (AM)", min(biased) >= -0.01 and abs(mean - 127 / 256) < 0.02,
+             f"(gain {min(biased):.3f}..{max(biased):.3f}, mean {mean:.3f})")
     finally:
         shutil.rmtree(work, ignore_errors=True)
     if failures:

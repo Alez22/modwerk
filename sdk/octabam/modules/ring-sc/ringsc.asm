@@ -5,7 +5,11 @@
 ; KEY), read from the Modwerk base's key bus.
 ;
 ;   DUCK   out = in * (1 - DPTH * e),  e = follow(peak(|key|))  (ring mod sidechain)
-;   RING   out = in * (1 - DPTH) + in * DPTH * key            (ring modulator)
+;   RING   out = in * (1 - DPTH) + in * DPTH * m(key)         (ring modulator)
+;
+; In RING the carrier m(key) passes S&H, SLEW and BIAS (on ATK, HOLD and REL),
+; each a plain copy at 0, so RING with the three at 0 is 0.1.0's ring
+; modulator sample for sample; DUCK is 0.1.0's unchanged (rq50 below).
 ;
 ; with key = sat(lowpass(mono(KEY track)) * 4): four times, so a kick at AMP
 ; VOL 64 reaches full, and a louder one holds the duck at full a little longer.
@@ -49,8 +53,11 @@
 ;   x:(r6+$2)  KLPF  key low-pass coefficient p(v): 14 Hz at 0, an octave
 ;                    every 14 steps, open at 127
 ;   x:(r6+$3)  ATK   DUCK: the follower's attack coefficient q(v), 0 = instant
+;                    RING (SLEW): the key's level smoothed by 1 - q(v); 0 = the key
 ;   x:(r6+$4)  HOLD  DUCK: the peak window, 32 + 16v samples
+;                    RING (S&H): a new key every 16v samples; 0 = every sample
 ;   x:(r6+$5)  REL   DUCK: per-sample decay 1 - q(v); 0 = none
+;                    RING (BIAS): m + h * (1 - m), h = v/256, ramped
 ;   x:(r6+$c)  MODE  bits 16-23: 0 DUCK, else RING
 ; q(v) is 1 at 0 and falls from 1/32 at 1 to about 2^-16 at 127 (rq83).
 ;
@@ -61,12 +68,14 @@
 ;
 ; r7 block:
 ;   $00  key low-pass state           $06  low-pass coefficient
-;   $01  follower e                   $07  follower decay
+;   $01  follower e / RING: the level $07  follower decay
 ;   $02  depth, ramped per sample     $08  KEY track 0..7
-;   $03  its step                     $09  follower slowness, 1 - q(ATK)
-;   $0c  MODE<<16 | KEY<<8 in use     $0d  (unused)
-;   $0e  this window's peak           $0f  the last window's peak
-;   $10  samples left in this window  $12  the window's length
+;   $03  its step                     $09  slowness, 1 - q(ATK) (both modes)
+;   $0c  MODE<<16 | KEY<<8 in use     $0d  RING: BIAS's h, ramped
+;   $0e  this window's peak / RING: the held key
+;   $0f  the last window's peak       $10  samples left in this window
+;   $11  RING: samples to the next key $12  the window's length / S&H's period
+;   $13  RING: h's step
 ;
 ; Every multiply is `y1,y0`, `x0,x0`, `x1,y0`, `x1,x0` or `x0,y1` (signed
 ; encodings); no mpysu. Short immediates (`add #<n`), parallel moves and
@@ -303,31 +312,30 @@ rq56:
         do      n7,>rq60
         bsr     rq86
         move    a,y1                    ; key, limited to +/-1
-        move    x:(r7+$12),b
-        tst     b
-        beq     rq52                    ; S&H 0: every sample
+; Straight-line (cycle_count.py): S&H at period 0 reloads every sample, and
+; SLEW's level is kept every sample, picked only above 0.
         move    x:(r7+$11),a
         sub     #<1,a                   ; LE: take a new key here
-        tle     b,a
+        move    x:(r7+$12),x0
+        tle     x0,a                    ; and wait the period again (0: every sample)
         move    a,x:(r7+$11)
         move    x:(r7+$e),a
         tle     y1,a
-        move    a,x:(r7+$e)
-        move    a,y1                    ; the held key
-rq52:
-        move    x:(r7+$9),b
-        tst     b
-        beq     rq54                    ; SLEW 0: the key itself
-        move    b,y0
-        move    y1,a
+        move    a,x:(r7+$e)             ; a = the held key
+        move    a,b                     ; kept for SLEW 0
         abs     a
-        move    a,y1                    ; |key|, limited to 1
-        move    x:(r7+$1),x1            ; the level so far
-        mac     -y1,y0,a
-        mac     x1,y0,a                 ; |key| + slow * (level - |key|)
+        move    a,x1                    ; |key|, limited to 1
+        move    x1,a
+        move    x:(r7+$9),x0            ; slow
+        mac     -x1,x0,a
+        move    x:(r7+$1),y1            ; the level so far
+        mac     x0,y1,a                 ; |key| + slow * (level - |key|)
         move    a,x:(r7+$1)
         move    a,y1
-rq54:
+        move    x0,a
+        tst     a
+        tne     y1,b                    ; SLEW above 0: the level, else the key
+        move    b,y1
         move    x:(r7+$d),y0
         move    y1,a
         mac     -y1,y0,a

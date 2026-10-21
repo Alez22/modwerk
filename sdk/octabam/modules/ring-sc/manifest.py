@@ -1,7 +1,15 @@
 """RINGMOD SC -- an insert whose gain follows another track's waveform.
 
     DUCK   out = in * (1 - DPTH * follow(peak(|key|)))     ring mod sidechain
-    RING   out = in * (1 - DPTH) + in * DPTH * key           ring modulator, another track as carrier
+    RING   out = in * (1 - DPTH) + in * DPTH * m(key)        ring modulator, another track as carrier
+
+In RING the three DUCK-only knobs shape the carrier m(key), each a plain copy
+at 0, so RING with all three at 0 is the plain ring modulator:
+    S&H   (HOLD) a new key every 16v samples, held between: stepped modulation
+    SLEW  (ATK)  above 0 the key's level, |key| smoothed (0.7 ms at 1 to 1.3 s at
+                 127), drives the gain instead: a tremolo that follows the key
+    BIAS  (REL)  m + h * (1 - m), h = v/256: the dry signal stays with the
+                 sidebands (amplitude modulation), ramped like the depth
 
 Put it on the track to be ducked (a bass) and set KEY to the track that
 carries the kick. The key is the kick track's audio, low-passed by KLPF and
@@ -32,8 +40,9 @@ being dispatched (X:$420) to tell which half of the tracks is local and where
 the other core publishes, so it takes no per-payload values.
 
 Measured so far (TESTING.md): the render gate and stress render on this source;
-the reader's DSP equals the previous own-tap build sample for sample but for
-the wait after a KEY or MODE change. The key bus reader has not run on a unit.
+DUCK, and RING with S&H, SLEW and BIAS at 0, equal 0.1.0 sample for sample.
+0.1.0's key bus reader passed its first MKII steps (21 Oct 2026); 0.2.0 has
+not run on a unit.
 """
 
 from remix.schema import (Category, Proof, BusRole, DspSection, Formatter, Gate,
@@ -51,7 +60,7 @@ MODULE = Module(
     doc="Ring mod sidechain: duck or ring-modulate a track with another track's waveform.",
     category=Category.TRACK, author="npp1993", author_url="https://github.com/npp1993",
     proof=Proof.RENDER,
-    proof_note="verify.py and tools/stress.py under dsp_host (TESTING.md). The key bus reader has not run on a unit.",
+    proof_note="verify.py and tools/stress.py under dsp_host (TESTING.md). 0.2.0 has not run on a unit.",
 
     menu=MenuEntry(
         fx2_id=0x06,                  # free on main (0x0e is BBD Delay's)
@@ -72,11 +81,11 @@ MODULE = Module(
               doc="low-pass on the key: 14 Hz at 0, an octave every 14 steps (100 Hz near 40), open at 127"),
         # ---- page 1, bottom row -------------------------------------------
         Param(b"ATK", 0, 128, active=True, formatter=Formatter.PLAIN,
-              doc="DUCK: how slowly the gain falls; 0 = at once, then 0.7 ms at 1 to 1.3 s at 127"),
+              doc="DUCK: how slowly the gain falls; 0 = at once, then 0.7 ms at 1 to 1.3 s at 127. RING (SLEW): 0 = the key itself; above 0 the key's level, smoothed over the same times, drives the gain (tremolo)"),
         Param(b"HOLD", 34, 128, active=True, formatter=Formatter.PLAIN,
-              doc="DUCK: how long the duck holds after a peak, one to two windows of 32 + 16v samples: 13 ms at 34, 0.7 ms at 0, 47 ms at 127"),
+              doc="DUCK: how long the duck holds after a peak, one to two windows of 32 + 16v samples: 13 ms at 34, 0.7 ms at 0, 47 ms at 127. RING (S&H): a new key every 16v samples (0 = every sample, 0.36 ms at 1, 46 ms at 127)"),
         Param(b"REL", 45, 128, active=True, formatter=Formatter.PLAIN,
-              doc="DUCK: how slowly the gain recovers, on ATK's scale: 45 = about 9 ms after the key's peak drops"),
+              doc="DUCK: how slowly the gain recovers, on ATK's scale: 45 = about 9 ms after the key's peak drops. RING (BIAS): adds v/256 of dry to the carrier; 0 = ring modulation, 127 = amplitude modulation"),
         # ---- page 2 ----------------------------------------------------------
         Param(b"MODE", 0, 2, active=True, formatter=Formatter.STEPPED,
               labels=("DUCK", "RING"),
@@ -84,10 +93,13 @@ MODULE = Module(
         Param(), Param(), Param(), Param(), Param(),
     ),
 
-    # RING has no use for ATK, REL and HOLD: they are drawn as "-" there (an
-    # empty name is not a rename).
+    # RING renames ATK, HOLD and REL. The defaults are where the remixer and the
+    # project tools put the three knobs on a MODE change (0: RING as the plain
+    # ring modulator). A Modwerk unit applies no mode defaults (upstream MODE
+    # DEFAULTS is not imported), so there the knobs keep their values.
     mode_slot=6,
-    mode_views=(ModeView(mode=1, names={3: b"-", 4: b"-", 5: b"-"}),),
+    mode_views=(ModeView(mode=0, defaults={3: 0, 4: 34, 5: 45}),
+                ModeView(mode=1, names={3: b"SLEW", 4: b"S&H", 5: b"BIAS"}, defaults={3: 0, 4: 0, 5: 0})),
 
     dsp=DspSection(
         asm="modules/ring-sc/ringsc.asm",
