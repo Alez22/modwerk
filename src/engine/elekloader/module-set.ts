@@ -5,6 +5,7 @@
 import manifest from '../assets/octatrack-module-packages.json' with { type: 'json' }
 import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
 import baseBinding from '../../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
+import dspSites from '../../../sdk/machines/octatrack/dsp-sites.json' with { type: 'json' }
 import { sha } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { MODULES } from '../../catalog/modules.ts'
 import { inventoryChanges, type Inventory, type InventoryTarget } from '../../config/inventory.ts'
@@ -16,6 +17,8 @@ export class ModuleSetError extends Error {}
 export interface RuntimePackage {
   bytes: number; sha256: string; path: string; name?: string
   abi?: number; features?: number; sites?: number; copies?: number; fills?: number
+  /** ABI 9: the base DSP features the package's DSP code needs (BASE_DSP_FEATURES) and its count of DSP claims. */
+  requires?: number; claims?: number
   /** Exact IDENTIFY digest when authored code depends on this base's addresses. */
   requiredBase?: string
 }
@@ -69,32 +72,49 @@ const RAISE = 255
 const TAKE_RECORD = 8
 const invalidPackage = () => new ModuleSetError('The site’s module package list is inconsistent. Reload the page before syncing.')
 const bounded = (n: unknown, max: number) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= max
+/** Header bytes by ABI (sdk/runtime/loader/README.md): ABI 9 adds requires u16, the claim count u8 and the hook-entry count u8. */
+const HEADERS: Record<number, number> = { 6: 68, 7: 72, 8: 76, 9: 80 }
+/** The base DSP features an ABI 9 package may require: what an Octatrack base whose loader reports ABI 9 provides
+ * (resident_engines.c's modwerk_machine_dsp_features: the key bus, sdk/machines/octatrack/dsp-sites.json). The loader
+ * refuses a package needing a feature its base lacks (RUNTIME_CONFLICT); the site never offers one it doesn't know. */
+export const BASE_DSP_FEATURES: number = dspSites.features.find(feature => feature.name === 'keybus')?.bit ?? 0
+/** loader.h RUNTIME_DSP_CLAIMS: the X/Y spans one package may claim outside its own slot. */
+const DSP_CLAIMS = 16
 function requirements(entry: RuntimePackage, group = false) {
   const abi = entry.abi ?? ('octabam' in entry && entry.octabam ? 7 : 6), sites = entry.sites ?? 0, copies = entry.copies ?? 0, fills = entry.fills ?? 0
-  if (![6, 7, 8].includes(abi) || !bounded(sites, 128) || !bounded(copies, 128) || !bounded(fills, 64) ||
+  const requires = entry.requires ?? 0, claims = entry.claims ?? 0
+  if (![6, 7, 8, 9].includes(abi) || !bounded(sites, 128) || !bounded(copies, 128) || !bounded(fills, 64) ||
       !bounded(entry.features ?? 0, 65535) || (abi < 8 && fills) || (abi < 7 && copies) ||
+      !bounded(requires, 65535) || !bounded(claims, DSP_CLAIMS) || (abi < 9 && (requires || claims)) || (requires & ~BASE_DSP_FEATURES) ||
       (group && abi !== 8) || (entry.requiredBase !== undefined && (typeof entry.requiredBase !== 'string' || !/^[0-9a-f]{64}$/.test(entry.requiredBase))) ||
-      (abi >= 7 && [entry.features, entry.sites, entry.copies, ...(abi === 8 ? [entry.fills] : [])].some(value => value === undefined)))
+      (abi >= 7 && [entry.features, entry.sites, entry.copies, ...(abi >= 8 ? [entry.fills] : []), ...(abi === 9 ? [entry.requires, entry.claims] : [])].some(value => value === undefined)))
     throw invalidPackage()
   // Required features follow the actual record types even if a manifest accidentally omits a bit.
   const features = (entry.features ?? 0) | (sites ? RuntimeFeature.sites : 0) | (copies ? RuntimeFeature.stockCopies : 0) |
     (fills ? RuntimeFeature.fills : 0) | (group ? RuntimeFeature.machineGroups : 0)
-  return { abi, sites, copies, fills, features }
+  return { abi, sites, copies, fills, features, requires, claims }
 }
+/** Two ABI 9 claims meet as the loader says (loader.c claims_meet): the same core and space, or both in the window both
+ * cores see (at or past 0x30000, whatever the space), with a word in common. */
+type DspClaim = { space: number; core: number; address: number; words: number }
+const claimsMeet = (a: DspClaim, b: DspClaim) => (a.address >= 0x30000 && b.address >= 0x30000 || a.core === b.core && a.space === b.space) &&
+  a.address < b.address + b.words && b.address < a.address + a.words
 /** The manifest and fetched header must agree before anything is staged, including retained Undo packages. */
 function checkPackage(entry: RuntimePackage, data: Uint8Array, id: string, variant?: MachineVariant) {
   const fail = () => { throw invalidPackage() }, want = requirements(entry, !!variant)
   if (data.length !== entry.bytes || sha(data) !== entry.sha256 || data.length < 68) fail()
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength), abi = view.getUint16(4)
-  const header = abi === 8 ? 76 : abi === 7 ? 72 : 68
+  const header = HEADERS[abi] ?? fail()
   if (view.getUint32(0) !== 0x4d57524d || abi !== want.abi || data.length < header ||
       view.getUint32(28) !== Number.parseInt(runtimeId(id), 16) || view.getUint32(24) !== want.sites ||
-      (abi >= 7 ? view.getUint32(68) : 0) !== want.copies || (abi === 8 ? view.getUint32(72) : 0) !== want.fills) fail()
+      (abi >= 7 ? view.getUint32(68) : 0) !== want.copies || (abi >= 8 ? view.getUint32(72) : 0) !== want.fills) fail()
+  // ABI 9: requires and the claim count as the manifest says; no hook entries, which every base refuses (no hook slots yet).
+  if (abi === 9 && (view.getUint16(76) !== want.requires || data[78] !== want.claims || data[79] !== 0)) fail()
   const flags = view.getUint16(6), image = view.getUint32(8), bss = view.getUint32(12), relocations = view.getUint32(16), hooks = view.getUint32(20)
   // Hooks 0-3 are the core handlers; an ABI 8 package that subscribes to the base's site events (feature 128) adds one
   // word per event of sdk/machines/octatrack/events.json after them: its order in the top byte, its handler below.
-  const subscriber = abi === 8 && (want.features & RuntimeFeature.siteEvents) !== 0
-  if (flags & ~(abi === 8 ? 7 : 3) || image + bss > 131072 || relocations > 2048 || hooks > (subscriber ? 4 + SITE_EVENTS : 4) ||
+  const subscriber = abi >= 8 && (want.features & RuntimeFeature.siteEvents) !== 0
+  if (flags & ~(abi >= 8 ? 7 : 3) || image + bss > 131072 || relocations > 2048 || hooks > (subscriber ? 4 + SITE_EVENTS : 4) ||
       view.getUint32(32) > 4096 || view.getUint16(36) > 256 || header + 4 * hooks + image + 4 * relocations > data.length) fail()
   if (variant) {
     const mask = variant.members.reduce((value, member) => value | MACHINE_BITS[member.id], 0), start = header + 4 * hooks
@@ -143,7 +163,7 @@ function checkPackage(entry: RuntimePackage, data: Uint8Array, id: string, varia
   }
   function reconstructed(offset: number, bytes: number) {
     if (!bytes || offset + bytes > image) fail()
-    if (abi === 8) {
+    if (abi >= 8) {
       if (data.subarray(imageStart + offset, imageStart + offset + bytes).some(byte => byte !== 0) ||
           overlaps(offset, bytes, changedSpans) || overlaps(offset, bytes, imageRelocations.map(at => [at, 4]))) fail()
       changedSpans.push([offset, bytes])
@@ -159,7 +179,17 @@ function checkPackage(entry: RuntimePackage, data: Uint8Array, id: string, varia
     if (end + 12 > data.length || !data[end + 8] || data.subarray(end + 9, end + 12).some(byte => byte !== 0)) fail()
     reconstructed(view.getUint32(end), view.getUint32(end + 4)); end += 12
   }
-  const dspWords = view.getUint32(32), dspRelocations = view.getUint16(36)
+  // ABI 9 claims, 12 bytes each, checked as the loader checks them: space (1 X, 2 Y), core (0, 1), access (1 read,
+  // 2 write, 3 both), a zero byte, address and words; one core's memory or the window, never both; none meeting another.
+  const dspWords = view.getUint32(32), dspRelocations = view.getUint16(36), claims: DspClaim[] = []
+  for (let i = 0; i < want.claims; i++) {
+    if (end + 12 > data.length) fail()
+    const claim = { space: data[end], core: data[end + 1], address: view.getUint32(end + 4), words: view.getUint32(end + 8) }, access = data[end + 2]
+    if (!dspWords || (claim.space !== 1 && claim.space !== 2) || claim.core > 1 || !access || access > 3 || data[end + 3] || !claim.words ||
+        claim.address >= 0x40000 || claim.words > 0x40000 - claim.address || (claim.address < 0x30000 && claim.address + claim.words > 0x30000) ||
+        claims.some(other => claimsMeet(other, claim))) fail()
+    claims.push(claim); end += 12
+  }
   if (end + 4 * dspWords + 2 * dspRelocations !== data.length || (!dspWords && dspRelocations) ||
       (dspWords && (view.getUint16(40) >= dspWords || view.getUint16(42) >= dspWords || !data[39] || data[39] > 3))) fail()
   for (let i = 0; i < dspWords; i++) if (view.getUint32(end + 4 * i) > 0xffffff) fail()
@@ -239,6 +269,7 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
     for (const step of steps) for (const entry of [step.add, step.undo]) {
       if (!entry) continue
       // A published package bound to the published base (sdk/machines/octatrack/base-binding.json) needs that base: an older one is an update.
+      // An ABI 9 package (base features, DSP claims) needs a loader that reports ABI 9: an older base is an update too.
       if (entry.requiredBase && entry.requiredBase !== base) throw entry.requiredBase === baseBinding.identity ? new BaseUpdateRequired() :
         new ModuleSetError('This module package needs the exact Modwerk base it was prepared for. Reconnect that base before syncing.')
       const { abi, features, sites, copies } = requirements(entry, step.group)

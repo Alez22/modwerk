@@ -290,6 +290,9 @@ after), a reader on the other core reads the window two generations behind its o
   price a reader is refused (`RUNTIME_CYCLES`) while Sidechain is still admitted and charged nothing, as on main; the bus
   waits while a slot buffer covers its window. The loader's ABI 9 parsing, claims and refusals (`host_test.c`,
   `test_runtime_loader.py`).
+- The site (`module-set.ts`, `module-set.test.ts`): an ABI 9 reader is chosen and synced only to a base reporting ABI
+  9, its header, claims and the absence of hook entries checked as the loader checks them, and `requires` limited to
+  the key bus. Publishing one (`module_packages.py`, a base input) is left to the first reader's change.
 - The beta base, regenerated with main's flags (main's `6650236a` first rebuilt byte-identical, `.bin` `18cdd7b4`):
   `d0acb53f…` (`.bin` `de2653e2`). Its DSP arena with nothing placed is 4,304 words on core 0 and 4,432 on core 1, 112
   fewer on each than `6650236a` (the receiver's feature 8 and the key bus's base word); Sidechain's engines still take

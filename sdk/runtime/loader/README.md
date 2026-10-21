@@ -190,6 +190,9 @@ entry, a DSP word u32. Then the DSP words and relocations, as before. Claims and
 `abi9.py` writes an ABI 9 package from a DSP package `build.py` made (ABI 6, 7 or 8), copying everything else byte
 for byte (`--requires keybus`, `--claim y:0:w:0x7a0:16`). It is kept apart from `build.py`, whose hash is an input of
 the reviewed machine and standalone recipes. The capability record's maximum ABI is 9 on a base built from this loader.
+The site's module-set builder (`src/engine/elekloader/module-set.ts`) checks an ABI 9 package as the loader does
+(header, claims, no hook entries) and offers it only to a base whose capability record reports ABI 9; the only
+`requires` bit it accepts is the key bus.
 
 ## Several modules at once
 
