@@ -79,7 +79,8 @@ for (const rule of importedComposition.groups) {
 if (!isDeepStrictEqual(importedComposition, composition)) throw new Error('Machine composition recipe differs from authored source')
 
 for (const pkg of requested.objects) {
-  if (!Array.isArray(pkg.stockCopies) || pkg.stockCopies.length !== (['usbmidi_cfg', 'vector', 'polyui'].includes(pkg.label) ? 4 : 0)) throw new Error('Invalid inherited stock placeholder inventory')
+  // VECTOR's fifth is MIDI NOTE SETUP's drawer prologue (its MIDI generator registry on a card)
+  if (!Array.isArray(pkg.stockCopies) || pkg.stockCopies.length !== ({ usbmidi_cfg: 4, vector: 5, polyui: 4 }[pkg.label] ?? 0)) throw new Error('Invalid inherited stock placeholder inventory')
   if (!hash(pkg.sha256) || !/^[a-f0-9]+$/.test(pkg.code) || pkg.code.length !== pkg.bytes * 2 || sha(Buffer.from(pkg.code, 'hex')) !== pkg.sha256) throw new Error('Invalid requested authored object')
   for (const variant of pkg.variants) {
     const conditions = [...variant.whenModules, ...variant.withoutModules]

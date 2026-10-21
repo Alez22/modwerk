@@ -490,7 +490,7 @@
     }
   ],
   "access": {
-    "location": "MIDI tracks: MIDI NOTE SETUP's generator list (double-tap the track key or SRC), then the ARP page and FUNC+AMP. Audio track machine chooser: VECTOR, then the native-sized Static/Flex backing-pool modal. SRC main holds live phrase controls; SRC SETUP holds secondary controls. Double-tap TRACK reopens pool choice; push LEVEL toggles ordinary sample editing.",
+    "location": "MIDI tracks: MIDI NOTE SETUP's generator list, then the ARP page and FUNC+AMP. Audio tracks: machine chooser VECTOR, then the Static/Flex pool modal; SRC holds phrase controls, SRC SETUP the rest. Double-tap TRACK reopens pool choice; push LEVEL for sample editing.",
     "steps": [
       "Select an audio track. Open SRC page 2 (double-tap SRC), choose VECTOR and press YES. In the backing-pool modal, highlight STATIC or FLEX with UP/DOWN or LEVEL, then press RIGHT to enter that pool. YES also opens the highlighted pool; YES on a loaded sample slot assigns that pool and sample to VECTOR. Use the corresponding stock sample-slot and file-loading tools to load a tuned sample; NO returns from the sample browser.",
       "Double-tap the assigned TRACK to reopen the pool modal. LEFT returns to the machine list; RIGHT on VECTOR opens the modal. RIGHT in the pool modal opens the highlighted Static/Flex sample list. In a sample-slot list, LEFT returns to pool choice and RIGHT opens the stock file browser. Horizontal arrows navigate menus without changing the assigned pool; YES on a sample slot commits the pool and sample.",
