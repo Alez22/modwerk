@@ -22,7 +22,7 @@ export function OverviewPage({ overview }: { overview: Overview }) {
     <header className="overview-heading">
       <div>
         <h1>Choose your machine</h1>
-        <p><b>{overview.modules}</b> modules by <b>{overview.creators}</b> creators</p>
+        <p><span><b>{overview.modules}</b> modules by <b>{overview.creators}</b> creators</span><span className="overview-key" aria-label="Modules by category">{overview.categories.map(item => <span key={item.category}><i className={'is-' + item.category} aria-hidden="true" /><b>{item.count}</b> {item.label}</span>)}</span></p>
       </div>
       <div className="overview-chips" role="group" aria-label="Show machines">{FILTERS.map(item => <button key={item.id} type="button" className={'overview-chip is-' + item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.id !== 'all' && <i aria-hidden="true" />}{item.label}<small>{count(item.id)}</small></button>)}</div>
     </header>
@@ -61,7 +61,7 @@ function MachineTile({ machine }: { machine: OverviewMachine }) {
         <h2 className="overview-tile-name"><a href={machine.href}>{device.name}</a>{variants && <small>{variants}</small>}</h2>
         <span className="overview-state">{stateLabel(machine)}</span>
       </div>
-      <span className="overview-ladder" aria-hidden="true">{DEVICE_STEPS.map(step => <i key={step.id} className={'is-' + device.steps[step.id]} />)}</span>
+      <span className="overview-ladder" aria-hidden="true">{DEVICE_STEPS.map(step => <i key={step.id} className={'is-' + device.steps[step.id]} title={step.title + (device.steps[step.id] === 'done' ? ': done' : device.steps[step.id] === 'started' ? ': started' : '')} />)}</span>
     </div>
   </article>
   return <a className={'overview-tile is-' + machine.kind + ' is-' + device.status} href={machine.href}>
@@ -71,7 +71,7 @@ function MachineTile({ machine }: { machine: OverviewMachine }) {
         <h2 className="overview-tile-name">{device.name}{variants && <small>{variants}</small>}</h2>
         <span className="overview-state">{stateLabel(machine)}</span>
       </div>
-      <span className="overview-mix" aria-hidden="true">{machine.categories.map(item => <span key={item.category} className={'is-' + item.category} style={{ flexGrow: item.count }} />)}</span>
+      <span className="overview-mix" aria-hidden="true">{machine.categories.map(item => <span key={item.category} className={'is-' + item.category} style={{ flexGrow: item.count }} title={item.label + ': ' + item.count} />)}</span>
     </div>
   </a>
 }

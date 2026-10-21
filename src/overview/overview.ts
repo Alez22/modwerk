@@ -29,6 +29,8 @@ export type Overview = {
   creators: number
   withMods: number
   withoutMods: number
+  // Modules by category across every machine, largest first: the key to the colour bars.
+  categories: { category: ModuleCategory; label: string; count: number }[]
 }
 
 type Entry = { id: string; name: string; category: ModuleCategory; creator: string; authorName: string; addedAt?: string; updatedAt?: string }
@@ -73,6 +75,7 @@ export function machineOverview(octatrack: readonly FirmwareModule[], digi: read
     creators: new Set(DEVICES.flatMap(device => entries(device).map(module => module.creator))).size,
     withMods: all.length - waiting.length,
     withoutMods: waiting.length,
+    categories: LIBRARY_CATEGORIES.map(category => ({ category, label: LIBRARY_CATEGORY_LABELS[category], count: all.reduce((sum, machine) => sum + (machine.categories.find(item => item.category === category)?.count ?? 0), 0) })).filter(item => item.count).sort((a, b) => b.count - a.count),
   }
 }
 

@@ -14,6 +14,7 @@ describe('machine overview', () => {
     expect(overview.modules).toBe(AVAILABLE_MODULES.length + DIGI_MODS.length)
     expect(overview.machines.map(machine => machine.device.id).sort()).toEqual(DEVICES.map(device => device.id).sort())
     for (const machine of overview.machines) expect(machine.categories.reduce((sum, item) => sum + item.count, 0)).toBe(machine.count)
+    expect(overview.categories.reduce((sum, item) => sum + item.count, 0)).toBe(overview.modules)
     expect(overview.machines.find(machine => machine.device.id === 'octatrack')!.count).toBe(AVAILABLE_MODULES.length)
     expect(overview.withMods + overview.withoutMods).toBe(DEVICES.length)
   })
@@ -50,6 +51,7 @@ describe('overview page', () => {
     }
     expect(html).toContain('href="#submit"')
     expect(html).toContain('Claude or ChatGPT subscription')
+    for (const item of overview.categories) expect(html).toContain('<b>' + item.count + '</b> ' + item.label.replace('&', '&amp;'))
     expect(html).toContain('Image credits')
     expect(html).toContain('elektronmods.com')
   })
