@@ -86,12 +86,12 @@
       "sites": 0,
       "copies": 0,
       "fills": 0,
-      "version": "0.1.0-experimental",
+      "version": "0.1.1-experimental",
       "name": "LOFI2",
       "module": "d7bf66ce",
       "bytes": 6300,
-      "sha256": "4f794ebcb6ebe69f4c66412463f7cef41952551b2b2484cebf2cbfe004e5662c",
-      "path": "octatrack-modules/lofi2/0.1.0-experimental.mwrm"
+      "sha256": "a2ab27325404c06197ccf2737b64b480121c6799b439798440b8c73e7884c92c",
+      "path": "octatrack-modules/lofi2/0.1.1-experimental.mwrm"
     },
     {
       "id": "previewvol",
