@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- USB POST development checks: add an exact-build ColdFire emulator probe for delayed gains, open/closed stream ramps, sixteen-channel producer packing, full-speed sum saturation and caller EMAC restoration. Randomized snapshots and a skipped-restoration negative control supplement the directed cases. These synthetic results do not qualify physical POST audio or timing.
+
 - Development checks: readiness diagnostics retain Git's leading status column, so the first changed file's name is printed in full instead of losing its first character.
 
 - Development checks: the USB Audio native verifier now handles the worker's Vite base-package URL import and development flag under Node 24, and explicitly matches classic startup between its native and worker builds. Previously it stopped on the .elemod extension, then compared classic firmware with the worker's newer docking default.

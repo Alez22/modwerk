@@ -45,6 +45,16 @@ Flood and stop it: notes, CC and clock at the wire rate, stopped mid-note, a Par
 
 Match startup settings in native/worker image comparisons. The worker defaults to docking startup; the USB layout verifier explicitly requests classic startup to match its native composition. Different startup hooks are a real image difference, not a USB layout regression.
 
+For a private source-built POST base, run the executed ColdFire arithmetic probe:
+
+```sh
+python3 -B scripts/verify-octatrack-usb-post.py \
+  --build /private/post-base-build --emulator /path/to/ot_emu \
+  --output /private/new-post-probe
+```
+
+It binds IDENTIFY to the build receipt, supplies synthetic snapshots with fake audio frames disabled, and compares eight tracks' four-block history, per-sample gain ramps and closed-stream state against an independent integer model. The actual producer's sixteen-channel ring packing and full-speed saturated sum are checked with distinct stereo signals, silence and both clipping directions. EMAC checks cover the gain helper and actual caller in twelve modes each, including open/closed paths, with a skipped-restoration negative control. The probe replaces only the dormant stock ISR epilogue with an authored C return in emulator RAM; it records that patch and the image, symbols and emulator hashes. This is ColdFire execution evidence; it does not establish DSP pairing, physical mute/solo/scene behaviour, audio quality or chip timing. The authored memory-reader wrapper supports older emulator binaries without a `peek` command; do not infer a firmware failure from an unsupported bench command.
+
 ## Digitakt and Digitone
 
 SysEx ids are resources: claim them (`sysex:0x7d` in `platform.claims`), because two mods may never claim the same one ([Digitakt guide](../../sdk/machines/digitakt/README.md)). The core delivers key and encoder events to your handler (`ev_key`, `ev_enc`); return nonzero only when you take the event. A MIDI generator or MIDI effect follows the same rules as on the Octatrack (note-offs, pass-through, the most events one input can produce) and records in TESTING.md the shared memory, fast SRAM and time per event it measured under a flood of notes, CC and clock.

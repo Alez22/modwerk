@@ -290,5 +290,29 @@
     "transportSkips": 1,
     "sourceTests": "13 descriptor/assembly/verifier checks;11 stock-fill/resident checks;5 targetedTypeScript checks; typecheck passed",
     "environment": "FullcheckinNode24LinuxCIenvironment. ActualColdFirebasebuilds run separately on equippedhost. Knownmain#734nativelegacyPlayModesrecipe mismatch remains independent."
+  },
+  "postSyntheticColdFire": {
+    "kind": "usb-post-synthetic-coldfire-probe",
+    "base": "4cd4887d8b00ebd25f3fbc32f5aeb2f1ca4841668b0be7ccddf44703d998ebf8",
+    "imageSha256": "dd2cd17ec092b8bcda01b9166d351637eaab4b5f5b27717845fb6146428a833b",
+    "emulatorSha256": "bdbe962c14fc3560fb3196b01566646b80a74fd451883873a77290b4973dbbf1",
+    "symbolsSha256": "13b2966a23b9e1d1f14bd83598d9d543fa70b020cbe9819d6837043e1432691d",
+    "hardware": false,
+    "frames": 96,
+    "tracks": 8,
+    "producerCases": 8,
+    "emacContexts": 24,
+    "emulatorOnlyReturnPatch": {
+      "address": "0x4000d9a6",
+      "bytes": 2,
+      "purpose": "C return in dormant ISR epilogue; producer unchanged"
+    },
+    "limitation": "Synthetic ColdFire execution without audio frames: not DSP-main pairing, project mute/solo/scene behaviour, physical EMAC preservation, audio quality or chip timing.",
+    "script": "scripts/verify-octatrack-usb-post.py",
+    "scriptSha256": "b0acd1c7bf8a7e552a25d5ba28b0783326816448f614dde4712ed2783e20ee67",
+    "checks": 341,
+    "passed": true,
+    "skippedRestorationNegativeControl": true,
+    "snapshotSeed": "0x20261021"
   }
 }
