@@ -2,6 +2,10 @@
 
 ## 21 October 2026
 
+- Octatrack emulator tools: prepare an isolated pinned build that restores the emulated caller's stack after borrowed C calls. The original left arguments on the main stack after every call. A stock-free 128-call regression fails on the original and passes with the fix; the five existing emulator gates also pass. Shared checkouts and firmware inputs stay unchanged.
+
+- USB profile preparation: record shared-ring producer parity and continuous POST gain tracking across all six layouts and off. The private prototype passes 875 synthetic checks; it still has no descriptor switch, settings transaction, install/removal or persistence implementation, and is not a base package or hardware result.
+
 - Report workflow: document that GitHub repository ownership does not grant module-maintainer command access, and that a denied command needs the existing administrator triage flow or an ordinary reply for reproduction questions. A successful webhook HTTP response alone does not prove triage or a reporter notification.
 
 - USB POST development checks: add an exact-build ColdFire emulator probe for delayed gains, open/closed stream ramps, sixteen-channel producer packing, full-speed sum saturation and caller EMAC restoration. Randomized snapshots and a skipped-restoration negative control supplement the directed cases. These synthetic results do not qualify physical POST audio or timing.

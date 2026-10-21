@@ -2193,6 +2193,15 @@ unit:
   physical trial/Undo/capture. Neither qualifies settings, removal or persistence.
   [Earlier results](../sdk/machines/octatrack/evidence/usb-base-layouts-20261021.md)
   retain their original image identities.
+- A private shared-ring producer experiment now links the six authored audio
+  producers in one helper and matches 24 separate-native cases. With POST's
+  gain history advanced for other layouts and off too, 84 mixed blocks match
+  a continuously running POST reference. The missing-tracker control fails
+  at the first off block. Its 123,168-byte reservation is a synthetic linker
+  result, not qualified base placement. The helper contains a private stock
+  curve and has no descriptor switch, transaction, catalogue admission or
+  persistence. [Exact experiment scope](../sdk/machines/octatrack/evidence/usb-profile-producer-prototype-20261021.json)
+  keeps those results separate from hardware and stock-free base packages.
 - The emulator models EP0–EP3, transfers up to 8 KiB and no packet timing.
   Its source here cannot build as is: the CPU cores under `sdk/octabam/vendor/`
   and `remixes/` are absent, and the 27 USB checks used a private adapter.
@@ -2271,6 +2280,28 @@ not proof of the installed image. The runtime transport must provide that
 identity before automation can associate a trial with the exact candidate or
 accept it. Keep captures and raw reports private; none of these tools is
 connected to automatic log uploads or automatic trial acceptance here.
+
+### Borrowed-call probes
+
+The pinned emulator's `callAsMain` leaves C arguments on the guest stack after
+a successful return. Repeated bench calls therefore drift main's stack; this
+is a harness defect, not evidence of a firmware fault. Build the reviewed
+[adapter](../scripts/prepare-octatrack-emulator.py) into a new private directory:
+
+```sh
+lockf -k /tmp/modwerk-check.lock python3 -B scripts/prepare-octatrack-emulator.py \
+  --source /path/to/verified/octabam --output /private/new-emulator --build
+```
+
+It checks the exact upstream pin and source hash, copies committed tooling
+sources outside Git, and restores the caller's stack only after a confirmed
+return. Failed calls remain intact for diagnosis. Its stock-free 128-call
+regression fails on the original and passes with the fix, alongside the five
+existing EMAC, peripheral and ColdFire gates. The receipt binds the patch,
+regression and built executable. The shared checkout, its cached binaries and
+`sdk/octabam/` stay unchanged; its two hardware-tool repairs still apply as
+above. These gates do not qualify a project, DSP pairing or hardware. Keep
+Unix socket paths short when adding nested private probe directories.
 
 ## Modwerk's own interface for safe agent access
 
