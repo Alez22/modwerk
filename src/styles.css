@@ -743,6 +743,8 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .app-shell { display: flex; flex-direction: column; min-height: 0; }
   .sidebar { padding: 0; border-right: 0; border-bottom: 1px solid var(--line); flex-shrink: 0; }
   .app-brand, .sidebar-section-label, .sidebar-spacer, .sidebar-bottom, .configuration-nav { display: none; }
+  /* The sticky phone header keeps to the library: the machine chip, the toolbar's configuration button and the dock cover the machine card. */
+  .sidebar .instrument-item, .sidebar .instrument-action { display: none; }
   .workspace-content { padding: 25px 18px; }
   h1 { font-size: 29px; }
   .page-heading { margin-bottom: 26px; gap: 10px; }
