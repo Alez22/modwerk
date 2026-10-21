@@ -1010,6 +1010,14 @@ h1 { font-size: 28px; }
 .community-privacy { color: var(--faint); font-size: 11px; line-height: 1.75; margin: 18px 0; }
 @media(max-width:480px) { .submission-page > .page-heading { flex-wrap: wrap; } .submission-page > .page-heading h1 { font-size: 25px; } .submission-page > .page-heading .pill { margin-top: 3px; } }
 .discovery-tools { display: flex; gap: 14px; align-items: center; margin: -3px 0 20px; flex-wrap: wrap; }
+.library-active-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+.library-active-filters > span { margin-right: 4px; }
+.library-active-filters button { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 36px; padding: 6px 10px; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface-raised); color: var(--text-secondary); font-size: inherit; text-align: left; }
+.library-active-filters button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-active-filters button > svg { flex-shrink: 0; }
+.library-active-filters button:hover { background: var(--surface-hover); color: var(--text); }
+.library-active-filters .filter-clear-all { border-color: transparent; background: transparent; color: var(--accent); }
+@media (max-width: 600px), (pointer: coarse) { .library-active-filters button { min-height: 44px; } }
 .discovery-tools label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .discovery-tools select { box-sizing: border-box; height: 40px; font-size: 12px; padding: 0 42px 0 12px; border: 1px solid var(--control-border); border-radius: 6px; color: var(--text-secondary); background-color: var(--surface-raised); }
 .discovery-tools button { margin-left: auto; min-height: 32px; padding: 5px 10px; font-size: 12px; }
