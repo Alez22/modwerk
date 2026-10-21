@@ -62,7 +62,13 @@ detent). The RING page names SLEW, S&H and BIAS; the DUCK page is unchanged; MOD
 DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot, wrote the word into its own name). A card image has no key bus, so these show
 the pages, not the effect.
 
-**Native comparison and checks:** see the end of this section once run.
+**Native comparison.** `npm run module:verify -- ring-sc` on the tester's 1.40C, on main `91e72c81` (Apply Scene in
+the pool): 142 selections, 56 native module-owned images match (24 identical outright, 32 outside the platform writes),
+86 refusals agree, 0 mismatches. Run with a local, uncommitted qualification stub (the catalogue offers a module only
+with its qualification record, which waits for the MKII run); with it `module:doctor ring-sc` reports every
+integration point green, and `npm run check` passes but for the landing steps (the beta base regenerated for RINGMOD
+SC's chooser row, the Analog BD companion proofs re-exported, `choosers.test.ts`'s compact FX2 list) and three Python
+tests that fail the same way on main in this checkout.
 
 **Not tested (0.2.0):** all hardware behaviour, the three new knobs by ear, `fx:audit`, MKI.
 
