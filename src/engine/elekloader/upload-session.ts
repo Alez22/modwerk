@@ -37,6 +37,9 @@ export class UploadUnconfirmedError extends Error {
   }
 }
 
+/** The longest wait for one acknowledgement or publication; a base writing itself to NOR (OctatrackLink.updateBase,
+ * scripts/device.mjs flash) needs the full 180 s. */
+export const UPLOAD_TIMEOUT_MAX_MS = 180000
 /** Serial, session-bound transactions. Publication and retirement are separate
  * explicit actions; staging never starts playback or accepts a trial. */
 export class UploadSession {
@@ -50,7 +53,7 @@ export class UploadSession {
 
   private constructor(transport: UploadTransport, base: string, timeout: number) {
     digestBytes(base)
-    if (!Number.isInteger(timeout) || timeout < 1 || timeout > 60000) throw new Error('Upload timeout must be between 1 and 60000 ms.')
+    if (!Number.isInteger(timeout) || timeout < 1 || timeout > UPLOAD_TIMEOUT_MAX_MS) throw new Error(`Upload timeout must be between 1 and ${UPLOAD_TIMEOUT_MAX_MS} ms.`)
     this.transport = transport; this.base = base; this.timeout = timeout
   }
   static async connect(transport: UploadTransport, expectedBase: string, options: { timeoutMs?: number } = {}) {

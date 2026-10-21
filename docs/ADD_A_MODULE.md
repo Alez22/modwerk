@@ -169,6 +169,19 @@ reboot where applicable. Give hardware steps and record actual results;
 emulator/host tests do not fill missing hardware qualification. Preserve the
 previous approved download while preparing candidates.
 
+A new module version rebuilds its USB package in the same pull request:
+`npm run octatrack:module-packages` with the m68k-elf toolchain and the
+Elekloader checkout (`npm run upstream:tools`), then `-- --check` until every
+package says identical. CI has no toolchain, but `--check` still fails there
+when a package in `src/engine/assets/octatrack-module-packages.json` is at an
+older version than the catalogue. A deliberate lag names the catalogue version
+in `lagsBehind` and the reason with its issue in `lagReason`; remove both when
+the package is rebuilt. The standalone and table recipes in
+`sdk/machines/octatrack/module-adapters/` pin whole shared files (the engine
+asset JSON, the remix tools, `module_packages.py`, the Elekloader checkout),
+so another module's release can make them stale. Refresh a pin only after the
+full check proves the package unchanged; a changed package is a new release.
+
 A newly developed module selectable in beta module sets must have a working
 USB path, not a card-only fallback; existing card-only modules need a reviewed
 migration before USB rollout. An unavoidable compatibility limit needs its
