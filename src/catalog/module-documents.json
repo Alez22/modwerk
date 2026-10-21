@@ -7279,8 +7279,9 @@
       },
       "author": {
         "github": "npp1993",
+        "name": "Nathaniel Pavel",
         "credits": [
-          "npp1993"
+          "Nathaniel Pavel"
         ]
       },
       "nativeManifest": "manifest.py",
@@ -7498,7 +7499,7 @@
       "license": {
         "spdx": "MIT",
         "file": "LICENSE",
-        "declaration": "Original code by npp1993 under the MIT licence. Stock code is referenced by address and SHA-256 only; no Elektron firmware, routines or tables are included."
+        "declaration": "Original code by Nathaniel Pavel (@npp1993) under the MIT licence. Stock code is referenced by address and SHA-256 only; no Elektron firmware, routines or tables are included."
       },
       "media": [
         {
@@ -7506,7 +7507,7 @@
           "captureType": "emulator",
           "caption": "PROJECT > CONTROL > AUDIO: move right into the OUT CFG box, select MATRIX and press YES. NORMAL and STUDIO behave as stock.",
           "alt": "Actual Octatrack LCD: CONTROL AUDIO page with a TRACK 8 box and a OUT CFG box listing NORMAL, STUDIO and MATRIX, MATRIX checked.",
-          "credit": "npp1993",
+          "credit": "Nathaniel Pavel",
           "license": "LicenseRef-OT-UI-Documentation",
           "source": "original",
           "otUi": {
@@ -7523,7 +7524,7 @@
           "captureType": "emulator",
           "caption": "In MATRIX the LEV box is labelled with where the track plays, with or without CUE held. MN means MAIN, the starting point after switching from NORMAL.",
           "alt": "Actual Octatrack LCD: a track's SRC page with the LEV box labelled MN above its level bar.",
-          "credit": "npp1993",
+          "credit": "Nathaniel Pavel",
           "license": "LicenseRef-OT-UI-Documentation",
           "source": "original",
           "otUi": {
@@ -7540,7 +7541,7 @@
           "captureType": "emulator",
           "caption": "Keep CUE held and turn LEVEL to step through MN, CUE, PHN, M+C, M+P, C+P, ALL, the six mono jacks and OFF. PHN puts the track in the headphones only.",
           "alt": "Actual Octatrack LCD: the same SRC page with the LEV box labelled PHN.",
-          "credit": "npp1993",
+          "credit": "Nathaniel Pavel",
           "license": "LicenseRef-OT-UI-Documentation",
           "source": "original",
           "otUi": {
@@ -7557,7 +7558,7 @@
           "captureType": "emulator",
           "caption": "In MATRIX the MIXER's MIX knob is labelled PHN: it sets the headphone output's level, centre 0 dB. MAIN and CUE work as stock.",
           "alt": "Actual Octatrack LCD: the MIXER with the first box labelled PHN over a slider marked - and +, beside MAIN and CUE at +0.",
-          "credit": "npp1993",
+          "credit": "Nathaniel Pavel",
           "license": "LicenseRef-OT-UI-Documentation",
           "source": "original",
           "otUi": {
