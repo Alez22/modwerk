@@ -72,14 +72,17 @@ SPRING REV 314.19. `perf.py stress --both`: sixteen instances (eight a core, FX1
 random slots a step (MODE and RING's knobs included), six trig splits, `-guard -guard-shared -dirty 0x5a`: host exit 0,
 0 stray regions, 0 clobbers, per-core peak 638.1 / 636.8.
 
-**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,304 bytes, sha256 `8fd097af…`,
-built with main's `module_packages.py` on main `4d4f731d`. Earlier builds of this version: `72a1af2d…` (2,316 bytes,
-before MODE kept its name; first installed on the MKII) and `64dc83b9…` (2,300 bytes, with BIAS; the 21 Oct MKII session)): ABI 9, requires the key bus, the same four read claims, state 20, cycles 81
+**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,416 bytes, sha256 `2ba32a49…`,
+built with main's `module_packages.py` on main `4d4f731d` from the source-built assets of `29fb0952` (the isolated
+toolchain build). Earlier builds of this version: `72a1af2d…` (2,316 bytes, before MODE kept its name; first installed
+on the MKII), `64dc83b9…` (2,300 bytes, with BIAS; the 21 Oct MKII session) and `8fd097af…` (2,304 bytes, RECT before
+the review fixes)): ABI 9, requires the key bus, the same four read claims, state 22, cycles 81
 executed; no run shared with the stock OS under either scan (0; fails at 12). Not base-bound: it installs on main's
 base and its development twins.
 
 **Screens.** `scripts/capture-module-ui.py` with `ot_emu` `23ba6f6c…` on a private card image of this version (remix
-`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `e2fbb143…`), the plan in `media/capture.json` (KEY turned one
+`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `491f0ff0…`, the review-fix source; every screen is
+pixel-identical to the capture on the build before, `e2fbb143…`), the plan in `media/capture.json` (KEY turned one
 detent). The RING page names SLEW, S&H and RECT; the DUCK page is unchanged; MODE on SETUP keeps its name and shows
 DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot, wrote the word into its own name). A card image has no key bus, so these show
 the pages, not the effect.

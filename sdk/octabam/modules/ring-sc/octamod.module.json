@@ -166,7 +166,7 @@
     "report": "TESTING.md",
     "summary": "The assembled module matches a reference model within 1.8e-07 of full scale in both modes (the key's low-pass, RECT and SLEW's level in exact integers), passes the input bit for bit when the key bus is not live, and equals 0.1.0 sample for sample in DUCK and in RING with S&H, RECT and SLEW at 0. SLEW crosses 0 without a click and S&H turned down cuts its hold short (both fail on the build before). This exact source has not run on a unit; the 0.2.0 build before RECT passed DUCK, MODE, plain RING, S&H and SLEW by ear on an MKII (21 October 2026).",
     "hardwareStatus": "untested",
-    "evidenceRevision": "c2f2ec3f235944ee4cf265cea14f1f77b17a51e8",
+    "evidenceRevision": "29fb095267304c2300b729b30d788a1f6a6558d1",
     "gates": [
       "verify.py: bit-exact passthrough (KEY OFF, DPTH 0, no key bus), DUCK and RING against the model over 576 settings, ATK, a steady and a decaying key, both key paths, trig splits, the mode fade, the memory guard, knob steps, and RING's carrier: S&H's hold, SLEW's level, RECT's rectification, SLEW across 0 once and every eight blocks without a click, S&H 127 to 0 taking a new key at once",
       "compare02 (dsp_host) against 0.1.0: DUCK and RING with S&H, RECT and SLEW at 0 identical over 864 + 36 settings, the key paths, splits, mode switches and sweeps (TESTING.md)",
@@ -195,7 +195,7 @@
         "shows": "location",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
+        "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -212,7 +212,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
+        "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -229,7 +229,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
+        "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -246,7 +246,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
+        "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -263,7 +263,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
+        "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     }
