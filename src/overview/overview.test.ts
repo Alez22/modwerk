@@ -50,7 +50,7 @@ describe('overview page', () => {
       expect(html).toContain(machine.device.name)
     }
     expect(html).toContain('href="#submit"')
-    expect(html).toContain('paste the starter prompt into Claude or ChatGPT')
+    expect(html).toContain('paste the starter prompt into your AI assistant')
     for (const item of overview.categories) expect(html).toContain('<b>' + item.count + '</b> ' + item.label.replace('&', '&amp;'))
     expect(html).toContain('Image credits')
     expect(html).toContain('elektronmods.com')

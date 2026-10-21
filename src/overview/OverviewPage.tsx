@@ -42,7 +42,7 @@ function DevelopTile({ machines }: { machines: string[] }) {
   return <a className="overview-tile is-develop" href="#submit">
     <span className="overview-art">
       <span className="overview-waiting"><strong>Build your own mod</strong><small>{machines.join(' · ')}</small></span>
-      <span className="overview-pitch">Describe your idea, paste the starter prompt into Claude or ChatGPT, build it together.</span>
+      <span className="overview-pitch">Describe your idea, paste the starter prompt into your AI assistant, build it together.</span>
     </span>
     <div className="overview-tile-body">
       <div className="overview-tile-line"><h2 className="overview-tile-name">Start developing</h2><Icon name="plus" size={16} /></div>
