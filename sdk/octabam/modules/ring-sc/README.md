@@ -75,7 +75,7 @@ Original code, tests and documentation by Nathaniel Pavel (@npp1993), MIT ([LICE
 
 ## Screens and audio
 
-Unedited MKII framebuffer captures from the headless emulator, taken on a private card image that carried the earlier own-tap build of 0.1.0 (KEY then read "T1" without the padding spaces; RING drew its three bottom knobs as dashes, which 0.2.0 names SLEW, S&H and BIAS). [Capture provenance](media/capture.json) has the panel plan and the image and emulator hashes; [media rights](media/LICENSE.md) reserves the underlying Elektron rights. They show the pages, not audio; no audio is included.
+Unedited MKII framebuffer captures from the headless emulator, taken on a private card image of this version (a card image has no key bus, so they show the pages, not the effect). [Capture provenance](media/capture.json) has the panel plan and the image and emulator hashes; [media rights](media/LICENSE.md) reserves the underlying Elektron rights. They show the pages, not audio; no audio is included.
 
 ![FX1 SETUP with RINGMOD SC chosen and MODE on DUCK](media/ot-setup-chooser.png)
 
@@ -83,6 +83,8 @@ Unedited MKII framebuffer captures from the headless emulator, taken on a privat
 
 ![KEY turned to T1](media/ot-main-key-t1.png)
 
-![The main page in RING as 0.1.0 drew it: ATK, HOLD and REL as dashes, which 0.2.0 names SLEW, S&H and BIAS](media/ot-main-ring.png)
+![SETUP with MODE turned to RING: the knob keeps its name, the value shows below](media/ot-setup-ring.png)
+
+![The main page in RING: KEY, DPTH, KLPF over SLEW, S&H, BIAS](media/ot-main-ring.png)
 
 The thumbnail above is an illustration, not OT UI evidence.

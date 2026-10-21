@@ -2,8 +2,7 @@
 
 ## 0.2.0-experimental: RING's SLEW, S&H and BIAS (21 October 2026)
 
-Source: branch `claude/ringmod-sc-0.2` on main `8e1e52be` (the key bus integrated, #750 and #737), module source
-`cb416ca8…`. Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Nothing in this section ran
+Source: branch `claude/ringmod-sc-0.2` on main `91e72c81` (the key bus integrated, #750 and #737). Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Nothing in this section ran
 on hardware.** What changed from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
 on the knobs DUCK uses for ATK, HOLD and REL, renamed in RING by MODE (a NameSelect, so MODE keeps its own name: SLEW, S&H, BIAS):
 - S&H (HOLD): a new key every 16v samples, held between; at 0 the same reload takes every key.
@@ -51,14 +50,16 @@ SPRING REV 314.19. `perf.py stress --both`: sixteen instances (eight a core, FX1
 random slots a step (MODE and RING's knobs included), six trig splits, `-guard -guard-shared -dirty 0x5a`: host exit 0,
 0 stray regions, 0 clobbers, per-core peak 634.0 / 636.8.
 
-**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,316 bytes, sha256 `72a1af2d…`,
-built with main's `module_packages.py`): ABI 9, requires the key bus, the same four read claims, state 20, cycles 81
+**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,300 bytes, sha256 `64dc83b9…`,
+built with main's `module_packages.py` on main `91e72c81`; `72a1af2d…`, 2,316 bytes, was the build before MODE kept its
+name, and is the one first installed on the MKII): ABI 9, requires the key bus, the same four read claims, state 20, cycles 81
 executed; no run shared with the stock OS under either scan (0; fails at 12). Not base-bound: it installs on main's
 base `430b0053…` and its development twin.
 
 **Screens.** `scripts/capture-module-ui.py` with `ot_emu` `23ba6f6c…` on a private card image of this version (remix
-`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `67d5c495…`), the plan in `media/capture.json` (KEY turned one
-detent). The RING page names SLEW, S&H and BIAS; the DUCK page is unchanged. A card image has no key bus, so these show
+`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `97ed7655…`), the plan in `media/capture.json` (KEY turned one
+detent). The RING page names SLEW, S&H and BIAS; the DUCK page is unchanged; MODE on SETUP keeps its name and shows
+DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot, wrote the word into its own name). A card image has no key bus, so these show
 the pages, not the effect.
 
 **Native comparison and checks:** see the end of this section once run.

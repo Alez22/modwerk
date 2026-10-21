@@ -267,7 +267,7 @@
         "shows": "location",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "67d5c4955eeed09ea4d28e98084b3c831566222cdfcbb1a1a0279764af5f2e79",
+        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -284,7 +284,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "67d5c4955eeed09ea4d28e98084b3c831566222cdfcbb1a1a0279764af5f2e79",
+        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -301,7 +301,24 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "67d5c4955eeed09ea4d28e98084b3c831566222cdfcbb1a1a0279764af5f2e79",
+        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
+        "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
+      }
+    },
+    {
+      "path": "media/ot-setup-ring.png",
+      "captureType": "emulator",
+      "caption": "MODE on the SETUP page reads like a stock select: its name stays MODE and the value, DUCK or RING, shows below it. Here it has been turned to RING.",
+      "alt": "FX1 SETUP with RINGMOD SC chosen and the MODE knob reading RING below its name.",
+      "credit": "Nathaniel Pavel",
+      "license": "LicenseRef-OT-UI-Documentation",
+      "source": "original",
+      "otUi": {
+        "page": "FX1 SETUP",
+        "shows": "controls",
+        "firmware": "1.40C",
+        "moduleVersion": "0.2.0-experimental",
+        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -318,7 +335,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "67d5c4955eeed09ea4d28e98084b3c831566222cdfcbb1a1a0279764af5f2e79",
+        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     }
@@ -336,6 +353,7 @@
       "media/ot-setup-chooser.png",
       "media/ot-main-duck.png",
       "media/ot-main-key-t1.png",
+      "media/ot-setup-ring.png",
       "media/ot-main-ring.png"
     ]
   }
