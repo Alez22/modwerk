@@ -260,7 +260,9 @@
       "module": "be4ff75a",
       "bytes": 14846,
       "sha256": "abf1cda888e617408b4d088bb9afd536f9ea96c1bdb90339e56a3932d300bced",
-      "path": "octatrack-modules/playmodes/0.1.1-experimental.mwrm"
+      "path": "octatrack-modules/playmodes/0.1.1-experimental.mwrm",
+      "lagsBehind": "0.2.0-experimental",
+      "lagReason": "0.2.0 needs a new reviewed standalone recipe and hardware results or an owner decision (#764)"
     },
     {
       "id": "mute-modes",
