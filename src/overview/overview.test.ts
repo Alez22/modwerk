@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { AVAILABLE_MODULES } from '../catalog/availability'
 import { DEVICES, DEVICE_STEPS } from '../devices/registry'
 import { DIGI_MODS } from '../devices/digi-mods'
-import { developHighlight, DEVELOP_HIGHLIGHT_UNTIL, machineOverview, overviewLayout } from './overview'
+import { developHighlight, DEVELOP_HIGHLIGHT_UNTIL, machineOverview } from './overview'
 import { OverviewPage } from './OverviewPage'
 
 const overview = machineOverview(AVAILABLE_MODULES)
@@ -34,19 +34,6 @@ describe('machine overview', () => {
     }
   })
 
-  it('reports how far the machines without mods have come, step by step', () => {
-    expect(overview.reached.map(step => step.title)).toEqual(DEVICE_STEPS.map(step => step.title))
-    const waiting = DEVICES.filter(device => !overview.machines.find(machine => machine.device.id === device.id)!.count)
-    for (const [index, step] of DEVICE_STEPS.entries()) expect(overview.reached[index].count).toBe(waiting.filter(device => device.steps[step.id] === 'done').length)
-  })
-
-  it('switches layout only through the preview parameter', () => {
-    expect(overviewLayout('')).toBe('grid')
-    expect(overviewLayout('?landing=b')).toBe('spotlight')
-    expect(overviewLayout('?landing=c')).toBe('bento')
-    expect(overviewLayout('?landing=x')).toBe('grid')
-  })
-
   it('ends the Start developing highlight after its date', () => {
     expect(developHighlight(new Date(DEVELOP_HIGHLIGHT_UNTIL + 'T12:00:00Z'))).toBe(true)
     expect(developHighlight(new Date(new Date(DEVELOP_HIGHLIGHT_UNTIL + 'T12:00:00Z').getTime() + 864e5))).toBe(false)
@@ -54,8 +41,9 @@ describe('machine overview', () => {
 })
 
 describe('overview page', () => {
-  it.each(['grid', 'spotlight', 'bento'] as const)('links every machine and invites development in the %s layout', layout => {
-    const html = renderToStaticMarkup(createElement(OverviewPage, { overview, layout }))
+  const html = renderToStaticMarkup(createElement(OverviewPage, { overview }))
+
+  it('links every machine and invites development', () => {
     for (const machine of overview.machines) {
       expect(html).toContain('href="' + machine.href + '"')
       expect(html).toContain(machine.device.name)
@@ -66,9 +54,11 @@ describe('overview page', () => {
     expect(html).toContain('elektronmods.com')
   })
 
-  it('gives each machine without mods its own Start developing link in the grid', () => {
-    const html = renderToStaticMarkup(createElement(OverviewPage, { overview, layout: 'grid' }))
-    for (const machine of overview.machines.filter(item => !item.count)) expect(html).toContain('href="' + machine.developHref + '"')
-    expect(html).toContain('>' + overview.modules + '</dd>')
+  it('gives each machine without mods its own Start developing link and its research progress', () => {
+    for (const machine of overview.machines.filter(item => !item.count)) {
+      expect(html).toContain('href="' + machine.developHref + '"')
+      expect(html).toContain(machine.stepsDone + ' of ' + DEVICE_STEPS.length + ' steps')
+    }
+    expect(html).toContain('<b>' + overview.modules + '</b> modules by <b>' + overview.creators + '</b> creators')
   })
 })

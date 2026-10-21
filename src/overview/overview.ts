@@ -29,8 +29,6 @@ export type Overview = {
   creators: number
   withMods: number
   withoutMods: number
-  // For machines without mods: how many have finished each research step.
-  reached: { title: string; count: number }[]
 }
 
 type Entry = { id: string; name: string; category: ModuleCategory; creator: string; authorName: string; addedAt?: string; updatedAt?: string }
@@ -75,15 +73,7 @@ export function machineOverview(octatrack: readonly FirmwareModule[], digi: read
     creators: new Set(DEVICES.flatMap(device => entries(device).map(module => module.creator))).size,
     withMods: all.length - waiting.length,
     withoutMods: waiting.length,
-    reached: DEVICE_STEPS.map(step => ({ title: step.title, count: waiting.filter(machine => machine.device.steps[step.id] === 'done').length })),
   }
-}
-
-// Preview switch while the owner compares the three layouts: ?landing=b or ?landing=c. Remove once one is chosen.
-export type OverviewLayout = 'grid' | 'spotlight' | 'bento'
-export function overviewLayout(search: string): OverviewLayout {
-  const value = new URLSearchParams(search).get('landing')
-  return value === 'b' ? 'spotlight' : value === 'c' ? 'bento' : 'grid'
 }
 
 // The Start developing highlight in the sidebar and phone menu is temporary: it turns back into a plain link after this day.
