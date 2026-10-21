@@ -26,7 +26,6 @@ import { compareModules, downloadCoverage, type ModuleStatistics } from '../comm
 import { DeviceImage, PhotoCredit } from './DeviceImage'
 import { ALL_MACHINES, DEVICES, DEVICES_BY_ID, DEVICE_STEPS, STATUS_LABELS, deviceHref, deviceTitle, stepsDone, type DeviceProfile } from './registry'
 import { DIGI_CORES, DIGI_DEVICES, DIGI_MODS, estimateCombination, type DigiMod } from './digi-mods'
-import { MemberGate } from '../community/MemberGate'
 import { useDigiFirmware } from '../hooks/useDigiFirmware'
 import { DigiFirmwarePanel } from '../components/DigiFirmwarePanel'
 import { DigiBuildPanel } from '../components/DigiBuildPanel'
@@ -214,7 +213,7 @@ export function DigiConfiguration({ device, configuration, configurations, onSel
         </div>
         <div className="configuration-checkout">
           <section className={'compatibility-panel compatibility-' + (estimate.fits && !estimate.clashes.length ? 'clear' : 'conflict')} aria-live="polite" aria-labelledby="digi-compatibility-title"><div className="compatibility-heading"><span className="compatibility-icon"><Icon name={estimate.fits && !estimate.clashes.length ? 'shield' : 'sliders'} size={20}/></span><div><h2 id="digi-compatibility-title">{!estimate.fits || estimate.clashes.length ? 'Your selection needs a change' : selection.length ? 'No declared conflicts' : 'Choose your modules'}</h2><p>{!estimate.fits || estimate.clashes.length ? 'Review the resources below and choose a compatible set.' : selection.length ? mobile ? 'Module claims were checked. Placement checks happen on a computer with your base firmware.' : 'Choose your base firmware for placement checks.' : 'Add a module from the library, or build the core alone. Compatibility updates as you make changes.'}</p></div></div></section>
-          <div className="checkout-card">{mobile ? <ConfigurationHandoff onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported === exportKey} canExport={!!configuration} /> : <MemberGate action="build firmware" next={device.id+'/configuration'}><DigiBuildPanel device={device} firmware={firmware} moduleIds={ids} onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported===exportKey} canExport={!!configuration} results={buildResults}/></MemberGate>}</div>
+          <div className="checkout-card">{mobile ? <ConfigurationHandoff onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported === exportKey} canExport={!!configuration} /> : <DigiBuildPanel device={device} firmware={firmware} moduleIds={ids} onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported===exportKey} canExport={!!configuration} results={buildResults}/>}</div>
         </div>
       </div>
     </div>
