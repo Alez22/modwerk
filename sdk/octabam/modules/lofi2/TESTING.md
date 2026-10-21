@@ -6,7 +6,7 @@ Pin history of this import: `a6f41a1d`, then `e8665fae` (pull request 704's head
 
 Recorded 12 and 13 October 2026. The import is based on `main` at `e9186eb3`, which contains the Elekloader migration (pull request 464).
 
-Everything below marked **here** was run for this import, in the emulator and `dsp_host` on a computer. The one hardware run of this build is the functional MKII report in [Hardware report](#hardware-report-13-october-2026). Everything marked **upstream** is the author's own report, quoted with attribution, and applies to his octabam images, not to this build.
+Everything below marked **here** was run for this import, in the emulator and `dsp_host` on a computer. 0.1.1 has not run on a Modwerk unit; the earlier sources' hardware runs are in [evidence/hardware.md](evidence/hardware.md) and [Hardware report](#hardware-report-13-october-2026). Everything marked **upstream** is the author's own report, quoted with attribution, and applies to his octabam images, not to this build.
 
 ## 0.1.1: re-pin to octabam 7795adf0 (here, 21 October 2026)
 
@@ -38,11 +38,11 @@ Bryan T's pull request 843 (merged 21 October 2026 as `7795adf0dff8c650968ff53ab
 
 **The hardware-timed 637.** The instruction stream, addresses and relocations are those of the package timed on the MKII; only one immediate operand differs. On the DSP56300 neither `move #>imm,y1` nor the multiply that uses it takes a value-dependent number of cycles, so 0.1.1's USB package carries the same 637. It was not timed again on a unit.
 
-**After the input stops.** At FDBK 127 with RNGE HIGH the tail now settles (the table above). The faint SHIFT residue at lower FDBK (about -83 to -94 dBFS, 0.1.0 re-pin table below) was not re-measured; with the loop gain lower it is not expected to rise. fx:audit was not rerun.
+**After the input stops: the feedback scan.** 0.1.0's scan repeated on `cd0f7d5a…` with a scratch copy of the verifier's harness (not committed): a 0.3 s, 440 Hz, 0.125 FS burst, then silence, MIX 127; the louder channel's RMS 3.5-4.0 s after the input stops. 232 renders: FDBK 96, 112, 120, 124 and 127 against FREQ 0, 32, 64, 96 and 127 in both ranges and both directions, then FDBK 127 against FREQ 0, 4, … 124 and 127 in both ranges and both directions. No setting sustains: the loudest tail is -68.4 dBFS (DOWN, RNGE HIGH, FREQ 68), two settings are above -70 (DOWN HIGH at FDBK 127, FREQ 68 and 64: -68.4 and -69.2), the next is DOWN HIGH FREQ 64 at FDBK 124 (-71.6), and the rest are lower. Worst per range and direction: DOWN HIGH -68.4, UP HIGH -84.5, DOWN LOW -85.5 (FREQ 127, where the earlier coefficients sustained), UP LOW -85.0. The faint SHIFT residue at FDBK 0 to 64 (about -83 to -94 dBFS, 0.1.0 re-pin table below) was not re-measured. fx:audit was not rerun.
 
 **Screens.** `scripts/capture-module-ui.py` with `media/capture.json`'s plan on `cd0f7d5a…` (`ot_emu` `23ba6f6c…`): the five PNGs are byte-identical to the 0.1.0 captures; `media/capture.json` and the manifest name the new image and version.
 
-**Hardware.** Not yet on a Modwerk unit: 0.1.1's USB package `a2ab2732…` is untested on hardware, a qualification gap, and `tests.qualification` still names 0.1.0's report, so `modules:generate` refuses this version until a report for this source exists ([evidence/hardware.md](evidence/hardware.md)). **Upstream** (Bryan T, pull request 843; his MKII, octabam card build `_bt_oct` 16, not this build): the issue 825 repro (DOWN, HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty, no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well (FX1 shares the core's DSP budget).
+**Hardware.** Not yet on a Modwerk unit: 0.1.1's USB package `a2ab2732…` is untested on hardware, a qualification gap, and `tests.qualification` still names 0.1.0's report, so `modules:generate` refuses this version until a report for this source exists ([evidence/hardware.md](evidence/hardware.md)). **Upstream** (Bryan T, pull request 843; his MKII, his own octabam build `_bt_oct` 16, not this build): the issue 825 repro (DOWN, HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty, no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well (the author: FX1 shares the core's DSP budget; open as [octabam issue 850](https://github.com/sambanks/octabam/issues/850)).
 
 ## Re-pin to octabam 8250be0c (here, 20 October 2026)
 
@@ -419,7 +419,9 @@ Taken from the author's README and manifest at the pinned commit (kept under `up
 
 ## Not tested
 
-- On this source (octabam `8250be0c`), on a unit: BRR and LPF individually, the self-sustaining SHIFT feedback in DOWN, at FREQ other than 64 or with its level measured (UP, FREQ 64 HIGH, FDBK 127 was reproduced on the unit; see evidence/hardware.md), Part and project reload, a power cycle, the missing-module fallback. They ran with the previous source only and carry over by argument (16 coefficient words), not by observation. What did run with this source is in [evidence/hardware.md](evidence/hardware.md) (20 October 2026), including the failed CPU self-test with six modules.
+- 0.1.1 (octabam `7795adf0`): nothing on a Modwerk unit yet; the hardware checks in [evidence/hardware.md](evidence/hardware.md) are for earlier sources.
+- Four SHIFT instances on one core with an effect on FX1 (octabam issue 850): not tried on a Modwerk unit; no guard in card builds.
+- On 0.1.0's source (octabam `8250be0c`), on a unit: BRR and LPF individually, the self-sustaining SHIFT feedback in DOWN, at FREQ other than 64 or with its level measured (UP, FREQ 64 HIGH, FDBK 127 was reproduced on the unit; see evidence/hardware.md), Part and project reload, a power cycle, the missing-module fallback. They ran with the previous source only and carry over by argument (16 coefficient words), not by observation. What did run with this source is in [evidence/hardware.md](evidence/hardware.md) (20 October 2026), including the failed CPU self-test with six modules.
 - On a unit: an MKI, eight instances at once, chip timing, LFO modulation, scenes and the crossfader, and project save and reload as a separate step (evidence/hardware.md lists what was run).
 - FX1 in a card image on hardware (FX1 ran on the unit with the USB package only).
 - `rig_render` on both cores, `verify_set` under the ColdFire port, `make check` as a whole.
@@ -434,7 +436,7 @@ Taken from the author's README and manifest at the pinned commit (kept under `up
 
 ## Repository checks (here)
 
-On the re-pinned source (octabam `8250be0c`), merged with main `25d9d739` (Quant Live Rec, USB Audio base variants), 21 October 2026:
+0.1.0's record. 0.1.1's checks are in [0.1.1](#011-re-pin-to-octabam-7795adf0-here-21-october-2026). On the re-pinned source (octabam `8250be0c`), merged with main `25d9d739` (Quant Live Rec, USB Audio base variants), 21 October 2026:
 
 - `npm run licenses:generate`: passes with the `lofi2` licence component. `npm run sdk:imports:check` passes.
 - `npm run perf:audit -- check`: no check failed (above).

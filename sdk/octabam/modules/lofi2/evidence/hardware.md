@@ -4,7 +4,7 @@
 
 0.1.1's USB package (`public/octatrack-modules/lofi2/0.1.1-experimental.mwrm`, SHA-256 `a2ab27325404c06197ccf2737b64b480121c6799b439798440b8c73e7884c92c`) has not run on a Modwerk unit. It differs from 0.1.0's package below in three bytes, the SHIFT feedback cap (0.45 to 0.40). Nothing in this file is a result for 0.1.1; the 0.1.0 reports below carry over only by that argument.
 
-The author's own report for the change (Bryan T, sambanks/octabam pull request 843; his MKII, octabam card build `_bt_oct` 16; his build, not this one): the issue 825 repro (DOWN, RNGE HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty ran with no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well, because FX1 shares the core's DSP budget.
+The author's own report for the change (Bryan T, sambanks/octabam pull request 843; his MKII, his own octabam build `_bt_oct` 16; not this build): the issue 825 repro (DOWN, RNGE HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty ran with no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well; the author attributes it to FX1 sharing the core's DSP budget. Open upstream as [octabam issue 850](https://github.com/sambanks/octabam/issues/850).
 
 ## 0.1.0-experimental (octabam `8250be0c`): the USB package on an MKII (20 October 2026)
 
@@ -46,7 +46,7 @@ The failing figure is the ColdFire CPU, not a DSP core. Main's beta notes tie 80
 
 Asked about the result afterwards, the tester said they noticed no lag or sluggishness during the session with all six modules installed. That is their impression at the panel, not a measurement.
 
-### Not run on this source
+### Not run on 0.1.0's source
 
 BRR and LPF individually, the self-sustaining feedback in DOWN, at other FREQ values or with the previous coefficients, Part and project reload, a power cycle and persistence, the missing-module fallback, FX1 on a card image, eight instances, scenes and the crossfader. Against the previous source only 16 DSP coefficient data words differ (TESTING.md, re-pin), so its results below carry over **by argument only, not by observation**.
 
