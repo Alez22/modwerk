@@ -104,7 +104,7 @@ No Elektron firmware, extracted stock code or tables are included. Stock LO-FI's
 
 ## Screens and audio
 
-Real LCD captures from the headless emulator on a private native build of the previous source (image SHA-256 `3d63406d…0678e2`), 13 October 2026. This source's image differs from it only in the sixteen DSP coefficient words, so the pages and labels are the same. They show the interface, not hardware behaviour or sound.
+Real LCD captures from the headless emulator on a private native build of 0.1.1's source (image SHA-256 `cd0f7d5a…31559`), 21 October 2026; they are byte-identical to the 13 October captures of the earlier source (`3d63406d…`). They show the interface, not hardware behaviour or sound.
 
 1. ![FX2 SETUP with LOFI2 highlighted under NONE; knobs RNGE, MODE and AMPH on the right.](media/ot-setup.png)
    Hold FUNC and press FX2, turn LEVEL to LOFI2 and press YES. SETUP shows RNGE, MODE and AMPH.

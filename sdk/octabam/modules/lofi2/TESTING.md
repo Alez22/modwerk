@@ -1,12 +1,48 @@
 # LOFI2: testing record
 
-Module version `0.1.0-experimental`. Source: octabam `modules/lofi2` at commit `8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5` on upstream `main` (re-pinned 20 October 2026; see [the re-pin](#re-pin-to-octabam-8250be0c-here-20-october-2026)). Until then it was pinned at `21f6de905df71c2d7e4faba6cc7b5c7f7fb53de7`, on upstream `main` since pull request 704 ("LOFI2: 654 -> 414 cycles/sample in SHIFT; eight instances fit", Bryan T) was merged on 13 October 2026 as `fb5daa9766f1af1f61207c6baae056347a2edcd5`. It is the merged LOFI2 (`a6f41a1dff922be622e2e8a7d93bc5a5958c90ab`, pull request 657) plus the author's optimisation and its review fixes. The Modwerk adaptations are listed in README.md.
+Module version `0.1.1-experimental`. Source: octabam `modules/lofi2` at commit `7795adf0dff8c650968ff53ab5ab47babaf00ffe` on upstream `main`, the merge of the author's pull request 843 (re-pinned 21 October 2026; see [0.1.1](#011-re-pin-to-octabam-7795adf0-here-21-october-2026)). 0.1.0-experimental was pinned at `8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5` (re-pinned 20 October 2026; see [the re-pin](#re-pin-to-octabam-8250be0c-here-20-october-2026)). Until then it was pinned at `21f6de905df71c2d7e4faba6cc7b5c7f7fb53de7`, on upstream `main` since pull request 704 ("LOFI2: 654 -> 414 cycles/sample in SHIFT; eight instances fit", Bryan T) was merged on 13 October 2026 as `fb5daa9766f1af1f61207c6baae056347a2edcd5`. It is the merged LOFI2 (`a6f41a1dff922be622e2e8a7d93bc5a5958c90ab`, pull request 657) plus the author's optimisation and its review fixes. The Modwerk adaptations are listed in README.md.
 
-Pin history of this import: `a6f41a1d`, then `e8665fae` (pull request 704's head while it was open), then `21f6de90`, then `8250be0c`. `21f6de90` differs from `e8665fae` in one instruction form in `lofi2.asm` (the Hilbert parity toggle, `eor #$20,a` became `move #>$20,x0` / `eor x0,a`), comments, the README and ten new SHIFT checks in the verifier. 36 `dsp_host` renders of the two builds (2 s each, both payloads, 16- and 13-sample blocks, eight fixed settings and a moving-knob schedule with MODE switches) are bit-identical. The build, gates, cycle count, benchmark, stress run, fit probes and screenshots below were rerun on `21f6de90`; the fx:audit, idle and master-track renders were made on `e8665fae` and rest on that bit-identity.
+Pin history of this import: `a6f41a1d`, then `e8665fae` (pull request 704's head while it was open), then `21f6de90`, then `8250be0c` (0.1.0), then `7795adf0` (0.1.1). `21f6de90` differs from `e8665fae` in one instruction form in `lofi2.asm` (the Hilbert parity toggle, `eor #$20,a` became `move #>$20,x0` / `eor x0,a`), comments, the README and ten new SHIFT checks in the verifier. 36 `dsp_host` renders of the two builds (2 s each, both payloads, 16- and 13-sample blocks, eight fixed settings and a moving-knob schedule with MODE switches) are bit-identical. The build, gates, cycle count, benchmark, stress run, fit probes and screenshots below were rerun on `21f6de90`; the fx:audit, idle and master-track renders were made on `e8665fae` and rest on that bit-identity.
 
 Recorded 12 and 13 October 2026. The import is based on `main` at `e9186eb3`, which contains the Elekloader migration (pull request 464).
 
 Everything below marked **here** was run for this import, in the emulator and `dsp_host` on a computer. The one hardware run of this build is the functional MKII report in [Hardware report](#hardware-report-13-october-2026). Everything marked **upstream** is the author's own report, quoted with attribution, and applies to his octabam images, not to this build.
+
+## 0.1.1: re-pin to octabam 7795adf0 (here, 21 October 2026)
+
+Bryan T's pull request 843 (merged 21 October 2026 as `7795adf0dff8c650968ff53ab5ab47babaf00ffe`) answers [octabam issue 825](https://github.com/sambanks/octabam/issues/825), the self-sustaining SHIFT feedback recorded under the 0.1.0 re-pin below. Between `8250be0c` and `7795adf0` upstream changed only `modules/lofi2/lofi2.asm`, `modules/lofi2/README.md` and `tools/verify/verify_lofi2.py` for LOFI2; `manifest.py`, the test remix and the licence are byte-identical. Everything further down that is not repeated here was run on an earlier source.
+
+**What changed in the source.** `lofi2.asm`: the SHIFT feedback cap `move #>$39999a,y1` (0.45) becomes `move #>$333333,y1` (0.40), and two comments are corrected (the doubling that forms the wet signal is inside the loop, so the loop gain is 2 x fdbk; the Hilbert pair cannot shift DC or Nyquist, so the worst two-pass gain is (2 fdbk)^2 sqrt(2): 1.15 at 0.45, 0.905 at 0.40). `verify_lofi2.py`: upstream's three issue 825 checks, merged by hand over the Modwerk adaptations (they use `RANGE=1`, which the existing `K["RANGE"] = K["RNGE"]` alias covers). The author's originals under `upstream/` and `sdk/imports/lofi2-7795adf.json` follow the pin.
+
+**P memory, word by word.** LOFI2's relocatable DSP package (`src/engine/assets/dsp-packages.json`, 1,354 words) before and after: words, init, proc, the four relocations, effect id, key and author identical; exactly one word differs, P+0x244, `0x39999a` to `0x333333`, the extension word of that `move #>imm,y1`; it is not a relocation site. The USB package differs from 0.1.0's `4f794ebc…` in exactly those three bytes (offsets 3197-3199); its header, size (6,300 bytes) and module field `d7bf66ce` are identical.
+
+| Item | SHA-256 |
+| --- | --- |
+| `lofi2.asm` (unchanged from upstream `7795adf0`) | `bcd479e7426a27176e57bab5f4f0bb1d32f53dac3a9c58bcc462820946c930ac` |
+| `manifest.py` (adapted; unchanged since 0.1.0) | `c4cbcdb50f17edf868b6b12400548778600cbb44394224e94ab63a5ef4730b3a` |
+| `verify_lofi2.py` (adapted) | `ae21568a5fc225bae8bbbaa8eab61803a437375792241e2d43c769458bc5d10d` |
+| Private native image of the `lofi2` test remix (static stock, never committed; built twice, identical) | `cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559` |
+| USB package `public/octatrack-modules/lofi2/0.1.1-experimental.mwrm` (6,300 bytes, ABI 6, module `d7bf66ce`) | `a2ab27325404c06197ccf2737b64b480121c6799b439798440b8c73e7884c92c` |
+
+**Render gate.** `verify_lofi2.py` on the new image: all 73 checks pass. The new ones (a 0.3 s, 440 Hz, 0.125 FS burst, then silence; FDBK 127, MIX 127, RNGE HIGH; the louder channel's RMS 1.0-1.5 s and 2.5-3.0 s after the input stops; pass if the late window is under -60 dBFS and no more than 0.1 dB above the early one):
+
+| Setting | 0.1.1 (1.0-1.5 s / 2.5-3.0 s) | 0.1.0 source |
+| --- | --- | --- |
+| DOWN, FREQ 64 | -68.3 / -69.2 dBFS | -8.9 / -4.1: fails |
+| DOWN, FREQ 72 | -71.6 / -71.7 | -4.2 / -4.0: fails |
+| UP, FREQ 72 | -84.5 / -84.5 | -43.9 / -4.0: fails |
+
+0.1.1's figures equal those in the author's pull request. The negative control: the same verifier on 0.1.0's `lofi2.asm` fails exactly these three checks, and its other 70 pass. `verify_dirtystate` (8 renders, 0 failed), `verify_initregs`, `verify_menu`, `verify_replaces`, `verify_labels` and `verify_modenames` (7 checks) pass on the new image (`OCTABAM_STATIC_STOCK=1`, the commands in [How it was built](#how-it-was-built-here)).
+
+**Cost.** `make cycles REMIX=lofi2`: 416 cycles/sample (4 x 416 = 1,664 per core), as before; native build 838 + 516 words on both payloads, 303 words free, placement unchanged. `perf.py bench` on `cd0f7d5a…`: every figure in the Cost table below again, to the hundredth (SHIFT DOWN dearest 406.44 / 430.06 with a split, UP 406.06 / 429.31, RING 251.06 / 274.31; stock unchanged). `perf.py stress --seconds 32` on the same image: host exit 0, no hang, 16 guarded instances, LOFI2 0 stray write regions and 0 clobbers, per-core peak 3,013.9 and 3,014.1, as before. `evidence/performance.json` names the new image.
+
+**The hardware-timed 637.** The instruction stream, addresses and relocations are those of the package timed on the MKII; only one immediate operand differs. On the DSP56300 neither `move #>imm,y1` nor the multiply that uses it takes a value-dependent number of cycles, so 0.1.1's USB package carries the same 637. It was not timed again on a unit.
+
+**After the input stops.** At FDBK 127 with RNGE HIGH the tail now settles (the table above). The faint SHIFT residue at lower FDBK (about -83 to -94 dBFS, 0.1.0 re-pin table below) was not re-measured; with the loop gain lower it is not expected to rise. fx:audit was not rerun.
+
+**Screens.** `scripts/capture-module-ui.py` with `media/capture.json`'s plan on `cd0f7d5a…` (`ot_emu` `23ba6f6c…`): the five PNGs are byte-identical to the 0.1.0 captures; `media/capture.json` and the manifest name the new image and version.
+
+**Hardware.** Not yet on a Modwerk unit: 0.1.1's USB package `a2ab2732…` is untested on hardware, a qualification gap, and `tests.qualification` still names 0.1.0's report, so `modules:generate` refuses this version until a report for this source exists ([evidence/hardware.md](evidence/hardware.md)). **Upstream** (Bryan T, pull request 843; his MKII, octabam card build `_bt_oct` 16, not this build): the issue 825 repro (DOWN, HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty, no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well (FX1 shares the core's DSP budget).
 
 ## Re-pin to octabam 8250be0c (here, 20 October 2026)
 

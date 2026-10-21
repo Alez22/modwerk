@@ -113,7 +113,7 @@
       "analog-bassdrum"
     ],
     "limitations": [
-      "Hardware evidence for this source (octabam 8250be0c) is one functional report over USB on an MKII, 20 October 2026, about 15 minutes beside five other modules: every mode, the fixed SHIFT by ear, two instances on one core and a third refused (DSP FULL); the base's self-test failed on ColdFire CPU (98.8 %, cause not confirmed). Reloads, a power cycle, BRR and LPF individually ran only with the previous source (21f6de90: card image with five SHIFT instances, and USB package 7ee9277f), which differs in sixteen DSP coefficient words. Eight instances and scenes are untested on a unit. Bryan T's own MKII reports are for his octabam builds of the same DSP source.",
+      "0.1.1 (octabam 7795adf0, the feedback cap) has not run on a Modwerk unit yet; it differs from 0.1.0 in one DSP data word. Hardware evidence for 0.1.0 (octabam 8250be0c) is one functional report over USB on an MKII, 20 October 2026, about 15 minutes beside five other modules: every mode, the fixed SHIFT by ear, two instances on one core and a third refused (DSP FULL); the base's self-test failed on ColdFire CPU (98.8 %, cause not confirmed). Reloads, a power cycle, BRR and LPF individually ran only with the previous source (21f6de90: card image with five SHIFT instances, and USB package 7ee9277f), which differs in sixteen DSP coefficient words. Eight instances and scenes are untested on a unit. Bryan T's own MKII reports are for his octabam builds of the same DSP source.",
       "Large: 838 program words and a 516-word table on each DSP core, 1,354 contiguous words. With stock DSP code built in it needs two adjacent stock reverbs given up (PLATE REV + SPRING REV, or SPRING REV + DARK REV); one reverb is not enough.",
       "SHIFT executes 430 instructions/sample at worst in dsp_host (static 416 cycles), about 1.4x SPRING REV's worst case and dearer than every stock effect; RING is 274. The author ran eight instances at once, four per core, in UP, DOWN and RING on his MKII with this source in his own build.",
       "Over USB the Modwerk base loads LOFI2 on demand into FX1 or FX2. It declares 637 cycles a sample (timed on an MKII with the previous package, whose instructions are the same), so two instances fit on one DSP core when its other slots are free and a third is refused (DSP FULL).",
@@ -122,8 +122,7 @@
       "In a card build only the FX2 chooser was built and captured, and FX1 in a card image was not run on a unit. Over USB the base loads it into FX1 as well; FX1 ran on an MKII with the previous source's USB package (7ee9277f), not yet with this source.",
       "Effect ID 0x09, placement priority 19 and layout letter F are Modwerk's; they were checked free against the modules in this tree. A project saved with octabam's LOFI2 (ID 0x1f) selects TAPEHEAD's ID here.",
       "No single-knob bypass: a passthrough is MIX 0, SRR 0, BRR 0 and LPF 127, the defaults.",
-      "A parameter lock holds until the track's next trig, as it does for every stock parameter on this OS.",
-      "Not released until the owner approves the first release."
+      "A parameter lock holds until the track's next trig, as it does for every stock parameter on this OS."
     ]
   },
   "resources": {
@@ -170,7 +169,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Ported unchanged in DSP from octabam 8250be0c: the author's optimised LOFI2 (pull request 704) with his SHIFT fix 153063d8 (Hilbert coefficients squared). A private native build on Modwerk's ID 0x09 passed all 70 checks of the author's render gate (the unwanted SHIFT sideband -45.7 to -56.2 dB at 1-15 kHz; SRR and BRR against stock LO-FI rendered from the tester's own OS 1.40C), plus dirty-state, init-register, menu, replaces, label and mode-name gates. Against the previous source (21f6de90) only 16 DSP coefficient data words differ. Static cost 416 cycles/sample; dsp_host benchmark 430 instructions/sample in SHIFT against LO-FI's 290 and SPRING REV's 314; a 32 s eight-instance stress run under memory guards had no hang and no clobber, and perf:audit passes with a justification. fx:audit is clean at the defaults and with the shelf in; in SHIFT a residue of -83 to -94 dBFS stays after the input stops, and at FDBK 124-127 with RNGE HIGH and FREQ about 60-76 the feedback sustains itself near full scale (dsp_host; the previous coefficients did the same at RNGE LOW, FREQ 127); on the MKII, UP at FREQ 64 HIGH with FDBK 127 kept a tone sounding after the input ended and FDBK 120 let it die away. Packages compile. On 20 October 2026 the USB package 4f794ebc ran on the contributor's MKII on flashed beta base 6650236a beside five other modules: install and Keep, every mode, FREQ, MIX, GAIN and SRR, the fixed SHIFT by ear, two instances on one core and a third refused; the base's self-test failed on CPU (98.8 % peak with six modules on an uncached base). The previous source's card-image and USB runs (13 and 15 October) are kept as history (evidence/hardware.md). Not tested on this source: BRR and LPF individually, the feedback case beyond UP at FREQ 64, reloads, a power cycle, eight instances and scenes.",
+    "summary": "0.1.1: ported unchanged in DSP from octabam 7795adf0, the author's pull request 843 for octabam issue 825: SHIFT's feedback cap 0.45 to 0.40, one DSP data word. A private native build passes all 73 checks of the author's render gate, including his three new ones: at FDBK 127, RNGE HIGH, DOWN FREQ 64 and 72 and UP FREQ 72, the tail after a burst settles at -69.2, -71.7 and -84.5 dBFS (0.1.0's source sustains about -4 dBFS there and fails exactly those three). Static count 416, the dsp_host benchmark and the stress run repeat 0.1.0's figures; the USB package differs from 0.1.0's in three bytes. 0.1.1 has not run on a Modwerk unit; the author reports the issue 825 setting dying away on his MKII in his own octabam build. Everything below is 0.1.0's record (octabam 8250be0c): the author's optimised LOFI2 (pull request 704) with his SHIFT fix 153063d8 (Hilbert coefficients squared). A private native build on Modwerk's ID 0x09 passed all 70 checks of the author's render gate (the unwanted SHIFT sideband -45.7 to -56.2 dB at 1-15 kHz; SRR and BRR against stock LO-FI rendered from the tester's own OS 1.40C), plus dirty-state, init-register, menu, replaces, label and mode-name gates. Against the previous source (21f6de90) only 16 DSP coefficient data words differ. Static cost 416 cycles/sample; dsp_host benchmark 430 instructions/sample in SHIFT against LO-FI's 290 and SPRING REV's 314; a 32 s eight-instance stress run under memory guards had no hang and no clobber, and perf:audit passes with a justification. fx:audit is clean at the defaults and with the shelf in; in SHIFT a residue of -83 to -94 dBFS stays after the input stops, and at FDBK 124-127 with RNGE HIGH and FREQ about 60-76 the feedback sustains itself near full scale (dsp_host; the previous coefficients did the same at RNGE LOW, FREQ 127); on the MKII, UP at FREQ 64 HIGH with FDBK 127 kept a tone sounding after the input ended and FDBK 120 let it die away. Packages compile. On 20 October 2026 the USB package 4f794ebc ran on the contributor's MKII on flashed beta base 6650236a beside five other modules: install and Keep, every mode, FREQ, MIX, GAIN and SRR, the fixed SHIFT by ear, two instances on one core and a third refused; the base's self-test failed on CPU (98.8 % peak with six modules on an uncached base). The previous source's card-image and USB runs (13 and 15 October) are kept as history (evidence/hardware.md). Not tested on this source: BRR and LPF individually, the feedback case beyond UP at FREQ 64, reloads, a power cycle, eight instances and scenes.",
     "hardwareStatus": "reported",
     "evidenceRevision": "7795adf0dff8c650968ff53ab5ab47babaf00ffe",
     "gates": [
@@ -183,7 +182,7 @@
     ],
     "qualification": {
       "moduleVersion": "0.1.1-experimental",
-      "sourceSha256": "d87e5affa2aa7f4428b4b7067c41bf4c7165ffdb8dfdf2cd51c0ad95758a494d",
+      "sourceSha256": "68e9013f9717c861f3306627c06a7c330694b8c595c30a6ad167f9c72b4f13cf",
       "imageSha256": "69d28e954674f18e5e3fb80c0e0ab7083755e89615bd41a7753b93f4221cc329",
       "cycles": [
         {
@@ -309,8 +308,8 @@
         "page": "FX2 SETUP",
         "shows": "location-and-controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
         "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
       }
     },
@@ -326,8 +325,8 @@
         "page": "FX2 main",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
         "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
       }
     },
@@ -343,8 +342,8 @@
         "page": "FX2 main, RING",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
         "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
       }
     },
@@ -360,8 +359,8 @@
         "page": "FX2 SETUP, MODE = UP",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
         "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
       }
     },
@@ -377,8 +376,8 @@
         "page": "FX2 main, MODE = UP",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
         "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
       }
     }
