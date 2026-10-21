@@ -12,6 +12,18 @@ export function unitForPrompt(state?: LinkState): 'current' | 'older' | 'connect
   return state?.status === 'ready' ? 'older' : state?.status === 'connecting' ? 'connecting' : 'none'
 }
 
+/** Whether the site was deployed again since this page loaded: the page it serves now loads another entry script. Such a
+ * page knows an older published base (the host caches pages for 10 minutes and bases change with deploys), so it must
+ * neither call the unit's newer base older nor send its own. Development builds and a failed check count as current. */
+export async function siteUpdated() {
+  const entry = document.querySelector('script[type="module"][src*="assets/index-"]')?.getAttribute('src')
+  if (!entry) return false
+  try {
+    const response = await fetch(location.pathname, { cache: 'no-store' })
+    return response.ok && !(await response.text()).includes(entry)
+  } catch { return false }
+}
+
 /**
  * The base prompts for a verified member with USB access, opened once the page is visible and no other dialog is open.
  * The install prompt is due until the member's unit has reported any Modwerk base, on any device: only that records it,
