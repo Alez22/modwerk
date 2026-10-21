@@ -50,6 +50,18 @@ describe('exact-source performance exceptions', () => {
     for (const change of [{ sourceSha256: 'b'.repeat(64) }, { approvedBy: 'contributor' }, { version: '0.2.0' }, { id: 'other' }, { kind: 'other' }, { waived: ['current-build-hardware'] }]) expect(ownerWaivedPerformanceRow(r, row, { ...approval, ...change }, source)).toBe(false)
     expect(ownerWaivedPerformanceRow(r, row, approval, null)).toBe(false)
   })
+  it('excuses a missing static bound only beside a measurement within its budget', () => {
+    const r = record(), cycles = () => judgeRecord(r).find(row => row.name === 'cycles')
+    Object.assign(r.cycles, { measured: 100, budget: 1000 })
+    expect(cycles().state).toBe('fail')
+    expect(ownerWaivedPerformanceRow(r, cycles(), approval, source)).toBe(true)
+    r.cycles.measured = 1001
+    expect(ownerWaivedPerformanceRow(r, cycles(), approval, source)).toBe(false)
+    Object.assign(r.cycles, { measured: 100, budget: null })
+    expect(ownerWaivedPerformanceRow(r, cycles(), approval, source)).toBe(false)
+    Object.assign(r.cycles, { measured: 100, budget: 1000, static: 150 })
+    expect(cycles().state).toBe('ok')
+  })
   it('never excuses a failed or partly supplied measurement', () => {
     const r = record()
     r.cycles.measured = 1

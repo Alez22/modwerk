@@ -119,6 +119,14 @@ describe('private volatile bundle framing', () => {
     await expect(encodeVolatileBundle(base, baseline, [packageRecord(1, [1, 2])], { ...limits, participants: 1 })).rejects.toThrow()
     await expect(encodeVolatileBundle(base, baseline, [packageRecord(1, [1]), packageRecord(2, [2])], { ...limits, records: 1 })).rejects.toThrow()
   })
+  it('stages packages up to the loader’s ABI 9 (base features and DSP claims) and refuses a later ABI', async () => {
+    const abi = (n: number) => {
+      const record = packageRecord(1, [1]); new DataView(record.data.buffer).setUint16(4, n)
+      return { ...record, sha256: createHash('sha256').update(record.data).digest('hex') }
+    }
+    await expect(encodeVolatileBundle(base, baseline, [abi(9)], limits)).resolves.toBeDefined()
+    await expect(encodeVolatileBundle(base, baseline, [abi(10)], limits)).rejects.toThrow('header mismatch')
+  })
   it('refuses oversized input before allocating a package copy', async () => {
     const record = packageRecord(1, [1], 1000)
     record.data.slice = () => { throw new Error('copied oversized package') }

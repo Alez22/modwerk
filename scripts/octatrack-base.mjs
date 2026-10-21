@@ -16,7 +16,7 @@
 // keeps those engines out of the DSP cores until a package that needs one is installed, so the cores' effect arena is
 // larger (docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md). Every build also writes
 // sdk/machines/octatrack/base-binding.json, which the base-bound packages link against (module_packages.py). The beta base:
-//   npm run octatrack:base -- --stock OS.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers
+//   npm run octatrack:base -- --stock OS.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers --module-sets
 // A change that moves the base's lease entries also changes Analog BD's package: recapture its reviewed recipe
 // (module-adapters/machine-recipes.json) against the new base's symbols first (docs/OCTATRACK_BETA_TEST_PLAN.md, finding 17).
 import assert from 'node:assert/strict'
@@ -40,6 +40,7 @@ const { values: args } = parseArgs({ options: {
   'saved-set-export': { type: 'boolean', default: false },
   controllers: { type: 'boolean', default: false }, 'usb-audio-variants': { type: 'boolean', default: false },
   'cached-modules': { type: 'boolean', default: false },
+  'module-sets': { type: 'boolean', default: false },
 } })
 if (!args.stock) throw new Error('Usage: npm run octatrack:base -- --stock OCTATRACK_OS1.40C.bin [--upstream ELEKLOADER] [--write] [--out NEW-DIR]')
 const root = resolve(import.meta.dirname, '..'), here = join(root, 'sdk/machines/octatrack/elekloader')
@@ -62,7 +63,7 @@ const buildLayout = (layout, output, ...rest) => python('build_core.py', '--stoc
   ...(args['site-events'] ? ['--site-events'] : []), ...(args['cached-modules'] ? ['--cached-modules'] : []),
   ...(args['table-owners'] ? ['--table-owners', join(adapters, 'table-owners.json')] : []),
   ...(args['resident-stock-hooks'] ? ['--resident-stock-hooks'] : []), ...(args['resident-on-demand'] ? ['--resident-on-demand'] : []),
-  ...(args['saved-set-export'] ? ['--saved-set-export'] : []), ...rest)
+  ...(args['saved-set-export'] ? ['--saved-set-export'] : []), ...(args['module-sets'] ? ['--module-sets'] : []), ...rest)
 const build = (output, ...rest) => buildLayout(args['usb-audio'], output, ...rest)
 const defaultLayout = USB_AUDIO_LAYOUTS.find(layout => layout.key === args['usb-audio'])?.id
 if (args['usb-audio-variants'] && (!args['usb-midi'] || !defaultLayout)) throw new Error('--usb-audio-variants needs --usb-midi and a --usb-audio layout, the default variant.')

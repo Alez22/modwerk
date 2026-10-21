@@ -10,8 +10,9 @@ import { UsbVendorTransport } from './upload-usb'
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 const deferred = () => { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done }); return { promise, resolve } }
-async function linked(kind: 'base' | 'stock' | 'none' = 'base') {
+async function linked(kind: 'base' | 'stock' | 'none' = 'base', moduleSets = false) {
   const unit = fakeUnit(kind), link = new OctatrackLink(unit.usb, fakeSession(unit), 300)
+  unit.moduleSets = moduleSets
   link.start(); await settle(); await settle()
   return { unit, link }
 }
@@ -411,23 +412,23 @@ describe('loading a module set', () => {
   const change = (id: string, removes = false) => ({ module: 'M' + id.slice(-1), data: removes ? removalPackage(id) : install(id), undo: removes ? install(id) : removalPackage(id) })
   const set = [change('0000000a', true), change('0000000b'), change('0000000c')]
   async function loaded(stressTest?: () => Promise<string | null>) {
-    const result = await linked(); result.unit.modules = ['0000000a']
+    const result = await linked('base', true); result.unit.modules = ['0000000a']
     await result.link.update('Live', set, stressTest)
     return result
   }
-  it('keeps each change before the last at once, runs the last as the trial, and keeps it', async () => {
+  it('trials the complete set without accepting any change before Keep', async () => {
     const { unit, link } = await loaded(async () => null)
     expect(link.getState()).toMatchObject({ status: 'trial', module: 'Live', tested: true })
-    expect(unit.kept).toEqual(['-0000000a', '+0000000b'])
+    expect(unit.kept).toEqual([])
     await link.keep()
     expect(unit.kept).toEqual(['-0000000a', '+0000000b', '+0000000c'])
     expect(link.getState().notice).toMatchObject({ tone: 'success', text: 'Kept. Live stays on your Octatrack, also after a restart.' })
     expect((await link.inventory())!.map(item => item.module)).toEqual(['0000000b', '0000000c'])
   })
-  it('undoes the whole set: the trial rolled back, then the kept changes put back newest first', async () => {
+  it('undoes the whole set on the device without sending inverse packages', async () => {
     const { unit, link } = await loaded()
     await link.undo()
-    expect(unit.kept).toEqual(['-0000000a', '+0000000b', '-0000000b', '+0000000a'])
+    expect(unit.kept).toEqual([])
     expect(unit.modules).toEqual(['0000000a'])
     expect(link.getState()).toMatchObject({ status: 'ready', notice: { tone: 'success', text: 'Undone. Your Octatrack is back to how it was.' } })
   })
@@ -438,32 +439,42 @@ describe('loading a module set', () => {
   })
   it('undoes the set when the self-test fails', async () => {
     const { unit, link } = await loaded(async () => 'the Octatrack’s DSP stopped')
-    expect(unit.kept).toEqual(['-0000000a', '+0000000b', '-0000000b', '+0000000a'])
+    expect(unit.kept).toEqual([])
     expect(link.getState().notice?.text).toBe('The self-test failed: the Octatrack’s DSP stopped. Nothing was kept.')
   })
-  it('puts back what it kept when the base refuses a change part way, and names the module', async () => {
+  it('keeps the baseline when the device refuses a complete set', async () => {
     const unit = fakeUnit(), base = fakeSession(unit)
+    unit.moduleSets = true
     let stages = 0
     const connect: typeof base = async (...args) => {
       const session = await base(...args)
-      return Object.create(session, { stage: { value: (...stage: Parameters<typeof session.stage>) => { unit.refusal = ++stages === 2 ? 2 : undefined; return session.stage(...stage) } } })
+      return Object.create(session, { stage: { value: (...stage: Parameters<typeof session.stage>) => { ++stages; unit.refusal = 2; return session.stage(...stage) } } })
     }
     const link = new OctatrackLink(unit.usb, connect, 300)
     link.start(); await settle(); await settle(); unit.modules = ['0000000a']
     await link.update('Live', set)
-    expect(unit.kept).toEqual(['-0000000a', '+0000000a'])
-    expect(link.getState()).toMatchObject({ status: 'ready', notice: { tone: 'error', text: 'Mb: There isn’t enough module memory left on the Octatrack. Remove a module, then try again.' } })
+    expect(stages).toBe(1); expect(unit.kept).toEqual([]); expect(unit.modules).toEqual(['0000000a'])
+    expect(link.getState()).toMatchObject({ status: 'ready', notice: { tone: 'error', text: 'There isn’t enough module memory left on the Octatrack. Remove a module, then try again.' } })
   })
-  it('says which modules it could not put back', async () => {
-    const { unit, link } = await linked(); unit.modules = ['0000000a']
+  it('does not need the website to retain packages for Undo', async () => {
+    const { unit, link } = await linked('base', true); unit.modules = ['0000000a']
     await link.update('Live', [{ ...set[0], undo: undefined }, set[1]])
     await link.undo()
-    expect(link.getState().notice?.text).toBe('Undone, except: Ma couldn’t be put back: the site has no package for it.')
+    expect(unit.kept).toEqual([]); expect(unit.modules).toEqual(['0000000a'])
+    expect(link.getState().notice?.text).toBe('Undone. Your Octatrack is back to how it was.')
   })
   it('explains an unplug part way through a set', async () => {
     const { unit, link } = await loaded()
     unit.unplug()
-    expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: 'USB disconnected. Your Octatrack is between the two module sets: sync one of them again.' } })
+    expect(unit.kept).toEqual([])
+    expect(link.getState()).toMatchObject({ status: 'idle', notice: { text: 'USB disconnected. The Octatrack undoes Live by itself as soon as playback is stopped.' } })
+  })
+  it('refuses a multi-change sync to an older base before sending the first package', async () => {
+    const { unit, link } = await linked(); unit.modules = ['0000000a']
+    const transfer = vi.spyOn((await unit.usb.getDevices())[0], 'controlTransferOut')
+    await link.update('Live', set)
+    expect(unit.kept).toEqual([]); expect(unit.modules).toEqual(['0000000a']); expect(transfer).not.toHaveBeenCalled()
+    expect(link.getState().notice?.text).toContain('Install the latest Modwerk base')
   })
 })
 
@@ -563,4 +574,38 @@ describe('updating the base over USB', () => {
     expect(dedupe(steps2)).toEqual(['staging', 'starting', 'started']) // the trial ran; nothing was written
     expect(older.flashed).toBe(FAKE_BASE); expect(older.base).toBe(expected)
   })
+})
+
+it('uploads a capable base’s complete set once and accepts nothing before the user presses Keep', async () => {
+  const unit = fakeUnit(), device = (await unit.usb.getDevices())[0], transfer = device.controlTransferIn.bind(device)
+  vi.spyOn(device, 'controlTransferIn').mockImplementation(async (...args) => {
+    const reply = await transfer(...args)
+    if (args[0].request === 29 && reply.data) reply.data.setUint16(6, reply.data.getUint16(6) | 512)
+    return reply
+  })
+  const baseline = '72'.repeat(32), identity = vi.spyOn(UsbVendorTransport.prototype, 'setIdentity').mockResolvedValue(baseline)
+  const connect = fakeSession(unit), staged: Uint8Array[] = [], accept = vi.fn(), rollback = vi.fn()
+  const link = new OctatrackLink(unit.usb, async () => {
+    const session = await connect(), stage = session.stage.bind(session), keep = session.accept.bind(session), undo = session.rollback.bind(session)
+    return { ...session, get status() { return session.status }, stage: async (pkg, options) => { staged.push(pkg.data); return stage(pkg, options) },
+      accept: async () => { accept(); return keep() }, rollback: async () => { rollback(); return undo() } }
+  }, 300)
+  const stop = link.start()
+  const data = (id: number) => {
+    const bytes = new Uint8Array(36), view = new DataView(bytes.buffer)
+    view.setUint32(0, 0x4d57524d); view.setUint16(4, 4); view.setUint32(8, 4); view.setUint32(28, id); return bytes
+  }
+  try {
+    await vi.waitFor(() => expect(link.getState().status).toBe('ready'))
+    const changes = [{ module: 'A', data: data(11) }, { module: 'B', data: data(22) }]
+    await link.update('Live', changes)
+    expect(link.getState().status).toBe('trial'); expect(staged).toHaveLength(1); expect(accept).not.toHaveBeenCalled()
+    const header = new DataView(staged[0].buffer)
+    expect(header.getUint32(0)).toBe(0x4d574d53); expect(header.getUint16(6)).toBe(2)
+    await link.undo()
+    expect(rollback).toHaveBeenCalledTimes(1); expect(staged).toHaveLength(1) // device restores; no inverse packages
+    await link.update('Live', changes); await link.keep()
+    expect(staged).toHaveLength(2); expect(accept).toHaveBeenCalledTimes(1)
+    expect(identity).toHaveBeenCalledTimes(2)
+  } finally { stop(); identity.mockRestore() }
 })

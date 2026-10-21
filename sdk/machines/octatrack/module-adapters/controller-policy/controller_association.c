@@ -96,14 +96,14 @@ int mw_controller_start(struct mw_controller_registry *r,const struct mw_control
     } else if(j->operation==MW_CTL_ENABLE) {
         if((s->state!=MW_CTL_READY && s->state!=MW_CTL_PUBLISHING) || (s->state==MW_CTL_READY && jobs(s)) ||
            s->enable_acks>>c&1u || j->offset || j->count ||
-           (j->expected&~(c ? 5u : 7u)) || j->desired!=(j->expected|feature) ||
+           (j->expected&~(c ? 13u : 15u)) || j->desired!=(j->expected|feature) ||
            !r->backend->resources_idle || r->backend->resources_idle(r->context,b)!=1) return MW_CTL_CLOSED;
         next=MW_CTL_PUBLISHING;
     } else if(j->operation==MW_CTL_DISABLE) {
         /* A restored generation is touched before its first reset ACK: its
          * feature is already off, so this disable is the exact no-op CAS. */
         if((s->state<MW_CTL_INITIALIZING && !(s->state==MW_CTL_BOUND && s->touched)) || s->state>MW_CTL_QUARANTINED || j->offset || j->count ||
-           (j->expected&~(c ? 5u : 7u)) || j->desired!=(j->expected&~feature)) return MW_CTL_CLOSED;
+           (j->expected&~(c ? 13u : 15u)) || j->desired!=(j->expected&~feature)) return MW_CTL_CLOSED;
         if(s->state!=MW_CTL_DISABLING) {
             if(jobs(s)) return MW_CTL_CLOSED;
             s->disable_acks=0;

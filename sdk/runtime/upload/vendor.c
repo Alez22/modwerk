@@ -134,5 +134,9 @@ static int housekeeping(struct mv_transport *t, struct mu_context *c)
         t->lapses_handled = lapses;
         work = 1;
     }
+    /* A whole-set restore may take several engine turns. Once disconnected,
+     * it belongs to the device and advances without another host request or
+     * another ten-second lapse. Playback/recording still prevents a switch. */
+    if (!work && c->disconnecting) { (void)mu_disconnect(c); work = 1; }
     return work;
 }

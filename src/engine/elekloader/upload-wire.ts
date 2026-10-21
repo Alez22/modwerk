@@ -14,9 +14,9 @@ export const UploadCommand = Object.freeze({
   accept: 6, rollback: 7, abort: 8, leave: 9, disconnect: 10,
 } as const)
 export type UploadCommandName = keyof typeof UploadCommand
-export const UploadPhase = ['normal', 'ready', 'receiving', 'verified', 'pending', 'trial', 'recovery'] as const
+export const UploadPhase = ['normal', 'ready', 'receiving', 'verified', 'pending', 'trial', 'recovery', 'publishing'] as const
 export type UploadPhaseName = typeof UploadPhase[number]
-export const UploadResult = ['ok', 'state', 'unsafe', 'identity', 'limit', 'stale', 'length', 'conflict', 'hash', 'rejected', 'backend', 'needs-recovery'] as const
+export const UploadResult = ['ok', 'state', 'unsafe', 'identity', 'limit', 'stale', 'length', 'conflict', 'hash', 'rejected', 'backend', 'needs-recovery', 'progress'] as const
 export type UploadResultName = typeof UploadResult[number]
 export const ZERO_DIGEST = '0'.repeat(64)
 
@@ -165,7 +165,9 @@ export function decodeUploadResponse(bytes: Uint8Array, request: UploadRequest, 
       (request.command === 'begin' && base !== request.base) ||
       (binding && (base !== binding.base || binding.session && session !== binding.session)))
     throw new UploadWireError('The device base or session identity changed.')
-  if ((!known && (phase !== 'recovery' || active !== ZERO_DIGEST)) ||
+  if ((!known && (!['recovery', 'publishing'].includes(phase) || active !== ZERO_DIGEST)) ||
+      (result === 'progress' && (request.command !== 'commit' || phase !== 'publishing')) ||
+      (phase === 'publishing' && (known || !currentTransaction || !received)) ||
       (['receiving', 'verified', 'pending', 'trial'].includes(phase) && (!currentTransaction || !known)) ||
       (['verified', 'pending', 'trial'].includes(phase) && !received))
     throw new UploadWireError('Upload acknowledgement describes an impossible controller state.')

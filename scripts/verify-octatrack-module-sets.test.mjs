@@ -67,10 +67,29 @@ describe('safe module verification through the frontend MCP', () => {
     f.call.mockImplementation(async (name, args) => { const result = await real(name, args); return name === 'device_review' ? { ...result, [field]: '00'.repeat(32) } : result })
     await expect(f.run(trial)).rejects.toThrow(/changed/); expect(f.call.mock.calls.some(([name]) => name === 'device_trial')).toBe(false)
   })
-  it('refuses multi-change reviews that would automatically Keep intermediate packages', async () => {
+  it('refuses multi-change reviews in single-package verification', async () => {
     const f = fixture(), real = f.call.getMockImplementation()
     f.call.mockImplementation(async (name, args) => { const result = await real(name, args); return name === 'device_review' ? { ...result, changes: [...result.changes, ...result.changes] } : result })
-    await expect(f.run(trial)).rejects.toThrow(/automatically Keep/); expect(f.call.mock.calls.some(([name]) => name === 'device_trial')).toBe(false)
+    await expect(f.run(trial)).rejects.toThrow(/Single-package/); expect(f.call.mock.calls.some(([name]) => name === 'device_trial')).toBe(false)
+  })
+  it('trials and Undoes one complete set on a capable base, without Keep', async () => {
+    const f = fixture(), real = f.call.getMockImplementation()
+    f.baseline.capabilities.features |= 512
+    f.call.mockImplementation(async (name, args) => {
+      const result = await real(name, args)
+      if (name === 'device_review') result.changes = args.moduleIds.filter(id => id !== 'everb').map(() => ({ sha256: packageHash, undoAvailable: true }))
+      return result
+    })
+    const receipt = await f.run({ ...trial, wholeSet: true })
+    expect(receipt).toMatchObject({ mode: 'whole-set-trial', fullSet: { physicalTrial: true }, kept: false, rebootVerified: false })
+    expect(receipt.packages.every(item => item.trialPassed && item.undoVerified)).toBe(true)
+    expect(f.call.mock.calls.filter(([name]) => name === 'device_trial')).toHaveLength(1)
+    expect(f.call.mock.calls.filter(([name]) => name === 'device_undo')).toHaveLength(1)
+  })
+  it('refuses whole-set verification without the device capability before a write', async () => {
+    const f = fixture()
+    await expect(f.run({ ...trial, wholeSet: true })).rejects.toThrow(/module-set transactions/)
+    expect(f.call.mock.calls.some(([name]) => name === 'device_trial')).toBe(false)
   })
   it('Undoes an owned trial even if its self-test result is invalid', async () => {
     const f = fixture(), real = f.call.getMockImplementation()

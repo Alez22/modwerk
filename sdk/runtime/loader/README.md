@@ -120,7 +120,7 @@ limits remain 128 KiB and 2,048.
 
 Package flags remain u16 at 6, module ID u32 at 28 and layout u16 at 66.
 The Octatrack's read-only vendor request 29 (`C1`, value 0, vendor-interface
-index, exact length 12) returns `MWCP`, version u8 = 1, maximum ABI u8 = 8,
+index, exact length 12) returns `MWCP`, version u8 = 1, maximum ABI u8 (9 since ABI 9; 8 before),
 features u16, maximum sites u16 and maximum copies u16, all big-endian.
 Features currently equal 7: ColdFire sites (1), hash-backed copies (2)
 and authored fills (4). Table composition (8), machine groups (16) and
@@ -166,7 +166,63 @@ set, so they come back exactly and install order never matters. A site or stock 
 event's bytes is refused as `RUNTIME_EVENT`; `modwerk_runtime_refused_event()` gives the event's
 hook index. MWCP feature 128 says the base has events.
 
+## Base features and DSP claims (ABI 9)
+
+ABI 9 extends the ABI 8 header to 80 bytes: `requires` u16 at 76 (the base feature bits the DSP code needs), the
+claim count u8 at 78 and the hook-entry count u8 at 79. After the fills come the claims, 12 bytes each: space u8
+(1 X, 2 Y), core u8 (0 or 1; the Octatrack runs payload A, tracks 5-8, on core 0), access u8 (1 read, 2 write,
+3 both), a zero byte, address u32 and words u32. A claim lies wholly in one core's memory or wholly in the window
+both cores see (at or past 0x30000), and no two of a package's claims meet. Then the hook entries, 8 bytes each:
+site u8 (an index of the base's DSP site catalogue), cores u8 (bit 0 core 0, bit 1 core 1), a zero u16 and the
+entry, a DSP word u32. Then the DSP words and relocations, as before. Claims and entries need DSP code.
+
+- **`requires`.** A bit the base does not provide (`modwerk_machine_dsp_features`, weak, none by default) refuses
+  the package (`RUNTIME_CONFLICT`). The Octatrack's on-demand base provides the key bus (KEYBUS, 8, in
+  `sdk/machines/octatrack/dsp-sites.json`): every track's FX1 input, which it publishes while a live package requires
+  it (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md). A reader of a base feature needs no claim on the feature's words; it may
+  declare reads wholly inside a feature it requires, which the base admits (below).
+- **Claims** are the X/Y words the DSP code reads or writes outside its own slot. The loader refuses a claim that
+  meets another live module's claim when either of the two writes (`RUNTIME_CONFLICT`); the machine checks the rest
+  (`modwerk_machine_dsp_claims_admit`, weak: a machine with no DSP ledger refuses every claim). The Octatrack's
+  resident base refuses a claim on any base feature's words but a read wholly inside a feature the package requires,
+  and one over a live or planned slot buffer (`RUNTIME_MEMORY`), and keeps every buffer clear of live claims.
+- **Hook entries** are checked whole and then refused (`RUNTIME_CONFLICT`): no base has hook slots yet.
+
+`abi9.py` writes an ABI 9 package from a DSP package `build.py` made (ABI 6, 7 or 8), copying everything else byte
+for byte (`--requires keybus`, `--claim y:0:w:0x7a0:16`). It is kept apart from `build.py`, whose hash is an input of
+the reviewed machine and standalone recipes. The capability record's maximum ABI is 9 on a base built from this loader.
+The site's module-set builder (`src/engine/elekloader/module-set.ts`) checks an ABI 9 package as the loader does
+(header, claims, no hook entries) and offers it only to a base whose capability record reports ABI 9; the only
+`requires` bit it accepts is the key bus, and a reader of it goes only to a base the site knows has the bus (the
+published one, built with the resident engines on demand): the capability record says nothing about base features.
+
 ## Several modules at once
+
+The `MODWERK_RUNTIME_SETS` candidate adds MWCP feature **512** and the
+[`MWMS v1` bundle](set_package.h): an 80-byte header binds the exact base and
+the baseline's sorted `(module id, package SHA-256)` digest; up to 20 unique
+length-prefixed MWRM changes follow, with zero padding to four bytes. The
+resulting census is bounded to 20 modules. The existing single-package
+protocol and ABI remain available.
+
+All candidates are admitted before publication. Both generations keep their
+pool extents, dispatch positions and DSP handles until one complete Keep or
+reverse-order restoration. Publication advances one row per engine command
+while the transport stays held. A prefix reports `publishing`, an unknown
+active identity and no generation change. Only completion starts trial.
+Keep seals the saved set once; nothing saves a prefix. Undo and abandoned
+session recovery restore the actual retained images, including packages the
+website no longer has. Both generations must fit concurrently; site ownership,
+event capacity and the production DSP/controller safety checks can refuse or
+delay a change. This does not enable the separate experimental volatile DSP
+journal or relax its trust and reclamation gates.
+
+Octatrack request **38** returns a cached 40-byte `MWSD v1` baseline record
+(`magic, version, known, count u16, digest[32]`). The engine computes it; EP0
+only copies a complete record for the current owner epoch, otherwise stalls
+and wakes the engine. Never hash packages or scan patched sites in a USB ISR.
+Host/controller/loader and simulated-card regressions cover interruption and
+torn writes. Exact-build hardware, audio and reboot persistence remain open.
 
 - **Admission before anything changes.** A package is refused, with the
   live set untouched, when another live module patches any byte of its

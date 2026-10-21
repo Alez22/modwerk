@@ -5,7 +5,7 @@ import manifest from '../assets/octatrack-module-packages.json' with { type: 'js
 import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
 import baseBinding from '../../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
-import { BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
+import { BASE_DSP_FEATURES, BaseUpdateRequired, createRuntimeCatalogue, KEY_BUS_BASES, KeyBusBaseRequired, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
 
 const file = (path: string) => new Uint8Array(readFileSync(new URL('../../../public/' + path, import.meta.url)))
 const load = async (entry: { path: string }) => file(entry.path)
@@ -57,7 +57,8 @@ describe('preparing a module set', () => {
   it('removes first, then installs, each with the package that undoes it', async () => {
     const current = inventoryFrom([{ handle: 27, layout: 1, module: '873d83cc', name: 'E-Verb' }, { handle: 0xff, layout: 0, module: '0000002a', name: '' }])
     expect(current).toEqual({ moduleIds: ['everb', '0000002a'], removedStockFx: [] })
-    const { name, changes } = await prepareModuleSet({ name: 'Live', moduleIds: ['tapehead', 'miniverb'] }, current, load)
+    const { name, changes } = await prepareModuleSet({ name: 'Live', moduleIds: ['tapehead', 'miniverb'] }, current, load,
+      { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 })
     expect(name).toBe('Live')
     expect(changes.map(change => change.module)).toEqual(['E-Verb', '0000002a', 'TapeHead', 'Mini Verb'])
     expect(changes[0]).toEqual({ module: 'E-Verb', data: removalPackage('everb'), undo: file(manifest.packages[0].path) })
@@ -70,7 +71,7 @@ describe('preparing a module set', () => {
   })
   it('preflights each package’s actual requirements and composes every published package on a capable base', async () => {
     const target = { name: 'All published', moduleIds: USB_MODULE_IDS }, fetched = vi.fn(load)
-    const events = { abi: 8, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+    const events = { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
     await expect(prepareModuleSet(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
     await expect(prepareModuleSet(target, empty, fetched, { ...events, features: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired) // Repitch subscribes
     await expect(prepareModuleSet(target, empty, fetched, { ...events, abi: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired)
@@ -118,11 +119,108 @@ describe('preparing a module set', () => {
   })
   it('fetches the site’s copy and refuses one that did not arrive intact', async () => {
     const entry = manifest.packages[0], data = file(entry.path)
-    vi.stubGlobal('fetch', async (url: string) => { expect(url).toBe('/' + entry.path); return new Response(data) })
+    vi.stubGlobal('fetch', async (url: string) => { expect(url).toBe('/' + entry.path + '?sha256=' + entry.sha256); return new Response(data) })
     expect(await fetchPackage(entry)).toEqual(data)
     vi.stubGlobal('fetch', async () => new Response(data.subarray(1)))
     await expect(fetchPackage(entry)).rejects.toThrow(/couldn’t fetch E-Verb intact/)
     vi.unstubAllGlobals()
+  })
+})
+
+/** An ABI 9 package from an ABI 6 DSP package, as sdk/runtime/loader/abi9.py writes one: the 80-byte header (ABI 8's
+ * copy and fill counts, then requires u16, the claim count and the hook-entry count), then the claims and hook entries
+ * after the fills, before the DSP words. Authored synthetic records around a published package; no firmware data. */
+type Claim = [space: number, core: number, access: number, address: number, words: number]
+function abi9(data: Uint8Array, requires: number, claims: Claim[], entries: number[][] = []) {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength), words = view.getUint32(32), relocations = view.getUint16(36)
+  const tail = 4 * words + 2 * relocations, body = data.subarray(68), records = new Uint8Array(12 * claims.length + 8 * entries.length)
+  const r = new DataView(records.buffer)
+  claims.forEach(([space, core, access, address, n], i) => { records.set([space, core, access, 0], 12 * i); r.setUint32(12 * i + 4, address); r.setUint32(12 * i + 8, n) })
+  entries.forEach(([site, cores, entry], i) => { const at = 12 * claims.length + 8 * i; records.set([site, cores], at); r.setUint32(at + 4, entry) })
+  const out = new Uint8Array(80 + body.length + records.length), o = new DataView(out.buffer)
+  out.set(data.subarray(0, 68)); o.setUint16(4, 9); o.setUint16(76, requires); out[78] = claims.length; out[79] = entries.length
+  out.set(body.subarray(0, body.length - tail), 80); out.set(records, 80 + body.length - tail); out.set(body.subarray(body.length - tail), 80 + body.length - tail + records.length)
+  return out
+}
+/** A key bus reader's claims (RINGMOD SC's): reads of each core's bus and of both halves of the window, inside KEYBUS's regions. */
+const readerClaims: Claim[] = [[2, 0, 1, 0x800, 0x200], [2, 1, 1, 0x800, 0x200], [2, 0, 1, 0x33dfe, 0x202], [2, 1, 1, 0x3bdfe, 0x202]]
+
+describe('ABI 9 packages: base features and DSP claims', () => {
+  const effect = manifest.packages.find(item => item.id === 'everb')!, published = file(effect.path)
+  const keybus = { abi: 9, features: 7 | 128, maxSites: 128, maxCopies: 128 }, at = baseBinding.identity
+  const reader = (data = abi9(published, BASE_DSP_FEATURES, readerClaims), fields: Record<string, unknown> = {}) => {
+    const entry = { ...effect, abi: 9, requires: BASE_DSP_FEATURES, claims: readerClaims.length, bytes: data.length, sha256: sha(data), ...fields }
+    return { catalogue: createRuntimeCatalogue({ packages: [entry] }), data }
+  }
+  const target = { name: 'Reader', moduleIds: ['everb'] }
+  it('offers only the key bus, which the base reports through its loader’s ABI 9', () => {
+    const sites = JSON.parse(readFileSync(new URL('../../../sdk/machines/octatrack/dsp-sites.json', import.meta.url), 'utf8'))
+    expect(BASE_DSP_FEATURES).toBe(sites.features.find((feature: { name: string }) => feature.name === 'keybus').bit)
+    expect(BASE_DSP_FEATURES).toBe(8)
+    // The Octatrack's on-demand base provides exactly that (resident_engines.c); the loader refuses any other bit.
+    const engines = readFileSync(new URL('../../../sdk/machines/octatrack/module-adapters/resident-runtime/resident_engines.c', import.meta.url), 'utf8')
+    expect(engines).toContain('unsigned modwerk_machine_dsp_features(void) { return MW_DSP_KEYBUS; }')
+    expect(readFileSync(new URL('../../../sdk/runtime/loader/loader.h', import.meta.url), 'utf8')).toMatch(/#define RUNTIME_ABI 9u?\b/)
+  })
+  it('syncs a reader to a base whose loader reports ABI 9, with its forward and Undo packages checked', async () => {
+    const { catalogue, data } = reader(), fetched = vi.fn(async () => data)
+    await expect(catalogue.prepare(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
+    await expect(catalogue.prepare(target, empty, fetched, { ...keybus, abi: 8 }, at)).rejects.toBeInstanceOf(BaseUpdateRequired)
+    expect(catalogue.review(target, empty, { ...keybus, abi: 8 }, at).problem).toBeInstanceOf(BaseUpdateRequired)
+    expect(fetched).not.toHaveBeenCalled()
+    for (const base of KEY_BUS_BASES) {
+      expect(catalogue.review(target, empty, keybus, base).problem).toBeUndefined()
+      await expect(catalogue.prepare(target, empty, fetched, keybus, base)).resolves.toBeDefined()
+    }
+    const { changes } = await catalogue.prepare(target, empty, fetched, keybus, at)
+    expect(changes).toEqual([{ module: 'E-Verb', data, undo: removalPackage('everb') }])
+    expect((await catalogue.prepare({ name: 'Empty', moduleIds: [] }, { ...empty, moduleIds: ['everb'] }, fetched, keybus, at)).changes[0].undo).toEqual(data)
+    // A reader that claims nothing is as valid: the base owns the bus's words.
+    const bare = abi9(published, BASE_DSP_FEATURES, [])
+    await expect(reader(bare, { claims: 0 }).catalogue.prepare(target, empty, async () => bare, keybus, at)).resolves.toBeDefined()
+  })
+  it('offers a reader only to a base known to have the key bus, with the guided update saying why', async () => {
+    const { catalogue, data } = reader(), fetched = vi.fn(async () => data)
+    const variants = Object.values((baseBinding as { variants?: Record<string, string> }).variants ?? {})
+    expect(new Set(KEY_BUS_BASES)).toEqual(new Set([baseBinding.identity, ...variants])) // every USB Audio layout of it
+    for (const base of variants) expect(catalogue.review(target, empty, keybus, base).problem).toBeUndefined()
+    // The published base is built with the resident engines on demand, the only bases with the key bus.
+    expect(readFileSync(new URL('../../../scripts/octatrack-base.mjs', import.meta.url), 'utf8')).toMatch(/The beta base:\n.*--resident-on-demand/)
+    for (const base of [undefined, 'b'.repeat(64)]) {
+      const problem = catalogue.review(target, empty, keybus, base).problem
+      expect(problem).toBeInstanceOf(KeyBusBaseRequired)
+      expect(problem).toBeInstanceOf(BaseUpdateRequired)
+      expect(problem?.message).toContain('E-Verb needs a Modwerk base with the key bus')
+      await expect(catalogue.prepare(target, empty, fetched, keybus, base)).rejects.toBeInstanceOf(KeyBusBaseRequired)
+      // Its Undo too: removing a reader from such a base would retain a package it can't take back.
+      await expect(catalogue.prepare({ name: 'Empty', moduleIds: [] }, { ...empty, moduleIds: ['everb'] }, fetched, keybus, base)).rejects.toBeInstanceOf(KeyBusBaseRequired)
+    }
+    expect(fetched).not.toHaveBeenCalled()
+    expect(catalogue.review(target, empty, keybus, at).problem).toBeUndefined()
+  })
+  it('refuses a manifest that leaves out ABI 9’s fields, names an unknown feature or gives them to an older ABI', () => {
+    for (const fields of [{ requires: undefined }, { claims: undefined }, { requires: 16 }, { requires: BASE_DSP_FEATURES | 1 }, { claims: 17 }, { claims: -1 },
+      { abi: 8, requires: BASE_DSP_FEATURES, claims: 0 }, { abi: 8, requires: 0, claims: 1 }, { abi: 10 }])
+      expect(() => reader(undefined, fields)).toThrow('inconsistent')
+  })
+  it('checks the header and every claim as the loader does before anything is sent', async () => {
+    const refused = async (data: ReturnType<typeof abi9>, fields: Record<string, unknown> = {}) => {
+      const { catalogue } = reader(data, fields)
+      await expect(catalogue.prepare(target, empty, async () => data, keybus, at)).rejects.toThrow('inconsistent')
+    }
+    await refused(abi9(published, 0, readerClaims)) // requires differs from the manifest
+    await refused(abi9(published, BASE_DSP_FEATURES, readerClaims.slice(1))) // claim count differs
+    await refused(abi9(published, BASE_DSP_FEATURES, readerClaims, [[0, 3, 0]]), {}) // a hook entry: no base has hook slots
+    for (const claim of [[3, 0, 1, 0x800, 1], [2, 2, 1, 0x800, 1], [2, 0, 0, 0x800, 1], [2, 0, 4, 0x800, 1], [2, 0, 1, 0x800, 0],
+      [2, 0, 1, 0x2fff0, 0x20], [2, 0, 1, 0x3fff0, 0x20], [2, 0, 1, 0x40000, 1]] as Claim[])
+      await refused(abi9(published, BASE_DSP_FEATURES, [claim]), { claims: 1 })
+    // Two of a package's own claims meeting: the same core and space, or anywhere in the window whatever the core.
+    await refused(abi9(published, BASE_DSP_FEATURES, [[2, 0, 1, 0x800, 0x40], [2, 0, 1, 0x83f, 1]]), { claims: 2 })
+    await refused(abi9(published, BASE_DSP_FEATURES, [[2, 0, 1, 0x33dfe, 0x10], [1, 1, 1, 0x33e00, 1]]), { claims: 2 })
+    const apart = abi9(published, BASE_DSP_FEATURES, [[2, 0, 1, 0x800, 0x40], [2, 1, 1, 0x800, 0x40], [1, 0, 1, 0x800, 0x40]])
+    await expect(reader(apart, { claims: 3 }).catalogue.prepare(target, empty, async () => apart, keybus, at)).resolves.toBeDefined()
+    const reserved = abi9(published, BASE_DSP_FEATURES, readerClaims); reserved[80 + published.length - 68 - (4 * new DataView(published.buffer).getUint32(32) + 2 * new DataView(published.buffer).getUint16(36)) + 3] = 1
+    await refused(reserved) // the first claim's reserved byte
   })
 })
 

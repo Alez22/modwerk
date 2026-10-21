@@ -7,6 +7,7 @@ import { LOAD_BYTES, parseLoadReading, type LoadReading, SAVED_SET_METADATA_BYTE
   SAVED_SET_CHUNK_DATA, parseSavedSetMetadata, parseSavedSetChunk, ZERO_DIGEST, type SavedSetMetadata, type SavedSetSnapshot } from './upload-wire.ts'
 import { sha, toHex } from '../../../vendor/elekloader/kit/src/bytes.ts'
 import { DEVICE_LOG_PAGE, DEVICE_LOG_PAGES, DEVICE_LOG_REQUEST, parseDeviceLog, type DeviceLog } from './device-log.ts'
+import { parseSetIdentity } from './set-package.ts'
 
 export const VENDOR_CLASS = 0xff
 export const VENDOR_SUBCLASS = 0x4d // 'M'; must match the base's interface descriptor.
@@ -23,7 +24,7 @@ export const MISSING_PAGE = 13 // entries a MISSING reply holds; wValue is the f
 export const VENDOR_INVENTORY = 27 // the modules installed on the unit, in MISSING's form (sdk/runtime/loader/loader.c)
 export const VENDOR_CAPABILITIES = 29 // loader capabilities; older bases stall this read-only request
 export const CAPABILITIES_BYTES = 12
-export const RuntimeFeature = { sites: 1, stockCopies: 2, fills: 4, tables: 8, machineGroups: 16, sidechain: 32, siteEvents: 128, baseUpdate: 256 } as const
+export const RuntimeFeature = { sites: 1, stockCopies: 2, fills: 4, tables: 8, machineGroups: 16, sidechain: 32, siteEvents: 128, baseUpdate: 256, moduleSets: 512 } as const
 export interface RuntimeCapabilities { abi: number; features: number; maxSites: number; maxCopies: number }
 /** MWCP v1. Unknown feature bits are retained: they do not imply features this client requires. */
 export function parseRuntimeCapabilities(view: DataView): RuntimeCapabilities {
@@ -318,6 +319,20 @@ export class UsbVendorTransport implements UploadTransport {
   missing(signal?: AbortSignal) { return this.modules(VENDOR_MISSING, parseMissing, signal) }
   /** The modules installed on the unit, the same way; undefined from a base built before INVENTORY. */
   inventory(signal?: AbortSignal) { return this.modules(VENDOR_INVENTORY, parseInventory, signal) }
+  /** Request 38 is a cached, read-only whole-set digest. A stale cache wakes
+   * its engine owner; no scan or hash runs in the USB interrupt. */
+  async setIdentity(signal?: AbortSignal): Promise<string> {
+    const stopped = signal ?? AbortSignal.timeout(2000)
+    for (let attempt = 0; attempt < 20; ++attempt) {
+      stopped.throwIfAborted()
+      const reply = await this.device.controlTransferIn(this.setup(38, 0), 40)
+      stopped.throwIfAborted()
+      if (reply.status === 'ok' && reply.data) return parseSetIdentity(reply.data)
+      if (reply.status !== 'stall') throw new VendorTransportError('The Octatrack did not confirm its installed module set.')
+      await wait(50, stopped)
+    }
+    throw new VendorTransportError('The Octatrack is busy; its installed module set could not be confirmed.')
+  }
   private async modules(request: number, parse: (view: DataView) => MissingModule[], signal?: AbortSignal): Promise<MissingModule[] | undefined> {
     const all: MissingModule[] = []
     for (let first = 0; ; first += MISSING_PAGE) {

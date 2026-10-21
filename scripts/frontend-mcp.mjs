@@ -269,13 +269,14 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
       if (!before.diagnostics) throw new Error('The device does not provide the required self-test status.')
       // Legacy INVENTORY gives a layout, not the exact installed package hash. Preserve existing
       // modules rather than pretending the latest site package is their exact rollback image.
-      if (before.inventory.moduleIds.some(id => !target.moduleIds.includes(id))) throw new Error('This base cannot identify exact installed rollback packages. Preserve its existing modules in this test set.')
+      const wholeSet = !!(before.capabilities?.features & 512)
+      if (!wholeSet && before.inventory.moduleIds.some(id => !target.moduleIds.includes(id))) throw new Error('This base cannot identify exact installed rollback packages. Preserve its existing modules in this test set.')
       preparedModules?.requireBase([...target.moduleIds, ...before.inventory.moduleIds], before.state.identity?.base)
       const prepared = await catalogue.prepare(target, before.inventory, load, before.capabilities, before.state.identity?.base), review = randomUUID()
       for (const [id, item] of reviews) if (item.expires < clock()) reviews.delete(id)
       if (reviews.size >= 10) throw new Error('Finish or expire existing reviews first.')
       reviews.set(review, { before, target, prepared, expires: clock() + 60000 })
-      return { review, expiresInSeconds: 60, base: before.state.identity.base, active: before.state.active, changes: prepared.changes.map(change => ({ module: change.module, sha256: hash(change.data), undoAvailable: !!change.undo })) }
+      return { review, expiresInSeconds: 60, base: before.state.identity.base, active: before.state.active, changes: prepared.changes.map(change => ({ module: change.module, sha256: hash(change.data), undoAvailable: wholeSet || !!change.undo })) }
     },
     device_trial: async args => {
       readOnlyRemote()
@@ -286,10 +287,11 @@ export async function createFrontendTools(options, injected, dependencies = {}) 
       const now = await snapshot()
       if (now.state.identity.base !== plan.before.state.identity.base || now.state.active !== plan.before.state.active || JSON.stringify(now.inventory) !== JSON.stringify(plan.before.inventory)) throw new Error('The device changed after review; nothing was sent.')
       if (!plan.prepared.changes.length) return { unchanged: true, state: now.state }
-      // The frontend accepts intermediate changes in a multi-change sync. A
-      // trial-only tool must never persist those changes as a hidden Keep.
-      if (plan.prepared.changes.length > 1) throw new Error('Trial-only testing supports one change at a time; multiple changes would Keep intermediate packages.')
-      if (plan.prepared.changes.some(change => !change.undo)) throw new Error('Exact Undo is unavailable; nothing was sent.')
+      // Capability 512 retains the complete baseline on the device. Older
+      // bases can trial one change, and cannot receive a hidden intermediate Keep.
+      const wholeSet = !!(now.capabilities?.features & 512)
+      if (!wholeSet && plan.prepared.changes.length > 1) throw new Error('Multiple changes require a base with module-set transactions; nothing was sent.')
+      if (!wholeSet && plan.prepared.changes.some(change => !change.undo)) throw new Error('Exact Undo is unavailable; nothing was sent.')
       let selftest
       const unsubscribe = link.subscribeDiagnostics(event => { if (event.event === 'selftest') selftest = event.reading })
       try { await link.update(plan.prepared.name, plan.prepared.changes, () => link.selftest()) } finally { unsubscribe() }

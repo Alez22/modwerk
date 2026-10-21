@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "about": "The base's stock-DSP hook sites and DSP data ledger (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md). Sites: the stock P instructions the base hooks with a permanent JSR into a dormant stub; the stub replays the displaced instruction itself, so no package carries stock words. Indices are an ABI: append only, never renumber. Regions: X/Y words a base feature owns while it is held, which no FX buffer and no package claim may meet. Addresses, lengths and SHA-256 guards only, no stock bytes. `python3 -B sdk/machines/octatrack/dsp_sites.py --write` regenerates resident-runtime/dsp_ledger.h; --check proves this file against the module manifests and resident_dsp.py.",
+  "features": [
+    {"bit": 1, "name": "sidechain", "cores": ["A", "B"], "implies": [8], "about": "Sidechain Compressor's detector and MON commit"},
+    {"bit": 2, "name": "matrix", "cores": ["A"], "implies": [], "about": "Output Matrix's mix and phones paths"},
+    {"bit": 4, "name": "analog-bd", "cores": ["A", "B"], "implies": [], "about": "Analog BD's source"},
+    {"bit": 8, "name": "keybus", "cores": ["A", "B"], "implies": [], "about": "the base-owned key bus: every track's FX1 input, on each core and in the cross-core window",
+     "executed": 41, "cost": "its tap, charged per core while the base holds it: executed instructions a sample for a core's four tracks, seeded, counted statically from its source (resident_dsp.keybus_executed); not a modeled cycle count or a hardware timing"}
+  ],
+  "sites": [
+    {"index": 0, "name": "dsp_fx1_dispatch", "feature": 8, "module": "sidechain-compressor", "label": "sctap",
+     "A": "0x004a7", "B": "0x0029c", "words": 2, "guardSha256": "92441a8fc9f1dd20359d87c8342e3d5653d8c853a274358df0cfc0451c57115b",
+     "when": "the dispatcher, for every track on every block, before FX1; X:$420 holds the track",
+     "clobbers": ["a", "b", "r0", "r1", "n1", "x0"], "kind": "exclusive"},
+    {"index": 1, "name": "dsp_compressor_proc", "feature": 1, "module": "sidechain-compressor", "label": "scdet",
+     "A": "0x01ab1", "B": "0x01871", "words": 2, "guardSha256": "114aacb95ee45437fff14f2dcd91b67e26d8bc42ef3ba2e9f6ae0cb8be1574fa",
+     "when": "stock COMPRESSOR's proc, at its first instruction", "clobbers": [], "kind": "exclusive"},
+    {"index": 2, "name": "dsp_track_commit", "feature": 1, "module": "sidechain-compressor", "label": "moncommit",
+     "A": "0x0050e", "B": "0x00303", "words": 2, "guardSha256": "9dad4262559be3a41c85136d50f7d017f161cff9a609d17d21da895cd2137118",
+     "when": "the dispatcher, per track per block, after both FX procs", "clobbers": [], "kind": "exclusive"},
+    {"index": 3, "name": "dsp_core0_mixdown", "feature": 2, "module": "output-matrix", "label": "omx_mix",
+     "A": "0x00257", "words": 2, "guardSha256": "43a6ab9f9273577277c56b298e158b037e7b6f3c457da73cd18868c7501a9fd9",
+     "when": "core 0's mixdown, the MASTER TRACK branch", "clobbers": [], "kind": "exclusive"},
+    {"index": 4, "name": "dsp_core0_phones", "feature": 2, "module": "output-matrix", "label": "omx_phn",
+     "A": "0x0030a", "words": 2, "guardSha256": "749460b0c4484ec3134e24309d29382fd6265a4eeefbd813a9d97fa485a259f0",
+     "when": "core 0's phones crossfade", "clobbers": [], "kind": "exclusive"}
+  ],
+  "regions": [
+    {"feature": 1, "space": "y", "cores": ["A", "B"], "start": "0x7f0", "words": "0x210", "about": "MON words and the LISTEN stash (each bus slot's second half)"},
+    {"feature": 1, "space": "y", "shared": true, "start": "0x3dfe", "words": "0x202", "about": "the cross-core window, as Sidechain has always claimed it"},
+    {"feature": 2, "space": "y", "cores": ["A"], "start": "0xc00", "words": "0xc1", "about": "Output Matrix's levels and state"},
+    {"feature": 4, "space": "x", "cores": ["A", "B"], "start": "0x2840", "words": "0xec0", "about": "Analog BD's tables and voice blocks"},
+    {"feature": 8, "space": "y", "shared": true, "start": "0x3dfe", "words": "0x202", "about": "seed, counter, then 4 tracks x 4 generations x 32 words: listed first, so a reset's first chunk zeroes the seed"},
+    {"feature": 8, "space": "y", "cores": ["A", "B"], "start": "0x800", "words": "0x200", "about": "the key bus: 8 tracks x 64 words, the first 32 published"}
+  ]
+}

@@ -149,16 +149,21 @@ self-test evidence. `device_undo` restores the reviewed previous set;
 Both require the returned trial token and the unchanged trial identity. Exiting
 the server attempts Undo; the base's timeout handles a lost unaccepted session.
 
-Trials support one changed package at a time. The frontend currently accepts
-intermediate changes in a multi-package sync, so the MCP refuses such a trial
-before sending. Full combinations can be prepared and checked without device
-writes; physical trial-only tests add one absent module and Undo before the next.
-This does not prove that a full multi-module set runs simultaneously on hardware.
+On a candidate base advertising feature **512**, trials stage one immutable
+whole-set offer; the device retains the actual baseline for one complete Undo.
+Older bases support one changed package and preserve installed modules whose
+exact bytes their inventory cannot identify. Several changes are refused
+before any write. `verify-octatrack-module-sets.mjs --whole-set --trial
+--expect-base SHA256` runs the reviewed combination, self-test and Undo, with
+an isolated data directory and the exact candidate frontend root. It never
+Keeps. Audio, mixed replacements/removals and physical reboot persistence
+need separate exact-build hardware qualification.
 
 Private volatile-batch helpers under `src/dev` prepare a separate capability-64
 protocol; they are not wired into the site or these MCP tools. Keep the
-single-package refusal until the actual board service, resource admission and
-physical lifecycle are qualified. A full set must use one immutable bundle
+single-package restriction on bases without feature 512. Qualify the candidate's
+actual board service, resource admission and physical lifecycle before release.
+A full set must use one immutable bundle
 and retained baseline journal, inhibit every saved-set write throughout the
 trial, and confirm complete rollback before returning the device.
 

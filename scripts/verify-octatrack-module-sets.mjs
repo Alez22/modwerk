@@ -35,7 +35,7 @@ export const verifierTools = service => (name, args) => {
 }
 
 /** Legacy inventory cannot identify installed package bytes, so all targets retain the starting set. */
-export async function verifyModuleSets(call, { allStaged = false, trial = false, expectBase } = {}) {
+export async function verifyModuleSets(call, { allStaged = false, trial = false, wholeSet = false, expectBase } = {}) {
   if (trial) assert.ok(digest(expectBase), '--trial requires the exact 64-character --expect-base identity.')
   if (expectBase !== undefined) assert.ok(digest(expectBase), 'Invalid --expect-base identity.')
   const listed = await call('site_catalogue', { machine: 'octatrack', beta: true }), requested = allStaged ? STAGED_MODULES : DSP_MODULES
@@ -46,6 +46,7 @@ export async function verifyModuleSets(call, { allStaged = false, trial = false,
   const targets = requested.filter(id => !baselineIds.includes(id)).map(id => ({ id, moduleIds: union([id]) }))
   const selection = moduleIds => call('site_selection', { usb: true, beta: true, moduleIds, current: baseline.inventory, capabilities: baseline.capabilities })
   const fullSet = await selection(union(requested))
+  if (wholeSet) assert.ok(baseline.capabilities?.features & 512, 'Whole-set verification needs a base with module-set transactions; nothing was sent.')
   // Check every package with actual connected capabilities before the first possible write.
   for (const target of targets) {
     const prepared = await selection(target.moduleIds)
@@ -54,19 +55,41 @@ export async function verifyModuleSets(call, { allStaged = false, trial = false,
     target.packageSha256 = prepared.changes[0].sha256
   }
   const receipt = {
-    mode: trial ? 'single-package-trials' : 'read-only-preflight', base: baseline.state.identity.base,
+    mode: trial ? wholeSet ? 'whole-set-trial' : 'single-package-trials' : 'read-only-preflight', base: baseline.state.identity.base,
     startingActive: baseline.state.active, startingModules: baselineIds, capabilities: baseline.capabilities ?? null,
     fullSet: { moduleIds: union(requested), preparedChanges: fullSet.changes?.length, physicalTrial: false },
     packages: targets.map(target => ({ id: target.id, sha256: target.packageSha256, trialPassed: false, undoVerified: false })),
     kept: false, audioVerified: false, rebootVerified: false,
   }
   if (!trial) return receipt
+  if (wholeSet) {
+    assert.ok(targets.length, 'The requested modules are already installed; no whole-set change to verify.')
+    restored(await call('device_status', {}), baseline)
+    const review = await call('device_review', { moduleIds: union(requested) })
+    assert.equal(review.base, baseline.state.identity.base, 'The base changed after preflight; nothing was sent.')
+    assert.equal(review.active, baseline.state.active, 'The installed set changed after preflight; nothing was sent.')
+    assert.deepEqual(review.changes?.map(change => change.sha256), fullSet.changes?.map(change => change.sha256), 'The reviewed packages changed after preflight; nothing was sent.')
+    let started, undone
+    try {
+      started = await call('device_trial', { review: review.review })
+      assert.ok(typeof started.trial === 'string' && started.trial.length > 0, 'No successful trial was returned.')
+      assert.equal(started.state?.status, 'trial', 'The complete set did not remain unaccepted.')
+      assert.equal(started.state.identity?.base, baseline.state.identity.base, 'The trial base changed.')
+      assert.equal(started.state.tested, true, 'The physical self-test did not pass.')
+      receipt.fullSet.physicalTrial = true
+      receipt.packages.forEach(item => { item.trialPassed = true })
+    } finally { if (started?.trial) undone = await call('device_undo', { trial: started.trial }) }
+    restored(undone, baseline)
+    restored(await call('device_status', {}), baseline)
+    receipt.packages.forEach(item => { item.undoVerified = true })
+    return receipt
+  }
   for (const [index, target] of targets.entries()) {
     restored(await call('device_status', {}), baseline)
     const review = await call('device_review', { moduleIds: target.moduleIds })
     assert.equal(review.base, baseline.state.identity.base, 'The base changed after preflight; nothing was sent.')
     assert.equal(review.active, baseline.state.active, 'The installed set changed after preflight; nothing was sent.')
-    assert.equal(review.changes?.length, 1, 'Multiple changes would automatically Keep intermediate packages; nothing was sent.')
+    assert.equal(review.changes?.length, 1, 'Single-package verification received several changes; nothing was sent.')
     assert.equal(review.changes[0].sha256, target.packageSha256, 'The package changed after preflight; nothing was sent.')
     assert.equal(review.changes[0].undoAvailable, true, 'Exact Undo is unavailable; nothing was sent.')
     let started, undone
@@ -88,11 +111,11 @@ export async function verifyModuleSets(call, { allStaged = false, trial = false,
 export async function main(args, openService) {
   const { values } = parseArgs({ args, options: {
     socket: { type: 'string' }, 'data-dir': { type: 'string' }, 'mcp-server': { type: 'string' },
-    'frontend-root': { type: 'string' }, 'all-staged': { type: 'boolean' }, trial: { type: 'boolean' },
+    'frontend-root': { type: 'string' }, 'all-staged': { type: 'boolean' }, trial: { type: 'boolean' }, 'whole-set': { type: 'boolean' },
     'expect-base': { type: 'string' }, help: { type: 'boolean' },
   } })
   if (values.help) {
-    console.log('Usage: node scripts/verify-octatrack-module-sets.mjs --socket SOCKET --data-dir PRIVATE_DIR [--mcp-server FILE] [--frontend-root CHECKOUT] [--all-staged] [--trial --expect-base SHA256]\nDefault: read-only package/capability preflight. Trials add one package at a time, self-test and Undo. Never Keeps, flashes, reboots or edits Parts. All-six coexistence is preflight only.')
+    console.log('Usage: node scripts/verify-octatrack-module-sets.mjs --socket SOCKET --data-dir PRIVATE_DIR [--mcp-server FILE] [--frontend-root CHECKOUT] [--all-staged] [--whole-set] [--trial --expect-base SHA256]\nDefault: read-only package/capability preflight. Trials add one package at a time, self-test and Undo; --whole-set trials all additions in one transaction on a capable base. Never Keeps, flashes, reboots or edits Parts. Audio and reboot persistence need separate qualification.')
     return
   }
   assert.ok(values.socket && values['data-dir'], '--socket and an isolated --data-dir are required.')
@@ -102,7 +125,7 @@ export async function main(args, openService) {
   const create = openService ?? (await import(pathToFileURL(server).href)).createFrontendTools
   const service = await create({ root, dataDir: resolve(values['data-dir']), deviceSocket: values.socket, allowDeviceWrites: !!values.trial })
   let receipt
-  try { receipt = await verifyModuleSets(verifierTools(service), { allStaged: values['all-staged'], trial: values.trial, expectBase: values['expect-base'] }) }
+  try { receipt = await verifyModuleSets(verifierTools(service), { allStaged: values['all-staged'], wholeSet: values['whole-set'], trial: values.trial, expectBase: values['expect-base'] }) }
   finally { await service.close() }
   console.log(JSON.stringify(receipt, null, 2))
 }

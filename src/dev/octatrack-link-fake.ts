@@ -5,7 +5,7 @@
 import type { Inventory, InventoryTarget } from '../config/inventory.ts'
 import { sha } from '../../vendor/elekloader/kit/src/bytes.ts'
 import { OctatrackLink, type LinkDevice, type LinkSession, type LinkUsb } from '../engine/elekloader/octatrack-link.ts'
-import { UploadDeviceError } from '../engine/elekloader/upload-session.ts'
+import { UPLOAD_TIMEOUT_MAX_MS, UploadDeviceError } from '../engine/elekloader/upload-session.ts'
 import { SELFTEST_BYTES, VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
 import type { UploadPhaseName, UploadResultName, UploadStatus } from '../engine/elekloader/upload-wire.ts'
 import baseBinding from '../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
@@ -34,6 +34,8 @@ export interface FakeUnit {
   flashed: string
   /** The base writes its own container to NOR over USB (capability feature bit 8, flash.c). */
   updatesBase: boolean
+  /** Whole-set transaction capability (512), opt in in lifecycle tests. */
+  moduleSets: boolean
   /** What the unit has, and what a staged load would make it (taken on Keep). */
   installed: Inventory
   pending?: Inventory
@@ -76,8 +78,15 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
         if (setup.request === 3) return { status: 'ok', data: new DataView(identityBytes(unit.base).buffer) }
         if (setup.request === 29) { // CAPABILITIES, MWCP v1: loader ABI 8, the feature bits, 24 sites, 8 copies
           const caps = new DataView(new ArrayBuffer(12)); caps.setUint32(0, 0x4d574350); caps.setUint8(4, 1); caps.setUint8(5, 8)
-          caps.setUint16(6, 128 | (unit.updatesBase ? 256 : 0)); caps.setUint16(8, 24); caps.setUint16(10, 8)
+          caps.setUint16(6, 128 | (unit.updatesBase ? 256 : 0) | (unit.moduleSets ? 512 : 0)); caps.setUint16(8, 24); caps.setUint16(10, 8)
           return { status: 'ok', data: caps }
+        }
+        if (setup.request === 38 && unit.moduleSets) {
+          const bytes = new Uint8Array(40), view = new DataView(bytes.buffer)
+          view.setUint32(0, 0x4d575344); view.setUint8(4, 1); view.setUint8(5, 1); view.setUint16(6, unit.modules.length)
+          const digest = sha(new TextEncoder().encode(JSON.stringify([...unit.modules].sort())))
+          bytes.set(Uint8Array.from({ length: 32 }, (_, i) => parseInt(digest.slice(2 * i, 2 * i + 2), 16)), 8)
+          return { status: 'ok', data: view }
         }
         if (setup.request === 14 && unit.project) {
           const page = unit.project.filter(item => !unit.installed.moduleIds.includes(item.id)).slice(setup.value, setup.value + 13)
@@ -119,7 +128,7 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
   let device: LinkDevice | undefined = kind === 'none' ? undefined : make(kind === 'base')
   const unit: FakeUnit = {
     taken: false, playing: false, installed: { moduleIds: [], removedStockFx: [] }, active: FAKE_BASE, modules: [], kept: [],
-    base: FAKE_BASE, flashed: FAKE_BASE, updatesBase: true,
+    base: FAKE_BASE, flashed: FAKE_BASE, updatesBase: true, moduleSets: false,
     usb: {
       async requestDevice() { if (!device) throw new DOMException('No device selected.', 'NotFoundError'); return device },
       async getDevices() { return device ? [device] : [] },
@@ -135,7 +144,8 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
 /** The upload session's phases without frames. `delay` paces each step for the preview; tests use 0. */
 export function fakeSession(unit: FakeUnit, delay = 0) {
   const wait = () => new Promise(resolve => setTimeout(resolve, delay))
-  return async (): Promise<LinkSession> => {
+  return async (_transport?: unknown, _base?: string, options: { timeoutMs?: number } = {}): Promise<LinkSession> => {
+    if ((options.timeoutMs ?? 0) > UPLOAD_TIMEOUT_MAX_MS) throw new Error('Upload timeout must be at most ' + UPLOAD_TIMEOUT_MAX_MS + ' ms.') // as UploadSession.connect
     let status: UploadStatus = { command: 'hello', transaction: 0, result: 'ok', phase: unit.staged ? 'receiving' : unit.orphan ? 'trial' : 'normal', activeKnown: true, generation: unit.orphan ? 1 : 0,
       lastTransaction: unit.orphan ? 7 : 0, currentTransaction: unit.orphan ? 7 : 0, received: 0, capacity: 262144, base: unit.base, session: '00'.repeat(32),
       active: unit.orphan ?? unit.active }
@@ -179,10 +189,17 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
           setTimeout(() => { unit.flashed = unit.base; unit.active = unit.base; unit.unplug(); unit.plug('base') }, delay)
           return status
         }
-        if (data && String.fromCharCode(...data.subarray(0, 4)) === 'MWRM') { // a runtime package: its module in or out
-          const view = new DataView(data.buffer, data.byteOffset), id = view.getUint32(28).toString(16).padStart(8, '0')
+        const apply = (pkg: Uint8Array) => {
+          const view = new DataView(pkg.buffer, pkg.byteOffset), id = view.getUint32(28).toString(16).padStart(8, '0')
           const removes = !view.getUint32(8) && !view.getUint32(20) && !view.getUint32(24) && (view.getUint16(4) < 5 || !view.getUint32(32))
           unit.modules = unit.modules.filter(item => item !== id).concat(removes ? [] : [id]); unit.kept.push((removes ? '-' : '+') + id)
+        }
+        if (data && String.fromCharCode(...data.subarray(0, 4)) === 'MWRM') apply(data)
+        else if (data && String.fromCharCode(...data.subarray(0, 4)) === 'MWMS') {
+          const view = new DataView(data.buffer, data.byteOffset)
+          for (let i = 0, at = 80; i < view.getUint16(6); i++) {
+            const length = view.getUint32(at); apply(data.subarray(at + 4, at + 4 + length)); at += 4 + Math.ceil(length / 4) * 4
+          }
         }
         return status
       },
@@ -191,7 +208,7 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
         if (unit.orphan && !owned) throw new Error('This client does not own a staged transaction.')
         unit.orphan = undefined; unit.pending = undefined; return status = { ...await step('ready'), active: unit.active }
       },
-      adopt: () => owned ||= ['receiving', 'pending', 'trial', 'recovery'].includes(status.phase),
+      adopt: () => owned ||= ['receiving', 'pending', 'trial', 'recovery', 'publishing'].includes(status.phase),
       cancel: async () => {
         if (unit.staged && !owned) throw new Error('This client does not own a staged transaction.')
         unit.staged = false; return step('normal')

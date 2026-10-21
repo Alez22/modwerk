@@ -37,7 +37,7 @@ export async function loadPreparedModules(directory, published, frontend) {
     if (previous) {
       if (JSON.stringify(entry) !== JSON.stringify(previous)) throw new Error('Private preparation changed an existing published package.')
     } else {
-      if (!PORTS.has(entry.id) || entry.abi !== 8 || entry.requiredBase !== receipt.base.identity ||
+      if (!PORTS.has(entry.id) || ![8, 9].includes(entry.abi) || entry.requiredBase !== receipt.base.identity ||
           frontend.modules.find(module => module.id === entry.id)?.version !== entry.version)
         throw new Error('A prepared port needs its reviewed current adapter and exact base identity.')
       added.push(entry.id)
@@ -61,7 +61,7 @@ export async function loadPreparedModules(directory, published, frontend) {
   // Theoretical capabilities here are planning inputs; device_review observes
   // the actual connected identity/capabilities before preparing any USB trial.
   for (const id of added) await catalogue.prepare({ name: 'Private preparation', moduleIds: [id], removedStockFx: [] },
-    { moduleIds: [], removedStockFx: [] }, load, { abi: 8, features: 7, maxSites: 128, maxCopies: 128 }, receipt.base.identity)
+    { moduleIds: [], removedStockFx: [] }, load, { abi: 9, features: 7, maxSites: 128, maxCopies: 128 }, receipt.base.identity)
   return { catalogue, load, info: { base: receipt.base.identity, moduleIds: added, admission: false },
     requireBase(moduleIds, base) {
       if (moduleIds.some(id => PORTS.has(id)) && base !== receipt.base.identity) throw new Error('This private prepared package needs the exact observed Modwerk base.')
