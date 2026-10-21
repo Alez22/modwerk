@@ -7,6 +7,7 @@ import { cleanupAccounts } from './server/accounts'
 import { cleanupUsage } from './server/usage'
 import { cleanupOctatrackDiagnostics } from './server/octatrack-diagnostics'
 import { cleanupPresence } from './server/presence'
+import { remindInactiveBetaTesters } from './server/beta-inactivity'
 import { ensureModuleThreads } from './server/module-threads'
 import { sendActivityDigests } from './server/activity-mail'
 import { sendNewsMail } from './server/news-mail'
@@ -50,7 +51,7 @@ export default {
     context.waitUntil(runHourly({
       'Octatrack diagnostics cleanup': () => cleanupOctatrackDiagnostics(db), 'remote session cleanup': () => cleanupRemoteSessions(db),
       'push cleanup': () => cleanupPush(db), 'usage cleanup': () => cleanupUsage(db), 'presence cleanup': () => cleanupPresence(db), 'account cleanup': () => cleanupAccounts(db),
-      'developer auth cleanup': () => cleanupDeveloperAuth(db), 'module threads': () => ensureModuleThreads(db), 'activity digests': activity, 'forum media cleanup': () => cleanupForumMedia(env), 'audio preview cleanup': () => cleanupAudioPreviews(env),
+      'developer auth cleanup': () => cleanupDeveloperAuth(db), 'beta inactivity': () => remindInactiveBetaTesters(env, db), 'module threads': () => ensureModuleThreads(db), 'activity digests': activity, 'forum media cleanup': () => cleanupForumMedia(env), 'audio preview cleanup': () => cleanupAudioPreviews(env),
     }))
   },
 }
