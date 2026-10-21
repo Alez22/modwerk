@@ -71,7 +71,8 @@ const list = (items: string[]) => new Intl.ListFormat('en', { type: 'conjunction
 
 /** The site's exact copy of a package, including retained variants needed to undo a replacement. */
 export async function fetchPackage(entry: RuntimePackage): Promise<Uint8Array> {
-  const response = await fetch(import.meta.env.BASE_URL + entry.path)
+  // A base update relinks a package under the same path; the hash keeps the browser's cached copy of the old one out.
+  const response = await fetch(import.meta.env.BASE_URL + entry.path + '?sha256=' + entry.sha256)
   const data = response.ok ? new Uint8Array(await response.arrayBuffer()) : undefined
   if (!data || data.length !== entry.bytes || sha(data) !== entry.sha256)
     throw new ModuleSetError(`The site couldn’t fetch ${entry.name ?? 'a module package'} intact. Reload the page and try again.`)

@@ -56,6 +56,17 @@ describe('the base dialog for a unit on an older base', () => {
     expect(buttonNamed('Download base .bin')).toBeDefined()
     expect(container.textContent).toContain('from the card, the same way as the first time')
   })
+  it('asks for a reload instead of sending its base when the site was deployed since the page opened', async () => {
+    const script = Object.assign(document.createElement('script'), { type: 'module' }); script.setAttribute('src', './assets/index-old.js'); document.head.append(script)
+    try {
+      vi.stubGlobal('fetch', async () => new Response('<script type="module" crossorigin src="./assets/index-new.js"></script>'))
+      const { update } = await older(true); await settle()
+      expect(container.textContent).toContain('Modwerk was updated since you opened this page')
+      expect(container.textContent).not.toContain('runs an older Modwerk base')
+      expect(buttonNamed('Update over USB')).toBeUndefined(); expect(buttonNamed('Reload page')).toBeDefined()
+      expect(update).not.toHaveBeenCalled()
+    } finally { script.remove() }
+  })
 })
 
 describe('the base dialog for another USB Audio layout', () => {
