@@ -91,7 +91,7 @@
       "name": "MODE",
       "default": 0,
       "count": 2,
-      "doc": "DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and BIAS in RING and keep their values when MODE changes.",
+      "doc": "DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and BIAS in RING.",
       "labels": [
         "DUCK",
         "RING"
@@ -115,20 +115,19 @@
       "On the first visit to the main page after choosing the effect, KEY may move one track per detent until the page is entered again (seen on card images under the emulator; not checked on the USB base).",
       "Declared conflict with Analog BD: carried over from the card builder's rule (Analog BD admits only the effects on its companion list, and this one is not on it). Over USB no resource clash is known; it is declared for every build until the owner decides otherwise, so the configurator never offers both.",
       "DUCK buzzes at its very shortest settings: with ATK, HOLD and REL all near 0 the gain follows each cycle of the key, an audio-rate amplitude modulation (heard on an MKII with 0.1.0, as expected). Keep HOLD above half a cycle of the key for a clean duck.",
-      "In RING, SLEW, S&H and BIAS keep DUCK's values on a MODE change: on a unit, a fresh instance switched to RING has S&H at 34 and BIAS at 45, so turn them to 0 for the plain ring modulator. The module declares 0, 0, 0 as RING's defaults, which the remixer applies; Modwerk does not apply per-mode defaults on a unit.",
       "0.2.0 has not run on hardware. 0.1.0, whose DUCK and plain RING this version reproduces sample for sample, passed its first MKII steps over USB on 21 October 2026 (key bus, install, KEY, DUCK by ear); scenes, the crossfader, project save, Part reload and a power cycle were not run, and parameter locks and LFOs only in the emulator on the earlier own-tap build."
     ],
     "effectId": 6
   },
   "resources": {
-    "recorded": "20 Oct 2026 (0.1.0, key bus reader), static and dsp_host",
+    "recorded": "21 Oct 2026 (0.2.0), static and dsp_host",
     "storage": {
       "label": "DSP program",
-      "display": "270 words P per core, 16 words X per instance, no buffer",
-      "value": 270,
+      "display": "322 words P per core, 20 words X per instance, no buffer",
+      "value": 322,
       "unit": "words",
       "method": "static",
-      "conditions": "Assembled with dsp_asm: 270 words, both payloads (one source). State is 16 words of the instance's existing r7 block. The key bus is the base's (Y $800-$9FF on each core and $202 words at the end of each core's half of the shared window); the package declares reads of them as its DSP claims and writes nothing outside its state. A 9-value KEY formatter, a MODE formatter with its renames and the shared wide dial are ColdFire data in its page recipe.",
+      "conditions": "Assembled with dsp_asm: 322 words, both payloads (one source). State is 20 words of the instance's existing r7 block. The key bus is the base's (Y $800-$9FF on each core and $202 words at the end of each core's half of the shared window); the package declares reads of them as its DSP claims and writes nothing outside its state. A 9-value KEY formatter, a MODE formatter with its renames and the shared wide dial are ColdFire data in its page recipe.",
       "source": "TESTING.md"
     },
     "processing": {
@@ -137,27 +136,27 @@
       "value": 63,
       "unit": "instructions/sample",
       "method": "static",
-      "conditions": "tools/build/cycle_count.py: 63 cycles/sample in the dearer sample loop (DUCK; RING 32), the same loops as the earlier build. Measured with modules/ring-sc/perf.py (benchmark_stock_dsp.py's method, a private native image with the key bus's seed marks): at most 80.56 executed instructions/sample per instance with trig splits (67.69 unsplit), COMPRESSOR 72.06. The base's key bus tap, charged to the module while it is installed, adds 41 executed instructions a sample per core whatever is on the tracks (counted from its source, charged at 7/4). Not hardware cycles.",
+      "conditions": "tools/build/cycle_count.py: 63 cycles/sample in each mode loop (DUCK 63 as 0.1.0, RING 63 with S&H, SLEW and BIAS). Measured with modules/ring-sc/perf.py (benchmark_stock_dsp.py's method, a private native image with the key bus's seed marks): at most 80.56 executed instructions/sample per instance with trig splits (67.69 unsplit), COMPRESSOR 72.06. The base's key bus tap, charged to the module while it is installed, adds 41 executed instructions a sample per core whatever is on the tracks (counted from its source, charged at 7/4). Not hardware cycles.",
       "source": "TESTING.md"
     },
     "impact": {
-      "conditions": "One active instance in DUCK at any setting; the cost does not depend on the knobs. The base's key bus tap is a per-core cost while the module is installed. Emulator and static figures; no hardware timing.",
+      "conditions": "One active instance at its dearest settings (DUCK; RING with every carrier stage on is cheaper). The base's key bus tap is a per-core cost while the module is installed. Emulator and static figures; no hardware timing.",
       "cpu": {
         "level": "minimal",
         "basis": "source-estimate",
-        "rationale": "A page recipe (two label formatters and the mode renames); no ColdFire code of its own.",
+        "rationale": "A page recipe (two label formatters and the RING renames); no ColdFire code of its own.",
         "source": "TESTING.md"
       },
       "dsp": {
         "level": "low",
         "basis": "source-estimate",
-        "rationale": "At most 80.56 executed instructions/sample per instance with trig splits in perf.py's bench (67.69 unsplit), against 72.06 for stock COMPRESSOR and 314.19 for SPRING REV in the same host. The base's key bus tap adds 41 executed instructions a sample per core while the module is installed (counted from its source).",
+        "rationale": "At most 80.56 executed instructions/sample per instance with trig splits in perf.py's bench (DUCK, 67.69 unsplit; RING 76.44 / 65.62), against 72.06 for stock COMPRESSOR and 314.19 for SPRING REV in the same host. The base's key bus tap adds 41 executed instructions a sample per core while the module is installed (counted from its source).",
         "source": "TESTING.md"
       },
       "memory": {
         "level": "low",
         "basis": "source-estimate",
-        "rationale": "270 words of DSP program per core and 16 words of state in each instance's existing block; the key bus's memory is the base's.",
+        "rationale": "322 words of DSP program per core and 20 words of state in each instance's existing block; the key bus's memory is the base's.",
         "source": "TESTING.md"
       }
     }

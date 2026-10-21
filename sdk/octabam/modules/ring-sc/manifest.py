@@ -29,7 +29,7 @@ mark) the depth stays at 0 and the audio passes bit for bit: a card image has
 no key bus, so there it does nothing.
 KEY is a plain labelled select, on page 1 so it can be reached, locked and
 modulated like any main knob. MODE is alone on page 2 and three page-1 names
-follow it (ModeView). The earlier build's ColdFire KEY-step routine
+follow it (a NameSelect: MODE keeps its own name, as a stock select does). The earlier build's ColdFire KEY-step routine
 (keystep.s) is gone: it named its card descriptor, which a USB package cannot,
 so on the first visit after choosing the effect KEY may move a track a detent
 (seen on card images under the emulator; not checked on the USB base).
@@ -46,7 +46,7 @@ not run on a unit.
 """
 
 from remix.schema import (Category, Proof, BusRole, DspSection, Formatter, Gate,
-                          Harness, Kind, MenuEntry, ModeView, Module, Param, YBase)
+                          Harness, Kind, MenuEntry, ModeView, Module, NameSelect, Param, YBase)
 
 # KEY's labels. The track names carry a space each side: drawn centred, " T1 " lands where "T1" would, and the
 # formatter's string table then differs from stock's own "OFF/T1-T7" list, which a USB package must not repeat
@@ -93,13 +93,11 @@ MODULE = Module(
         Param(), Param(), Param(), Param(), Param(),
     ),
 
-    # RING renames ATK, HOLD and REL. The defaults are where the remixer and the
-    # project tools put the three knobs on a MODE change (0: RING as the plain
-    # ring modulator). A Modwerk unit applies no mode defaults (upstream MODE
-    # DEFAULTS is not imported), so there the knobs keep their values.
-    mode_slot=6,
-    mode_views=(ModeView(mode=0, defaults={3: 0, 4: 34, 5: 45}),
-                ModeView(mode=1, names={3: b"SLEW", 4: b"S&H", 5: b"BIAS"}, defaults={3: 0, 4: 0, 5: 0})),
+    # RING renames ATK, HOLD and REL. MODE is a NameSelect, not the mode_slot:
+    # it renames its neighbours but keeps its own name, so it reads like a
+    # stock select (MODE over DUCK / RING); the mode_slot's select names itself.
+    # The knobs keep their values on a MODE change, as other modules' do.
+    name_selects=(NameSelect(6, (ModeView(mode=1, names={3: b"SLEW", 4: b"S&H", 5: b"BIAS"}),)),),
 
     dsp=DspSection(
         asm="modules/ring-sc/ringsc.asm",

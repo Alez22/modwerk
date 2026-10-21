@@ -5,7 +5,7 @@
 Source: branch `claude/ringmod-sc-0.2` on main `8e1e52be` (the key bus integrated, #750 and #737), module source
 `cb416ca8…`. Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Nothing in this section ran
 on hardware.** What changed from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
-on the knobs DUCK uses for ATK, HOLD and REL, renamed per mode (ModeView: SLEW, S&H, BIAS):
+on the knobs DUCK uses for ATK, HOLD and REL, renamed in RING by MODE (a NameSelect, so MODE keeps its own name: SLEW, S&H, BIAS):
 - S&H (HOLD): a new key every 16v samples, held between; at 0 the same reload takes every key.
 - SLEW (ATK): the key's level, |key| smoothed by 1 - q(v) on ATK's scale, kept every sample and chosen above 0.
 - BIAS (REL): key + h (1 - key), h = v/256, ramped over 16 samples like the depth (unramped it stepped at the block
