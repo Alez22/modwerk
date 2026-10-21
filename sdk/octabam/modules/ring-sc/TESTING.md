@@ -63,8 +63,8 @@ detent). The RING page names SLEW, S&H and RECT; the DUCK page is unchanged; MOD
 DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot, wrote the word into its own name). A card image has no key bus, so these show
 the pages, not the effect.
 
-**Native comparison.** `npm run module:verify -- ring-sc` on the tester's 1.40C, on main `91e72c81` (Apply Scene in
-the pool): 142 selections, 56 native module-owned images match (24 identical outright, 32 outside the platform writes),
+**Native comparison.** `npm run module:verify -- ring-sc` on the tester's 1.40C, on main `4d4f731d` (Apply Scene in
+the pool; rerun with RECT, the same figures): 142 selections, 56 native module-owned images match (24 identical outright, 32 outside the platform writes),
 86 refusals agree, 0 mismatches. Run with a local, uncommitted qualification stub (the catalogue offers a module only
 with its qualification record, which waits for the MKII run); with it `module:doctor ring-sc` reports every
 integration point green, and `npm run check` passes but for the landing steps (the beta base regenerated for RINGMOD
