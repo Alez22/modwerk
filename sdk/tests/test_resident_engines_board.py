@@ -209,6 +209,9 @@ static unsigned dsp_mask[2], words[2][4], base_word[2][4], answered[2], cas_coun
 /* The key window held some slot buffer's words since the bus's reset began there (mode 41): only a reset from offset 0
  * (the receiver's fresh start) rewrites them, and the bus is never enabled over them. */
 static unsigned window_dirty[2];
+/* The tap has run since the window's seed was last zeroed (mode 43): an enabled bus seeds it; only an offset-0 key bus
+ * chunk (the window first, dsp-sites.json) zeroes it again. */
+static unsigned seed_live[2];
 /* The key bus's tap price (dsp.c's resident_engines.dsp seam): whether it would fit, and whether it is charged. */
 static unsigned kb_fits = 1, kb_charged;
 int modwerk_dsp_keybus_fits(void) { return (int)(kb_fits || kb_charged); }
@@ -260,7 +263,7 @@ static void dsp(void)
             if (k <= 3 && !w5 && !(dsp_mask[c] & f)) words[c][k] = 0; /* offset 0: a fresh start (hookready cleared) */
             reject = k > 3 || w5 != words[c][k] || (dsp_mask[c] & f);
             if (!reject) words[c][k] += w4;
-            if (!reject && f == 8u && !w5) window_dirty[c] = 0;
+            if (!reject && f == 8u && !w5) window_dirty[c] = 0, seed_live[c] = 0;
         } else if (op == 10u && w7 == 1u) {
             unsigned f = w4, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
             reject = k > 3 || (dsp_mask[c] & f) || !mw_engine_units[c][k].count || (refuse_place[c] && w5 == refuse_place[c]);
@@ -279,6 +282,7 @@ static void dsp(void)
             if (!reject && (on & 1u) && !(desired & 8u)) ++sc_before_bus; /* Sidechain on before the key bus */
             if (!reject) {
                 for (unsigned f = 1, k = 0; f <= 8; f <<= 1, ++k) if ((expected & f) && !(desired & f)) words[c][k] = 0;
+                if (desired & 8u) seed_live[c] = 1;
                 dsp_mask[c] = desired;
             }
         } else if (op == 10u) reject = 1;
@@ -1204,6 +1208,31 @@ int main(int argc, char **argv)
         memcpy(second, pkg_reader, sizeof second);
         second[31] ^= 1u; /* another module id: another reader */
         assert(refused(second, sizeof second) == RUNTIME_CONFLICT);
+    } else if (mode == 43) {
+        /* A reader's run leaves the window seeded. Once the bus is let go the board zeroes the seed (one offset-0 chunk,
+         * the window first) while it still holds the window, before any buffer may take it; a reader installed later
+         * finds no stale mark. Then the same with Sidechain alone, whose removal lets the bus go too. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && seed_live[0] && seed_live[1]);
+        unsigned from[2] = {trails[0], trails[1]};
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        run(50);
+        assert(!dsp_mask[0] && !dsp_mask[1] && !seed_live[0] && !seed_live[1] && !modwerk_controller_held());
+        for (unsigned c = 0; c < 2; ++c) {
+            unsigned i = from[c], cas = 0;
+            while (i < trails[c] && !(trail[c][i].op == 10u && trail[c][i].w7 == 0u)) ++i;
+            cas = i;
+            while (i < trails[c] && !(trail[c][i].op == 11u && trail[c][i].w7 == 8u)) ++i;
+            assert(cas < trails[c] && i < trails[c] && trail[c][i].w5 == 0 && trail[c][i].w4 == 24); /* the disable, then the scrub */
+        }
+        unplaced(0, 8); unplaced(1, 8);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && seed_live[0] && seed_live[1]);
+        remove_module(SC);
+        run(20);
+        assert(!dsp_mask[0] && !dsp_mask[1] && !seed_live[0] && !seed_live[1] && !modwerk_controller_held());
     } else assert(0);
     return 0;
 }
@@ -1289,7 +1318,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 43
+    MODES = 44
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:

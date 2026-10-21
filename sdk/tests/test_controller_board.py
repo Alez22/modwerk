@@ -392,7 +392,8 @@ int main(int argc, char **argv)
         assert(install(removal(SC), 32) == MU_APPLIED);
         run(4); /* released on the first tick, the key bus let go on the next, its disable ACKed on the third */
         assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && page_is(0, SC) && !dsp_mask[0] && !dsp_mask[1]);
-        assert(!words[0][3] && !words[1][3]); /* its disable invalidated the bus's reset */
+        /* Its disable invalidated the bus's reset; then one offset-0 chunk zeroed the window's seed (the scrub). */
+        assert(words[0][3] == 24 && words[1][3] == 24);
         /* Installing it again binds a new owner generation from scratch; no earlier decision carries over. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         assert(!lease(SC, 1));

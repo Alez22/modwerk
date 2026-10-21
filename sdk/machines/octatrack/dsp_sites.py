@@ -177,6 +177,12 @@ def check(reg):
         have = sorted((f, sp, a, w) for f, c, sp, a, w in spans(reg) if c == CORE[tag] and f in resident_dsp.FEATURES)
         if have != expected:
             problems.append('payload %s: the feature regions differ from resident_dsp.resource_ranges' % tag)
+        # A feature's regions in the same order: its reset (the receiver's ranges) and the board's chunks (the ledger's
+        # first-range split) walk them in that order.
+        for f in resident_dsp.FEATURES:
+            order = [(r['space'], r['address'], r['words']) for r in resident_dsp.resource_ranges(tag) if r['owner'] == f]
+            if [(sp, a, w) for g, c, sp, a, w in spans(reg) if g == f and c == CORE[tag]] != order:
+                problems.append('payload %s: feature %d\'s regions are not in resident_dsp.resource_ranges\'s order' % (tag, f))
     for f in reg['features']:
         if f['name'] == 'keybus':
             text = (SDK / 'modules/sidechain-compressor/upstream/tools/patch_sc_dsp3.asm').read_text()

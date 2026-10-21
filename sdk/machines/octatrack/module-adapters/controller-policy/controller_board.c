@@ -62,9 +62,13 @@ static uint8_t started, closed, mask[2], mask_known;
  * demand), reset (1,026 words) and enabled on both cores, one owned job per core at a time, before any Sidechain enable;
  * once nothing wants it, disabled, then collected with the engines. Its own generation names its owned jobs. */
 #define KEYBUS_GENERATION 0x4b425553u /* "KBUS": never an owner generation's range (they count up from 1) */
-enum { KB_IDLE, KB_RESET, KB_ENABLE, KB_DISABLE, KB_STUCK };
+enum { KB_IDLE, KB_RESET, KB_ENABLE, KB_DISABLE, KB_STUCK, KB_SCRUB };
 static struct { struct dl_owned_job job; uint8_t op; } kb_lane[2];
 static uint16_t kb_reset[2];   /* reset words ACKed since this core last disabled it (the receiver's ready bit) */
+/* The tap has seeded this core's window (its mark and counter) since it was last scrubbed: once the bus is let go, its
+ * first reset chunk (the window's seed, counter and first words; dsp-sites.json lists the window first) is sent again
+ * before anything else may use the window, so a reader installed later never takes a stale mark for a live bus. */
+static uint8_t kb_dirty[2];
 static uint8_t kb_wanted;      /* the last tick's verdict, for held() and the view */
 static uint8_t kb_readers;     /* ... and whether a live package requires it (a reader) */
 #ifdef MODWERK_RESIDENT_ON_DEMAND
@@ -436,7 +440,8 @@ static void keybus_poll(void)
         kb_lane[c].op = KB_IDLE;
         if (!ok) { mask_known &= (uint8_t)~(1u << c); continue; } /* the transport closed that core for the boot */
         if (op == KB_RESET) kb_reset[c] = (uint16_t)(kb_reset[c] + kb_lane[c].job.count);
-        else if (op == KB_ENABLE) mask[c] = (uint8_t)(mask[c] | KEYBUS);
+        else if (op == KB_SCRUB) kb_dirty[c] = 0, kb_reset[c] = 0; /* the seed is zero; the next want resets from 0 */
+        else if (op == KB_ENABLE) mask[c] = (uint8_t)(mask[c] | KEYBUS), kb_dirty[c] = 1;
         else mask[c] = (uint8_t)(mask[c] & ~KEYBUS), kb_reset[c] = 0; /* a disable invalidates its reset */
     }
 }
@@ -444,8 +449,8 @@ static int keybus_start(unsigned c, unsigned op)
 {
     struct dl_owned_job job;
     int ok;
-    if (op == KB_RESET) {
-        unsigned offset = kb_reset[c], n = KEYBUS_WORDS - offset > 24u ? 24u : KEYBUS_WORDS - offset;
+    if (op == KB_RESET || op == KB_SCRUB) {
+        unsigned offset = op == KB_SCRUB ? 0u : kb_reset[c], n = KEYBUS_WORDS - offset > 24u ? 24u : KEYBUS_WORDS - offset;
         if (offset < KEYBUS_SPLIT && n > KEYBUS_SPLIT - offset) n = KEYBUS_SPLIT - offset;
         ok = dl_owned_reset_reserve(c, KEYBUS_GENERATION, KEYBUS, offset, n, kb_zeros, &job);
     } else ok = dl_owned_command_reserve(c, KEYBUS_GENERATION, 10u, mask[c],
@@ -488,6 +493,10 @@ static void keybus_tick(void)
     } else if (!kb_wanted) {
         for (unsigned c = 0; c < 2u; ++c) {
             if (!busy[c] && (mask_known >> c & 1u) && (mask[c] & KEYBUS)) (void)keybus_start(c, KB_DISABLE);
+            /* Off after a run: zero the seed and counter first (an offset-0 chunk, the receiver's fresh start), while the
+             * bus still holds the window (modwerk_controller_held), never over a slot buffer. */
+            else if (!busy[c] && (mask_known >> c & 1u) && kb_dirty[c] && dl_hook_buffer_ranges_idle(KEYBUS) == 1)
+                (void)keybus_start(c, KB_SCRUB);
             /* Never enabled here, or let go before its ENABLE: what the reset wrote counts for nothing once the bus is no
              * longer held, since a slot buffer may take the window meanwhile. The next want resets from offset 0 (the
              * receiver's fresh start: it clears its ready bit). */
@@ -681,6 +690,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 unsigned modwerk_controller_held(void)
 {
     unsigned features = slot_features();
-    if (kb_wanted || (KEYBUS_IMPLIED(features)) || ((mask[0] | mask[1]) & KEYBUS) || (started && mask_known != 3u)) features |= KEYBUS;
+    if (kb_wanted || (KEYBUS_IMPLIED(features)) || ((mask[0] | mask[1]) & KEYBUS) || (started && mask_known != 3u) ||
+        ((kb_dirty[0] || kb_dirty[1]) && !closed)) features |= KEYBUS; /* until its seed is scrubbed */
     return features;
 }

@@ -259,8 +259,10 @@ stays byte-identical; only its feature split moves (KEYBUS, bit 8, out of SIDECH
   nothing installed, then with a KEYBUS reader installed (KEYBUS placed and enabled, no reader on any track), then with
   Sidechain installed; the difference is the tap's cost per core.
 
-**Resets.** KEYBUS resets the bus (Y $800, $200 words) and the window ($33dfe / $3bdfe, $202 words), 1,026 words per
-core, when it is placed. Sidechain keeps its exact reset (1,042 words: Y $7f0+$210 and the window), so its contract and
+**Resets.** KEYBUS resets the window ($33dfe / $3bdfe, $202 words) and then the bus (Y $800, $200 words), 1,026 words
+per core, when it is placed: the window first, so the first chunk zeroes the seed mark and counter. Once it is let go
+after a run, the board sends that one chunk again (the scrub) while it still holds the window, so a stale mark never
+outlives the bus. Sidechain keeps its exact reset (1,042 words: Y $7f0+$210 and the window), so its contract and
 DSP stay byte-identical; a held Sidechain holds KEYBUS, which the base places, resets and enables first. Side effect:
 installing or reinstalling Sidechain while a reader is live re-zeroes the bus and the window once, so that reader hears
 up to about a block of silent key while the tap re-adopts its counter by #640's rule.
@@ -352,7 +354,13 @@ the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and
   not start) or before its first tick, a reader is refused (`RUNTIME_CONFLICT`): nothing would hold the bus or charge
   its price. And a reader's admission always asks the engines' dry run (`mw_engines_admit(KEYBUS, ...)`, which says
   FITS when the bus is already placed), so a stuck bus engine refuses a second reader instead of admitting it.
-- **One ledger.** The board's key bus constants (its bit, reset total 1,026 and first range 512, what Sidechain
+- **A stale seed (second review, 21 October 2026).** A disable left the window's seed mark and counter as the tap last
+  wrote them, and a later placement reset the bus first and reached the seed only at its 22nd chunk; a reader that
+  checks the mark (RINGMOD SC does) installed meanwhile on a track that already runs it took the dead bus for a live
+  one and read frozen frames. Now the window comes first in the key bus's reset (dsp-sites.json, resident_dsp's ranges,
+  in the same order: `dsp_sites.py --check` compares it), and after a run the board zeroes the seed with one offset-0
+  chunk (KB_SCRUB) before it lets the window go. Board test mode 43.
+- **One ledger.** The board's key bus constants (its bit, reset total 1,026 and first range 514, what Sidechain
   implies, each feature's cores), the transport's reset totals and splits and the engines' feature index now come from
   `dsp_ledger.h` (generated from `dsp-sites.json`, so `dsp_sites.py --check` covers them).
 - The contract for claims is now stated once: a reader needs no claim on a feature's words, and may declare reads wholly

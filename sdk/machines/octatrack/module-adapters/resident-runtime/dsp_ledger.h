@@ -21,7 +21,7 @@
 /* Words a feature's reset writes on each core it runs on (its regions there, in order), and its first region's
  * when it has more than one: a reset chunk never crosses it (one owned range per chunk). */
 #define MW_DSP_RESET_WORDS(f) ((f) == 1u ? 1042u : (f) == 2u ? 193u : (f) == 4u ? 3776u : (f) == 8u ? 1026u : 0u)
-#define MW_DSP_RESET_SPLIT(f) ((f) == 1u ? 528u : (f) == 8u ? 512u : 0u)
+#define MW_DSP_RESET_SPLIT(f) ((f) == 1u ? 528u : (f) == 8u ? 514u : 0u)
 
 struct mw_dsp_region { uint8_t feature, core, space; /* space: 1 x, 2 y */ uint8_t pad; uint32_t address, words; };
 static const struct mw_dsp_region mw_dsp_regions[] = {
@@ -32,10 +32,10 @@ static const struct mw_dsp_region mw_dsp_regions[] = {
     {2u, 0u, 2u, 0, 0xc00u, 0xc1u}, /* matrix */
     {4u, 0u, 1u, 0, 0x2840u, 0xec0u}, /* analog_bd */
     {4u, 1u, 1u, 0, 0x2840u, 0xec0u}, /* analog_bd */
-    {8u, 0u, 2u, 0, 0x800u, 0x200u}, /* keybus */
-    {8u, 1u, 2u, 0, 0x800u, 0x200u}, /* keybus */
     {8u, 0u, 2u, 0, 0x33dfeu, 0x202u}, /* keybus */
     {8u, 1u, 2u, 0, 0x3bdfeu, 0x202u}, /* keybus */
+    {8u, 0u, 2u, 0, 0x800u, 0x200u}, /* keybus */
+    {8u, 1u, 2u, 0, 0x800u, 0x200u}, /* keybus */
 };
 #define MW_DSP_REGIONS (sizeof mw_dsp_regions / sizeof mw_dsp_regions[0])
 
