@@ -54,11 +54,10 @@ describe('overview page', () => {
     expect(html).toContain('elektronmods.com')
   })
 
-  it('gives each machine without mods its own Start developing link and its research progress', () => {
-    for (const machine of overview.machines.filter(item => !item.count)) {
-      expect(html).toContain('href="' + machine.developHref + '"')
-      expect(html).toContain(machine.stepsDone + ' of ' + DEVICE_STEPS.length + ' steps')
-    }
+  it('shows one phrase per machine, locks the machines without mods behind Start developing and puts the Start developing tile where they begin', () => {
+    for (const machine of overview.machines) expect(html).toContain(machine.count ? machine.count + ' module' : machine.kind === 'research' ? machine.stepsDone + ' of ' + DEVICE_STEPS.length + ' steps' : 'No research yet')
+    for (const machine of overview.machines.filter(item => !item.count)) expect(html).toContain('href="' + machine.developHref + '"')
+    expect(html.indexOf('href="#submit"')).toBeLessThan(html.indexOf('href="' + overview.machines.find(machine => !machine.count)!.href + '"'))
     expect(html).toContain('<b>' + overview.modules + '</b> modules by <b>' + overview.creators + '</b> creators')
   })
 })
