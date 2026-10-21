@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- Fix: Octatrack base update over USB (beta): the write step no longer fails before it starts. The site gives the new base 180 s to write itself to the Octatrack, but the upload session refused any timeout over 60 s. After the RAM-boot trial every update stopped with “Upload timeout must be between 1 and 60000 ms.”, nothing was written, and testers updated from the card instead. `npm run device -- flash` failed the same way. The limit is now 180 s, and the pretend unit in the link tests enforces the same limit, so the base-update tests fail with the old one. Not run on a unit: the base's own write to its flash memory (`flash.c`) has never run on hardware, because no update got that far.
+
 - Qualification note: the owner explicitly approved the scoped experimental hardware/timing gaps for the combined key-bus and module-set source on 21 October 2026. The exact generated base, seven variants, source inventory, integration files and bound package hashes are recorded in `sdk/machines/octatrack/evidence/module-set-owner-approval-20261021.json` and `keybus-owner-approval-20261021.json`. After main's #763 (saved projects keep module effect ids 100–127) changed the base, the owner re-approved the same scoped waivers for the rebuilt base `430b0053…` (default native/browser image `5d8eeaf0…`); both files record the change. No physical result is upgraded and USB reports #548, #689 and #718 remain open.
 
 - Base package tooling: refreshed the cave/table declarations after the base-only generator option changed its source hash. CC Map and Mute Modes rebuilt byte-identically to their published packages before the generator-only pin was retained; authored source, recipe spans and module versions stay unchanged.

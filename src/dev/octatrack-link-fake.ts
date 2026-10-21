@@ -5,7 +5,7 @@
 import type { Inventory, InventoryTarget } from '../config/inventory.ts'
 import { sha } from '../../vendor/elekloader/kit/src/bytes.ts'
 import { OctatrackLink, type LinkDevice, type LinkSession, type LinkUsb } from '../engine/elekloader/octatrack-link.ts'
-import { UploadDeviceError } from '../engine/elekloader/upload-session.ts'
+import { UPLOAD_TIMEOUT_MAX_MS, UploadDeviceError } from '../engine/elekloader/upload-session.ts'
 import { SELFTEST_BYTES, VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
 import type { UploadPhaseName, UploadResultName, UploadStatus } from '../engine/elekloader/upload-wire.ts'
 import baseBinding from '../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
@@ -144,7 +144,8 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
 /** The upload session's phases without frames. `delay` paces each step for the preview; tests use 0. */
 export function fakeSession(unit: FakeUnit, delay = 0) {
   const wait = () => new Promise(resolve => setTimeout(resolve, delay))
-  return async (): Promise<LinkSession> => {
+  return async (_transport?: unknown, _base?: string, options: { timeoutMs?: number } = {}): Promise<LinkSession> => {
+    if ((options.timeoutMs ?? 0) > UPLOAD_TIMEOUT_MAX_MS) throw new Error('Upload timeout must be at most ' + UPLOAD_TIMEOUT_MAX_MS + ' ms.') // as UploadSession.connect
     let status: UploadStatus = { command: 'hello', transaction: 0, result: 'ok', phase: unit.staged ? 'receiving' : unit.orphan ? 'trial' : 'normal', activeKnown: true, generation: unit.orphan ? 1 : 0,
       lastTransaction: unit.orphan ? 7 : 0, currentTransaction: unit.orphan ? 7 : 0, received: 0, capacity: 262144, base: unit.base, session: '00'.repeat(32),
       active: unit.orphan ?? unit.active }
