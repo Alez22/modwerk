@@ -335,8 +335,8 @@ Driven over USB, ears by the owner of the unit; takes, `mem:` dumps and the 20-c
   check KEY and MON on a screenshot every time; an install or removal over USB stops the transport.
 
 **Fixed after that run (code review of #750, 20 October 2026).** The MKII run above was on the pre-fix twin `c8ad288e`;
-the base was regenerated with these fixes and needs the short re-check on its own twin (bring-up order, Sidechain
-alone uncharged, latency 32/0/16), which the RINGMOD SC session runs first.
+the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and re-checked on its own development twin
+(below).
 
 - **A reset let go before its ENABLE restarts from offset 0.** The board kept each core's reset progress until a
   DISABLE ACK, so a bus that stopped being wanted before its ENABLE (a reader removed mid-reset) resumed, or went
@@ -357,6 +357,25 @@ alone uncharged, latency 32/0/16), which the RINGMOD SC session runs first.
 - ABI 9 beyond the loader: the site's module sets (`module-set.ts`), the publication builder (`module_packages.py`,
   entries with `requiresFeatures` and `dspClaims`), the private candidate reader and the MCP's prepared packages accept
   ABI 9.
+
+**Re-check on the fixed twin (MKII, OS 1.40C, 20-21 October 2026).** The development twin of `b3ac5155` (identity
+`2bf3c9ab…`, `.bin` `d4522c1a`), RAM-booted, with Sidechain's package relinked to it (`f509d094`); ears and capture by
+the owner of the unit.
+
+- Boot: arena 4,304 / 4,432, masks `00 00`.
+- Sidechain installed: the masks, read in parallel with the install, `00 00` ×10, `08 08` ×8, `09 09` ×42, never `01`;
+  key bus flags `00 00 01` (wanted, not priced: nothing charged for the tap with Sidechain alone); the key bus engine at
+  4,203 / 4,331 and Sidechain's at 3,881 / 4,009, 423 words reserved a core, both resets complete (128 / 128 in the
+  view's eighths), the slot ACTIVE.
+- Key latency (20 USB channels, `keylag.py`; COMPRESSOR with KEY T3, T3's FX1 and FX2 NONE, the receivers' FX2 NONE):
+  T5 (other core) 32 samples, T4 (same core, after T3) 0, T2 (same core, before T3) 16, correlation 1.0000 and every
+  onset the same; three Sidechain removals and reinstalls: 32 every time.
+- Final removal: masks `00 00`, arena 4,304 / 4,432, nothing reserved, the slot RELEASED after its disables.
+- Not re-run on this twin (done on the pre-fix `c8ad288e` only): BBD and the stock reverbs in the window's slots, the
+  three engines together, the ten reinstalls with no silence after an enable, a power cycle.
+- Bench note: after a power cycle the project's Part came back with stock default effects (FILTER on FX1, DELAY on FX2),
+  and T3's FILTER added a uniform 22-sample offset to every lag (54 / 22 / 38, correlation 0.978) until T3's effects
+  were set to NONE. The key track's FX slots must be NONE for a latency measurement.
 
 **Follow-up, not implemented: a gated tap.** Superseded as written: the layout below puts want words at
 `+$3DF6..+$3DFD` of the window's slot, which E-Verb 0.1.2's and Mini Verb 0.2.3's rings now use (review, change 2); it
