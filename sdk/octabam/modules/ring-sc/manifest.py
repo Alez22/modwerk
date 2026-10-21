@@ -8,8 +8,8 @@ at 0, so RING with all three at 0 is the plain ring modulator:
     S&H   (HOLD) a new key every 16v samples, held between: stepped modulation
     SLEW  (ATK)  above 0 the key's level, |key| smoothed (0.7 ms at 1 to 1.3 s at
                  127), drives the gain instead: a tremolo that follows the key
-    BIAS  (REL)  m + h * (1 - m), h = v/256: the dry signal stays with the
-                 sidebands (amplitude modulation), ramped like the depth
+    RECT  (REL)  m + r * (|m| - m), r = v/128: toward the rectified key, its
+                 frequency doubled and never negative at 127, ramped like the depth
 
 Put it on the track to be ducked (a bass) and set KEY to the track that
 carries the kick. The key is the kick track's audio, low-passed by KLPF and
@@ -40,7 +40,7 @@ being dispatched (X:$420) to tell which half of the tracks is local and where
 the other core publishes, so it takes no per-payload values.
 
 Measured so far (TESTING.md): the render gate and stress render on this source;
-DUCK, and RING with S&H, SLEW and BIAS at 0, equal 0.1.0 sample for sample.
+DUCK, and RING with S&H, RECT and SLEW at 0, equal 0.1.0 sample for sample.
 0.1.0's key bus reader passed its first MKII steps (21 Oct 2026); 0.2.0 has
 not run on a unit.
 """
@@ -85,7 +85,7 @@ MODULE = Module(
         Param(b"HOLD", 34, 128, active=True, formatter=Formatter.PLAIN,
               doc="DUCK: how long the duck holds after a peak, one to two windows of 32 + 16v samples: 13 ms at 34, 0.7 ms at 0, 47 ms at 127. RING (S&H): a new key every 16v samples (0 = every sample, 0.36 ms at 1, 46 ms at 127)"),
         Param(b"REL", 45, 128, active=True, formatter=Formatter.PLAIN,
-              doc="DUCK: how slowly the gain recovers, on ATK's scale: 45 = about 9 ms after the key's peak drops. RING (BIAS): adds v/256 of dry to the carrier; 0 = ring modulation, 127 = amplitude modulation"),
+              doc="DUCK: how slowly the gain recovers, on ATK's scale: 45 = about 9 ms after the key's peak drops. RING (RECT): blends the key toward its rectified |key|; 0 = the key, 127 = fully rectified (frequency doubled, never negative)"),
         # ---- page 2 ----------------------------------------------------------
         Param(b"MODE", 0, 2, active=True, formatter=Formatter.STEPPED,
               labels=("DUCK", "RING"),
@@ -97,7 +97,7 @@ MODULE = Module(
     # it renames its neighbours but keeps its own name, so it reads like a
     # stock select (MODE over DUCK / RING); the mode_slot's select names itself.
     # The knobs keep their values on a MODE change, as other modules' do.
-    name_selects=(NameSelect(6, (ModeView(mode=1, names={3: b"SLEW", 4: b"S&H", 5: b"BIAS"}),)),),
+    name_selects=(NameSelect(6, (ModeView(mode=1, names={3: b"SLEW", 4: b"S&H", 5: b"RECT"}),)),),
 
     dsp=DspSection(
         asm="modules/ring-sc/ringsc.asm",

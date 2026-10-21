@@ -7,7 +7,7 @@
 ;   DUCK   out = in * (1 - DPTH * e),  e = follow(peak(|key|))  (ring mod sidechain)
 ;   RING   out = in * (1 - DPTH) + in * DPTH * m(key)         (ring modulator)
 ;
-; In RING the carrier m(key) passes S&H, SLEW and BIAS (on ATK, HOLD and REL),
+; In RING the carrier m(key) passes S&H, RECT and SLEW (on HOLD, REL and ATK),
 ; each a plain copy at 0, so RING with the three at 0 is 0.1.0's ring
 ; modulator sample for sample; DUCK is 0.1.0's unchanged (rq50 below).
 ;
@@ -57,7 +57,7 @@
 ;   x:(r6+$4)  HOLD  DUCK: the peak window, 32 + 16v samples
 ;                    RING (S&H): a new key every 16v samples; 0 = every sample
 ;   x:(r6+$5)  REL   DUCK: per-sample decay 1 - q(v); 0 = none
-;                    RING (BIAS): m + h * (1 - m), h = v/256, ramped
+;                    RING (RECT): m + r * (|m| - m), r = v/128 * 129/128, ramped
 ;   x:(r6+$c)  MODE  bits 16-23: 0 DUCK, else RING
 ; q(v) is 1 at 0 and falls from 1/32 at 1 to about 2^-16 at 127 (rq83).
 ;
@@ -71,11 +71,11 @@
 ;   $01  follower e / RING: the level $07  follower decay
 ;   $02  depth, ramped per sample     $08  KEY track 0..7
 ;   $03  its step                     $09  slowness, 1 - q(ATK) (both modes)
-;   $0c  MODE<<16 | KEY<<8 in use     $0d  RING: BIAS's h, ramped
+;   $0c  MODE<<16 | KEY<<8 in use     $0d  RING: RECT's r, ramped
 ;   $0e  this window's peak / RING: the held key
 ;   $0f  the last window's peak       $10  samples left in this window
 ;   $11  RING: samples to the next key $12  the window's length / S&H's period
-;   $13  RING: h's step
+;   $13  RING: r's step
 ;
 ; Every multiply is `y1,y0`, `x0,x0`, `x1,y0`, `x1,x0` or `x0,y1` (signed
 ; encodings); no mpysu. Short immediates (`add #<n`), parallel moves and
@@ -283,12 +283,13 @@ rq40:
 ; The key passes three stages before it multiplies the audio, each a plain
 ; copy at 0, so RING with S&H, SLEW and BIAS at 0 is the plain ring modulator:
 ;   S&H   a new key every 16v samples, held between (stepped modulation)
+;   RECT  key + r * (|key| - key): toward the rectified key, its frequency
+;         doubled and never negative at 127 (an AM-like modulation)
 ;   SLEW  above 0 the key's level, |key| smoothed by 1 - q(v), drives the gain
 ;         instead of the key itself (a tremolo that follows the key)
-;   BIAS  key + h * (1 - key), h = v/256: the dry signal stays, with sidebands (AM)
 ; Their state is DUCK's, cleared when MODE changes: $01 the level, $0e the held
 ; key; $11 counts down to the next sample, $12 holds the period, $09 SLEW's
-; coefficient and $0d BIAS's h.
+; coefficient and $0d RECT's r, ramped by $13.
 rq50:
         move    x:(r6+$3),x1
         bsr     rq83
@@ -296,8 +297,9 @@ rq50:
         move    x:(r6+$4),a
         asr     #12,a,a
         move    a1,x:(r7+$12)           ; S&H: 16v samples a key, 0 = every sample
-        move    x:(r6+$5),a
-        asr     #1,a,a                  ; BIAS: h = v/256, ramped as the depth is
+        move    x:(r6+$5),a             ; RECT: r = v/128 * 129/128, ramped as the depth is
+        asr     #7,a,b
+        add     b,a
         move    a,x1
         move    x:(r7+$d),x0
         sub     x0,a
@@ -322,9 +324,14 @@ rq56:
         move    x:(r7+$e),a
         tle     y1,a
         move    a,x:(r7+$e)             ; a = the held key
-        move    a,b                     ; kept for SLEW 0
-        abs     a
+        abs     a       a,b             ; b = the key
         move    a,x1                    ; |key|, limited to 1
+        move    x:(r7+$d),y0            ; RECT's r
+        tfr     b,a     b,y1            ; a = y1 = the key
+        mac     -y1,y0,a
+        mac     x1,y0,a                 ; key + r * (|key| - key): r = 0 adds nothing
+        abs     a       a,b             ; b = the rectified key, kept for SLEW 0
+        move    a,x1                    ; its |.|, limited to 1
         move    x1,a
         move    x:(r7+$9),x0            ; slow
         mac     -x1,x0,a
@@ -336,15 +343,10 @@ rq56:
         tst     a
         tne     y1,b                    ; SLEW above 0: the level, else the key
         move    b,y1
-        move    x:(r7+$d),y0
-        move    y1,a
-        mac     -y1,y0,a
-        add     y0,a                    ; key + h * (1 - key): h = 0 adds nothing
-        move    a,y1
+        move    y0,a                    ; RECT's r, kept in y0 through SLEW
         move    x:(r7+$13),x0
-        move    y0,a
         add     x0,a
-        move    a,x:(r7+$d)             ; h's ramp
+        move    a,x:(r7+$d)             ; r's ramp
         move    x:(r7+$2),y0
         mpy     y1,y0,b       x:(r0)+,x1        ; depth * key; x1 = left
         tfr     x1,a          b,x0

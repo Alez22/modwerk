@@ -21,7 +21,7 @@ Gates:
      key bus is not live on the module's core (no seed mark, a wrong one, or a
      counter out of range): a card image has no bus.
   3. DUCK and RING match model() within TOL over their knobs (in RING ATK,
-     HOLD and REL are SLEW, S&H and BIAS), with the
+     HOLD and REL are SLEW, S&H and RECT), with the
      first-block ramps included; DUCK's ATK at 32
      takes about 205 samples; a steady 55 Hz key holds the duck steady (no
      buzz at twice its frequency) and a decaying one lets it recover without
@@ -44,9 +44,9 @@ Gates:
      a. S&H 8 holds each key for exactly 128 samples;
      b. SLEW 60 drives the gain with the key's level: it never goes below 0
         and swings less than half the input, where SLEW 0 rings down to -1;
-     c. BIAS 127 keeps the gain above -1% with a mean near h = 127/256 (AM:
-        the dry signal stays), where BIAS 0 reaches -1.
-     (RING with all three at 0 is 0.1's ring modulator bit for bit: compared
+     c. RECT 127 rectifies the key: the gain never goes below -1% and its mean
+        is near 2/pi (|sin|), where RECT 0 reaches -1.
+     (RING with all three at 0 is 0.1.0's ring modulator bit for bit: compared
      against 0.1 in TESTING.md, not here.)
 """
 import math
@@ -231,7 +231,8 @@ def model(key, audio, kn, delay=0, sched=None):
         decay, slow = (FULL - _q(rel)) / Q if rel else 0.0, (FULL - _q(atk)) / Q if atk else 0.0
         if m:
             per = 16 * hold                                # S&H: a new key every 16v samples
-            h, hstep = _ramp(h, (rel << 15) << 24)         # BIAS: h = v/256, ramped as the depth is
+            r16 = rel << 16
+            h, hstep = _ramp(h, ((r16 << 24) >> 7) + (r16 << 24))  # RECT: r = v/128 * 129/128, ramped as the depth is
         for f in range(16):
             i = blk * 32 + f * 2
             km = (key[i] + key[i + 1]) / 2 / Q
@@ -255,11 +256,12 @@ def model(key, audio, kn, delay=0, sched=None):
                 if shc <= 0:
                     shc, held = per, kg
                 k = held
+                r = h / Q
+                k = k - k * r + min(abs(k), one) * r       # RECT: toward |key|
                 ak = min(abs(k), one)                      # SLEW's level, kept at 0 too
                 env = math.floor((ak - ak * slow + env * slow) * Q) / Q
                 if slow:
                     k = env
-                k = lim(k - k * (h / Q) + h / Q)
                 h += hstep
                 for ch in (0, 1):
                     x = seg[f * 2 + ch] / Q
@@ -415,7 +417,7 @@ def main():
 
         worst_db, at = -999.0, None
         for name, mode, slot in (("DPTH", 0, 1), ("KLPF", 0, 2), ("ATK", 0, 3), ("HOLD", 0, 4), ("REL", 0, 5),
-                                 ("DPTH", 1, 1), ("KLPF", 1, 2), ("SLEW", 1, 3), ("BIAS", 1, 5)):
+                                 ("DPTH", 1, 1), ("KLPF", 1, 2), ("SLEW", 1, 3), ("RECT", 1, 5)):
             base = knobs(mode=mode, rel=0, hold=34 if mode == 0 else 0)
             base[slot] = 20
             sched = ",".join(f"{110 + 2 * k}:1:{slot}={20 + k}" for k in range(1, 91))
@@ -448,10 +450,10 @@ def main():
         slewed = tail(rig.run(key_r, flat_r, knobs(mode=1, atk=60, hold=0, rel=0))[0])
         gate("10b SLEW 60: the gain follows the key's level", min(slewed) >= 0 and max(slewed) - min(slewed) < 0.5
              and min(plain) < -0.9, f"(gain {min(slewed):.3f}..{max(slewed):.3f}; SLEW 0 reaches {min(plain):.3f})")
-        biased = tail(rig.run(key_r, flat_r, knobs(mode=1, atk=0, hold=0, rel=127))[0])
-        mean = sum(biased) / len(biased)
-        gate("10c BIAS 127: the dry signal stays (AM)", min(biased) >= -0.01 and abs(mean - 127 / 256) < 0.02,
-             f"(gain {min(biased):.3f}..{max(biased):.3f}, mean {mean:.3f})")
+        rect = tail(rig.run(key_r, flat_r, knobs(mode=1, atk=0, hold=0, rel=127))[0])
+        mean = sum(rect) / len(rect)
+        gate("10c RECT 127: the key rectified", min(rect) >= -0.01 and abs(mean - 2 / math.pi) < 0.03 and min(plain) < -0.9,
+             f"(gain {min(rect):.3f}..{max(rect):.3f}, mean {mean:.3f}; RECT 0 reaches {min(plain):.3f})")
     finally:
         shutil.rmtree(work, ignore_errors=True)
     if failures:

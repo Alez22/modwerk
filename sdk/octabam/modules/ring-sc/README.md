@@ -6,7 +6,7 @@ Version: 0.2.0-experimental · author: Nathaniel Pavel (@npp1993)
 
 ## Overview
 
-Ring mod sidechain. The track carrying RINGMOD SC has its gain driven by another track's audio (the KEY). In DUCK the key's level pulls the gain down: the gain follows the key's peak over the last 13-26 ms (HOLD sets this), so it holds through the kick's own zero crossings and steps back up as the kick decays, with no buzz. In RING the key multiplies the audio: a ring modulator whose carrier is another track. Three RING knobs shape that carrier: S&H steps it, SLEW turns it into the key's level (a tremolo that follows the key) and BIAS mixes the dry signal back in (amplitude modulation). With all three at 0, RING is the plain ring modulator.
+Ring mod sidechain. The track carrying RINGMOD SC has its gain driven by another track's audio (the KEY). In DUCK the key's level pulls the gain down: the gain follows the key's peak over the last 13-26 ms (HOLD sets this), so it holds through the kick's own zero crossings and steps back up as the kick decays, with no buzz. In RING the key multiplies the audio: a ring modulator whose carrier is another track. Three RING knobs shape that carrier: S&H steps it, RECT rectifies it (its frequency doubled, an AM-like modulation) and SLEW turns it into the key's level (a tremolo that follows the key). With all three at 0, RING is the plain ring modulator.
 
 The key is boosted four times. Measured under the emulator, a full-scale source on a key track at AMP VOL 64 (the default) reaches a quarter of full scale before its effects, so four times brings it exactly to full; at AMP VOL 127 it is four times hotter, and the duck holds at full depth until the kick has fallen by about 12 dB. The key's level comes from its AMP VOL and the sample, not from the track's LEVEL, which is after the effects.
 
@@ -21,10 +21,10 @@ The key comes from the Modwerk base's **key bus**: over USB, while RINGMOD SC is
 | KLPF | 127 | 0-127 | Low-pass on the key: 14 Hz at 0, an octave every 14 steps, open at 127. About 20-50 covers a kick's body (40-200 Hz). |
 | ATK / SLEW | 0 | 0-127 | DUCK (ATK): how slowly the gain falls when the key rises; 0 is at once. RING (SLEW): 0 rings with the key itself; above 0 the key's level, smoothed over ATK's times, drives the gain instead, a tremolo that follows the key. |
 | HOLD / S&H | 34 | 0-127 | DUCK (HOLD): how long the duck holds after each peak of the key, one to two windows of 0.7 ms at 0, 13 ms at 34, 24 ms at 64 and 47 ms at 127. Keep it above half a cycle of the kick (about 13 ms for 40 Hz) or the duck buzzes; longer gives a fuller pump. RING (S&H): a new key every 16 samples a step, held in between: 0 is every sample, 1 is 0.36 ms (2.8 kHz), 34 is 12 ms (81 Hz), 127 is 46 ms (22 Hz). |
-| REL / BIAS | 45 | 0-127 | DUCK (REL): how slowly the gain recovers once the key's peak drops; 45 is about 9 ms. RING (BIAS): how much dry signal stays under the modulation; 0 is ring modulation (the dry signal cancels), 127 is amplitude modulation (the gain moves between none and full around half). |
-| MODE | DUCK | DUCK, RING | SETUP page. DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and BIAS in RING. |
+| REL / RECT | 45 | 0-127 | DUCK (REL): how slowly the gain recovers once the key's peak drops; 45 is about 9 ms. RING (RECT): blends the key toward its rectified copy, \|key\|; 0 is the key itself (ring modulation), 127 fully rectified: the carrier's frequency doubles and it never goes negative, an AM-like modulation. Ramped, so turning it does not click. |
+| MODE | DUCK | DUCK, RING | SETUP page. DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and RECT in RING. |
 
-The main page holds KEY, DPTH and KLPF on encoders A-C and ATK, HOLD and REL on D-F; MODE is on the SETUP page, and three main-page names follow it (ATK, HOLD and REL in DUCK; SLEW, S&H and BIAS in RING). The knobs keep their values when MODE changes, as on other modules: a fresh instance switched to RING starts with S&H and BIAS at HOLD's and REL's defaults (34, 45); turn them to 0 for the plain ring modulator. DPTH 0 or KEY OFF returns the input bit for bit. KEY steps like a stock select, about three detents a track. On the first visit to the main page after choosing the effect it may still move one track a detent, until the page is entered again (seen on card images under the emulator; not checked on the USB base). The track names are stored with a space on each side (" T1 "), which draws centred where "T1" would.
+The main page holds KEY, DPTH and KLPF on encoders A-C and ATK, HOLD and REL on D-F; MODE is on the SETUP page, and three main-page names follow it (ATK, HOLD and REL in DUCK; SLEW, S&H and RECT in RING). The knobs keep their values when MODE changes, as on other modules: a fresh instance switched to RING starts with S&H and RECT at HOLD's and REL's defaults (34, 45); turn them to 0 for the plain ring modulator. DPTH 0 or KEY OFF returns the input bit for bit. KEY steps like a stock select, about three detents a track. On the first visit to the main page after choosing the effect it may still move one track a detent, until the page is entered again (seen on card images under the emulator; not checked on the USB base). The track names are stored with a space on each side (" T1 "), which draws centred where "T1" would.
 
 ATK and REL share one scale, and SLEW uses it too: 0 is at once, 1 is about 0.7 ms, and the time doubles every 11.6 steps up to about 1.3 s at 127.
 
@@ -50,7 +50,7 @@ For the cleanest duck put the key on a track the instrument handles before the d
 2. Turn encoder A until KEY reads T1. The bass dips with every kick and comes back as the kick decays; DPTH (encoder B) sets how deep.
 3. Raise REL (encoder F) for a slower recovery, HOLD (encoder E) for a longer pump and ATK (encoder D) to soften the onset. Turn KLPF (encoder C) down to about 30-50 so only the kick's body drives the duck, not its click or other sounds on the key track.
 4. Turn KEY back to OFF, or DPTH to 0, to hear the bass untouched.
-5. For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and BIAS (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level, and BIAS for the dry bass to come back under the modulation. Choose NONE in SETUP to remove the effect.
+5. For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and RECT (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, RECT for a rectified, frequency-doubled carrier, and SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level. Choose NONE in SETUP to remove the effect.
 
 ## Compatibility and limitations
 
@@ -63,7 +63,7 @@ For the cleanest duck put the key on a track the instrument handles before the d
 - **Declared conflict with Analog BD.** It is carried over from the card builder's rule: Analog BD admits only the effects on its companion list, and RINGMOD SC is not on it. Over USB no resource clash is known, but the declaration applies to every build, so the configurator never offers both. Whether to keep it is the owner's call.
 - A project that selects RINGMOD SC on a base without it gets no effect in that slot.
 - 322 words of DSP program per core, 20 words of state per instance, no delay buffer; the key bus's memory (Y $800-$9FF on each core, the last $202 words of each core's half of the shared window) is the base's.
-- Not tested on hardware: everything new in 0.2.0 (SLEW, S&H, BIAS). 0.1.0, whose DUCK and plain RING this version reproduces sample for sample, passed its first MKII steps over USB (key bus, install, KEY, DUCK by ear); its scenes, parameter locks, project save, Part reload and power cycle were not run. An LFO at full depth on KEY takes it past T8, which reads as OFF.
+- Not tested on hardware: RECT. 0.1.0, whose DUCK and plain RING this version reproduces sample for sample, passed its first MKII steps over USB (key bus, install, KEY, DUCK by ear); its scenes, parameter locks, project save, Part reload and power cycle were not run. An LFO at full depth on KEY takes it past T8, which reads as OFF.
 
 ## Tests and measurements
 
@@ -85,6 +85,6 @@ Unedited MKII framebuffer captures from the headless emulator, taken on a privat
 
 ![SETUP with MODE turned to RING: the knob keeps its name, the value shows below](media/ot-setup-ring.png)
 
-![The main page in RING: KEY, DPTH, KLPF over SLEW, S&H, BIAS](media/ot-main-ring.png)
+![The main page in RING: KEY, DPTH, KLPF over SLEW, S&H, RECT](media/ot-main-ring.png)
 
 The thumbnail above is an illustration, not OT UI evidence.

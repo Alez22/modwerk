@@ -17,13 +17,13 @@
   "presentation": {
     "label": "RINGMOD SC",
     "family": "Dynamics",
-    "summary": "Ring mod sidechain: another track's level ducks this one, or its waveform ring-modulates, steps, tremolos or AMs it.",
-    "overview": "Put it on the track to be ducked and choose the KEY track. In DUCK the gain follows the key's peak, holding through the kick's zero crossings and recovering as it decays; in RING the key multiplies the audio, and SLEW, S&H and BIAS shape that carrier. The key comes from the Modwerk base's key bus over USB, so it needs no other module and runs beside Sidechain Compressor.",
+    "summary": "Ring mod sidechain: another track's level ducks this one, or its waveform ring-modulates, steps, rectifies or tremolos it.",
+    "overview": "Put it on the track to be ducked and choose the KEY track. In DUCK the gain follows the key's peak, holding through the kick's zero crossings and recovering as it decays; in RING the key multiplies the audio, and S&H, RECT and SLEW shape that carrier. The key comes from the Modwerk base's key bus over USB, so it needs no other module and runs beside Sidechain Compressor.",
     "highlights": [
       "DUCK: gain = 1 - DPTH x follow(peak of |key| over 13-26 ms): no buzz at the kick's zero crossings",
       "A fixed 4x key boost brings a full-scale key track at the default AMP VOL to full (measured under the emulator)",
       "RING: a ring modulator whose carrier is any of T1-T8",
-      "RING's S&H steps the carrier, SLEW turns it into the key's level (tremolo), BIAS mixes the dry signal back (AM)",
+      "RING's S&H steps the carrier, RECT rectifies it (frequency doubled), SLEW turns it into the key's level (tremolo)",
       "KEY is the first knob of the main page, so it can be locked and modulated",
       "Reads the base's key bus (USB): no tap of its own, so it runs beside Sidechain Compressor",
       "DPTH 0, KEY OFF or no key bus returns the input bit for bit"
@@ -31,7 +31,7 @@
     "usage": [
       "Select RINGMOD SC on FX1 or FX2 of the track to duck and turn KEY (encoder A) to the kick's track; DPTH sets how deep.",
       "Raise REL for a slower recovery and ATK to soften the onset; turn KLPF to about 30-50 so only the kick's body drives the duck.",
-      "MODE on the SETUP page switches to RING, where the key track multiplies the audio: turn S&H and BIAS to 0 for the plain ring modulator, then raise S&H for steps, SLEW for a tremolo that follows the key and BIAS for amplitude modulation."
+      "MODE on the SETUP page switches to RING, where the key track multiplies the audio: turn S&H and RECT to 0 for the plain ring modulator, then raise S&H for steps, RECT for a rectified, frequency-doubled carrier and SLEW for a tremolo that follows the key."
     ]
   },
   "controls": [
@@ -84,14 +84,14 @@
       "name": "REL",
       "default": 45,
       "count": 128,
-      "doc": "DUCK: how slowly the gain recovers once the key's peak drops, on ATK's scale (45 about 9 ms, 64 about 31 ms, 96 about 210 ms). RING (BIAS): how much dry signal stays under the modulation, v/256 of it: 0 is ring modulation, 127 amplitude modulation.",
+      "doc": "DUCK: how slowly the gain recovers once the key's peak drops, on ATK's scale (45 about 9 ms, 64 about 31 ms, 96 about 210 ms). RING (RECT): blends the key toward its rectified |key|; 0 is the key, 127 fully rectified (frequency doubled, never negative: an AM-like modulation).",
       "labels": null
     },
     {
       "name": "MODE",
       "default": 0,
       "count": 2,
-      "doc": "DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and BIAS in RING.",
+      "doc": "DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and RECT in RING.",
       "labels": [
         "DUCK",
         "RING"
@@ -136,7 +136,7 @@
       "value": 63,
       "unit": "instructions/sample",
       "method": "static",
-      "conditions": "tools/build/cycle_count.py: 63 cycles/sample in each mode loop (DUCK 63 as 0.1.0, RING 63 with S&H, SLEW and BIAS). Measured with modules/ring-sc/perf.py (benchmark_stock_dsp.py's method, a private native image with the key bus's seed marks): at most 80.56 executed instructions/sample per instance with trig splits (67.69 unsplit), COMPRESSOR 72.06. The base's key bus tap, charged to the module while it is installed, adds 41 executed instructions a sample per core whatever is on the tracks (counted from its source, charged at 7/4). Not hardware cycles.",
+      "conditions": "tools/build/cycle_count.py: 63 cycles/sample in each mode loop (DUCK 63 as 0.1.0, RING 63 with S&H, RECT and SLEW). Measured with modules/ring-sc/perf.py (benchmark_stock_dsp.py's method, a private native image with the key bus's seed marks): at most 80.56 executed instructions/sample per instance with trig splits (67.69 unsplit), COMPRESSOR 72.06. The base's key bus tap, charged to the module while it is installed, adds 41 executed instructions a sample per core whatever is on the tracks (counted from its source, charged at 7/4). Not hardware cycles.",
       "source": "TESTING.md"
     },
     "impact": {
@@ -235,7 +235,7 @@
             "Turn encoder A until KEY reads T1. The bass dips with every kick and comes back as the kick decays; DPTH (encoder B) sets how deep.",
             "Raise REL (encoder F) for a slower recovery, HOLD (encoder E) for a longer pump and ATK (encoder D) to soften the onset. Turn KLPF (encoder C) down to about 30-50 so only the kick's body drives the duck, not its click or other sounds on the key track.",
             "Turn KEY back to OFF, or DPTH to 0, to hear the bass untouched.",
-            "For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and BIAS (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level, and BIAS for the dry bass to come back under the modulation. Choose NONE in SETUP to remove the effect."
+            "For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and RECT (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, RECT for a rectified, frequency-doubled carrier, and SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level. Choose NONE in SETUP to remove the effect."
           ]
         },
         "screenshots": [
@@ -325,8 +325,8 @@
     {
       "path": "media/ot-main-ring.png",
       "captureType": "emulator",
-      "caption": "Hold FUNC and press FX1, set MODE to RING and press FX1 again: the key track multiplies the audio. ATK, HOLD and REL become SLEW, S&H and BIAS; at 0 they leave the plain ring modulator.",
-      "alt": "The main page in RING mode: KEY, DPTH and KLPF over SLEW, S&H and BIAS.",
+      "caption": "Hold FUNC and press FX1, set MODE to RING and press FX1 again: the key track multiplies the audio. ATK, HOLD and REL become SLEW, S&H and RECT; at 0 they leave the plain ring modulator.",
+      "alt": "The main page in RING mode: KEY, DPTH and KLPF over SLEW, S&H and RECT.",
       "credit": "Nathaniel Pavel",
       "license": "LicenseRef-OT-UI-Documentation",
       "source": "original",
@@ -346,7 +346,7 @@
       "Put a kick on T1 and a sustained sound on T2, and select T2.",
       "Hold FUNC and press FX1, turn LEVEL to RINGMOD SC and press YES, then press FX1 for the main page.",
       "Turn encoder A until KEY reads T1; T2 dips with each kick.",
-      "For RING, hold FUNC and press FX1, set MODE to RING and press FX1: ATK, HOLD and REL read SLEW, S&H and BIAS; turn S&H and BIAS to 0 for the plain ring modulator.",
+      "For RING, hold FUNC and press FX1, set MODE to RING and press FX1: ATK, HOLD and REL read SLEW, S&H and RECT; turn S&H and RECT to 0 for the plain ring modulator.",
       "Turn KEY back to OFF, or DPTH to 0, to hear the track untouched; choose NONE in SETUP to remove the effect."
     ],
     "screenshots": [
