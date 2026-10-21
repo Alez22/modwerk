@@ -308,7 +308,7 @@
       "bytes": 1236,
       "sha256": "f149663ba9895acbdebf4d139382728ff3c58bd660d5311b2da164614900e065",
       "path": "octatrack-modules/sidechain-compressor/0.1.2-experimental.mwrm",
-      "requiredBase": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376"
+      "requiredBase": "d71bec2d7a007875ea22893383a7d1f1b167d5ea2a4ad2fd041afd615e441d3e"
     },
     {
       "id": "output-matrix",
@@ -324,7 +324,7 @@
       "bytes": 3740,
       "sha256": "0ce1065780d9888dd1ab55106adedbe86096a30edf130376c6e0d0d436d67961",
       "path": "octatrack-modules/output-matrix/0.1.1-experimental.mwrm",
-      "requiredBase": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376"
+      "requiredBase": "d71bec2d7a007875ea22893383a7d1f1b167d5ea2a4ad2fd041afd615e441d3e"
     },
     {
       "id": "cc-map",
@@ -340,7 +340,7 @@
       "bytes": 966,
       "sha256": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
       "path": "octatrack-modules/cc-map/0.1.2-experimental.mwrm",
-      "requiredBase": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376"
+      "requiredBase": "d71bec2d7a007875ea22893383a7d1f1b167d5ea2a4ad2fd041afd615e441d3e"
     },
     {
       "id": "quantize-live-rec-toggle",
@@ -371,7 +371,7 @@
       "bytes": 1818,
       "sha256": "22534de96c7f670b47c04b5c176b78b1ac48432739f8989890e4c7deb86cd628",
       "path": "octatrack-modules/recorder-loop-fix/0.1.0-experimental.mwrm",
-      "requiredBase": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376"
+      "requiredBase": "d71bec2d7a007875ea22893383a7d1f1b167d5ea2a4ad2fd041afd615e441d3e"
     },
     {
       "id": "analog-bassdrum",
@@ -387,7 +387,7 @@
       "bytes": 6676,
       "sha256": "371a126db2705aa2de3de4558e15ab33277f5a0982e6ddfd4e7bf094de8d686e",
       "path": "octatrack-modules/analog-bassdrum/0.1.5-experimental.mwrm",
-      "requiredBase": "fcc8f51a0f9fa0914f6626bb873eabf00d181f5a0ce662e8bf2bab5331ba5376"
+      "requiredBase": "d71bec2d7a007875ea22893383a7d1f1b167d5ea2a4ad2fd041afd615e441d3e"
     }
   ]
 }

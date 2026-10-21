@@ -183,6 +183,11 @@ DYNLOAD_HOOKS = (
     # Modwerk's: main's idle spin counts the ColdFire's idle time (status.s, status.c). Its last init call only:
     # stock's spin stays, where ot_emu parks main again after a bench call.
     (0x4001fc96, 6, '2edb8c17ea73bf5ecd097ec929f3bfd6f8a74c81b11080d0d74efd55bec6b416', 'mw_idle'))
+# --dsp-loader: the knob routine of an audio track's main pages (0x40055008) names the default stepper 0x4003240c by
+# `lea 0x4003240c,%aN` for a live turn; the base repoints that operand at fxpage.s's mw_knob_step, which restages a
+# module page's turned knob before it (a select then steps as stock's do from the first visit). Address, the lea's
+# six stock bytes' SHA-256 and the stepper it names.
+KNOB_STEP = (0x40055140, 'c5e0994d9ad233a5e894f277b48d402278cd74bd878fab0e700f03946b8f2b9d', 0x4003240c)
 # The runtime builder's runtime.json reader and the Octatrack's events at base-owned sites (events.json).
 _spec = importlib.util.spec_from_file_location('modwerk_runtime_builder', APP / 'sdk/runtime/loader/build.py')
 RUNTIME_BUILDER = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(RUNTIME_BUILDER)
@@ -1700,6 +1705,11 @@ def main():
             for name in ('resident_engines.c', 'resident_engines.h'):
                 shutil.copyfile(resident_source.RUNTIME / name, source / name)
         chooser_sites, chooser_lists = loader_dsp.choosers(image, FX_IDS)
+        at, guard, stepper = KNOB_STEP
+        lea = image[at - device.main_load:at - device.main_load + 6]
+        if sha(lea) != guard or int.from_bytes(lea[:2], 'big') & 0xf1ff != 0x41f9 or int.from_bytes(lea[2:], 'big') != stepper:
+            raise ValueError('The knob routine\'s default-stepper lea at %#x is not the one KNOB_STEP names.' % at)
+        chooser_sites.append(dict(addr=hex(at + 2), stock=lea[2:].hex(), op='ptr', target='mw_knob_step'))
         # The Part validator (0x40002318; bank load, battery restore) clears an id that reads negative and clamps one
         # above 31 to 31: four `moveq #31` (docs/OCTATRACK_MORE_EFFECT_IDS.md). Past 32 ids they clamp to the last.
         for at in (VALIDATOR_CLAMPS if FX_IDS != 32 else ()):
