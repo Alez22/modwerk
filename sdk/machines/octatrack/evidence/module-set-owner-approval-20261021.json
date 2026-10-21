@@ -4,20 +4,20 @@
   "approvedBy": "repeat98",
   "approvedOn": "2026-10-21",
   "ownerStatement": "Approve those scoped experimental waivers",
-  "baseIdentity": "8fea36c2e1e2f80f6d60edda880b49aa6cec109192f41fa9b5f39827f399b019",
+  "baseIdentity": "430b0053ac267e731393c51aa80cc9d0625d761034d063f4b82c8035b57cae4a",
   "variantIdentities": {
-    "tracks-main-cue": "8fea36c2e1e2f80f6d60edda880b49aa6cec109192f41fa9b5f39827f399b019",
-    "tracks": "57e202ae22112763d03d9ea714f06641f12c282fa52d9eda2072435aab99ccc7",
-    "tracks-post": "ef3d69a34611ce1dd58585b8098fa0130d0e3971308703f6345aab0e251239a0",
-    "main-cue": "1127d159c19119d7cecf70b555cc7c64661c069cf60aa91824fe90210215a59f",
-    "main": "280fe531a7b0a06941c5afb033e698fa28e534538731acd1346d0e75c6dd2784",
-    "master": "d7ae83ed941f74dc1b25a9c1cc3b8cbad4636519fd9bc6fd1f48fe992d40a331",
-    "off": "dc2938b5ec075efbdae871568b483f6702bec37e3f883c49d32e2866cd0ee2c4"
+    "tracks-main-cue": "430b0053ac267e731393c51aa80cc9d0625d761034d063f4b82c8035b57cae4a",
+    "tracks": "bc677dc138899c81bd8d1ee42643589d39d167d195e94fd40deea52757c558e0",
+    "tracks-post": "7257de42a0f3ef396ea033ba3ea09723d229d407506cd636977f1a5ff0630e30",
+    "main-cue": "04538b6db2f023783ae21bdc4db8650e45fd5e06bfb56138e9f468106872028b",
+    "main": "63bc4843d56ac290a23307875d7d94c1de0162caf041a758bbe11546e5fd1994",
+    "master": "c964ae631088ad2ff591f25c8c3f94d109fdf1fe3b9ac5e10faa53c1bc2bf0dc",
+    "off": "14353d97081af3a781d58289327f59b88b1af72dc8d2c52fb4499fe29dceb637"
   },
-  "baseSourceInventorySha256": "a46e6faf7c70d07823540b35fe6c0d0a2466abc66c15b3aa2cf414df35c365be",
-  "nativeBrowserImageSha256": "6d352cad3825833125c5ab53fcb911101d10da7cac14a7fd4d7e7356cc61a9e8",
+  "baseSourceInventorySha256": "b6dba9418eda6f15357b4b06f364f2cf9b9f8968fa83c62f46215065469c4bcc",
+  "nativeBrowserImageSha256": "5d8eeaf0f950fc1f91c66d8c7b29a9d3259a34420294f6326f6e02e77a5a6fa3",
   "sourceParents": {
-    "main": "b97654c63125460df4271d092a5729b4faa7373e",
+    "main": "bd2eb00552e434c7cc17d36aed9d502d40bb53e5",
     "moduleSets": "d9c8e3c77c67d832292bce457d4d38b8dd6db2c7",
     "keyBus": "499e85c0017cf3c7f55353f67262565a92aac435",
     "usbReconnect": "fedfcb371ec0cf6daaa0bd23b50a8d02b888688b"
@@ -52,5 +52,13 @@
   "limitations": [
     "No physical run of this combined source/build is claimed. Mixed add/replace/remove, actual self-test and audible output on both cores, Keep/Undo, disconnect recovery, removal/missing-module behavior and persistence remain unverified.",
     "Whole-set transactions remain beta/capability-gated. Software tests do not replace the actual self-test or explicit Keep/Undo in a device trial."
-  ]
+  ],
+  "reapproval": {
+    "approvedBy": "repeat98",
+    "approvedOn": "2026-10-21",
+    "ownerStatement": "Approved, record it",
+    "scope": "The same scoped experimental waivers, re-recorded for the rebuilt base after main's #763 (saved projects keep module effect ids 100-127) changed the base's fxmap source. No other base source changed; all seven layouts and the five base-bound packages were rebuilt, and the packages' bytes are unchanged (only requiredBase moved).",
+    "previousBaseIdentity": "8fea36c2e1e2f80f6d60edda880b49aa6cec109192f41fa9b5f39827f399b019",
+    "candidateCommit": "514eaad63d3c6e1457b20e2cf4323e4baf49fa35"
+  }
 }

@@ -2,7 +2,7 @@
 
 ## 21 October 2026
 
-- Qualification note: the owner explicitly approved the scoped experimental hardware/timing gaps for the combined key-bus and module-set source on 21 October 2026. The exact generated base, seven variants, source inventory, integration files and bound package hashes are recorded in `sdk/machines/octatrack/evidence/module-set-owner-approval-20261021.json` and `keybus-owner-approval-20261021.json`. No physical result is upgraded and USB reports #548, #689 and #718 remain open.
+- Qualification note: the owner explicitly approved the scoped experimental hardware/timing gaps for the combined key-bus and module-set source on 21 October 2026. The exact generated base, seven variants, source inventory, integration files and bound package hashes are recorded in `sdk/machines/octatrack/evidence/module-set-owner-approval-20261021.json` and `keybus-owner-approval-20261021.json`. After main's #763 (saved projects keep module effect ids 100–127) changed the base, the owner re-approved the same scoped waivers for the rebuilt base `430b0053…` (default native/browser image `5d8eeaf0…`); both files record the change. No physical result is upgraded and USB reports #548, #689 and #718 remain open.
 
 - Base package tooling: refreshed the cave/table declarations after the base-only generator option changed its source hash. CC Map and Mute Modes rebuilt byte-identically to their published packages before the generator-only pin was retained; authored source, recipe spans and module versions stay unchanged.
 
