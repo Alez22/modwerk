@@ -59,6 +59,9 @@ describe('overview page', () => {
   it('shows one phrase per machine, locks the machines without mods behind Start developing and puts the Start developing tile where they begin', () => {
     for (const machine of overview.machines) expect(html).toContain(machine.count ? machine.count + ' module' : machine.kind === 'research' ? machine.stepsDone + ' of ' + DEVICE_STEPS.length + ' steps' : 'No research yet')
     for (const machine of overview.machines.filter(item => !item.count)) expect(html).toContain('href="' + machine.developHref + '"')
+    const locked = overview.machines.filter(item => !item.count)
+    expect((html.match(/Programming experience needed/g) ?? []).length).toBe(locked.filter(item => !item.coreReady).length)
+    expect((html.match(/>Build the first mod</g) ?? []).length).toBe(locked.filter(item => item.coreReady).length)
     expect(html.indexOf('href="#submit"')).toBeLessThan(html.indexOf('href="' + overview.machines.find(machine => !machine.count)!.href + '"'))
     expect(html).toContain('<b>' + overview.modules + '</b> modules by <b>' + overview.creators + '</b> creators')
   })

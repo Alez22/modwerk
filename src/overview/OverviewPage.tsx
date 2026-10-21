@@ -28,18 +28,19 @@ export function OverviewPage({ overview }: { overview: Overview }) {
     </header>
     <div className="machine-grid">
       {shown.filter(machine => machine.kind === 'mods').map(machine => <MachineTile key={machine.device.id} machine={machine} />)}
-      {filter !== 'mods' && !!overview.withoutMods && <DevelopTile waiting={overview.withoutMods} />}
+      {filter !== 'research' && filter !== 'open' && <DevelopTile machines={overview.machines.filter(machine => machine.count).map(machine => machine.device.name)} />}
       {shown.filter(machine => machine.kind !== 'mods').map(machine => <MachineTile key={machine.device.id} machine={machine} />)}
     </div>
     <MachinePhotoCredits />
   </div>
 }
 
-function DevelopTile({ waiting }: { waiting: number }) {
+// Building a module for a machine that has one: no coding needed. It sits right after those machines.
+function DevelopTile({ machines }: { machines: string[] }) {
   return <a className="overview-tile is-develop" href="#submit">
     <span className="overview-art">
-      <span className="overview-waiting"><strong>{waiting}</strong><small>{waiting === 1 ? 'machine waits' : 'machines wait'} for a first mod</small></span>
-      <span className="overview-pitch">No coding needed: a Claude or ChatGPT subscription and the starter prompt get you there.</span>
+      <span className="overview-waiting"><strong>Build your own mod</strong><small>{machines.join(' · ')}</small></span>
+      <span className="overview-pitch">No coding needed: a Claude or ChatGPT subscription and the starter prompt guide you.</span>
     </span>
     <div className="overview-tile-body">
       <div className="overview-tile-line"><h2 className="overview-tile-name">Start developing</h2><Icon name="plus" size={16} /></div>
@@ -49,12 +50,15 @@ function DevelopTile({ waiting }: { waiting: number }) {
 
 function MachineTile({ machine }: { machine: OverviewMachine }) {
   const { device } = machine, variants = device.variants?.join(' · ')
-  // Without mods the machine is locked: its picture starts the first mod, its name opens the research page.
-  if (!machine.count) return <article className={'overview-tile is-locked is-' + machine.kind}>
-    <a className="overview-art" href={machine.developHref} aria-label={'Start developing for the ' + device.name + (variants ? ' ' + variants : '')}>
+  // Without mods the machine is locked: its picture starts the work (the first mod once it has a core, otherwise unlocking it,
+  // which needs programming experience), its name opens the research page.
+  if (!machine.count) {
+    const action = machine.coreReady ? 'Build the first mod' : 'Help unlock'
+    return <article className={'overview-tile is-locked is-' + machine.kind}>
+    <a className="overview-art" href={machine.developHref} aria-label={action + ': ' + device.name + (variants ? ' ' + variants : '') + (machine.coreReady ? '' : ', programming experience needed')}>
       <DeviceImage device={device} />
       <span className="overview-lock" aria-hidden="true"><Icon name="lock" size={22} /></span>
-      <span className="overview-cta" aria-hidden="true"><span><Icon name="plus" size={15} />Start developing</span></span>
+      <span className="overview-cta" aria-hidden="true"><span><Icon name="plus" size={15} />{action}</span>{!machine.coreReady && <small>Programming experience needed</small>}</span>
     </a>
     <div className="overview-tile-body">
       <div className="overview-tile-line">
@@ -64,6 +68,7 @@ function MachineTile({ machine }: { machine: OverviewMachine }) {
       <span className="overview-ladder" aria-hidden="true">{DEVICE_STEPS.map(step => <i key={step.id} className={'is-' + device.steps[step.id]} title={step.title + (device.steps[step.id] === 'done' ? ': done' : device.steps[step.id] === 'started' ? ': started' : '')} />)}</span>
     </div>
   </article>
+  }
   return <a className={'overview-tile is-' + machine.kind + ' is-' + device.status} href={machine.href}>
     <span className="overview-art"><DeviceImage device={device} /></span>
     <div className="overview-tile-body">

@@ -10,6 +10,7 @@ import type { DeveloperTask } from './developer-guidance'
 import '../components/developer-release-guide.css'
 import './develop-intro.css'
 import { Icon } from '../components/Icon'
+import { DEVICES_BY_ID } from '../devices/registry'
 
 // machine: preselected from #submit?machine=<id>, as the overview's Start developing links do.
 export function SubmissionPage({ moduleId = '', machine: initialMachine }: { moduleId?: string; machine?: string }) {
@@ -19,12 +20,14 @@ export function SubmissionPage({ moduleId = '', machine: initialMachine }: { mod
   const [task, setTask] = useState<DeveloperTask>(module ? 'update' : 'create')
   const [machine, setMachine] = useState<StarterMachine>(() => STARTER_MACHINES.find(item => item.id === (module?.machine ?? initialMachine))?.id ?? 'octatrack')
   const clone = cloneCommands(repository, login)
+  // A machine without a core has to be unlocked first: reverse engineering, which needs programming experience.
+  const locked = !module && DEVICES_BY_ID[machine]?.steps.core !== 'done', machineName = STARTER_MACHINES.find(item => item.id === machine)?.name ?? machine
 
   return <div className="community-page contribution-page start-developing">
     <BackLink href={moduleId ? '#developer' : '#library'}>{moduleId ? 'Creator settings' : 'Module library'}</BackLink>
     <header className="page-heading developer-heading">
-      <div><p className="page-kicker">MODWERK / DEVELOPERS</p><h1>{module ? 'Update ' + module.name : <>Make a mod for your machine. <span>No coding experience needed.</span></>}</h1>
-        <p>{module ? 'Current version ' + module.version + '. One prompt for your agent. Four steps to publication.' : 'An AI coding assistant writes and checks the code. You bring the idea, try it on your machine and decide when it’s ready. The starter prompt below sets everything up with you and guides you through every step.'}</p>
+      <div><p className="page-kicker">MODWERK / DEVELOPERS</p><h1>{module ? 'Update ' + module.name : locked ? <>Help unlock the {machineName}. <span>Programming experience needed.</span></> : <>Make a mod for your machine. <span>No coding experience needed.</span></>}</h1>
+        <p>{module ? 'Current version ' + module.version + '. One prompt for your agent. Four steps to publication.' : locked ? 'Before anyone can build mods for it, its firmware file has to be understood, rebuilt and booted, and a core has to give mods a place to run. That is reverse-engineering work. An AI coding assistant helps, but you need to read and judge code yourself. The starter prompt below sets up the machine integration with you.' : 'An AI coding assistant writes and checks the code. You bring the idea, try it on your machine and decide when it’s ready. The starter prompt below sets everything up with you and guides you through every step.'}</p>
       </div>
       <div className="developer-heading-links">
         <a className="button development-discord-button" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer" aria-label="Join Discord for module development (opens in a new tab)">
@@ -33,7 +36,7 @@ export function SubmissionPage({ moduleId = '', machine: initialMachine }: { mod
         <a className="developer-repository-link" href={repository} target="_blank" rel="noreferrer" aria-label="Modwerk repository on GitHub (opens in a new tab)">Modwerk on GitHub <span aria-hidden="true">↗</span></a>
       </div>
     </header>
-    {!module && <DevelopIntro />}
+    {!module && !locked && <DevelopIntro />}
 
     <section className="configuration-section developer-start" aria-labelledby="agent-start-title">
       <div className="developer-section-heading"><h2 id="agent-start-title">Your starter prompt</h2><span className="subtle">{module ? 'Open your agent in your Modwerk fork' : 'Paste it into Claude or ChatGPT, or straight into your coding agent'}</span></div>

@@ -41,9 +41,10 @@
 
 /* Locked: a lock at rest; on hover or keyboard focus the picture lifts and offers Start developing */
 .overview-lock { position: absolute; z-index: 2; left: 50%; top: 50%; display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid #ffffff2b; border-radius: 50%; background: #19191ce6; color: var(--text-secondary); box-shadow: 0 8px 22px #00000066; transform: translate(-50%, -50%); transition: opacity .2s, transform .3s cubic-bezier(.2, .7, .2, 1); }
-.overview-cta { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; background: #19191c59; opacity: 0; transition: opacity .2s cubic-bezier(.2, .7, .2, 1); }
+.overview-cta { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #19191c59; opacity: 0; transition: opacity .2s cubic-bezier(.2, .7, .2, 1); }
 .overview-cta > span { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 15px; border-radius: 8px; background: var(--apricot); color: #19191c; font-size: 13px; font-weight: 650; box-shadow: 0 8px 20px #00000059; transform: translateY(6px); transition: transform .3s cubic-bezier(.2, .7, .2, 1); }
 .overview-tile.is-locked:hover .overview-cta, .overview-tile.is-locked .overview-art:focus-visible .overview-cta { opacity: 1; }
+.overview-cta small { padding: 2px 8px; border-radius: 5px; background: #19191cd8; color: #e6dccb; font-size: 11.5px; }
 .overview-tile.is-locked:hover .overview-cta > span, .overview-tile.is-locked .overview-art:focus-visible .overview-cta > span { transform: none; }
 .overview-tile.is-locked:hover .overview-lock, .overview-tile.is-locked .overview-art:focus-visible .overview-lock { opacity: 0; transform: translate(-50%, -50%) scale(.85); }
 .overview-tile.is-locked:hover .overview-art .device-photo { filter: grayscale(.6) brightness(.62); }
@@ -52,7 +53,8 @@
 .overview-tile.is-locked .overview-art:focus-visible { outline: 2px solid var(--apricot); outline-offset: -2px; }
 @media (hover: none) {
   .overview-lock { width: 44px; height: 44px; top: 44%; }
-  .overview-cta { place-items: end center; padding-bottom: 10px; background: none; opacity: 1; }
+  .overview-cta { justify-content: flex-end; padding-bottom: 10px; background: none; opacity: 1; }
+  .overview-cta small { display: none; }
   .overview-cta > span { min-height: 32px; padding: 0 11px; font-size: 12px; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .overview-cta > span { transform: none; } }
@@ -87,7 +89,7 @@
 .overview-tile.is-develop:hover { border-color: var(--apricot); }
 .overview-tile.is-develop .overview-art { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px 22px; text-align: center; background: radial-gradient(circle at 50% 40%, #3a3226, var(--apricot-surface) 74%); }
 .overview-waiting { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.overview-waiting strong { font: 650 54px/.9 var(--mono); letter-spacing: -2.5px; color: #f3e6cf; font-variant-numeric: tabular-nums; }
+.overview-waiting strong { font-size: 21px; font-weight: 680; line-height: 1.15; letter-spacing: -.4px; color: #fff1da; }
 .overview-waiting small { color: var(--apricot-text); font: 10.5px/1.5 var(--mono); letter-spacing: 1.1px; text-transform: uppercase; }
 .overview-pitch { max-width: 30ch; color: #d9cfbf; font-size: 12.5px; line-height: 1.5; }
 .overview-tile.is-develop .overview-tile-body { border-top-color: var(--apricot-line); }

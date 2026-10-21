@@ -144,6 +144,14 @@ describe('starter prompts', () => {
 })
 
 describe('start developing page', () => {
+  it('says that unlocking a machine without a core needs programming experience', () => {
+    const html = renderToStaticMarkup(createElement(SubmissionPage, { machine: 'analog-heat' }))
+    expect(html).toContain('Help unlock the Analog Heat')
+    expect(html).toContain('Programming experience needed.')
+    expect(html).not.toContain('No coding experience needed.')
+    expect(html).not.toContain('What you need')
+  })
+
   it('shows one complete prompt and hides its long preview and setup by default', () => {
     const html = renderToStaticMarkup(createElement(SubmissionPage))
     expect(html).toContain('No coding experience needed.')

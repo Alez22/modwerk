@@ -36,7 +36,7 @@ import { digiMatchesQuery, octatrackMatchesQuery } from '../catalog/module-searc
 import { useModuleAudioPreviews } from '../components/audio-preview-context'
 import { ModuleAudioCardCover } from '../components/ModuleAudioPreview'
 import { useSetWords } from '../community/beta-ui'
-import { DEVELOP_PITCH, developHref } from '../overview/overview'
+import { DEVELOP_PITCH, UNLOCK_NOTE, developHref } from '../overview/overview'
 
 type DigiDevice = DeviceProfile & { id: DigiMod['device'] }
 const STEP_LABELS = { done: 'Done', started: 'Started', open: 'Open' } as const
@@ -243,8 +243,8 @@ export function EmptyMachine({ device, machinePicker, embedded = false }: { devi
   return (
     <div className="device-page">
       {machinePicker && <div className="discovery-tools">{machinePicker}</div>}
-      <Hero device={device} embedded={embedded}><div className="device-hero-actions">{device.id === 'digitakt-ii' && device.sdk && <a className="button button-primary" href={deviceHref(device.id, 'configuration')}><Icon name="sliders" size={16} />{mobile ? 'Open configuration' : 'Open local build preview'}</a>}<a className={'button ' + (device.id === 'digitakt-ii' && device.sdk ? 'button-quiet' : 'button-primary')} href={developHref(device.id)}><Icon name="plus" size={16} />Start developing</a><a className="button button-quiet" href={repository + '/blob/main/docs/ADD_A_MACHINE.md'} target="_blank" rel="noreferrer"><Icon name="plus" size={16} />Open a device PR</a><a className="button button-quiet" href="#forum"><Icon name="message" size={16} />Discuss in the forum</a></div></Hero>
-      <section className="device-invite"><h2>Be the first to mod the {device.name}</h2><p>Nobody has published a working mod for this machine yet. Modwerk never hosts firmware: every build starts from the stock OS file each owner downloads from Elektron, so the work is in understanding that file and sharing only your own code. {DEVELOP_PITCH}</p></section>
+      <Hero device={device} embedded={embedded}><div className="device-hero-actions">{device.id === 'digitakt-ii' && device.sdk && <a className="button button-primary" href={deviceHref(device.id, 'configuration')}><Icon name="sliders" size={16} />{mobile ? 'Open configuration' : 'Open local build preview'}</a>}<a className={'button ' + (device.id === 'digitakt-ii' && device.sdk ? 'button-quiet' : 'button-primary')} href={developHref(device.id)}><Icon name="plus" size={16} />{device.steps.core === 'done' ? 'Build the first mod' : 'Help unlock'}</a><a className="button button-quiet" href={repository + '/blob/main/docs/ADD_A_MACHINE.md'} target="_blank" rel="noreferrer"><Icon name="plus" size={16} />Open a device PR</a><a className="button button-quiet" href="#forum"><Icon name="message" size={16} />Discuss in the forum</a></div></Hero>
+      <section className="device-invite"><h2>Be the first to mod the {device.name}</h2><p>Nobody has published a working mod for this machine yet. Modwerk never hosts firmware: every build starts from the stock OS file each owner downloads from Elektron, so the work is in understanding that file and sharing only your own code. {device.steps.core === 'done' ? DEVELOP_PITCH : UNLOCK_NOTE}</p></section>
       <section className="configuration-section" aria-labelledby="ladder-title">
         <div className="section-title"><h2 id="ladder-title">Road to the first mod</h2><span className="subtle">{stepsDone(device)} of {DEVICE_STEPS.length} done</span></div>
         <ol className="device-ladder">{DEVICE_STEPS.map((step, index) => { const state = device.steps[step.id]; return <li key={step.id} className={'is-' + state}><span className="device-ladder-marker">{state === 'done' ? <Icon name="check" size={14} /> : index + 1}</span><span><strong>{step.title}</strong><small>{step.description}</small></span><span className={'device-step-state is-' + state}>{STEP_LABELS[state]}</span></li> })}</ol>

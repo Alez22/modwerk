@@ -28,7 +28,7 @@ export function MobileMenu({ route, online, selectedCount, configurationHref, ad
     return () => { window.removeEventListener('hashchange', close); window.removeEventListener('keydown', onKey); window.removeEventListener('resize', close) }
   }, [open])
   // While the Start developing highlight runs, it sits right under Overview with its promise; otherwise it is a plain community link.
-  const develop: MenuLink = { href: '#submit', label: 'Start developing', icon: 'plus', current: route.startsWith('submit'), tag: highlightDevelop ? 'No coding needed' : undefined }
+  const develop: MenuLink = { href: '#submit', label: 'Start developing', icon: 'plus', current: route.startsWith('submit'), tag: highlightDevelop ? 'No coding for modules' : undefined }
   const groups: MenuLink[][] = [
     [
       { href: '#overview', label: 'Overview', icon: 'home', current: route === 'overview' },
