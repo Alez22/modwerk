@@ -359,7 +359,9 @@ the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and
   checks the mark (RINGMOD SC does) installed meanwhile on a track that already runs it took the dead bus for a live
   one and read frozen frames. Now the window comes first in the key bus's reset (dsp-sites.json, resident_dsp's ranges,
   in the same order: `dsp_sites.py --check` compares it), and after a run the board zeroes the seed with one offset-0
-  chunk (KB_SCRUB) before it lets the window go. Board test mode 43.
+  chunk (KB_SCRUB) before it lets the window go. Board test mode 43. The base was regenerated again for it:
+  `0b84bb65…` (`.bin` `5ffdff9f`); the MKII re-check below ran on the twin of `b3ac5155`, before this fix, and the next
+  MKII session re-checks the new twin.
 - **One ledger.** The board's key bus constants (its bit, reset total 1,026 and first range 514, what Sidechain
   implies, each feature's cores), the transport's reset totals and splits and the engines' feature index now come from
   `dsp_ledger.h` (generated from `dsp-sites.json`, so `dsp_sites.py --check` covers them).
