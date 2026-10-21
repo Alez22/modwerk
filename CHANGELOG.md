@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- Report workflow: document that GitHub repository ownership does not grant module-maintainer command access, and that a denied command needs the existing administrator triage flow or an ordinary reply for reproduction questions. A successful webhook HTTP response alone does not prove triage or a reporter notification.
+
 - USB POST development checks: add an exact-build ColdFire emulator probe for delayed gains, open/closed stream ramps, sixteen-channel producer packing, full-speed sum saturation and caller EMAC restoration. Randomized snapshots and a skipped-restoration negative control supplement the directed cases. These synthetic results do not qualify physical POST audio or timing.
 
 - Development checks: readiness diagnostics retain Git's leading status column, so the first changed file's name is printed in full instead of losing its first character.
