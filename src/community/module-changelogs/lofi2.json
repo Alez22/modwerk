@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-21",
+    "changes": [
+      "Fix: in DOWN and UP, FDBK near 127 no longer sustains itself after the input stops (https://github.com/sambanks/octabam/issues/825). With RNGE HIGH, FREQ about 60 to 72 and FDBK 124 or more (DOWN from about 120), the shifter's feedback kept a tone near full scale until a knob moved; 0.1.0's notes advised keeping FDBK at 120 or below there.",
+      "Upstream implementation, by Bryan T (bryantysinger): octabam pull request 843 (https://github.com/sambanks/octabam/pull/843, merged as 7795adf0) lowers SHIFT's feedback cap from 0.45 to 0.40. The doubling that forms the wet signal sits inside the loop, and the Hilbert pair cannot shift DC or Nyquist, so at 0.45 the worst two-pass loop gain was about 1.15; at 0.40 it is about 0.905. One constant in lofi2.asm and its comments change; the same instructions, words (838 + 516) and 416 cycles a sample. FDBK still spans 0 to 127, now up to 0.40, so every setting feeds back 8/9 as much as in 0.1.0. RING, SRR, BRR, LPF and the knob layout are unchanged.",
+      "Checked in dsp_host: the author's render gate, with his new check for issue 825, passes all 73 checks on Modwerk's build (a 0.3 s burst, then silence, at FDBK 127, MIX 127 and RNGE HIGH, in DOWN at FREQ 64 and 72 and in UP at 72: the tail settles at -69.2, -71.7 and -84.5 dBFS instead of about -4 dBFS). 0.1.0's source fails exactly those three checks. The faint SHIFT residue after the input stops (about -70 to -94 dBFS, highest at FDBK 127 with RNGE HIGH) remains.",
+      "Hardware: the author reports, on his own MKII and octabam card build, that the issue 825 setting now dies away and eight LOFI2 in SHIFT DOWN on T1-T8 with FX1 empty ran without problems; four in SHIFT on T5-T8 with FILTER on FX1 locked the unit, on upstream main as well, because FX1 shares the core's DSP budget. This version's USB package has not yet run on a Modwerk unit. The rest of 0.1.0's limits stand."
+    ]
+  },
+  {
     "version": "0.1.0-experimental",
     "date": "2026-10-20",
     "changes": [

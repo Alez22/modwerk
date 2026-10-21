@@ -3,13 +3,13 @@
   "id": "lofi2",
   "key": "LOFI2",
   "name": "LOFI2",
-  "version": "0.1.0-experimental",
+  "version": "0.1.1-experimental",
   "category": "effects",
   "author": {
     "github": "bryantysinger",
     "name": "Bryan T",
     "credits": [
-      "Bryan T (bryantysinger): LOFI2's design, DSP56300 code, tables, declaration, render gate and hardware testing, contributed to octabam (pull requests 657 and 704, MIT).",
+      "Bryan T (bryantysinger): LOFI2's design, DSP56300 code, tables, declaration, render gate and hardware testing, contributed to octabam (pull requests 657, 704 and 843, MIT).",
       "octabam: Sam Banks; SDK, schema and harness (MIT). LOFI2's stereo shifter uses the allpass coefficients of octabam's BodeShift and its ring carrier follows octabam's WarpFold.",
       "Modwerk contributors: source import, effect ID/placement/letter adaptation, verifier image adaptation, documentation, captures and SVG thumbnail."
     ]
@@ -51,7 +51,7 @@
       "name": "FDBK",
       "default": 0,
       "count": 128,
-      "doc": "One knob, renamed by MODE. In DOWN and UP it is FDBK, the shifter's feedback (a ladder at f, f+d, f+2d), capped at 0.45. In RING the panel shows GAIN: make-up on the ring product, 0 dB at 0, +6 dB at 64, +11.9 dB at 127.",
+      "doc": "One knob, renamed by MODE. In DOWN and UP it is FDBK, the shifter's feedback (a ladder at f, f+d, f+2d), capped at 0.40 (0.45 before 0.1.1, where the top of FDBK could sustain itself). In RING the panel shows GAIN: make-up on the ring product, 0 dB at 0, +6 dB at 64, +11.9 dB at 127.",
       "labels": null
     },
     {
@@ -172,9 +172,9 @@
     "report": "TESTING.md",
     "summary": "Ported unchanged in DSP from octabam 8250be0c: the author's optimised LOFI2 (pull request 704) with his SHIFT fix 153063d8 (Hilbert coefficients squared). A private native build on Modwerk's ID 0x09 passed all 70 checks of the author's render gate (the unwanted SHIFT sideband -45.7 to -56.2 dB at 1-15 kHz; SRR and BRR against stock LO-FI rendered from the tester's own OS 1.40C), plus dirty-state, init-register, menu, replaces, label and mode-name gates. Against the previous source (21f6de90) only 16 DSP coefficient data words differ. Static cost 416 cycles/sample; dsp_host benchmark 430 instructions/sample in SHIFT against LO-FI's 290 and SPRING REV's 314; a 32 s eight-instance stress run under memory guards had no hang and no clobber, and perf:audit passes with a justification. fx:audit is clean at the defaults and with the shelf in; in SHIFT a residue of -83 to -94 dBFS stays after the input stops, and at FDBK 124-127 with RNGE HIGH and FREQ about 60-76 the feedback sustains itself near full scale (dsp_host; the previous coefficients did the same at RNGE LOW, FREQ 127); on the MKII, UP at FREQ 64 HIGH with FDBK 127 kept a tone sounding after the input ended and FDBK 120 let it die away. Packages compile. On 20 October 2026 the USB package 4f794ebc ran on the contributor's MKII on flashed beta base 6650236a beside five other modules: install and Keep, every mode, FREQ, MIX, GAIN and SRR, the fixed SHIFT by ear, two instances on one core and a third refused; the base's self-test failed on CPU (98.8 % peak with six modules on an uncached base). The previous source's card-image and USB runs (13 and 15 October) are kept as history (evidence/hardware.md). Not tested on this source: BRR and LPF individually, the feedback case beyond UP at FREQ 64, reloads, a power cycle, eight instances and scenes.",
     "hardwareStatus": "reported",
-    "evidenceRevision": "8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5",
+    "evidenceRevision": "7795adf0dff8c650968ff53ab5ab47babaf00ffe",
     "gates": [
-      "verify_lofi2.py: 70 dsp_host checks on payload A, including the SHIFT sidebands at 1, 3, 5, 10 and 15 kHz and SRR and BRR against stock LO-FI rendered from the tester's own image",
+      "verify_lofi2.py: 73 dsp_host checks on payload A, including the SHIFT sidebands at 1, 3, 5, 10 and 15 kHz, the FDBK 127 tail settling (octabam issue 825) and SRR and BRR against stock LO-FI rendered from the tester's own image",
       "verify_dirtystate, verify_initregs, verify_menu, verify_replaces, verify_labels, verify_modenames on the lofi2 test remix (static stock)",
       "evidence/performance.json: perf:audit (static count, stock benchmark under matched cases, 32 s stress)",
       "fx:audit at four settings; the SHIFT idle residue and the feedback scan measured separately",
@@ -182,7 +182,7 @@
       "evidence/hardware.md: a functional MKII report of this source's USB package, and the previous source's card-image and USB reports as history"
     ],
     "qualification": {
-      "moduleVersion": "0.1.0-experimental",
+      "moduleVersion": "0.1.1-experimental",
       "sourceSha256": "d87e5affa2aa7f4428b4b7067c41bf4c7165ffdb8dfdf2cd51c0ad95758a494d",
       "imageSha256": "69d28e954674f18e5e3fb80c0e0ab7083755e89615bd41a7753b93f4221cc329",
       "cycles": [
@@ -401,7 +401,7 @@
   },
   "source": {
     "repository": "https://github.com/sambanks/octabam",
-    "revision": "8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5",
+    "revision": "7795adf0dff8c650968ff53ab5ab47babaf00ffe",
     "path": "modules/lofi2"
   }
 }
