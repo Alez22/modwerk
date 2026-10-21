@@ -53,7 +53,7 @@ function MachineTile({ machine }: { machine: OverviewMachine }) {
   if (!machine.count) return <article className={'overview-tile is-locked is-' + machine.kind}>
     <a className="overview-art" href={machine.developHref} aria-label={'Start developing for the ' + device.name + (variants ? ' ' + variants : '')}>
       <DeviceImage device={device} />
-      <span className="overview-lock" aria-hidden="true"><Icon name="lock" size={14} /></span>
+      <span className="overview-lock" aria-hidden="true"><Icon name="lock" size={22} /></span>
       <span className="overview-cta" aria-hidden="true"><span><Icon name="plus" size={15} />Start developing</span></span>
     </a>
     <div className="overview-tile-body">
