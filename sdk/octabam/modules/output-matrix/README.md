@@ -1,6 +1,6 @@
 # Output Matrix
 
-Version: 0.1.0-experimental · author: @npp1993
+Version: 0.1.0-experimental · author: Nathaniel Pavel (@npp1993)
 
 ## Overview
 
@@ -120,7 +120,7 @@ See [TESTING.md](TESTING.md). Tested on an MKII (OS 1.40C base) on 7–9 October
 
 ## Authorship and licences
 
-Original code by @npp1993, under the MIT licence (see [LICENSE](LICENSE)). Stock code is referenced by address and SHA-256 only. No Elektron firmware, routines or tables are included.
+Original code by Nathaniel Pavel (@npp1993), under the MIT licence (see [LICENSE](LICENSE)). Stock code is referenced by address and SHA-256 only. No Elektron firmware, routines or tables are included.
 
 ## Screens and audio
 

@@ -208,7 +208,7 @@
       "sha256": "ccffbf72d45358bde585760b9230c668bf38ebf412ab23efc73732cf96024dca"
     }
   ],
-  "sourceCommit": "408227215dfd24be14d8d6588d95bf22f3a63c0c",
+  "sourceCommit": "905faab2e4459b8bf80ea8040282b3bb7a9988f3",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -236,6 +236,7 @@
     "recorder-loop-fix": "0.1.0-experimental",
     "poly8": "0.3.0-experimental",
     "output-matrix": "0.1.1-experimental",
-    "quantize-live-rec-toggle": "0.1.0-experimental"
+    "quantize-live-rec-toggle": "0.1.0-experimental",
+    "apply-scene": "0.1.0-experimental"
   }
 }
