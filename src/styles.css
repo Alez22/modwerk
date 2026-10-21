@@ -2136,7 +2136,6 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
   .sidebar { padding-top: 14px; }
   .sidebar .sidebar-brand { margin-bottom: 16px; }
   .sidebar-nav a { min-height: 32px; }
-  .sidebar .develop-card { margin-bottom: 12px; }
   .sidebar .community-label { padding-top: 10px; }
   .sidebar-account-row { min-height: 48px; padding-block: 6px; }
 }

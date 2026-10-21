@@ -1,6 +1,6 @@
 /* The landing page (#overview) and the temporary Start developing highlight. Colours reuse the app tokens;
    apricot is the kicker colour and stands for "open for development" throughout. */
-.overview-page, .develop-card, .mobile-menu-panel a.is-highlight { --apricot: #c7a16c; --apricot-text: #ecd6b0; --apricot-line: #7a6546; --apricot-surface: #2a2620; --done: #7fd1a0; }
+.overview-page, .toolbar-develop, .mobile-menu-panel a.is-highlight { --apricot: #c7a16c; --apricot-text: #ecd6b0; --apricot-line: #7a6546; --apricot-surface: #2a2620; --done: #7fd1a0; }
 .overview-page { width: 100%; max-width: 1280px; margin: 0 auto; }
 
 /* Heading: the title, one line of numbers and the filters in a single row */
@@ -106,25 +106,23 @@
 .overview-tile.is-develop .overview-tile-line svg { flex-shrink: 0; align-self: center; color: var(--apricot); }
 .overview-page > .photo-credits { margin-top: 24px; }
 
-/* The temporary Start developing highlight: a card under Overview in the sidebar, an accent row in the phone menu */
+/* The temporary Start developing highlight: a button in the desktop top bar, an accent row in the phone menu.
+   The label folds into the icon when the top bar's action column runs short, and the button leaves it when even that does not fit. */
 .sidebar-home { margin-bottom: 20px; }
-.sidebar-home:has(+ .develop-card) { margin-bottom: 0; }
-.develop-card { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 1px 9px; margin: 6px 0 18px; padding: 8px 10px; border: 1px solid var(--apricot-line); border-radius: 10px; background: var(--apricot-surface); transition: border-color .15s, background .15s; }
-.develop-card:hover, .develop-card.active { border-color: var(--apricot); background: #322b22; }
-.develop-card.active { box-shadow: inset 3px 0 var(--apricot); }
-.develop-card-icon { grid-row: span 2; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--apricot); color: #19191c; }
-.develop-card strong { padding-right: 16px; color: #fff1da; font-size: 13px; font-weight: 650; }
-.develop-card small { color: #d9cfbf; font-size: 11.5px; line-height: 1.4; }
-.develop-card::after { content: ''; position: absolute; right: 10px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: var(--apricot); animation: develop-pulse 2.4s ease-out infinite; }
-@keyframes develop-pulse { 0% { box-shadow: 0 0 0 0 #c7a16c90; } 70% { box-shadow: 0 0 0 9px #c7a16c00; } 100% { box-shadow: 0 0 0 0 #c7a16c00; } }
-@media (prefers-reduced-motion: reduce) { .develop-card::after { animation: none; } }
+.toolbar-develop { flex-shrink: 0; margin-left: auto; display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 10px; border: 1px solid var(--apricot-line); border-radius: 8px; background: var(--apricot-surface); color: #fff1da; font-size: 13px; white-space: nowrap; transition: border-color .15s, background .15s; }
+.toolbar-develop svg { flex-shrink: 0; color: var(--apricot); }
+.toolbar-develop:hover, .toolbar-develop[aria-current="page"] { border-color: var(--apricot); background: #322b22; }
+.toolbar-develop ~ :is(.notification-bell, .configuration-button) { margin-left: 0; }
+@media (min-width: 601px) { .app-toolbar > .toolbar-actions { container: toolbar-actions / inline-size; } }
+@container toolbar-actions (max-width: 389px) { .toolbar-develop { padding: 0 9px; } .toolbar-develop span { display: none; } }
+@container toolbar-actions (max-width: 269px) { .toolbar-develop { display: none; } }
 .mobile-menu-panel a.is-highlight { border: 1px solid var(--apricot-line); background: var(--apricot-surface); color: #fff1da; }
 .mobile-menu-panel a.is-highlight svg { color: var(--apricot); }
 .mobile-menu-panel a.is-highlight small { color: var(--apricot-text); font: 10px var(--mono); letter-spacing: 1px; text-transform: uppercase; }
 
 @media (max-width: 600px) {
   /* .sidebar raises it over .sidebar-nav's display, which styles.css sets after this file. */
-  .sidebar .sidebar-home, .develop-card { display: none; }
+  .sidebar .sidebar-home, .toolbar-develop { display: none; }
   .overview-heading { gap: 12px; margin-bottom: 14px; }
   .overview-heading h1 { font-size: 24px; }
   /* Phones: the filters become one segmented control with short labels; the colour key and bars stay on larger screens */

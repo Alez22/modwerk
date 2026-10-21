@@ -82,6 +82,6 @@ export function machineOverview(octatrack: readonly FirmwareModule[], digi: read
   }
 }
 
-// The Start developing highlight in the sidebar and phone menu is temporary: it turns back into a plain link after this day.
+// The Start developing highlight in the top bar and phone menu is temporary: it turns back into a plain link after this day.
 export const DEVELOP_HIGHLIGHT_UNTIL = '2027-01-31'
 export function developHighlight(now = new Date()) { return now.toISOString().slice(0, 10) <= DEVELOP_HIGHLIGHT_UNTIL }
