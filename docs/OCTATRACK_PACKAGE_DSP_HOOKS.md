@@ -268,7 +268,10 @@ up to about a block of silent key while the tap re-adopts its counter by #640's 
 **The reader contract is generic.** Any track can be a key, and a reader may run on either core: a reader on the key
 track's own core reads the local bus (this block's audio if the key track is dispatched before it, the last block's if
 after), a reader on the other core reads the window two generations behind its own core's counter (#640's phase rule:
-32 samples). A reader writes nothing in the bus or the window. RINGMOD SC is the first reader; CHARACTER 0.1.2's KEY
+32 samples). A reader writes nothing in the bus or the window. Until the bus is live on its core (the tap's seed mark at
+base-2 holds exactly $10000 and the counter at base-1 is 0..3) a reader should treat the key as absent and pass its audio
+(RINGMOD SC ramps its depth to 0): a card image has no key bus, and the words there may be cold memory or another
+effect's buffer. RINGMOD SC is the first reader; CHARACTER 0.1.2's KEY
 (today upstream's bus server at y:$990/$991, or NOBUS_KEY) is planned as the second, once RINGMOD SC's is proven.
 
 **Checked in software (`claude/keybus`, 20 October 2026).** None of it on a unit.

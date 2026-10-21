@@ -28,7 +28,7 @@ Octabam names three (`sdk/octabam/docs/remixer/MODULES.md`, "Decide first"). Cho
 
 - **Twelve parameters** (two pages of six). Each has a name, count, default and formatter. Write every field; the descriptor is cloned from a stock donor and anything you omit stays the donor's.
 - **Names are short.** The abbreviation is 4 characters, the full name 12. A 5-character abbreviation "threw a line-F exception the moment a parameter was LFO-modulated" (`MODULES.md`). The schema now rejects it; do not work around the schema.
-- **A one-line `doc` on every named, drawn parameter.** The selftest requires it. `labels` give a stepped select its words.
+- **A one-line `doc` on every named, drawn parameter.** The selftest requires it. `labels` give a stepped select its words. A USB package carries a select's labels as consecutive strings, and the stock-free scans (`module_packages.py`) refuse a run that repeats stock: RINGMOD SC's OFF, T1-T8 repeated a 25-byte stock list and failed both scans. Pad or reword such labels (it stores " T1 ", drawn centred like "T1").
 - **A default inside its own count.** A default or stored value outside the count is used as an index and stalls the sequencer. The schema rejects the default; it cannot see a stored value.
 - **`active=True` on every slot the panel draws.** A slot the panel does not draw is unreachable, however complete the DSP.
 - **Draw a knob only if the DSP reads it.** The inverse is also true: a slot can draw a knob and publish nothing.
