@@ -199,6 +199,7 @@ shared_sum: .space 8192
 .global p4_usbaudio_consumed,p4_usbaudio_lastbank,p4_aud_step,p4_usbaudio_alt,p4_aud_running,p4_aud_closed,p4_aud_force
 
 .global p5_usbaudio_consumed,p5_usbaudio_lastbank,p5_aud_step,p5_usbaudio_alt,p5_aud_running,p5_aud_closed,p5_aud_force
+.global p5_uac2_set_pending
 
 .text
 .global mu_audio_stage_detached

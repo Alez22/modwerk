@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- USB profile staging: refuse the internal detached commit while EP0 owns a transfer/completion, stock still awaits a control stage, or the old POST clock SET is pending. An actual emulated interrupted clock request exposed acceptance after unplug; the guarded candidate refuses without clearing the old state. This adds a refusal fence, not transport retirement, a host settings command or reconnect authorization. Ordinary base/card packages and the physical unit are unchanged.
+
 - Development checks: hold the Shoutbox burst fixture in one rate-limit clock bucket and explicitly check that the next minute permits another message. A CI run crossing the minute previously failed its seventh-message assertion despite correct throttling. Give the forum highlight fixture's five real account flows a 20-second CI budget; its content and privacy assertions stay intact.
 
 - Octatrack base candidate: apply the complete-sample packet watermark and bounded fresh-start MAIN/CUE clear to ordinary per-layout builds as well as the all-profile staging option. An exact-image emulator fixture reproduces ten queued incomplete frames at a near-drain boundary and counter wrap in the earlier ordinary base. Physical audio, timing and any connection to reported glitches remain unverified; card module source and downloads are unchanged.

@@ -197,6 +197,63 @@ def readiness_checks(session, ordinary=False):
                   session.peek(ring + slot * stride, stride) == b'Z' * stride)
 
 
+def ep0_fence_checks(session):
+    """Pending real control transfers and RAM-state faults must not commit."""
+    b, s, check = session.bench, session.symbols, session.check
+    def snapshot():
+        fields = [(s['mu_audio_profile'], 4), (s['mu_audio_config_length'], 4),
+                  (s['p5_post_hist'], 256), (s['p5_post_state'], 96), (s['p5_post_gtab'], 512)]
+        fields += [(s['p%d_usbaudio_consumed' % index],
+                    s['p%d_aud_force' % index] + 1 - s['p%d_usbaudio_consumed' % index]) for index in range(6)]
+        return [session.peek(address, count) for address, count in fields]
+    def refused(label):
+        before = snapshot()
+        check(label, b.call(s['mu_audio_stage_detached'], 1) == 4)
+        check(label + ' preserves profile and retained state', snapshot() == before)
+    b.cmd('unplug', 'ok')
+    for label, address, value in (('EP0 stock IN state', 0x460bb3ec, struct.pack('>I', 10)),
+                                  ('stock awaited OUT', 0x460bb3f4, struct.pack('>I', CODE + 0x300)),
+                                  ('old POST clock latch', s['p5_uac2_set_pending'], b'\1')):
+        saved = session.peek(address, len(value))
+        b.poke(address, value)
+        refused(label + ' refuses profile commit')
+        check(label + ' is not silently cleared', session.peek(address, len(value)) == value)
+        b.poke(address, saved)
+    b.cmd('plug', 'ok')
+    enumerate_device(b, True)
+    b.setup(0x21, 1, 0x0100, 0x1004, 4)  # Actual POST clock SET_CUR, deliberately no data.
+    b.cmd('unplug', 'ok')
+    check('interrupted clock retains its pending latch', session.peek(s['p5_uac2_set_pending'], 1) == b'\1')
+    check('interrupted clock still owns EP0 OUT', session.word(0xfc0b01b8) & 1 == 1)
+    refused('interrupted clock data stage refuses profile commit')
+    b.cmd('plug', 'ok')
+    enumerate_device(b, True)  # A real new SETUP cancels the old clock stage.
+    check('new SETUP retires the old clock latch', session.peek(s['p5_uac2_set_pending'], 1) == b'\0')
+    b.cmd('unplug', 'ok')
+    check('retired clock permits bounded stage', b.call(s['mu_audio_stage_detached'], 6) == 0)
+    b.cmd('plug', 'ok')
+    enumerate_device(b, True)
+    b.setup(0x80, 6, 0x0200, 0, 259)  # Descriptor IN is not consumed by the host.
+    b.cmd('unplug', 'ok')
+    check('unconsumed descriptor still owns EP0 IN', session.word(0xfc0b01b8) & 0x10000 == 0x10000)
+    refused('unconsumed descriptor refuses profile commit')
+    b.cmd('plug', 'ok')
+    enumerate_device(b, True)
+    b.cmd('unplug', 'ok')
+    check('retired descriptor permits bounded stage', b.call(s['mu_audio_stage_detached'], 6) == 0)
+    b.cmd('plug', 'ok')
+    enumerate_device(b, True)
+    b.setup(0x41, 1, 1, 1, 52)  # A real SUBMIT OUT stage, without its frame data.
+    check('vendor SUBMIT owns EP0 OUT', session.word(0xfc0b01b8) & 1 == 1)
+    b.poke(0xfc0b0140, bytes(4))  # Stop RS without a reset; deliberately skip retirement.
+    refused('stopped controller with vendor OUT refuses profile commit')
+    b.cmd('unplug', 'ok')
+    b.cmd('plug', 'ok')
+    enumerate_device(b, True)
+    b.cmd('unplug', 'ok')
+    check('normal reset retires vendor OUT before stage', b.call(s['mu_audio_stage_detached'], 6) == 0)
+
+
 def run(args):
     symbols = json.loads((args.build / 'symbols.json').read_text())
     proof = json.loads((args.build / 'proofs.json').read_text())
@@ -331,6 +388,7 @@ def run(args):
                             (kind == 4 and data[5:8] == bytes([1, 2, 32])) or (kind == 5 and data[2] == 0x83)
                             for kind, data in descriptors(config)))
             if not frames:
+                ep0_fence_checks(session)
                 readiness_checks(session)
             session.close()
             session = None

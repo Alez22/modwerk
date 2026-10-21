@@ -268,6 +268,15 @@ settings command, transition authorization/recovery lease, EP0 retirement,
 profile inventory or Keep/Undo/persistence transaction. Do not admit a USB Audio
 catalogue module on the strength of this staging seam.
 
+The detached commit also refuses pending EP0 prime/flush/status/completion,
+SETUP, stock non-idle/awaited-OUT state and the old POST clock SET latch.
+Stopping USB does not itself retire those: an emulated clock SET with no data
+still held EP0 OUT after unplug, and the earlier stager accepted it. The guard
+leaves it intact until normal control handling cancels it. This is only a
+refusal fence. Cached vendor results, ownership, a deliberate drain/acknowledgement
+and MSC/disk-mode admission still need the engine-owned transition policy.
+See [EP0 staging evidence](../evidence/usb-profile-ep0-fence-20261021.json).
+
 In the shared base adapter, the high-speed twenty-channel packet watermark trails
 the raw track counter by one block, because MAIN/CUE land later. Its startup
 clear also covers the earlier reader cursor and future master-CUE gap. The
