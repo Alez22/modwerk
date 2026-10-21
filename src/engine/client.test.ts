@@ -19,4 +19,17 @@ describe('worker failure details', () => {
     expect(error.message).toBe(conflict.description)
     client.dispose()
   })
+  it('asks for a reload when the worker script never loads, and keeps the crash message otherwise', async () => {
+    let failure: Partial<ErrorEvent> = {}
+    vi.stubGlobal('Worker', class {
+      onerror?: (event: Partial<ErrorEvent>) => void
+      postMessage() { queueMicrotask(() => this.onerror?.(failure)) }
+      terminate() {}
+    })
+    const client = createFirmwareClient()
+    await expect(client.buildBase()).rejects.toThrow('Modwerk was updated since you opened this page. Reload the page, then choose your file again.')
+    failure = { message: 'Uncaught RangeError' }
+    await expect(client.buildBase()).rejects.toThrow('The local firmware worker stopped. Choose your file again or reload the page.')
+    client.dispose()
+  })
 })
