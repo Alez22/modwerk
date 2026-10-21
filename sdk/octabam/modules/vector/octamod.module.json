@@ -3,7 +3,7 @@
   "id": "vector",
   "key": "VECTOR",
   "name": "VECTOR",
-  "version": "0.2.4-experimental",
+  "version": "0.3.0-experimental",
   "category": "machines",
   "author": {
     "github": "repeat98",
@@ -155,7 +155,8 @@
       "Shares machine chooser hooks with Analog BD and FM Synth; the configurator and native builder reject those combinations.",
       "Sample must be tuned to the stated C reference. Generated pitch is limited to the native \u00b112-semitone range.",
       "Parameter edits and YES publish during playback. Custom Undo and bar-quantized replacement are not implemented.",
-      "Uses native pattern/track length, speed and swing. RPT sets a motif length within that track; no independent clock, swing or MIDI output.",
+      "Uses native pattern/track length, speed and swing. RPT sets a motif length within that track; no independent clock or swing. On a MIDI track it writes trigs and NOTE/VEL/LEN locks that the stock MIDI sequencer sends; it emits no MIDI itself.",
+      "MIDI tracks (0.3.0): chosen in MIDI NOTE SETUP's list; its controls take the ARP page and FUNC+AMP, and the track's arpeggiator stays off. Over USB it needs a base with MIDI generators. Tested on the owner's MKII over USB only; a card build on hardware, power cycles, project save/reload, scenes and LFOs on a VECTOR MIDI track remain untested.",
       "SRC generation knobs are request parameters, not p-lock/LFO/scene destinations. The normal EDIT view retains native playback controls.",
       "Generation owns note trigs, PTCH/HOLD/VOL locks and note timing/conditions. Every changed generator parameter or YES replaces those across the current track; other locks, recorder events and swing are preserved.",
       "The DRAM loader reserves 1,707 audio pages (10,487,808 bytes) shared across DRAM modules.",
@@ -489,7 +490,7 @@
     }
   ],
   "access": {
-    "location": "Audio track machine chooser: VECTOR, then the native-sized Static/Flex backing-pool modal. SRC main holds live phrase controls; SRC SETUP holds secondary controls. Double-tap TRACK reopens pool choice; push LEVEL toggles ordinary sample editing.",
+    "location": "MIDI tracks: MIDI NOTE SETUP's generator list (double-tap the track key or SRC), then the ARP page and FUNC+AMP. Audio track machine chooser: VECTOR, then the native-sized Static/Flex backing-pool modal. SRC main holds live phrase controls; SRC SETUP holds secondary controls. Double-tap TRACK reopens pool choice; push LEVEL toggles ordinary sample editing.",
     "steps": [
       "Select an audio track. Open SRC page 2 (double-tap SRC), choose VECTOR and press YES. In the backing-pool modal, highlight STATIC or FLEX with UP/DOWN or LEVEL, then press RIGHT to enter that pool. YES also opens the highlighted pool; YES on a loaded sample slot assigns that pool and sample to VECTOR. Use the corresponding stock sample-slot and file-loading tools to load a tuned sample; NO returns from the sample browser.",
       "Double-tap the assigned TRACK to reopen the pool modal. LEFT returns to the machine list; RIGHT on VECTOR opens the modal. RIGHT in the pool modal opens the highlighted Static/Flex sample list. In a sample-slot list, LEFT returns to pool choice and RIGHT opens the stock file browser. Horizontal arrows navigate menus without changing the assigned pool; YES on a sample slot commits the pool and sample.",

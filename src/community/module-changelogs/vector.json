@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.3.0-experimental",
+    "date": "2026-10-21",
+    "changes": [
+      "New: VECTOR is a MIDI generator for the eight MIDI tracks. Double-tap a MIDI track's key (or double-tap SRC) and choose VECTOR in MIDI NOTE SETUP's list; its twelve controls take the track's ARP page, the second six on FUNC+AMP. It writes real note trigs with NOTE, VEL and LEN locks that the Octatrack's own MIDI sequencer plays, so tempo, track speed, swing, conditions, the channel and every note-off stay stock's. Over USB it needs a Modwerk base with MIDI generators; a card build brings its own.",
+      "Faster edits on both kinds of track: a control turn no longer rebuilds the lock index of all 16 tracks (about 3 ms on the unit), the scale's pitches are worked out once a phrase instead of once a step, and the MIDI phrase is written in place. A 64-step rewrite took 0.5 ms on the owner's MKII; the audio frames and the MIDI timing stayed steady while turning. The generated phrases are the same as 0.2.4's.",
+      "VECTOR's audio tick reads the Part and track numbers once a tick, and its key layer stays off in MIDI mode.",
+      "Tested on the owner's MKII over USB with development bases (21 October 2026): the list, both pages, generation, MIDI output, removal and reinstall. Not tested: a card build on the unit, a physical power cycle, project save and reload, scenes and LFOs on a VECTOR MIDI track, MKI. While VECTOR is not installed, a VECTOR MIDI track's ARP SETUP shows its stored controls as arp notes. The STATIC/FLEX bank problem of #596 is not addressed."
+    ]
+  },
+  {
     "version": "0.2.4-experimental",
     "date": "2026-10-09",
     "changes": [

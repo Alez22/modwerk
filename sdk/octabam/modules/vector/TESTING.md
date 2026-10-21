@@ -32,6 +32,45 @@ Maximum observed native commit stack is 1,048 bytes; validation is 252. The 1,21
 
 The current 110-profile VECTOR coverage matrix has 46 matching module-owned builds outside existing platform/logger writes and 64 matching refusals, zero mismatches. The changed original OS is refused. The source-only package build and complete importer inventory pass; `sdk/native-comparisons/vector.json` binds the current native source. Private VECT349A01 ELUP packaging round-trips to the exact tested MAIN; update SHA-256 `a2bc9e1892c5bda40083c61abe19c73c9ff64fd73ff9b88d975a2c0f5b456130`. The standard common worker and deployed download are verified separately during release completion.
 
+## MIDI generator on the unit
+
+0.3.0 on the owner's MKII, 21 October 2026: development twins of the Modwerk base built from this branch (`build_core.py --dsp-loader --usb-midi --site-events --table-owners … --dev`), RAM-booted, VECTOR installed over USB as a runtime package (`try`), a disposable project (LIVE/PROJECT 261019), bank A, Part 1, MIDI track 1. Steps were sent with `scripts/device-send.py`; screens were read from `png:` captures; Part and pattern bytes with `mem:`. Not a card (non-USB) build on hardware: the card build was checked by octabam's native builder only (`module:verify`).
+
+| What | Result |
+|---|---|
+| No generator installed, MIDI mode, double-tap TRACK | nothing happens, as stock |
+| VECTOR installed, double-tap T1 or SRC | MIDI NOTE SETUP opens with OFF and VECTOR in its left half; CHAN, BANK, PROG and SBNK unchanged; UP/DOWN move the highlight |
+| YES on VECTOR | the arp step mask reads `4d56` ('M', 'V'); the arp note bytes hold the twelve defaults (value - 64) and the mark; MODE OFF |
+| ARP page, FUNC+AMP, NO | TYPE, DENS, ROOT, SCAL, GATE, ACNT with their values; FUNC+AMP SEED, SPAN, OFST, ROT, RPT, DIR; NO back |
+| DENS +2, then YES | 13 notes in 16 steps with NOTE/VEL/LEN locks (C minor around C3, VEL 100/81); YES gives seed 2 and a new phrase |
+| PLAY with CHAN 1, MIDI recorded over USB (`midimon`) | the phrase as note-ons and note-offs on channel 1, the 16-step phrase repeating every 2 s at 120 BPM, accents and lengths as written |
+| VECTOR removed on its own page | stock's ARP page and ARP SETUP return, no crash; reinstalled, the VECTOR page returns |
+| MODE turned on while VECTOR was away, then VECTOR installed | MODE back to OFF (and a MODE 6 left from before: OFF on install) |
+| Crash record during all of the above | unchanged (record 12, older than this work) |
+
+Cost, with the base's development profile (`modwerk_cost[24]`-`[27]`, DTIM3 at 132 MHz, read over `mem` 5 s apart; `cost.py` in the session's private tools):
+
+| State | Base's MIDI generator code per UI tick (61 a second) |
+|---|---|
+| No generator installed | 2.2-2.4 µs |
+| VECTOR installed, audio mode | 4.1-4.2 µs |
+| MIDI mode: NOTE page, VECTOR page, NOTE SETUP with the list, playing | 7.3-10.2 µs |
+
+A control turn rewrites the phrase on the UI task. Worst case measured: pattern length 64, DENS 16 (every step a note), PLAY running, 40 turns of TYPE and ACNT in 4 s, MIDI recorded throughout:
+
+| Build | Mean | Longest |
+|---|---|---|
+| Stock's lock-index rebuild, record copied in and out | 3.92 ms | 4.24 ms |
+| Own track's lock-index bit | 1.76 ms | 1.95 ms |
+| Plus the scale's pitches once a phrase | 1.29 ms | 1.47 ms |
+| Plus the record written in place (0.3.0) | 0.51 ms | 0.66 ms |
+
+A temporary probe (not shipped) split the 1.3 ms build by stage: copying the record in 331 µs, the phrase 268 µs, writing it 178 µs, committing and mirroring 434 µs, saving and publishing 31 µs. The longest time between audio frames stayed 406-417 µs (normal 380-420) through every burst, and the recorded MIDI kept its grid: 96 note-ons 124-126 ms apart, every two-step span 249-251 ms. The audio track's `generate_track` got the same lock-index change; its other costs are as in 0.2.4. VECTOR's own audio UI tick reads the battery-backed Part and track numbers once a tick (it read them about 20 times): with VECTOR installed the machine tick fell from about 50 to 41 µs.
+
+The hoisted scale lookup in `engine.c` gives the same phrases as 0.2.4 over 18,144,000 parameter sets (a throwaway host comparison of both engines), and `test_engine.c` passes. `sdk/tests/test_machine_events.py` checks the base's registry on the host (`test_midi_generators.c`), the package glue and the port's sources.
+
+Not tested: a card build on the unit; a physical power cycle with a VECTOR MIDI track (RAM boots kept it: the battery-backed bank restore and the Part validator pass); a project save and reload; scenes and LFOs on a VECTOR MIDI track; MKI. Two RAM boots of development twins out of about fifteen did not come back on USB (one stall record: frames stopped 41 s after a boot with no module installed); a power cycle recovered both, and the next boot of the same image worked. It matches the RAM-boot trap of 19 October 2026 and was not reproduced.
+
 ## Owner exception and remaining limits
 
 On 9 October 2026 the owner stated: "Approve release and closure with hardware reboot/audio unverified" after receiving the exact 0.2.4 private image and source patch. `sdk/vector-build-approval.json` binds this separate current-build-hardware exception to the source/image above. `hardwareStatus` stays `untested`; no physical reboot, audible playback, chip timing, maximum audio stress or hardware canary pass is claimed. The 0.2.3 approval remains historical and is not reused. Already reset projects need a known-good backup. The issue closure must name these limits and explain how to reopen.
