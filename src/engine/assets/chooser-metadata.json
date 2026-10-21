@@ -177,6 +177,13 @@
       "fx1Only": false
     },
     {
+      "id": "lofi2",
+      "key": "LOFI2",
+      "fxId": 9,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
       "id": "analog-bassdrum",
       "key": "ANALOG BD",
       "fxId": null,
@@ -248,8 +255,8 @@
       "fx1Only": false
     },
     {
-      "id": "apply-scene",
-      "key": "APPLY SCENE",
+      "id": "quantize-live-rec-toggle",
+      "key": "QUANTIZE_LIVE_REC_TOGGLE",
       "fxId": null,
       "fx1": false,
       "fx1Only": false

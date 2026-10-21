@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "kind": "source-packages",
-  "sourceCommit": "fd4b498ad0ee6677035237e0f9df6bd268a439f1",
+  "sourceCommit": "408227215dfd24be14d8d6588d95bf22f3a63c0c",
   "nativeRevision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
-  "sourceTreeSha256": "077e55c35352ffa000f475aeb07f1380cd3229574dd39758301da5cae2d9f2a9",
-  "compilerSha256": "8f68035777a91eccb3924459e079a24aee8772dbea0ad87a7084aee2b4930039",
+  "sourceTreeSha256": "7efb12c16a963b434b465fa881aad2a96344331a3ba522ba7391ec450209049a",
+  "compilerSha256": "dca0433ca7400448bd024c9ca448c3e0a87cc950a3ce07bf6a3557cc1f842bb2",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -17,6 +17,7 @@
     "airwindows-chorus": "0.1.2-experimental",
     "everb": "0.1.2-experimental",
     "bbd": "0.1.1-experimental",
+    "lofi2": "0.1.0-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
@@ -31,52 +32,52 @@
     "recorder-loop-fix": "0.1.0-experimental",
     "poly8": "0.3.0-experimental",
     "output-matrix": "0.1.1-experimental",
-    "apply-scene": "0.1.0-experimental"
+    "quantize-live-rec-toggle": "0.1.0-experimental"
   },
   "files": {
     "dsp-packages.json": {
-      "bytes": 75006,
-      "sha256": "4d11486c72e17697b78341b04fea6b2c996f06a836927c2b2edd7b4f65c65ad2"
+      "bytes": 84355,
+      "sha256": "29c0b08aad367f8349c1986089e5bef81b55ac0794549f9fa76f9ec6579e5abb"
     },
     "resident-dsp.json": {
-      "bytes": 25006,
-      "sha256": "a5a545203be784b2245218da232318bf1405ccf7036dc21d9c621f747c4442c2"
+      "bytes": 25054,
+      "sha256": "ff1b239cee80647a2c26204789199996095e2e652fafd17034f25060f366bb42"
     },
     "coldfire-packages.json": {
-      "bytes": 353241,
-      "sha256": "79ff340d480c1a8e5c4e426936a9a9938a3973a9aad11078687ba1dae0f8d158"
+      "bytes": 353289,
+      "sha256": "c1411807fc00cab3d34a9f2d0b5ba91248dbec0dce406d88725fc198bee829e4"
     },
     "rom-packages.json": {
-      "bytes": 25392,
-      "sha256": "e7612677c0d12ebbf43756eaa16e567fdb94994f3ea88c29e934dd47d5a36e2f"
+      "bytes": 25440,
+      "sha256": "771ab3f2fdaa8ec1c19c7a3dfc8f31c7ec1c7b2d51010d3246de122207e95190"
     },
     "bootstrap-package.json": {
-      "bytes": 3740,
-      "sha256": "565b655cea067b8ad4cb31d2bbeffb54738c57ae7683aeeaee72eb3d74aae731"
+      "bytes": 3788,
+      "sha256": "82ab6b1d98fd7ad66e852c6c4c9d31eab45bff4f2bb4ed5a78e0c2037c153c83"
     },
     "menu-recipes.json": {
-      "bytes": 34548,
-      "sha256": "248cc9d7e861ffd35fb4c2ea56bf75db59d571aa575bf16ab3df316124b3abc1"
+      "bytes": 35955,
+      "sha256": "63054431fd4da6efe6a5b447d86d681b5b0a8200f7a702ec662c10a8e72944a4"
     },
     "descriptor-recipes.json": {
-      "bytes": 71957,
-      "sha256": "6e69ecb952c3a8ff388a4f87c8f9d91e085a4fb7f7baa986dbe90f9f610152cf"
+      "bytes": 78113,
+      "sha256": "aeaf4fb76de74cf51737c405fbc892a9fbd2e378aee0549b19ab1becfd1138f9"
     },
     "platform-writes.json": {
-      "bytes": 17682,
-      "sha256": "af9b9cddf85f80e0dc8c67924a1ea654fa8a69db8d35b0d21395682ea9c87c57"
+      "bytes": 17730,
+      "sha256": "c2360b5b5429bb98a1a89dcfbb46f36d753ff0c6b9bfa7c9a519b8fc392754c4"
     },
     "requested-packages.json": {
-      "bytes": 1074047,
-      "sha256": "eb9533fd2de859e34e4cded2d324e62745458cfcaa34183f022bd321926dbed4"
+      "bytes": 1073707,
+      "sha256": "f69dc07c2d94b01b82720269fe8ff4300b241891752fed96e6ff92cfbfd84ec1"
     },
     "utility-packages.json": {
-      "bytes": 12868,
-      "sha256": "238f3ce464710c7151ce03404a5c8a39743eff506345064e6f9d5f4965123892"
+      "bytes": 12916,
+      "sha256": "b11be781d34d7d012b1216693ed086a945511f6fa48109e5ca3af6fc0566b906"
     },
     "usb-audio-packages.json": {
-      "bytes": 737510,
-      "sha256": "a437ef241dc4fbb1d398963fb7442bc39852586ec9551dcc791b6abbaad44d84"
+      "bytes": 737558,
+      "sha256": "4b372ebe20e76fc0fd7e04e7dcfd4557fa0aaa67e2080d306d17e2e209645926"
     }
   },
   "approval": null,
