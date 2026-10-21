@@ -301,15 +301,16 @@ int main(int argc, char **argv)
     unsigned mode = (unsigned)strtoul(argv[1], 0, 10); /* two digits from mode 10 */
     enum runtime_refusal why;
 #ifndef BOARD_ROWS
-    /* Default base: no rows, nothing activates, every package is ordinary; but a key bus reader is refused, before the
-     * first tick and on a closed board: nothing would ever hold the bus for it. */
-    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
+    /* Default base: no rows, nothing activates, every package is ordinary; but a key bus reader is refused: before the
+     * first tick told to retry (RUNTIME_BUSY), on a closed board for the boot (RUNTIME_FEATURE: nothing would ever hold
+     * the bus for it). */
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_BUSY);
     run(4);
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
     run(50);
     assert(!modwerk_controller_held() && !cas_count && !dsp_mask[0] && !lease(SC, 1));
     assert(install(removal(SC), 32) == MU_APPLIED);
-    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_FEATURE);
     (void)mode;
     return 0;
 #else

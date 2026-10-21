@@ -381,6 +381,9 @@ the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and
   `dsp_ledger.h` (generated from `dsp-sites.json`, so `dsp_sites.py --check` covers them).
 - The contract for claims is now stated once: a reader needs no claim on a feature's words, and may declare reads wholly
   inside a feature it requires (RINGMOD SC does); the window refusal also holds while a core's bus mask is unknown.
+- A reader is refused (`RUNTIME_FEATURE`) while the key bus cannot come up this boot (a core's state lost: its
+  owned channel closed, a lane stuck, or the board closed), not only when that core's seed is dirty, so it is
+  never admitted to pass its audio. The development view's key bus byte shows it (bit 7).
 - ABI 9 beyond the loader: the site's module sets (`module-set.ts`), the publication builder (`module_packages.py`,
   entries with `requiresFeatures` and `dspClaims`), the private candidate reader and the MCP's prepared packages accept
   ABI 9.

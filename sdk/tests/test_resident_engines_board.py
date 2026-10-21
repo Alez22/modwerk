@@ -216,6 +216,8 @@ static unsigned seed_live[2];
 static unsigned stall_reset[2];
 /* A core whose key bus disable the modelled receiver refuses (mode 47: an uncertain DISABLE leaves the core unknown). */
 static unsigned refuse_disable[2];
+/* A core whose key bus ENABLE the modelled receiver refuses (mode 49: the core unknown with its seed still clean). */
+static unsigned refuse_enable[2];
 /* The board's view of the key window (controller_board.c is built with dl_hook_buffer_ranges_idle renamed to this):
  * a slot buffer covering it (mode 48) or the manager's own answer. */
 static unsigned test_window_busy;
@@ -285,7 +287,8 @@ static void dsp(void)
         } else if (op == 10u && w7 == 0u) {
             unsigned expected = w4, desired = w5, on = desired & ~expected;
             ++cas_count;
-            reject = expected != dsp_mask[c] || (refuse_disable[c] && (expected & 8u) && !(desired & 8u));
+            reject = expected != dsp_mask[c] || (refuse_disable[c] && (expected & 8u) && !(desired & 8u)) ||
+                     (refuse_enable[c] && !(expected & 8u) && (desired & 8u));
             for (unsigned k = 0; k < 4; ++k)
                 if (on >> k & 1u) reject |= words[c][k] != totals[k] || !base_word[c][k];
             assert(!((on & 8u) && window_dirty[c])); /* never the tap enabled over a buffer's words */
@@ -1217,7 +1220,7 @@ int main(int argc, char **argv)
         static uint8_t second[sizeof pkg_reader];
         memcpy(second, pkg_reader, sizeof second);
         second[31] ^= 1u; /* another module id: another reader */
-        assert(refused(second, sizeof second) == RUNTIME_CONFLICT);
+        assert(refused(second, sizeof second) == RUNTIME_FEATURE); /* its bus never places this boot */
     } else if (mode == 43) {
         /* A reader's run leaves the window seeded. Once the bus is let go the board zeroes the seed (one offset-0 chunk,
          * the window first) while it still holds the window, before any buffer may take it; a reader installed later
@@ -1308,7 +1311,7 @@ int main(int argc, char **argv)
         assert(waited && dsp_mask[0] == 8 && dsp_mask[1] == 8 && seed_live[0] && seed_live[1]);
     } else if (mode == 47) {
         /* An uncertain DISABLE on core 1 (refused): that core is unknown with its seed live, so a reader is refused for
-         * the boot (RUNTIME_CONFLICT, not a retry that never succeeds), and nothing enables core 0's bus while core 1
+         * the boot (RUNTIME_FEATURE, not a retry that never succeeds), and nothing enables core 0's bus while core 1
          * is unknown, though the board's mask still says on there. */
         assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
         run(200);
@@ -1319,7 +1322,8 @@ int main(int argc, char **argv)
         static uint8_t second[sizeof pkg_reader];
         memcpy(second, pkg_reader, sizeof second);
         second[31] ^= 1u;
-        assert(refused(second, sizeof second) == RUNTIME_CONFLICT);
+        assert(refused(second, sizeof second) == RUNTIME_FEATURE);
+        assert(mw_engines_view.keybus & 0x80u); /* the view says the bus cannot come up this boot */
         if (install(pkg_sc, sizeof pkg_sc) == MU_APPLIED) {
             run(300);
             assert(!(dsp_mask[0] & 8u) && !(dsp_mask[0] & 1u)); /* core 0 waits for an unknown core 1 */
@@ -1344,6 +1348,25 @@ int main(int argc, char **argv)
         assert(install(again, sizeof again) == MU_APPLIED);
         run(200);
         assert(dsp_mask[0] == 8 && dsp_mask[1] == 8);
+        assert(!(mw_engines_view.keybus & 0x80u)); /* a live bus: nothing lost */
+    } else if (mode == 49) {
+        /* A reader admitted, then a core's state lost before its bus came on (core 1's ENABLE refused, its seed still
+         * clean, so nothing is dirty): the bus never comes up this boot. The view says so (bit 7) and the next reader is
+         * refused (RUNTIME_FEATURE) rather than admitted to pass its audio, as it was before (seen once on an MKII, 21
+         * Oct 2026, right after a USB base update; not reproduced). Sidechain alone stays admitted, unpriced. */
+        refuse_enable[1] = 1;
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(300);
+        assert(!(dsp_mask[1] & 8u) && !seed_live[1]); /* core 1 never on (core 0 may be: both resets were complete) */
+        assert(mw_engines_view.keybus & 0x80u);
+        static uint8_t second[sizeof pkg_reader];
+        memcpy(second, pkg_reader, sizeof second);
+        second[31] ^= 1u;
+        assert(refused(second, sizeof second) == RUNTIME_FEATURE);
+        refuse_enable[1] = 0;
+        run(100);
+        assert(refused(second, sizeof second) == RUNTIME_FEATURE); /* for the boot: nothing reopens the core */
+        assert(!(dsp_mask[1] & 8u));
     } else assert(0);
     return 0;
 }
@@ -1435,7 +1458,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 49
+    MODES = 50
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:

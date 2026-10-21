@@ -213,6 +213,9 @@ describe('sending a module', () => {
     unit.refusal = 7 // a track plays the effect it would replace
     await link.update('PREVIEW VOL', one)
     expect(link.getState().notice?.text).toMatch(/A track is playing this module’s effect/)
+    unit.refusal = 10 // RUNTIME_FEATURE: the key bus cannot come up this boot
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().notice?.text).toMatch(/can’t start the key bus this module needs until it restarts/)
     unit.refusal = 1 // malformed: the plain text
     await link.update('PREVIEW VOL', one)
     expect(link.getState().notice?.text).toBe('The Octatrack can’t run this module file.')
