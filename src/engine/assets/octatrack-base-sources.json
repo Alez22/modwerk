@@ -78,7 +78,7 @@
   "sdk/machines/octatrack/elekloader/test_journal_board.c": "9ba0832c3c9121765ebf27ce5b8e35ffb28789803960f4f969930655eb5dcb07",
   "sdk/machines/octatrack/elekloader/test_journal_dsp.c": "de159a5595db65f6bc8d8f42673903f25f831ef5600f837f4fa9649bb4bcc12e",
   "sdk/machines/octatrack/elekloader/test_machine_registry.c": "576a6179f4c159dc0e6e1d1432acbc242e366f73aacb82dfd4f0e89d2cfb00cf",
-  "sdk/machines/octatrack/elekloader/test_midi_generators.c": "6aababd37f6e5bc885e78600a95174bac8bde18c700ed07367a5ceca294c3fba",
+  "sdk/machines/octatrack/elekloader/test_midi_generators.c": "227a4dea90aae6429f01dc85c151c33ecf6cdc26736f4ac633174c2c7053a77a",
   "sdk/machines/octatrack/elekloader/test_modset.c": "b5f1aa3de0ec302fca003389afe80e9b39decbb69914a3b89f65cabdd10dede4",
   "sdk/machines/octatrack/elekloader/test_move.c": "437e0f4db240895913cc59c4d0bb30a94d1c84f3816cf9d1ebde13c66a0223b7",
   "sdk/machines/octatrack/elekloader/test_recipe.py": "151522ae762d1a30ea94266f1523607dcbeba68d3e397b2360412fc1a6b1d06a",
