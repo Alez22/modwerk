@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- Fix: `npm run octatrack:module-packages -- --check` passes again on a machine with the ColdFire toolchain (#734). Tape Echo's and Euclid's standalone recipes still pinned shared files from before Elekloader kit 0.6.0. A full rebuild proved both packages byte-identical to the published ones, so only their pins were refreshed; all 21 rebuilt packages match. Play Modes' USB package is still 0.1.1 while the catalogue ships 0.2.0, because 0.2.0 never got its own reviewed recipe (#764). Its manifest row now declares that lag, and `--check` fails in CI, without a toolchain, when any other USB package falls behind its catalogue version. No package bytes or base files changed.
+
 - Fix: Octatrack base (USB, beta): saved projects now keep module effect ids 100–127. The base takes up to 128 ids, but its project writer printed an id as two decimal digits, so a module at 100–127 got a malformed `#MODWERK_FX=` line that the loader skipped: the project forgot which module it used there. The writer prints three digits; ids below 100 are written exactly as before. A host test saves and reloads ids 9, 99, 100 and 127. No catalogue module uses an id past 99 today; not run on a unit.
 
 - Sidebar: it no longer runs off the bottom of a laptop window. The Octatrack's Connect, Install and Try again step sits under its card instead of repeating the card's status at the bottom, the account and Support Modwerk stay pinned at the foot while the list scrolls above them, and windows under 960 px tall get tighter rows (mouse only; touch keeps 44 px rows). On phones the sticky library header drops the Overview row (its hide rule lost to a later stylesheet) and the machine card, which repeated the machine chip and the toolbar's configuration button.

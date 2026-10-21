@@ -1,11 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The portable package entry point forwards private preparation arguments."""
 from pathlib import Path
+import contextlib
+import importlib.util
+import io
 import json
 import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,6 +55,25 @@ def main():
                 'builder': 'octatrack_module_packages',
                 'dsp': str(Path('src/engine/assets/dsp-packages.json')),
                 'cwd': str(root.resolve()), 'utf8': '1'})
+
+    def test_usb_package_behind_its_catalogue_version(self):
+        spec = importlib.util.spec_from_file_location('module_packages_cli', ROOT / 'scripts/octatrack-module-packages.py')
+        cli = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cli)
+        catalogue = {m['id']: m['version'] for m in json.loads((ROOT / 'sdk/catalog.json').read_text())['modules']}['everb']
+        old = {'id': 'everb', 'version': '0.0.1-experimental', 'lagsBehind': catalogue}
+        cases = (('declared lag', old, False, {0}, 0), ('declared lag, written', old, True, {0}, 0),
+                 ('undeclared lag', {'id': 'everb', 'version': '0.0.1-experimental'}, True, {0}, 1),
+                 ('undeclared lag, written', {'id': 'everb', 'version': '0.0.1-experimental'}, False, set(), 0),
+                 ('stale lag note', dict(old, version=catalogue), True, {0}, 1),
+                 ('current', {'id': 'everb', 'version': catalogue}, True, set(), 0))
+        with tempfile.TemporaryDirectory() as temp:
+            for name, entry, check, held, failed in cases:
+                with self.subTest(name), contextlib.redirect_stdout(io.StringIO()):
+                    manifest = Path(temp) / 'packages.json'
+                    manifest.write_text(json.dumps({'packages': [entry]}))
+                    _, got, code = cli.lag_guard(types.SimpleNamespace(MANIFEST=manifest), check)
+                    self.assertEqual((set(got), code), (held, failed))
 
 
 if __name__ == '__main__':
