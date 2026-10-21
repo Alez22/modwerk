@@ -118,8 +118,8 @@
       "version": "0.2.0-experimental",
       "name": "Ringmod SC",
       "module": "773c84aa",
-      "bytes": 2316,
-      "sha256": "72a1af2d38d12b9ab421ca4f2a90227419796538feb04db727518848fe871c76",
+      "bytes": 2300,
+      "sha256": "64dc83b97c1cb0f8b0022f2c3e6e12b8d2fab033a0fc3e94e889680e4435203d",
       "path": "octatrack-modules/ring-sc/0.2.0-experimental.mwrm"
     },
     {
