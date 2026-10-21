@@ -38,6 +38,10 @@ Every visible module must support firmware generation and download in a compatib
 
 ## Browsing module results
 
+### Search and filter recovery
+
+`src/catalog/module-search.ts` supplies the library and developer MCP matcher. Every query word must match actual module, author/contributor, instrument, type or category text, in any order; case, combining accents and punctuation are normalized. Keep cards and type counts on the same session-eligible catalogue. Search and type filters can be removed separately; clearing a filter returns keyboard focus to the results heading. The All machines build action follows the active configuration's machine, just like the phone dock.
+
 ### External project directory
 
 `/projects/` is the **Other projects** directory, linked from the desktop sidebar,
@@ -71,6 +75,10 @@ upstream promotional images, not Modwerk validation
 or proof of compatibility. The directory's own Modwerk sharing card is separate;
 see [social-preview artwork](SOCIAL-PREVIEW.md#other-projects-directory).
 Omit `--refresh` to resume missing previews after a transient download failure.
+
+### Phone sheet keyboard behavior
+
+Phone filter, machine and navigation sheets use `useSheetFocus` alongside the scroll lock. They focus their current choice, keep Tab inside, make the covered app inert and restore the trigger after removing inert on dismissal. Preserve these behaviors when changing portal placement, and keep native-dialog handoffs from having their focus stolen. DOM tests cover focus and filter behavior; rendered layout, actual touch and assistive-technology behavior still need review on the candidate preview.
 
 ### Module navigation
 
@@ -473,6 +481,8 @@ sdk/              pinned native source, eleven module folders, internal dependen
 `npm run check` runs lint, small domain / API tests, type checks and a production build. API tests use an in-memory SQLite database and synthetic media, never real firmware. Native emulator, stress and audio-render checks require separate qualification and are not part of this command or the configuration flow.
 
 Checks first validate licence-notice and catalog freshness, then finish notice/catalog/media generation before readers start. SDK checks, lint, tests and the production build run concurrently, and every stage must pass; type errors prevent bundling. Vitest discovers `src/**/*.test.ts` and `scripts/**/*.test.mjs`; `.test.tsx` is not included. Use `.test.ts` with `createElement` for React regressions and confirm the expected cases ran. Proof builds with a localhost API need a separate build after the normal full check; production CSP/header parity deliberately rejects that override. Test files retain isolation and use up to four workers, including the release tests under `scripts/`. ESLint caches results by file contents and configuration under `node_modules/.cache/eslint/`; TypeScript keeps incremental app, tooling and server state under `node_modules/.tmp/`. Licence and catalog/qualification validation, SDK checks, all tests and production bundling still run every time. `npm run typecheck` checks all three TypeScript projects, and `npm run lint -- --no-cache` performs an uncached lint run.
+
+For asynchronous relays, wait for the observable message or status (for example, `vi.waitFor`) instead of sleeping a few milliseconds. A message can cross multiple event-loop turns, so a fixed 5 ms wait can assert before delivery on busy CI runners. Keep simulated sessions closed in `finally` when an assertion can fail.
 
 Successful reports offer the Modwerk report as the primary conversation link, with GitHub available as an optional secondary link. Existing-report checks link to the module’s frontend Issues tab. The server mentions the current catalog maintainers. If GitHub forwarding fails, the saved-report confirmation asks users not to submit duplicates.
 
