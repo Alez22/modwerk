@@ -2,15 +2,15 @@
 
 ![A kick on the key track and another track's level dipping with each of its cycles](presentation/thumbnail.svg)
 
-Version: 0.1.0-experimental · author: @npp1993
+Version: 0.2.0-experimental · author: @npp1993
 
 ## Overview
 
-Ring mod sidechain. The track carrying RINGMOD SC has its gain driven by another track's audio (the KEY). In DUCK the key's level pulls the gain down: the gain follows the key's peak over the last 13-26 ms (HOLD sets this), so it holds through the kick's own zero crossings and steps back up as the kick decays, with no buzz. In RING the key multiplies the audio: a ring modulator whose carrier is another track.
+Ring mod sidechain. The track carrying RINGMOD SC has its gain driven by another track's audio (the KEY). In DUCK the key's level pulls the gain down: the gain follows the key's peak over the last 13-26 ms (HOLD sets this), so it holds through the kick's own zero crossings and steps back up as the kick decays, with no buzz. In RING the key multiplies the audio: a ring modulator whose carrier is another track. Three RING knobs shape that carrier: S&H steps it, SLEW turns it into the key's level (a tremolo that follows the key) and BIAS mixes the dry signal back in (amplitude modulation). With all three at 0, RING is the plain ring modulator.
 
 The key is boosted four times. Measured under the emulator, a full-scale source on a key track at AMP VOL 64 (the default) reaches a quarter of full scale before its effects, so four times brings it exactly to full; at AMP VOL 127 it is four times hotter, and the duck holds at full depth until the kick has fallen by about 12 dB. The key's level comes from its AMP VOL and the sample, not from the track's LEVEL, which is after the effects.
 
-The key comes from the Modwerk base's **key bus**: over USB, while RINGMOD SC is installed, the base publishes every track's audio as it enters FX1, on both DSP cores, and RINGMOD SC only reads it. It needs no other module and runs beside Sidechain Compressor, whose key tap the key bus is. A card image has no key bus, so there RINGMOD SC passes the audio untouched. This version has not run on hardware yet ([TESTING.md](TESTING.md)).
+The key comes from the Modwerk base's **key bus**: over USB, while RINGMOD SC is installed, the base publishes every track's audio as it enters FX1, on both DSP cores, and RINGMOD SC only reads it. It needs no other module and runs beside Sidechain Compressor, whose key tap the key bus is. A card image has no key bus, so there RINGMOD SC passes the audio untouched. 0.1.0's key bus reader passed its first MKII steps on 21 October 2026; 0.2.0 has not run on hardware yet ([TESTING.md](TESTING.md)).
 
 ## Controls
 
@@ -19,14 +19,14 @@ The key comes from the Modwerk base's **key bus**: over USB, while RINGMOD SC is
 | KEY | OFF | OFF, T1-T8 | The track whose audio drives the gain. OFF leaves the track untouched. |
 | DPTH | 127 | 0-127 | How far the key moves the gain; 0 leaves the track untouched. |
 | KLPF | 127 | 0-127 | Low-pass on the key: 14 Hz at 0, an octave every 14 steps, open at 127. About 20-50 covers a kick's body (40-200 Hz). |
-| ATK | 0 | 0-127 | DUCK: how slowly the gain falls when the key rises; 0 is at once. Unused in RING, where it is drawn as "-". |
-| HOLD | 34 | 0-127 | DUCK: how long the duck holds after each peak of the key, one to two windows of 0.7 ms at 0, 13 ms at 34, 24 ms at 64 and 47 ms at 127. Keep it above half a cycle of the kick (about 13 ms for 40 Hz) or the duck buzzes; longer gives a fuller pump. Unused in RING, where it is drawn as "-". |
-| REL | 45 | 0-127 | DUCK: how slowly the gain recovers once the key's peak drops; 45 is about 9 ms. Unused in RING, where it is drawn as "-". |
-| MODE | DUCK | DUCK, RING | SETUP page. DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. |
+| ATK / SLEW | 0 | 0-127 | DUCK (ATK): how slowly the gain falls when the key rises; 0 is at once. RING (SLEW): 0 rings with the key itself; above 0 the key's level, smoothed over ATK's times, drives the gain instead, a tremolo that follows the key. |
+| HOLD / S&H | 34 | 0-127 | DUCK (HOLD): how long the duck holds after each peak of the key, one to two windows of 0.7 ms at 0, 13 ms at 34, 24 ms at 64 and 47 ms at 127. Keep it above half a cycle of the kick (about 13 ms for 40 Hz) or the duck buzzes; longer gives a fuller pump. RING (S&H): a new key every 16 samples a step, held in between: 0 is every sample, 1 is 0.36 ms (2.8 kHz), 34 is 12 ms (81 Hz), 127 is 46 ms (22 Hz). |
+| REL / BIAS | 45 | 0-127 | DUCK (REL): how slowly the gain recovers once the key's peak drops; 45 is about 9 ms. RING (BIAS): how much dry signal stays under the modulation; 0 is ring modulation (the dry signal cancels), 127 is amplitude modulation (the gain moves between none and full around half). |
+| MODE | DUCK | DUCK, RING | SETUP page. DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and BIAS in RING. |
 
-The main page holds KEY, DPTH and KLPF on encoders A-C and ATK, HOLD and REL on D-F; MODE is on the SETUP page, and three main-page names follow it. DPTH 0 or KEY OFF returns the input bit for bit. KEY steps like a stock select, about three detents a track. On the first visit to the main page after choosing the effect it may still move one track a detent, until the page is entered again (seen on card images under the emulator; not checked on the USB base). The track names are stored with a space on each side (" T1 "), which draws centred where "T1" would.
+The main page holds KEY, DPTH and KLPF on encoders A-C and ATK, HOLD and REL on D-F; MODE is on the SETUP page, and three main-page names follow it (ATK, HOLD and REL in DUCK; SLEW, S&H and BIAS in RING). The three knobs keep their values when MODE changes: on a unit, switching a fresh instance to RING leaves S&H at 34 and BIAS at 45, so turn them to 0 for the plain ring modulator. Modwerk does not apply upstream's per-mode defaults, which the module declares (0, 0, 0 in RING). DPTH 0 or KEY OFF returns the input bit for bit. KEY steps like a stock select, about three detents a track. On the first visit to the main page after choosing the effect it may still move one track a detent, until the page is entered again (seen on card images under the emulator; not checked on the USB base). The track names are stored with a space on each side (" T1 "), which draws centred where "T1" would.
 
-ATK and REL share one scale: 0 is at once, 1 is about 0.7 ms, and the time doubles every 11.6 steps up to about 1.3 s at 127.
+ATK and REL share one scale, and SLEW uses it too: 0 is at once, 1 is about 0.7 ms, and the time doubles every 11.6 steps up to about 1.3 s at 127.
 
 | Knob | 0 | 1 | 16 | 32 | 48 | 64 | 80 | 96 | 112 | 127 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -49,19 +49,22 @@ For the cleanest duck put the key on a track the instrument handles before the d
 1. Put a kick on T1 and a sustained bass on T2. Select T2, hold FUNC and press FX1, turn LEVEL to RINGMOD SC and press YES, then press FX1.
 2. Turn encoder A until KEY reads T1. The bass dips with every kick and comes back as the kick decays; DPTH (encoder B) sets how deep.
 3. Raise REL (encoder F) for a slower recovery, HOLD (encoder E) for a longer pump and ATK (encoder D) to soften the onset. Turn KLPF (encoder C) down to about 30-50 so only the kick's body drives the duck, not its click or other sounds on the key track.
-4. Turn KEY back to OFF, or DPTH to 0, to hear the bass untouched. Choose NONE in SETUP to remove the effect.
+4. Turn KEY back to OFF, or DPTH to 0, to hear the bass untouched.
+5. For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and BIAS (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level, and BIAS for the dry bass to come back under the modulation. Choose NONE in SETUP to remove the effect.
 
 ## Compatibility and limitations
 
 - Original OS 1.40C. FX1 and FX2 of any audio track, several at once; its own effect id (0x06), so it displaces no stock effect.
-- **Over USB only, on a Modwerk base with the key bus** (the loader's ABI 9; the package requires the key bus and declares its reads of the bus and the window). A card image has no key bus, so the configurator does not build card firmware with it: a set that includes it syncs over USB, and its card download asks you to take RINGMOD SC out (the site's rule for any module whose package needs a base feature). Should a card image carry it anyway, RINGMOD SC keeps its depth at 0 there and passes the audio untouched.
+- **Over USB only, on a Modwerk base with the key bus** (the loader's ABI 9; the package requires the key bus and declares its reads of the bus and the window). A card image has no key bus: there RINGMOD SC keeps its depth at 0 and passes the audio untouched. Until the site's USB-only rule lands (a separate pull request), the card configurator still offers it, and a card download with it carries an effect that does nothing.
 - **The key bus's cost counts toward RINGMOD SC.** While it is installed the base's tap copies every track's audio on every block on both cores, even with no instance on a track: 41 executed instructions a sample a core by a count of its source, charged at 7/4 (72) until it is timed on a unit. Installed beside Sidechain Compressor, which holds the bus too, RINGMOD SC still pays for it.
 - Runs beside Sidechain Compressor: both read the key bus, and RINGMOD SC writes nothing outside its own state. Installing or reinstalling Sidechain Compressor while RINGMOD SC is live re-zeroes the bus once: up to about a block of silent key.
 - A MODE or KEY change fades the effect out, clears the key's state and fades back in, about 1 ms in all, so a KEY parameter lock shorter than that is not heard.
+- **DUCK buzzes at its very shortest settings.** With ATK, HOLD and REL all near 0 the gain follows each cycle of the key, so the duck becomes amplitude modulation at audio rate: a buzz, as expected (heard on an MKII with 0.1.0, 21 October 2026). Keep HOLD above half a cycle of the key for a clean duck.
+- In RING the three knobs keep DUCK's values on a MODE change (above).
 - **Declared conflict with Analog BD.** It is carried over from the card builder's rule: Analog BD admits only the effects on its companion list, and RINGMOD SC is not on it. Over USB no resource clash is known, but the declaration applies to every build, so the configurator never offers both. Whether to keep it is the owner's call.
 - A project that selects RINGMOD SC on a base without it gets no effect in that slot.
-- 270 words of DSP program per core, 16 words of state per instance (19 reserved), no delay buffer; the key bus's memory (Y $800-$9FF on each core, the last $202 words of each core's half of the shared window) is the base's.
-- Not tested on hardware: everything about this version. Parameter locks and LFOs were run in the emulator on the earlier build only; scenes, project save, Part reload and a power cycle are untested. An LFO at full depth on KEY takes it past T8, which reads as OFF.
+- 322 words of DSP program per core, 20 words of state per instance, no delay buffer; the key bus's memory (Y $800-$9FF on each core, the last $202 words of each core's half of the shared window) is the base's.
+- Not tested on hardware: everything new in 0.2.0 (SLEW, S&H, BIAS). 0.1.0, whose DUCK and plain RING this version reproduces sample for sample, passed its first MKII steps over USB (key bus, install, KEY, DUCK by ear); its scenes, parameter locks, project save, Part reload and power cycle were not run. An LFO at full depth on KEY takes it past T8, which reads as OFF.
 
 ## Tests and measurements
 
@@ -73,7 +76,7 @@ Original code, tests and documentation by Nathaniel Pawelczyk (@npp1993), MIT ([
 
 ## Screens and audio
 
-Unedited MKII framebuffer captures from the headless emulator, taken on a private card image that carried the earlier own-tap build of this version, whose pages are the same (KEY then read "T1" without the padding spaces). [Capture provenance](media/capture.json) has the panel plan and the image and emulator hashes; [media rights](media/LICENSE.md) reserves the underlying Elektron rights. They show the pages, not audio; no audio is included.
+Unedited MKII framebuffer captures from the headless emulator, taken on a private card image that carried the earlier own-tap build of 0.1.0 (KEY then read "T1" without the padding spaces; RING drew its three bottom knobs as dashes, which 0.2.0 names SLEW, S&H and BIAS). [Capture provenance](media/capture.json) has the panel plan and the image and emulator hashes; [media rights](media/LICENSE.md) reserves the underlying Elektron rights. They show the pages, not audio; no audio is included.
 
 ![FX1 SETUP with RINGMOD SC chosen and MODE on DUCK](media/ot-setup-chooser.png)
 
@@ -81,6 +84,6 @@ Unedited MKII framebuffer captures from the headless emulator, taken on a privat
 
 ![KEY turned to T1](media/ot-main-key-t1.png)
 
-![The main page in RING: ATK, REL and HOLD are dashes](media/ot-main-ring.png)
+![The main page in RING as 0.1.0 drew it: ATK, HOLD and REL as dashes, which 0.2.0 names SLEW, S&H and BIAS](media/ot-main-ring.png)
 
 The thumbnail above is an illustration, not OT UI evidence.
