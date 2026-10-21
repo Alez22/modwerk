@@ -164,89 +164,14 @@
   "tests": {
     "report": "TESTING.md",
     "summary": "The assembled reader matches a reference model within 3.1e-05 of full scale in both modes, passes the input bit for bit when the key bus is not live, and equals the earlier own-tap build sample for sample over 417 renders but for the wait after a KEY or MODE change. Never run on hardware.",
-    "hardwareStatus": "reported",
+    "hardwareStatus": "untested",
     "evidenceRevision": "c2f2ec3f235944ee4cf265cea14f1f77b17a51e8",
     "gates": [
       "verify.py: bit-exact passthrough (KEY OFF, DPTH 0, no key bus), DUCK and RING against the model, ATK, a steady and a decaying key, both key paths, trig splits, the mode fade, the memory guard and knob steps",
       "tools/stress.py: eight instances with every knob moving for 30 s under dsp_host -guard -dirty",
       "A dsp_host comparison with the 84b4529d own-tap build fed the same key: identical over 417 renders once its wait is one call (TESTING.md)",
       "Earlier own-tap build only: ot_emu key lag, both modes on FX1 and FX2 on both cores, parameter locks and LFOs; npm run fx:audit"
-    ],
-    "qualification": {
-      "moduleVersion": "0.2.0-experimental",
-      "sourceSha256": "cb416ca8a3b492da886023148f5416702b650685b3927a987cb1c2393d15fe91",
-      "imageSha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "cycles": [
-        {
-          "processor": "dsp",
-          "worstCase": 1518,
-          "maxConfiguration": 12144,
-          "maxInstances": 8,
-          "budget": 49920,
-          "unit": "cycles/block",
-          "method": "static",
-          "conditions": {
-            "parameterExtremes": "PLACEHOLDER local module:verify run only",
-            "parameterModulation": "PLACEHOLDER local module:verify run only",
-            "modeSwitching": "PLACEHOLDER local module:verify run only",
-            "maxLoad": "PLACEHOLDER local module:verify run only",
-            "inputConditions": "PLACEHOLDER local module:verify run only"
-          },
-          "report": "TESTING.md"
-        }
-      ],
-      "memory": {
-        "regions": [
-          {
-            "name": "PLACEHOLDER",
-            "space": "dsp-p",
-            "words": 270,
-            "wordBits": 24,
-            "bytes": 810,
-            "scope": "shared"
-          }
-        ],
-        "perInstanceBytes": 0,
-        "sharedBytes": 810,
-        "maxInstances": 8,
-        "totalBytes": 810,
-        "conditions": "PLACEHOLDER",
-        "report": "TESTING.md"
-      },
-      "hardware": {
-        "kind": "functional",
-        "status": "reported",
-        "model": "MKII",
-        "testedOn": "2026-10-21",
-        "tester": "PLACEHOLDER",
-        "sourceRevision": "c2f2ec3f235944ee4cf265cea14f1f77b17a51e8",
-        "imageSha256": "0000000000000000000000000000000000000000000000000000000000000000",
-        "summary": "PLACEHOLDER: not run",
-        "limitations": [
-          "PLACEHOLDER"
-        ],
-        "report": "TESTING.md"
-      },
-      "documentation": {
-        "tutorial": {
-          "title": "Quick tutorial",
-          "steps": [
-            "Put a kick on T1 and a sustained bass on T2. Select T2, hold FUNC and press FX1, turn LEVEL to RINGMOD SC and press YES, then press FX1.",
-            "Turn encoder A until KEY reads T1. The bass dips with every kick and comes back as the kick decays; DPTH (encoder B) sets how deep.",
-            "Raise REL (encoder F) for a slower recovery, HOLD (encoder E) for a longer pump and ATK (encoder D) to soften the onset. Turn KLPF (encoder C) down to about 30-50 so only the kick's body drives the duck, not its click or other sounds on the key track.",
-            "Turn KEY back to OFF, or DPTH to 0, to hear the bass untouched.",
-            "For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and RECT (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, RECT for a rectified, frequency-doubled carrier, and SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level. Choose NONE in SETUP to remove the effect."
-          ]
-        },
-        "screenshots": [
-          "media/ot-setup-chooser.png",
-          "media/ot-main-duck.png",
-          "media/ot-main-key-t1.png",
-          "media/ot-main-ring.png"
-        ],
-        "screenshotStyle": "black-and-white"
-      }
-    }
+    ]
   },
   "license": {
     "spdx": "MIT",
@@ -267,7 +192,7 @@
         "shows": "location",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
+        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -284,7 +209,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
+        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -301,7 +226,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
+        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -318,7 +243,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
+        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     },
@@ -335,7 +260,7 @@
         "shows": "controls",
         "firmware": "1.40C",
         "moduleVersion": "0.2.0-experimental",
-        "imageSha256": "97ed7655c371ef246dbb6d0d20c887ab0b68bdfb7d68e589d7e1b4e95909dc4c",
+        "imageSha256": "e2fbb143a6a3c6b5c3cc64b657fb0363983967de9689298eddd6293b7b77b5dd",
         "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
       }
     }

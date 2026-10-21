@@ -58,7 +58,7 @@ executed; no run shared with the stock OS under either scan (0; fails at 12). No
 base and its development twins.
 
 **Screens.** `scripts/capture-module-ui.py` with `ot_emu` `23ba6f6c…` on a private card image of this version (remix
-`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `97ed7655…`), the plan in `media/capture.json` (KEY turned one
+`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `e2fbb143…`), the plan in `media/capture.json` (KEY turned one
 detent). The RING page names SLEW, S&H and RECT; the DUCK page is unchanged; MODE on SETUP keeps its name and shows
 DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot, wrote the word into its own name). A card image has no key bus, so these show
 the pages, not the effect.
