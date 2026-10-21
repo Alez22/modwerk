@@ -85,6 +85,10 @@ static int __attribute__((unused)) keybus_down(void)
     for (unsigned c = 0; c < 2u; ++c) if (kb_lane[c].op == KB_STUCK || dl_owned_closed(c)) return 1;
     return 0;
 }
+/* A live reader whose key bus cannot come up this boot (dsp.c: the self-test fails with it and the self-test record's
+ * refusal says RUNTIME_FEATURE while it holds, on production bases too). A reader admitted before its core was lost
+ * stays installed and dry until a restart; this is how the unit says so. */
+int modwerk_controller_keybus_lost(void) { return kb_readers && keybus_down(); }
 /* In-place page extensions: the stock descriptor's bytes before, the SHA-256 of what was written. */
 static struct { uint32_t generation, donor; uint8_t slot, applied; uint8_t saved[PAGE_BYTES], digest[32]; } pages[2];
 static uint32_t page_refused[MW_CONTROLLER_SLOTS];
@@ -652,7 +656,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 {
     /* Nothing bound: every package is an ordinary one, but a reader would wait for a bus that never comes (the board
      * holds it), unpriced: refused. The first tick runs at boot, long before the saved set's restore. */
-    if (!started || closed) return to && to->present && (to->requires & KEYBUS) ? (closed ? RUNTIME_FEATURE : RUNTIME_BUSY) : RUNTIME_OK;
+    if (!started || closed) return to && to->present && (to->requires & KEYBUS) ? (closed ? RUNTIME_CONFLICT : RUNTIME_BUSY) : RUNTIME_OK;
     const struct mw_controller_write_policy *incoming = to && to->present ? row_for(to->package_sha256, to->module, to->image_bytes) : 0;
     const struct mw_controller_write_policy *outgoing = from && from->present ? row_for(from->package_sha256, from->module, from->image_bytes) : 0;
     if (incoming) {

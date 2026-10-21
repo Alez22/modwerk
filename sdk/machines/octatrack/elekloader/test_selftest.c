@@ -49,6 +49,8 @@ unsigned modwerk_runtime_active(void) { return modules; }
 unsigned modwerk_runtime_intact(void) { return modules; }
 uint32_t modwerk_runtime_broken(void) { return 0; }
 enum runtime_refusal modwerk_runtime_refusal(void) { return RUNTIME_OK; }
+static int test_keybus_lost; /* controller_board.c's answer: a live reader whose key bus cannot come up this boot */
+int modwerk_controller_keybus_lost(void) { return test_keybus_lost; }
 int modwerk_machine_stopped(void) { return !modwerk_test_playing; }
 void modwerk_post_key(unsigned code, int pressed)
 {
@@ -185,6 +187,16 @@ int main(void)
     cached[0][27] = 0;
     CHECK(modwerk_selftest.state == SELFTEST_PASSED && !modwerk_selftest.failed && modwerk_selftest.ran == 2);
     CHECK(modwerk_selftest.track[4] == 27 && !modwerk_selftest.track[5] && dl_residency_failures >= 1u); /* last batch: alone, T5 */
+    /* A live reader whose key bus was lost this boot: the test fails with SELFTEST_FEATURE (a trial is not kept), and
+     * the record's refusal says RUNTIME_FEATURE while it holds. */
+    test_keybus_lost = 1;
+    run(blank, &verb, 1);
+    CHECK(modwerk_selftest.state == SELFTEST_FAILED && modwerk_selftest.failed == SELFTEST_FEATURE);
+    modwerk_selftest_refresh();
+    CHECK(modwerk_selftest.refusal == RUNTIME_FEATURE);
+    test_keybus_lost = 0;
+    modwerk_selftest_refresh();
+    CHECK(modwerk_selftest.refusal == RUNTIME_OK);
     if (failures) { fprintf(stderr, "%u self-test checks failed\n", failures); return 1; }
     puts("Octatrack self-test: a module crowded off one core runs on the other or on a core of its own, one no core holds "
          "fails alone and is named, a refused batch member runs in the next batch, and the Part and its knobs come back.");

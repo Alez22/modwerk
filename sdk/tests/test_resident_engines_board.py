@@ -1348,7 +1348,7 @@ int main(int argc, char **argv)
         assert(install(again, sizeof again) == MU_APPLIED);
         run(200);
         assert(dsp_mask[0] == 8 && dsp_mask[1] == 8);
-        assert(!(mw_engines_view.keybus & 0x80u)); /* a live bus: nothing lost */
+        assert(!(mw_engines_view.keybus & 0x80u) && !modwerk_controller_keybus_lost()); /* a live bus: nothing lost */
     } else if (mode == 49) {
         /* A reader admitted, then a core's state lost before its bus came on (core 1's ENABLE refused, its seed still
          * clean, so nothing is dirty): the bus never comes up this boot. The view says so (bit 7) and the next reader is
@@ -1359,6 +1359,7 @@ int main(int argc, char **argv)
         run(300);
         assert(!(dsp_mask[1] & 8u) && !seed_live[1]); /* core 1 never on (core 0 may be: both resets were complete) */
         assert(mw_engines_view.keybus & 0x80u);
+        assert(modwerk_controller_keybus_lost()); /* a live reader with no bus: dsp.c's self-test and record say so */
         static uint8_t second[sizeof pkg_reader];
         memcpy(second, pkg_reader, sizeof second);
         second[31] ^= 1u;

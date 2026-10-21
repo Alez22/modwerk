@@ -302,15 +302,15 @@ int main(int argc, char **argv)
     enum runtime_refusal why;
 #ifndef BOARD_ROWS
     /* Default base: no rows, nothing activates, every package is ordinary; but a key bus reader is refused: before the
-     * first tick told to retry (RUNTIME_BUSY), on a closed board for the boot (RUNTIME_FEATURE: nothing would ever hold
-     * the bus for it). */
+     * first tick told to retry (RUNTIME_BUSY), on a closed board refused (RUNTIME_CONFLICT: a closed board is closed
+     * by its rows or its transport, the same every boot, not by state lost this boot). */
     assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_BUSY);
     run(4);
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
     run(50);
     assert(!modwerk_controller_held() && !cas_count && !dsp_mask[0] && !lease(SC, 1));
     assert(install(removal(SC), 32) == MU_APPLIED);
-    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_FEATURE);
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
     (void)mode;
     return 0;
 #else
