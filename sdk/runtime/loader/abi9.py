@@ -13,7 +13,9 @@ byte for byte, so the stock-free checks and recipes that hold for the input hold
 whose own hash is an input of the reviewed machine and standalone recipes.
 
 A claim names X/Y words the DSP code reads or writes outside its own slot. A reader of a base feature (a KEYBUS reader)
-claims nothing of the feature's words: the base owns them. Hook entries (a site of the base's DSP catalogue and an entry
+needs no claim on the feature's words: the base owns them and keeps buffers off them while it holds the feature. It may
+declare reads wholly inside a feature it requires (RINGMOD SC does, so its reads are on record); the base admits those
+and refuses any write, or any read reaching past such a feature, on a feature's words. Hook entries (a site of the base's DSP catalogue and an entry
 in the DSP code) are encoded and checked, and every base refuses them until a hook-slot lifecycle exists.
 """
 import argparse

@@ -42,8 +42,8 @@ static uint8_t closed[2];
 static unsigned wanted_now; /* mw_engines_want */
 void mw_engines_want(unsigned features) { wanted_now = features; }
 
-static unsigned index_of(unsigned feature)
-{ return feature == 1u ? 0u : feature == 2u ? 1u : feature == 4u ? 2u : feature == 8u ? 3u : MW_ENGINE_FEATURES; }
+typedef char mw_engine_features_are_the_ledgers[MW_ENGINE_FEATURES == MW_DSP_COUNT ? 1 : -1]; /* dsp_ledger.h */
+static unsigned index_of(unsigned feature) { return MW_DSP_INDEX(feature); }
 static unsigned arena(unsigned c) { return dl_pool_words[c] > DL_CODE_START ? dl_pool_words[c] - DL_CODE_START : 0u; }
 
 void mw_engine_relocate(const struct mw_engine_unit *u, uint32_t base, uint32_t *out)

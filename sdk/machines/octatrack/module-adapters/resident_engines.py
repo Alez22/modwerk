@@ -375,9 +375,10 @@ def dev(text):
 
 
 KEYBUS_CHARGE = r'''/* Resident engines on demand: the key bus's tap (dsp_ledger.h), a per-core price like a source engine's. It runs for
- * every track of each core while the key bus is enabled, whoever holds it, so it is charged once on both cores while the
- * board holds its engine (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md, cost model (iii)): executed instructions per sample for a
- * core's four tracks, counted statically from the source, at 7/4 like every emulator figure until it is timed on a unit. */
+ * every track of each core while the key bus is enabled, whoever holds it, but it is charged on both cores only while a
+ * live package requires the key bus (a reader; controller_board.c): Sidechain alone is admitted and charged as before
+ * the key bus (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md, review change 1). Executed instructions per sample for a core's four
+ * tracks, counted statically from the source, at 7/4 like every emulator figure until it is timed on a unit. */
 #include "dsp_ledger.h"
 #define KEYBUS_MODULE 0x4b425553u
 static unsigned keybus_at(unsigned c, uint32_t module)

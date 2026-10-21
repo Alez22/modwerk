@@ -15,6 +15,13 @@
 #define MW_DSP_IMPLIED(f) ((f) | ((f) & 1u ? 8u : 0u))
 /* Cores a feature runs on: bit 0 core 0 (payload A, tracks 5-8), bit 1 core 1 (payload B, tracks 1-4). */
 #define MW_DSP_CORES(f) ((f) == 1u ? 3u : (f) == 2u ? 1u : (f) == 4u ? 3u : (f) == 8u ? 3u : 0u)
+/* A feature's index (its bit's position); MW_DSP_COUNT for anything else. */
+#define MW_DSP_COUNT 4u
+#define MW_DSP_INDEX(f) ((f) == 1u ? 0u : (f) == 2u ? 1u : (f) == 4u ? 2u : (f) == 8u ? 3u : MW_DSP_COUNT)
+/* Words a feature's reset writes on each core it runs on (its regions there, in order), and its first region's
+ * when it has more than one: a reset chunk never crosses it (one owned range per chunk). */
+#define MW_DSP_RESET_WORDS(f) ((f) == 1u ? 1042u : (f) == 2u ? 193u : (f) == 4u ? 3776u : (f) == 8u ? 1026u : 0u)
+#define MW_DSP_RESET_SPLIT(f) ((f) == 1u ? 528u : (f) == 8u ? 512u : 0u)
 
 struct mw_dsp_region { uint8_t feature, core, space; /* space: 1 x, 2 y */ uint8_t pad; uint32_t address, words; };
 static const struct mw_dsp_region mw_dsp_regions[] = {

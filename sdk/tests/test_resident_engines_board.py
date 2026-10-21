@@ -206,6 +206,9 @@ extern uint8_t test_parts[4][16];
  * table: the FX code each id runs from the next frame on. */
 static uint32_t P[2][8192];
 static unsigned dsp_mask[2], words[2][4], base_word[2][4], answered[2], cas_count, sc_before_bus;
+/* The key window held some slot buffer's words since the bus's reset began there (mode 41): only a reset from offset 0
+ * (the receiver's fresh start) rewrites them, and the bus is never enabled over them. */
+static unsigned window_dirty[2];
 /* The key bus's tap price (dsp.c's resident_engines.dsp seam): whether it would fit, and whether it is charged. */
 static unsigned kb_fits = 1, kb_charged;
 int modwerk_dsp_keybus_fits(void) { return (int)(kb_fits || kb_charged); }
@@ -254,8 +257,10 @@ static void dsp(void)
                 P[c][MODWERK_DSP_TABLE0 + w5 + i] = (unsigned)dl_tx[c][8 + 2 * i] << 8 | dl_tx[c][9 + 2 * i];
         } else if (op == 11u) {
             unsigned f = w7, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
+            if (k <= 3 && !w5 && !(dsp_mask[c] & f)) words[c][k] = 0; /* offset 0: a fresh start (hookready cleared) */
             reject = k > 3 || w5 != words[c][k] || (dsp_mask[c] & f);
             if (!reject) words[c][k] += w4;
+            if (!reject && f == 8u && !w5) window_dirty[c] = 0;
         } else if (op == 10u && w7 == 1u) {
             unsigned f = w4, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
             reject = k > 3 || (dsp_mask[c] & f) || !mw_engine_units[c][k].count || (refuse_place[c] && w5 == refuse_place[c]);
@@ -270,6 +275,7 @@ static void dsp(void)
             reject = expected != dsp_mask[c];
             for (unsigned k = 0; k < 4; ++k)
                 if (on >> k & 1u) reject |= words[c][k] != totals[k] || !base_word[c][k];
+            assert(!((on & 8u) && window_dirty[c])); /* never the tap enabled over a buffer's words */
             if (!reject && (on & 1u) && !(desired & 8u)) ++sc_before_bus; /* Sidechain on before the key bus */
             if (!reject) {
                 for (unsigned f = 1, k = 0; f <= 8; f <<= 1, ++k) if ((expected & f) && !(desired & f)) words[c][k] = 0;
@@ -1164,6 +1170,40 @@ int main(int argc, char **argv)
         assert(!dsp_mask[0] && !dsp_mask[1] && !kb_charged && !modwerk_controller_held());
         unplaced(0, 8); unplaced(1, 8);
         assert(!dl_engine_reserved(0) && !dl_engine_reserved(1));
+    } else if (mode == 41) {
+        /* A reader removed while the bus resets: once the bus is no longer held its progress counts for nothing (a slot
+         * buffer may take the window meanwhile, modelled as dirty words). The next reader resets each core from offset
+         * 0 before it enables; resuming at the old cursor would enable the tap over the buffer's words. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        unsigned n = 0;
+        while (!(words[0][3] > 0 && words[0][3] < 1026)) { run(1); assert(++n < 400); }
+        assert(!dsp_mask[0] && !dsp_mask[1]);
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        run(50);
+        assert(!dsp_mask[0] && !dsp_mask[1] && !modwerk_controller_held() && !kb_charged && words[0][3] < 1026);
+        unplaced(0, 8); unplaced(1, 8);
+        window_dirty[0] = window_dirty[1] = 1; /* a window buffer came and went */
+        unsigned from[2] = {trails[0], trails[1]};
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && words[0][3] == 1026 && words[1][3] == 1026 && kb_charged);
+        for (unsigned c = 0; c < 2; ++c) {
+            unsigned i = from[c];
+            while (i < trails[c] && !(trail[c][i].op == 11u && trail[c][i].w7 == 8u)) ++i;
+            assert(i < trails[c] && trail[c][i].w5 == 0); /* the first reset chunk is the fresh start */
+        }
+        assert(!window_dirty[0] && !window_dirty[1]);
+    } else if (mode == 42) {
+        /* The bus engine stuck on core A (its PLACE refused): a second reader is refused at admission (the engines'
+         * dry run says STUCK_BOOT), although the bus is held for the first. */
+        refuse_place[0] = 64u + kb;
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(300);
+        assert(mw_engines[0][3].state == MW_ENGINE_STUCK && (modwerk_controller_held() & 8u) && !(dsp_mask[0] & 8u));
+        static uint8_t second[sizeof pkg_reader];
+        memcpy(second, pkg_reader, sizeof second);
+        second[31] ^= 1u; /* another module id: another reader */
+        assert(refused(second, sizeof second) == RUNTIME_CONFLICT);
     } else assert(0);
     return 0;
 }
@@ -1249,7 +1289,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 41
+    MODES = 43
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:

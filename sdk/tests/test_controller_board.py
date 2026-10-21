@@ -91,7 +91,23 @@ def header():
         packed = ab_records(core)
         text += 'static uint8_t ab_x_%d[%d] = {%s};\n' % (core, len(packed), ','.join(map(str, packed)))
         text += 'static const uint32_t ab_expect_%d[%d] = {%s};\n' % (core, AB_WORDS, ','.join(map(str, ab_words(core))))
+    reader = closed_reader()
+    text += 'static const uint8_t pkg_closed_reader[%d] __attribute__((unused)) = {%s};\n' % (len(reader), ','.join(map(str, reader)))
     return text + '#define ROWS %s\n#define ROW_COUNT %d\n' % (rows, len(PACKAGES) - len(UNTRUSTED))
+
+
+def closed_reader():
+    """An ABI 9 package that requires the key bus (a reader), tiny synthetic DSP words."""
+    import importlib.util
+    specs = [importlib.util.spec_from_file_location(n, ROOT / 'sdk/runtime/loader' / f) for n, f in
+             (('closed_loader_build', 'build.py'), ('closed_loader_abi9', 'abi9.py'))]
+    build, abi9 = (importlib.util.module_from_spec(spec) for spec in specs)
+    for spec, module in zip(specs, (build, abi9)):
+        spec.loader.exec_module(module)
+    data = abi9.upgrade(build.package(b'', 0, [], [], name='kbcl', dsp=dict(
+        words=[0x0c0000 + i for i in range(8)], relocations=[], effect=30, slots=1, init=0, proc=1, cycles=100, kind=1,
+        state=4, buffer=0, name='CLOSED', layout=1)), abi9.base_features(['keybus']))
+    return data[:28] + (0x6b62636c).to_bytes(4, 'big') + data[32:]
 
 
 FIXTURE = r'''
@@ -156,6 +172,9 @@ struct mw_controller_registry modwerk_controller_registry;
 #define MODWERK_HOST
 #include "controller_write_lease.c"
 
+#ifndef BOARD_ROWS
+unsigned modwerk_machine_dsp_features(void) { return 8u; } /* the loader offers the key bus; the board must refuse it */
+#endif
 /* Modelled receiver: a reset ACKs and counts words per feature; a CAS ACKs only
  * with the expected mask and only enabling features whose reset completed;
  * disabling invalidates readiness (resident_dsp.receiver_control). Feature 8 is the
@@ -171,6 +190,7 @@ static void dsp(void)
         unsigned reject = 0, op = dl_tx[c][2];
         if (op == 11u) {
             unsigned f = dl_tx[c][7], k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
+            if (k <= 3 && !dl_tx[c][5] && !(dsp_mask[c] & f)) words[c][k] = 0; /* offset 0: a fresh start (hookready cleared) */
             reject = k > 3 || dl_tx[c][5] != words[c][k] || (dsp_mask[c] & f);
             /* Analog BD's engine is reset to its boot record, word for word (24-bit: high 16, low 8). */
             for (unsigned i = 0; !reject && k == 2 && i < dl_tx[c][4]; ++i)
@@ -281,13 +301,16 @@ int main(int argc, char **argv)
     unsigned mode = (unsigned)strtoul(argv[1], 0, 10); /* two digits from mode 10 */
     enum runtime_refusal why;
 #ifndef BOARD_ROWS
-    /* Default base: no rows, nothing activates, every package is ordinary. */
+    /* Default base: no rows, nothing activates, every package is ordinary; but a key bus reader is refused, before the
+     * first tick and on a closed board: nothing would ever hold the bus for it. */
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
     run(4);
     assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
     run(50);
     assert(!modwerk_controller_held() && !cas_count && !dsp_mask[0] && !lease(SC, 1));
     assert(install(removal(SC), 32) == MU_APPLIED);
-    (void)mode; (void)why; (void)install_refused;
+    assert(install_refused(pkg_closed_reader, sizeof pkg_closed_reader, &why) && why == RUNTIME_CONFLICT);
+    (void)mode;
     return 0;
 #else
     memcpy(donor, donor_original, sizeof donor);

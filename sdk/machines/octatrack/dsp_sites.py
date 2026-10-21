@@ -7,8 +7,9 @@
 
 The registry is the single list of what the base owns in the DSPs: the stock P sites it hooks (append only: a site's
 index is an ABI) and the X/Y words each base feature owns while it is held. --check proves each site against the
-manifest that declares its hook (address on both payloads and the stock guard's SHA-256), the regions of the three
-original features against resident_dsp.resource_ranges, and the header against this file. Addresses, lengths and
+manifest that declares its hook (address on both payloads and the stock guard's SHA-256), every feature's regions
+against resident_dsp.resource_ranges, and the header against this file. The header's reset totals and first-range
+splits are what the board, the transport and the receiver reset (controller_board.c, resident_driver.py). Addresses, lengths and
 hashes only: no stock bytes. docs/OCTATRACK_PACKAGE_DSP_HOOKS.md has the design.
 """
 import argparse
@@ -88,6 +89,22 @@ def spans(reg):
     return out
 
 
+def reset_words(reg):
+    """({feature: words its reset writes on a core}, {feature: its first region's words if it has more than one, else
+    0}), from its spans in order; the same on every core it runs on."""
+    totals, firsts = {}, {}
+    for f in reg['features']:
+        per = {}
+        for feature, core, _, _, words in spans(reg):
+            if feature == f['bit']:
+                per.setdefault(core, []).append(words)
+        if len({tuple(v) for v in per.values()}) != 1:
+            raise ValueError('dsp-sites.json: feature %s owns different regions on its cores' % f['name'])
+        runs = next(iter(per.values()))
+        totals[f['bit']], firsts[f['bit']] = sum(runs), runs[0] if len(runs) > 1 else 0
+    return totals, firsts
+
+
 def header(reg):
     names = {f['bit']: f['name'].upper().replace('-', '_') for f in reg['features']}
     lines = ['/* SPDX-License-Identifier: GPL-3.0-or-later */',
@@ -107,6 +124,14 @@ def header(reg):
     lines.append('/* Cores a feature runs on: bit 0 core 0 (payload A, tracks 5-8), bit 1 core 1 (payload B, tracks 1-4). */')
     cores = ' : '.join('(f) == %uu ? %uu' % (f['bit'], sum(1 << CORE[t] for t in f['cores'])) for f in reg['features'])
     lines.append('#define MW_DSP_CORES(f) (%s : 0u)' % cores)
+    lines.append('/* A feature\'s index (its bit\'s position); MW_DSP_COUNT for anything else. */')
+    lines.append('#define MW_DSP_COUNT %uu' % len(names))
+    lines.append('#define MW_DSP_INDEX(f) (%s : MW_DSP_COUNT)' % ' : '.join('(f) == %uu ? %uu' % (bit, bit.bit_length() - 1) for bit in names))
+    totals, firsts = reset_words(reg)
+    lines.append('/* Words a feature\'s reset writes on each core it runs on (its regions there, in order), and its first region\'s')
+    lines.append(' * when it has more than one: a reset chunk never crosses it (one owned range per chunk). */')
+    lines.append('#define MW_DSP_RESET_WORDS(f) (%s : 0u)' % ' : '.join('(f) == %uu ? %uu' % (bit, totals[bit]) for bit in names))
+    lines.append('#define MW_DSP_RESET_SPLIT(f) (%s : 0u)' % (' : '.join('(f) == %uu ? %uu' % (bit, firsts[bit]) for bit in names if firsts[bit]) or '0u ? 0u'))
     lines += ['', 'struct mw_dsp_region { uint8_t feature, core, space; /* space: 1 x, 2 y */ uint8_t pad; uint32_t address, words; };',
               'static const struct mw_dsp_region mw_dsp_regions[] = {']
     for feature, core, space, address, words in spans(reg):

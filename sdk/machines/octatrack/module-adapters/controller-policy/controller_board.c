@@ -5,6 +5,7 @@
 #include "controller_board.h"
 #include "journal.h"
 #include "machine_lifetime.h"
+#include "dsp_ledger.h"       /* the features, their cores, what they imply and their reset words (dsp-sites.json) */
 #ifdef MODWERK_RESIDENT_ON_DEMAND
 #include "resident_engines.h" /* engines on demand: placed before the first RESET, collected once nobody holds them */
 #endif
@@ -79,17 +80,16 @@ static uint8_t staged[PAGE_BYTES];
 static int same(const void *a, const void *b, unsigned n)
 { const uint8_t *x = a, *y = b; while (n--) if (*x++ != *y++) return 0; return 1; }
 static int nonzero(const uint8_t *p, unsigned n) { while (n--) if (*p++) return 1; return 0; }
-static unsigned cores(unsigned feature) { return feature == 1u || feature == 4u || feature == 8u ? 3u : feature == 2u ? 1u : 0u; }
-/* stock_hooks reset totals: SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A; Analog BD X
- * $2840-$36ff on both cores; the key bus Y $800+$200 and the shared tail $202 (resident_dsp.resource_ranges,
- * resident_driver.py). */
-#define AB_WORDS 3776u
-#define KEYBUS 8u           /* the key bus (dsp_ledger.h MW_DSP_KEYBUS): a base feature, held for packages and Sidechain */
-#define KEYBUS_WORDS 1026u
-#define KEYBUS_SPLIT 512u   /* its first owned range: one per reset chunk */
-#define KEYBUS_IMPLIED(f) ((f) & 1u ? KEYBUS : 0u) /* what a held controller feature holds too (MW_DSP_IMPLIED) */
-static unsigned total(unsigned feature, unsigned c)
-{ return !(cores(feature) >> c & 1u) ? 0u : feature == 1u ? 1042u : feature == 2u ? 193u : feature == 8u ? KEYBUS_WORDS : AB_WORDS; }
+static unsigned cores(unsigned feature) { return MW_DSP_CORES(feature); }
+/* stock_hooks reset totals, from the ledger (dsp_sites.py --check keeps them equal to resident_dsp.resource_ranges):
+ * SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A; Analog BD X $2840-$36ff on both cores; the key
+ * bus Y $800+$200 and the shared tail $202. */
+#define AB_WORDS MW_DSP_RESET_WORDS(MW_DSP_ANALOG_BD)
+#define KEYBUS MW_DSP_KEYBUS /* the key bus: a base feature, held for packages and Sidechain */
+#define KEYBUS_WORDS MW_DSP_RESET_WORDS(MW_DSP_KEYBUS)
+#define KEYBUS_SPLIT MW_DSP_RESET_SPLIT(MW_DSP_KEYBUS) /* its first owned range: one per reset chunk */
+#define KEYBUS_IMPLIED(f) (MW_DSP_IMPLIED((f) & ~KEYBUS) & KEYBUS) /* what a held controller feature holds too */
+static unsigned total(unsigned feature, unsigned c) { return cores(feature) >> c & 1u ? MW_DSP_RESET_WORDS(feature) : 0u; }
 /* Sidechain's and Matrix's authored initialization is zero; Analog BD's engine is not (its tables). Its reset
  * restores what the resident boot uploaded, from the same authored record: [space, address, count] and then each
  * word, three bytes little-endian, packed as zero and literal runs (resident_boot.pack_zeros). Decoded once per core;
@@ -486,8 +486,13 @@ static void keybus_tick(void)
             (void)keybus_start(c, kb_reset[c] < KEYBUS_WORDS ? KB_RESET : KB_ENABLE);
         }
     } else if (!kb_wanted) {
-        for (unsigned c = 0; c < 2u; ++c)
+        for (unsigned c = 0; c < 2u; ++c) {
             if (!busy[c] && (mask_known >> c & 1u) && (mask[c] & KEYBUS)) (void)keybus_start(c, KB_DISABLE);
+            /* Never enabled here, or let go before its ENABLE: what the reset wrote counts for nothing once the bus is no
+             * longer held, since a slot buffer may take the window meanwhile. The next want resets from offset 0 (the
+             * receiver's fresh start: it clears its ready bit). */
+            else if (!(mask[c] & KEYBUS) && kb_lane[c].op == KB_IDLE) kb_reset[c] = 0;
+        }
     }
 }
 #ifdef MODWERK_RESIDENT_ON_DEMAND
@@ -618,7 +623,9 @@ void modwerk_controller_tick(void)
 int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtime_dsp *to,
                              enum runtime_metadata_operation operation)
 {
-    if (!started || closed) return RUNTIME_OK; /* nothing bound: every package is an ordinary one */
+    /* Nothing bound: every package is an ordinary one, but a reader would wait for a bus that never comes (the board
+     * holds it), unpriced: refused. The first tick runs at boot, long before the saved set's restore. */
+    if (!started || closed) return to && to->present && (to->requires & KEYBUS) ? RUNTIME_CONFLICT : RUNTIME_OK;
     const struct mw_controller_write_policy *incoming = to && to->present ? row_for(to->package_sha256, to->module, to->image_bytes) : 0;
     const struct mw_controller_write_policy *outgoing = from && from->present ? row_for(from->package_sha256, from->module, from->image_bytes) : 0;
     if (incoming) {
@@ -637,15 +644,13 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 #endif
     }
 #ifdef MODWERK_RESIDENT_ON_DEMAND
-    /* ABI 9: a package that requires the key bus (a reader) needs the bus engine's room unless something holds the bus
-     * already, and the tap's price unless another reader pays it. Sidechain's engine and the bus share nothing but the
-     * bus words. */
+    /* ABI 9: a package that requires the key bus (a reader) needs the bus engine (room for it, or already placed: the
+     * dry run says FITS then; a stuck engine refuses), and the tap's price unless another reader pays it. Sidechain's
+     * engine and the bus share nothing but the bus words. */
     if (to && to->present && (to->requires & KEYBUS)) {
-        if (!(modwerk_controller_held() & KEYBUS)) {
-            int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
-            if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
-            if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;
-        }
+        int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
+        if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
+        if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;
         if (!kb_priced && !modwerk_dsp_keybus_fits()) return RUNTIME_CYCLES;
     }
 #endif

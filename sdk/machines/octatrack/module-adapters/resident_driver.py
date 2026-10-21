@@ -44,8 +44,8 @@ def transport(text):
            '            t[7]=(uint16_t)(opcode==11u ? j->id:j->expected); t[56]=(uint16_t)(j->expected>>16);')
     change('int dl_job_status(unsigned c) {', '''/* Fixed feature/logical-offset upload; the DSP maps its owned ranges independently. */
 int dl_hook_reset_start(unsigned c,unsigned feature,unsigned offset,unsigned count,const uint32_t *words) {
-    unsigned total=feature==1u ? 1042u : feature==2u ? 193u : feature==4u ? 3776u : feature==8u ? 1026u : 0u;
-    unsigned split=feature==1u ? 528u : feature==8u ? 512u : 0u; /* one owned range per chunk */
+    unsigned total=@TOTAL@;
+    unsigned split=@SPLIT@; /* one owned range per chunk */
     if(c>1 || jobs[c].state || !total || (c && feature==2u) || !words || !count || count>DL_DATA ||
        offset>=total || count>total-offset || (split && offset<split && count>split-offset)) return 0;
     for(unsigned i=0;i<count;++i) if(words[i]>0xffffffu) return 0;
@@ -55,7 +55,20 @@ int dl_hook_reset_start(unsigned c,unsigned feature,unsigned offset,unsigned cou
     publish(); jobs[c].state=1; return 1;
 }
 int dl_job_status(unsigned c) {''')
+    # The reset totals and first-range splits are the ledger's (dsp-sites.json; dsp_sites.py --check proves them).
+    totals, firsts = _ledger_resets()
+    text = text.replace('@TOTAL@', ' : '.join('feature==%du ? %du' % (f, n) for f, n in totals.items()) + ' : 0u', 1)
+    text = text.replace('@SPLIT@', ' : '.join('feature==%du ? %du' % (f, n) for f, n in firsts.items() if n) + ' : 0u', 1)
     return owned_transport(text)
+
+
+def _ledger_resets():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location('dsp_sites_ledger', Path(__file__).resolve().parents[1] / 'dsp_sites.py')
+    sites = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sites)
+    return sites.reset_words(sites.load())
 
 
 OWNED_HEADER = '''

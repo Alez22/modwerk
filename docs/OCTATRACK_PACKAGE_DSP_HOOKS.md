@@ -292,7 +292,7 @@ after), a reader on the other core reads the window two generations behind its o
   `test_runtime_loader.py`).
 - The site (`module-set.ts`, `module-set.test.ts`): an ABI 9 reader is chosen and synced only to a base reporting ABI
   9, its header, claims and the absence of hook entries checked as the loader checks them, and `requires` limited to
-  the key bus. Publishing one (`module_packages.py`, a base input) is left to the first reader's change.
+  the key bus.
 - The beta base, regenerated with main's flags (main's `6650236a` first rebuilt byte-identical, `.bin` `18cdd7b4`):
   `d0acb53f…` (`.bin` `de2653e2`). Its DSP arena with nothing placed is 4,304 words on core 0 and 4,432 on core 1, 112
   fewer on each than `6650236a` (the receiver's feature 8 and the key bus's base word); Sidechain's engines still take
@@ -333,6 +333,30 @@ Driven over USB, ears by the owner of the unit; takes, `mem:` dumps and the 20-c
   and a power cycle on a key bus base.
 - Bench notes: a reinstalled COMPRESSOR comes back with KEY OFF and MON OFF, and the encoder steps are not linear, so
   check KEY and MON on a screenshot every time; an install or removal over USB stops the transport.
+
+**Fixed after that run (code review of #750, 20 October 2026).** The MKII run above was on the pre-fix twin `c8ad288e`;
+the base was regenerated with these fixes and needs the short re-check on its own twin (bring-up order, Sidechain
+alone uncharged, latency 32/0/16), which the RINGMOD SC session runs first.
+
+- **A reset let go before its ENABLE restarts from offset 0.** The board kept each core's reset progress until a
+  DISABLE ACK, so a bus that stopped being wanted before its ENABLE (a reader removed mid-reset) resumed, or went
+  straight to ENABLE, at the next want, although a slot buffer could have used the window meanwhile: the tap would
+  then start from that buffer's seed and counter words and could break #640's phase rule. Now a core's progress is
+  dropped as soon as the bus is no longer held there and its lane is idle; the next want begins with an offset-0 chunk,
+  which the receiver takes as a fresh start (it clears its ready bit). Board test: a reader removed mid-reset, the
+  window's words dirtied, a reader again (resets from offset 0 on both cores, never enabled over the dirty words).
+- **Readers no longer admitted where no bus can come.** On a closed board (no valid trust rows, or a transport that did
+  not start) or before its first tick, a reader is refused (`RUNTIME_CONFLICT`): nothing would hold the bus or charge
+  its price. And a reader's admission always asks the engines' dry run (`mw_engines_admit(KEYBUS, ...)`, which says
+  FITS when the bus is already placed), so a stuck bus engine refuses a second reader instead of admitting it.
+- **One ledger.** The board's key bus constants (its bit, reset total 1,026 and first range 512, what Sidechain
+  implies, each feature's cores), the transport's reset totals and splits and the engines' feature index now come from
+  `dsp_ledger.h` (generated from `dsp-sites.json`, so `dsp_sites.py --check` covers them).
+- The contract for claims is now stated once: a reader needs no claim on a feature's words, and may declare reads wholly
+  inside a feature it requires (RINGMOD SC does); the window refusal also holds while a core's bus mask is unknown.
+- ABI 9 beyond the loader: the site's module sets (`module-set.ts`), the publication builder (`module_packages.py`,
+  entries with `requiresFeatures` and `dspClaims`), the private candidate reader and the MCP's prepared packages accept
+  ABI 9.
 
 **Follow-up, not implemented: a gated tap.** Superseded as written: the layout below puts want words at
 `+$3DF6..+$3DFD` of the window's slot, which E-Verb 0.1.2's and Mini Verb 0.2.3's rings now use (review, change 2); it
