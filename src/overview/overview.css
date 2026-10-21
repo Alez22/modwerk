@@ -29,8 +29,9 @@
 .overview-tile { display: flex; flex-direction: column; min-width: 0; border-radius: 10px; color: inherit; }
 .overview-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
 .overview-art { position: relative; display: block; aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; }
-.overview-art::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 60% 55% at 50% 55%, #ffffff14, transparent); opacity: 0; transition: opacity .25s; }
-.overview-tile:hover .overview-art::before { opacity: 1; }
+/* A soft white shine behind each machine, brighter on hover */
+.overview-art::before { content: ''; position: absolute; inset: 22% 16%; pointer-events: none; border-radius: 50%; background: #fff; filter: blur(34px); opacity: .1; transition: opacity .3s; }
+.overview-tile:hover .overview-art::before { opacity: .17; }
 .overview-tile:hover .overview-tile-name { text-decoration: underline; text-decoration-color: var(--line-hover); text-underline-offset: 4px; }
 .overview-art .device-photo { position: absolute; inset: 0; width: 100%; height: 100%; }
 .overview-art .device-photo.is-cutout { padding: 18px 22px 16px; filter: drop-shadow(0 10px 16px #00000066); }
@@ -47,7 +48,8 @@
 .overview-cta { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; opacity: 0; }
 .overview-cta > span { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 15px; border-radius: 6px; background: var(--apricot); color: #19191c; font-size: 13px; font-weight: 650; box-shadow: 0 6px 16px #00000059; }
 .overview-cta small { padding: 2px 8px; border-radius: 5px; background: #19191ce0; color: #e6dccb; font-size: 11.5px; }
-.overview-tile.is-locked .overview-art::before { background: radial-gradient(ellipse 60% 55% at 50% 55%, #c7a16c1a, transparent); }
+.overview-tile.is-locked .overview-art::before { opacity: .045; }
+.overview-tile.is-locked:hover .overview-art::before { background: var(--apricot); opacity: .14; }
 .overview-tile.is-locked:hover .overview-cta, .overview-tile.is-locked .overview-art:focus-visible .overview-cta { opacity: 1; }
 .overview-tile.is-locked:hover .overview-lock, .overview-tile.is-locked .overview-art:focus-visible .overview-lock { opacity: 0; }
 .overview-tile.is-locked .overview-art:focus-visible { outline: 2px solid var(--apricot); outline-offset: -2px; }
@@ -85,8 +87,8 @@
 
 /* Start developing, as one more slot after the machines with mods: a warm glow instead of a machine */
 .overview-tile.is-develop .overview-art { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px 22px; text-align: center; }
-.overview-tile.is-develop .overview-art::before { background: radial-gradient(ellipse 62% 58% at 50% 50%, #c7a16c30, transparent); opacity: .6; }
-.overview-tile.is-develop:hover .overview-art::before { opacity: 1; }
+.overview-tile.is-develop .overview-art::before { background: var(--apricot); opacity: .12; }
+.overview-tile.is-develop:hover .overview-art::before { opacity: .2; }
 .overview-waiting, .overview-pitch { position: relative; }
 .overview-waiting { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .overview-waiting strong { font-size: 21px; font-weight: 680; line-height: 1.15; letter-spacing: -.4px; color: #fff1da; }
