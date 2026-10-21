@@ -1,5 +1,13 @@
 # Verification record
 
+## Input Pre-Fader Sends 0.2.0-experimental — 21 October 2026
+
+Digitakt I module update by draadpiraat for OS 1.54 on Core 2.1: SETTINGS > KEEP FX AWAKE releases the stock delay/reverb hold (project load, double STOP) once its fade-out has finished, so external inputs reach the effects with no track playing. The source-only package from commit `bc9f90685cfa0204b43ebe83337197e328745926` (`input-prefader-0.2.0-experimental-os1.54.elemod`, sha256 `3ac8c4f9…fed82b26`) replaces 0.1.0's pin through `npm run elekloader:update -- --overlay sdk/imports/elekloader-input-prefader-2026-10-21.json`; kit 0.6.0 is unchanged and the catalogue still holds 40 mods.
+- **Package:** built in the pinned Docker toolchain (`build-elemod-isolated.sh`) from `08ab54e6`; linked with Core 2.1 it reproduces both SysEx files the author flashed, byte for byte (`ddf836a3…` alone, `a60b869f…` with Digi Health and Digi EQ).
+- **Emulator (pinned digiemu `c1b5735`, a tone fed into IN L/R):** a double STOP silences the input effects' tail; ticked, the hold releases within 1.5 s and the tail returns at full level, also with Digi Health and Digi EQ; unticked it stays held. Load +410 mean, +485 worst cycles of 166,666 per block (about 0.2% and 0.3%).
+- **Hardware:** the author reports all seven steps passing on their Digitakt I, OS 1.54 (2026-10-20), alone and with Digi Health and Digi EQ; with those two the input effects were awake at power-on, which a control build without this module also showed. Pattern changes and sampling from the inputs not tested. Details: [TESTING.md](../sdk/digitakt/modules/input-prefader/TESTING.md).
+- **Checks:** `npm run check` and `npm run pr:ready` on macOS. Firmware, linked images and emulator state stayed local.
+
 ## Mini Verb 0.2.3-experimental — 20 October 2026
 
 Mini Verb's ring now wraps at 15,870 words (`m4 = m5 = $3dfd`), so on T3 and T7 it no longer writes the last 514 words of its FX2 slot, Sidechain Compressor's cross-core key window. Start-up keeps 128 dry calls; the last 124 clear inside the ring. Owner-approved update without hardware testing, bound to native source `6ccdb685…` (`sdk/miniverb-build-approval.json`).
