@@ -26,20 +26,30 @@ export function OverviewPage({ overview }: { overview: Overview }) {
       </div>
       <div className="overview-chips" role="group" aria-label="Show machines">{FILTERS.map(item => <button key={item.id} type="button" className={'overview-chip is-' + item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.id !== 'all' && <i aria-hidden="true" />}{item.label}<small>{count(item.id)}</small></button>)}</div>
     </header>
-    <div className="machine-grid">{shown.map(machine => <MachineTile key={machine.device.id} machine={machine} />)}</div>
-    <section className="overview-band" aria-labelledby="overview-band-title">
-      <div className="overview-band-copy">
-        <h2 id="overview-band-title">{plural(overview.withoutMods, 'machine')} {overview.withoutMods === 1 ? 'is' : 'are'} waiting for a first mod</h2>
-        <p>{DEVELOP_PITCH}</p>
-      </div>
-      <div className="overview-actions">
-        <a className="button button-primary" href="#submit"><Icon name="plus" size={16} />Start developing</a>
-        <a className="button button-quiet" href={issueRepository() + '/blob/main/docs/ADD_A_MACHINE.md'} target="_blank" rel="noreferrer">Machine guide<Icon name="external" size={14} /></a>
-        <a className="button button-quiet" href="#forum"><Icon name="message" size={16} />Ask in the forum</a>
-      </div>
-    </section>
+    <div className="machine-grid">
+      {shown.filter(machine => machine.kind === 'mods').map(machine => <MachineTile key={machine.device.id} machine={machine} />)}
+      {filter !== 'mods' && !!overview.withoutMods && <DevelopTile waiting={overview.withoutMods} />}
+      {shown.filter(machine => machine.kind !== 'mods').map(machine => <MachineTile key={machine.device.id} machine={machine} />)}
+    </div>
     <MachinePhotoCredits />
   </div>
+}
+
+// Start developing, as one more tile where the machines without mods begin.
+function DevelopTile({ waiting }: { waiting: number }) {
+  return <article className="overview-tile is-develop" aria-labelledby="overview-develop-title">
+    <a className="overview-art" href="#submit" tabIndex={-1} aria-hidden="true">
+      <span className="overview-waiting"><strong>{waiting}</strong><small>{waiting === 1 ? 'machine is' : 'machines are'} waiting<br />for a first mod</small></span>
+    </a>
+    <div className="overview-tile-body">
+      <h2 className="overview-tile-title" id="overview-develop-title"><a href="#submit">Start developing</a></h2>
+      <p className="overview-summary is-long">{DEVELOP_PITCH}</p>
+      <div className="overview-tile-foot">
+        <a className="overview-guide" href={issueRepository() + '/blob/main/docs/ADD_A_MACHINE.md'} target="_blank" rel="noreferrer">Machine guide<Icon name="external" size={13} /></a>
+        <a className="overview-develop" href="#submit"><Icon name="plus" size={14} />Start developing</a>
+      </div>
+    </div>
+  </article>
 }
 
 function MachineTile({ machine }: { machine: OverviewMachine }) {

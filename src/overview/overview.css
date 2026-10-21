@@ -79,14 +79,20 @@
 .overview-develop { color: var(--apricot-text); }
 .overview-develop:hover { color: #fff1da; }
 
-/* Start developing, once, under the grid */
-.overview-band { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; margin-top: 32px; padding: 22px 26px; border: 1px solid var(--apricot-line); border-radius: 12px; background: var(--apricot-surface); }
-.overview-band-copy { flex: 1 1 360px; min-width: 0; }
-.overview-band-copy h2 { font-size: 19px; font-weight: 650; letter-spacing: -.3px; color: #fff1da; }
-.overview-band-copy p { margin-top: 6px; max-width: 62ch; color: #d9cfbf; font-size: 13px; line-height: 1.6; }
-.overview-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.overview-actions .button { min-height: 40px; padding: 0 14px; }
-.overview-page > .photo-credits { margin-top: 28px; }
+/* Start developing, as a tile where the machines without mods begin */
+.overview-tile.is-develop { border-color: var(--apricot-line); background: var(--apricot-surface); }
+.overview-tile.is-develop:hover { border-color: var(--apricot); }
+.overview-tile.is-develop .overview-art { display: grid; place-items: center; border-bottom-color: var(--apricot-line); background: radial-gradient(circle at 50% 45%, #3a3226, var(--apricot-surface) 72%); }
+.overview-waiting { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.overview-waiting strong { font: 650 64px/.9 var(--mono); letter-spacing: -3px; color: #f3e6cf; font-variant-numeric: tabular-nums; }
+.overview-waiting small { color: #d9cfbf; font: 10.5px/1.6 var(--mono); letter-spacing: 1.2px; text-transform: uppercase; }
+.overview-tile.is-develop .overview-tile-title a { color: #fff1da; }
+.overview-tile.is-develop .overview-summary { color: #d9cfbf; }
+.overview-summary.is-long { -webkit-line-clamp: 4; }
+.overview-tile.is-develop .overview-tile-foot { border-top-color: var(--apricot-line); }
+.overview-guide { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; color: #d9cfbf; font-size: 12.5px; white-space: nowrap; }
+.overview-guide:hover { color: #fff1da; }
+.overview-page > .photo-credits { margin-top: 24px; }
 
 /* The temporary Start developing highlight: a card under Overview in the sidebar, an accent row in the phone menu */
 .sidebar-home { margin-bottom: 20px; }
@@ -112,6 +118,4 @@
   .overview-chips { flex-wrap: nowrap; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .overview-chip { min-height: 38px; }
   .machine-grid { grid-template-columns: 1fr; }
-  .overview-band { padding: 20px; }
-  .overview-actions .button { flex: 1 1 auto; justify-content: center; }
 }
