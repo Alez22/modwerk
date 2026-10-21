@@ -75,7 +75,8 @@ random slots a step (MODE and RING's knobs included), six trig splits, `-guard -
 
 **The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,416 bytes, sha256 `2ba32a49…`,
 built with main's `module_packages.py` on main `4d4f731d` from the source-built assets of `29fb0952` (the isolated
-toolchain build). Earlier builds of this version: `72a1af2d…` (2,316 bytes, before MODE kept its name; first installed
+toolchain build; `60d3ac17` changes only `verify.py`'s tolerances, so the DSP, the package and the performance record
+carry over). Earlier builds of this version: `72a1af2d…` (2,316 bytes, before MODE kept its name; first installed
 on the MKII), `64dc83b9…` (2,300 bytes, with BIAS; the 21 Oct MKII session) and `8fd097af…` (2,304 bytes, RECT before
 the review fixes)): ABI 9, requires the key bus, the same four read claims, state 22, cycles 81
 executed; no run shared with the stock OS under either scan (0; fails at 12). Not base-bound: it installs on main's
