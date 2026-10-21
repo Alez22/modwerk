@@ -553,7 +553,7 @@
       }
     ]
   },
-  "sourceCommit": "29fb095267304c2300b729b30d788a1f6a6558d1",
+  "sourceCommit": "34848489a37ff87e09b28d44951e988a02327004",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",

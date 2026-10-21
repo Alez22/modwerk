@@ -3,7 +3,7 @@
   "kind": "authored-utility-packages",
   "stockRead": false,
   "revision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
-  "sourceCommit": "29fb095267304c2300b729b30d788a1f6a6558d1",
+  "sourceCommit": "34848489a37ff87e09b28d44951e988a02327004",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
