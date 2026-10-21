@@ -2,6 +2,9 @@
 
 ## 20 October 2026
 
+- Module search now combines instrument, type, module and author words in any order, ignoring case, accents and punctuation. The library and developer MCP share the same matcher. Active search and type filters can be removed individually, with keyboard focus returned to the results heading.
+- Fixed the All machines library's desktop build action opening the Octatrack configuration after selecting another machine's modules. It now follows the same configuration as the phone dock. Beta type counts and comparisons now include the same eligible modules as the library cards, without changing access gates.
+
 - Fixed the Octatrack's main screen not showing a module after the base installed it over USB. With Output Matrix and OUT CFG on MATRIX, the track's LEV box kept stock's LEV label and split bars (half MAIN, half CUE) until CUE was pressed. Routing and audio were right throughout. The same was seen after a power cycle with a flashed `3e3e3de1` (16 October), when the base restores the kept set about 3 seconds after the first screen is drawn. Stock redraws a page only on its own events, and a CUE press does nothing more than call the track screen's drawer. The base now calls that drawer itself once the installed modules change: after a restore, an install, a removal, a Keep or an Undo. It does this on the UI tick, in the task where stock's key handlers draw, never from the engine task that installs. New base `6650236a…` (`.bin` `18cdd7b4…`). The five base-bound packages rebuild byte-identical against it, so only their required base moves. Checked on the Output Matrix author's MKII (20 October, RAM boots) with a build of the same fix before it was rebased onto newer main code (`2f575d3e`):
   - Installing Output Matrix showed its own label at once, with no key pressed.
   - After a RAM-boot restore the box read MNL with a solid bar, and CUE changed nothing.

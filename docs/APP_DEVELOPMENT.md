@@ -38,6 +38,10 @@ Every visible module must support firmware generation and download in a compatib
 
 ## Browsing module results
 
+### Search and filter recovery
+
+`src/catalog/module-search.ts` supplies the library and developer MCP matcher. Every query word must match actual module, author/contributor, instrument, type or category text, in any order; case, combining accents and punctuation are normalized. Keep cards and type counts on the same session-eligible catalogue. Search and type filters can be removed separately; clearing a filter returns keyboard focus to the results heading. The All machines build action follows the active configuration's machine, just like the phone dock.
+
 ### External project directory
 
 `/projects/` is the **Other projects** directory, linked from the desktop sidebar,
