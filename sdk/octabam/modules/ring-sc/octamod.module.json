@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 2,
+  "id": "ring-sc",
+  "key": "RING_SC",
+  "name": "Ringmod SC",
+  "version": "0.1.0-experimental",
+  "category": "effects",
+  "author": {
+    "github": "npp1993",
+    "credits": [
+      "npp1993: DSP, module, tests and documentation (MIT)",
+      "Zac-Kyoti: Sidechain Compressor's key tap and bus layout, which the Modwerk base's key bus that this module reads is made of"
+    ]
+  },
+  "nativeManifest": "manifest.py",
+  "presentation": {
+    "label": "RINGMOD SC",
+    "family": "Dynamics",
+    "summary": "Ring mod sidechain: another track's level ducks this one, or its waveform ring-modulates it.",
+    "overview": "Put it on the track to be ducked and choose the KEY track. In DUCK the gain follows the key's peak, holding through the kick's zero crossings and recovering as it decays; in RING the key multiplies the audio. The key comes from the Modwerk base's key bus over USB, so it needs no other module and runs beside Sidechain Compressor.",
+    "highlights": [
+      "DUCK: gain = 1 - DPTH x follow(peak of |key| over 13-26 ms): no buzz at the kick's zero crossings",
+      "A fixed 4x key boost brings a full-scale key track at the default AMP VOL to full (measured under the emulator)",
+      "RING: a ring modulator whose carrier is any of T1-T8",
+      "KEY is the first knob of the main page, so it can be locked and modulated",
+      "Reads the base's key bus (USB): no tap of its own, so it runs beside Sidechain Compressor",
+      "DPTH 0, KEY OFF or no key bus returns the input bit for bit"
+    ],
+    "usage": [
+      "Select RINGMOD SC on FX1 or FX2 of the track to duck and turn KEY (encoder A) to the kick's track; DPTH sets how deep.",
+      "Raise REL for a slower recovery and ATK to soften the onset; turn KLPF to about 30-50 so only the kick's body drives the duck.",
+      "MODE on the SETUP page switches to RING, where the key track multiplies the audio."
+    ]
+  },
+  "controls": [
+    {
+      "name": "KEY",
+      "default": 0,
+      "count": 9,
+      "doc": "The track whose audio drives the gain; OFF = untouched.",
+      "labels": [
+        "OFF",
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8"
+      ]
+    },
+    {
+      "name": "DPTH",
+      "default": 127,
+      "count": 128,
+      "doc": "How far the key moves the gain; 0 = untouched, 127 = full.",
+      "labels": null
+    },
+    {
+      "name": "KLPF",
+      "default": 127,
+      "count": 128,
+      "doc": "Low-pass on the key: 14 Hz at 0, an octave every 14 steps (about 100 Hz at 40), open at 127.",
+      "labels": null
+    },
+    {
+      "name": "ATK",
+      "default": 0,
+      "count": 128,
+      "doc": "DUCK: how slowly the gain falls; 0 is at once, then about 0.7 ms at 1 to 1.3 s at 127, doubling every 11.6 steps. Unused in RING.",
+      "labels": null
+    },
+    {
+      "name": "HOLD",
+      "default": 34,
+      "count": 128,
+      "doc": "DUCK: how long the duck holds after each peak of the key, one to two windows of 32 + 16v samples (13 ms at 34, 0.7 ms at 0, 47 ms at 127). Unused in RING.",
+      "labels": null
+    },
+    {
+      "name": "REL",
+      "default": 45,
+      "count": 128,
+      "doc": "DUCK: how slowly the gain recovers once the key's peak drops, on ATK's scale (45 about 9 ms, 64 about 31 ms, 96 about 210 ms). Unused in RING.",
+      "labels": null
+    },
+    {
+      "name": "MODE",
+      "default": 0,
+      "count": 2,
+      "doc": "DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. Three page-1 names follow it.",
+      "labels": [
+        "DUCK",
+        "RING"
+      ]
+    }
+  ],
+  "compatibility": {
+    "firmware": "1.40C",
+    "location": "FX1 / FX2",
+    "conflicts": [
+      "analog-bassdrum"
+    ],
+    "uiClaims": [],
+    "limitations": [
+      "Needs the Modwerk base's key bus, which only the USB base has (loader ABI 9, `requires keybus`), so it is USB-only: the configurator refuses card firmware that includes it (the site's rule for any module whose package needs a base feature). A card image built with it anyway has no key bus, and there the effect keeps its depth at 0 and passes the audio untouched.",
+      "While RINGMOD SC is installed the base's tap copies every track's audio on every block, on both cores, and its price (41 executed instructions a sample a core, charged at 7/4) counts toward RINGMOD SC, even with no instance on a track. That figure is counted from the tap's source; the chip cost is not measured.",
+      "The key is taken before the key track's own effects.",
+      "The key is exact when its track is dispatched before this one on the same DSP core (T1-T4, T5-T8), 16 samples late when after, and 32 samples late across the cores (the key bus's latency, measured on an MKII for Sidechain Compressor; not yet with this module).",
+      "A MODE or KEY change fades the effect out, clears the key's state and fades back in over about 1 ms, so a KEY parameter lock shorter than that is not heard.",
+      "Installing or reinstalling Sidechain Compressor while RINGMOD SC is live re-zeroes the key bus once: up to about a block of silent key (by design of the base, not measured with this module).",
+      "On the first visit to the main page after choosing the effect, KEY may move one track per detent until the page is entered again (seen on card images under the emulator; not checked on the USB base).",
+      "Declared conflict with Analog BD: carried over from the card builder's rule (Analog BD admits only the effects on its companion list, and this one is not on it). Over USB no resource clash is known; it is declared for every build until the owner decides otherwise, so the configurator never offers both.",
+      "The key bus reader has not run on hardware. Scenes, the crossfader, project save, Part reload and a power cycle are not tested on this source; parameter locks and LFOs were run in the emulator on the earlier own-tap build only."
+    ],
+    "effectId": 6
+  },
+  "resources": {
+    "recorded": "20 Oct 2026 (0.1.0, key bus reader), static and dsp_host",
+    "storage": {
+      "label": "DSP program",
+      "display": "270 words P per core, 16 words X per instance, no buffer",
+      "value": 270,
+      "unit": "words",
+      "method": "static",
+      "conditions": "Assembled with dsp_asm: 270 words, both payloads (one source). State is 16 words of the instance's existing r7 block. The key bus is the base's (Y $800-$9FF on each core and $202 words at the end of each core's half of the shared window); the package declares reads of them as its DSP claims and writes nothing outside its state. A 9-value KEY formatter, a MODE formatter with its renames and the shared wide dial are ColdFire data in its page recipe.",
+      "source": "TESTING.md"
+    },
+    "processing": {
+      "label": "DSP estimate",
+      "display": "63 instructions/sample",
+      "value": 63,
+      "unit": "instructions/sample",
+      "method": "static",
+      "conditions": "tools/build/cycle_count.py: 63 cycles/sample in the dearer sample loop (DUCK; RING 32), the same loops as the earlier build. Measured with modules/ring-sc/perf.py (benchmark_stock_dsp.py's method, a private native image with the key bus's seed marks): at most 80.56 executed instructions/sample per instance with trig splits (67.69 unsplit), COMPRESSOR 72.06. The base's key bus tap, charged to the module while it is installed, adds 41 executed instructions a sample per core whatever is on the tracks (counted from its source, charged at 7/4). Not hardware cycles.",
+      "source": "TESTING.md"
+    },
+    "impact": {
+      "conditions": "One active instance in DUCK at any setting; the cost does not depend on the knobs. The base's key bus tap is a per-core cost while the module is installed. Emulator and static figures; no hardware timing.",
+      "cpu": {
+        "level": "minimal",
+        "basis": "source-estimate",
+        "rationale": "A page recipe (two label formatters and the mode renames); no ColdFire code of its own.",
+        "source": "TESTING.md"
+      },
+      "dsp": {
+        "level": "low",
+        "basis": "source-estimate",
+        "rationale": "At most 80.56 executed instructions/sample per instance with trig splits in perf.py's bench (67.69 unsplit), against 72.06 for stock COMPRESSOR and 314.19 for SPRING REV in the same host. The base's key bus tap adds 41 executed instructions a sample per core while the module is installed (counted from its source).",
+        "source": "TESTING.md"
+      },
+      "memory": {
+        "level": "low",
+        "basis": "source-estimate",
+        "rationale": "270 words of DSP program per core and 16 words of state in each instance's existing block; the key bus's memory is the base's.",
+        "source": "TESTING.md"
+      }
+    }
+  },
+  "tests": {
+    "report": "TESTING.md",
+    "summary": "The assembled reader matches a reference model within 3.1e-05 of full scale in both modes, passes the input bit for bit when the key bus is not live, and equals the earlier own-tap build sample for sample over 417 renders but for the wait after a KEY or MODE change. Never run on hardware.",
+    "hardwareStatus": "untested",
+    "evidenceRevision": "c2f2ec3f235944ee4cf265cea14f1f77b17a51e8",
+    "gates": [
+      "verify.py: bit-exact passthrough (KEY OFF, DPTH 0, no key bus), DUCK and RING against the model, ATK, a steady and a decaying key, both key paths, trig splits, the mode fade, the memory guard and knob steps",
+      "tools/stress.py: eight instances with every knob moving for 30 s under dsp_host -guard -dirty",
+      "A dsp_host comparison with the 84b4529d own-tap build fed the same key: identical over 417 renders once its wait is one call (TESTING.md)",
+      "Earlier own-tap build only: ot_emu key lag, both modes on FX1 and FX2 on both cores, parameter locks and LFOs; npm run fx:audit"
+    ]
+  },
+  "license": {
+    "spdx": "MIT",
+    "file": "LICENSE",
+    "declaration": "Original code, tests and documentation by npp1993, MIT. It reads the Modwerk base's key bus, which is Sidechain Compressor's tap and bus layout (Zac-Kyoti, MIT) made a base feature; none of that code is in this module."
+  },
+  "media": [
+    {
+      "path": "media/ot-setup-chooser.png",
+      "captureType": "emulator",
+      "caption": "Hold FUNC and press FX1 on the track you want ducked, turn LEVEL to RINGMOD SC and press YES. This page holds MODE; leave it on DUCK to start.",
+      "alt": "FX1 SETUP with RINGMOD SC highlighted in the effect list and MODE reading DUCK.",
+      "credit": "npp1993 (headless capture)",
+      "license": "LicenseRef-OT-UI-Documentation",
+      "source": "original",
+      "otUi": {
+        "page": "FX1 SETUP",
+        "shows": "location",
+        "firmware": "1.40C",
+        "moduleVersion": "0.1.0-experimental",
+        "imageSha256": "fc740af4702f4f2aa2d3db94d8f51b2071fb28eaf7e852fda610b663d724d3ea",
+        "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying the earlier own-tap build of RINGMOD SC 0.1.0-experimental (the same pages; KEY's labels then without their padding spaces); stopped transport; actual LCD pixels."
+      }
+    },
+    {
+      "path": "media/ot-main-duck.png",
+      "captureType": "emulator",
+      "caption": "Press FX1 for the main page. KEY is off, so the track passes untouched until you choose a key track.",
+      "alt": "The RINGMOD SC main page with six knobs: KEY, DPTH and KLPF over ATK, HOLD and REL.",
+      "credit": "npp1993 (headless capture)",
+      "license": "LicenseRef-OT-UI-Documentation",
+      "source": "original",
+      "otUi": {
+        "page": "FX1 main",
+        "shows": "controls",
+        "firmware": "1.40C",
+        "moduleVersion": "0.1.0-experimental",
+        "imageSha256": "fc740af4702f4f2aa2d3db94d8f51b2071fb28eaf7e852fda610b663d724d3ea",
+        "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying the earlier own-tap build of RINGMOD SC 0.1.0-experimental (the same pages; KEY's labels then without their padding spaces); stopped transport; actual LCD pixels."
+      }
+    },
+    {
+      "path": "media/ot-main-key-t1.png",
+      "captureType": "emulator",
+      "caption": "Turn encoder A until KEY reads the kick's track, here T1. The track dips with each kick; DPTH (encoder B) sets how deep.",
+      "alt": "The main page with KEY reading T1.",
+      "credit": "npp1993 (headless capture)",
+      "license": "LicenseRef-OT-UI-Documentation",
+      "source": "original",
+      "otUi": {
+        "page": "FX1 main",
+        "shows": "controls",
+        "firmware": "1.40C",
+        "moduleVersion": "0.1.0-experimental",
+        "imageSha256": "fc740af4702f4f2aa2d3db94d8f51b2071fb28eaf7e852fda610b663d724d3ea",
+        "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying the earlier own-tap build of RINGMOD SC 0.1.0-experimental (the same pages; KEY's labels then without their padding spaces); stopped transport; actual LCD pixels."
+      }
+    },
+    {
+      "path": "media/ot-main-ring.png",
+      "captureType": "emulator",
+      "caption": "With MODE on RING the key track multiplies the audio. ATK, REL and HOLD have no part there and are drawn as dashes.",
+      "alt": "The main page in RING mode: KEY, DPTH and KLPF over three dashes.",
+      "credit": "npp1993 (headless capture)",
+      "license": "LicenseRef-OT-UI-Documentation",
+      "source": "original",
+      "otUi": {
+        "page": "FX1 main",
+        "shows": "controls",
+        "firmware": "1.40C",
+        "moduleVersion": "0.1.0-experimental",
+        "imageSha256": "fc740af4702f4f2aa2d3db94d8f51b2071fb28eaf7e852fda610b663d724d3ea",
+        "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying the earlier own-tap build of RINGMOD SC 0.1.0-experimental (the same pages; KEY's labels then without their padding spaces); stopped transport; actual LCD pixels."
+      }
+    }
+  ],
+  "access": {
+    "location": "FUNC + FX1 or FUNC + FX2 SETUP on an audio track: the effect chooser (LEVEL selects, YES assigns).",
+    "steps": [
+      "Put a kick on T1 and a sustained sound on T2, and select T2.",
+      "Hold FUNC and press FX1, turn LEVEL to RINGMOD SC and press YES, then press FX1 for the main page.",
+      "Turn encoder A until KEY reads T1; T2 dips with each kick.",
+      "Turn KEY back to OFF, or DPTH to 0, to hear the track untouched; choose NONE in SETUP to remove the effect."
+    ],
+    "screenshots": [
+      "media/ot-setup-chooser.png",
+      "media/ot-main-duck.png",
+      "media/ot-main-key-t1.png",
+      "media/ot-main-ring.png"
+    ]
+  }
+}

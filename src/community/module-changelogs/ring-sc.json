@@ -1,0 +1,12 @@
+[
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-20",
+    "changes": [
+      "First RINGMOD SC release: an insert whose gain follows another track's audio. DUCK pulls the gain down with the key's peak over the last one to two HOLD windows (13-26 ms by default), so it holds through a kick's zero crossings and steps down as it decays; RING multiplies the audio by the key. Main page: KEY (OFF, T1-T8), DPTH and KLPF over ATK, HOLD and REL; MODE (DUCK, RING) on SETUP. DPTH 0 or KEY OFF passes the audio bit for bit.",
+      "It reads the Modwerk base's key bus over USB (loader ABI 9, requires the key bus): no tap of its own and nothing written outside its own state, so it runs beside Sidechain Compressor. While it is installed the base's tap copies every track on both cores, and its price (41 executed instructions a sample a core, counted from the source, charged at 7/4) counts toward RINGMOD SC. It is USB-only: a card image has no key bus, so the configurator does not build card firmware with it (a card image built with it anyway keeps its depth at 0 and passes the audio untouched).",
+      "Key latency is the bus's: exact from a track dispatched earlier on the same core, 16 samples from one dispatched later, 32 across the cores (measured on an MKII for Sidechain Compressor on the key bus, not yet with this module). 270 DSP words, no buffer; DUCK at most 63 and RING 32 executed instructions a sample by static count.",
+      "Limits: this source has not run on hardware yet (an earlier build with its own tap ran under the emulator and as card images on an MKII). On the first visit to the main page KEY may move a track a detent (card images under the emulator; unchecked over USB). Installing Sidechain Compressor while it is live re-zeroes the bus once, about a block of silent key. Project save, Part reload and a power cycle are untested."
+    ]
+  }
+]
