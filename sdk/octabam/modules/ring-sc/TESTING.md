@@ -1,6 +1,73 @@
 # Ringmod SC testing
 
-## The key bus reader (0.1.0-experimental, 20-21 October 2026)
+## 0.2.0-experimental: RING's SLEW, S&H and BIAS (21 October 2026)
+
+Source: branch `claude/ringmod-sc-0.2` on main `8e1e52be` (the key bus integrated, #750 and #737), module source
+`cb416ca8…`. Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Nothing in this section ran
+on hardware.** What changed from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
+on the knobs DUCK uses for ATK, HOLD and REL, renamed per mode (ModeView: SLEW, S&H, BIAS):
+- S&H (HOLD): a new key every 16v samples, held between; at 0 the same reload takes every key.
+- SLEW (ATK): the key's level, |key| smoothed by 1 - q(v) on ATK's scale, kept every sample and chosen above 0.
+- BIAS (REL): key + h (1 - key), h = v/256, ramped over 16 samples like the depth (unramped it stepped at the block
+  rate: a 1/256 gain step on a tone is about -58 dBFS, over the -70 limit).
+The RING loop stays straight-line (`cycle_count.py` needs it): its state is DUCK's words, cleared on a MODE change,
+plus $11 (S&H's countdown) and $13 (BIAS's step). 270 → 322 DSP words; 19 → 20 words of state.
+
+**Against 0.1.0, sample for sample** (`compare02.py`, kept privately; dsp_host, 0.1.0 = `c732b232`'s `ringsc.asm`,
+source `c2f2ec3f`, both on the same synthetic key bus):
+
+| Claim | Renders | Result |
+| --- | --- | --- |
+| DUCK: verify.py's settings grid (ATK 0/50/127 x REL 0/45/100/127 x KLPF 127/90/30/0 x DPTH 127/70 x HOLD 34/0/127) under a 55 Hz, a decaying 55 Hz and a noise key | 864 | identical |
+| DUCK: the other core's window, the module on T2 (T1 local, T7 across), trig splits 1/5/11/15, a key dispatched after, a dirty state block, KEY T5 → OFF → T3 mid-render | 11 | identical |
+| DUCK: each continuous knob swept one step every two blocks under a tone | 5 | identical |
+| RING with SLEW, S&H and BIAS at 0: KLPF 127/90/30/0 x DPTH 127/70/1, three keys | 36 | identical |
+| RING at 0: the same paths, splits, key after, dirty state, KEY changes | 11 | identical |
+| RING at 0: DPTH and KLPF sweeps | 2 | identical |
+| MODE DUCK → RING, RING → DUCK and DUCK → RING → DUCK mid-render, SLEW/S&H/BIAS at 0 | 3 | identical |
+
+**Render gate.** `python3 verify.py`: every gate passes; 322 words, no mpysu.
+
+| Gate | Result |
+| --- | --- |
+| No live key bus (four cases), KEY OFF, KEY 100, DPTH 0 in both modes (S&H 34, BIAS 45), silent key in DUCK | bit for bit |
+| DUCK and RING against the float model, 576 settings (RING now over HOLD 0/34/127 too: S&H, SLEW and BIAS) | worst 3.14e-05 of full scale |
+| Other core, the module on T2, split blocks, key dispatched after, `-guard -dirty 0x5a`, MODE/KEY changes mid-render | pass, both modes |
+| 10a S&H 8 under a full-scale 55 Hz key on a steady input | every key held exactly 128 samples |
+| 10b SLEW 60 | gain 0.581..0.661, never below 0 (SLEW 0 reaches -1.000) |
+| 10c BIAS 127 | gain -0.008..1.000, mean 0.486 (h = 0.496) |
+| Each continuous knob (now with SLEW and BIAS in RING) swept under a tone | loudest -91 dBFS at the block rate (limit -70) |
+
+**Stress.** `python3 tools/stress.py 30`: eight instances and the fixture for 30 s, `-guard -dirty 0x5a`, 27,561 knob
+moves: 8 of 8 clean, 0 samples on the limit, core meter 9,743 instructions a block at most.
+
+**Cycle count.** `tools/build/cycle_count.py`: 63 cycles/sample in both mode loops (DUCK 63 as before, RING 32 → 63),
+so the declared worst case does not rise.
+
+**Performance record** (`perf.py`, on a private native image `eb12e580…`, the key bus's seed marks written into both
+dumps; the RING case now with S&H on at its shortest period): worst 80.56 executed instructions/sample (DUCK, trig split
+at frame 1; 67.69 unsplit; unchanged), RING 76.44 with splits / 65.62 unsplit (0.1.0: 38.06 / 30.94); COMPRESSOR 72.06,
+SPRING REV 314.19. `perf.py stress --both`: sixteen instances (eight a core, FX1 and FX2), 32 s with three LFOs, 14
+random slots a step (MODE and RING's knobs included), six trig splits, `-guard -guard-shared -dirty 0x5a`: host exit 0,
+0 stray regions, 0 clobbers, per-core peak 634.0 / 636.8.
+
+**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,316 bytes, sha256 `72a1af2d…`,
+built with main's `module_packages.py`): ABI 9, requires the key bus, the same four read claims, state 20, cycles 81
+executed; no run shared with the stock OS under either scan (0; fails at 12). Not base-bound: it installs on main's
+base `430b0053…` and its development twin.
+
+**Screens.** `scripts/capture-module-ui.py` with `ot_emu` `23ba6f6c…` on a private card image of this version (remix
+`x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `67d5c495…`), the plan in `media/capture.json` (KEY turned one
+detent). The RING page names SLEW, S&H and BIAS; the DUCK page is unchanged. A card image has no key bus, so these show
+the pages, not the effect.
+
+**Native comparison and checks:** see the end of this section once run.
+
+**Not tested (0.2.0):** all hardware behaviour, the three new knobs by ear, `fx:audit`, MKI.
+
+---
+
+## The key bus reader (0.1.0-experimental, never published; 20-21 October 2026)
 
 Source: branch `claude/ringmod-sc-keybus` (on `claude/keybus`, the base's key bus, PR #750), module source
 `e2e84eb393c7…`; local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Nothing in this section
@@ -109,12 +176,23 @@ pool): 138 selections, 56 native module-owned images match (24 identical outrigh
 refusals agree, 0 mismatches; native pairs recorded (`sdk/native-comparisons/ring-sc.json`). It needed `static-dsp.json`'s
 RING_SC row; it was run with a local, uncommitted qualification stub, because the catalogue offers a module only with
 its qualification record and that waits for the hardware run (with the stub, `module:doctor ring-sc` reports every
-integration point green). A card image has no key bus, so those images carry an effect that passes audio; the configurator itself refuses card firmware with RINGMOD SC (USB-only, the site's rule for a package that requires a base feature).
+integration point green). A card image has no key bus, so those images carry an effect that passes audio.
 
-**Not tested (this source):** all hardware behaviour (install, the bus and its price on a unit, key latency, DUCK and
-RING by ear, both cores, locks and LFOs, Part and project reload, removal and a missing module, a power cycle), the
-sound-quality audit (`fx:audit`; the sample loops are unchanged from the build it ran on), screenshots of this build
-(the pages are the same; KEY's labels now carry spaces), MKI.
+**MKII, 21 October 2026** (the owner's unit, OS 1.40C, RAM-booted development twin `2e467c17…` of the key bus base
+`dead8ea7…`; this source's package `8063657f…`; ears and readings by the owner, over USB with the developer tools):
+- Key bus re-check on that twin, passed: the bus's engine order 00 → 08 → 09 with both cores' resets (0402) first;
+  Sidechain Compressor not charged for the bus; latency T5 32, T4 0, T2 16 samples, correlation 1.000; on removal
+  the flags clear and the arena comes back.
+- Step 1, install: the receiver masks 00 → 08 08; key bus flags 01 01 01 01 01; the charge rows `4b425553` 72 on
+  both cores; the key bus placed, 4,203 of 4,331 with 101 reserved; the inventory lists "Ringmod SC", handle 10;
+  KEY's " T1 " label draws centred; KEY steps like a stock select, about three detents a track.
+- Step 2, by ear: DUCK works; DPTH 0 and KEY OFF leave the track untouched; KLPF, HOLD, ATK and REL act. A buzz only
+  at the very shortest ATK, HOLD and REL: the gain then follows each cycle of the key, audio-rate amplitude
+  modulation, as expected (now a stated limitation).
+- Steps 3-10 (RING, both cores, locks and LFOs, Parts, reload, removal, a power cycle) were not run: superseded by
+  0.2.0, whose DUCK and plain RING are this source's sample for sample.
+
+**Not tested (this source):** the runbook's steps 3-10, the sound-quality audit (`fx:audit`), MKI.
 
 ---
 
