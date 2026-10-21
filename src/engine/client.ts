@@ -24,7 +24,8 @@ export function createFirmwareClient() {
       pending.delete(response.id)
       if (response.type === 'error') task.reject(new FirmwareBuildError(response.message, response.conflict)); else task.resolve(response)
     }
-    worker.onerror = () => rejectPending('The local firmware worker stopped. Choose your file again or reload the page.')
+    // A plain Event without a message means the worker script never loaded: usually a deploy replaced its hashed file after this page opened.
+    worker.onerror = event => rejectPending(event.message ? 'The local firmware worker stopped. Choose your file again or reload the page.' : 'Modwerk was updated since you opened this page. Reload the page, then choose your file again.')
     return worker
   }
   let worker = createWorker()
