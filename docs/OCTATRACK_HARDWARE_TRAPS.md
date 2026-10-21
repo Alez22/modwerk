@@ -523,6 +523,12 @@ enumerated on the Mac: no Elektron device at all, not a dead bridge handle.
 Only a power cycle brought USB back. The same image had RAM-booted cleanly
 before and did again after.
 
+**An unused setup slot is not free storage.** MIDI NOTE SETUP shows four values, but its window binds all six
+encoders: D and F edit the two `----` slots (setup record +0x03 and +0x05) unseen, and YES commits all six staged
+values, so a byte kept there is changed by a turn nobody sees and overwritten by the next YES (owner's MKII, 21 October
+2026). The MIDI generator registry keeps its choice in the arp step mask instead (`midi_generators.c`). Before using a
+"spare" Part byte, check stock's validator range for it and every editor that can write it.
+
 ## ColdFire and DSP load
 
 Measured with `stats` on the owner's MKII, dev twin `82b9bef4`, 19 October
@@ -571,6 +577,15 @@ upgrade while the loader may still have a job open, so the next boot logs a `sta
 `hot` record at 100 % CPU whose last keys are the PROJECT > SYSTEM > OS UPGRADE walk (PROJ, arrows, YES). Seen on the
 owner's MKII flashing `a0dd21c4` (20 October 2026) and in every tester stall of the 16-20 October pull. Until the start
 record carries the base id, read a stall followed by a start on another base as an upgrade.
+
+*A module's edit can cost milliseconds on the UI task.* Installed module code and data run uncached (the cached
+alias is `--cached-modules`, a prototype), so a loop over a pattern record costs far more than in the base. On the owner's
+MKII (21 October 2026, development twin `c2f6b65e`), VECTOR's 64-step MIDI rewrite took 3.9 ms a knob turn: about 3 ms
+in stock's lock-index rebuild `0x400339d8`, which rescans all 16 tracks' 64 x 32 lock bytes, and 0.8 ms copying the
+2,224-byte track record in and out. Setting only its own track's bit of the per-step lock index (MIDI `0x46c7d2e4`,
+audio `0x46c7d48c`, as that routine does) and writing the record in place brought it to 0.5 ms. Audio frames stayed
+at 406-417 µs apart throughout, since all of it runs on the UI task. Time a module's edits with the profile below
+(`[24]`-`[27]` are the MIDI generators'; `[18]` and `[19]` are the fx map check's).
 
 *The DSP peak meter:* a core's peak (status.c, the diag log's five-minute windows) is the busiest single frame of a
 1,024-frame receiver window. A self-test that runs DSP modules, or a sync, leaves the window at 99.7-99.8 % although

@@ -105,7 +105,7 @@ Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](h
 | Call event | Runs every handler at its stock site, lowest `order` first, then stock. A handler's result passes, takes or drops the call, as the event's contract says. | `subscribe`: `event`, `fn` (a C function) and `order` | `ev_play_increment`: Repitch changes a track's playback increment |
 | Raised event | Has no stock site. A module asks it, and the base runs every handler and returns their answers OR'd. | To ask it: `raise`, and a zero word `raise_<event>` in initialized data, which the loader points at the base's entry at install. To answer it: `subscribe`, as for a call event | `ev_mute_keep`: Mute Modes asks which tracks another module still reads while they are muted |
 | Take event | Gives its site to one subscriber: the first record, in `order`, whose `claims` is 0 or accepts the call. Its `entry` runs with every register as at the site, replays the stock instructions and returns to stock itself. | `subscribe`, with `fn` naming a `struct modwerk_take` {claims, entry} | `ev_octave_key`: POLY8, FM Synth and Scale Quantizer each claim their own tracks |
-| Table | Has no site. Modules contribute fixed-size records, and base code reads them in `order`. | `contribute`: `to`, `data` (the record's symbol) and `order` | `ot_machines`: each track machine's chooser row, page and renderer |
+| Table | Has no site. Modules contribute fixed-size records, and base code reads them in `order`. | `contribute`: `to`, `data` (the record's symbol) and `order` | `ot_machines`: each track machine's chooser row, page and renderer; `ot_midi_generators`: each MIDI generator's list row and pages |
 
 A `runtime.json` needs `schema` and at least one subscription or contribution. The other keys are optional:
 
@@ -156,7 +156,8 @@ The more of these the base owns, the more modules combine. Each is an event or a
 | Track machine list (SRC SETUP) | Base table `ot_machines`; on the card, POLY8's shared machine list |
 | Effect lists (FX1, FX2) | USB: the base has 128 effect ids, 109 of them for modules, and gives each installed effect module its own ([wider ids](../OCTATRACK_MORE_EFFECT_IDS.md)); card: stock's 32, 13 of them for modules, pinned |
 | SEQUENCER rows | Base table `ot_sequencer_rows` |
-| MIDI generators on a MIDI track's SRC SETUP | Not built: a base table of MIDI sources, as `ot_machines` is for audio tracks |
+| MIDI generators on a MIDI track (MIDI NOTE SETUP's list, the ARP page) | Base table `ot_midi_generators`; on the card, VECTOR's own registry ([midi-usb.md](midi-usb.md#midi-generators-and-midi-effects)) |
+| MIDI effects on a MIDI track's notes | Not built: an event where a MIDI track's note leaves the sequencer, with the base keeping every note-off |
 | Stock DSP effects a module hooks (Sidechain Compressor, Output Matrix) | Not built: DSP-side taps, one owner per stock site |
 | Module settings | Not built: upstream octabam's [OTX settings store proposal](https://github.com/sambanks/octabam/blob/main/docs/proposals/OTX_PROJECT_PROPOSAL.md) |
 

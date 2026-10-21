@@ -117,7 +117,7 @@ fx_set modwerk_fxmap_used(void)
     return fx_and(used, modwerk_fx_modules);
 }
 #ifdef MODWERK_DEV
-extern volatile uint32_t modwerk_cost[24]; /* diag.h: [18] this function's time, [19] its calls */
+extern volatile uint32_t modwerk_cost[28]; /* diag.h: [18] this function's time, [19] its calls */
 uint32_t modwerk_fxmap_generation(void)
 {
     uint32_t t0 = *(volatile uint32_t *)0xfc07c00cu, g = valid() ? MAP->generation : 0;
