@@ -26,7 +26,7 @@ export function OverviewPage({ overview }: { overview: Overview }) {
       </div>
       <div className="overview-chips" role="group" aria-label="Show machines">{FILTERS.map(item => <button key={item.id} type="button" className={'overview-chip is-' + item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.id !== 'all' && <i aria-hidden="true" />}{item.label}<small>{count(item.id)}</small></button>)}</div>
     </header>
-    <div className="overview-grid">{shown.map(machine => <MachineTile key={machine.device.id} machine={machine} />)}</div>
+    <div className="machine-grid">{shown.map(machine => <MachineTile key={machine.device.id} machine={machine} />)}</div>
     <section className="overview-band" aria-labelledby="overview-band-title">
       <div className="overview-band-copy">
         <h2 id="overview-band-title">{plural(overview.withoutMods, 'machine')} {overview.withoutMods === 1 ? 'is' : 'are'} waiting for a first mod</h2>
