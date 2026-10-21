@@ -7,8 +7,9 @@
   "category": "scenes",
   "author": {
     "github": "npp1993",
+    "name": "Nathaniel Pavel",
     "credits": [
-      "npp1993"
+      "Nathaniel Pavel"
     ]
   },
   "nativeManifest": "manifest.py",
@@ -184,7 +185,7 @@
   "license": {
     "spdx": "MIT",
     "file": "LICENSE",
-    "declaration": "Original authored source by npp1993. Stock code is referenced by address, length and SHA-256 only. No firmware, extracted stock routine or table, image, card or memory dump is included."
+    "declaration": "Original authored source by Nathaniel Pavel (@npp1993). Stock code is referenced by address, length and SHA-256 only. No firmware, extracted stock routine or table, image, card or memory dump is included."
   },
   "media": [
     {
