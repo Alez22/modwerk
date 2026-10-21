@@ -39,9 +39,11 @@ class UsbAudioProfiles(unittest.TestCase):
         raw = base.AUDIO_SOURCE.read_text()
         for changed in (raw.replace('audio_cushion_zero:\n', 'changed_cushion:\n'),
                         raw.replace('    movel   aud_produced,%d0', '    nop', 1),
-                        raw.replace('    moveq   #AUD_TARGET-1,%d1', '    moveq #1,%d1')):
+                        raw.replace('    moveq   #AUD_TARGET-1,%d1', '    moveq #1,%d1'),
+                        raw.replace('.set MAIN_CUE_LAG_BLOCKS, 1', '.set MAIN_CUE_LAG_BLOCKS, 2'),
+                        raw.replace('.set CUE_MASTER_LAG_BLOCKS,  2', '.set CUE_MASTER_LAG_BLOCKS,  3')):
             with self.subTest(changed=hashlib.sha256(changed.encode()).hexdigest()), self.assertRaises(ValueError):
-                profiles.packet_readiness(changed)
+                functions.packet_readiness(changed)
 
     def test_changed_producer_and_invalid_initial_profile_fail_closed(self):
         for invalid in (None, '', True, 'USB AUDIO IN AB'):

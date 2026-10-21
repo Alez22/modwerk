@@ -141,5 +141,6 @@
       }
     ],
     "scope": "Required ordinary package/fingerprint refresh after builder source changes; approved base-bound package bytes rebuilt identical, only required-base metadata moves. Not a physical boot."
-  }
+  },
+  "supersededBy": "usb-base-readiness-20261021.json"
 }

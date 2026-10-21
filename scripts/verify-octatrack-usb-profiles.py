@@ -150,17 +150,19 @@ class Session:
             self.sock.unlink()
 
 
-def readiness_checks(session):
+def readiness_checks(session, ordinary=False):
     """Exercise the real packet reader at its lag boundary and counter wrap."""
     b, s, check = session.bench, session.symbols, session.check
+    prefix = '' if ordinary else 'p0_'
     def put(name, value, size=4):
-        b.poke(s['p0_' + name], value.to_bytes(size, 'big'))
+        b.poke(s[prefix + name], value.to_bytes(size, 'big'))
     def call(name):
-        return b.call(CODE + 0x140, s['p0_' + name])
-    b.cmd('unplug', 'ok')
-    check('readiness profile stage', b.call(s['mu_audio_stage_detached'], 1) == 0)
-    b.cmd('plug', 'ok')
-    enumerate_device(b, True)
+        return b.call(CODE + 0x140, s[prefix + name])
+    if not ordinary:
+        b.cmd('unplug', 'ok')
+        check('readiness profile stage', b.call(s['mu_audio_stage_detached'], 1) == 0)
+        b.cmd('plug', 'ok')
+        enumerate_device(b, True)
     b.ctrl_nodata(1, 11, 1, 5)
     b.call(CODE)  # One authored frame sets up the real EP3 queue head.
     b.ctrl_nodata(1, 11, 0, 5)
@@ -176,21 +178,23 @@ def readiness_checks(session):
         result = call('audio_pkt_build')
         check('packet readiness raw=%#x consumed=%#x HS=%s' % (raw, consumed, high), result == expected)
         if not expected:
-            check('not-ready packet keeps cursor', session.word(s['p0_usbaudio_consumed']) == consumed)
-            check('not-ready packet records underrun', session.word(s['p0_usbaudio_underruns']) == 1)
+            check('not-ready packet keeps cursor', session.word(s[prefix + 'usbaudio_consumed']) == consumed)
+            check('not-ready packet records underrun', session.word(s[prefix + 'usbaudio_underruns']) == 1)
     call('audio_ep3_down')
     put('usbaudio_alt', 0, 1)
-    for index, first, last, stride in ((0, 48, 159, 80), (3, 64, 159, 16)):
-        b.poke(s['p%d_aud_produced' % index], struct.pack('>I', 128))
+    for index, first, last, stride in (((0, 48, 159, 80),) if ordinary else ((0, 48, 159, 80), (3, 64, 159, 16))):
+        selected = '' if ordinary else 'p%d_' % index
+        ring = s['aud_ring' if ordinary else 'shared_ring']
+        b.poke(s[selected + 'aud_produced'], struct.pack('>I', 128))
         for slot in (first - 1, first, last, last + 1):
-            b.poke(s['shared_ring'] + slot * stride, b'Z' * stride)
-        b.call(CODE + 0x140, s['p%d_audio_cushion_zero' % index])
+            b.poke(ring + slot * stride, b'Z' * stride)
+        b.call(CODE + 0x140, s[selected + 'audio_cushion_zero'])
         for slot in (first, last):
             check('fresh-start boundary cleared profile=%d slot=%d' % (index + 1, slot),
-                  session.peek(s['shared_ring'] + slot * stride, stride) == bytes(stride))
+                  session.peek(ring + slot * stride, stride) == bytes(stride))
         for slot in (first - 1, last + 1):
             check('fresh-start clear bounded profile=%d slot=%d' % (index + 1, slot),
-                  session.peek(s['shared_ring'] + slot * stride, stride) == b'Z' * stride)
+                  session.peek(ring + slot * stride, stride) == b'Z' * stride)
 
 
 def run(args):
@@ -199,16 +203,26 @@ def run(args):
     if digest(args.build / 'MAIN.raw') != proof['manifest']['main_sha256']:
         raise ValueError('The base image does not match its native proof.')
     mode = proof.get('configuration', {}).get('usb', {}).get('profiles')
-    if mode != dict(schema=1, initial=6, stagingOnly=True, hostSettings=False):
+    if args.ordinary and (mode is not None or proof['configuration']['usb'].get('audio') != LAYOUTS[1]):
+        raise ValueError('Use an ordinary twenty-channel source build for --ordinary.')
+    if not args.ordinary and mode != dict(schema=1, initial=6, stagingOnly=True, hostSettings=False):
         raise ValueError('Use an opt-in all-profile source build with explicit initial TRACKS POST.')
     if any(CODE <= value < SNAP + 64 for value in symbols.values() if type(value) is int):
         raise ValueError('The authored fixture scratch overlaps a linked symbol.')
-    expected, refs = references(args.reference_builds)
+    layout = proof['manifest']['link']['layout']
+    for low, high in (layout['boot'], layout['fast'], (layout['ddr'][0], layout['reserve']['end'])):
+        if not (type(low) is int and type(high) is int and low <= high):
+            raise ValueError('Invalid linked reservation bounds.')
+        if low < SNAP + 64 and CODE < high:
+            raise ValueError('The authored fixture scratch overlaps a linked reservation.')
+    if not args.ordinary and args.reference_builds is None:
+        raise ValueError('The all-profile gate needs seven separate native --reference-builds.')
+    expected, refs = (None, []) if args.ordinary else references(args.reference_builds)
     if args.output.exists():
         raise ValueError('Choose a new private output directory.')
     output = private_directory(args.output)
     checks, cases = [], []
-    receipt = dict(kind='octatrack-usb-profile-source-probe', hardware=False,
+    receipt = dict(kind='octatrack-usb-profile-source-probe', hardware=False, ordinaryReadinessOnly=args.ordinary,
         base=proof['configurationHash'], imageSha256=digest(args.build / 'MAIN.raw'),
         symbolsSha256=digest(args.build / 'symbols.json'), emulatorSha256=digest(args.emulator),
         referenceBuilds=refs, checks=checks, streamCases=cases,
@@ -221,10 +235,15 @@ def run(args):
             raise AssertionError(name)
     session = None
     try:
-        for frames in (False, True):
+        for frames in ((False,) if args.ordinary else (False, True)):
             folder = private_directory(output / ('stream' if frames else 'board'))
             session = Session(args, folder, symbols, proof, frames, check)
             b = session.bench
+            if args.ordinary:
+                readiness_checks(session, ordinary=True)
+                session.close()
+                session = None
+                continue
             if not frames:
                 check('running controller refuses mutation', b.call(symbols['mu_audio_stage_detached'], 0) == 2)
                 check('connected refusal preserves initial profile', session.word(symbols['mu_audio_profile']) == 6)
@@ -328,6 +347,8 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('build', 'emulator', 'reference-builds', 'output'):
+    for name in ('build', 'emulator', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--reference-builds', type=Path)
+    parser.add_argument('--ordinary', action='store_true', help='Only the ordinary twenty-channel compiled packet-reader/startup gate.')
     run(parser.parse_args())

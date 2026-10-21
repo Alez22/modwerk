@@ -177,6 +177,8 @@ class BaseUsbFunctions(unittest.TestCase):
                     if audio:
                         (root / 'remix.inc').write_text(include(audio))
                         source = functions.audio_source(base.audio_paths(audio)[0].read_text())
+                        if audio != base.POST_LAYOUT:
+                            source = functions.packet_readiness(source)
                         original_audio = assemble('audio_original_rings', source)
                         original_image, original_symbols, _ = link([*objects, original_audio], 0)
                         objects.append(assemble('audio', functions.audio_storage_source(source)))

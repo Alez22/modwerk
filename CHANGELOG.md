@@ -2,6 +2,10 @@
 
 ## 21 October 2026
 
+- Development checks: hold the Shoutbox burst fixture in one rate-limit clock bucket and explicitly check that the next minute permits another message. A CI run crossing the minute previously failed its seventh-message assertion despite correct throttling. Give the forum highlight fixture's five real account flows a 20-second CI budget; its content and privacy assertions stay intact.
+
+- Octatrack base candidate: apply the complete-sample packet watermark and bounded fresh-start MAIN/CUE clear to ordinary per-layout builds as well as the all-profile staging option. An exact-image emulator fixture reproduces ten queued incomplete frames at a near-drain boundary and counter wrap in the earlier ordinary base. Physical audio, timing and any connection to reported glitches remain unverified; card module source and downloads are unchanged.
+
 - USB profile preparation: add an opt-in offline source-builder flag for all six outputs and off, with immutable descriptors and bounded detached-only selection. Guard the twenty-channel packet reader against its MAIN/CUE producer lag and clear the bounded fresh-start CUE gap; a deterministic regression rejects the earlier staging image. Native/browser parity, stock-free packaging and synthetic switching/streaming/POST checks pass. Host settings, reconnect recovery, module lifecycle and persistence remain unimplemented; no combined-profile image has run on the physical unit, and approved card downloads are unchanged.
 
 - Octatrack emulator tools: prepare an isolated pinned build that restores the emulated caller's stack after borrowed C calls. The original left arguments on the main stack after every call. A stock-free 128-call regression fails on the original and passes with the fix; the five existing emulator gates also pass. Shared checkouts and firmware inputs stay unchanged.

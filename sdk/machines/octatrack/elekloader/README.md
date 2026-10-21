@@ -268,14 +268,16 @@ settings command, transition authorization/recovery lease, EP0 retirement,
 profile inventory or Keep/Undo/persistence transaction. Do not admit a USB Audio
 catalogue module on the strength of this staging seam.
 
-In this opt-in adapter, the high-speed twenty-channel packet watermark trails
+In the shared base adapter, the high-speed twenty-channel packet watermark trails
 the raw track counter by one block, because MAIN/CUE land later. Its startup
 clear also covers the earlier reader cursor and future master-CUE gap. The
 unchanged raw counter still drives producers. This was found with a poisoned
 shared ring and near-drained packet queue; one timing-dependent streaming pass
-did not prove the original cushion sufficient. The bounded first-frame cost,
-real DSP pairing and audio remain hardware qualification gaps. Ordinary
-per-layout builds and the card module retain their earlier producer source.
+did not prove the original cushion sufficient. The same reader error also
+reproduces in the earlier ordinary base with synthetic counters, so ordinary
+base builds now use the guard too. The bounded first-frame cost, real DSP
+pairing and audio remain hardware qualification gaps. The card module retains
+its earlier source; a base fix does not change that approved download.
 
 Run `scripts/verify-octatrack-usb-profiles.py --build <private-initial-POST-build>
 --emulator <isolated-ot_emu> --reference-builds <seven-separate-native-builds>
@@ -286,6 +288,9 @@ and reference layouts before launch, and IDENTIFY before fixture writes.
 Only the frame-free phase substitutes a dormant ISR epilogue with a C return;
 the streaming phase uses automatic synthetic frames without code patches.
 See [scoped results](../evidence/usb-profile-source-staging-20261021.json).
+For only the compiled ordinary twenty-channel reader/startup regression, use
+`--ordinary` without reference builds. [Readiness evidence](../evidence/usb-base-readiness-20261021.json)
+keeps the earlier counterexample and physical qualification gaps explicit.
 
 `scripts/verify-octatrack-usb-reconnect.py` runs four unplug/replug cycles and a
 bus reset against a private source-linked base in `ot_emu`. Its negative

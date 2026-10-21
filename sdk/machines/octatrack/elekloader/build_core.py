@@ -1668,8 +1668,10 @@ def main():
             for name, text in profile_sources.items():
                 (source/name).write_text(text)
         elif args.usb_audio:
-            (source/'usbaudio.s').write_text(usb_functions.audio_storage_source(
-                usb_functions.audio_source(audio_path.read_text())))
+            audio_text = usb_functions.audio_source(audio_path.read_text())
+            if args.usb_audio != usb_post.LAYOUT:
+                audio_text = usb_functions.packet_readiness(audio_text)
+            (source/'usbaudio.s').write_text(usb_functions.audio_storage_source(audio_text))
             audio_inc = usb_functions.audio_include(args.usb_audio)
             if args.usb_audio == usb_post.LAYOUT:
                 post_curve = usb_post.image_words(image, device, dsp)

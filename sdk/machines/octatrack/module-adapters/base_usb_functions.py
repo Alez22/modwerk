@@ -104,6 +104,57 @@ def audio_source(text):
     return text
 
 
+
+def packet_readiness(text):
+    """Fence the 20-channel packet reader behind its delayed MAIN/CUE writes.
+
+    The raw producer counter and card implementation stay unchanged.
+    Counter subtraction is modulo 2**32, including a running stream's wrap.
+    """
+    for declaration in ('.set MAIN_CUE_LAG_BLOCKS, 1', '.set CUE_MASTER_LAG_BLOCKS,  2'):
+        if text.count(declaration) != 1:
+            raise ValueError('USB profile producer lag changed; review packet and startup bounds.')
+    seam = 'audio_cushion_zero:\n'
+    if text.count(seam) != 1:
+        raise ValueError('USB profile cushion seam changed.')
+    packet, cushion = text.split(seam)
+    read = '    movel   aud_produced,%d0'
+    zero = '    moveq   #AUD_TARGET-1,%d1'
+    start = '0:  subil   #AUD_TARGET,%d0'
+    if packet.count(read) != 3 or cushion.count(zero) != 1 or cushion.count(start) != 1:
+        raise ValueError('USB profile readiness seams changed.')
+    packet = packet.replace(read, '    MW_AUDIO_READY')
+    # A master CUE write can land up to two blocks ahead of the current
+    # cursor. Clear that bounded fresh-start gap as well as the cushion.
+    # The HS reader starts one block earlier after applying its watermark.
+    cushion = cushion.replace(start, '''0:
+.if USB_LAYOUT == LAYOUT_TRACKS_MAIN_CUE
+    subil   #AUD_TARGET+16,%d0
+.else
+    subil   #AUD_TARGET,%d0
+.endif''')
+    cushion = cushion.replace(zero, '''.if USB_LAYOUT == LAYOUT_TRACKS_MAIN_CUE
+    moveq   #AUD_TARGET+16+32-1,%d1
+.elseif USB_LAYOUT == LAYOUT_MAIN_CUE
+    moveq   #AUD_TARGET+32-1,%d1
+.else
+    moveq   #AUD_TARGET-1,%d1
+.endif''')
+    macro = '''
+| Packet-side watermark only: MAIN/CUE trail the tracks by one block at HS.
+.macro MW_AUDIO_READY
+    movel   aud_produced,%d0
+.if USB_LAYOUT == LAYOUT_TRACKS_MAIN_CUE
+    tstb    aud_hs
+    beq     97f
+    subil   #16*MAIN_CUE_LAG_BLOCKS,%d0
+97:
+.endif
+.endm
+'''
+    return macro + packet + seam + cushion
+
+
 def midi_source(text):
     """The MIDI ISR delegates its stock tail to the base's vendor poll owner."""
     before = '    jmp     0x4001e60c'

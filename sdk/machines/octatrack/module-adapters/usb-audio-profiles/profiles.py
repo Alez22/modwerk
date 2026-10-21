@@ -29,54 +29,6 @@ def checked_source(path, digest):
     return raw.decode()
 
 
-def packet_readiness(text):
-    """Fence the 20-channel packet reader behind its delayed MAIN/CUE writes.
-
-    Only this opt-in shared-ring base applies the adapter. The raw producer
-    counter and card implementation stay unchanged. Counter subtraction is
-    modulo 2**32, including a continuously running stream's wrap.
-    """
-    seam = 'audio_cushion_zero:\n'
-    if text.count(seam) != 1:
-        raise ValueError('USB profile cushion seam changed.')
-    packet, cushion = text.split(seam)
-    read = '    movel   aud_produced,%d0'
-    zero = '    moveq   #AUD_TARGET-1,%d1'
-    start = '0:  subil   #AUD_TARGET,%d0'
-    if packet.count(read) != 3 or cushion.count(zero) != 1 or cushion.count(start) != 1:
-        raise ValueError('USB profile readiness seams changed.')
-    packet = packet.replace(read, '    MW_AUDIO_READY')
-    # A master CUE write can land up to two blocks ahead of the current
-    # cursor. Clear that bounded fresh-start gap as well as the cushion.
-    # The HS reader starts one block earlier after applying its watermark.
-    cushion = cushion.replace(start, '''0:
-.if USB_LAYOUT == LAYOUT_TRACKS_MAIN_CUE
-    subil   #AUD_TARGET+16,%d0
-.else
-    subil   #AUD_TARGET,%d0
-.endif''')
-    cushion = cushion.replace(zero, '''.if USB_LAYOUT == LAYOUT_TRACKS_MAIN_CUE
-    moveq   #AUD_TARGET+16+32-1,%d1
-.elseif USB_LAYOUT == LAYOUT_MAIN_CUE
-    moveq   #AUD_TARGET+32-1,%d1
-.else
-    moveq   #AUD_TARGET-1,%d1
-.endif''')
-    macro = '''
-| Packet-side watermark only: MAIN/CUE trail the tracks by one block at HS.
-.macro MW_AUDIO_READY
-    movel   aud_produced,%d0
-.if USB_LAYOUT == LAYOUT_TRACKS_MAIN_CUE
-    tstb    aud_hs
-    beq     97f
-    subil   #16*MAIN_CUE_LAG_BLOCKS,%d0
-97:
-.endif
-.endm
-'''
-    return macro + packet + seam + cushion
-
-
 def namespaced(text, include, index):
     """Rename assembler symbols/macros after the caller guarded the full source."""
     if text.count('.include "remix.inc"') != 1:
@@ -112,7 +64,7 @@ def prepare(base, functions, descriptors, post_descriptors, post, curve, initial
         include = functions.audio_include(key) + (post.include(curve) if index == 5 else '')
         text = functions.audio_storage_source(functions.audio_source(raw[1 if index == 5 else 0]))
         if index != 5:
-            text = packet_readiness(text)
+            text = functions.packet_readiness(text)
         bodies.append(namespaced(text, include, index))
     dispatch = (HERE / 'dispatch.s').read_text()
     aliases = ''.join(' .global %s\n .set %s, p%d_%s\n' % (name, name, initial_index, name) for name in INITIAL_ALIASES)
