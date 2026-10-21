@@ -4,6 +4,7 @@
  "modules": [
   "airwindows-chorus",
   "analog-bassdrum",
+  "apply-scene",
   "bbd",
   "cc-map",
   "character",

@@ -267,6 +267,13 @@
       "fxId": null,
       "fx1": false,
       "fx1Only": false
+    },
+    {
+      "id": "apply-scene",
+      "key": "APPLY SCENE",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
     }
   ],
   "customIds": [
