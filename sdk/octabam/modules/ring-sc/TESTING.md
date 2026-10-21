@@ -44,18 +44,18 @@ moves: 8 of 8 clean, 0 samples on the limit, core meter 9,743 instructions a blo
 **Cycle count.** `tools/build/cycle_count.py`: 63 cycles/sample in both mode loops (DUCK 63 as before, RING 32 → 63),
 so the declared worst case does not rise.
 
-**Performance record** (`perf.py`, on a private native image `eb12e580…`, the key bus's seed marks written into both
+**Performance record** (`perf.py`, on a private native image `f40daecd…`, the key bus's seed marks written into both
 dumps; the RING case now with S&H on at its shortest period): worst 80.56 executed instructions/sample (DUCK, trig split
-at frame 1; 67.69 unsplit; unchanged), RING 76.44 with splits / 65.62 unsplit (0.1.0: 38.06 / 30.94); COMPRESSOR 72.06,
+at frame 1; 67.69 unsplit; unchanged), RING with S&H, RECT and SLEW on 76.56 with splits / 65.69 unsplit (0.1.0: 38.06 / 30.94); COMPRESSOR 72.06,
 SPRING REV 314.19. `perf.py stress --both`: sixteen instances (eight a core, FX1 and FX2), 32 s with three LFOs, 14
 random slots a step (MODE and RING's knobs included), six trig splits, `-guard -guard-shared -dirty 0x5a`: host exit 0,
-0 stray regions, 0 clobbers, per-core peak 634.0 / 636.8.
+0 stray regions, 0 clobbers, per-core peak 634.2 / 636.8.
 
-**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,300 bytes, sha256 `64dc83b9…`,
-built with main's `module_packages.py` on main `91e72c81`; `72a1af2d…`, 2,316 bytes, was the build before MODE kept its
-name, and is the one first installed on the MKII): ABI 9, requires the key bus, the same four read claims, state 20, cycles 81
+**The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,304 bytes, sha256 `8fd097af…`,
+built with main's `module_packages.py` on main `4d4f731d`. Earlier builds of this version: `72a1af2d…` (2,316 bytes,
+before MODE kept its name; first installed on the MKII) and `64dc83b9…` (2,300 bytes, with BIAS; the 21 Oct MKII session)): ABI 9, requires the key bus, the same four read claims, state 20, cycles 81
 executed; no run shared with the stock OS under either scan (0; fails at 12). Not base-bound: it installs on main's
-base `430b0053…` and its development twin.
+base and its development twins.
 
 **Screens.** `scripts/capture-module-ui.py` with `ot_emu` `23ba6f6c…` on a private card image of this version (remix
 `x_rmsc02`: RINGMOD SC alone on the FX1 chooser, RINGSC20 `97ed7655…`), the plan in `media/capture.json` (KEY turned one
