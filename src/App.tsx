@@ -2,7 +2,7 @@ import { BetaInvitationPage } from './community/BetaInvitationPage'
 import { BrandName } from './components/BrandName'
 import { AccountPage } from './community/AccountPage'
 import { SignupWelcome } from './community/SignupWelcome'
-import { PendingFollowsClaim } from './community/DownloadSignupInvite'
+import { DownloadSignupPreview, PendingFollowsClaim } from './community/DownloadSignupInvite'
 import { HardwareFeedbackReminder } from './community/HardwareFeedbackReminder'
 import { HardwareFeedbackCheckIn } from './community/HardwareFeedbackCheckIn'
 import { NotificationBell } from './community/NotificationBell'
@@ -507,6 +507,7 @@ export default function App() {
           {firmwareFeedbackPreview && <Suspense fallback={null}><FirmwareFeedbackPreview/></Suspense>}
           {!accountRoute && <SignupWelcome key={route} />}
           {!accountRoute && <PendingFollowsClaim />}
+          {import.meta.env.DEV && <DownloadSignupPreview />}
           {!accountRoute && !developerRoute && !configuration && machineView !== 'configuration' && !['admin', 'privacy', 'impressum', 'community-rules', 'report-content'].includes(route) && <HardwareFeedbackReminder />}
           {!phoneLayout && !hubRoute && projectNotice}
           {workspace.storageError && <div className="file-error" role="alert">{workspace.storageError} Export important configurations before closing this tab.</div>}

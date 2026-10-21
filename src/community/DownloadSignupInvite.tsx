@@ -71,6 +71,15 @@ export function DownloadSignupCard({ count }: { count: number }) {
   </section>
 }
 
+/** Development only: `?preview=download-invite` shows the invitation and the install-guide card with sample modules, without a build. */
+export function DownloadSignupPreview() {
+  const [open, setOpen] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'download-invite')
+  const [card] = useState(open)
+  if (!card) return null
+  const modules = [{ id: 'miniverb', name: 'Mini Verb', version: '0.2.3' }, { id: 'tapeecho', name: 'Tape Echo', version: '0.1.5' }, { id: 'analog-bassdrum', name: 'Analog BD', version: '0.1.0' }]
+  return <>{open && <DownloadSignupInvite modules={modules} onClose={() => setOpen(false)}/>}<DownloadSignupCard count={modules.length}/></>
+}
+
 let claiming = false
 /** Once a guest who downloaded has a verified account, follow what they downloaded on this device and say so. */
 export function PendingFollowsClaim() {
