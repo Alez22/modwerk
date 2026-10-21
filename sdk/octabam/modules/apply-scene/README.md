@@ -1,6 +1,6 @@
 # Apply Scene
 
-Version: 0.1.0-experimental · author: @npp1993
+Version: 0.1.0-experimental · author: Nathaniel Pavel (@npp1993)
 
 
 Hold [SCENE A] and press [YES]: scene A's locked values become the active Part's own values. [SCENE B] + [YES] does the same with scene B. Hold both scene keys and press [YES] to keep the sound the crossfader blends right now instead.
@@ -70,7 +70,7 @@ See [TESTING.md](TESTING.md). `verify.py` runs the built image under ot_emu.
 
 ## Authorship and licences
 
-Original code by @npp1993, MIT (see [LICENSE](LICENSE)). Stock code is referenced by address, length and SHA-256 only.
+Original code by Nathaniel Pavel (@npp1993), MIT (see [LICENSE](LICENSE)). Stock code is referenced by address, length and SHA-256 only.
 
 ## Screens and audio
 
