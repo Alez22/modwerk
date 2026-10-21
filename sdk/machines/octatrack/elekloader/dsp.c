@@ -842,8 +842,10 @@ static uint32_t code_sum(unsigned c, unsigned p, unsigned from, unsigned n, unsi
     return sum & 0xffffffu;
 }
 /* controller_board.c: a live package requires a base feature that cannot come up this boot (the key bus with a DSP
- * core's state lost). The record's refusal says so while it holds (RUNTIME_FEATURE), and a self-test fails with it
- * (SELFTEST_FEATURE), so a trial is not kept with a module that can only pass its audio. 0 on a base without the board. */
+ * core's state lost). A self-test fails with it (SELFTEST_FEATURE), so a trial is not kept with a module that can only
+ * pass its audio, and the record's refusal says so (RUNTIME_FEATURE) while it holds and the loader has no refusal of its
+ * own to report: the site explains a rejected sync and retries RUNTIME_BUSY from that field, so the loader's own
+ * refusal always comes first. 0 on a base without the board. */
 #ifndef MODWERK_HOST_SELFTEST
 __attribute__((weak)) int modwerk_controller_keybus_lost(void) { return 0; }
 #else
@@ -853,8 +855,9 @@ void modwerk_selftest_refresh(void)
 {
     modwerk_selftest.saved = modwerk_modset_result, modwerk_selftest.saved_count = modwerk_modset_count;
     modwerk_selftest.live = modwerk_runtime_active();
-    { extern volatile uint32_t modwerk_flash_refusal; modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal :
-      modwerk_controller_keybus_lost() ? (uint32_t)RUNTIME_FEATURE : modwerk_runtime_refusal(); } /* flash.h: a refused or failed base write, apart from the loader's */
+    { extern volatile uint32_t modwerk_flash_refusal; uint32_t loader = modwerk_runtime_refusal();
+      modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal : /* flash.h: a refused or failed base write, apart from the loader's */
+          loader ? loader : modwerk_controller_keybus_lost() ? (uint32_t)RUNTIME_FEATURE : (uint32_t)RUNTIME_OK; }
 }
 enum { PLACE, WAIT, HOLD, CODE, CLEAR, EMPTY, RESET };
 /* st_live: what each slot ran before the test; st_base: the batch's background, that with a core the batch emptied

@@ -48,7 +48,8 @@ static unsigned modules;
 unsigned modwerk_runtime_active(void) { return modules; }
 unsigned modwerk_runtime_intact(void) { return modules; }
 uint32_t modwerk_runtime_broken(void) { return 0; }
-enum runtime_refusal modwerk_runtime_refusal(void) { return RUNTIME_OK; }
+static enum runtime_refusal test_refusal; /* the loader's own last refusal */
+enum runtime_refusal modwerk_runtime_refusal(void) { return test_refusal; }
 static int test_keybus_lost; /* controller_board.c's answer: a live reader whose key bus cannot come up this boot */
 int modwerk_controller_keybus_lost(void) { return test_keybus_lost; }
 int modwerk_machine_stopped(void) { return !modwerk_test_playing; }
@@ -194,6 +195,14 @@ int main(void)
     CHECK(modwerk_selftest.state == SELFTEST_FAILED && modwerk_selftest.failed == SELFTEST_FEATURE);
     modwerk_selftest_refresh();
     CHECK(modwerk_selftest.refusal == RUNTIME_FEATURE);
+    /* The loader's own refusal comes first: the site retries RUNTIME_BUSY and explains a rejected sync from it. */
+    test_refusal = RUNTIME_BUSY;
+    modwerk_selftest_refresh();
+    CHECK(modwerk_selftest.refusal == RUNTIME_BUSY);
+    test_refusal = RUNTIME_CONFLICT;
+    modwerk_selftest_refresh();
+    CHECK(modwerk_selftest.refusal == RUNTIME_CONFLICT);
+    test_refusal = RUNTIME_OK;
     test_keybus_lost = 0;
     modwerk_selftest_refresh();
     CHECK(modwerk_selftest.refusal == RUNTIME_OK);

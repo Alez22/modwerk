@@ -86,7 +86,7 @@ static int __attribute__((unused)) keybus_down(void)
     return 0;
 }
 /* A live reader whose key bus cannot come up this boot (dsp.c: the self-test fails with it and the self-test record's
- * refusal says RUNTIME_FEATURE while it holds, on production bases too). A reader admitted before its core was lost
+ * refusal says RUNTIME_FEATURE while it holds and the loader has none of its own, on production bases too). A reader admitted before its core was lost
  * stays installed and dry until a restart; this is how the unit says so. */
 int modwerk_controller_keybus_lost(void) { return kb_readers && keybus_down(); }
 /* In-place page extensions: the stock descriptor's bytes before, the SHA-256 of what was written. */

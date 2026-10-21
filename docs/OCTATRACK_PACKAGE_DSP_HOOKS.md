@@ -384,7 +384,8 @@ the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and
 - A reader is refused (`RUNTIME_FEATURE`) while the key bus cannot come up this boot (a core's state lost: its
   owned channel closed or a lane stuck), not only when that core's seed is dirty, so it is never admitted to
   pass its audio; a closed board refuses it as `RUNTIME_CONFLICT`. A reader already live when its core is lost
-  fails the self-test (`SELFTEST_FEATURE`) and the self-test record's refusal reads `RUNTIME_FEATURE`; the
+  fails the self-test (`SELFTEST_FEATURE`) and, when the loader has no refusal of its own to report, the self-test
+  record's refusal reads `RUNTIME_FEATURE` (the loader's own comes first: the site retries `RUNTIME_BUSY` from it); the
   development view's key bus byte shows it (bit 7). Nothing reopens the core before a restart.
 - ABI 9 beyond the loader: the site's module sets (`module-set.ts`), the publication builder (`module_packages.py`,
   entries with `requiresFeatures` and `dspClaims`), the private candidate reader and the MCP's prepared packages accept

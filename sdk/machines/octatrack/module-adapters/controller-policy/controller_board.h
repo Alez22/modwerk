@@ -35,6 +35,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 /* Features whose resident DSP ranges a registry slot holds (reserved through
  * retiring or quarantined): the buffer allocator's reservation. */
 unsigned modwerk_controller_held(void);
-/* A live reader whose key bus cannot come up this boot: dsp.c fails a self-test with it and reports RUNTIME_FEATURE. */
+/* A live reader whose key bus cannot come up this boot: dsp.c fails a self-test with it and, when the loader has no
+ * refusal of its own, reports RUNTIME_FEATURE. */
 int modwerk_controller_keybus_lost(void);
 #endif
