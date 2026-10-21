@@ -30,16 +30,20 @@ dispatch_frame_table:
  .long p3_audio_frame_shim
  .long p4_audio_frame_shim
  .long p5_audio_frame_shim
- .global audio_setiface_shim
+ | Preserve the handler entry CCR as well as registers. In particular, the
+| audio-off GET_INTERFACE path reproduces a PEA, which leaves CCR unchanged.
+.global audio_setiface_shim
 audio_setiface_shim:
- lea %sp@(-12),%sp
- moveml %d0/%a0,%sp@
+ lea %sp@(-16),%sp
+ moveml %d0-%d1/%a0,%sp@
+ movew %sr,%d1
  movel mu_audio_profile,%d0
  lea audio_setiface_shim_table,%a0
  movel %a0@(0,%d0:l:4),%a0
- movel %a0,%sp@(8)
- moveml %sp@,%d0/%a0
- lea %sp@(8),%sp
+ movel %a0,%sp@(12)
+ movew %d1,%sr
+ moveml %sp@,%d0-%d1/%a0
+ lea %sp@(12),%sp
  rts
 .balign 4
 audio_setiface_shim_table:
@@ -52,14 +56,16 @@ audio_setiface_shim_table:
  .long p5_audio_setiface_shim
  .global audio_getiface_shim
 audio_getiface_shim:
- lea %sp@(-12),%sp
- moveml %d0/%a0,%sp@
+ lea %sp@(-16),%sp
+ moveml %d0-%d1/%a0,%sp@
+ movew %sr,%d1
  movel mu_audio_profile,%d0
  lea audio_getiface_shim_table,%a0
  movel %a0@(0,%d0:l:4),%a0
- movel %a0,%sp@(8)
- moveml %sp@,%d0/%a0
- lea %sp@(8),%sp
+ movel %a0,%sp@(12)
+ movew %d1,%sr
+ moveml %sp@,%d0-%d1/%a0
+ lea %sp@(12),%sp
  rts
 .balign 4
 audio_getiface_shim_table:
@@ -72,14 +78,16 @@ audio_getiface_shim_table:
  .long p5_audio_getiface_shim
  .global audio_ctrl_shim
 audio_ctrl_shim:
- lea %sp@(-12),%sp
- moveml %d0/%a0,%sp@
+ lea %sp@(-16),%sp
+ moveml %d0-%d1/%a0,%sp@
+ movew %sr,%d1
  movel mu_audio_profile,%d0
  lea audio_ctrl_shim_table,%a0
  movel %a0@(0,%d0:l:4),%a0
- movel %a0,%sp@(8)
- moveml %sp@,%d0/%a0
- lea %sp@(8),%sp
+ movel %a0,%sp@(12)
+ movew %d1,%sr
+ moveml %sp@,%d0-%d1/%a0
+ lea %sp@(12),%sp
  rts
 .balign 4
 audio_ctrl_shim_table:
@@ -92,14 +100,16 @@ audio_ctrl_shim_table:
  .long p5_audio_ctrl_shim
  .global audio_reset_shim
 audio_reset_shim:
- lea %sp@(-12),%sp
- moveml %d0/%a0,%sp@
+ lea %sp@(-16),%sp
+ moveml %d0-%d1/%a0,%sp@
+ movew %sr,%d1
  movel mu_audio_profile,%d0
  lea audio_reset_shim_table,%a0
  movel %a0@(0,%d0:l:4),%a0
- movel %a0,%sp@(8)
- moveml %sp@,%d0/%a0
- lea %sp@(8),%sp
+ movel %a0,%sp@(12)
+ movew %d1,%sr
+ moveml %sp@,%d0-%d1/%a0
+ lea %sp@(12),%sp
  rts
 .balign 4
 audio_reset_shim_table:
@@ -112,14 +122,16 @@ audio_reset_shim_table:
  .long p5_audio_reset_shim
  .global audio_sessend_shim
 audio_sessend_shim:
- lea %sp@(-12),%sp
- moveml %d0/%a0,%sp@
+ lea %sp@(-16),%sp
+ moveml %d0-%d1/%a0,%sp@
+ movew %sr,%d1
  movel mu_audio_profile,%d0
  lea audio_sessend_shim_table,%a0
  movel %a0@(0,%d0:l:4),%a0
- movel %a0,%sp@(8)
- moveml %sp@,%d0/%a0
- lea %sp@(8),%sp
+ movel %a0,%sp@(12)
+ movew %d1,%sr
+ moveml %sp@,%d0-%d1/%a0
+ lea %sp@(12),%sp
  rts
 .balign 4
 audio_sessend_shim_table:
@@ -132,14 +144,16 @@ audio_sessend_shim_table:
  .long p5_audio_sessend_shim
  .global audio_isr_shim
 audio_isr_shim:
- lea %sp@(-12),%sp
- moveml %d0/%a0,%sp@
+ lea %sp@(-16),%sp
+ moveml %d0-%d1/%a0,%sp@
+ movew %sr,%d1
  movel mu_audio_profile,%d0
  lea audio_isr_shim_table,%a0
  movel %a0@(0,%d0:l:4),%a0
- movel %a0,%sp@(8)
- moveml %sp@,%d0/%a0
- lea %sp@(8),%sp
+ movel %a0,%sp@(12)
+ movew %d1,%sr
+ moveml %sp@,%d0-%d1/%a0
+ lea %sp@(12),%sp
  rts
 .balign 4
 audio_isr_shim_table:

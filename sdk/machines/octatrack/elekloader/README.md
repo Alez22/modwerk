@@ -277,6 +277,15 @@ refusal fence. Cached vendor results, ownership, a deliberate drain/acknowledgem
 and MSC/disk-mode admission still need the engine-owned transition policy.
 See [EP0 staging evidence](../evidence/usb-profile-ep0-fence-20261021.json).
 
+The six USB handler dispatchers preserve their entry registers and CCR. Their
+earlier lookup retained the registers but changed flags; an exact-image
+audio-off GET_INTERFACE check exposed 30 mismatches across 32 CCR values,
+although its original PEA leaves CCR unchanged. The maintained profile probe
+checks the actual PEA continuation, all 1,344 selected handler-entry contexts,
+and a skipped-SR-restoration control. These captures replace dormant continuations
+only after USB checks finish; they do not establish real ISR timing or host recovery.
+See [dispatcher context evidence](../evidence/usb-profile-dispatch-context-20261021.json).
+
 In the shared base adapter, the high-speed twenty-channel packet watermark trails
 the raw track counter by one block, because MAIN/CUE land later. Its startup
 clear also covers the earlier reader cursor and future master-CUE gap. The

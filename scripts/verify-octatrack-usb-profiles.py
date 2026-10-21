@@ -254,6 +254,106 @@ def ep0_fence_checks(session):
     check('normal reset retires vendor OUT before stage', b.call(s['mu_audio_stage_detached'], 6) == 0)
 
 
+def dispatcher_context_checks(session, output):
+    """End-of-session fixture: no USB request follows these dormant patches."""
+    b, s, check = session.bench, session.symbols, session.check
+    code, capture, pea_capture, buf = CODE + 0x400, CODE + 0xc00, CODE + 0xd00, CODE + 0xe00
+    handlers = ('audio_setiface_shim', 'audio_getiface_shim', 'audio_ctrl_shim',
+                'audio_reset_shim', 'audio_sessend_shim', 'audio_isr_shim')
+    seeds = tuple(0x12345600 + index * 0x10101 for index in range(15))
+    registers = tuple('d%d' % i for i in range(8)) + tuple('a%d' % i for i in range(7))
+    text = '.text\n'
+    for index, name in enumerate(handlers):
+        text += f'''.org {index * 0x100:#x}
+probe_{index}:
+ lea %sp@(-48),%sp
+ moveml %d2-%d7/%a2-%a6,%sp@
+ movel %sp@(52),%d0
+ movel %d0,{s['mu_audio_profile']:#x}
+ movel %sp,{buf + 68:#x}
+'''
+        text += ''.join(' %s #%#x,%%%s\n' % ('moveal' if reg[0] == 'a' else 'movel', value, reg)
+                        for reg, value in zip(registers, seeds))
+        text += f''' movel %d0,%sp@(44)
+ movel %sp@(56),%d0
+ movew %d0,%sr
+ moveml %sp@(44),%d0
+ jsr {s[name]:#x}
+ moveml %sp@,%d2-%d7/%a2-%a6
+ lea %sp@(48),%sp
+ moveq #0,%d0
+ rts
+'''
+    for address, extra in ((capture, 0), (pea_capture, 4)):
+        text += f'''.org {address - code:#x}
+ lea %sp@(-64),%sp
+ moveml %d0-%d7/%a0-%a6,%sp@
+ movew %sr,%d0
+ andil #0xffff,%d0
+ movel %d0,{buf + 60:#x}
+ movel %sp,{buf + 64:#x}
+'''
+        if extra:
+            text += f' movel %sp@(64),%d0\n movel %d0,{buf + 72:#x}\n'
+        text += f''' lea {buf:#x},%a0
+ moveal %sp,%a1
+ moveq #14,%d1
+1: movel %a1@+,%a0@+
+ subql #1,%d1
+ bpl 1b
+ lea %sp@({64 + extra}),%sp
+ rts
+'''
+    source = output / 'dispatcher-context.s'
+    save(source, text.encode())
+    for cmd in [['m68k-elf-as', '-mcpu=54455', '-o', output / 'dispatcher-context.o', source],
+                ['m68k-elf-ld', '-Ttext=' + hex(code), '-o', output / 'dispatcher-context.elf', output / 'dispatcher-context.o'],
+                ['m68k-elf-objcopy', '-O', 'binary', '-j', '.text', output / 'dispatcher-context.elf', output / 'dispatcher-context.bin']]:
+        subprocess.run(list(map(str, cmd)), check=True, capture_output=True, timeout=30)
+    b.cmd('unplug', 'ok')
+    b.poke(code, (output / 'dispatcher-context.bin').read_bytes())
+    def jump(address):
+        return b'\x4e\xf9' + struct.pack('>I', address)
+    def context(index, profile, flags, extra=0):
+        check('dispatcher context fixture returns', b.call(code + index * 0x100, profile, 0x2000 | flags) == 0)
+        got = struct.unpack('>19I', session.peek(buf, 76))
+        check('selected handler receives original registers', got[:15] == seeds)
+        check('selected handler receives original CCR', got[15] == 0x2000 | flags)
+        check('dispatcher preserves caller stack', got[17] - got[16] == 68 + extra)
+        if extra:
+            check('audio-off GET_INTERFACE pushes original pointer', got[18] == 0x400e20a1)
+    rejoin = 0x4001d81e
+    original = session.peek(rejoin, 6)
+    b.poke(rejoin, jump(pea_capture))
+    for flags in range(32):
+        context(1, 0, flags, 4)
+    # Prove the check notices a missing SR restore in the authored dispatcher.
+    fn, end = s['audio_getiface_shim'], s['audio_getiface_shim_table']
+    body = session.peek(fn, end - fn)
+    matches = [at for at in range(0, len(body) - 1, 2) if body[at:at + 2] == b'\x46\xc1']
+    check('dispatcher has one SR restoration', len(matches) == 1)
+    at = fn + matches[0]
+    b.poke(at, b'\x4e\x71')
+    b.call(code + 0x100, 0, 0x201f)
+    check('skipped dispatcher SR restore is detected', struct.unpack('>I', session.peek(buf + 60, 4))[0] != 0x201f)
+    b.poke(at, b'\x46\xc1')
+    b.poke(rejoin, original)
+    patches = []
+    for profile in range(7):
+        for name in handlers:
+            label = ('off_' + name) if profile == 0 else ('p%d_' % (profile - 1) + name)
+            address = s[label]
+            b.poke(address, jump(capture))
+            patches.append(dict(address=hex(address), bytes=6, purpose='dormant handler entry capture'))
+    for index in range(len(handlers)):
+        for profile in range(7):
+            for flags in range(32):
+                context(index, profile, flags)
+    return dict(handlerContexts=6 * 7 * 32, actualOffPeaContexts=32,
+                skippedSrRestoreDetected=True, fixtureSha256=digest(output / 'dispatcher-context.bin'),
+                patches=patches + [dict(address=hex(rejoin), bytes=6, purpose='temporary PEA capture rejoin; restored')])
+
+
 def run(args):
     symbols = json.loads((args.build / 'symbols.json').read_text())
     proof = json.loads((args.build / 'proofs.json').read_text())
@@ -285,7 +385,7 @@ def run(args):
         referenceBuilds=refs, checks=checks, streamCases=cases,
         limitations=['Internal detached board seam, not host settings/authorization/reconnect recovery or lifecycle.',
             'No real DSP/project, cache/DMA, host class drivers, audio quality or hardware timing.',
-            'Frame-free fixture patches only the dormant ISR epilogue with a C return. Streaming phase has no code patches.'])
+            'Frame-free fixture uses dormant ISR/USB continuations and handler-entry captures; no USB traffic follows the final context patches. Streaming phase has no code patches.'])
     def check(name, condition):
         checks.append(dict(check=name, passed=bool(condition)))
         if not condition:
@@ -390,6 +490,7 @@ def run(args):
             if not frames:
                 ep0_fence_checks(session)
                 readiness_checks(session)
+                receipt['dispatcherContext'] = dispatcher_context_checks(session, folder)
             session.close()
             session = None
         receipt['passed'] = True
