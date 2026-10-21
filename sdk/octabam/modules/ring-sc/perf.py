@@ -143,8 +143,9 @@ def bench(out):
                               perSampleMean=round((mean(row) - nulls[key]) / 16, 2), clippedSamples=row['clipped_samples']))
 
         dear = dict(MOD.dear)
-        # RING: SLEW (ATK) and BIAS (REL) at 127 as in DUCK, and S&H (HOLD) on at its shortest period, 16 samples.
-        # Its loop is straight-line, so every setting costs the same a sample; only rq83's shift loop (ATK) varies.
+        # RING: SLEW (ATK) and RECT (REL) at 127 as in DUCK, and S&H (HOLD) on at its shortest period, 16 samples.
+        # Its loop is straight-line, so every setting costs the same a sample; only rq83's shift loop (ATK) and
+        # SLEW's one-instruction branch (above 0 its coefficient is written) vary.
         modes = (('duck', {**dear, 'MODE': 0}), ('ring', {**dear, 'MODE': 1, 'HOLD': 1}))
         for effect in ('RINGMOD SC',) + STOCK_EFFECTS:
             m, key = (MOD, 'ringsc') if effect == 'RINGMOD SC' else (registry.by_key(effect), 'stock')

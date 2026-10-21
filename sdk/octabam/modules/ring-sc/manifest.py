@@ -7,7 +7,8 @@ In RING the three DUCK-only knobs shape the carrier m(key), each a plain copy
 at 0, so RING with all three at 0 is the plain ring modulator:
     S&H   (HOLD) a new key every 16v samples, held between: stepped modulation
     SLEW  (ATK)  above 0 the key's level, |key| smoothed (0.7 ms at 1 to 1.3 s at
-                 127), drives the gain instead: a tremolo that follows the key
+                 127), drives the gain instead: a tremolo that follows the key;
+                 crossfaded in and out over 16 samples, so crossing 0 does not click
     RECT  (REL)  m + r * (|m| - m), r = v/128: toward the rectified key, its
                  frequency doubled and never negative at 127, ramped like the depth
 
@@ -41,8 +42,8 @@ the other core publishes, so it takes no per-payload values.
 
 Measured so far (TESTING.md): the render gate and stress render on this source;
 DUCK, and RING with S&H, RECT and SLEW at 0, equal 0.1.0 sample for sample.
-0.1.0's key bus reader passed its first MKII steps (21 Oct 2026); 0.2.0 has
-not run on a unit.
+0.1.0's key bus reader passed its first MKII steps (21 Oct 2026), and 0.2.0's
+build before RECT its by-ear checks; this source has not run on a unit.
 """
 
 from remix.schema import (Category, Proof, BusRole, DspSection, Formatter, Gate,
@@ -60,7 +61,7 @@ MODULE = Module(
     doc="Ring mod sidechain: duck or ring-modulate a track with another track's waveform.",
     category=Category.TRACK, author="npp1993", author_url="https://github.com/npp1993",
     proof=Proof.RENDER,
-    proof_note="verify.py and tools/stress.py under dsp_host (TESTING.md). 0.2.0 has not run on a unit.",
+    proof_note="verify.py and tools/stress.py under dsp_host (TESTING.md). This source has not run on a unit; 0.2.0's build before RECT passed by-ear MKII checks.",
 
     menu=MenuEntry(
         fx2_id=0x06,                  # free on main (0x0e is BBD Delay's)

@@ -115,7 +115,8 @@
       "On the first visit to the main page after choosing the effect, KEY may move one track per detent until the page is entered again (seen on card images under the emulator; not checked on the USB base).",
       "Declared conflict with Analog BD: carried over from the card builder's rule (Analog BD admits only the effects on its companion list, and this one is not on it). Over USB no resource clash is known; it is declared for every build until the owner decides otherwise, so the configurator never offers both.",
       "DUCK buzzes at its very shortest settings: with ATK, HOLD and REL all near 0 the gain follows each cycle of the key, an audio-rate amplitude modulation (heard on an MKII with 0.1.0, as expected). Keep HOLD above half a cycle of the key for a clean duck.",
-      "On an MKII (21 October 2026, over USB, beside seven other modules, the build before RECT) DUCK, MODE's SETUP label, plain RING, S&H and SLEW were checked by ear. RECT, scenes, the crossfader, project save, Part reload and a power cycle are not tested on a unit."
+      "A slow SLEW stops a little short of the key's level (each sample's rise is truncated to the word; up to about 1.4% of full scale at 127, as the review measured on the build before) and a very quiet key never raises it from 0; an LFO on S&H turns S&H 0 into a hold of 1 to 15 samples.",
+      "On an MKII (21 October 2026, over USB, beside seven other modules, the build before RECT) DUCK, MODE's SETUP label, plain RING, S&H and SLEW were checked by ear. RECT, SLEW's crossfade through 0 and S&H's shortened hold (fixed since), scenes, the crossfader, project save, Part reload and a power cycle are not tested on a unit."
     ],
     "effectId": 6
   },
@@ -123,11 +124,11 @@
     "recorded": "21 Oct 2026 (0.2.0), static and dsp_host",
     "storage": {
       "label": "DSP program",
-      "display": "322 words P per core, 20 words X per instance, no buffer",
-      "value": 322,
+      "display": "351 words P per core, 22 words X per instance, no buffer",
+      "value": 351,
       "unit": "words",
       "method": "static",
-      "conditions": "Assembled with dsp_asm: 322 words, both payloads (one source). State is 20 words of the instance's existing r7 block. The key bus is the base's (Y $800-$9FF on each core and $202 words at the end of each core's half of the shared window); the package declares reads of them as its DSP claims and writes nothing outside its state. A 9-value KEY formatter, a MODE formatter with its renames and the shared wide dial are ColdFire data in its page recipe.",
+      "conditions": "Assembled with dsp_asm: 351 words, both payloads (one source). State is 22 words of the instance's existing r7 block. The key bus is the base's (Y $800-$9FF on each core and $202 words at the end of each core's half of the shared window); the package declares reads of them as its DSP claims and writes nothing outside its state. A 9-value KEY formatter, a MODE formatter with its renames and the shared wide dial are ColdFire data in its page recipe.",
       "source": "TESTING.md"
     },
     "processing": {
@@ -150,27 +151,29 @@
       "dsp": {
         "level": "low",
         "basis": "source-estimate",
-        "rationale": "At most 80.56 executed instructions/sample per instance with trig splits in perf.py's bench (DUCK, 67.69 unsplit; RING 76.44 / 65.62), against 72.06 for stock COMPRESSOR and 314.19 for SPRING REV in the same host. The base's key bus tap adds 41 executed instructions a sample per core while the module is installed (counted from its source).",
+        "rationale": "At most 80.56 executed instructions/sample per instance with trig splits in perf.py's bench (DUCK, 67.69 unsplit; RING 79.19 / 67.00), against 72.06 for stock COMPRESSOR and 314.19 for SPRING REV in the same host. The base's key bus tap adds 41 executed instructions a sample per core while the module is installed (counted from its source).",
         "source": "TESTING.md"
       },
       "memory": {
         "level": "low",
         "basis": "source-estimate",
-        "rationale": "322 words of DSP program per core and 20 words of state in each instance's existing block; the key bus's memory is the base's.",
+        "rationale": "351 words of DSP program per core and 22 words of state in each instance's existing block; the key bus's memory is the base's.",
         "source": "TESTING.md"
       }
     }
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "The assembled reader matches a reference model within 3.1e-05 of full scale in both modes, passes the input bit for bit when the key bus is not live, and equals the earlier own-tap build sample for sample over 417 renders but for the wait after a KEY or MODE change. Never run on hardware.",
+    "summary": "The assembled module matches a reference model within 1.8e-07 of full scale in both modes (the key's low-pass, RECT and SLEW's level in exact integers), passes the input bit for bit when the key bus is not live, and equals 0.1.0 sample for sample in DUCK and in RING with S&H, RECT and SLEW at 0. SLEW crosses 0 without a click and S&H turned down cuts its hold short (both fail on the build before). This exact source has not run on a unit; the 0.2.0 build before RECT passed DUCK, MODE, plain RING, S&H and SLEW by ear on an MKII (21 October 2026).",
     "hardwareStatus": "untested",
     "evidenceRevision": "c2f2ec3f235944ee4cf265cea14f1f77b17a51e8",
     "gates": [
-      "verify.py: bit-exact passthrough (KEY OFF, DPTH 0, no key bus), DUCK and RING against the model, ATK, a steady and a decaying key, both key paths, trig splits, the mode fade, the memory guard and knob steps",
+      "verify.py: bit-exact passthrough (KEY OFF, DPTH 0, no key bus), DUCK and RING against the model over 576 settings, ATK, a steady and a decaying key, both key paths, trig splits, the mode fade, the memory guard, knob steps, and RING's carrier: S&H's hold, SLEW's level, RECT's rectification, SLEW across 0 once and every eight blocks without a click, S&H 127 to 0 taking a new key at once",
+      "compare02 (dsp_host) against 0.1.0: DUCK and RING with S&H, RECT and SLEW at 0 identical over 864 + 36 settings, the key paths, splits, mode switches and sweeps (TESTING.md)",
       "tools/stress.py: eight instances with every knob moving for 30 s under dsp_host -guard -dirty",
-      "A dsp_host comparison with the 84b4529d own-tap build fed the same key: identical over 417 renders once its wait is one call (TESTING.md)",
-      "Earlier own-tap build only: ot_emu key lag, both modes on FX1 and FX2 on both cores, parameter locks and LFOs; npm run fx:audit"
+      "perf.py: bench against stock COMPRESSOR, SPRING REV, DARK REV and DJ EQ, and sixteen instances under -guard -guard-shared -dirty with LFOs, random slots and trig splits (evidence/performance.json)",
+      "tools/build/cycle_count.py: 63 cycles/sample in each mode loop",
+      "npm run module:verify -- ring-sc: the native comparison of every chooser selection (TESTING.md)"
     ]
   },
   "license": {

@@ -2,18 +2,37 @@
 
 ## 0.2.0-experimental: RING's SLEW, S&H and RECT (21 October 2026)
 
-Source: branch `claude/ringmod-sc-0.2` on main `91e72c81` (the key bus integrated, #750 and #737). Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Nothing in this section ran
-on hardware.** What changed from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
+Source: branch `claude/ringmod-sc-0.2` on main `4d4f731d` (the key bus integrated, #750 and #737; the USB-only rule,
+#774). Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Only the MKII session below ran on
+hardware, on the build before RECT; RECT and the review fixes have not.** What changed from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
 on the knobs DUCK uses for ATK, HOLD and REL, renamed in RING by MODE (a NameSelect, so MODE keeps its own name: SLEW, S&H, RECT):
-- S&H (HOLD): a new key every 16v samples, held between; at 0 the same reload takes every key.
-- SLEW (ATK): the key's level, |key| smoothed by 1 - q(v) on ATK's scale, kept every sample and chosen above 0.
+- S&H (HOLD): a new key every 16v samples, held between; at 0 the same reload takes every key. The countdown is
+  clamped to the period every call, so turning S&H down cuts the current hold short.
+- SLEW (ATK): the key's level, |key| smoothed by 1 - q(v) on ATK's scale, kept every sample and crossfaded in by a
+  weight w ramped over 16 samples (to 1 above 0, to 0 at 0), so SLEW crossing 0 (a turn, a lock, an LFO) does not
+  step from the key to its level. At 0 the level keeps its last coefficient while w fades it out, so it does not jump
+  to |key| either; at w = 0 it is not heard.
 - RECT (REL): key + r (|key| - key), r = v/128 · 129/128, ramped over 16 samples like the depth; it replaces the
-  first build's BIAS (key (1 - h) + h), a dry/wet crossfade the depth already gives. Applied before SLEW.
+  first build's BIAS (key (1 - h) + h), a dry/wet crossfade the depth already gives. Kept as u = 2r - 1 (-1 at RECT 0,
+  set by init): a key below 0 becomes -key · u, one at or above 0 stays, so RECT 0 is the key exactly. Applied before
+  SLEW.
 The RING loop stays straight-line (`cycle_count.py` needs it): its state is DUCK's words, cleared on a MODE change,
-plus $11 (S&H's countdown) and $13 (RECT's step). 270 → 323 DSP words; 19 → 20 words of state. Two
-register-to-register parallel moves keep the RING loop at DUCK's count with RECT in it.
+plus $11 (S&H's countdown), $13 (u's step) and $14/$15 (SLEW's weight and its step). 270 → 351 DSP words; 19 → 22
+words of state. RECT as one multiply and a conditional transfer, and each ramp's step folded into its load
+(`add x0,a a,y0`), keep the RING loop at DUCK's count with the crossfade in it.
 
-**Against 0.1.0, sample for sample** (`compare02.py`, kept privately; dsp_host, 0.1.0 = `c732b232`'s `ringsc.asm`,
+**Review fixes** (21 October 2026, an independent review of the build before; the render gate's 10d and 10e fail that
+build and pass this one):
+- SLEW crossing 0 switched the carrier from the signed key to its level in one sample (up to -0.999 → +0.999 of gain):
+  a click on turning it through 0, a lock on ATK in RING, and every cycle of an LFO crossing 0. Now the 16-sample
+  crossfade above.
+- S&H turned from 127 to 0 held the old key until its countdown ran out (up to 2,032 samples, 46 ms). Now the
+  countdown is clamped to the new period every call.
+- The model in `verify.py` now runs the key's low-pass, RECT and SLEW's level in exact integers, as the accumulator
+  holds them (the level now keeps the fractional bits of |key| in its sum, so a float key drifted from it at ATK
+  127); it matches the DSP within 1.78e-07 of full scale (3.14e-05 before).
+
+**Against 0.1.0, sample for sample** (rerun on the review-fix source; `compare02.py`, kept privately; dsp_host, 0.1.0 = `c732b232`'s `ringsc.asm`,
 source `c2f2ec3f`, both on the same synthetic key bus):
 
 | Claim | Renders | Result |
@@ -26,30 +45,32 @@ source `c2f2ec3f`, both on the same synthetic key bus):
 | RING at 0: DPTH and KLPF sweeps | 2 | identical |
 | MODE DUCK → RING, RING → DUCK and DUCK → RING → DUCK mid-render, S&H/RECT/SLEW at 0 | 3 | identical |
 
-**Render gate.** `python3 verify.py`: every gate passes; 323 words, no mpysu.
+**Render gate.** `python3 verify.py`: every gate passes; 351 words, no mpysu.
 
 | Gate | Result |
 | --- | --- |
 | No live key bus (four cases), KEY OFF, KEY 100, DPTH 0 in both modes (S&H 34, RECT 45), silent key in DUCK | bit for bit |
-| DUCK and RING against the float model, 576 settings (RING now over HOLD 0/34/127 too: S&H, RECT and SLEW) | worst 3.14e-05 of full scale |
+| DUCK and RING against the model, 576 settings (RING now over HOLD 0/34/127 too: S&H, RECT and SLEW) | worst 1.78e-07 of full scale |
 | Other core, the module on T2, split blocks, key dispatched after, `-guard -dirty 0x5a`, MODE/KEY changes mid-render | pass, both modes |
 | 10a S&H 8 under a full-scale 55 Hz key on a steady input | every key held exactly 128 samples |
 | 10b SLEW 60 | gain 0.581..0.661, never below 0 (SLEW 0 reaches -1.000) |
 | 10c RECT 127 | gain 0.000..1.000, mean 0.639 (2/π = 0.637); RECT 0 reaches -1.000 |
+| 10d SLEW 0 → 30 → 0 under the full-scale key, once and every eight blocks, against the model | largest output step 0.050 and 0.106 of the input (limit 0.25; steady 0.008); the build before: 0.762 and 1.798 |
+| 10e S&H 127 → 0 mid-render | equal to S&H 0's output from the change on; the build before held 1,727 samples past it |
 | Each continuous knob (now with SLEW and RECT in RING) swept under a tone | loudest -91 dBFS at the block rate (limit -70) |
 
 **Stress.** `python3 tools/stress.py 30`: eight instances and the fixture for 30 s, `-guard -dirty 0x5a`, 27,561 knob
-moves: 8 of 8 clean, 0 samples on the limit, core meter 9,743 instructions a block at most.
+moves: 8 of 8 clean, 0 samples on the limit, core meter 9,875 instructions a block at most.
 
 **Cycle count.** `tools/build/cycle_count.py`: 63 cycles/sample in both mode loops (DUCK 63 as before, RING 32 → 63),
 so the declared worst case does not rise.
 
-**Performance record** (`perf.py`, on a private native image `f40daecd…`, the key bus's seed marks written into both
+**Performance record** (`perf.py`, on a private native image `a3c9b043…`, the key bus's seed marks written into both
 dumps; the RING case now with S&H on at its shortest period): worst 80.56 executed instructions/sample (DUCK, trig split
-at frame 1; 67.69 unsplit; unchanged), RING with S&H, RECT and SLEW on 76.56 with splits / 65.69 unsplit (0.1.0: 38.06 / 30.94); COMPRESSOR 72.06,
+at frame 1; 67.69 unsplit; unchanged), RING with S&H, RECT and SLEW on 79.19 with splits / 67.00 unsplit (0.1.0: 38.06 / 30.94); COMPRESSOR 72.06,
 SPRING REV 314.19. `perf.py stress --both`: sixteen instances (eight a core, FX1 and FX2), 32 s with three LFOs, 14
 random slots a step (MODE and RING's knobs included), six trig splits, `-guard -guard-shared -dirty 0x5a`: host exit 0,
-0 stray regions, 0 clobbers, per-core peak 634.2 / 636.8.
+0 stray regions, 0 clobbers, per-core peak 638.1 / 636.8.
 
 **The USB package** (`public/octatrack-modules/ring-sc/0.2.0-experimental.mwrm`, 2,304 bytes, sha256 `8fd097af…`,
 built with main's `module_packages.py` on main `4d4f731d`. Earlier builds of this version: `72a1af2d…` (2,316 bytes,
@@ -78,9 +99,19 @@ installed: priced 1, readers 1, both resets 1,026, masks `0e 0c`, both cores kno
 By ear: DUCK ducks; SETUP reads MODE over DUCK and RING; the RING page reads SLEW, S&H and BIAS; RING with S&H and BIAS
 at 0, DPTH 127: kick-gated ring modulation; S&H up: stepped; SLEW up: smoother; BIAS up: the dry signal returns under
 the ring (which is why it was replaced: it is the depth again). KEY, after re-entering the page, moved a track per
-several detents (the stock select step). RECT has not run on a unit.
+several detents (the stock select step). RECT and the review fixes have not run on a unit.
 
-**Not tested (0.2.0):** all hardware behaviour, the three new knobs by ear, `fx:audit`, MKI.
+**Not tested (0.2.0):** on a unit, RECT, SLEW's crossfade and S&H cut short (the source as released); parameter
+locks, LFOs, scenes, project save, Part reload and a power cycle; `fx:audit`; MKI.
+
+**Known limits (0.2.0, from the review):**
+- A slow SLEW stalls short of the key's level: each sample adds (1 - s)(|key| - level), truncated to the word, so near
+  the target the rise drops under one step (the review measured about 1.4% of full scale at 127 on the build before;
+  the fractional bits of |key| now kept in the sum make it smaller on average, not re-measured), and a key that quiet
+  never raises the level from 0.
+- An LFO on S&H (HOLD) adds its fraction to the period's low bits, so S&H 0 under an LFO holds 1 to 15 samples.
+- The register-to-register parallel forms this version uses (`abs a a,b`, `tfr a,b a,y1`, `tfr b,a b,y1`,
+  `add x0,a a,y0`) run in dsp_host's emulation only; the pending MKII step is their first run on the chip.
 
 ---
 

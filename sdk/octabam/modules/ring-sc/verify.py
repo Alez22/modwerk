@@ -45,7 +45,14 @@ Gates:
      b. SLEW 60 drives the gain with the key's level: it never goes below 0
         and swings less than half the input, where SLEW 0 rings down to -1;
      c. RECT 127 rectifies the key: the gain never goes below -1% and its mean
-        is near 2/pi (|sin|), where RECT 0 reaches -1.
+        is near 2/pi (|sin|), where RECT 0 reaches -1;
+     d. SLEW switched across 0 and back, once and every eight blocks (a lock
+        or an LFO), follows the model and steps the output by no more than a
+        quarter of the input a sample, where an unramped switch from the key
+        to its level steps by up to twice the input;
+     e. S&H turned from 127 to 0 takes a new key from the next call on: the
+        output equals S&H 0's within one block, where the old hold ran out
+        its count (up to 2,032 samples).
      (RING with all three at 0 is 0.1.0's ring modulator bit for bit: compared
      against 0.1 in TESTING.md, not here.)
 """
@@ -201,9 +208,12 @@ def model(key, audio, kn, delay=0, sched=None):
     lim = lambda v: max(-1.0, min(one, v))
     key = [0] * (32 * delay) + key
     d = warm = cnt = shc = 0
-    h = 0
+    h = -Q                                                 # RECT's u = 2r - 1: -1 (r = 0) from init
+    slowr = 0                                              # the level's coefficient (a word): SLEW's last above 0
+    wt = 0                                                 # SLEW's weight
     cfg = (0, 0)
-    lp = e = cur = last = held = env = 0.0
+    e = cur = last = held = env = 0.0
+    lpw = 0                                                # the key low-pass's word
     out = []
     for blk in range(len(audio) // 32):
         kn = (sched or {}).get(blk, kn)
@@ -218,7 +228,8 @@ def model(key, audio, kn, delay=0, sched=None):
             warm -= 1
             quiet = True
             if warm == 0:
-                lp = e = cur = last = held = env = 0.0
+                e = cur = last = held = env = 0.0
+                lpw = 0
                 shc = 0
         w = dpth << 16
         d, dstep = _ramp(d, 0 if quiet else ((w << 24) >> 7) + (w << 24))
@@ -227,17 +238,23 @@ def model(key, audio, kn, delay=0, sched=None):
         if not 1 <= ks <= 8:
             out += seg
             continue
-        c = _p(klpf) / Q
+        cw = _p(klpf)
         decay, slow = (FULL - _q(rel)) / Q if rel else 0.0, (FULL - _q(atk)) / Q if atk else 0.0
+        if m == 0 or atk:
+            slowr = FULL - _q(atk) if atk else 0           # DUCK writes it every call, RING only above 0
         if m:
+            wt, wstep = _ramp(wt, (FULL << 24) if atk else 0)  # SLEW's weight: 1 above 0, ramped in 16 samples
             per = 16 * hold                                # S&H: a new key every 16v samples
+            shc = min(shc, per)                            # a shorter period cuts the current hold short
             r16 = rel << 16
-            h, hstep = _ramp(h, ((r16 << 24) >> 7) + (r16 << 24))  # RECT: r = v/128 * 129/128, ramped as the depth is
+            h, hstep = _ramp(h, 2 * (((r16 << 24) >> 7) + (r16 << 24)) - (1 << 47))  # RECT: u = 2r - 1, ramped
         for f in range(16):
             i = blk * 32 + f * 2
-            km = (key[i] + key[i + 1]) / 2 / Q
-            lp += c * (km - lp)
-            kg = lim(lp * 4)
+            km = (key[i] + key[i + 1]) >> 1                # rq86 in integers (units of 2^-46): mono, low-passed,
+            acc = lpw * Q + cw * km - cw * lpw             # the word stored, the key four times from the whole sum
+            lpw = acc // Q
+            kgw = max(-Q, min(FULL, (4 * acc) // Q))
+            kg = kgw / Q
             if m == 0:
                 d += dstep
                 cur = max(cur, min(abs(kg), one))
@@ -254,15 +271,17 @@ def model(key, audio, kn, delay=0, sched=None):
             else:
                 shc -= 1                                   # S&H: period 0 takes every key
                 if shc <= 0:
-                    shc, held = per, kg
-                k = held
-                r = h / Q
-                k = k - k * r + min(abs(k), one) * r       # RECT: toward |key|
-                ak = min(abs(k), one)                      # SLEW's level, kept at 0 too
-                env = math.floor((ak - ak * slow + env * slow) * Q) / Q
-                if slow:
-                    k = env
+                    shc, held = per, kgw                   # the word y1 takes
+                # RECT and SLEW's level in exact integers (units of 2^-46), as the accumulator holds them.
+                r2 = -held * h if held < 0 else held * Q   # RECT: k + r(|k| - k) = k(1 - 2r) = -k * u below 0
+                ak = min(abs(r2) // Q, FULL)               # |key| as the word x1 takes it
+                lv = abs(r2) - ak * slowr + round(env * Q) * slowr
+                env = min(FULL, lv // Q) / Q               # SLEW's level, kept at 0 too
+                k = r2 / (Q * Q)
+                w = wt / Q
+                k = lim(k + w * (env - k))                 # crossfaded from the key to its level by w
                 h += hstep
+                wt += wstep
                 for ch in (0, 1):
                     x = seg[f * 2 + ch] / Q
                     out.append(lim(x - x * (d / Q) + x * ((d / Q) * k)) * Q)
@@ -454,6 +473,27 @@ def main():
         mean = sum(rect) / len(rect)
         gate("10c RECT 127: the key rectified", min(rect) >= -0.01 and abs(mean - 2 / math.pi) < 0.03 and min(plain) < -0.9,
              f"(gain {min(rect):.3f}..{max(rect):.3f}, mean {mean:.3f}; RECT 0 reaches {min(plain):.3f})")
+
+        # SLEW across 0: once each way, then every eight blocks (as a lock or an LFO on ATK would).
+        lstep = lambda y: max(abs(y[i] - y[i - 2]) for i in range(2 * 3000, len(y)))
+        lo = max(lstep(rig.run(key_r, flat_r, knobs(mode=1, atk=a, hold=0, rel=0))[0]) for a in (0, 30))
+        for name, ch in (("once each way", {350: 30, 450: 0}),
+                         ("every eight blocks", {350 + 8 * i: (30 if i % 2 == 0 else 0) for i in range(24)})):
+            base = knobs(mode=1, atk=0, hold=0, rel=0)
+            got, _ = rig.run(key_r, flat_r, base, extra=("-sched", ",".join(f"{b}:1:3={v}" for b, v in ch.items())))
+            e = err(got, model(key_r, flat_r, base, sched={b: knobs(mode=1, atk=v, hold=0, rel=0) for b, v in ch.items()}))
+            gate(f"10d SLEW across 0, {name}: no click", e <= TOL and lstep(got) <= max(2 * lo, level // 4),
+                 f"(model {e:.2e}, largest step {lstep(got) / level:.3f} of the input; steady {lo / level:.3f})")
+
+        # S&H 127 -> 0: the next call takes a new key.
+        sh = knobs(mode=1, atk=0, hold=127, rel=0)
+        got, _ = rig.run(key_r, flat_r, sh, extra=("-sched", "400:1:4=0"))
+        every, _ = rig.run(key_r, flat_r, knobs(mode=1, atk=0, hold=0, rel=0))
+        diff = [i // 2 for i in range(len(got)) if got[i] != every[i]]
+        last = max(diff) if diff else -1
+        e = err(got, model(key_r, flat_r, sh, sched={400: knobs(mode=1, atk=0, hold=0, rel=0)}))
+        gate("10e S&H 127 -> 0: a new key from the next call", e <= TOL and last < 400 * 16 + 16,
+             f"(model {e:.2e}; last sample unlike S&H 0's: {last - 400 * 16} after the change)")
     finally:
         shutil.rmtree(work, ignore_errors=True)
     if failures:
