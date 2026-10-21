@@ -2,7 +2,7 @@
   "schema": 1,
   "revision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
   "license": "/licenses/octabam.txt",
-  "sourceCommit": "408227215dfd24be14d8d6588d95bf22f3a63c0c",
+  "sourceCommit": "905faab2e4459b8bf80ea8040282b3bb7a9988f3",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -30,7 +30,8 @@
     "recorder-loop-fix": "0.1.0-experimental",
     "poly8": "0.3.0-experimental",
     "output-matrix": "0.1.1-experimental",
-    "quantize-live-rec-toggle": "0.1.0-experimental"
+    "quantize-live-rec-toggle": "0.1.0-experimental",
+    "apply-scene": "0.1.0-experimental"
   },
   "packages": [
     {
