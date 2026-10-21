@@ -23,14 +23,19 @@ def main():
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     here=Path(__file__).resolve().parent
+    octatrack=here.parents[2]/'machines/octatrack'
     if args.output.exists(): parser.error('Output exists; use a fresh private build directory.')
     with tempfile.TemporaryDirectory(prefix='vector-cf.') as directory:
         work=Path(directory)
         unity=work/'vector.c'
-        unity.write_text('#include "engine.c"\n#include "persistence.c"\n#include "native.c"\n')
+        # On a card VECTOR is the one MIDI generator: it links the base's registry with its own record.
+        unity.write_text('#include "engine.c"\n#include "persistence.c"\n#include "native.c"\n#include "midi.c"\n'
+                         '#define MG_FIXED vector_midi\n#include "midi_generators.c"\n')
         assembly=work/'vector.s'
-        subprocess.run(['m68k-elf-gcc',*FLAGS,'-I',str(here),'-S',str(unity),'-o',str(assembly)],check=True)
-        text=assembly.read_text()+'\n#APP\n'+(here/'hooks.s').read_text()+'\n.text\n.balign 2\n'
+        include=[x for d in (here,octatrack/'elekloader',octatrack/'include') for x in ('-I',str(d))]
+        subprocess.run(['m68k-elf-gcc',*FLAGS,*include,'-S',str(unity),'-o',str(assembly)],check=True)
+        text=(assembly.read_text()+'\n#APP\n'+(here/'hooks.s').read_text()+'\n'+
+              (octatrack/'elekloader/midi_generators.s').read_text()+'\n.text\n.balign 2\n')
         # The shared native/browser linkers restore these from verified local OS.
         for name,address,length in REPLAYS:
             text+=name+':\n.space '+str(length)+'\njmp '+hex(address+length)+'\n'

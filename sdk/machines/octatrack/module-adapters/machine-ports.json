@@ -140,8 +140,8 @@
   },
   "vector": {
    "sources": {
-    "sdk/octabam/modules/vector/control.s": "c4f829e437ffbde1275c00827031b694a86011013d37269077e4696818323471",
-    "sdk/octabam/modules/vector/manifest.py": "4d921f24256038797a99671534885b0bb9a27eaa79261b11136cf0a95a75af21"
+    "sdk/octabam/modules/vector/control.s": "33c9bef41f38759054cd061e501de67bfb84bf13b4d0d76590f8dc2a1d09faa2",
+    "sdk/octabam/modules/vector/manifest.py": "b9dec167f8bd4f1b691069cc89834f6c2a6717b874eb28629ef5c8c026d3d976"
    },
    "contribute": [
     {
@@ -204,7 +204,8 @@
     "st_name_replay",
     "st_main_replay",
     "st_edit_replay",
-    "st_draw_replay"
+    "st_draw_replay",
+    "mg_stock_note_draw"
    ],
    "why": "VECTOR's st_* chooser hooks and their stock replays are unreachable in the package; its registry functions are the descriptor's"
   },
