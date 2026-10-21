@@ -61,7 +61,7 @@
   "designFindings": [
     "Use immutable descriptor templates in page-contained aligned slots; select them after EP3 retirement, preserving displaced PEA register/condition state.",
     "Keep the IRQ-masked commit bounded to selected host state and profile/length; no bulk descriptor or full-ring copy. Hardware cost still unmeasured.",
-    "The existing first-produced-block cushion and cursors prevent stale previous-layout samples from reaching USB without clearing the entire ring. Keep POST musical history separate."
+    "One automatic synthetic stream run excluded ring poison. A later maintained build with the same reader logic exposed delayed MAIN/CUE slots under near-drain conditions; this result does not establish complete readiness. The maintained staging adapter adds a packet watermark and bounded startup clear."
   ],
   "limitations": [
     "No checked-in all-profile source builder option or catalogue admission.",
@@ -70,5 +70,6 @@
     "No physical boot, real class-driver reconnection, cache/DMA behavior, DSP pairing, musical controls, listening, analog comparison or hardware timing result.",
     "Historical mutable-table fixture passed441+287 checks but used bulk work under the IRQ mask; retained privately and superseded. Its stock-copy postprocessor is not used by this immutable build.",
     "An early other-speed oracle and a manual-producer/undrained-stream fixture failed. Those attempts are retained; neither is counted as a passing test or physical firmware defect."
-  ]
+  ],
+  "supersededBy": "usb-profile-source-staging-20261021.json"
 }

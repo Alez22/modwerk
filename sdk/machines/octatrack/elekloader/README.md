@@ -251,6 +251,42 @@ recognize an expanded encoding. This does not add runtime settings or
 admit the USB Audio catalogue module to USB sync. POST still needs its own
 signal/ramp/scene, EMAC preservation, timing and physical qualification.
 
+For offline development, raw `build_core.py --usb-audio-profiles` source-links
+all six outputs plus audio-off in one base. It requires `--dsp-loader`,
+`--usb-midi` and an explicit `--usb-audio` initial layout, and refuses development
+mode or controller admission. The generated package uses the same named POST
+fill even when another layout starts active. All inputs are fingerprinted;
+generated sources, packages and images stay private. This flag is deliberately
+absent from the public base/export CLI.
+
+The [profile adapter](../module-adapters/usb-audio-profiles/profiles.py) gives
+the six producers one shared ring/sum and one set of hooks, while preserving
+POST history across other layouts/off. Immutable 512-byte descriptor slots
+stay within pages. Its internal detached-only function changes the incoming
+bounded host state and selected profile under the IRQ mask. It has no host
+settings command, transition authorization/recovery lease, EP0 retirement,
+profile inventory or Keep/Undo/persistence transaction. Do not admit a USB Audio
+catalogue module on the strength of this staging seam.
+
+In this opt-in adapter, the high-speed twenty-channel packet watermark trails
+the raw track counter by one block, because MAIN/CUE land later. Its startup
+clear also covers the earlier reader cursor and future master-CUE gap. The
+unchanged raw counter still drives producers. This was found with a poisoned
+shared ring and near-drained packet queue; one timing-dependent streaming pass
+did not prove the original cushion sufficient. The bounded first-frame cost,
+real DSP pairing and audio remain hardware qualification gaps. Ordinary
+per-layout builds and the card module retain their earlier producer source.
+
+Run `scripts/verify-octatrack-usb-profiles.py --build <private-initial-POST-build>
+--emulator <isolated-ot_emu> --reference-builds <seven-separate-native-builds>
+--output <new-private-directory>` for exact-identity offline descriptor,
+detached-stage, MIDI/storage, packet-readiness/counter-wrap, bounded startup
+clear and poisoned-stream checks at both speeds. It checks native image hashes
+and reference layouts before launch, and IDENTIFY before fixture writes.
+Only the frame-free phase substitutes a dormant ISR epilogue with a C return;
+the streaming phase uses automatic synthetic frames without code patches.
+See [scoped results](../evidence/usb-profile-source-staging-20261021.json).
+
 `scripts/verify-octatrack-usb-reconnect.py` runs four unplug/replug cycles and a
 bus reset against a private source-linked base in `ot_emu`. Its negative
 control must show stale clocks and an EP2 IN prime before reconfiguration;
