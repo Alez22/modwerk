@@ -22,6 +22,7 @@
 .overview-chip.is-mods i { background: var(--done); }
 .overview-chip.is-research i { background: var(--accent); }
 .overview-chip.is-open i { border: 1.5px dashed #8a8a98; width: 4px; height: 4px; }
+.overview-chip-short { display: none; }
 
 /* Machine cards: a dark panel rather than a grey box. A faint top-lit surface, a hairline edge that barely separates
    it from the page and a thin highlight along the top. Every card is the same size; on hover the panel brightens one
@@ -125,8 +126,14 @@
   .sidebar-home, .develop-card { display: none; }
   .overview-heading { gap: 12px; margin-bottom: 14px; }
   .overview-heading h1 { font-size: 24px; }
-  .overview-chips { flex-wrap: nowrap; width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .overview-chip { min-height: 38px; }
+  /* Phones: the filters become one segmented control with short labels; the colour key and bars stay on larger screens */
+  .overview-heading p { display: block; }
+  .overview-key, .overview-mix { display: none; }
+  .overview-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; width: 100%; padding: 3px; border: 1px solid var(--line); border-radius: 9px; }
+  .overview-chip { justify-content: center; gap: 5px; min-height: 36px; padding: 0 4px; border: 0; border-radius: 6px; }
+  .overview-chip i { display: none; }
+  .overview-chip-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .overview-chip-short { display: inline; }
   .machine-grid { grid-template-columns: 1fr; gap: 14px; }
   .overview-tile-body { padding: 4px 16px 16px; }
 }

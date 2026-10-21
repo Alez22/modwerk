@@ -5,7 +5,8 @@ import { DEVICE_STEPS } from '../devices/registry'
 import type { Overview, OverviewKind, OverviewMachine } from './overview'
 import './overview.css'
 
-const FILTERS: { id: OverviewKind | 'all'; label: string }[] = [{ id: 'all', label: 'All' }, { id: 'mods', label: 'Mods available' }, { id: 'research', label: 'Research started' }, { id: 'open', label: 'No research yet' }]
+// short: the label in the phone's segmented control.
+const FILTERS: { id: OverviewKind | 'all'; label: string; short: string }[] = [{ id: 'all', label: 'All', short: 'All' }, { id: 'mods', label: 'Mods available', short: 'Mods' }, { id: 'research', label: 'Research started', short: 'Research' }, { id: 'open', label: 'No research yet', short: 'Open' }]
 
 // One short phrase per machine: its modules, or how far the research has come.
 function stateLabel(machine: OverviewMachine) {
@@ -24,7 +25,7 @@ export function OverviewPage({ overview }: { overview: Overview }) {
         <h1>Choose your machine</h1>
         <p><span><b>{overview.modules}</b> modules by <b>{overview.creators}</b> creators</span><span className="overview-key" aria-label="Modules by category">{overview.categories.map(item => <span key={item.category}><i className={'is-' + item.category} aria-hidden="true" /><b>{item.count}</b> {item.label}</span>)}</span></p>
       </div>
-      <div className="overview-chips" role="group" aria-label="Show machines">{FILTERS.map(item => <button key={item.id} type="button" className={'overview-chip is-' + item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.id !== 'all' && <i aria-hidden="true" />}{item.label}<small>{count(item.id)}</small></button>)}</div>
+      <div className="overview-chips" role="group" aria-label="Show machines">{FILTERS.map(item => <button key={item.id} type="button" className={'overview-chip is-' + item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>{item.id !== 'all' && <i aria-hidden="true" />}<span className="overview-chip-label">{item.label}</span>{item.short !== item.label && <span className="overview-chip-short" aria-hidden="true">{item.short}</span>}<small>{count(item.id)}</small></button>)}</div>
     </header>
     <div className="machine-grid">
       {shown.filter(machine => machine.kind === 'mods').map(machine => <MachineTile key={machine.device.id} machine={machine} />)}
