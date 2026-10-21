@@ -8,6 +8,6 @@ export function DevelopCard({ current }: { current: boolean }) {
     <span className="develop-card-icon"><Icon name="plus" size={16} /></span>
     <strong>Start developing</strong>
     <small>{DEVELOP_PITCH}</small>
-    <span className="develop-card-tag">No coding for modules</span>
+    <span className="develop-card-tag">Step by step</span>
   </a>
 }

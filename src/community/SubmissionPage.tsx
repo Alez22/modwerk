@@ -26,7 +26,7 @@ export function SubmissionPage({ moduleId = '', machine: initialMachine }: { mod
   return <div className="community-page contribution-page start-developing">
     <BackLink href={moduleId ? '#developer' : '#library'}>{moduleId ? 'Creator settings' : 'Module library'}</BackLink>
     <header className="page-heading developer-heading">
-      <div><p className="page-kicker">MODWERK / DEVELOPERS</p><h1>{module ? 'Update ' + module.name : locked ? <>Help unlock the {machineName}. <span>Programming experience needed.</span></> : <>Make a mod for your machine. <span>No coding experience needed.</span></>}</h1>
+      <div><p className="page-kicker">MODWERK / DEVELOPERS</p><h1>{module ? 'Update ' + module.name : locked ? <>Help unlock the {machineName}. <span>Programming experience needed.</span></> : <>Make a mod for your machine. <span>Describe it, paste one prompt, build it together.</span></>}</h1>
         <p>{module ? 'Current version ' + module.version + '. One prompt for your agent. Four steps to publication.' : locked ? 'Before anyone can build mods for it, its firmware file has to be understood, rebuilt and booted, and a core has to give mods a place to run. That is reverse-engineering work. An AI coding assistant helps, but you need to read and judge code yourself. The starter prompt below sets up the machine integration with you.' : 'An AI coding assistant writes and checks the code. You bring the idea, try it on your machine and decide when it’s ready. The starter prompt below sets everything up with you and guides you through every step.'}</p>
       </div>
       <div className="developer-heading-links">

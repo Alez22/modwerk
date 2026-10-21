@@ -39,10 +39,11 @@ const KIND_ORDER: Record<OverviewKind, number> = { mods: 0, research: 1, open: 2
 
 export function developHref(machine: string) { return '#submit?machine=' + machine }
 
-// The promise the Start developing highlight makes. It holds for modules on a machine with a core; unlocking a machine
-// (understanding, rebuilding and booting its firmware, then a core) is reverse engineering and needs programming experience.
-export const DEVELOP_PITCH = 'To build a module you don’t need to be a programmer. With a Claude or ChatGPT subscription, the starter prompt guides you through every step.'
-export const UNLOCK_NOTE = 'Unlocking a machine is reverse engineering and needs programming experience. Once it has a core, anyone can build modules for it with the starter prompt.'
+// How simple building a module is, said as the steps rather than as a promise about the reader. It holds for a machine
+// with a core; unlocking a machine (understanding, rebuilding and booting its firmware, then a core) is reverse engineering
+// and needs programming experience.
+export const DEVELOP_PITCH = 'Describe your idea, paste the starter prompt into Claude or ChatGPT, and build the module together with the coding assistant, step by step.'
+export const UNLOCK_NOTE = 'Unlocking a machine is reverse engineering and needs programming experience. Once it has a core, its modules start from the same starter prompt as every other.'
 
 export function machineOverview(octatrack: readonly FirmwareModule[], digi: readonly DigiMod[] = DIGI_MODS): Overview {
   const entries = (device: DeviceProfile): Entry[] => [

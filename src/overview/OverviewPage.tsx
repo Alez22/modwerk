@@ -35,12 +35,12 @@ export function OverviewPage({ overview }: { overview: Overview }) {
   </div>
 }
 
-// Building a module for a machine that has one: no coding needed. It sits right after those machines.
+// Building a module for the machines that have mods, in three plain steps. It sits right after those machines.
 function DevelopTile({ machines }: { machines: string[] }) {
   return <a className="overview-tile is-develop" href="#submit">
     <span className="overview-art">
       <span className="overview-waiting"><strong>Build your own mod</strong><small>{machines.join(' · ')}</small></span>
-      <span className="overview-pitch">No coding needed: a Claude or ChatGPT subscription and the starter prompt guide you.</span>
+      <span className="overview-pitch">Describe your idea, paste the starter prompt into Claude or ChatGPT, build it together.</span>
     </span>
     <div className="overview-tile-body">
       <div className="overview-tile-line"><h2 className="overview-tile-name">Start developing</h2><Icon name="plus" size={16} /></div>
