@@ -55,7 +55,7 @@ function MachineTile({ machine }: { machine: OverviewMachine }) {
       <p className="overview-summary">{device.summary}</p>
       {mods ? <>
         <span className="overview-mix" aria-hidden="true">{machine.categories.map(item => <span key={item.category} className={'is-' + item.category} style={{ flexGrow: item.count }} />)}</span>
-        <ul className="overview-legend" aria-label="Modules by category">{machine.categories.map(item => <li key={item.category}><i className={'is-' + item.category} aria-hidden="true" />{item.label} <b>{item.count}</b></li>)}</ul>
+        <ul className="overview-legend" aria-label="Modules by category">{machine.categories.slice(0, 2).map(item => <li key={item.category}><i className={'is-' + item.category} aria-hidden="true" />{item.label} <b>{item.count}</b></li>)}{machine.categories.length > 2 && <li className="is-more">+{machine.categories.length - 2} more</li>}</ul>
         <div className="overview-tile-foot"><span className="overview-meta">{recentLabel(machine)}</span><a className="overview-open" href={machine.href}>Open library<Icon name="arrow" size={14} /></a></div>
       </> : <>
         <span className="overview-ladder" aria-hidden="true">{DEVICE_STEPS.map(step => <i key={step.id} className={'is-' + device.steps[step.id]} />)}</span>
