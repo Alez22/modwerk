@@ -439,7 +439,10 @@ static void keybus_poll(void)
         unsigned op = kb_lane[c].op;
         kb_lane[c].op = KB_IDLE;
         if (!ok) { mask_known &= (uint8_t)~(1u << c); continue; } /* the transport closed that core for the boot */
-        if (op == KB_RESET) kb_reset[c] = (uint16_t)(kb_reset[c] + kb_lane[c].job.count);
+        if (op == KB_RESET) { /* an offset-0 chunk zeroes the seed, as a scrub does */
+            if (!kb_reset[c]) kb_dirty[c] = 0;
+            kb_reset[c] = (uint16_t)(kb_reset[c] + kb_lane[c].job.count);
+        }
         else if (op == KB_SCRUB) kb_dirty[c] = 0, kb_reset[c] = 0; /* the seed is zero; the next want resets from 0 */
         else if (op == KB_ENABLE) mask[c] = (uint8_t)(mask[c] | KEYBUS), kb_dirty[c] = 1;
         else mask[c] = (uint8_t)(mask[c] & ~KEYBUS), kb_reset[c] = 0; /* a disable invalidates its reset */
@@ -493,7 +496,7 @@ static void keybus_tick(void)
              * run's frames (the scrub zeroes only the seed). An unknown core keeps both off: readers then pass audio. */
             unsigned o = 1u - c;
             if (kb_reset[c] < KEYBUS_WORDS) (void)keybus_start(c, KB_RESET);
-            else if ((mask[o] & KEYBUS) || ((mask_known >> o & 1u) && kb_reset[o] >= KEYBUS_WORDS)) (void)keybus_start(c, KB_ENABLE);
+            else if ((mask_known >> o & 1u) && ((mask[o] & KEYBUS) || kb_reset[o] >= KEYBUS_WORDS)) (void)keybus_start(c, KB_ENABLE);
         }
     } else if (!kb_wanted) {
         for (unsigned c = 0; c < 2u; ++c) {
@@ -664,8 +667,12 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
     if (to && to->present && (to->requires & KEYBUS)) {
         /* Not while the bus is being let go: a core disabling or scrubbing, or off with its seed not yet zeroed, still
          * shows the last run's mark, which the reader would take for a live bus for a job round trip. Retry. */
-        for (unsigned c = 0; c < 2u; ++c)
+        for (unsigned c = 0; c < 2u; ++c) {
+            /* A seed that can never be scrubbed (the core unknown, its lane stuck or its owned channel closed for the
+             * boot): the window stays held and no reader comes, rather than a retry that never succeeds. */
+            if (kb_dirty[c] && (!(mask_known >> c & 1u) || kb_lane[c].op == KB_STUCK || dl_owned_closed(c))) return RUNTIME_CONFLICT;
             if (kb_lane[c].op == KB_DISABLE || kb_lane[c].op == KB_SCRUB || (kb_dirty[c] && !(mask[c] & KEYBUS))) return RUNTIME_BUSY;
+        }
         int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
         if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
         if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;

@@ -214,6 +214,13 @@ static unsigned window_dirty[2];
 static unsigned seed_live[2];
 /* Frames for which the modelled receiver leaves a core's RESET chunks unanswered (mode 46: a core whose reset lags). */
 static unsigned stall_reset[2];
+/* A core whose key bus disable the modelled receiver refuses (mode 47: an uncertain DISABLE leaves the core unknown). */
+static unsigned refuse_disable[2];
+/* The board's view of the key window (controller_board.c is built with dl_hook_buffer_ranges_idle renamed to this):
+ * a slot buffer covering it (mode 48) or the manager's own answer. */
+static unsigned test_window_busy;
+int dl_hook_buffer_ranges_idle(unsigned feature);
+int board_buffer_ranges_idle(unsigned feature) { return feature == 8u && test_window_busy ? 0 : dl_hook_buffer_ranges_idle(feature); }
 /* The key bus's tap price (dsp.c's resident_engines.dsp seam): whether it would fit, and whether it is charged. */
 static unsigned kb_fits = 1, kb_charged;
 int modwerk_dsp_keybus_fits(void) { return (int)(kb_fits || kb_charged); }
@@ -278,7 +285,7 @@ static void dsp(void)
         } else if (op == 10u && w7 == 0u) {
             unsigned expected = w4, desired = w5, on = desired & ~expected;
             ++cas_count;
-            reject = expected != dsp_mask[c];
+            reject = expected != dsp_mask[c] || (refuse_disable[c] && (expected & 8u) && !(desired & 8u));
             for (unsigned k = 0; k < 4; ++k)
                 if (on >> k & 1u) reject |= words[c][k] != totals[k] || !base_word[c][k];
             assert(!((on & 8u) && window_dirty[c])); /* never the tap enabled over a buffer's words */
@@ -1299,6 +1306,44 @@ int main(int argc, char **argv)
             if (words[0][3] < 1026) assert(!(dsp_mask[1] & 8u));
         }
         assert(waited && dsp_mask[0] == 8 && dsp_mask[1] == 8 && seed_live[0] && seed_live[1]);
+    } else if (mode == 47) {
+        /* An uncertain DISABLE on core 1 (refused): that core is unknown with its seed live, so a reader is refused for
+         * the boot (RUNTIME_CONFLICT, not a retry that never succeeds), and nothing enables core 0's bus while core 1
+         * is unknown, though the board's mask still says on there. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        refuse_disable[1] = 1;
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        run(50);
+        assert(!(dsp_mask[0] & 8u) && (dsp_mask[1] & 8u) && !seed_live[0] && seed_live[1] && (modwerk_controller_held() & 8u));
+        static uint8_t second[sizeof pkg_reader];
+        memcpy(second, pkg_reader, sizeof second);
+        second[31] ^= 1u;
+        assert(refused(second, sizeof second) == RUNTIME_CONFLICT);
+        if (install(pkg_sc, sizeof pkg_sc) == MU_APPLIED) {
+            run(300);
+            assert(!(dsp_mask[0] & 8u) && !(dsp_mask[0] & 1u)); /* core 0 waits for an unknown core 1 */
+        }
+    } else if (mode == 48) {
+        /* The scrub waits while a slot buffer covers the window: the bus is off there, its seed live, the window held,
+         * and a reader is told to retry (the third BUSY reason: a live seed with the bus off and an idle lane). */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        test_window_busy = 1;
+        run(30);
+        assert(!dsp_mask[0] && !dsp_mask[1] && seed_live[0] && seed_live[1] && (modwerk_controller_held() & 8u));
+        assert(!(mw_engines_view.keybus & 0x7eu)); /* both lanes idle */
+        static uint8_t again[sizeof pkg_reader];
+        memcpy(again, pkg_reader, sizeof again);
+        again[31] ^= 1u;
+        assert(refused(again, sizeof again) == RUNTIME_BUSY);
+        test_window_busy = 0;
+        run(20);
+        assert(!seed_live[0] && !seed_live[1] && !modwerk_controller_held());
+        assert(install(again, sizeof again) == MU_APPLIED);
+        run(200);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8);
     } else assert(0);
     return 0;
 }
@@ -1374,7 +1419,13 @@ def build(work):
              '-I' + str(work), '-I' + str(POLICY), '-I' + str(ADAPTER), '-I' + str(RUNTIME), '-I' + str(ELEK),
              '-I' + str(ROOT / 'sdk/runtime/loader'), '-I' + str(ROOT / 'sdk/runtime/upload')]
     out = work / 'engines-board'
-    sources = [work / 'fixture.c', POLICY / 'controller_board.c', POLICY / 'controller_transport.c',
+    # The board alone sees the key window through the fixture's board_buffer_ranges_idle (mode 48).
+    board = work / 'controller_board.o'
+    built = subprocess.run(['cc', *flags, '-Ddl_hook_buffer_ranges_idle=board_buffer_ranges_idle', '-c',
+                            str(POLICY / 'controller_board.c'), '-o', str(board)], capture_output=True, text=True)
+    if built.returncode:
+        return out, built
+    sources = [work / 'fixture.c', board, POLICY / 'controller_transport.c',
                POLICY / 'controller_association.c', ROOT / 'sdk/runtime/loader/loader.c', ROOT / 'sdk/runtime/upload/sha256.c',
                ADAPTER / 'machine_lifetime.c', work / 'manager_unit.c', work / 'allocator.c', work / 'buffers.c',
                RUNTIME / 'stock_hooks.c', RUNTIME / 'stock_hook_resources.c', RUNTIME / 'resident_engines.c',
@@ -1384,7 +1435,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 47
+    MODES = 49
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:

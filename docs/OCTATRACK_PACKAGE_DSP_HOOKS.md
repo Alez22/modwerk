@@ -368,7 +368,12 @@ the base was regenerated with these fixes (`b3ac5155…`, `.bin` `f6488e90`) and
   disabling or scrubbing, or off with a live seed) is told to retry (`RUNTIME_BUSY`) rather than admitted to a stale
   mark. Board tests 43 (the window held, tick by tick, while a seed is live), 44 (a reader during the disable and the
   scrub), 45 (Sidechain arriving mid-scrub), 46 (one core's reset lagging) and the controller board's 14 (no scrub over a
-  slot buffer). The base was regenerated for these: `f0a9e0b2…` (`.bin` `9a51ffa0`); the MKII re-check below ran on
+  slot buffer). Fourth review: the enable gate counts the other core's bus as on only if that core is known (an
+  uncertain DISABLE leaves its mask set but unknown); a seed that can never be scrubbed (its core unknown, its lane stuck
+  or its owned channel closed) refuses readers for the boot (`RUNTIME_CONFLICT`) instead of retries that never succeed;
+  an offset-0 reset chunk clears the dirty mark as a scrub does. Board tests 47 (an unknown core: no enable on the
+  other, a reader refused) and 48 (a slot buffer over the window: no scrub, readers retry, then admitted). The base was
+  regenerated for these: see the CHANGELOG; the MKII re-check below ran on
   the twin of `b3ac5155`, before them, and the next MKII session re-checks the new twin.
 - **One ledger.** The board's key bus constants (its bit, reset total 1,026 and first range 514, what Sidechain
   implies, each feature's cores), the transport's reset totals and splits and the engines' feature index now come from
