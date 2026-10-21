@@ -99,9 +99,10 @@ const HEADERS: Record<number, number> = { 6: 68, 7: 72, 8: 76, 9: 80 }
  * not say so, and the capability record has no bit for it, so the site offers a reader only to the bases it knows have
  * the bus (KEY_BUS_BASES); the loader would refuse it elsewhere with a bare RUNTIME_CONFLICT. */
 export const BASE_DSP_FEATURES: number = dspSites.features.find(feature => feature.name === 'keybus')?.bit ?? 0
-/** The bases with the key bus: the published one, built with the beta flags (scripts/octatrack-base.mjs,
- * --resident-on-demand). */
-export const KEY_BUS_BASES: readonly string[] = [...new Set([baseBinding.identity, ...Object.values((baseBinding as { variants?: Record<string, string> }).variants ?? {})])]
+/** The bases with the key bus: the published one in each of its USB Audio layouts, built with the beta flags
+ * (scripts/octatrack-base.mjs, --resident-on-demand); the layouts differ only in their USB descriptors. */
+export const KEY_BUS_BASES: readonly string[] = [...new Set([baseBinding.identity,
+  ...Object.values((baseBinding as { variants?: Record<string, string> }).variants ?? {})])]
 /** loader.h RUNTIME_DSP_CLAIMS: the X/Y spans one package may claim outside its own slot. */
 const DSP_CLAIMS = 16
 function requirements(entry: RuntimePackage, group = false) {
@@ -296,6 +297,8 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
       if (!entry) continue
       // A published package bound to the published base (sdk/machines/octatrack/base-binding.json) needs that base in any
       // of its USB Audio layouts, which share every address the package links against: an older base is an update.
+      // An ABI 9 package (base features, DSP claims) needs a loader that reports ABI 9: an older base is an update too.
+      // A key bus reader needs a base that has the bus, which only a known identity tells (KEY_BUS_BASES).
       if (entry.requiredBase === baseBinding.identity ? !isPublishedBase(base) : entry.requiredBase && entry.requiredBase !== base)
         throw entry.requiredBase === baseBinding.identity ? new BaseUpdateRequired() :
           new ModuleSetError('This module package needs the exact Modwerk base it was prepared for. Reconnect that base before syncing.')

@@ -28,7 +28,7 @@ int main(void) {
     assert(!dl_hook_reset_start(2,1,0,1,words));
     assert(!dl_hook_reset_start(1,2,0,1,words));
     assert(!dl_hook_reset_start(0,16,0,1,words));
-    assert(!dl_hook_reset_start(0,8,511,2,words)); /* the key bus: one owned range per chunk, 512 then 514 */
+    assert(!dl_hook_reset_start(0,8,513,2,words)); /* the key bus: one owned range per chunk, the window's 514 then 512 */
     assert(!dl_hook_reset_start(1,8,1026,1,words) && !dl_hook_reset_start(1,8,1020,7,words));
     assert(!dl_hook_reset_start(0,1,527,2,words));
     assert(!dl_hook_reset_start(0,1,1042,1,words));

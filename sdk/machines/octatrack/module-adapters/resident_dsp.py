@@ -274,9 +274,11 @@ def resource_ranges(tag):
               dict(owner=ANALOG_BD, space='x', address=0x2840, words=0x3700 - 0x2840)]
     if tag == 'A':
         ranges.append(dict(owner=MATRIX, space='y', address=0xc00, words=0xc1))
-    # The key bus: inside what Sidechain always owned (its reset keeps its 1,042 words); its own reset is 1,026.
-    ranges += [dict(owner=KEYBUS, space='y', address=0x800, words=0x200),
-               dict(owner=KEYBUS, space='y', address=shared, words=0x202)]
+    # The key bus: inside what Sidechain always owned (its reset keeps its 1,042 words); its own reset is 1,026. The
+    # window first, so a reset's first chunk zeroes its seed mark and counter (+$3DFE, +$3DFF): a reader never takes a
+    # stale mark from an earlier run for a live bus (controller_board.c's scrub after a disable is that one chunk).
+    ranges += [dict(owner=KEYBUS, space='y', address=shared, words=0x202),
+               dict(owner=KEYBUS, space='y', address=0x800, words=0x200)]
     return ranges
 
 

@@ -62,9 +62,13 @@ static uint8_t started, closed, mask[2], mask_known;
  * demand), reset (1,026 words) and enabled on both cores, one owned job per core at a time, before any Sidechain enable;
  * once nothing wants it, disabled, then collected with the engines. Its own generation names its owned jobs. */
 #define KEYBUS_GENERATION 0x4b425553u /* "KBUS": never an owner generation's range (they count up from 1) */
-enum { KB_IDLE, KB_RESET, KB_ENABLE, KB_DISABLE, KB_STUCK };
+enum { KB_IDLE, KB_RESET, KB_ENABLE, KB_DISABLE, KB_STUCK, KB_SCRUB };
 static struct { struct dl_owned_job job; uint8_t op; } kb_lane[2];
 static uint16_t kb_reset[2];   /* reset words ACKed since this core last disabled it (the receiver's ready bit) */
+/* The tap has seeded this core's window (its mark and counter) since it was last scrubbed: once the bus is let go, its
+ * first reset chunk (the window's seed, counter and first words; dsp-sites.json lists the window first) is sent again
+ * before anything else may use the window, so a reader installed later never takes a stale mark for a live bus. */
+static uint8_t kb_dirty[2];
 static uint8_t kb_wanted;      /* the last tick's verdict, for held() and the view */
 static uint8_t kb_readers;     /* ... and whether a live package requires it (a reader) */
 #ifdef MODWERK_RESIDENT_ON_DEMAND
@@ -83,7 +87,7 @@ static int nonzero(const uint8_t *p, unsigned n) { while (n--) if (*p++) return 
 static unsigned cores(unsigned feature) { return MW_DSP_CORES(feature); }
 /* stock_hooks reset totals, from the ledger (dsp_sites.py --check keeps them equal to resident_dsp.resource_ranges):
  * SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A; Analog BD X $2840-$36ff on both cores; the key
- * bus Y $800+$200 and the shared tail $202. */
+ * bus the shared tail $202 first (its seed and counter lead it), then Y $800+$200. */
 #define AB_WORDS MW_DSP_RESET_WORDS(MW_DSP_ANALOG_BD)
 #define KEYBUS MW_DSP_KEYBUS /* the key bus: a base feature, held for packages and Sidechain */
 #define KEYBUS_WORDS MW_DSP_RESET_WORDS(MW_DSP_KEYBUS)
@@ -435,8 +439,12 @@ static void keybus_poll(void)
         unsigned op = kb_lane[c].op;
         kb_lane[c].op = KB_IDLE;
         if (!ok) { mask_known &= (uint8_t)~(1u << c); continue; } /* the transport closed that core for the boot */
-        if (op == KB_RESET) kb_reset[c] = (uint16_t)(kb_reset[c] + kb_lane[c].job.count);
-        else if (op == KB_ENABLE) mask[c] = (uint8_t)(mask[c] | KEYBUS);
+        if (op == KB_RESET) { /* an offset-0 chunk zeroes the seed, as a scrub does */
+            if (!kb_reset[c]) kb_dirty[c] = 0;
+            kb_reset[c] = (uint16_t)(kb_reset[c] + kb_lane[c].job.count);
+        }
+        else if (op == KB_SCRUB) kb_dirty[c] = 0, kb_reset[c] = 0; /* the seed is zero; the next want resets from 0 */
+        else if (op == KB_ENABLE) mask[c] = (uint8_t)(mask[c] | KEYBUS), kb_dirty[c] = 1;
         else mask[c] = (uint8_t)(mask[c] & ~KEYBUS), kb_reset[c] = 0; /* a disable invalidates its reset */
     }
 }
@@ -444,8 +452,8 @@ static int keybus_start(unsigned c, unsigned op)
 {
     struct dl_owned_job job;
     int ok;
-    if (op == KB_RESET) {
-        unsigned offset = kb_reset[c], n = KEYBUS_WORDS - offset > 24u ? 24u : KEYBUS_WORDS - offset;
+    if (op == KB_RESET || op == KB_SCRUB) {
+        unsigned offset = op == KB_SCRUB ? 0u : kb_reset[c], n = KEYBUS_WORDS - offset > 24u ? 24u : KEYBUS_WORDS - offset;
         if (offset < KEYBUS_SPLIT && n > KEYBUS_SPLIT - offset) n = KEYBUS_SPLIT - offset;
         ok = dl_owned_reset_reserve(c, KEYBUS_GENERATION, KEYBUS, offset, n, kb_zeros, &job);
     } else ok = dl_owned_command_reserve(c, KEYBUS_GENERATION, 10u, mask[c],
@@ -483,11 +491,20 @@ static void keybus_tick(void)
             if (busy[c] || !(mask_known >> c & 1u) || (mask[c] & KEYBUS)) continue;
             /* Its reset and its tap write the bus and the window: never while a slot buffer is there. */
             if (dl_hook_buffer_ranges_idle(KEYBUS) != 1) break;
-            (void)keybus_start(c, kb_reset[c] < KEYBUS_WORDS ? KB_RESET : KB_ENABLE);
+            /* A core enables only once the other core's reset is complete too (or it is on there already): a reader
+             * keyed from the other core reads that core's half of the window, and until its reset it may hold an earlier
+             * run's frames (the scrub zeroes only the seed). An unknown core keeps both off: readers then pass audio. */
+            unsigned o = 1u - c;
+            if (kb_reset[c] < KEYBUS_WORDS) (void)keybus_start(c, KB_RESET);
+            else if ((mask_known >> o & 1u) && ((mask[o] & KEYBUS) || kb_reset[o] >= KEYBUS_WORDS)) (void)keybus_start(c, KB_ENABLE);
         }
     } else if (!kb_wanted) {
         for (unsigned c = 0; c < 2u; ++c) {
             if (!busy[c] && (mask_known >> c & 1u) && (mask[c] & KEYBUS)) (void)keybus_start(c, KB_DISABLE);
+            /* Off after a run: zero the seed and counter first (an offset-0 chunk, the receiver's fresh start), while the
+             * bus still holds the window (modwerk_controller_held), never over a slot buffer. */
+            else if (!busy[c] && (mask_known >> c & 1u) && kb_dirty[c] && dl_hook_buffer_ranges_idle(KEYBUS) == 1)
+                (void)keybus_start(c, KB_SCRUB);
             /* Never enabled here, or let go before its ENABLE: what the reset wrote counts for nothing once the bus is no
              * longer held, since a slot buffer may take the window meanwhile. The next want resets from offset 0 (the
              * receiver's fresh start: it clears its ready bit). */
@@ -648,6 +665,14 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
      * dry run says FITS then; a stuck engine refuses), and the tap's price unless another reader pays it. Sidechain's
      * engine and the bus share nothing but the bus words. */
     if (to && to->present && (to->requires & KEYBUS)) {
+        /* Not while the bus is being let go: a core disabling or scrubbing, or off with its seed not yet zeroed, still
+         * shows the last run's mark, which the reader would take for a live bus for a job round trip. Retry. */
+        for (unsigned c = 0; c < 2u; ++c) {
+            /* A seed that can never be scrubbed (the core unknown, its lane stuck or its owned channel closed for the
+             * boot): the window stays held and no reader comes, rather than a retry that never succeeds. */
+            if (kb_dirty[c] && (!(mask_known >> c & 1u) || kb_lane[c].op == KB_STUCK || dl_owned_closed(c))) return RUNTIME_CONFLICT;
+            if (kb_lane[c].op == KB_DISABLE || kb_lane[c].op == KB_SCRUB || (kb_dirty[c] && !(mask[c] & KEYBUS))) return RUNTIME_BUSY;
+        }
         int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
         if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
         if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;
@@ -681,6 +706,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 unsigned modwerk_controller_held(void)
 {
     unsigned features = slot_features();
-    if (kb_wanted || (KEYBUS_IMPLIED(features)) || ((mask[0] | mask[1]) & KEYBUS) || (started && mask_known != 3u)) features |= KEYBUS;
+    if (kb_wanted || (KEYBUS_IMPLIED(features)) || ((mask[0] | mask[1]) & KEYBUS) || (started && mask_known != 3u) ||
+        ((kb_dirty[0] || kb_dirty[1]) && !closed)) features |= KEYBUS; /* until its seed is scrubbed */
     return features;
 }

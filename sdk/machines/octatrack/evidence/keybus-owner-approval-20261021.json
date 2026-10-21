@@ -4,35 +4,35 @@
   "approvedBy": "repeat98",
   "approvedOn": "2026-10-21",
   "ownerStatement": "Approve those scoped experimental waivers",
-  "baseIdentity": "0a46e644b6fb2d639bf76f1c3f86f21e98ffdc63adc5fb3241743d5d91103deb",
+  "baseIdentity": "8fea36c2e1e2f80f6d60edda880b49aa6cec109192f41fa9b5f39827f399b019",
   "variantIdentities": {
-    "tracks-main-cue": "0a46e644b6fb2d639bf76f1c3f86f21e98ffdc63adc5fb3241743d5d91103deb",
-    "tracks": "2b26ea3dc6d13145856960595c5bcdbcb949b30e9b66d165edf38771dea50d6a",
-    "tracks-post": "e3af0263fc4338e75ace47ebf3cd4b0092c8ddeff130a094a4591dcae5c4edf3",
-    "main-cue": "c768c19fa75637320a6015407b7fb443e7b360c2d063aa5c30068520f224e765",
-    "main": "411bd7c0de679fcbefd0a0af1011f465eac79bdbc894c271b9b32db4812702d6",
-    "master": "73ba51f74c51bfdc59d18aa7e865a2d58c647425e58e210608c53d5dd7505717",
-    "off": "000e480bbf45cd731028b9e952bfb410047806965a0164daa0185b6bdbe25b15"
+    "tracks-main-cue": "8fea36c2e1e2f80f6d60edda880b49aa6cec109192f41fa9b5f39827f399b019",
+    "tracks": "57e202ae22112763d03d9ea714f06641f12c282fa52d9eda2072435aab99ccc7",
+    "tracks-post": "ef3d69a34611ce1dd58585b8098fa0130d0e3971308703f6345aab0e251239a0",
+    "main-cue": "1127d159c19119d7cecf70b555cc7c64661c069cf60aa91824fe90210215a59f",
+    "main": "280fe531a7b0a06941c5afb033e698fa28e534538731acd1346d0e75c6dd2784",
+    "master": "d7ae83ed941f74dc1b25a9c1cc3b8cbad4636519fd9bc6fd1f48fe992d40a331",
+    "off": "dc2938b5ec075efbdae871568b483f6702bec37e3f883c49d32e2866cd0ee2c4"
   },
-  "baseSourceInventorySha256": "aa6c1bc292718b427c0e86ea0a78c46e57700e453bf8cc452563bbe6e01c9716",
-  "nativeBrowserImageSha256": "72e6b5997a0868ce0c9eea4d5462d3fea140741194440c913d38b6861b849241",
+  "baseSourceInventorySha256": "a46e6faf7c70d07823540b35fe6c0d0a2466abc66c15b3aa2cf414df35c365be",
+  "nativeBrowserImageSha256": "6d352cad3825833125c5ab53fcb911101d10da7cac14a7fd4d7e7356cc61a9e8",
   "sourceParents": {
     "main": "b97654c63125460df4271d092a5729b4faa7373e",
     "moduleSets": "d9c8e3c77c67d832292bce457d4d38b8dd6db2c7",
-    "keyBus": "780cbcfc554a1643b22bb08b0f7b0c429d3d1d4c",
+    "keyBus": "499e85c0017cf3c7f55353f67262565a92aac435",
     "usbReconnect": "fedfcb371ec0cf6daaa0bd23b50a8d02b888688b"
   },
   "integrationSources": {
     "sdk/runtime/loader/set_package.h": "bcfd3829af0785cfd15ec801237226c24959d32d44d0c1fb2df4fb08806ac743",
     "src/engine/elekloader/set-package.ts": "ac1513fe470c5444fbb43fa645c71488f7fa327d78a35c641f07cf97b7bdda82",
-    "src/engine/elekloader/module-set.ts": "5ac386da5df3ea81f2aaedadc39384abe2e5098ca33020e52f0e6f84e73e55ff"
+    "src/engine/elekloader/module-set.ts": "eeb4c085500880bf5912a817103f0192f7d7a284c6a25266c12f6c3b1327b97b"
   },
   "baseBoundPackages": {
-    "sidechain-compressor": "408095a21f28a0304a164718f046da7e8aa3ef1a0b6a3db4e0bb89d364f2ab26",
-    "output-matrix": "e749b71e7e848d03691b7c13f7c3f5d62c58da95486dc6ad05055d4ffe0629b2",
+    "sidechain-compressor": "f149663ba9895acbdebf4d139382728ff3c58bd660d5311b2da164614900e065",
+    "output-matrix": "0ce1065780d9888dd1ab55106adedbe86096a30edf130376c6e0d0d436d67961",
     "cc-map": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
     "recorder-loop-fix": "22534de96c7f670b47c04b5c176b78b1ac48432739f8989890e4c7deb86cd628",
-    "analog-bassdrum": "ee55b04ce962c540ecfe326550d8e1265679a0791ebde98cde6439d57087ae75"
+    "analog-bassdrum": "371a126db2705aa2de3de4558e15ab33277f5a0982e6ddfd4e7bf094de8d686e"
   },
   "status": "experimental-owner-waived",
   "nativeBrowserParity": "All seven published USB layouts were source-built and matched byte for byte; each passed the strict stock-free scan and the controller-link equality check.",
@@ -42,7 +42,7 @@
     "CC Map and Mute Modes were source-rebuilt byte-identically before refreshing the generator-only cave/table source pin."
   ],
   "pr": 750,
-  "candidateCommit": "780cbcfc554a1643b22bb08b0f7b0c429d3d1d4c",
+  "candidateCommit": "499e85c0017cf3c7f55353f67262565a92aac435",
   "waived": [
     "final-build-hardware",
     "chip-worst-case-timing",
