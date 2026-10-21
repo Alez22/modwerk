@@ -7,14 +7,14 @@
 #define MU_MAX_CHUNK 4096u
 #define MU_MAX_BYTES 2097152u /* Protocol bound (a whole OS image fits); not a hardware reservation. */
 
-enum mu_phase { MU_NORMAL, MU_READY, MU_RECEIVING, MU_VERIFIED, MU_PENDING, MU_TRIAL, MU_RECOVERY };
+enum mu_phase { MU_NORMAL, MU_READY, MU_RECEIVING, MU_VERIFIED, MU_PENDING, MU_TRIAL, MU_RECOVERY, MU_PUBLISHING };
 enum mu_result {
     MU_OK, MU_STATE, MU_UNSAFE, MU_IDENTITY, MU_LIMIT, MU_STALE,
-    MU_LENGTH, MU_CONFLICT, MU_HASH, MU_REJECTED, MU_BACKEND, MU_NEEDS_RECOVERY
+    MU_LENGTH, MU_CONFLICT, MU_HASH, MU_REJECTED, MU_BACKEND, MU_NEEDS_RECOVERY, MU_PROGRESS
 };
 /* UNCHANGED is a positive acknowledgement that old dispatch is intact.
  * Anything else, including an invalid reply, requires confirmed rollback. */
-enum mu_publication { MU_UNCHANGED = 0, MU_APPLIED = 1, MU_UNCERTAIN = 2 };
+enum mu_publication { MU_UNCHANGED = 0, MU_APPLIED = 1, MU_UNCERTAIN = 2, MU_PUBLISHING_MORE = 3 };
 
 struct mu_offer {
     uint8_t base[MU_DIGEST_BYTES], session[MU_DIGEST_BYTES], digest[MU_DIGEST_BYTES];
@@ -42,6 +42,7 @@ struct mu_context {
     struct mu_backend backend;
     enum mu_phase phase;
     unsigned initialized, prepared, publication_started, active_known, outcome;
+    unsigned disconnecting; /* engine retries a device-owned rollback until the complete baseline is back */
 };
 int mu_init(struct mu_context *, uint8_t *, uint32_t, const uint8_t *,
             const uint8_t *, const uint8_t *, uint32_t, const struct mu_backend *);

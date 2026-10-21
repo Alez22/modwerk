@@ -32,10 +32,14 @@ class LoaderTests(unittest.TestCase):
             self.skipTest('no host C compiler')
         octatrack = ('-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u')
         # the default, the Octatrack's, and both with build_core.py --cached-modules
-        for defines in ((), octatrack, ('-DMODWERK_CACHED_MODULES',), octatrack + ('-DMODWERK_CACHED_MODULES',)):
+        for defines in ((), octatrack, ('-DMODWERK_CACHED_MODULES',), octatrack + ('-DMODWERK_CACHED_MODULES',),
+                        octatrack + ('-DMODWERK_RUNTIME_SETS',),
+                        octatrack + ('-DMODWERK_RUNTIME_SETS', '-DMODWERK_CACHED_MODULES')):
             with self.subTest(defines), tempfile.TemporaryDirectory() as temp:
                 subprocess.run([cc, '-std=c99', '-Wall', '-Wextra', '-Werror', '-pedantic', *defines, '-I', LOADER,
-                                '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/host_test.c', '-o', temp + '/t'],
+                                    '-I', ROOT / 'sdk/runtime/upload', LOADER / 'tests/host_test.c',
+                                    *([ROOT / 'sdk/runtime/upload/upload.c'] if '-DMODWERK_RUNTIME_SETS' in defines else []),
+                                    '-o', temp + '/t'],
                                check=True, capture_output=True)
                 result = subprocess.run([temp + '/t'], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -105,6 +109,39 @@ class LoaderTests(unittest.TestCase):
             build.dsp_section(pkg, 'fx2', 382, 'executed', 133, 16384, 'E-Verb')
         with self.assertRaisesRegex(ValueError, 'display name'):
             build.dsp_section(pkg, 'fx2', 382, 'executed', 132, 16384, 'A' * 16)
+
+    def test_abi9_base_features_claims_and_hook_entries(self):
+        pkg = next(p for p in json.loads((ROOT / 'src/engine/assets/dsp-packages.json').read_text())['packages'] if p['id'] == 'everb')
+        dsp = build.dsp_section(pkg, 'fx2', 382, 'executed', 132, 16384, 'E-Verb', 2)
+        spec = importlib.util.spec_from_file_location('runtime_loader_abi9', LOADER / 'abi9.py')
+        abi9 = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(abi9)
+        claims = [('y', 0, 'r', 0x800, 0x200), ('y', 1, 'rw', 0x3be00, 0x20)]
+        for source in (build.package(b'', 0, [], [], name='everb', dsp=dsp),                       # ABI 6
+                       build.package(b'', 0, [], [], name='everb', dsp=dsp, hashed=True),          # ABI 7
+                       build.package(b'', 0, [], [], name='everb', dsp=dsp, hashed=True, abi=8)):  # ABI 8
+            data = abi9.upgrade(source, abi9.base_features(['keybus']), claims, [(0, 3, 51)])
+            self.assertEqual(data[:8], b'MWRM\0\x09\0\0')
+            self.assertEqual(data[8:68], source[8:68])
+            self.assertEqual(struct.unpack_from('>IIHBB', data, 68), (0, 0, 8, 2, 1))  # copies, fills, requires, claims, entries
+            self.assertEqual([struct.unpack_from('>BBBxII', data, 80 + 12 * i) for i in range(2)],
+                             [(2, 0, 1, 0x800, 0x200), (2, 1, 3, 0x3be00, 0x20)])
+            self.assertEqual(struct.unpack_from('>BBHI', data, 104), (0, 3, 0, 51))
+            self.assertEqual(data[112:], source[{6: 68, 7: 72, 8: 76}[source[5]]:])  # the DSP words, unchanged
+            self.assertEqual(verify_static.unpack(data), (b'', (), []))
+        self.assertEqual(abi9.upgrade(source, 8)[76:80], b'\0\x08\0\0')
+        for bad in ({'claims': [('z', 0, 'r', 0, 1)]}, {'claims': [('y', 2, 'r', 0, 1)]}, {'claims': [('y', 0, 'x', 0, 1)]},
+                    {'claims': [('y', 0, 'r', 0x2fff0, 0x20)]}, {'claims': [('y', 0, 'r', 0x100, 8), ('y', 0, 'w', 0x107, 1)]},
+                    {'claims': [('y', 0, 'r', 0x33e00, 8), ('x', 1, 'r', 0x33e04, 1)]}, {'entries': [(0, 0, 1)]},
+                    {'entries': [(0, 1, 1), (0, 2, 2)]}, {'entries': [(0, 1, len(dsp['words']))]}, {'requires': 1 << 16},
+                    {'data': build.package(b'\x4e\x75\0\0', 0, [0, build.NONE, build.NONE, build.NONE], [])},  # no DSP code
+                    {'data': abi9.upgrade(source, 8)}):                                                       # already 9
+            args = dict(data=source, requires=8)
+            args.update(bad)
+            with self.subTest(bad=list(bad)), self.assertRaises(ValueError):
+                abi9.upgrade(**args)
+        with self.assertRaises(ValueError):
+            abi9.base_features(['no-such-feature'])
 
     def test_published_module_packages_rebuild_byte_for_byte(self):
         if not shutil.which('node'):

@@ -152,6 +152,9 @@ static int handle_of(uint32_t module)
 static int free_for(unsigned k, uint32_t module, fx_set used)
 {
     if (!fx_in(modwerk_fx_modules, k) || owner[k]) return 0;
+#ifdef MODWERK_RUNTIME_SETS
+    if (modwerk_runtime_handle_reserved(module,k)) return 0;
+#endif
     uint32_t named = modwerk_fxmap_module(k);
     return named == module || !fx_in(used, k); /* a handle the project uses for an unknown module stays its own */
 }

@@ -16,12 +16,12 @@ from pathlib import Path
 import re
 import sys
 
-SIDECHAIN, MATRIX, ANALOG_BD = 1, 2, 4
-FEATURES = (SIDECHAIN, MATRIX, ANALOG_BD)
-NAMES = {SIDECHAIN: 'sidechain', MATRIX: 'matrix', ANALOG_BD: 'analog-bd'}
+SIDECHAIN, MATRIX, ANALOG_BD, KEYBUS = 1, 2, 4, 8
+FEATURES = (SIDECHAIN, MATRIX, ANALOG_BD, KEYBUS)
+NAMES = {SIDECHAIN: 'sidechain', MATRIX: 'matrix', ANALOG_BD: 'analog-bd', KEYBUS: 'keybus'}
 ENGINE_ORIGINS = (0x100000, 0x200000)  # long forms only: every relocated word is a whole address or displacement
 ENGINE_PROOFS = (0x1000, 0x1333, 0x17ff, 0x1c01)
-ALLOWED = {'A': SIDECHAIN | MATRIX | ANALOG_BD, 'B': SIDECHAIN | ANALOG_BD}
+ALLOWED = {'A': SIDECHAIN | MATRIX | ANALOG_BD | KEYBUS, 'B': SIDECHAIN | ANALOG_BD | KEYBUS}
 SOURCES = {
     'modules/sidechain-compressor/manifest.py': '3bba6ac8ba315e10d6d7f2cb6342fb5ce6564e1ba6cd6ec362787d685c5e0cd7',
     'modules/sidechain-compressor/upstream/tools/patch_sc_dsp3.asm': 'aaa1a1c947a8bcb5d19ebc9454ec3f020d1f00afe51fe786fe1f3ed4d5eccde3',
@@ -174,11 +174,68 @@ def reviewed_source(name, text, tag):
     return text
 
 
+# The key bus (KEYBUS, docs/OCTATRACK_PACKAGE_DSP_HOOKS.md): Sidechain's own publish tap (`sctap` to `zz31`, the
+# displaced instruction and its rts, then #640's `kph2`/`kph3`) is a base feature of its own, which any live package
+# that requires it holds, and a held Sidechain too (dsp-sites.json: SIDECHAIN implies KEYBUS). The reviewed text is
+# split, never edited: the tap, and everything else (the header, `scdet`, `moncommit`), which stays Sidechain's. The
+# permanent block assembles the two in the original order, so its words are the unsplit text's. SHA-256 of each part
+# of the reviewed (key-phase) text before the per-core markers: any drift stops the build.
+KEYBUS_SPLIT = ('\nsctap:\n', '\n; ---- HOOK 2 ',
+                '2b7dd9eafbc6623c26908b934d1394e7e55eeb317c654a90078005a227cc8464',
+                '4192f6a25b8b2075c3de2d04b71651d5c870d50dcf99c7e9f17d6f73dccf5935')
+
+
+def split_sidechain(text, pinned=True):
+    """(Sidechain's detector text, the key bus tap's text) from Sidechain's reviewed resident text."""
+    start, end, detector_sha, tap_sha = KEYBUS_SPLIT
+    if text.count(start) != 1 or text.count(end) != 1 or text.index(start) > text.index(end):
+        raise ValueError('The key bus tap no longer splits out of Sidechain\'s DSP text exactly once')
+    a, b = text.index(start) + 1, text.index(end) + 1
+    detector, tap = text[:a] + text[b:], text[a:b]
+    if pinned and (hashlib.sha256(detector.encode()).hexdigest(), hashlib.sha256(tap.encode()).hexdigest()) != (detector_sha, tap_sha):
+        raise ValueError('The key bus split differs from the reviewed split')
+    return detector, tap
+
+
+def keybus_executed(tap):
+    """The key bus tap's cost: executed instructions per sample for one core's four tracks, seeded (its steady state),
+    counted statically from its text (`split_sidechain`'s second part): each DO body 32 times, the stock site's JSR and
+    the stub's JMP included, a block of 16 samples. Not a modeled cycle count and not a hardware timing."""
+    segments, label = {}, None
+    for line in tap.splitlines():
+        code = line.split(';')[0].rstrip()
+        if not code.strip():
+            continue
+        if not code[0].isspace() and code.endswith(':'):
+            label = code[:-1]
+            segments[label] = []
+        else:
+            segments[label].append(code.split()[0])
+
+    def run(name, first=0, last=None):
+        ops = segments[name][first:last]
+        if 'do' in ops:  # the DO's body is the rest of the segment
+            at = ops.index('do')
+            return at + 1 + 32 * (len(ops) - at - 1)
+        return len(ops)
+    if [segments['zz01'][i] for i in (2, 4, 8)] != ['beq', 'bne', 'beq'] or segments['kph1'][3] != 'beq' or 'do' not in segments['sctap'] or 'do' not in segments['zz30']:
+        raise ValueError('The key bus tap\'s paths changed: count its cost again')
+    common = 2 + run('sctap') + run('zz01', 0, 3) + run('zz30') + run('zz31')
+    paths = (run('kph1', 0, 4) + run('zz29'), run('zz01', 3, 5), run('zz01', 3, 9), run('zz01', 3, 5))  # local tracks 0-3
+    return -(-sum(common + extra for extra in paths) // 16)
+
+
 def verify_sources(sdk):
     sdk = Path(sdk).resolve()
     for path, expected in SOURCES.items():
         if hashlib.sha256((sdk / path).read_bytes()).hexdigest() != expected:
             raise ValueError('Resident DSP source changed; review the port: ' + path)
+    # The key bus split of Sidechain's reviewed text, before its per-core markers (KEYBUS_SPLIT).
+    pinned, changes = REVIEWED['sidechain-compressor'][:2]
+    text = (sdk / 'modules/sidechain-compressor/upstream/tools/patch_sc_dsp3.asm').read_text()
+    for old, new in changes:
+        text = text.replace(old, new)
+    split_sidechain(text)
     return dict(SOURCES)
 
 
@@ -217,7 +274,22 @@ def resource_ranges(tag):
               dict(owner=ANALOG_BD, space='x', address=0x2840, words=0x3700 - 0x2840)]
     if tag == 'A':
         ranges.append(dict(owner=MATRIX, space='y', address=0xc00, words=0xc1))
+    # The key bus: inside what Sidechain always owned (its reset keeps its 1,042 words); its own reset is 1,026. The
+    # window first, so a reset's first chunk zeroes its seed mark and counter (+$3DFE, +$3DFF): a reader never takes a
+    # stale mark from an earlier run for a live bus (controller_board.c's scrub after a disable is that one chunk).
+    ranges += [dict(owner=KEYBUS, space='y', address=shared, words=0x202),
+               dict(owner=KEYBUS, space='y', address=0x800, words=0x200)]
     return ranges
+
+
+def boot_ranges(tag):
+    """The ranges the boot upload zeroes: each word once (the key bus lies inside Sidechain's ranges)."""
+    out = []
+    for r in resource_ranges(tag):
+        if not any(o['space'] == r['space'] and o['address'] <= r['address'] and
+                   r['address'] + r['words'] <= o['address'] + o['words'] for o in out):
+            out.append(r)
+    return out
 
 
 def buffer_fits(tag, slot, base, words, active):
@@ -292,12 +364,18 @@ def _analog(root, tag):
 
 
 def _engines(ob, tag, table_origin, features, analog):
-    """(P table, texts) of `features` in the permanent order; their tables start at table_origin."""
+    """(P table, texts) of `features` in the permanent order; their tables start at table_origin. The key bus tap
+    comes first and Sidechain's detector after it, the order of Sidechain's own text."""
     table, texts = [], []
-    if features & SIDECHAIN:
+    if features & (SIDECHAIN | KEYBUS):
         sc_table, sc = _section(ob, 'sidechain-compressor', tag, table_origin)
-        table += sc_table
-        texts.append(sc)
+        detector, tap = split_sidechain(sc, pinned=False)
+        if features & SIDECHAIN:
+            table += sc_table
+        if features & KEYBUS:
+            texts.append(tap)
+        if features & SIDECHAIN:
+            texts.append(detector)
     if tag == 'A' and features & MATRIX:
         matrix_table, matrix = _section(ob, 'output-matrix', tag, table_origin + len(table))
         table += matrix_table
@@ -326,7 +404,7 @@ def assemble_resident(ob, tag, origin, work, assemble, on_demand=0):
     sources = verify_sources(ob.root)
     analog, xrecord = _analog(ob.root, tag)
     table, texts = _engines(ob, tag, origin, ALLOWED[tag] & ~on_demand, analog)
-    entries = [('hsc_tap', 'sctap', SIDECHAIN, 'move x:>$208,r6\nrts'),
+    entries = [('hsc_tap', 'sctap', KEYBUS, 'move x:>$208,r6\nrts'),
                ('hsc_det', 'scdet', SIDECHAIN, 'move r0,n6\nmove #$61,r4\nrts'),
                ('hsc_commit', 'moncommit', SIDECHAIN, 'move x:>$206,r0\nrts')]
     if tag == 'A':
@@ -397,7 +475,7 @@ def place_resident(ob, tag, end, work, assemble, on_demand=0):
     return result
 
 
-ENTRIES = {SIDECHAIN: ('sctap', 'scdet', 'moncommit'), MATRIX: ('omx_mix', 'omx_phn'), ANALOG_BD: ('zg01',)}
+ENTRIES = {SIDECHAIN: ('scdet', 'moncommit'), MATRIX: ('omx_mix', 'omx_phn'), ANALOG_BD: ('zg01',), KEYBUS: ('sctap',)}
 
 
 def engine_unit(ob, tag, feature, work, assemble, analog=None):
@@ -487,8 +565,10 @@ def initialization_records(bundle):
     A subsequent activation needs the same owned ranges reset while dormant,
     through bounded frame work and verified acknowledgements, before `ready`.
     """
+    if bundle['resources'] != resource_ranges(bundle['tag']):
+        raise ValueError('Resident reset resources changed')
     return [bundle['xRecord']] + [dict(space='y', address=r['address'], words=[0] * r['words'])
-                                for r in bundle['resources'] if r['space'] == 'y']
+                                for r in boot_ranges(bundle['tag']) if r['space'] == 'y']
 
 
 def receiver_control(bundle):
@@ -522,7 +602,7 @@ def receiver_control(bundle):
     # r3 points at hookready again: the check above left it on a base word.
     if on_demand:
         lines += ['move #>hookready,r3']
-    for feature in (SIDECHAIN, MATRIX, ANALOG_BD):
+    for feature in FEATURES:
         if not feature & ALLOWED[tag]:
             continue
         bit = feature.bit_length() - 1
@@ -531,7 +611,7 @@ def receiver_control(bundle):
                   'move a1,p:(r3)', 'hreadykeep%d:' % bit]
     for i, row in enumerate(bundle['descriptors']):
         placed = row['owner'] & on_demand
-        if row['owner'] not in (SIDECHAIN, MATRIX, ANALOG_BD) or not row['owner'] & ALLOWED[tag] or \
+        if row['owner'] not in FEATURES or not row['owner'] & ALLOWED[tag] or \
                 not all(bundle['origin'] <= row[k] < end for k in ('operand', 'off') + (() if placed else ('on',))):
             raise ValueError('A resident hook escapes its owned P block')
         if row['offValue'] != (row['off'] - row['entry']) & 0xffffff or (not placed and row['onValue'] != (row['on'] - row['entry']) & 0xffffff):
@@ -608,7 +688,7 @@ def receiver_reset(bundle):
         raise ValueError('Resident reset resources changed')
     lines = ['move x:(r0+4),a', 'and #>$ffff,a', 'cmp #>1,a', 'blt badsaved',
              'cmp #>24,a', 'bgt badsaved', 'move a1,x1', 'move x:(r0+7),a', 'and #>$ffff,a']
-    features = [feature for feature in (SIDECHAIN, MATRIX, ANALOG_BD) if feature & ALLOWED[tag]]
+    features = [feature for feature in FEATURES if feature & ALLOWED[tag]]
     for feature in features:
         lines += ['cmp #>%d,a' % feature, 'beq hreset%d' % feature]
     lines += ['bra badsaved']

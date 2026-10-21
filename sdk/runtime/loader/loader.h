@@ -7,10 +7,11 @@
 #include <stdint.h>
 #include "upload.h"
 #include "modwerk_module.h"
-#define RUNTIME_ABI 8u
+#define RUNTIME_ABI 9u
 #define RUNTIME_GROUP_METADATA 4u       /* ABI8 MWMG prefix; machine must explicitly admit its lifetime */
 #define RUNTIME_CAPABILITY_FLAGS 7u     /* CF sites, hash-backed stock copies, authored constant fills; and 128, site events, when the machine has them (64 is the volatile journal) */
-#define RUNTIME_HEADER_BYTES 76u        /* ABI 8: ABI 7 (72) plus constant-fill count; older headers: 68, 50, 32, 28 */
+#define RUNTIME_HEADER_BYTES 80u        /* ABI 9: ABI 8 (76) plus requires u16, claim and hook-entry counts u8;
+                                         * older headers: 76, 72, 68, 50, 32, 28 */
 #define RUNTIME_IMAGE_BYTES 131072u      /* one module's image and bss (Tape Echo's tone table is 86 KiB) */
 #define RUNTIME_RELOCATIONS 2048u
 #define RUNTIME_SITES 128u
@@ -20,6 +21,8 @@
 #define RUNTIME_FILLS 64u                /* ABI 8: bounded authored constant initializers, no bytes carried */
 #define RUNTIME_DSP_WORDS 4096u          /* one module's DSP code and tables, 24-bit words */
 #define RUNTIME_DSP_RELOCATIONS 256u
+#define RUNTIME_DSP_CLAIMS 16u           /* ABI 9: X/Y words the DSP code reads or writes outside its slot */
+#define RUNTIME_DSP_HOOK_ENTRIES 8u      /* ABI 9: entries for the base's stock-DSP hook sites (refused for now) */
 /* A machine may raise these (the Octatrack: 128 modules in 768 KiB, build_core.py). */
 #ifndef RUNTIME_POOL_BYTES
 #define RUNTIME_POOL_BYTES 262144u       /* every module's memory, reclaimed once nothing can reach it */
@@ -43,6 +46,11 @@ enum runtime_event { RUNTIME_TICK, RUNTIME_DRAW, RUNTIME_KEY, RUNTIME_ENC, RUNTI
 #define RUNTIME_RAISE 255u /* a raised event's hook word with this order: the image offset of a zero 4-byte slot the
                             * loader fills with the base's entry for that event (modwerk_raise_<event>); not a handler */
 struct runtime_site { uint32_t address, length; uint8_t stock[RUNTIME_SITE_BYTES], code[RUNTIME_SITE_BYTES]; };
+/* ABI 9: an X/Y span the module's DSP code reads or writes outside its own slot (README.md, "Base features and DSP
+ * claims"). space 1 X, 2 Y; core 0 or 1 (on the Octatrack core 0 runs payload A, tracks 5-8); an address at or past
+ * 0x30000 is in the window both cores see. access bit 0 read, bit 1 write. */
+struct runtime_dsp_claim { uint32_t address, words; uint8_t space, core, access, pad; };
+enum { RUNTIME_CLAIM_READ = 1, RUNTIME_CLAIM_WRITE = 2 };
 /* A module's DSP effect (README.md, "DSP code"): relocatable code the machine
  * loads into a DSP when a track picks the effect, and what it needs there. */
 struct runtime_dsp {
@@ -72,6 +80,9 @@ struct runtime_dsp {
                                       * record, read by the machine's admission) */
     uint8_t package_sha256[MU_DIGEST_BYTES]; /* exact encoded package, retained across relocation;
                                             * private board declarations must never hash mutable image bytes */
+    uint16_t requires;               /* ABI 9: base feature bits it needs (modwerk_machine_dsp_features) */
+    uint8_t claim_count;             /* ABI 9: its claims, kept in its pool extent beside its DSP words */
+    const struct runtime_dsp_claim *claims;
 };
 enum runtime_cycles { RUNTIME_EXECUTED = 1, RUNTIME_MODELED, RUNTIME_HARDWARE };
 /* At the start of the module's pool extent, followed by its sites, code, data, bss and DSP code. */
@@ -106,13 +117,26 @@ enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CO
                        RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
                        RUNTIME_STOCK /* ABI 7: the bytes under a site are not the stock bytes its hash names */,
                        RUNTIME_EVENT /* a site or copy meets a stock site the base owns as an event: subscribe to it */ };
+/* ABI 9 refusals use the codes above: a feature the base does not have, a claim another live module's claim meets
+ * (either writing), and any hook entry (no base has hook slots yet) are RUNTIME_CONFLICT. */
 /* ABI 7's site record (a 32-byte hash for the stock bytes) is never longer than ABI 6's (the stock bytes). */
 #define RUNTIME_PACKAGE_BYTES (RUNTIME_HEADER_BYTES + 4u * RUNTIME_HOOKS + RUNTIME_IMAGE_BYTES + 4u * RUNTIME_RELOCATIONS + \
                                RUNTIME_SITES * (8u + 2u * RUNTIME_SITE_BYTES + 2u * RUNTIME_SITE_RELOCATIONS) + \
-                               RUNTIME_COPIES * (12u + 32u) + RUNTIME_FILLS * 12u + 4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
+                               RUNTIME_COPIES * (12u + 32u) + RUNTIME_FILLS * 12u + 12u * RUNTIME_DSP_CLAIMS + \
+                               8u * RUNTIME_DSP_HOOK_ENTRIES + 4u * RUNTIME_DSP_WORDS + 2u * RUNTIME_DSP_RELOCATIONS)
 
 /* The controller's staging buffer is the machine's; it must hold RUNTIME_PACKAGE_BYTES. */
 extern const struct mu_backend modwerk_runtime_backend;
+/* Whole-set backend, gated by MODWERK_RUNTIME_SETS and capability 512. It
+ * uses the production module admission/switches and retains every predecessor
+ * through trial. Publish may return MU_PUBLISHING_MORE; never implicit Keep. */
+int modwerk_runtime_set_busy(void);
+#ifdef MODWERK_RUNTIME_SETS
+extern const struct mu_backend modwerk_runtime_set_backend;
+int modwerk_runtime_handle_reserved(uint32_t module, unsigned handle);
+unsigned modwerk_runtime_set_identity(uint8_t *out);
+void modwerk_runtime_set_refresh(void);
+#endif
 extern struct modwerk_runtime_api modwerk_runtime_api;
 /* A trampoline reads each position once, then calls its hook. Memory is
  * reclaimed only when no paused task holds an address inside it, so a hook
@@ -177,5 +201,11 @@ enum runtime_metadata_operation { RUNTIME_METADATA_PREPARE=1, RUNTIME_METADATA_S
 int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtime_dsp *to,
     const struct runtime_context *,enum runtime_metadata_operation);
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to); /* may set to->id */
+/* ABI 9: the base feature bits this base provides to packages (`requires`); weak, 0 by default (the Octatrack's
+ * on-demand base: sdk/machines/octatrack/dsp-sites.json's features). */
+unsigned modwerk_machine_dsp_features(void);
+/* ABI 9, locked, at admission: may these claims stand beside the base's own DSP words and its live buffers (a
+ * runtime_refusal)? Weak: refuses any claim. Another live module's claims are the loader's to check. */
+int modwerk_machine_dsp_claims_admit(unsigned requires, const struct runtime_dsp_claim *claims, unsigned n);
 void modwerk_machine_dsp_switch(const struct runtime_dsp *from, const struct runtime_dsp *to);
 #endif

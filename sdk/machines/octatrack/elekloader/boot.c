@@ -19,6 +19,16 @@
 struct modwerk_boot_stage modwerk_boot_stage __attribute__((aligned(16)));
 static uint32_t length;
 static int candidate, armed;
+#ifdef MODWERK_RUNTIME_SETS
+#include "set_package.h"
+extern const uint8_t modwerk_base_digest[32];
+int modwerk_modset_check_set(const uint8_t *,uint32_t);
+static int set_candidate;
+static const struct mu_backend *module_backend(void)
+{ return set_candidate ? &modwerk_runtime_set_backend : &modwerk_runtime_backend; }
+#else
+static const struct mu_backend *module_backend(void) { return &modwerk_runtime_backend; }
+#endif
 static volatile uint32_t countdown;
 static volatile int due;
 
@@ -78,9 +88,20 @@ volatile uint32_t modwerk_boot_accepted; /* modules accepted over USB: status.c 
 static int prepare(void *u, const uint8_t *d, uint32_t n)
 {
     candidate = 0;
+#ifdef MODWERK_RUNTIME_SETS
+    set_candidate = 0;
+#endif
     modwerk_modset_candidate(0, 0);
     if (n < 4u || be32(d) != OS_FIRST) {
-        int ok = modwerk_runtime_backend.prepare(u, d, n);
+#ifdef MODWERK_RUNTIME_SETS
+        set_candidate = n >= RUNTIME_SET_HEADER && be32(d) == RUNTIME_SET_MAGIC;
+        if(set_candidate) {
+            for(unsigned i=0;i<32u;++i) if(d[16+i]!=modwerk_base_digest[i]) return 0;
+            if(!modwerk_modset_check_set(d,n)) return 0;
+        }
+#endif
+        const struct mu_backend *b=module_backend();
+        int ok = b->prepare(u, d, n);
         if (ok) modwerk_modset_candidate(d, n);
         return ok;
     }
@@ -89,10 +110,10 @@ static int prepare(void *u, const uint8_t *d, uint32_t n)
     length = n; candidate = 1;
     return 1;
 }
-static int discard(void *u) { candidate = 0; modwerk_modset_candidate(0, 0); return modwerk_runtime_backend.discard(u); }
+static int discard(void *u) { candidate = 0; modwerk_modset_candidate(0, 0); const struct mu_backend *b=module_backend();return b->discard(u); }
 static enum mu_publication publish(void *u)
 {
-    if (!candidate) return modwerk_runtime_backend.publish(u);
+    if (!candidate) { const struct mu_backend *b=module_backend();return b->publish(u); }
     volatile uint32_t *mb = stage()->mailbox;
     const uint8_t *p = stage()->image;
     uint32_t hash = 0;
@@ -107,7 +128,7 @@ static enum mu_publication publish(void *u)
 static int restore(void *u)
 {
     modwerk_modset_candidate(0, 0); /* rolled back: the set stays as it was */
-    if (!armed) return modwerk_runtime_backend.restore(u);
+    if (!armed) { const struct mu_backend *b=module_backend();return b->restore(u); }
     stage()->mailbox[0] = 0;
     armed = 0; countdown = 0; due = 0;
     return 1;
@@ -115,7 +136,13 @@ static int restore(void *u)
 static int retire(void *u)
 {
     if (armed) return 1;
-    int ok = modwerk_runtime_backend.retire(u);
+    const struct mu_backend *b=module_backend();
+#ifdef MODWERK_RUNTIME_SETS
+    /* The complete saved candidate must still fit before the loader releases
+     * any predecessor. Its only mutation follows a successful retirement. */
+    if(set_candidate && !modwerk_modset_check_set(0,0)) return 0;
+#endif
+    int ok = b->retire(u);
     if (ok == 1) modwerk_modset_accepted(), modwerk_boot_accepted = modwerk_boot_accepted + 1; /* it stays after a power cycle */
     return ok;
 }

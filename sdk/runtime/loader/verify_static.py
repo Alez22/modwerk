@@ -39,13 +39,14 @@ def unpack_all(data):
 
 def unpack_recipe(data):
     abi = struct.unpack_from('>H', data, 4)[0] if data[:4] == b'MWRM' else 0
-    if abi not in (3, 4, 5, 6, 7, 8):
-        raise ValueError('Not an ABI 3 to 8 runtime package.')
+    if abi not in (3, 4, 5, 6, 7, 8, 9):
+        raise ValueError('Not an ABI 3 to 9 runtime package.')
     image, _, count, hooks, sites = struct.unpack_from('>IIIII', data, 8)
     dsp_words, dsp_relocations = struct.unpack_from('>IH', data, 32) if abi >= 5 else (0, 0)
     copies = struct.unpack_from('>I', data, 68)[0] if abi >= 7 else 0
-    fills = struct.unpack_from('>I', data, 72)[0] if abi == 8 else 0
-    at = {3: 28, 4: 32, 5: 50, 6: 68, 7: 72, 8: 76}[abi] + 4 * hooks
+    fills = struct.unpack_from('>I', data, 72)[0] if abi >= 8 else 0
+    claims, entries = (data[78], data[79]) if abi >= 9 else (0, 0)  # ABI 9: 12-byte claims, 8-byte hook entries
+    at = {3: 28, 4: 32, 5: 50, 6: 68, 7: 72, 8: 76, 9: 80}[abi] + 4 * hooks
     code, at = data[at:at + image], at + image
     offsets = struct.unpack_from('>%dI' % count, data, at)
     at += 4 * count
@@ -72,6 +73,7 @@ def unpack_recipe(data):
             raise ValueError('Malformed constant fill.')
         filled.append((offset, n, value))
         at += 12
+    at += 12 * claims + 8 * entries
     if at + 4 * dsp_words + 2 * dsp_relocations != len(data):
         raise ValueError('Trailing bytes in the package.')
     return code, offsets, records, copied, filled

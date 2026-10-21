@@ -71,6 +71,16 @@ async function scenario(name, run, fault = 'none', generation = 0) {
   } finally { await transport.close() }
 }
 
+await scenario('whole-set progress -> one trial -> one explicit accept', async (s, t) => {
+  const pkg = payload()
+  await s.stage(pkg); await s.activate()
+  assert.equal(s.status.generation, 1); assert.equal(s.status.active, pkg.sha256)
+  assert.equal(t.commands.filter(command => command === UploadCommand.commit).length, 3)
+  assert(!t.commands.includes(UploadCommand.accept))
+  await s.startTrial(); await s.holdTrial(); await s.accept()
+  assert.equal(t.commands.filter(command => command === UploadCommand.accept).length, 1)
+}, 'progress')
+
 await scenario('stage -> stopped publication -> playback trial -> stopped acceptance', async (s, t) => {
   const pkg = payload(), progress = []
   await s.stage(pkg, { progress: n => progress.push(n) })

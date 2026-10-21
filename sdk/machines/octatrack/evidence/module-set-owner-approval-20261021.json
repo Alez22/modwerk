@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "kind": "owner-scoped-experimental-approval",
+  "approvedBy": "repeat98",
+  "approvedOn": "2026-10-21",
+  "ownerStatement": "Approve those scoped experimental waivers",
+  "baseIdentity": "430b0053ac267e731393c51aa80cc9d0625d761034d063f4b82c8035b57cae4a",
+  "variantIdentities": {
+    "tracks-main-cue": "430b0053ac267e731393c51aa80cc9d0625d761034d063f4b82c8035b57cae4a",
+    "tracks": "bc677dc138899c81bd8d1ee42643589d39d167d195e94fd40deea52757c558e0",
+    "tracks-post": "7257de42a0f3ef396ea033ba3ea09723d229d407506cd636977f1a5ff0630e30",
+    "main-cue": "04538b6db2f023783ae21bdc4db8650e45fd5e06bfb56138e9f468106872028b",
+    "main": "63bc4843d56ac290a23307875d7d94c1de0162caf041a758bbe11546e5fd1994",
+    "master": "c964ae631088ad2ff591f25c8c3f94d109fdf1fe3b9ac5e10faa53c1bc2bf0dc",
+    "off": "14353d97081af3a781d58289327f59b88b1af72dc8d2c52fb4499fe29dceb637"
+  },
+  "baseSourceInventorySha256": "b6dba9418eda6f15357b4b06f364f2cf9b9f8968fa83c62f46215065469c4bcc",
+  "nativeBrowserImageSha256": "5d8eeaf0f950fc1f91c66d8c7b29a9d3259a34420294f6326f6e02e77a5a6fa3",
+  "sourceParents": {
+    "main": "bd2eb00552e434c7cc17d36aed9d502d40bb53e5",
+    "moduleSets": "d9c8e3c77c67d832292bce457d4d38b8dd6db2c7",
+    "keyBus": "499e85c0017cf3c7f55353f67262565a92aac435",
+    "usbReconnect": "fedfcb371ec0cf6daaa0bd23b50a8d02b888688b"
+  },
+  "integrationSources": {
+    "sdk/runtime/loader/set_package.h": "bcfd3829af0785cfd15ec801237226c24959d32d44d0c1fb2df4fb08806ac743",
+    "src/engine/elekloader/set-package.ts": "ac1513fe470c5444fbb43fa645c71488f7fa327d78a35c641f07cf97b7bdda82",
+    "src/engine/elekloader/module-set.ts": "eeb4c085500880bf5912a817103f0192f7d7a284c6a25266c12f6c3b1327b97b"
+  },
+  "baseBoundPackages": {
+    "sidechain-compressor": "f149663ba9895acbdebf4d139382728ff3c58bd660d5311b2da164614900e065",
+    "output-matrix": "0ce1065780d9888dd1ab55106adedbe86096a30edf130376c6e0d0d436d67961",
+    "cc-map": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
+    "recorder-loop-fix": "22534de96c7f670b47c04b5c176b78b1ac48432739f8989890e4c7deb86cd628",
+    "analog-bassdrum": "371a126db2705aa2de3de4558e15ab33277f5a0982e6ddfd4e7bf094de8d686e"
+  },
+  "status": "experimental-owner-waived",
+  "nativeBrowserParity": "All seven published USB layouts were source-built and matched byte for byte; each passed the strict stock-free scan and the controller-link equality check.",
+  "integrationFixes": [
+    "Whole-set framing accepts ABI 9 in the browser and device; native host tests retain feature refusal, publication and exact baseline rollback.",
+    "Key-bus readers are admitted on every generated published base variant.",
+    "CC Map and Mute Modes were source-rebuilt byte-identically before refreshing the generator-only cave/table source pin."
+  ],
+  "pr": 737,
+  "candidateCommit": "d9c8e3c77c67d832292bce457d4d38b8dd6db2c7",
+  "waived": [
+    "exact-combined-build-hardware-lifecycle",
+    "physical-audio-and-both-core-self-test",
+    "disconnect-boundary-hardware",
+    "physical-part-project-reboot-persistence"
+  ],
+  "limitations": [
+    "No physical run of this combined source/build is claimed. Mixed add/replace/remove, actual self-test and audible output on both cores, Keep/Undo, disconnect recovery, removal/missing-module behavior and persistence remain unverified.",
+    "Whole-set transactions remain beta/capability-gated. Software tests do not replace the actual self-test or explicit Keep/Undo in a device trial."
+  ],
+  "reapproval": {
+    "approvedBy": "repeat98",
+    "approvedOn": "2026-10-21",
+    "ownerStatement": "Approved, record it",
+    "scope": "The same scoped experimental waivers, re-recorded for the rebuilt base after main's #763 (saved projects keep module effect ids 100-127) changed the base's fxmap source. No other base source changed; all seven layouts and the five base-bound packages were rebuilt, and the packages' bytes are unchanged (only requiredBase moved).",
+    "previousBaseIdentity": "8fea36c2e1e2f80f6d60edda880b49aa6cec109192f41fa9b5f39827f399b019",
+    "candidateCommit": "514eaad63d3c6e1457b20e2cf4323e4baf49fa35"
+  }
+}

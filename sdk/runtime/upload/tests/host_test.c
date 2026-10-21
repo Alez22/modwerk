@@ -90,7 +90,7 @@ static void invariant(const struct fixture *f)
     assert(f->guarded[0] == 0xa5 && f->guarded[1025] == 0xa5);
     assert(f->c.received <= f->c.offer.length && f->c.offer.length <= f->c.capacity);
     if (f->c.phase == MU_NORMAL || f->c.phase == MU_TRIAL) assert(!f->held);
-    if (!f->c.active_known) assert(f->c.phase == MU_RECOVERY && f->held);
+    if (!f->c.active_known) assert((f->c.phase == MU_RECOVERY || f->c.phase == MU_PUBLISHING) && f->held);
 }
 static void staged(struct fixture *f)
 {
@@ -324,11 +324,35 @@ static void wire_protocol(void)
         assert(request(&f,r,n)==MU_LENGTH && f.enters==2 && f.publishes==1);
     }
 }
+static void whole_set_progress(void)
+{
+    struct fixture f;
+    init(&f);verified(&f);f.publication=MU_PUBLISHING_MORE;
+    for(unsigned i=0;i<3;++i) {
+        assert(mu_commit(&f.c,10)==MU_PROGRESS && f.c.phase==MU_PUBLISHING && !f.c.active_known && f.c.generation==4);
+        assert(!memcmp(f.c.previous,f.old,32) && mu_accept(&f.c,10)==MU_STATE && !f.retires);
+        assert(mu_abort(&f.c,10)==MU_STATE && mu_leave(&f.c)==MU_STATE);
+        invariant(&f);
+    }
+    f.publication=MU_APPLIED;
+    assert(mu_commit(&f.c,10)==MU_OK && f.c.phase==MU_PENDING && f.c.generation==5 && f.c.active_known);
+    assert(mu_rollback(&f.c,10)==MU_OK && !memcmp(f.c.active,f.old,32) && f.c.generation==6);
+    /* A disconnect in the middle restores the whole baseline, never accepts
+     * a prefix. Failed restoration retains ownership for the next attempt. */
+    init(&f);verified(&f);f.publication=MU_PUBLISHING_MORE;assert(mu_commit(&f.c,10)==MU_PROGRESS);
+    f.restore_ok=0;assert(mu_disconnect(&f.c)==MU_NEEDS_RECOVERY && f.retained && !f.retires);
+    f.restore_ok=1;assert(mu_disconnect(&f.c)==MU_OK && f.c.phase==MU_NORMAL && !memcmp(f.c.active,f.old,32));
+    /* UNCHANGED after a partial publication is not proof of a clean baseline. */
+    init(&f);verified(&f);f.publication=MU_PUBLISHING_MORE;assert(mu_commit(&f.c,10)==MU_PROGRESS);
+    f.publication=MU_UNCHANGED;assert(mu_commit(&f.c,10)==MU_NEEDS_RECOVERY && !f.discards && !f.c.active_known);
+    assert(mu_disconnect(&f.c)==MU_OK && !memcmp(f.c.active,f.old,32));
+}
 int main(void)
 {
     hash_vectors(); success(); input_refusals(); corruption(); prepare_failure();
     stopped_activation(); publication_failures(); rollback_and_disconnect();
     retirement_and_retries(); initialization_and_exhaustion(); malformed_chunks(); wire_protocol();
-    puts("Upload controller: 12 fault/acceptance groups passed; 20,000 malformed chunks/frames refused.");
+    whole_set_progress();
+    puts("Upload controller: 13 fault/acceptance groups passed; 20,000 malformed chunks/frames refused.");
     return 0;
 }
