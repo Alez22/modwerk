@@ -59,25 +59,31 @@ export function DownloadSignupInvite({ modules, onClose }: { modules: readonly B
   </dialog>
 }
 
-/** The same offer, kept in the install guide after the dialog closes. */
-export function DownloadSignupCard({ count }: { count: number }) {
+/** "Mini Verb, Tape Echo and Analog BD", or the first two and how many more. */
+export function moduleList(modules: readonly BuiltModule[]) {
+  const names = modules.map(module => module.name)
+  if (names.length > 3) return names.slice(0, 2).join(', ') + ' and ' + (names.length - 2) + ' more'
+  return names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0] ?? 'your modules'
+}
+
+/** A smaller reminder in the install guide once the invitation is closed; it can be closed for the visit. */
+export function DownloadSignupCard({ modules, onClose }: { modules: readonly BuiltModule[]; onClose: () => void }) {
   return <section className="signup-invite-card" aria-labelledby="signup-invite-card-title">
     <span className="signup-invite-icon" aria-hidden="true"><Icon name="mail" size={18}/></span>
     <div>
-      <h3 id="signup-invite-card-title">Make this firmware part of the community</h3>
-      <p>With a free account you get update emails for the {count === 1 ? 'module' : count ? count + ' modules' : 'modules'} you just downloaded, can report bugs to their authors, request new modules and join the forum.</p>
+      <h3 id="signup-invite-card-title">Get fixes for {moduleList(modules)}</h3>
+      <p>A free account emails you when they update, and lets you report bugs and join the forum.</p>
       <SignupActions onChoose={() => {}}/>
     </div>
+    <button type="button" className="icon-button signup-invite-card-close" aria-label="Close" onClick={onClose}><Icon name="close" size={16}/></button>
   </section>
 }
 
 /** Development only: `?preview=download-invite` shows the invitation and the install-guide card with sample modules, without a build. */
 export function DownloadSignupPreview() {
-  const [open, setOpen] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'download-invite')
-  const [card] = useState(open)
-  if (!card) return null
+  const [stage, setStage] = useState(() => import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'download-invite' ? 'dialog' : 'closed')
   const modules = [{ id: 'miniverb', name: 'Mini Verb', version: '0.2.3' }, { id: 'tapeecho', name: 'Tape Echo', version: '0.1.5' }, { id: 'analog-bassdrum', name: 'Analog BD', version: '0.1.0' }]
-  return <>{open && <DownloadSignupInvite modules={modules} onClose={() => setOpen(false)}/>}<DownloadSignupCard count={modules.length}/></>
+  return stage === 'dialog' ? <DownloadSignupInvite modules={modules} onClose={() => setStage('card')}/> : stage === 'card' ? <DownloadSignupCard modules={modules} onClose={() => setStage('closed')}/> : null
 }
 
 let claiming = false

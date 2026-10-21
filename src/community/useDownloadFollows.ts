@@ -10,13 +10,14 @@ import { rememberPendingFollows } from './pending-follows'
 export function useDownloadFollows() {
   const { session } = useCommunity()
   const [followNotice, setFollowNotice] = useState('')
-  const [invite, setInvite] = useState<{ modules: readonly BuiltModule[]; open: boolean } | null>(null)
+  /** The invitation opens on a guest's first download; closing it leaves a smaller card, which can be closed for the visit. */
+  const [invite, setInvite] = useState<{ modules: readonly BuiltModule[]; stage: 'dialog' | 'card' | 'closed' } | null>(null)
   function followDownloads(ids: readonly string[], build?: DownloadedBuild) {
     if (!ids.length) return
     if (!session.user?.verified) {
       rememberPendingFollows(ids, build)
       if (session.user) setFollowNotice('Verify your email on your account page and we’ll follow the modules you downloaded.')
-      else setInvite(previous => ({ modules: build?.modules ?? [], open: !previous }))
+      else setInvite(previous => previous ?? { modules: build?.modules ?? [], stage: 'dialog' })
       return
     }
     if (build) rememberHardwareFeedback(session.user.id, build)
@@ -28,6 +29,7 @@ export function useDownloadFollows() {
         : 'Your existing update opt-outs are kept. Use Get update notifications on a module page to follow again.')
     })
   }
-  const closeInvite = () => setInvite(previous => previous && { ...previous, open: false })
-  return { followDownloads, followNotice, invite, closeInvite }
+  const closeInvite = () => setInvite(previous => previous && { ...previous, stage: 'card' })
+  const closeCard = () => setInvite(previous => previous && { ...previous, stage: 'closed' })
+  return { followDownloads, followNotice, invite, closeInvite, closeCard }
 }

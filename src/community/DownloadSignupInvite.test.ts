@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { CommunityContext, emptySession } from './context'
 import { builtModules } from './build-follow-up'
 import { INVITE_WAIT_SECONDS, PendingFollowsClaim } from './DownloadSignupInvite'
-import { DownloadSignupCard, DownloadSignupInvite } from './DownloadSignupInvite'
+import { DownloadSignupCard, DownloadSignupInvite, moduleList } from './DownloadSignupInvite'
 import { rememberPendingFollows, takePendingFollows } from './pending-follows'
 import { useDownloadFollows } from './useDownloadFollows'
 import type { Session } from './api'
@@ -30,12 +30,12 @@ const render = (session: Session, child: ReactNode) => act(() => root.render(cre
 
 /** A build panel reduced to its download button and what follows it. */
 function Panel() {
-  const { followDownloads, followNotice, invite, closeInvite } = useDownloadFollows()
+  const { followDownloads, followNotice, invite, closeInvite, closeCard } = useDownloadFollows()
   return createElement('div', null,
     createElement('button', { className: 'download', onClick: () => followDownloads(['miniverb', 'tapeecho'], build) }, 'Download'),
     followNotice && createElement('p', { className: 'notice' }, followNotice),
-    invite?.open && createElement(DownloadSignupInvite, { modules: invite.modules, onClose: closeInvite }),
-    invite && createElement(DownloadSignupCard, { count: invite.modules.length }))
+    invite?.stage === 'dialog' && createElement(DownloadSignupInvite, { modules: invite.modules, onClose: closeInvite }),
+    invite?.stage === 'card' && createElement(DownloadSignupCard, { modules: invite.modules, onClose: closeCard }))
 }
 const download = () => act(() => container.querySelector<HTMLButtonElement>('.download')!.click())
 
@@ -45,6 +45,7 @@ it('invites a guest after the download, keeps it up for a few seconds and rememb
   await download()
   const dialog = container.querySelector('dialog')!
   expect(dialog.open).toBe(true)
+  expect(container.querySelector('.signup-invite-card')).toBeNull()
   expect(mocks.post).not.toHaveBeenCalled()
   expect(mocks.track).toHaveBeenCalledWith('download_signup_prompt_shown')
   for (const perk of ['Update emails', 'Report bugs', 'Request modules', 'Join the forum', 'Rate & like']) expect(dialog.textContent).toContain(perk)
@@ -61,10 +62,15 @@ it('invites a guest after the download, keeps it up for a few seconds and rememb
   expect(later.disabled).toBe(false)
   await act(() => later.click())
   expect(container.querySelector('dialog')).toBeNull()
-  // The offer stays in the install guide, and a second download does not reopen the dialog.
-  expect(container.querySelector('.signup-invite-card')?.textContent).toContain('2 modules')
+  // A smaller card naming the modules follows, and a second download does not reopen the dialog.
+  expect(container.querySelector('.signup-invite-card h3')?.textContent).toBe('Get fixes for ' + build.modules.map(module => module.name).join(' and '))
   await download()
   expect(container.querySelector('dialog')).toBeNull()
+  // Closing the card keeps it closed for the visit.
+  await act(() => container.querySelector<HTMLButtonElement>('.signup-invite-card-close')!.click())
+  expect(container.querySelector('.signup-invite-card')).toBeNull()
+  await download()
+  expect(container.querySelector('.signup-invite-card, dialog')).toBeNull()
   expect(takePendingFollows()?.ids).toEqual(['miniverb', 'tapeecho'])
 })
 
@@ -110,4 +116,12 @@ it('follows the remembered download once the new account is verified, then forge
 it('drops a remembered download after thirty days', () => {
   rememberPendingFollows(['miniverb'], undefined, Date.now() - 31 * 24 * 60 * 60 * 1000)
   expect(takePendingFollows()).toBeNull()
+})
+
+it('names up to three modules in the card and counts the rest', () => {
+  const named = (...names: string[]) => names.map(name => ({ id: name, name, version: '1' }))
+  expect(moduleList(named('A'))).toBe('A')
+  expect(moduleList(named('A', 'B', 'C'))).toBe('A, B and C')
+  expect(moduleList(named('A', 'B', 'C', 'D', 'E'))).toBe('A, B and 3 more')
+  expect(moduleList([])).toBe('your modules')
 })

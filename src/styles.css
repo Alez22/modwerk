@@ -2106,8 +2106,9 @@ button.signal-tile[aria-pressed="true"] > svg { fill: currentColor; }
 .signup-invite-later { display: block; min-height: 44px; margin: 6px auto 0; color: var(--muted); }
 .signup-invite-later:enabled:hover { color: var(--text); }
 .app-dialog .signup-invite-footer { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 4px 0 0; color: var(--faint); font-size: 12px; }
-.signup-invite-card { display: flex; gap: 14px; margin-top: 18px; padding: 18px; border: 1px solid var(--accent-line); border-radius: 10px; background: radial-gradient(90% 120% at 0 0, #a5adff1f, transparent 70%), var(--surface); }
-.signup-invite-card h3 { margin: 0 0 6px; font-size: 16px; line-height: 1.35; }
+.signup-invite-card { position: relative; display: flex; gap: 14px; margin-top: 18px; padding: 18px; border: 1px solid var(--accent-line); border-radius: 10px; background: radial-gradient(90% 120% at 0 0, #a5adff1f, transparent 70%), var(--surface); }
+.signup-invite-card-close { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; }
+.signup-invite-card h3 { margin: 0 36px 6px 0; font-size: 16px; line-height: 1.35; }
 .signup-invite-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .signup-invite-card .signup-invite-actions { max-width: 380px; margin-top: 14px; }
 .pending-follows-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 10px 10px 15px; }
