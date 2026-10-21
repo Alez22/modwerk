@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- USB profile preparation: record an exact private source-linked all-profile base with immutable descriptors, bounded detached-only selection and poisoned-ring checks. Browser/native parity, stock-free packaging and synthetic switching/streaming/POST regressions pass. The checked-in builder and physical unit are unchanged; host settings, reconnect recovery, module lifecycle and persistence remain unimplemented.
+
 - Octatrack emulator tools: prepare an isolated pinned build that restores the emulated caller's stack after borrowed C calls. The original left arguments on the main stack after every call. A stock-free 128-call regression fails on the original and passes with the fix; the five existing emulator gates also pass. Shared checkouts and firmware inputs stay unchanged.
 
 - USB profile preparation: record shared-ring producer parity and continuous POST gain tracking across all six layouts and off. The private prototype passes 875 synthetic checks; it still has no descriptor switch, settings transaction, install/removal or persistence implementation, and is not a base package or hardware result.

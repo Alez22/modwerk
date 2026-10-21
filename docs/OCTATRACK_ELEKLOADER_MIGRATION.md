@@ -2202,6 +2202,24 @@ unit:
   curve and has no descriptor switch, transaction, catalogue admission or
   persistence. [Exact experiment scope](../sdk/machines/octatrack/evidence/usb-profile-producer-prototype-20261021.json)
   keeps those results separate from hardware and stock-free base packages.
+- A later private archived recipe source-links those producers into one actual
+  format-2 base. Its browser/native image matches and its unmodified native
+  package passes the stock scan, including the named POST curve reconstruction.
+  An internal detached-only function selects immutable descriptor templates in
+  512-byte slots. It refuses a running controller or an unretired audio request;
+  only the incoming host state and profile/length change under the IRQ mask.
+  Descriptor shims preserve the displaced PEA's registers and condition flags.
+  No descriptor or full-ring copy runs under that mask: the existing startup
+  cushion excludes old ring data. Exact base `e38fca82` passes 455 frame-free
+  board checks, 479 synthetic streaming checks, 875 producer comparisons and
+  341 POST arithmetic/EMAC checks. Each board/stream suite covers all six
+  layouts and off at both speeds; ring poison stays out of the captured packets.
+  These are emulator results, without actual DSP or host class drivers. The
+  checked-in builder still emits separate layouts. The archived recipe has no
+  host settings command, reconnect lease/recovery, profile inventory, module
+  lifecycle or persistence, and has not been booted on the unit.
+  [Exact source-linked experiment scope](../sdk/machines/octatrack/evidence/usb-profile-base-prototype-20261021.json)
+  records the image identities and remaining gates.
 - The emulator models EP0–EP3, transfers up to 8 KiB and no packet timing.
   Its source here cannot build as is: the CPU cores under `sdk/octabam/vendor/`
   and `remixes/` are absent, and the 27 USB checks used a private adapter.
