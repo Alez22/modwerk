@@ -30,7 +30,8 @@ build and pass this one):
   countdown is clamped to the new period every call.
 - The model in `verify.py` now runs the key's low-pass, RECT and SLEW's level in exact integers, as the accumulator
   holds them (the level now keeps the fractional bits of |key| in its sum, so a float key drifted from it at ATK
-  127); it matches the DSP within 1.78e-07 of full scale (3.14e-05 before).
+  127); it matches the DSP within 1.78e-07 of full scale (3.14e-05 before), and the model gates (3, 6, 7, 8, 10d,
+  10e) now hold it to 4e-07, about 3 LSB (5e-05 before).
 
 **Against 0.1.0, sample for sample** (rerun on the review-fix source; `compare02.py`, kept privately; dsp_host, 0.1.0 = `c732b232`'s `ringsc.asm`,
 source `c2f2ec3f`, both on the same synthetic key bus):
@@ -50,13 +51,13 @@ source `c2f2ec3f`, both on the same synthetic key bus):
 | Gate | Result |
 | --- | --- |
 | No live key bus (four cases), KEY OFF, KEY 100, DPTH 0 in both modes (S&H 34, RECT 45), silent key in DUCK | bit for bit |
-| DUCK and RING against the model, 576 settings (RING now over HOLD 0/34/127 too: S&H, RECT and SLEW) | worst 1.78e-07 of full scale |
+| DUCK and RING against the model, 576 settings (RING now over HOLD 0/34/127 too: S&H, RECT and SLEW) | worst 1.78e-07 of full scale (limit 4e-07, about 3 LSB; 5e-05 before the model was exact) |
 | Other core, the module on T2, split blocks, key dispatched after, `-guard -dirty 0x5a`, MODE/KEY changes mid-render | pass, both modes |
 | 10a S&H 8 under a full-scale 55 Hz key on a steady input | every key held exactly 128 samples |
 | 10b SLEW 60 | gain 0.581..0.661, never below 0 (SLEW 0 reaches -1.000) |
 | 10c RECT 127 | gain 0.000..1.000, mean 0.639 (2/π = 0.637); RECT 0 reaches -1.000 |
 | 10d SLEW 0 → 30 → 0 under the full-scale key, once and every eight blocks, against the model | largest output step 0.050 and 0.106 of the input (limit 0.25; steady 0.008); the build before: 0.762 and 1.798 |
-| 10e S&H 127 → 0 mid-render | equal to S&H 0's output from the change on; the build before held 1,727 samples past it |
+| 10e S&H 127 → 0 mid-render | equal to S&H 0's output from the change on (asserted from the change's first sample); the build before held 1,727 samples past it |
 | Each continuous knob (now with SLEW and RECT in RING) swept under a tone | loudest -91 dBFS at the block rate (limit -70) |
 
 **Stress.** `python3 tools/stress.py 30`: eight instances and the fixture for 30 s, `-guard -dirty 0x5a`, 27,561 knob

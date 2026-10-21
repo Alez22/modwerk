@@ -20,7 +20,9 @@ Gates:
      bit for bit; a silent key does too in DUCK. So does any setting while the
      key bus is not live on the module's core (no seed mark, a wrong one, or a
      counter out of range): a card image has no bus.
-  3. DUCK and RING match model() within TOL over their knobs (in RING ATK,
+  3. DUCK and RING match model() within TOL (4e-7, about 3 LSB: the model
+     runs the key's low-pass, RECT and SLEW's level in exact integers; gates 6,
+     7, 8, 10d and 10e hold it to the same) over their knobs (in RING ATK,
      HOLD and REL are SLEW, S&H and RECT), with the
      first-block ramps included; DUCK's ATK at 32
      takes about 205 samples; a steady 55 Hz key holds the duck steady (no
@@ -51,7 +53,7 @@ Gates:
         quarter of the input a sample, where an unramped switch from the key
         to its level steps by up to twice the input;
      e. S&H turned from 127 to 0 takes a new key from the next call on: the
-        output equals S&H 0's within one block, where the old hold ran out
+        output equals S&H 0's from the change on, where the old hold ran out
         its count (up to 2,032 samples).
      (RING with all three at 0 is 0.1.0's ring modulator bit for bit: compared
      against 0.1 in TESTING.md, not here.)
@@ -70,7 +72,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 Q = 1 << 23
 FULL = Q - 1
 ORG, STUB = 0x2000, 0x2800
-TOL = 5e-5
+TOL = 4e-7  # about 3 LSB: the model is integer-exact where the DSP's arithmetic decides (worst 1.8e-07)
 
 
 def _tool(name, sub):
@@ -492,7 +494,7 @@ def main():
         diff = [i // 2 for i in range(len(got)) if got[i] != every[i]]
         last = max(diff) if diff else -1
         e = err(got, model(key_r, flat_r, sh, sched={400: knobs(mode=1, atk=0, hold=0, rel=0)}))
-        gate("10e S&H 127 -> 0: a new key from the next call", e <= TOL and last < 400 * 16 + 16,
+        gate("10e S&H 127 -> 0: a new key from the next call", e <= TOL and last < 400 * 16,
              f"(model {e:.2e}; last sample unlike S&H 0's: {last - 400 * 16} after the change)")
     finally:
         shutil.rmtree(work, ignore_errors=True)
