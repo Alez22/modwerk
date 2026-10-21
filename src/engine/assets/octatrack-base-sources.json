@@ -47,7 +47,7 @@
   "sdk/machines/octatrack/elekloader/fxmap.s": "cffc4ac29128e0522e9bcafa6bbdb6dfae3910b40d2f29b07863953e7d3ceea3",
   "sdk/machines/octatrack/elekloader/fxpage.c": "1f5048340f824df227f4fae28428b49e2424447f097a736ce4f2366695dcb972",
   "sdk/machines/octatrack/elekloader/fxpage.h": "8da7275db862eaab6d95fa031bcb47f12ef96941e919b4728e82f5476598d295",
-  "sdk/machines/octatrack/elekloader/fxpage.s": "87fb954f4a3f8868e1fbc527804d38c5f5ec3e7da683a1e47c8f8973dd72ed56",
+  "sdk/machines/octatrack/elekloader/fxpage.s": "02a0829e0217aa0f47e9198ad3e1e7fb49b3eb246e1700459b0400eff1ad1d7c",
   "sdk/machines/octatrack/elekloader/journal_board.c": "d024888cdea0c89877e8256a49f2abba94a871e88b3528622ac76cb3c459f4b3",
   "sdk/machines/octatrack/elekloader/load_wire.h": "6004843dadf23baf5ba710f4bd328630859d165a7fbcab35f6f9f1226728b82f",
   "sdk/machines/octatrack/elekloader/machine_registry.c": "eaeea5364a7d0d073b0c0a9f8c2e462ef6172f12fae9884f88fc9b8285f56c63",
