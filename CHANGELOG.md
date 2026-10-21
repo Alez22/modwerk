@@ -1,5 +1,9 @@
 # Application changelog
 
+## 21 October 2026
+
+- Building firmware no longer opens a sign-in prompt first. Instead, a guest's first download in a visit opens an invitation to join: six short benefits at a glance (update emails, bug reports to the author, module requests, the forum, ratings, sharing sets and previews) and the modules in that download. Not now unlocks after four seconds; Create free account and Sign in work at once. A smaller card with the same offer stays in the install guide. Once the new account is verified, Modwerk follows the modules downloaded in that browser and says so. The downloaded module names stay in the browser for up to 30 days and are only sent when you follow them. The admin statistics count the invitation, Create account presses and follows after sign-up. This replaces the five-second Skip for now from 20 October.
+
 ## 20 October 2026
 
 - Module search now combines instrument, type, module and author words in any order, ignoring case, accents and punctuation. The library and developer MCP share the same matcher. Active search and type filters can be removed individually, with keyboard focus returned to the results heading.

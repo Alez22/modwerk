@@ -1,14 +1,24 @@
 import { useState } from 'react'
 import { useCommunity } from './context'
 import { hasBetaAccess } from './beta-access'
+import type { BuiltModule } from './build-follow-up'
 import { followDownloadedModules } from './download-follows'
 import { rememberHardwareFeedback, type DownloadedBuild } from './hardware-feedback'
+import { rememberPendingFollows } from './pending-follows'
 
+/** Members follow what they download. Guests get the sign-up invitation instead, and the download is kept on this device until they join. */
 export function useDownloadFollows() {
   const { session } = useCommunity()
   const [followNotice, setFollowNotice] = useState('')
+  const [invite, setInvite] = useState<{ modules: readonly BuiltModule[]; open: boolean } | null>(null)
   function followDownloads(ids: readonly string[], build?: DownloadedBuild) {
-    if (!session.user?.verified || !ids.length) return
+    if (!ids.length) return
+    if (!session.user?.verified) {
+      rememberPendingFollows(ids, build)
+      if (session.user) setFollowNotice('Verify your email on your account page and we’ll follow the modules you downloaded.')
+      else setInvite(previous => ({ modules: build?.modules ?? [], open: !previous }))
+      return
+    }
     if (build) rememberHardwareFeedback(session.user.id, build)
     setFollowNotice('Saving module update preferences…')
     void followDownloadedModules(ids, hasBetaAccess(session)).then(result => {
@@ -18,5 +28,6 @@ export function useDownloadFollows() {
         : 'Your existing update opt-outs are kept. Use Get update notifications on a module page to follow again.')
     })
   }
-  return { followDownloads, followNotice }
+  const closeInvite = () => setInvite(previous => previous && { ...previous, open: false })
+  return { followDownloads, followNotice, invite, closeInvite }
 }
