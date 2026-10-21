@@ -30,7 +30,11 @@ export interface RuntimePackageManifest {
   groups?: { id: string; name: string; variants: MachineVariant[] }[]
 }
 export class BaseUpdateRequired extends ModuleSetError {
-  constructor() { super('Install the latest Modwerk base from the card to sync this module set. Your selected modules will stay here.') }
+  constructor(message = 'Install the latest Modwerk base from the card to sync this module set. Your selected modules will stay here.') { super(message) }
+}
+/** A key bus reader on a base that may not have the key bus: the same guided update, saying why. */
+export class KeyBusBaseRequired extends BaseUpdateRequired {
+  constructor(module: string) { super(`${module} needs a Modwerk base with the key bus. Install the latest Modwerk base from the card, then sync again. Your selected modules will stay here.`) }
 }
 /** The base the site publishes (sdk/machines/octatrack/base-binding.json). While USB sync is a beta every tester runs
  * it (owner, 15 October 2026): the site syncs nothing to an older base and guides the update instead. */
@@ -74,10 +78,14 @@ const invalidPackage = () => new ModuleSetError('The site’s module package lis
 const bounded = (n: unknown, max: number) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= max
 /** Header bytes by ABI (sdk/runtime/loader/README.md): ABI 9 adds requires u16, the claim count u8 and the hook-entry count u8. */
 const HEADERS: Record<number, number> = { 6: 68, 7: 72, 8: 76, 9: 80 }
-/** The base DSP features an ABI 9 package may require: what an Octatrack base whose loader reports ABI 9 provides
- * (resident_engines.c's modwerk_machine_dsp_features: the key bus, sdk/machines/octatrack/dsp-sites.json). The loader
- * refuses a package needing a feature its base lacks (RUNTIME_CONFLICT); the site never offers one it doesn't know. */
+/** The base DSP features an ABI 9 package may require: the key bus (dsp-sites.json), which only a base built with the
+ * resident engines on demand provides (resident_engines.c's modwerk_machine_dsp_features). An ABI 9 loader alone does
+ * not say so, and the capability record has no bit for it, so the site offers a reader only to the bases it knows have
+ * the bus (KEY_BUS_BASES); the loader would refuse it elsewhere with a bare RUNTIME_CONFLICT. */
 export const BASE_DSP_FEATURES: number = dspSites.features.find(feature => feature.name === 'keybus')?.bit ?? 0
+/** The bases with the key bus: the published one, built with the beta flags (scripts/octatrack-base.mjs,
+ * --resident-on-demand). */
+export const KEY_BUS_BASES: readonly string[] = [baseBinding.identity]
 /** loader.h RUNTIME_DSP_CLAIMS: the X/Y spans one package may claim outside its own slot. */
 const DSP_CLAIMS = 16
 function requirements(entry: RuntimePackage, group = false) {
@@ -270,11 +278,13 @@ export function createRuntimeCatalogue(document: RuntimePackageManifest) {
       if (!entry) continue
       // A published package bound to the published base (sdk/machines/octatrack/base-binding.json) needs that base: an older one is an update.
       // An ABI 9 package (base features, DSP claims) needs a loader that reports ABI 9: an older base is an update too.
+      // A key bus reader needs a base that has the bus, which only a known identity tells (KEY_BUS_BASES).
       if (entry.requiredBase && entry.requiredBase !== base) throw entry.requiredBase === baseBinding.identity ? new BaseUpdateRequired() :
         new ModuleSetError('This module package needs the exact Modwerk base it was prepared for. Reconnect that base before syncing.')
-      const { abi, features, sites, copies } = requirements(entry, step.group)
+      const { abi, features, sites, copies, requires } = requirements(entry, step.group)
       if ((!capabilities && (abi > 6 || features)) || capabilities && (abi > capabilities.abi || (features & capabilities.features) !== features || sites > capabilities.maxSites || copies > capabilities.maxCopies))
         throw new BaseUpdateRequired()
+      if ((requires & BASE_DSP_FEATURES) && !(base && KEY_BUS_BASES.includes(base))) throw new KeyBusBaseRequired(step.name)
     }
   }
   const inventory = (modules: MissingModule[]): Inventory => {

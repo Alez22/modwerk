@@ -5,7 +5,7 @@ import manifest from '../assets/octatrack-module-packages.json' with { type: 'js
 import siteEvents from '../../../sdk/machines/octatrack/site-events.json' with { type: 'json' }
 import baseBinding from '../../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
 import { removal } from '../../dev/octatrack-usb-lifecycle'
-import { BASE_DSP_FEATURES, BaseUpdateRequired, createRuntimeCatalogue, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
+import { BASE_DSP_FEATURES, BaseUpdateRequired, createRuntimeCatalogue, KEY_BUS_BASES, KeyBusBaseRequired, type MachineVariant, fetchPackage, inventoryFrom, ModuleSetError, prepareModuleSet, removalPackage, runtimeId, SITE_EVENTS, USB_MODULE_IDS } from './module-set'
 
 const file = (path: string) => new Uint8Array(readFileSync(new URL('../../../public/' + path, import.meta.url)))
 const load = async (entry: { path: string }) => file(entry.path)
@@ -146,7 +146,7 @@ const readerClaims: Claim[] = [[2, 0, 1, 0x800, 0x200], [2, 1, 1, 0x800, 0x200],
 
 describe('ABI 9 packages: base features and DSP claims', () => {
   const effect = manifest.packages.find(item => item.id === 'everb')!, published = file(effect.path)
-  const keybus = { abi: 9, features: 7 | 128, maxSites: 128, maxCopies: 128 }
+  const keybus = { abi: 9, features: 7 | 128, maxSites: 128, maxCopies: 128 }, at = baseBinding.identity
   const reader = (data = abi9(published, BASE_DSP_FEATURES, readerClaims), fields: Record<string, unknown> = {}) => {
     const entry = { ...effect, abi: 9, requires: BASE_DSP_FEATURES, claims: readerClaims.length, bytes: data.length, sha256: sha(data), ...fields }
     return { catalogue: createRuntimeCatalogue({ packages: [entry] }), data }
@@ -164,16 +164,33 @@ describe('ABI 9 packages: base features and DSP claims', () => {
   it('syncs a reader to a base whose loader reports ABI 9, with its forward and Undo packages checked', async () => {
     const { catalogue, data } = reader(), fetched = vi.fn(async () => data)
     await expect(catalogue.prepare(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
-    await expect(catalogue.prepare(target, empty, fetched, { ...keybus, abi: 8 })).rejects.toBeInstanceOf(BaseUpdateRequired)
-    expect(catalogue.review(target, empty, { ...keybus, abi: 8 }).problem).toBeInstanceOf(BaseUpdateRequired)
+    await expect(catalogue.prepare(target, empty, fetched, { ...keybus, abi: 8 }, at)).rejects.toBeInstanceOf(BaseUpdateRequired)
+    expect(catalogue.review(target, empty, { ...keybus, abi: 8 }, at).problem).toBeInstanceOf(BaseUpdateRequired)
     expect(fetched).not.toHaveBeenCalled()
-    expect(catalogue.review(target, empty, keybus).problem).toBeUndefined()
-    const { changes } = await catalogue.prepare(target, empty, fetched, keybus)
+    expect(catalogue.review(target, empty, keybus, at).problem).toBeUndefined()
+    const { changes } = await catalogue.prepare(target, empty, fetched, keybus, at)
     expect(changes).toEqual([{ module: 'E-Verb', data, undo: removalPackage('everb') }])
-    expect((await catalogue.prepare({ name: 'Empty', moduleIds: [] }, { ...empty, moduleIds: ['everb'] }, fetched, keybus)).changes[0].undo).toEqual(data)
+    expect((await catalogue.prepare({ name: 'Empty', moduleIds: [] }, { ...empty, moduleIds: ['everb'] }, fetched, keybus, at)).changes[0].undo).toEqual(data)
     // A reader that claims nothing is as valid: the base owns the bus's words.
     const bare = abi9(published, BASE_DSP_FEATURES, [])
-    await expect(reader(bare, { claims: 0 }).catalogue.prepare(target, empty, async () => bare, keybus)).resolves.toBeDefined()
+    await expect(reader(bare, { claims: 0 }).catalogue.prepare(target, empty, async () => bare, keybus, at)).resolves.toBeDefined()
+  })
+  it('offers a reader only to a base known to have the key bus, with the guided update saying why', async () => {
+    const { catalogue, data } = reader(), fetched = vi.fn(async () => data)
+    expect(KEY_BUS_BASES).toEqual([baseBinding.identity])
+    // The published base is built with the resident engines on demand, the only bases with the key bus.
+    expect(readFileSync(new URL('../../../scripts/octatrack-base.mjs', import.meta.url), 'utf8')).toMatch(/The beta base:\n.*--resident-on-demand/)
+    for (const base of [undefined, 'b'.repeat(64)]) {
+      const problem = catalogue.review(target, empty, keybus, base).problem
+      expect(problem).toBeInstanceOf(KeyBusBaseRequired)
+      expect(problem).toBeInstanceOf(BaseUpdateRequired)
+      expect(problem?.message).toContain('E-Verb needs a Modwerk base with the key bus')
+      await expect(catalogue.prepare(target, empty, fetched, keybus, base)).rejects.toBeInstanceOf(KeyBusBaseRequired)
+      // Its Undo too: removing a reader from such a base would retain a package it can't take back.
+      await expect(catalogue.prepare({ name: 'Empty', moduleIds: [] }, { ...empty, moduleIds: ['everb'] }, fetched, keybus, base)).rejects.toBeInstanceOf(KeyBusBaseRequired)
+    }
+    expect(fetched).not.toHaveBeenCalled()
+    expect(catalogue.review(target, empty, keybus, at).problem).toBeUndefined()
   })
   it('refuses a manifest that leaves out ABI 9’s fields, names an unknown feature or gives them to an older ABI', () => {
     for (const fields of [{ requires: undefined }, { claims: undefined }, { requires: 16 }, { requires: BASE_DSP_FEATURES | 1 }, { claims: 17 }, { claims: -1 },
@@ -183,7 +200,7 @@ describe('ABI 9 packages: base features and DSP claims', () => {
   it('checks the header and every claim as the loader does before anything is sent', async () => {
     const refused = async (data: ReturnType<typeof abi9>, fields: Record<string, unknown> = {}) => {
       const { catalogue } = reader(data, fields)
-      await expect(catalogue.prepare(target, empty, async () => data, keybus)).rejects.toThrow('inconsistent')
+      await expect(catalogue.prepare(target, empty, async () => data, keybus, at)).rejects.toThrow('inconsistent')
     }
     await refused(abi9(published, 0, readerClaims)) // requires differs from the manifest
     await refused(abi9(published, BASE_DSP_FEATURES, readerClaims.slice(1))) // claim count differs
@@ -195,7 +212,7 @@ describe('ABI 9 packages: base features and DSP claims', () => {
     await refused(abi9(published, BASE_DSP_FEATURES, [[2, 0, 1, 0x800, 0x40], [2, 0, 1, 0x83f, 1]]), { claims: 2 })
     await refused(abi9(published, BASE_DSP_FEATURES, [[2, 0, 1, 0x33dfe, 0x10], [1, 1, 1, 0x33e00, 1]]), { claims: 2 })
     const apart = abi9(published, BASE_DSP_FEATURES, [[2, 0, 1, 0x800, 0x40], [2, 1, 1, 0x800, 0x40], [1, 0, 1, 0x800, 0x40]])
-    await expect(reader(apart, { claims: 3 }).catalogue.prepare(target, empty, async () => apart, keybus)).resolves.toBeDefined()
+    await expect(reader(apart, { claims: 3 }).catalogue.prepare(target, empty, async () => apart, keybus, at)).resolves.toBeDefined()
     const reserved = abi9(published, BASE_DSP_FEATURES, readerClaims); reserved[80 + published.length - 68 - (4 * new DataView(published.buffer).getUint32(32) + 2 * new DataView(published.buffer).getUint16(36)) + 3] = 1
     await refused(reserved) // the first claim's reserved byte
   })

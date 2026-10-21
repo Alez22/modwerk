@@ -193,7 +193,8 @@ for byte (`--requires keybus`, `--claim y:0:w:0x7a0:16`). It is kept apart from 
 the reviewed machine and standalone recipes. The capability record's maximum ABI is 9 on a base built from this loader.
 The site's module-set builder (`src/engine/elekloader/module-set.ts`) checks an ABI 9 package as the loader does
 (header, claims, no hook entries) and offers it only to a base whose capability record reports ABI 9; the only
-`requires` bit it accepts is the key bus.
+`requires` bit it accepts is the key bus, and a reader of it goes only to a base the site knows has the bus (the
+published one, built with the resident engines on demand): the capability record says nothing about base features.
 
 ## Several modules at once
 
