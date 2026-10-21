@@ -2,6 +2,8 @@
 
 ## 21 October 2026
 
+- Development checks: refresh main's remote-tracking ref in single-branch clones, so `pr:ready`'s suggested merge reaches the fetched current main. Previously its correct stale-branch verdict could point to a stale ref and the merge did nothing. A real Git regression exercises that recovery command.
+
 - USB profile staging: preserve condition flags and input registers across the six USB handler dispatchers. The earlier compiled audio-off GET_INTERFACE path changed flags in 30 of 32 contexts even though its displaced PEA preserves them. Exact-image entry captures cover all profiles; this is an opt-in ABI correction, not a verified cause of a reported audio symptom. Physical timing and host recovery remain unqualified.
 
 - USB profile staging: refuse the internal detached commit while EP0 owns a transfer/completion, stock still awaits a control stage, or the old POST clock SET is pending. An actual emulated interrupted clock request exposed acceptance after unplug; the guarded candidate refuses without clearing the old state. This adds a refusal fence, not transport retirement, a host settings command or reconnect authorization. Ordinary base/card packages and the physical unit are unchanged.

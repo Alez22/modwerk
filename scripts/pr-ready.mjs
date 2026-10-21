@@ -39,7 +39,9 @@ async function main(argv) {
   const tracked = () => git('status', '--porcelain', '--untracked-files=no').split('\n').filter(Boolean).map(line => line.slice(3))
 
   console.log(`Fetching ${remote}/main`)
-  git('fetch', '--no-tags', remote, 'main')
+  // A single-branch clone may fetch main only into FETCH_HEAD. Update the
+  // tracking ref too, so the suggested `git merge <remote>/main` is useful.
+  git('fetch', '--no-tags', remote, `refs/heads/main:refs/remotes/${remote}/main`)
   const base = git('rev-parse', 'FETCH_HEAD'), head = git('rev-parse', 'HEAD')
   const dirty = tracked()
   let behind = false
