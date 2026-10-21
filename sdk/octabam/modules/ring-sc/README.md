@@ -55,7 +55,7 @@ For the cleanest duck put the key on a track the instrument handles before the d
 ## Compatibility and limitations
 
 - Original OS 1.40C. FX1 and FX2 of any audio track, several at once; its own effect id (0x06), so it displaces no stock effect.
-- **Over USB only, on a Modwerk base with the key bus** (the loader's ABI 9; the package requires the key bus and declares its reads of the bus and the window). A card image has no key bus: there RINGMOD SC keeps its depth at 0 and passes the audio untouched. Until the site's USB-only rule lands (a separate pull request), the card configurator still offers it, and a card download with it carries an effect that does nothing.
+- **Over USB only, on a Modwerk base with the key bus** (the loader's ABI 9; the package requires the key bus and declares its reads of the bus and the window). A card image has no key bus: there RINGMOD SC keeps its depth at 0 and passes the audio untouched. So it is USB-only: the configurator refuses card firmware with it (the site's rule for a module whose package requires a base feature) and offers it in USB module sets.
 - **The key bus's cost counts toward RINGMOD SC.** While it is installed the base's tap copies every track's audio on every block on both cores, even with no instance on a track: 41 executed instructions a sample a core by a count of its source, charged at 7/4 (72) until it is timed on a unit. Installed beside Sidechain Compressor, which holds the bus too, RINGMOD SC still pays for it.
 - Runs beside Sidechain Compressor: both read the key bus, and RINGMOD SC writes nothing outside its own state. Installing or reinstalling Sidechain Compressor while RINGMOD SC is live re-zeroes the bus once: up to about a block of silent key.
 - A MODE or KEY change fades the effect out, clears the key's state and fades back in, about 1 ms in all, so a KEY parameter lock shorter than that is not heard.
@@ -63,7 +63,7 @@ For the cleanest duck put the key on a track the instrument handles before the d
 - **Declared conflict with Analog BD.** It is carried over from the card builder's rule: Analog BD admits only the effects on its companion list, and RINGMOD SC is not on it. Over USB no resource clash is known, but the declaration applies to every build, so the configurator never offers both. Whether to keep it is the owner's call.
 - A project that selects RINGMOD SC on a base without it gets no effect in that slot.
 - 322 words of DSP program per core, 20 words of state per instance, no delay buffer; the key bus's memory (Y $800-$9FF on each core, the last $202 words of each core's half of the shared window) is the base's.
-- Not tested on hardware: RECT. 0.1.0, whose DUCK and plain RING this version reproduces sample for sample, passed its first MKII steps over USB (key bus, install, KEY, DUCK by ear); its scenes, parameter locks, project save, Part reload and power cycle were not run. An LFO at full depth on KEY takes it past T8, which reads as OFF.
+- On an MKII (21 October 2026, over USB, beside Output Matrix, Analog BD, LOFI2, Quantize Live Rec, Apply Scene and two other modules, the build before RECT): DUCK ducked; SETUP read MODE over DUCK and RING; RING with S&H and the third knob at 0 gave the kick-gated ring modulation; S&H stepped it; SLEW smoothed it. RECT (which replaced that build's BIAS), scenes, parameter locks, project save, Part reload and a power cycle are not tested on a unit. An LFO at full depth on KEY takes it past T8, which reads as OFF.
 
 ## Tests and measurements
 

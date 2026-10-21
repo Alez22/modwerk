@@ -106,7 +106,7 @@
     ],
     "uiClaims": [],
     "limitations": [
-      "Needs the Modwerk base's key bus, which only the USB base has (loader ABI 9, `requires keybus`). A card image has no key bus: there the effect keeps its depth at 0 and passes the audio untouched. Until the site's USB-only rule lands (a separate pull request), the card configurator still offers it.",
+      "Needs the Modwerk base's key bus, which only the USB base has (loader ABI 9, `requires keybus`), so it is USB-only: the configurator refuses card firmware with it (the site's rule for a package that requires a base feature). A card image built with it anyway has no key bus, and there the effect keeps its depth at 0 and passes the audio untouched.",
       "While RINGMOD SC is installed the base's tap copies every track's audio on every block, on both cores, and its price (41 executed instructions a sample a core, charged at 7/4) counts toward RINGMOD SC, even with no instance on a track. That figure is counted from the tap's source; the chip cost is not measured.",
       "The key is taken before the key track's own effects.",
       "The key is exact when its track is dispatched before this one on the same DSP core (T1-T4, T5-T8), 16 samples late when after, and 32 samples late across the cores (the key bus's latency, measured on an MKII for Sidechain Compressor; not yet with this module).",
@@ -115,7 +115,7 @@
       "On the first visit to the main page after choosing the effect, KEY may move one track per detent until the page is entered again (seen on card images under the emulator; not checked on the USB base).",
       "Declared conflict with Analog BD: carried over from the card builder's rule (Analog BD admits only the effects on its companion list, and this one is not on it). Over USB no resource clash is known; it is declared for every build until the owner decides otherwise, so the configurator never offers both.",
       "DUCK buzzes at its very shortest settings: with ATK, HOLD and REL all near 0 the gain follows each cycle of the key, an audio-rate amplitude modulation (heard on an MKII with 0.1.0, as expected). Keep HOLD above half a cycle of the key for a clean duck.",
-      "0.2.0 has not run on hardware. 0.1.0, whose DUCK and plain RING this version reproduces sample for sample, passed its first MKII steps over USB on 21 October 2026 (key bus, install, KEY, DUCK by ear); scenes, the crossfader, project save, Part reload and a power cycle were not run, and parameter locks and LFOs only in the emulator on the earlier own-tap build."
+      "On an MKII (21 October 2026, over USB, beside seven other modules, the build before RECT) DUCK, MODE's SETUP label, plain RING, S&H and SLEW were checked by ear. RECT, scenes, the crossfader, project save, Part reload and a power cycle are not tested on a unit."
     ],
     "effectId": 6
   },
