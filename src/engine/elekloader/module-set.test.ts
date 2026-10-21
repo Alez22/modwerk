@@ -119,7 +119,7 @@ describe('preparing a module set', () => {
   })
   it('fetches the site’s copy and refuses one that did not arrive intact', async () => {
     const entry = manifest.packages[0], data = file(entry.path)
-    vi.stubGlobal('fetch', async (url: string) => { expect(url).toBe('/' + entry.path); return new Response(data) })
+    vi.stubGlobal('fetch', async (url: string) => { expect(url).toBe('/' + entry.path + '?sha256=' + entry.sha256); return new Response(data) })
     expect(await fetchPackage(entry)).toEqual(data)
     vi.stubGlobal('fetch', async () => new Response(data.subarray(1)))
     await expect(fetchPackage(entry)).rejects.toThrow(/couldn’t fetch E-Verb intact/)
