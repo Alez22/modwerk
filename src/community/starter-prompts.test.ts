@@ -146,18 +146,27 @@ describe('starter prompts', () => {
 describe('start developing page', () => {
   it('shows one complete prompt and hides its long preview and setup by default', () => {
     const html = renderToStaticMarkup(createElement(SubmissionPage))
-    expect(html).toContain('<h1>Start developing</h1>')
+    expect(html).toContain('No coding experience needed.')
+    expect(html).toContain('A Claude or ChatGPT subscription')
     expect(html).toContain('/fork"')
     expect(html).toContain('Copy prompt')
     expect(html.match(/Copy prompt/g)).toHaveLength(1)
     expect(html).toContain('Preview complete prompt')
     expect(html).toContain('DEVELOPER_WORKFLOW.md#your-development-setup')
     expect(html).not.toContain('<details open')
-    expect(html.indexOf('Your coding prompt')).toBeLessThan(html.indexOf('Your first release'))
+    expect(html.indexOf('What you need')).toBeLessThan(html.indexOf('Your starter prompt'))
+    expect(html.indexOf('Your starter prompt')).toBeLessThan(html.indexOf('Your first release'))
+  })
+
+  it('preselects the machine an overview link names', () => {
+    const html = renderToStaticMarkup(createElement(SubmissionPage, { machine: 'syntakt' }))
+    expect(html).toMatch(/<option value="syntakt" selected="">/)
+    expect(html).toContain('Instrument integration')
   })
 
   it.each(['miniverb', 'digitakt-digihealth', 'digitone-digihealth'])('prefills the correct update path for %s', moduleId => {
     const html = renderToStaticMarkup(createElement(SubmissionPage, { moduleId }))
+    expect(html).not.toContain('What you need')
     expect(html).toContain('Fixes and updates')
     expect(html).toContain('Module ID or source link')
     expect(html).not.toContain('npm run module:new')

@@ -1,0 +1,74 @@
+import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { AVAILABLE_MODULES } from '../catalog/availability'
+import { DEVICES, DEVICE_STEPS } from '../devices/registry'
+import { DIGI_MODS } from '../devices/digi-mods'
+import { developHighlight, DEVELOP_HIGHLIGHT_UNTIL, machineOverview, overviewLayout } from './overview'
+import { OverviewPage } from './OverviewPage'
+
+const overview = machineOverview(AVAILABLE_MODULES)
+
+describe('machine overview', () => {
+  it('counts the same modules as the library, once per machine', () => {
+    expect(overview.modules).toBe(AVAILABLE_MODULES.length + DIGI_MODS.length)
+    expect(overview.machines.map(machine => machine.device.id).sort()).toEqual(DEVICES.map(device => device.id).sort())
+    for (const machine of overview.machines) expect(machine.categories.reduce((sum, item) => sum + item.count, 0)).toBe(machine.count)
+    expect(overview.machines.find(machine => machine.device.id === 'octatrack')!.count).toBe(AVAILABLE_MODULES.length)
+    expect(overview.withMods + overview.withoutMods).toBe(DEVICES.length)
+  })
+
+  it('counts each creator once, across machines', () => {
+    const logins = new Set([...AVAILABLE_MODULES.map(module => module.author.toLowerCase()), ...DIGI_MODS.map(mod => (mod.authorLogin ?? mod.author).toLowerCase())])
+    expect(overview.creators).toBe(logins.size)
+  })
+
+  it('lists machines with mods first, then research by progress, then unexplored ones', () => {
+    const kinds = overview.machines.map(machine => machine.kind)
+    expect(kinds).toEqual([...kinds].sort((a, b) => ['mods', 'research', 'open'].indexOf(a) - ['mods', 'research', 'open'].indexOf(b)))
+    const research = overview.machines.filter(machine => machine.kind === 'research').map(machine => machine.stepsDone)
+    expect(research).toEqual([...research].sort((a, b) => b - a))
+    for (const machine of overview.machines) {
+      if (machine.kind === 'mods') expect(machine.next).toBeUndefined()
+      else expect(machine.developHref).toBe('#submit?machine=' + machine.device.id)
+    }
+  })
+
+  it('reports how far the machines without mods have come, step by step', () => {
+    expect(overview.reached.map(step => step.title)).toEqual(DEVICE_STEPS.map(step => step.title))
+    const waiting = DEVICES.filter(device => !overview.machines.find(machine => machine.device.id === device.id)!.count)
+    for (const [index, step] of DEVICE_STEPS.entries()) expect(overview.reached[index].count).toBe(waiting.filter(device => device.steps[step.id] === 'done').length)
+  })
+
+  it('switches layout only through the preview parameter', () => {
+    expect(overviewLayout('')).toBe('grid')
+    expect(overviewLayout('?landing=b')).toBe('spotlight')
+    expect(overviewLayout('?landing=c')).toBe('bento')
+    expect(overviewLayout('?landing=x')).toBe('grid')
+  })
+
+  it('ends the Start developing highlight after its date', () => {
+    expect(developHighlight(new Date(DEVELOP_HIGHLIGHT_UNTIL + 'T12:00:00Z'))).toBe(true)
+    expect(developHighlight(new Date(new Date(DEVELOP_HIGHLIGHT_UNTIL + 'T12:00:00Z').getTime() + 864e5))).toBe(false)
+  })
+})
+
+describe('overview page', () => {
+  it.each(['grid', 'spotlight', 'bento'] as const)('links every machine and invites development in the %s layout', layout => {
+    const html = renderToStaticMarkup(createElement(OverviewPage, { overview, layout }))
+    for (const machine of overview.machines) {
+      expect(html).toContain('href="' + machine.href + '"')
+      expect(html).toContain(machine.device.name)
+    }
+    expect(html).toContain('href="#submit"')
+    expect(html).toContain('Claude or ChatGPT subscription')
+    expect(html).toContain('Image credits')
+    expect(html).toContain('elektronmods.com')
+  })
+
+  it('gives each machine without mods its own Start developing link in the grid', () => {
+    const html = renderToStaticMarkup(createElement(OverviewPage, { overview, layout: 'grid' }))
+    for (const machine of overview.machines.filter(item => !item.count)) expect(html).toContain('href="' + machine.developHref + '"')
+    expect(html).toContain('>' + overview.modules + '</dd>')
+  })
+})

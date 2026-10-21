@@ -1,5 +1,10 @@
 # Application changelog
 
+## 21 October 2026
+
+- Draft, not yet released: an overview landing page. modwerk.app now opens on Overview, the sidebar's new first item, instead of the remembered machine's library; the logo leads there too and the old `#devices` link opens it. Every Elektron machine in the registry is a large tile with its module count, its modules by category and, for machines without mods, its research progress and a Start developing link that opens the starter prompt with that machine chosen. Three layouts are under review: a grid (default), a spotlight (`?landing=b`) and a bento grid (`?landing=c`); the switch goes once one is chosen. Counts come from the same catalogue as the library, so the overview, sidebar and library agree. Machine images and their credits are unchanged.
+- Start developing is highlighted until 31 January 2027: a card under Overview in the sidebar and an accent row in the phone menu say that no programming background is needed, only a Claude or ChatGPT subscription, with the starter prompt guiding every step. The Start developing page now opens with what you need and how the work is shared between you and the coding assistant, before the starter prompt. Machine pages without mods gained a Start developing button. Checked with render tests of all three layouts and the Start developing page; layout, contrast and phone sizes are not yet reviewed in a browser.
+
 ## 20 October 2026
 
 - Module search now combines instrument, type, module and author words in any order, ignoring case, accents and punctuation. The library and developer MCP share the same matcher. Active search and type filters can be removed individually, with keyboard focus returned to the results heading.

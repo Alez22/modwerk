@@ -7,4 +7,6 @@
 
 Analog Four MKI has no suitable free photo yet (Commons only has teardown shots), so it shows the line drawing.
 
-Files live in `public/machines/`. The app shows a credit line beside each machine's hero image and a full list on the machine overview (`#devices`). Elektron product names identify the machines only; Modwerk is not affiliated with Elektron.
+The overview shows these images as large tiles, where the elektronmods.com cut-outs (about 240×200 px) look soft on high-density screens. Larger files need the same care: Elektron's press kit is copyrighted and meant for press use, so it needs Elektron's written permission before use here, and elektronmods.com's permission does not extend to images it took from elsewhere.
+
+Files live in `public/machines/`. The app shows a credit line beside each machine's hero image and a full list wherever the machines are shown together: the overview (`#overview`, the landing page) and the forum's front page. Both use `MachinePhotoCredits` in `src/devices/DeviceImage.tsx`. Elektron product names identify the machines only; Modwerk is not affiliated with Elektron.
