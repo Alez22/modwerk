@@ -47,18 +47,22 @@ EMU = Path(os.environ.get('ELEKLOADER_DSP56300', '/opt/toolchain/vendor/dsp56300
 LIBS = [EMU / 'build/source' / part for part in ('dsp56kEmu/libdsp56kEmu.a', 'dsp56kBase/libdsp56kBase.a', 'asmjit/libasmjit.a')]
 VTUNE = EMU / 'build/source/vtuneSdk/libvtuneSdk.a'  # the JIT's profiling hooks, where the build has them
 RECEIVER_ORIGIN = 0x400
-STUBS = {resident_dsp.SIDECHAIN: ('hsc_tap', 'hsc_det', 'hsc_commit'), resident_dsp.MATRIX: ('hom_mix', 'hom_phn'),
-         resident_dsp.ANALOG_BD: ('hab_source',)}
+STUBS = {resident_dsp.SIDECHAIN: ('hsc_det', 'hsc_commit'), resident_dsp.MATRIX: ('hom_mix', 'hom_phn'),
+         resident_dsp.ANALOG_BD: ('hab_source',), resident_dsp.KEYBUS: ('hsc_tap',)}
 # Words that steer each engine down its working path rather than its early return (on the fixed registers below,
 # r6 = $6280): Sidechain's track 3 with KEY 3 and its monitor on, MATRIX selected, an Analog BD source record.
 ACTIVE = {resident_dsp.SIDECHAIN: ('X 1056 3', 'X %d %d' % (0x628d, 0x30000), 'Y %d %d' % (0x7f6, 0x10000)),
           resident_dsp.MATRIX: ('X %d %d' % (0x205, 0x1000), 'X %d 1' % 0x103b),
           resident_dsp.ANALOG_BD: tuple('X %d 0' % a for a in range(0x5000, 0x5040)) +  # a quiet record: the rest zero
-          ('X %d %d' % (0x209, 0x5000), 'X %d %d' % (0x5000, 0xab09), 'X %d %d' % (0x5002, 0x0909))}
+          ('X %d %d' % (0x209, 0x5000), 'X %d %d' % (0x5000, 0xab09), 'X %d %d' % (0x5002, 0x0909)),
+          resident_dsp.KEYBUS: ('X 1056 6', 'Y %d %d' % (0x33dfe, 0x10000), 'Y %d %d' % (0x3bdfe, 0x10000))}  # T7, both seeded
 # Analog BD's working path on core A then points its voice block (r5) at X:$f598xx, which the interpreter has no
 # memory for (it faults, in the resident build as in the placed one): compare its first 160 instructions, to the
 # voice loop. The dormant path and core B's working path run to the end.
 LIMIT = {('A', resident_dsp.ANALOG_BD): 160}
+# Each on-demand unit's words. Sidechain's 423 before the key bus split: its detector and table now, and the tap (with
+# #640's phase rule) as the key bus's own unit.
+UNIT_WORDS = {1: 322, 2: 675, 4: 998, 8: 101}  # 322 + 101 = 423: no word added or lost
 
 
 def read(name, path):
@@ -84,7 +88,7 @@ def c_relocated(units, bases, work):
     main = ['#include <stdio.h>', '#include "resident_engines.h"', 'int main(void) {',
             '    static uint32_t out[8192];', '    static const unsigned bases[] = {%s};' % ','.join('%du' % b for b in bases)]
     for tag, feature in order:
-        core, k = 'AB'.index(tag), (1, 2, 4).index(feature)
+        core, k = 'AB'.index(tag), (1, 2, 4, 8).index(feature)
         main += ['    for (unsigned b = 0; b < %d; ++b) {' % len(bases),
                  '        mw_engine_relocate(&mw_engine_units[%d][%d], bases[b], out);' % (core, k),
                  '        for (unsigned i = 0; i < mw_engine_units[%d][%d].count; ++i) printf("%%u ", (unsigned)out[i]);' % (core, k),
@@ -152,7 +156,7 @@ class ResidentEngines(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             relocated = c_relocated(self.units, bases, Path(temp))
         for (tag, feature), unit in self.units.items():
-            self.assertEqual(len(unit['words']), {1: 423, 2: 675, 4: 998}[feature])
+            self.assertEqual(len(unit['words']), UNIT_WORDS[feature])
             for base in bases:
                 with self.subTest(tag=tag, feature=feature, base=hex(base)):
                     python = resident_dsp.relocate(unit, base)
@@ -336,10 +340,83 @@ class ResidentEngines(unittest.TestCase):
                                'P %d %d' % (demand['labels']['hwbase%d' % ab], labels['dltable'] + offsets[ab]),
                                'P %d %d' % (ready, allowed & ~sc), 'A 0'])
 
-    def sc_run(self, variant, enable, skew, frames, removed=None):
+    @unittest.skipUnless(all(p.is_file() for p in LIBS) and shutil.which('c++'), 'vendored dsp56300 build unavailable')
+    def test_key_bus_beside_sidechain_and_analog_bd_keeps_every_base_word(self):
+        """The receiver fix's bug class with the key bus: three engines placed and enabled on each core, the key bus
+        and Analog BD at bases with bits 0 and 3 set (Sidechain's bit and the key bus's). Disabling Sidechain, then the
+        key bus, leaves every other engine's base word as PLACE wrote it, clears only the disabled feature's ready bit,
+        and refuses that feature again without a RESET."""
+        loader = resident_source.load_loader()
+        work = Path(self.work.name)
+        harness = self.harness()
+        sc, ab, kb = resident_dsp.SIDECHAIN, resident_dsp.ANALOG_BD, resident_dsp.KEYBUS
+        for tag in 'AB':
+            allowed = resident_dsp.ALLOWED[tag]
+            demand = resident_dsp.place_resident(self.ob, tag, 0x2000, str(work), self.packages.assemble, allowed)
+
+            def text(table):
+                return loader.receiver_source(loader.RECEIVER.read_text(), (0x7c8, 0x7c9), table, tag=tag, ids=128,
+                                              hook_control=resident_dsp.receiver_control(demand),
+                                              hook_reset=resident_dsp.receiver_reset(demand))
+            _, labels = self.packages.assemble(text(1200), RECEIVER_ORIGIN, str(work))
+            words, labels = self.packages.assemble(text(demand['origin'] - labels['dltable']), RECEIVER_ORIGIN, str(work))
+            control, ready = labels['hookcontrol'], labels['hookready']
+            offsets, at = {}, 64
+            for feature in (sc, kb, ab):
+                if feature != sc:
+                    at += (9 - (labels['dltable'] + at)) % 16  # base = 9 mod 16: bits 0 and 3 set
+                offsets[feature] = at
+                at += len(demand['engines'][feature]['words']) + 8
+            self.assertLess(labels['dltable'] + at, demand['origin'])
+            base = {f: labels['dltable'] + o for f, o in offsets.items()}
+            hw = {f: demand['labels']['hwbase%d' % f] for f in offsets}
+            steps = ['P %d %d' % (RECEIVER_ORIGIN + i, w) for i, w in enumerate(words)]
+            steps += ['P %d %d' % (demand['origin'] + i, w) for i, w in enumerate(demand['words'])]
+            for feature, offset in offsets.items():
+                steps += ['P %d %d' % (base[feature] + i, w) for i, w in enumerate(resident_dsp.relocate(demand['engines'][feature], base[feature]))]
+            steps += ['P %d %d' % (ready, allowed)]                                    # every reset complete
+            steps += ['PKT %d %d %d 1' % (control, f, o) for f, o in offsets.items()]   # PLACE all three
+            steps += ['PKT %d 0 %d 0' % (control, kb),                                  # the key bus first, as the board does
+                      'PKT %d %d %d 0' % (control, kb, kb | sc | ab),                   # then Sidechain and Analog BD
+                      'PKT %d %d %d 0' % (control, kb | sc | ab, kb | ab),              # Sidechain off, the bus and AB stay
+                      'RP %d' % hw[kb], 'RP %d' % hw[ab], 'RP %d' % ready,
+                      'PKT %d %d %d 0' % (control, kb | ab, ab),                        # the key bus off, AB stays
+                      'RP %d' % hw[ab], 'RP %d' % hw[sc], 'RP %d' % ready,
+                      'PKT %d %d %d 0' % (control, ab, kb | ab),                        # the bus again with no RESET
+                      'PKT %d %d %d 0' % (control, ab, sc | ab)]                        # Sidechain again with no RESET
+            (work / 'three.txt').write_text('\n'.join(steps) + '\n')
+            result = subprocess.run([str(harness), str(work / 'three.txt')], capture_output=True, text=True, timeout=600)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            out = [line for line in result.stdout.split('\n') if line.split(' ')[0] in ('A', 'P')]
+            with self.subTest(tag=tag, bases=[hex(b) for b in base.values()]):
+                self.assertEqual(out, ['A 1'] * 6 +
+                                 ['P %d %d' % (hw[kb], base[kb]), 'P %d %d' % (hw[ab], base[ab]), 'P %d %d' % (ready, allowed & ~sc),
+                                  'A 1',
+                                  'P %d %d' % (hw[ab], base[ab]), 'P %d %d' % (hw[sc], base[sc]), 'P %d %d' % (ready, allowed & ~sc & ~kb),
+                                  'A 0', 'A 0'])
+
+    def test_key_bus_split_leaves_sidechain_s_instructions_alone(self):
+        """The permanent block assembles the tap and Sidechain's detector in Sidechain's own order: word for word the
+        unsplit reviewed text, so neither half's instructions changed. The split itself is pinned (KEYBUS_SPLIT), and
+        the tap's cost figure is its static count (dsp-sites.json)."""
+        for tag in 'AB':
+            _, full = resident_dsp._section(self.ob, 'sidechain-compressor', tag, 0x1100)
+            detector, tap = resident_dsp.split_sidechain(full, pinned=False)
+            whole, _ = resident_dsp.assemble_authored(full, 0x1110, self.work.name, self.packages.assemble)
+            split, _ = resident_dsp.assemble_authored(tap + '\n' + detector, 0x1110, self.work.name, self.packages.assemble)
+            self.assertEqual(whole, split)
+            self.assertNotIn('sctap:', detector)
+            self.assertIn('kph2:', tap)
+            self.assertNotIn('$1100', tap)  # the tap reads no Sidechain table
+        sys.path.insert(0, str(ROOT / 'sdk/machines/octatrack'))
+        import dsp_sites
+        reg = dsp_sites.load()
+        self.assertEqual(next(f['executed'] for f in reg['features'] if f['name'] == 'keybus'), 41)
+
+    def sc_run(self, variant, enable, skew, frames, removed=None, keys=None):
         """One two-core run of `variant`: {(hook, track, n): (frame, source track) or None}."""
         engines = self.sc_engines(variant)
-        steps, dumps, calls = sc_script(engines, enable, skew, frames, removed)
+        steps, dumps, calls = sc_script(engines, enable, skew, frames, removed, keys or SC_KEYS)
         path = Path(self.work.name) / 'sc-script.txt'
         path.write_text('\n'.join(steps) + '\n')
         result = subprocess.run([str(self.harness()), str(path)], capture_output=True, text=True, timeout=600)
@@ -353,29 +430,45 @@ class ResidentEngines(unittest.TestCase):
         return {key: sc_block(block) for key, block in zip(dumps, words)}
 
     def sc_engines(self, variant):
+        """{tag: (words at SC_ORIGIN, labels[, (origin, words) of a unit placed apart])}. 'split' is the resident change
+        as two units, the way an on-demand base places them: Sidechain's table and detector at SC_ORIGIN, the key bus's
+        tap on its own at SC_SPLIT, each assembled alone."""
         if variant not in self.sc_cache:
             engines = {}
-            with sc_reviewed(sc_variants()[variant]):
+            with sc_reviewed(sc_variants()['resident' if variant == 'split' else variant]):
                 for tag in 'AB':
-                    table, texts = resident_dsp._engines(self.ob, tag, SC_ORIGIN, resident_dsp.SIDECHAIN, None)
+                    if variant == 'split':
+                        table, texts = resident_dsp._engines(self.ob, tag, SC_ORIGIN, resident_dsp.SIDECHAIN, None)
+                        words, labels = resident_dsp.assemble_authored('\n'.join(texts), SC_ORIGIN + len(table), self.work.name,
+                                                                       self.packages.assemble)
+                        none, tap = resident_dsp._engines(self.ob, tag, SC_SPLIT, resident_dsp.KEYBUS, None)
+                        self.assertEqual(none, [])  # the tap reads no table
+                        tap_words, tap_labels = resident_dsp.assemble_authored('\n'.join(tap), SC_SPLIT, self.work.name,
+                                                                               self.packages.assemble)
+                        self.assertFalse(set(labels) & set(tap_labels))
+                        self.assertEqual(len(table) + len(words) + len(tap_words), UNIT_WORDS[1] + UNIT_WORDS[8])
+                        engines[tag] = (table + words, {**labels, **tap_labels}, (SC_SPLIT, tap_words))
+                        continue
+                    table, texts = resident_dsp._engines(self.ob, tag, SC_ORIGIN, resident_dsp.SIDECHAIN | resident_dsp.KEYBUS, None)
                     words, labels = resident_dsp.assemble_authored('\n'.join(texts), SC_ORIGIN + len(table), self.work.name,
                                                                    self.packages.assemble)
                     engines[tag] = (table + words, labels)
             self.sc_cache[variant] = engines
         return self.sc_cache[variant]
 
-    def sc_delays(self, blocks, settled):
+    def sc_delays(self, blocks, settled, keys=None):
         """Each reader's key delay in frames, every frame and from `settled` on, after checking every read is the
         KEY's own block and MON committed exactly what scdet read. A delay of 0 (already filled this frame) or 4 (still
         to be filled this frame) is a read of the slot the writer fills in that frame."""
-        every, delays = ({track: [] for track in SC_KEYS} for _ in range(2))
+        keys = keys or SC_KEYS
+        every, delays = ({track: [] for track in keys} for _ in range(2))
         for (hook, track, n), block in sorted(blocks.items(), key=lambda kv: kv[0][2]):
             if hook != 'scdet':
                 continue
             self.assertEqual(blocks['moncommit', track, n], block)
             if block is None:
                 continue
-            self.assertEqual(block[1], SC_KEYS[track])
+            self.assertEqual(block[1], keys[track])
             every[track].append(n - block[0])
             if n >= settled:
                 delays[track].append(n - block[0])
@@ -390,11 +483,24 @@ class ResidentEngines(unittest.TestCase):
         for name, skew in skews:
             for offset in SC_OFFSETS:
                 enable = (3 + max(0, -offset), 3 + max(0, offset))
-                with self.subTest(variant='resident', skew=name, offset=offset):
-                    every, delays = self.sc_delays(self.sc_run('resident', enable, skew, max(enable) + 10), max(enable) + 3)
-                    for track in SC_KEYS:
-                        self.assertEqual(set(delays[track]), {2}, (track, every[track]))
-                        self.assertLessEqual(set(every[track]), {1, 2, 3}, (track, every[track]))
+                # 'split': the key bus's tap and Sidechain's detector as the on-demand base places them, apart.
+                for variant in ('resident', 'split'):
+                    with self.subTest(variant=variant, skew=name, offset=offset):
+                        every, delays = self.sc_delays(self.sc_run(variant, enable, skew, max(enable) + 10), max(enable) + 3)
+                        for track in SC_KEYS:
+                            self.assertEqual(set(delays[track]), {2}, (track, every[track]))
+                            self.assertLessEqual(set(every[track]), {1, 2, 3}, (track, every[track]))
+        # A key on the reader's own core reads the local bus: this block's audio when the dispatcher runs the key track
+        # first (T7 <- T5: 0 blocks, 0 samples), the last block's when after (T2 <- T4: 1 block, 16 samples), on every
+        # enable offset, resident and split alike.
+        for offset in SC_OFFSETS:
+            enable = (3 + max(0, -offset), 3 + max(0, offset))
+            for variant in ('resident', 'split'):
+                with self.subTest(variant=variant, keys='local', offset=offset):
+                    every, delays = self.sc_delays(self.sc_run(variant, enable, lambda n: 0.5, max(enable) + 10, keys=SC_LOCAL),
+                                                   max(enable) + 3, SC_LOCAL)
+                    self.assertEqual(set(delays[6]), {0}, every[6])
+                    self.assertEqual(set(delays[1]), {1}, every[1])
         # Upstream as pinned: each core seeds its own counter at its own first frame, so the delay is set by the
         # enable offset, and two offsets in four read the slot being written (the assertion inside sc_delays).
         seen = {}
@@ -481,7 +587,9 @@ class ResidentEngines(unittest.TestCase):
 # the frame and the track it came from. MON is on: moncommit then commits that block in place of the track's own.
 SC_TRACKS = {'A': (4, 5, 6, 7), 'B': (0, 1, 2, 3)}
 SC_KEYS = {4: 2, 0: 5}
+SC_LOCAL = {6: 4, 1: 3}                         # keys on the reader's own core: T7 <- T5 (dispatched before it), T2 <- T4 (after)
 SC_PARAMS, SC_BLOCK, SC_ORIGIN = 0x6280, 0x6400, 0x1000
+SC_SPLIT = 0x1800                               # the key bus unit, placed apart from Sidechain's
 SC_WINDOWS = ((0x33dfe, 0x34000), (0x3bdfe, 0x3c000))
 SC_OFFSETS = range(-5, 6)                       # core 1 enabled this many frames after core 0 (negative: before)
 SC_SKEWS = (-1.5, -0.5, 0, 0.5, 1.5)
@@ -529,22 +637,23 @@ def sc_variants():
                                                 {'A': {'@FGCNT@': '$3bdff'}, 'B': {'@FGCNT@': '$33dff'}})}}
 
 
-def sc_script(engines, enable, skew, frames, removed=None):
+def sc_script(engines, enable, skew, frames, removed=None, keys=SC_KEYS):
     """Steps for one run, and what each DUMP is: core c's hooks run from frame enable[c]."""
     steps, lanes = [], []
     for core, tag in enumerate('AB'):
-        words, _ = engines[tag]
+        words, _, *apart = engines[tag]
         steps += ['CORE %d' % core] + ['P %d %d' % (SC_ORIGIN + i, w) for i, w in enumerate(words)]
+        steps += ['P %d %d' % (origin + i, w) for origin, unit in apart for i, w in enumerate(unit)]
         for track in SC_TRACKS[tag]:
-            if track in SC_KEYS:
-                steps += ['X %d %d' % (SC_PARAMS + 0xd, (SC_KEYS[track] + 1) << 16 | 64 << 8),
+            if track in keys:
+                steps += ['X %d %d' % (SC_PARAMS + 0xd, (keys[track] + 1) << 16 | 64 << 8),
                           'X %d %d' % (SC_PARAMS + 0xe, 64 << 16 | 1 << 8)]
         lane = []
         for n in range(enable[core], frames):
             at = 4 * n + (skew(n) if core else 0)
             for local, track in enumerate(SC_TRACKS[tag]):
                 lane.append((at + local, core, 'sctap', track, n))
-                if track in SC_KEYS and (removed is None or n < removed):
+                if track in keys and (removed is None or n < removed):
                     lane.append((at + local + 0.1, core, 'scdet', track, n))
                 lane.append((at + local + 0.2, core, 'moncommit', track, n))
         lanes.append(lane)
@@ -567,7 +676,7 @@ def sc_script(engines, enable, skew, frames, removed=None):
         if hook == 'scdet':
             steps.append('DUMP x %d %d' % (0x40, 0x60))
             dumps.append((hook, track, n))
-        elif hook == 'moncommit' and track in SC_KEYS:
+        elif hook == 'moncommit' and track in keys:
             steps.append('DUMP x 0 32')
             dumps.append((hook, track, n))
     return steps, dumps, len(events)

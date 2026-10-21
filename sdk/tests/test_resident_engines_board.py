@@ -10,6 +10,10 @@ checks: each running slot's code whole and where the manager holds it). Modes 12
 code from the engines' region, 22-25 dl_move's rollback (back to the old copy, or the stub when that copy is not provably
 intact), 26-28 a Part switch while an owned job holds a core (it waits, at most 600 refused starts per owned job). No
 hardware ACK, timing or audio is claimed; the DSP side's own execution is test_resident_engines.py's.
+
+The key bus (feature 8, the board's own holder): Sidechain's made-up unit is 300 words and the bus's 88, so the two
+together take the 388 words Sidechain alone took before the split, the bus at the arena's top and Sidechain directly
+under it. Modes 39-40 are an ABI 9 package that requires the bus (a reader), beside Sidechain, in both removal orders.
 """
 import importlib.util
 import hashlib
@@ -35,11 +39,17 @@ import resident_journal  # noqa: E402
 import resident_placement  # noqa: E402
 import zero_state  # noqa: E402
 import test_controller_board as board  # noqa: E402
+_spec = importlib.util.spec_from_file_location('board_loader_build', ROOT / 'sdk/runtime/loader/build.py')
+loader_build = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(loader_build)
+_spec = importlib.util.spec_from_file_location('board_loader_abi9', ROOT / 'sdk/runtime/loader/abi9.py')
+abi9 = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(abi9)
 from host_flags import SANITIZE  # noqa: E402
 
 TABLE, WORDS = 4096, 2000          # each core's pool in this fixture: arena 1936 words
 ARENA = WORDS - 64
-SIZES = {('A', 1): 388, ('A', 2): 773, ('A', 4): 998, ('B', 1): 388, ('B', 4): 998}
+SIZES = {('A', 1): 300, ('A', 2): 773, ('A', 4): 998, ('A', 8): 88, ('B', 1): 300, ('B', 4): 998, ('B', 8): 88}
 
 
 def unit(tag, feature, n):
@@ -81,7 +91,7 @@ def expected(units):
             words = resident_dsp.relocate(u, TABLE + 64 + offset)
             text += 'static const uint32_t top_%d_%d[%d] = {%s};\n' % (core, feature, len(words), ','.join(map(str, words)))
         text += ''.join('#define TOP_%d_%d %s\n' % (core, f, 'top_%d_%d' % (core, f) if f in units[tag]['engines'] else '0')
-                        for f in (1, 2, 4))
+                        for f in (1, 2, 4, 8))
     return text
 
 
@@ -195,7 +205,19 @@ extern uint8_t test_parts[4][16];
  * reset is incomplete; a disable invalidates the reset), RESET counted per feature, BIND/UNBIND/BYPASS into a dispatch
  * table: the FX code each id runs from the next frame on. */
 static uint32_t P[2][8192];
-static unsigned dsp_mask[2], words[2][3], base_word[2][3], answered[2], cas_count;
+static unsigned dsp_mask[2], words[2][4], base_word[2][4], answered[2], cas_count, sc_before_bus;
+/* The key window held some slot buffer's words since the bus's reset began there (mode 41): only a reset from offset 0
+ * (the receiver's fresh start) rewrites them, and the bus is never enabled over them. */
+static unsigned window_dirty[2];
+/* The key bus's tap price (dsp.c's resident_engines.dsp seam): whether it would fit, and whether it is charged. */
+static unsigned kb_fits = 1, kb_charged;
+int modwerk_dsp_keybus_fits(void) { return (int)(kb_fits || kb_charged); }
+int modwerk_dsp_keybus_charge(int on)
+{
+    if (!on) { kb_charged = 0; return 1; }
+    if (!kb_charged && !kb_fits) return 0;
+    kb_charged = 1; return 1;
+}
 static unsigned refuse_write[2], refuse_place[2]; /* table offsets at which a WRITE chunk, a PLACE is refused */
 static unsigned refuse_bind[2], drop_bind[2], refuse_once[2]; /* a BIND to this table offset refused; applied but never
                                                                  * answered (once); refused once */
@@ -216,7 +238,7 @@ static void running_whole(void)
         ++frames_checked;
     }
 }
-static const unsigned totals[3] = {1042, 193, 3776};
+static const unsigned totals[4] = {1042, 193, 3776, 1026};
 struct entry { unsigned op, w4, w5, w7; };
 static struct entry trail[2][8192];
 static unsigned trails[2];
@@ -234,12 +256,14 @@ static void dsp(void)
             for (unsigned i = 0; !reject && i < w4; ++i)
                 P[c][MODWERK_DSP_TABLE0 + w5 + i] = (unsigned)dl_tx[c][8 + 2 * i] << 8 | dl_tx[c][9 + 2 * i];
         } else if (op == 11u) {
-            unsigned f = w7, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : 3;
-            reject = k > 2 || w5 != words[c][k] || (dsp_mask[c] & f);
+            unsigned f = w7, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
+            if (k <= 3 && !w5 && !(dsp_mask[c] & f)) words[c][k] = 0; /* offset 0: a fresh start (hookready cleared) */
+            reject = k > 3 || w5 != words[c][k] || (dsp_mask[c] & f);
             if (!reject) words[c][k] += w4;
+            if (!reject && f == 8u && !w5) window_dirty[c] = 0;
         } else if (op == 10u && w7 == 1u) {
-            unsigned f = w4, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : 3;
-            reject = k > 2 || (dsp_mask[c] & f) || !mw_engine_units[c][k].count || (refuse_place[c] && w5 == refuse_place[c]);
+            unsigned f = w4, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
+            reject = k > 3 || (dsp_mask[c] & f) || !mw_engine_units[c][k].count || (refuse_place[c] && w5 == refuse_place[c]);
             if (!reject && base_word[c][k]) { reject = w5 != 0; if (!reject) base_word[c][k] = 0; }
             else if (!reject && w5) {
                 reject = w5 < 64u || w5 + mw_engine_units[c][k].count > MODWERK_DSP_WORDS0;
@@ -249,10 +273,12 @@ static void dsp(void)
             unsigned expected = w4, desired = w5, on = desired & ~expected;
             ++cas_count;
             reject = expected != dsp_mask[c];
-            for (unsigned k = 0; k < 3; ++k)
+            for (unsigned k = 0; k < 4; ++k)
                 if (on >> k & 1u) reject |= words[c][k] != totals[k] || !base_word[c][k];
+            assert(!((on & 8u) && window_dirty[c])); /* never the tap enabled over a buffer's words */
+            if (!reject && (on & 1u) && !(desired & 8u)) ++sc_before_bus; /* Sidechain on before the key bus */
             if (!reject) {
-                for (unsigned f = 1; f <= 4; f <<= 1) if ((expected & f) && !(desired & f)) words[c][f >> 1] = 0;
+                for (unsigned f = 1, k = 0; f <= 8; f <<= 1, ++k) if ((expected & f) && !(desired & f)) words[c][k] = 0;
                 dsp_mask[c] = desired;
             }
         } else if (op == 10u) reject = 1;
@@ -335,7 +361,8 @@ static void remove_module(uint32_t module)
 #define SC 0x95cff696u
 #define MATRIX 0xcaf158b5u
 #define AB 0xabdb1445u
-#define K(f) ((f) == 1u ? 0u : (f) == 2u ? 1u : 2u)
+#define K(f) ((f) == 1u ? 0u : (f) == 2u ? 1u : (f) == 4u ? 2u : 3u)
+#define READER 0x6b627264u /* an ABI 9 package that requires the key bus */
 /* Placed exactly: the base word the receiver keeps names the engine's table offset, P holds every relocated word,
  * and the words a placement at the arena's top must have, made by resident_dsp.relocate, where it sits there. */
 static void placed_at(unsigned c, unsigned f, unsigned offset)
@@ -348,7 +375,8 @@ static void placed_at(unsigned c, unsigned f, unsigned offset)
     static uint32_t want[8192];
     mw_engine_relocate(u, base, want);
     for (unsigned i = 0; i < u->count; ++i) assert(P[c][base + i] == want[i]);
-    const uint32_t *top = c == 0 ? (f == 1 ? TOP_0_1 : f == 2 ? TOP_0_2 : TOP_0_4) : (f == 1 ? TOP_1_1 : f == 2 ? TOP_1_2 : TOP_1_4);
+    const uint32_t *top = c == 0 ? (f == 1 ? TOP_0_1 : f == 2 ? TOP_0_2 : f == 4 ? TOP_0_4 : TOP_0_8) :
+                                   (f == 1 ? TOP_1_1 : f == 2 ? TOP_1_2 : f == 4 ? TOP_1_4 : TOP_1_8);
     if (offset + u->count == MODWERK_DSP_WORDS0 - 64u) for (unsigned i = 0; i < u->count; ++i) assert(P[c][base + i] == top[i]);
 }
 static void unplaced(unsigned c, unsigned f)
@@ -423,20 +451,22 @@ int main(int argc, char **argv)
     assert(argc == 2);
     unsigned mode = (unsigned)strtoul(argv[1], 0, 10);
     memcpy(donor, donor_original, sizeof donor);
-    (void)buffers_idle; (void)refuse_cas; (void)test_initialized;
-    const unsigned top = MODWERK_DSP_WORDS0 - 64u, sc = top - 388u, ab = sc - 998u, mx = top - 773u, moved = top - 1800u;
+    (void)buffers_idle; (void)bus_idle; (void)refuse_cas; (void)test_initialized;
+    /* The key bus at the top, Sidechain under it (388 words together), Analog BD under Sidechain. */
+    const unsigned top = MODWERK_DSP_WORDS0 - 64u, kb = top - 88u, sc = top - 388u, ab = sc - 998u, mx = top - 773u, moved = top - 1800u;
+    (void)kb;
     test_none(); test_fx(3, 900); test_fx(5, 400); test_fx(6, 400); test_fx(7, 400); test_fx(8, 400); test_fx(9, 300);
     run(2);
     if (mode == 0) {
         /* Place, switch on, run, switch off, unplace, free. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(200);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
         for (unsigned c = 0; c < 2; ++c) {
             placed_at(c, 1, sc); ordered(c, 1, sc, 0);
             assert(dl_engine_reserved(c) == 388 && test_capacity(c) == sc && modwerk_dsp_arena_now(c) == sc);
         }
-        assert(mw_engines_jobs == 4 && mw_engines_placed_count == 2);
+        assert(mw_engines_jobs == 8 && mw_engines_placed_count == 4 && !sc_before_bus);
         unsigned from[2] = {trails[0], trails[1]};
         remove_module(SC);
         assert(slot_for(SC, MW_CTL_RELEASED) && !modwerk_controller_held() && !dsp_mask[0] && !dsp_mask[1]);
@@ -451,11 +481,11 @@ int main(int argc, char **argv)
             }
             assert(disabled && gone > disabled);
         }
-        assert(mw_engines_unplaced_count == 2);
+        assert(mw_engines_unplaced_count == 4);
         /* In again: placed afresh at the same spot, activated. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(200);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9);
         placed_at(0, 1, sc); placed_at(1, 1, sc);
     } else if (mode == 1) {
         /* The guard: nothing is placed or unplaced while the sequencer plays or a pattern change waits. */
@@ -483,7 +513,7 @@ int main(int argc, char **argv)
         /* Full: Sidechain and Analog BD fit on core A; Output Matrix does not, and is refused at admission. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED && install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
         run(1000);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dsp_mask[1] == 5);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 13 && dsp_mask[1] == 13);
         for (unsigned c = 0; c < 2; ++c) { placed_at(c, 1, sc); placed_at(c, 4, ab); assert(dl_engine_reserved(c) == 1386 && test_capacity(c) == ab); }
         unsigned jobs = mw_engines_jobs;
         assert(refused(pkg_matrix, sizeof pkg_matrix) == RUNTIME_MEMORY);
@@ -496,7 +526,7 @@ int main(int argc, char **argv)
         assert(dl_engine_reserved(0) == 388 && dl_engine_reserved(1) == 388);
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
         run(300);
-        assert(slot_for(MATRIX, MW_CTL_ACTIVE) && dsp_mask[0] == 3 && dsp_mask[1] == 1);
+        assert(slot_for(MATRIX, MW_CTL_ACTIVE) && dsp_mask[0] == 11 && dsp_mask[1] == 9);
         placed_at(0, 2, sc - 773u);
         assert(mw_engines[1][1].state == MW_ENGINE_FREE && dl_engine_reserved(0) == 388 + 773 && dl_engine_reserved(1) == 388);
     } else if (mode == 3) {
@@ -539,13 +569,14 @@ int main(int argc, char **argv)
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(300);
         placed_at(0, 1, sc);
-        assert(mw_engines[1][0].state == MW_ENGINE_FREE && !base_word[1][0] && !dl_engine_reserved(1) && dl_engine_reserved(0) == 388);
-        assert(slot_for(SC, MW_CTL_BOUND) && !words[0][0] && !words[1][0] && !cas_count && !dsp_mask[0]);
+        assert(mw_engines[1][0].state == MW_ENGINE_FREE && !base_word[1][0] && dl_engine_reserved(1) == 88 && dl_engine_reserved(0) == 388);
+        assert(slot_for(SC, MW_CTL_BOUND) && !words[0][0] && !words[1][0] && !((dsp_mask[0] | dsp_mask[1]) & 1u));
+        placed_at(1, 8, kb); /* placed before core B closed: it stays for the boot */
         assert(install(removal(SC), 32) == MU_APPLIED); /* never touched: no disable needed */
         run(20);
         assert(slot_for(SC, MW_CTL_RELEASED));
-        unplaced(0, 1);
-        assert(!dl_engine_reserved(0) && test_capacity(0) == top);
+        unplaced(0, 1); unplaced(0, 8);
+        assert(!dl_engine_reserved(0) && test_capacity(0) == top && !dsp_mask[0] && dl_engine_reserved(1) == 88); /* core B closed */
     } else if (mode == 6) {
         /* An uncertain PLACE (refused on core A): the span stays for this boot, the feature is never enabled, and a
          * later controller of the feature is refused at admission. */
@@ -554,12 +585,12 @@ int main(int argc, char **argv)
         run(300);
         assert(mw_engines[0][0].state == MW_ENGINE_STUCK && dl_engine_reserved(0) == 388 && test_capacity(0) == sc);
         placed_at(1, 1, sc);
-        assert(slot_for(SC, MW_CTL_BOUND) && !cas_count && !words[0][0] && !words[1][0]);
+        assert(slot_for(SC, MW_CTL_BOUND) && !((dsp_mask[0] | dsp_mask[1]) & 1u) && !words[0][0] && !words[1][0]);
         assert(install(removal(SC), 32) == MU_APPLIED);
         run(20);
         assert(mw_engines[0][0].state == MW_ENGINE_STUCK && dl_engine_reserved(0) == 388);
-        unplaced(1, 1);
-        assert(!dl_engine_reserved(1));
+        unplaced(1, 1); unplaced(1, 8);
+        assert(!dl_engine_reserved(1) && !dsp_mask[1]);
         assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_CONFLICT);
     } else if (mode == 7) {
         /* Part switches: the bank's union loads once; switching among its Parts afterwards starts no engine job,
@@ -585,7 +616,7 @@ int main(int argc, char **argv)
             for (unsigned i = from[c]; i < trails[c]; ++i) assert(trail[c][i].op != 3u); /* no code load at all */
             assert(!memcmp(region[c], &P[c][MODWERK_DSP_TABLE0 + 64u + sc], 388 * 4));
         }
-        assert(mw_engines_jobs == jobs && slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(mw_engines_jobs == jobs && slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
     } else if (mode == 8) {
         /* A successor of the same feature adopts the placed engine: no new job, the same words. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
@@ -597,7 +628,7 @@ int main(int argc, char **argv)
         run(300);
         const struct mw_controller_slot *next = slot_for(SC, MW_CTL_ACTIVE);
         assert(next && next->binding.image_bytes == 96 && slot_for(SC, MW_CTL_RELEASED));
-        assert(mw_engines_jobs == jobs && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(mw_engines_jobs == jobs && dsp_mask[0] == 9 && dsp_mask[1] == 9);
         placed_at(0, 1, sc); placed_at(1, 1, sc);
     } else if (mode == 9) {
         /* A hole: Sidechain (top) out while Analog BD (below it) stays: the reserve stays at Analog BD; Sidechain
@@ -606,13 +637,13 @@ int main(int argc, char **argv)
         run(1000);
         remove_module(SC);
         run(20);
-        unplaced(0, 1); unplaced(1, 1);
+        unplaced(0, 1); unplaced(1, 1); unplaced(0, 8); unplaced(1, 8); /* the key bus goes with its holder */
         placed_at(0, 4, ab); placed_at(1, 4, ab);
-        assert(dl_engine_reserved(0) == 1386 && test_capacity(0) == ab);
+        assert(dl_engine_reserved(0) == 1386 && test_capacity(0) == ab && dsp_mask[0] == 4 && !kb_charged);
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(300);
-        placed_at(0, 1, sc); placed_at(1, 1, sc);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dl_engine_reserved(0) == 1386);
+        placed_at(0, 1, sc); placed_at(1, 1, sc); placed_at(0, 8, kb); placed_at(1, 8, kb); /* both reuse the hole */
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 13 && dl_engine_reserved(0) == 1386);
         remove_module(AB);
         run(20);
         unplaced(0, 4);
@@ -636,7 +667,7 @@ int main(int argc, char **argv)
         assert(!(modwerk_controller_held() & 4u) && mw_engines_jobs == jobs && !mw_engines_admitted[2]);
         assert(mw_engines[0][2].state == MW_ENGINE_FREE && dl_engine_reserved(0) == 388 && dl_engine_reserved(1) == 388);
         const struct mw_engines_view *v = &mw_engines_view;
-        assert(!memcmp(v->magic, "MWEV", 4) && v->held == 1 && v->state[0][0] == MW_ENGINE_PLACED && v->state[0][2] == MW_ENGINE_FREE);
+        assert(!memcmp(v->magic, "MWEV", 4) && v->held == 9 && v->state[0][0] == MW_ENGINE_PLACED && v->state[0][2] == MW_ENGINE_FREE);
         assert(v->arena[0] == sc && v->reserved[1] == 388 && v->jobs == jobs && v->offset[1][0] == sc);
         unsigned sc_slot = 6;
         for (unsigned i = 0; i < 6; ++i) if (v->slots[i].module == SC && v->slots[i].state == MW_CTL_ACTIVE) sc_slot = i;
@@ -646,9 +677,9 @@ int main(int argc, char **argv)
         assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
         assert(mw_engines_admitted[2] == 1 + MW_ENGINE_FITS);
         run(800);
-        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 5 && dsp_mask[1] == 5);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 13 && dsp_mask[1] == 13);
         placed_at(0, 4, ab); placed_at(1, 4, ab);
-        assert(v->state[0][2] == MW_ENGINE_PLACED && v->arena[0] == ab && v->held == 5 && v->claim_why[0] == 0 && !v->wait[1][2]);
+        assert(v->state[0][2] == MW_ENGINE_PLACED && v->arena[0] == ab && v->held == 13 && v->claim_why[0] == 0 && !v->wait[1][2]);
     } else if (mode == 12) {
         /* Evacuation: the big effect sits where Sidechain's engine goes. Admission takes it (the effect can move below);
          * the tick moves it in one transaction (upload while it runs, one BIND, then the old copy freed and the capacity
@@ -659,7 +690,7 @@ int main(int argc, char **argv)
         /* The new copy goes top-down below the region and clear of the old copy, which runs until its BIND: 136. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED && mw_engines_admitted[0] == 1 + MW_ENGINE_FITS);
         run(400);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
         placed_at(0, 1, sc); placed_at(1, 1, sc); ordered(1, 1, sc, 0);
         assert(test_live(0, 3) == (int)(moved) && dispatch[0][3] == 64u + moved + 1u);
         assert(dl_engine_evacuations == 1 && dl_engine_moves == 1 && !dl_engine_evac_failures && !dl_engine_evacuation());
@@ -884,7 +915,7 @@ int main(int argc, char **argv)
         assert(test_select(ids, board_pump) == 1 && test_owned_seen() >= held);
         assert(first_op(0, from, 3, 0, 64u + (unsigned)test_live(0, 6)) < trails[0] && words[0][0] >= reset);
         run(400); /* the RESET goes on after the switch */
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 1 && dsp_mask[1] == 1 && words[0][0] == totals[0]);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && words[0][0] == totals[0]);
         placed_at(0, 1, sc); placed_at(1, 1, sc);
         assert(dl_residency_rollbacks == rollbacks && dl_residency_failures == failures);
         assert(dispatch[0][5] == 64u + (unsigned)test_live(0, 5) + 1u && dispatch[0][6] == 64u + (unsigned)test_live(0, 6) + 1u);
@@ -1088,6 +1119,91 @@ int main(int argc, char **argv)
         ids[0] = 5; ids[1] = 10; ids[4] = 3; ids[5] = 11; ids[6] = 12;
         assert(test_select(ids, pump) == DL_SELECT_MEMORY);
         assert(dl_refusal[0] == 2u && dl_refusal[1] == 4u && dl_refusal[2] == 3u && dl_refusal[5] == 900u);
+    } else if (mode == 39) {
+        /* A reader (ABI 9, requires the key bus) alone: the bus is placed at the top, reset and enabled on both cores,
+         * its price charged. Sidechain then comes without a second bus job; the reader goes and Sidechain keeps the bus,
+         * its price let go at once (Sidechain alone is charged as before the key bus); Sidechain goes and so does the
+         * bus. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && words[0][3] == 1026 && words[1][3] == 1026 && kb_charged);
+        placed_at(0, 8, kb); placed_at(1, 8, kb); ordered(0, 8, kb, 0); ordered(1, 8, kb, 0);
+        assert(modwerk_controller_held() == 8 && dl_engine_reserved(0) == 88 && dl_engine_reserved(1) == 88 && mw_engines_jobs == 4);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && mw_engines_jobs == 8 && !sc_before_bus);
+        placed_at(0, 1, sc); placed_at(1, 1, sc); placed_at(0, 8, kb);
+        assert(words[0][3] == 1026 && dl_engine_reserved(0) == 388);
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        run(50);
+        assert(dsp_mask[0] == 9 && dsp_mask[1] == 9 && mw_engines_jobs == 8 && !kb_charged);
+        placed_at(0, 8, kb); placed_at(1, 8, kb);
+        remove_module(SC);
+        run(20);
+        assert(!dsp_mask[0] && !dsp_mask[1] && !modwerk_controller_held() && !kb_charged);
+        unplaced(0, 1); unplaced(1, 1); unplaced(0, 8); unplaced(1, 8);
+        assert(!dl_engine_reserved(0) && !dl_engine_reserved(1) && test_capacity(0) == top);
+    } else if (mode == 40) {
+        /* No room for the tap's price: a reader is refused (RUNTIME_CYCLES), nothing placed. Sidechain is not charged
+         * for the tap (it never was), so it comes as before the key bus, the bus with it, and nothing is charged. A
+         * reader beside it still pays the price: refused while it does not fit, then taken with no bus job at all.
+         * Sidechain goes and the bus stays for the reader (Sidechain's span a hole under it); the reader goes and the
+         * bus is disabled, unplaced and its price let go. */
+        kb_fits = 0;
+        assert(refused(pkg_reader, sizeof pkg_reader) == RUNTIME_CYCLES && !mw_engines_jobs && !trails[0]);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && mw_engines_jobs == 8 && !kb_charged);
+        assert(refused(pkg_reader, sizeof pkg_reader) == RUNTIME_CYCLES && !kb_charged);
+        kb_fits = 1;
+        unsigned from[2] = {trails[0], trails[1]};
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(100);
+        assert(mw_engines_jobs == 8 && trails[0] == from[0] && trails[1] == from[1] && kb_charged); /* nothing sent */
+        remove_module(SC);
+        run(20);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && kb_charged && modwerk_controller_held() == 8);
+        unplaced(0, 1); unplaced(1, 1); placed_at(0, 8, kb); placed_at(1, 8, kb);
+        assert(dl_engine_reserved(0) == 88 && test_capacity(0) == kb);
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        run(20);
+        assert(!dsp_mask[0] && !dsp_mask[1] && !kb_charged && !modwerk_controller_held());
+        unplaced(0, 8); unplaced(1, 8);
+        assert(!dl_engine_reserved(0) && !dl_engine_reserved(1));
+    } else if (mode == 41) {
+        /* A reader removed while the bus resets: once the bus is no longer held its progress counts for nothing (a slot
+         * buffer may take the window meanwhile, modelled as dirty words). The next reader resets each core from offset
+         * 0 before it enables; resuming at the old cursor would enable the tap over the buffer's words. */
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        unsigned n = 0;
+        while (!(words[0][3] > 0 && words[0][3] < 1026)) { run(1); assert(++n < 400); }
+        assert(!dsp_mask[0] && !dsp_mask[1]);
+        assert(install(removal(READER), 32) == MU_APPLIED);
+        run(50);
+        assert(!dsp_mask[0] && !dsp_mask[1] && !modwerk_controller_held() && !kb_charged && words[0][3] < 1026);
+        unplaced(0, 8); unplaced(1, 8);
+        window_dirty[0] = window_dirty[1] = 1; /* a window buffer came and went */
+        unsigned from[2] = {trails[0], trails[1]};
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(200);
+        assert(dsp_mask[0] == 8 && dsp_mask[1] == 8 && words[0][3] == 1026 && words[1][3] == 1026 && kb_charged);
+        for (unsigned c = 0; c < 2; ++c) {
+            unsigned i = from[c];
+            while (i < trails[c] && !(trail[c][i].op == 11u && trail[c][i].w7 == 8u)) ++i;
+            assert(i < trails[c] && trail[c][i].w5 == 0); /* the first reset chunk is the fresh start */
+        }
+        assert(!window_dirty[0] && !window_dirty[1]);
+    } else if (mode == 42) {
+        /* The bus engine stuck on core A (its PLACE refused): a second reader is refused at admission (the engines'
+         * dry run says STUCK_BOOT), although the bus is held for the first. */
+        refuse_place[0] = 64u + kb;
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(300);
+        assert(mw_engines[0][3].state == MW_ENGINE_STUCK && (modwerk_controller_held() & 8u) && !(dsp_mask[0] & 8u));
+        static uint8_t second[sizeof pkg_reader];
+        memcpy(second, pkg_reader, sizeof second);
+        second[31] ^= 1u; /* another module id: another reader */
+        assert(refused(second, sizeof second) == RUNTIME_CONFLICT);
     } else assert(0);
     return 0;
 }
@@ -1140,8 +1256,13 @@ def generated(work, units):
     # Analog BD built another way (on the unit: the recipe-capture run's output, not the rows' package): the same
     # module id, other bytes, so no trust row names it.
     other = board.package(0xabdb1445, bytes((7 * i + 1) & 255 for i in range(128)))
+    reader = abi9.upgrade(loader_build.package(b'', 0, [], [], name='kbrd', dsp=dict(
+        words=[0x0c0000 + i for i in range(8)], relocations=[], effect=30, slots=1, init=0, proc=1, cycles=100, kind=1,
+        state=4, buffer=0, name='READER', layout=1)), abi9.base_features(['keybus']))
+    reader = reader[:28] + (0x6b627264).to_bytes(4, 'big') + reader[32:]  # module READER
     (work / 'packages.h').write_text(board.header() + 'static const uint8_t pkg_ab_other[%d] = {%s};\n' % (
-        len(other), ','.join(map(str, other))))
+        len(other), ','.join(map(str, other))) + 'static const uint8_t pkg_reader[%d] = {%s};\n' % (
+        len(reader), ','.join(map(str, reader))))
     preamble = board.FIXTURE.split('/* Modelled receiver')[0]
     (work / 'fixture.c').write_text(preamble + 'unsigned modwerk_dsp_arena_now(unsigned);\n'
                                     'static int modwerk_controller_held_matrix(void) { return (modwerk_controller_held() & 2u) != 0; }\n'
@@ -1168,7 +1289,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 39
+    MODES = 43
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -1194,7 +1315,7 @@ class ResidentEnginesBoard(unittest.TestCase):
             data = b''.join(w.to_bytes(3, 'big') for w in u['words'])
             lines += ['static const uint8_t w%d[] = {%s};' % (n, ','.join(map(str, data))),
                       'static const uint16_t r%d[] = {%s};' % (n, ','.join(map(str, u['relocations'])))]
-        lines += ['const struct mw_engine_unit mw_engine_units[2][3];', 'uint32_t *const mw_engine_buffer[2];',
+        lines += ['const struct mw_engine_unit mw_engine_units[2][MW_ENGINE_FEATURES];', 'uint32_t *const mw_engine_buffer[2];',
                   'static const struct mw_engine_unit units[] = {%s};' % ','.join(
                       '{w%d, r%d, %d, %d}' % (n, n, len(u['words']), len(u['relocations'])) for n, u in enumerate(units)),
                   'static uint32_t out[2048];',
@@ -1246,7 +1367,7 @@ volatile uint8_t dl_engine_why[2];
                 k += 1
         # And the made-up units' proofs (resident_dsp's own words at the four proof bases) are what data_c accepts.
         text = resident_engines.data_c(bundles())
-        self.assertIn('mw_engine_units[2][3]', text)
+        self.assertIn('mw_engine_units[2][MW_ENGINE_FEATURES]', text)
         broken = bundles()
         broken['A']['engines'][1]['words'][0] ^= 1
         with self.assertRaisesRegex(ValueError, 'not the unit its proofs name'):
@@ -1274,11 +1395,11 @@ volatile uint8_t dl_engine_why[2];
             resident_engines.manager(once)
         transfer = resident_driver.transport(texts['transfer.c'])
         placed = resident_engines.transport(transfer)
-        self.assertIn('proc==1u && ((id!=1u && id!=2u && id!=4u)', placed)
+        self.assertIn('proc==1u && ((id!=1u && id!=2u && id!=4u && id!=8u)', placed)
         with self.assertRaisesRegex(ValueError, 'seam changed'):
             resident_engines.transport(placed)
         # The default resident transport keeps refusing every op-10 packet with a nonzero word 7.
-        self.assertIn('init&~(c ? 5u:7u) || proc)) return 0;', transfer)
+        self.assertIn('init&~(c ? 13u:15u) || proc)) return 0;', transfer)
         status = resident_engines.status((ELEK / 'status.c').read_text())
         self.assertNotIn('modwerk_dsp_arena[0]', status.split('unsigned modwerk_dsp_arena_now(unsigned);')[1])
         import resident_source

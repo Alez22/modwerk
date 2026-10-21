@@ -18,6 +18,16 @@ beforeAll(async () => { folder = await mkdtemp(join(tmpdir(), 'modwerk-mcp-test-
 afterAll(async () => { await service?.close(); await rm(folder, { recursive: true, force: true }) })
 
 describe('frontend MCP protocol and isolated site workflows', () => {
+  it('searches the same instrument/type words as the site and preserves availability gates', async () => {
+    const reverb = await service.call('site_catalogue', { query: 'octatrack reverb' })
+    expect(reverb.modules.some(module => module.id === 'everb')).toBe(true)
+    expect(reverb.modules.every(module => module.machine === 'octatrack')).toBe(true)
+    const midi = await service.call('site_catalogue', { query: 'digitakt midi' })
+    expect(midi.modules.length).toBeGreaterThan(0)
+    expect(midi.modules.every(module => module.machine === 'digitakt')).toBe(true)
+    expect((await service.call('site_catalogue', { query: 'air chorus' })).modules).toHaveLength(0)
+    expect((await service.call('site_catalogue', { query: 'air chorus', beta: true })).modules.map(module => module.id)).toEqual(['airwindows-chorus'])
+  })
   it('bounds USB error logs without dumping bundled stacks, causes or account objects', () => {
     const error = new Error('The self-test record has the wrong length.', { cause: { session: 'private-session' } })
     error.stack = 'Error: wrong length\n at data:text/javascript;base64,' + 'Z'.repeat(500000)
@@ -59,6 +69,7 @@ describe('frontend MCP protocol and isolated site workflows', () => {
     expect((await service.call('site_selection', { moduleIds: ['vector', 'analog-bassdrum'] })).conflicts.length).toBeGreaterThan(0)
     const usb = catalogue.modules.filter(module => module.usb).map(module => module.id)
     expect(usb.length).toBeGreaterThanOrEqual(4)
+    expect(usb).toContain('usb-audio-out-tracks-main-cue')
     // Every published package alone, every pair and all together, on the published base with site events (every subset
     // of 19 would be 2^19 sets; preparing one only preflights each package).
     const { identity: base } = JSON.parse(await readFile(new URL('../sdk/machines/octatrack/base-binding.json', import.meta.url), 'utf8'))
@@ -66,7 +77,8 @@ describe('frontend MCP protocol and isolated site workflows', () => {
     const sets = [...usb.map(id => [id]), ...usb.flatMap((a, i) => usb.slice(i + 1).map(b => [a, b])), usb]
     for (const moduleIds of sets) {
       const prepared = await service.call('site_selection', { moduleIds, usb: true, capabilities, base })
-      expect(prepared.changes).toHaveLength(moduleIds.length)
+      // USB Audio comes with the base (here in its default layout, the set's), so it adds no package.
+      expect(prepared.changes).toHaveLength(moduleIds.filter(id => id !== 'usb-audio-out-tracks-main-cue').length)
       expect(prepared.changes.every(change => /^[a-f0-9]{64}$/.test(change.sha256) && change.undoSha256)).toBe(true)
     }
     await expect(service.call('site_selection', { moduleIds: ['sidechain-compressor'], usb: true, capabilities })).rejects.toThrow('latest Modwerk base')

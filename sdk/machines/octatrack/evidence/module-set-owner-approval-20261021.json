@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "kind": "owner-scoped-experimental-approval",
+  "approvedBy": "repeat98",
+  "approvedOn": "2026-10-21",
+  "ownerStatement": "Approve those scoped experimental waivers",
+  "baseIdentity": "0a46e644b6fb2d639bf76f1c3f86f21e98ffdc63adc5fb3241743d5d91103deb",
+  "variantIdentities": {
+    "tracks-main-cue": "0a46e644b6fb2d639bf76f1c3f86f21e98ffdc63adc5fb3241743d5d91103deb",
+    "tracks": "2b26ea3dc6d13145856960595c5bcdbcb949b30e9b66d165edf38771dea50d6a",
+    "tracks-post": "e3af0263fc4338e75ace47ebf3cd4b0092c8ddeff130a094a4591dcae5c4edf3",
+    "main-cue": "c768c19fa75637320a6015407b7fb443e7b360c2d063aa5c30068520f224e765",
+    "main": "411bd7c0de679fcbefd0a0af1011f465eac79bdbc894c271b9b32db4812702d6",
+    "master": "73ba51f74c51bfdc59d18aa7e865a2d58c647425e58e210608c53d5dd7505717",
+    "off": "000e480bbf45cd731028b9e952bfb410047806965a0164daa0185b6bdbe25b15"
+  },
+  "baseSourceInventorySha256": "aa6c1bc292718b427c0e86ea0a78c46e57700e453bf8cc452563bbe6e01c9716",
+  "nativeBrowserImageSha256": "72e6b5997a0868ce0c9eea4d5462d3fea140741194440c913d38b6861b849241",
+  "sourceParents": {
+    "main": "b97654c63125460df4271d092a5729b4faa7373e",
+    "moduleSets": "d9c8e3c77c67d832292bce457d4d38b8dd6db2c7",
+    "keyBus": "780cbcfc554a1643b22bb08b0f7b0c429d3d1d4c",
+    "usbReconnect": "fedfcb371ec0cf6daaa0bd23b50a8d02b888688b"
+  },
+  "integrationSources": {
+    "sdk/runtime/loader/set_package.h": "bcfd3829af0785cfd15ec801237226c24959d32d44d0c1fb2df4fb08806ac743",
+    "src/engine/elekloader/set-package.ts": "ac1513fe470c5444fbb43fa645c71488f7fa327d78a35c641f07cf97b7bdda82",
+    "src/engine/elekloader/module-set.ts": "5ac386da5df3ea81f2aaedadc39384abe2e5098ca33020e52f0e6f84e73e55ff"
+  },
+  "baseBoundPackages": {
+    "sidechain-compressor": "408095a21f28a0304a164718f046da7e8aa3ef1a0b6a3db4e0bb89d364f2ab26",
+    "output-matrix": "e749b71e7e848d03691b7c13f7c3f5d62c58da95486dc6ad05055d4ffe0629b2",
+    "cc-map": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
+    "recorder-loop-fix": "22534de96c7f670b47c04b5c176b78b1ac48432739f8989890e4c7deb86cd628",
+    "analog-bassdrum": "ee55b04ce962c540ecfe326550d8e1265679a0791ebde98cde6439d57087ae75"
+  },
+  "status": "experimental-owner-waived",
+  "nativeBrowserParity": "All seven published USB layouts were source-built and matched byte for byte; each passed the strict stock-free scan and the controller-link equality check.",
+  "integrationFixes": [
+    "Whole-set framing accepts ABI 9 in the browser and device; native host tests retain feature refusal, publication and exact baseline rollback.",
+    "Key-bus readers are admitted on every generated published base variant.",
+    "CC Map and Mute Modes were source-rebuilt byte-identically before refreshing the generator-only cave/table source pin."
+  ],
+  "pr": 737,
+  "candidateCommit": "d9c8e3c77c67d832292bce457d4d38b8dd6db2c7",
+  "waived": [
+    "exact-combined-build-hardware-lifecycle",
+    "physical-audio-and-both-core-self-test",
+    "disconnect-boundary-hardware",
+    "physical-part-project-reboot-persistence"
+  ],
+  "limitations": [
+    "No physical run of this combined source/build is claimed. Mixed add/replace/remove, actual self-test and audible output on both cores, Keep/Undo, disconnect recovery, removal/missing-module behavior and persistence remain unverified.",
+    "Whole-set transactions remain beta/capability-gated. Software tests do not replace the actual self-test or explicit Keep/Undo in a device trial."
+  ]
+}

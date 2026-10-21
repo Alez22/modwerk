@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "kind": "source-packages",
-  "sourceCommit": "203edb598ff8edc3c0842c0dbae962e44720a06a",
+  "sourceCommit": "408227215dfd24be14d8d6588d95bf22f3a63c0c",
   "nativeRevision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
-  "sourceTreeSha256": "31b7cd81ea0a797b3e1167fdd17b11c0e39ded36684e66627c1a062f2728fd79",
-  "compilerSha256": "270df5cf8dcef3eef2c5758e6239dd6e9ef4de291b0f1efb96e1da16531d0b30",
+  "sourceTreeSha256": "7efb12c16a963b434b465fa881aad2a96344331a3ba522ba7391ec450209049a",
+  "compilerSha256": "dca0433ca7400448bd024c9ca448c3e0a87cc950a3ce07bf6a3557cc1f842bb2",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -17,6 +17,7 @@
     "airwindows-chorus": "0.1.2-experimental",
     "everb": "0.1.2-experimental",
     "bbd": "0.1.1-experimental",
+    "lofi2": "0.1.0-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
@@ -30,52 +31,53 @@
     "mute-modes": "0.2.1-experimental",
     "recorder-loop-fix": "0.1.0-experimental",
     "poly8": "0.3.0-experimental",
-    "output-matrix": "0.1.1-experimental"
+    "output-matrix": "0.1.1-experimental",
+    "quantize-live-rec-toggle": "0.1.0-experimental"
   },
   "files": {
     "dsp-packages.json": {
-      "bytes": 74965,
-      "sha256": "393aae3809a7fd1729dc419e5e5a7685f0aed52ac86d8ea004e4bfa06939a4a2"
+      "bytes": 84355,
+      "sha256": "29c0b08aad367f8349c1986089e5bef81b55ac0794549f9fa76f9ec6579e5abb"
     },
     "resident-dsp.json": {
-      "bytes": 24965,
-      "sha256": "22fe1fbed6d3b466711310941f750c8e3ac158a0ee8f1e68783225bf48026887"
+      "bytes": 25054,
+      "sha256": "ff1b239cee80647a2c26204789199996095e2e652fafd17034f25060f366bb42"
     },
     "coldfire-packages.json": {
-      "bytes": 353200,
-      "sha256": "0e0e254dfc5ef1560877f135f8a481ad7732859d2a8720a35dae8d9623c5080b"
+      "bytes": 353289,
+      "sha256": "c1411807fc00cab3d34a9f2d0b5ba91248dbec0dce406d88725fc198bee829e4"
     },
     "rom-packages.json": {
-      "bytes": 25351,
-      "sha256": "0bb7af9740e78f12df6ed4b8ef631a7eecdf6c55b1b0c72818f2477c3bfa90a0"
+      "bytes": 25440,
+      "sha256": "771ab3f2fdaa8ec1c19c7a3dfc8f31c7ec1c7b2d51010d3246de122207e95190"
     },
     "bootstrap-package.json": {
-      "bytes": 3699,
-      "sha256": "041bb4398363d7ec7b6712b33b2e5c453f8fc4212eb46b0ccd4d4657985b1231"
+      "bytes": 3788,
+      "sha256": "82ab6b1d98fd7ad66e852c6c4c9d31eab45bff4f2bb4ed5a78e0c2037c153c83"
     },
     "menu-recipes.json": {
-      "bytes": 34507,
-      "sha256": "51fd037d5f88aa6d34dfcd4b11e65a2c8aabbd2aaf5a9081e04d0d8f1023da56"
+      "bytes": 35955,
+      "sha256": "63054431fd4da6efe6a5b447d86d681b5b0a8200f7a702ec662c10a8e72944a4"
     },
     "descriptor-recipes.json": {
-      "bytes": 71916,
-      "sha256": "297432a92d50e9b313f65d6624c46a59823ed38e9e22473836ff74c5ef6fac41"
+      "bytes": 78113,
+      "sha256": "aeaf4fb76de74cf51737c405fbc892a9fbd2e378aee0549b19ab1becfd1138f9"
     },
     "platform-writes.json": {
-      "bytes": 17641,
-      "sha256": "0979092f0c9b49cac0a0e02f948dbab4574ce2882924597865cfb834761b87fd"
+      "bytes": 17730,
+      "sha256": "c2360b5b5429bb98a1a89dcfbb46f36d753ff0c6b9bfa7c9a519b8fc392754c4"
     },
     "requested-packages.json": {
-      "bytes": 1069265,
-      "sha256": "12552938d738d227307be6393dd799624f0ce3438b968d3b6a3cc6fe82acb07f"
+      "bytes": 1073707,
+      "sha256": "f69dc07c2d94b01b82720269fe8ff4300b241891752fed96e6ff92cfbfd84ec1"
     },
     "utility-packages.json": {
-      "bytes": 12827,
-      "sha256": "c01466717ec81faf72ffd28269929687a762434c18eaed9d70c29261aa54f15e"
+      "bytes": 12916,
+      "sha256": "b11be781d34d7d012b1216693ed086a945511f6fa48109e5ca3af6fc0566b906"
     },
     "usb-audio-packages.json": {
-      "bytes": 737469,
-      "sha256": "7f5d352c0dc8785bab1352ad07335f5de728fa932dff3e74e5c374697645acb0"
+      "bytes": 737558,
+      "sha256": "4b372ebe20e76fc0fd7e04e7dcfd4557fa0aaa67e2080d306d17e2e209645926"
     }
   },
   "approval": null,

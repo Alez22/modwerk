@@ -18,10 +18,19 @@ describe('one module-set offer', () => {
     expect(data.subarray(117, 120)).toEqual(new Uint8Array(3)); expect(view.getUint32(120)).toBe(35)
     first[0] = 0; expect(data[84]).toBe(0x4d) // the caller cannot mutate a staged offer
   })
+  it('retains ABI 9 requirements alongside legacy packages in the same offer', () => {
+    const reader = pkg(11, 80), header = new DataView(reader.buffer)
+    header.setUint16(4, 9); header.setUint16(76, 8)
+    const legacy = pkg(22), data = encodeModuleSet(base, baseline, [reader, legacy]), view = new DataView(data.buffer)
+    expect(view.getUint16(6)).toBe(2)
+    expect(data.subarray(84, 164)).toEqual(reader)
+    expect(view.getUint16(84 + 76)).toBe(8)
+    expect(data.subarray(168, 168 + legacy.length)).toEqual(legacy)
+  })
   it('refuses duplicates, malformed packages and capacity exhaustion before any upload', () => {
     for (const packages of [[], [pkg(0)], [pkg(1), pkg(1)], [new Uint8Array(31)], Array.from({ length: 21 }, (_, i) => pkg(i + 1)), [pkg(1, 2097152)]])
       expect(() => encodeModuleSet(base, baseline, packages)).toThrow()
-    const bad = pkg(1); bad[5] = 9
+    const bad = pkg(1); bad[5] = 10
     expect(() => encodeModuleSet(base, baseline, [bad])).toThrow()
     expect(() => encodeModuleSet('', baseline, [pkg(1)])).toThrow()
   })

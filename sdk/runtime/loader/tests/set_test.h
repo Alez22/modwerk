@@ -46,9 +46,27 @@ static void set_checks(void)
         CHECK(!modwerk_runtime_set_busy() && live[0]==old0 && live[1]==old1 && modwerk_runtime_active()==2);
         CHECK(modwerk_runtime_free(0)==free_before && !memcmp(stock,before,sizeof stock));
     }
+    /* ABI 9 readers retain their feature admission inside a whole-set offer.
+     * A missing bus refuses the complete set; an admitted reader can publish
+     * with the other rows and still restore the exact baseline. */
+    unsigned saved_features=base_features;
+    set_start();id=111;begin9(8,8);claim9(2,0,RUNTIME_CLAIM_READ,0x700,16);dsp_words9(8);set_append();
+    id=112;begin(0,0,RUNTIME_NONE,0,0,0,0);set_append();
+    id=117;begin(64,0,0,0,0,1,0x77);site(STOCK+192,6);set_append();
+    base_features=0;
+    CHECK(s->enter(0) && !s->prepare(0,set_offer,set_bytes));
+    CHECK(modwerk_runtime_refusal()==RUNTIME_CONFLICT && s->discard(0));
+    CHECK(modwerk_runtime_free(0)==free_before && live[0]==old0 && live[1]==old1);
+    base_features=8;
+    CHECK(s->prepare(0,set_offer,set_bytes) && change_set.row[0].after->dsp.requires==8);
+    CHECK(s->publish(0)==MU_PUBLISHING_MORE && s->publish(0)==MU_PUBLISHING_MORE && s->publish(0)==MU_APPLIED);
+    CHECK(!s->restore(0) && !s->restore(0) && s->restore(0) && s->leave(0));
+    CHECK(modwerk_runtime_free(0)==free_before && live[0]==old0 && live[1]==old1 && !memcmp(stock,before,sizeof stock));
+    base_features=saved_features;
     /* Bad framing, a repeated module and a stale baseline allocate nothing. */
     set_make();CHECK(s->enter(0));set_offer[48]^=1;CHECK(!s->prepare(0,set_offer,set_bytes));CHECK(s->discard(0));
     set_make();set_offer[set_bytes-1]=1;CHECK(!s->prepare(0,set_offer,set_bytes));CHECK(s->discard(0));
+    set_make();set_offer[89]=RUNTIME_ABI+1u;CHECK(!s->prepare(0,set_offer,set_bytes));CHECK(s->discard(0));
     CHECK(s->leave(0) && modwerk_runtime_free(0)==free_before && !memcmp(stock,before,sizeof stock));
     /* A later invalid package discards all earlier candidates, leaving live
      * dispatch and every predecessor byte intact. */

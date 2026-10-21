@@ -11,7 +11,7 @@ export function encodeModuleSet(base: string, baseline: string, packages: readon
   for (const data of packages) {
     if (data.length < 32) throw new Error('A module package is incomplete.')
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength), id = view.getUint32(28)
-    if (view.getUint32(0) !== 0x4d57524d || view.getUint16(4) < 4 || view.getUint16(4) > 8 || !id || ids.has(id))
+    if (view.getUint32(0) !== 0x4d57524d || view.getUint16(4) < 4 || view.getUint16(4) > 9 || !id || ids.has(id))
       throw new Error('A module set contains an invalid or repeated module.')
     ids.add(id); bytes += 4 + Math.ceil(data.length / 4) * 4
     if (bytes > UPLOAD_MAX_BYTES) throw new Error('The module set exceeds the upload limit.')

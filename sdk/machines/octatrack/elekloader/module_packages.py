@@ -29,7 +29,10 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
   exact public base, whose IDENTIFY digest its manifest entry names as requiredBase (module-adapters/base_bound.py).
   The controller packages and Analog BD call the base's write-lease entries and the base admits them through the trust
   rows built into it; the cave ports are linked for its arena and runtime pool. They link against sdk/machines/octatrack/base-binding.json,
-  which `npm run octatrack:base` writes from the base it built. Same tools as "octabam".
+  which `npm run octatrack:base` writes from the base it built. Same tools as "octabam";
+- an entry with "requiresFeatures" (a key bus reader, RINGMOD SC): the package build.py makes, written as ABI 9 by
+  sdk/runtime/loader/abi9.py with those base features (dsp-sites.json names, e.g. "keybus") and its "dspClaims"
+  (abi9.py's --claim syntax). The manifest then also says `requires` (the feature bits) and `claims` (their count).
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
@@ -76,6 +79,13 @@ def build(entry, out, upstream, private_stock=None, stock_at=None):
     if private_stock:
         args += ['--private-port', '--stock', str(private_stock)]
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)
+    if entry.get('requiresFeatures'):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('module_packages_abi9', APP / 'sdk/runtime/loader/abi9.py')
+        abi9 = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(abi9)
+        out.write_bytes(abi9.upgrade(out.read_bytes(), abi9.base_features(entry['requiresFeatures']),
+                                     [abi9.parse_claim(claim) for claim in entry.get('dspClaims', [])]))
     return out.read_bytes()
 
 
@@ -126,21 +136,25 @@ def capabilities(data):
     if len(data) < 68 or data[:4] != b'MWRM':
         raise ValueError('Not a published runtime package.')
     abi, flags = struct.unpack_from('>HH', data, 4)
-    if abi not in (6, 7, 8) or len(data) < {6: 68, 7: 72, 8: 76}[abi]:
+    headers = {6: 68, 7: 72, 8: 76, 9: 80}
+    if abi not in headers or len(data) < headers[abi]:
         raise ValueError('Not a supported published runtime ABI.')
     hooks, sites = struct.unpack_from('>II', data, 20)
     copies = struct.unpack_from('>I', data, 68)[0] if abi >= 7 else 0
-    fills = struct.unpack_from('>I', data, 72)[0] if abi == 8 else 0
-    header = {6: 68, 7: 72, 8: 76}[abi]
-    words = struct.unpack_from('>%dI' % hooks, data, header) if abi == 8 and len(data) >= header + 4 * hooks else None
-    if ((hooks and (words is None or hooks > 4 + RUNTIME_SITE_EVENT_LIMIT)) or flags & ~(7 if abi == 8 else 3)
-            or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64):
+    fills = struct.unpack_from('>I', data, 72)[0] if abi >= 8 else 0
+    header = headers[abi]
+    words = struct.unpack_from('>%dI' % hooks, data, header) if abi >= 8 and len(data) >= header + 4 * hooks else None
+    # ABI 9: base features (key bus readers) and DSP claims; hook entries, which every base refuses, are never published.
+    requires, claims, entries = struct.unpack_from('>HBB', data, 76) if abi == 9 else (0, 0, 0)
+    if ((hooks and (words is None or hooks > 4 + RUNTIME_SITE_EVENT_LIMIT)) or flags & ~(7 if abi >= 8 else 3)
+            or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64 or claims > 16 or entries):
         raise ValueError('The published runtime package has unsupported hooks, flags or records.')
     # One machine group needs both table composition and explicit lifetime admission. A hook word past the four core
     # events subscribes to (or raises) a site event: the base must report events (MWCP 128, loader.h).
     features = (bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0)
                 | (128 if words and any(w != 0xffffffff for w in words[4:]) else 0))
-    return dict(abi=abi, features=features, sites=sites, copies=copies, fills=fills)
+    return dict(abi=abi, features=features, sites=sites, copies=copies, fills=fills,
+                **(dict(requires=requires, claims=claims) if abi == 9 else {}))
 
 
 def dsp_words(data):

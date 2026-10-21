@@ -497,6 +497,26 @@ changed (Sidechain's KFLT 64 became 1). To recover a bank lost this way, do not
 save or edit: power-cycle once more, or PROJECT > RELOAD the last save from the
 card.
 
+**Stock redraws a page only on its own events.** A module that patches how stock
+draws a page shows only at the next key that redraws it. On the Output Matrix
+author's MKII (20 October 2026, RAM-booted `b5fae2ae` and `3e3e3de1`), installing
+Output Matrix over USB with OUT CFG on MATRIX left the LEV box with stock's LEV
+label and split bars until CUE was pressed (audio was right). After a power cycle
+on flashed `3e3e3de1` (16 October) the restored set looked the same. A RAM-boot
+restore did not reproduce it on either base: the screen redrew as the module
+loaded and the MODULES LOADED dialog appeared. The track screen's drawer is
+`0x4004d948(-1)`. CUE's handler (`0x4004e978`) does nothing more, and the drawer
+marks the display for the UI loop's flush (`0x46c7c72c`). It writes the screen's
+plane and globals, so call it only from the UI task (`ev_tick`, key and encoder
+handlers), never from the engine task that installs or from an interrupt. The
+base calls it on the UI tick once the live modules change (`runtime.c`). On the
+same MKII the fix base `2f575d3e` showed Output Matrix's own label right after the
+install. That build was made before a rebase onto newer main code; the same
+`runtime.c` is now in base `6650236a`. After a RAM-boot restore `2f575d3e` showed MNL with a solid bar that CUE left
+unchanged. A PROJECT menu stayed intact through an install and a removal. Flashed
+`6650236a` (same MKII, 20 October 2026): an install, the first boot's restore and a
+power cycle with six modules kept each left MNL with a solid bar, no key pressed.
+
 **A RAM boot can come back without USB.** On 19 October 2026 one RAM boot of a
 dev twin (`82b9bef4`) ran for over 15 minutes (its log has loads) but never
 enumerated on the Mac: no Elektron device at all, not a dead bridge handle.

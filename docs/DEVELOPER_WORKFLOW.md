@@ -43,12 +43,14 @@ It fetches Modwerk's `main` (from `upstream` when your fork has it, else `origin
 These stumbling blocks have each cost a contributor and the owner a repair round:
 
 - **main moved.** An author update merges automatically only when its CI ran against the current `main`; the scope job's name records both commits. When `main` moves first, merge it, run `pr:ready` again and push.
+- **A narrow clone kept a stale ref.** `pr:ready` updates the remote's `main` tracking ref even in a single-branch clone. A manual `git fetch origin main` can update only `FETCH_HEAD` under a narrow fetch refspec; fetch `refs/heads/main:refs/remotes/origin/main` before following a `git merge origin/main` instruction in that setup.
 - **Stale generated files.** `src/catalog/module-documents.json` and the compatibility files go stale whenever `main` moves under your branch. `pr:ready` regenerates them; commit what it names. Never edit them by hand.
 - **Letter case.** macOS and Windows find `Foo.s` when you wrote `foo.s`; Linux CI does not. `modules:check` refuses a manifest path in the wrong case, but not an `.include` line inside an assembly source, so check those yourself.
 - **A merge that breaks the code.** Merging `main` can leave a duplicate declaration or a stale call without any conflict marker. `pr:ready` runs the full check after the merge for exactly this reason.
 - **Two pieces of work in one PR.** A guide edit, shared code or another module inside an author update takes it off the automatic path; send a finding, fix or improvement on a different pull request ([Fixes and improvements](#fixes-and-improvements)).
 - **The first failure hides the next.** CI and `npm run check` stop at the first failing stage, so one fix can uncover another. Run `pr:ready` until it is Ready instead of pushing after each fix.
 - **Compiled packages.** The `octatrack-source` and `elemod-source` jobs rebuild packages in the pinned Docker toolchain and require the committed ones to match. Reproduce them before you push: `bash scripts/build-modules-isolated.sh <clean checkout> <new dir> <image id>` for the Octatrack, `bash scripts/build-elemod-isolated.sh` and `node scripts/verify-elemod-release-exports.mjs <dir>` for the Digitakt and Digitone, from a clean, committed tree.
+- **Local Python helpers.** Use `python3 -B` or `PYTHONDONTWRITEBYTECODE=1`: bytecode caches under preserved imports fail the import-integrity check, even when the authored source is unchanged.
 - **Your first PR waits for the owner.** GitHub holds a first-time contributor's CI runs until the owner approves them, after every push. Run `pr:ready` locally and push once, rather than often, so each approval counts.
 
 
@@ -84,6 +86,8 @@ Public reports and GitHub replies share a thread, with replies/status synchroniz
 /modwerk reopen <public explanation>
 /modwerk resolve <published-version> verified-download
 ```
+
+Commands require current module-maintainer authorization; owning the GitHub repository does not grant it. A module whose author opted out of maintenance can therefore refuse the owner's command too. Use the existing administrator report workspace for triage, or an ordinary GitHub reply to ask reproduction questions through the signed reply/notification bridge. Check the command acknowledgement, public report state and signed webhook verdict: HTTP 200 with `command: denied` means no triage or reporter notification was performed for that command. Do not change module ownership or grant a role to get around that refusal.
 
 A report titled `[configuration] …` covers a whole saved configuration and lists its modules; every module's registered maintainer can use `close` and `reopen` on it. Name the module in `resolve`, `/modwerk resolve <module-id> <version> verified-download`, because the fix ships in one module; it closes the whole report.
 

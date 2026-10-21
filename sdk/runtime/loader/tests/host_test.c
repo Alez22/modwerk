@@ -5,6 +5,7 @@
 #define MODWERK_RUNTIME_REFERENCE_EXTERNAL
 #define MODWERK_RUNTIME_METADATA_EXTERNAL
 #define MODWERK_RUNTIME_JOURNAL_EXTERNAL
+#define MODWERK_RUNTIME_FEATURES_EXTERNAL
 #include "../loader.c"
 #include "../../upload/sha256.c"
 #include <stdio.h>
@@ -84,6 +85,12 @@ int modwerk_machine_metadata_admit(const struct runtime_dsp *from, struct runtim
     return (from->flags | to->flags) & RUNTIME_GROUP_METADATA ? (metadata_allow ? metadata_why : RUNTIME_MALFORMED) : RUNTIME_OK;
 }
 
+/* ABI 9: the base features this host base provides. */
+static unsigned base_features;
+unsigned modwerk_machine_dsp_features(void) { return base_features; }
+static int claims_why; static unsigned claims_seen;
+int modwerk_machine_dsp_claims_admit(unsigned requires, const struct runtime_dsp_claim *claims, unsigned count)
+{ CHECK(locked && requires <= 0xffff && (claims || !count)); claims_seen += count; return claims_why; }
 /* Trusted synthetic adapter: exercises the actual loader journal; it is not
  * a DSP driver, resource census or physical ACK qualification. */
 static int journal_enabled,journal_begin_safe,journal_admitted,journal_roots=1,journal_commit=1,journal_switch_safe=1;
@@ -201,6 +208,21 @@ static void begin8(uint32_t image, uint32_t tick, uint32_t sites)
     begin7(image, tick, sites, 0);
     memmove(p + 76, p + 72, n - 72); n += 4; p[5] = 8; memset(p + 72, 0, 4);
 }
+/* ABI 9: an ABI 8 header (no image, no sites) with a DSP descriptor of `words` words, `requires` at 76; claims and hook
+ * entries follow with claim9/entry9, then dsp_words9. */
+static void begin9(uint32_t words, uint32_t requires)
+{
+    begin8(0, RUNTIME_NONE, 0);
+    memmove(p + 80, p + 76, n - 76); n += 4; p[5] = 9;
+    put32(p + 32, words); p[38] = 30; p[39] = 1; p[41] = 0; p[43] = 1; p[44] = 0; p[45] = 244; p[46] = RUNTIME_MODELED; p[47] = 70;
+    p[76] = (uint8_t)(requires >> 8); p[77] = (uint8_t)requires; p[78] = p[79] = 0;
+}
+static void claim9(uint8_t space, uint8_t core, uint8_t access, uint32_t address, uint32_t words)
+{
+    ++p[78]; p[n++] = space; p[n++] = core; p[n++] = access; p[n++] = 0; emit(address); emit(words);
+}
+static void entry9(uint8_t site, uint8_t cores, uint32_t at) { ++p[79]; p[n++] = site; p[n++] = cores; emit16(0); emit(at); }
+static void dsp_words9(uint32_t words) { for (uint32_t i = 0; i < words; ++i) emit(0x0c0000u + i); }
 static void fill8(uint32_t offset, uint32_t length, uint8_t value)
 {
     put32(p + 72, be32(p + 72) + 1u);
@@ -238,7 +260,7 @@ int main(void)
 
     uint8_t capabilities[14]; memset(capabilities, 0xa5, sizeof capabilities);
     CHECK(modwerk_runtime_capabilities(capabilities) == 12u);
-    CHECK(!memcmp(capabilities, "MWCP", 4) && capabilities[4] == 1 && capabilities[5] == 8);
+    CHECK(!memcmp(capabilities, "MWCP", 4) && capabilities[4] == 1 && capabilities[5] == 9);
     CHECK(be16(capabilities + 6) == (7u | SET_CAPABILITY) && be16(capabilities + 8) == 128 && be16(capabilities + 10) == 128);
     CHECK(capabilities[12] == 0xa5 && capabilities[13] == 0xa5);
 
@@ -613,6 +635,69 @@ int main(void)
     CHECK(dsp_from.module == 80 && dsp_to.module == 0 && !modwerk_runtime_active());
     CHECK(modwerk_runtime_free(0) == RUNTIME_POOL_BYTES && !memcmp(stock, original, sizeof stock));
 
+    /* ABI 9: base features and DSP claims. A feature the base lacks, a hook entry (no hook slots yet) and a claim another
+     * live module holds (either writing) are refused before any memory is taken; malformed records are malformed. */
+    free = modwerk_runtime_free(0);
+    id = 90; begin9(8, 8); claim9(2, 0, RUNTIME_CLAIM_WRITE, 0x700, 16); dsp_words9(8);
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_CONFLICT && modwerk_runtime_free(0) == free);
+    base_features = 8;
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    const struct runtime_module *reader = modwerk_runtime_module(0);
+    CHECK(reader && reader->dsp.requires == 8 && reader->dsp.claim_count == 1 && reader->dsp.count == 8 && dsp_to.requires == 8);
+    CHECK(reader->dsp.claims && reader->dsp.claims[0].address == 0x700 && reader->dsp.claims[0].words == 16 &&
+          reader->dsp.claims[0].space == 2 && reader->dsp.claims[0].core == 0 && reader->dsp.claims[0].access == RUNTIME_CLAIM_WRITE);
+    CHECK(reader->dsp.words[7] == 0x0c0007u && (uintptr_t)reader->dsp.claims >= (uintptr_t)(reader->dsp.words + 8) &&
+          (uintptr_t)(reader->dsp.claims + 1) <= (uintptr_t)reader + reader->size);
+    free = modwerk_runtime_free(0);
+    for (unsigned bad = 0; bad < 13; ++bad) {
+        id = 91; begin9(4, 0);
+        if (bad == 0) claim9(3, 0, 1, 0x100, 1);                          /* no such space */
+        if (bad == 1) claim9(2, 2, 1, 0x100, 1);                          /* no such core */
+        if (bad == 2) claim9(2, 0, 0, 0x100, 1);                          /* no access */
+        if (bad == 3) { claim9(2, 0, 1, 0x100, 1); p[n - 9] = 1; }        /* reserved byte */
+        if (bad == 4) claim9(2, 0, 1, 0x100, 0);                          /* no words */
+        if (bad == 5) claim9(2, 0, 1, 0x2fff0, 0x20);                     /* private and shared at once */
+        if (bad == 6) claim9(2, 1, 1, 0x3fff0, 0x20);                     /* past the end */
+        if (bad == 7) { claim9(1, 0, 1, 0x100, 8); claim9(1, 0, 3, 0x104, 1); } /* two of its own meet */
+        if (bad == 8) { claim9(2, 0, 1, 0x33e00, 8); claim9(1, 1, 1, 0x33e07, 1); } /* in the window, whatever the core */
+        if (bad == 9) entry9(0, 0, 1);                                    /* no cores */
+        if (bad == 10) entry9(0, 3, 4);                                   /* past its DSP words */
+        if (bad == 11) { entry9(0, 1, 0); entry9(0, 2, 1); }              /* one site twice */
+        if (bad == 12) { put32(p + 32, 0); claim9(2, 0, 1, 0x100, 1); }    /* a claim with no DSP code */
+        dsp_words9(bad == 12 ? 0 : 4);
+        CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MALFORMED && modwerk_runtime_free(0) == free);
+    }
+    id = 91; begin9(4, 0); entry9(0, 3, 2); dsp_words9(4);                /* whole, but no hook slots */
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_CONFLICT && modwerk_runtime_free(0) == free);
+    id = 91; begin9(4, 0); claim9(2, 0, RUNTIME_CLAIM_READ, 0x70f, 1); dsp_words9(4); /* reads a word 90 writes */
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_CONFLICT && modwerk_runtime_free(0) == free);
+    id = 91; begin9(4, 0); claim9(2, 1, RUNTIME_CLAIM_WRITE, 0x700, 16); claim9(1, 0, RUNTIME_CLAIM_WRITE, 0x700, 16);
+    claim9(2, 0, RUNTIME_CLAIM_READ, 0x33e00, 0x20); dsp_words9(4);       /* the other core, X, a read in the window */
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    id = 92; begin9(4, 0); claim9(2, 1, RUNTIME_CLAIM_READ, 0x3be10, 4); dsp_words9(4); /* two readers of the window */
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    free = modwerk_runtime_free(0);
+    id = 93; begin9(4, 0); claim9(2, 1, RUNTIME_CLAIM_WRITE, 0x33e1f, 1); dsp_words9(4); /* a write where 91 reads */
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_CONFLICT && modwerk_runtime_free(0) == free);
+    /* A replacement of 90 may keep its own claim; removing 90 frees it for others. */
+    id = 90; begin9(8, 8); claim9(2, 0, RUNTIME_CLAIM_WRITE, 0x708, 16); dsp_words9(8);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    claims_why = RUNTIME_MEMORY; free = modwerk_runtime_free(0);                 /* the machine's ledger says no */
+    id = 94; begin9(4, 0); claim9(1, 1, RUNTIME_CLAIM_READ, 0x2840, 4); dsp_words9(4);
+    unsigned seen = claims_seen;
+    CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_MEMORY && modwerk_runtime_free(0) == free && claims_seen == seen + 1);
+    claims_why = 0;
+    for (id = 90; id <= 92; ++id) {
+        begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+        CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    }
+    id = 93; begin9(4, 0); claim9(2, 0, RUNTIME_CLAIM_WRITE, 0x700, 32); dsp_words9(4);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    begin(0, 0, RUNTIME_NONE, 0, 0, 0, 0);
+    CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
+    base_features = 0;
+    CHECK(!modwerk_runtime_active() && modwerk_runtime_free(0) == RUNTIME_POOL_BYTES && !memcmp(stock, original, sizeof stock));
+
     /* Machine metadata needs explicit board admission. An old group cannot
      * resume and rewrite persistent data after replacement, even without sites. */
     id = 81; begin8(32, RUNTIME_NONE, 0); p[7] = RUNTIME_GROUP_METADATA;
@@ -850,7 +935,8 @@ int main(void)
 #endif
     if (failures) { fprintf(stderr, "%u loader checks failed\n", failures); return 1; }
     puts("Loader: refusals, relocation, bss, hooks, stock-code sites (in-flight, stock and changed-code refusals, "
-         "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion, DSP sections and ABI 7's "
-         "hashed stock bytes (kept bytes, stock copies, address arithmetic, replacement over its own patch, mismatch refusals) passed.");
+         "replace, rollback, removal), reclamation, several modules (conflicts, positions), exhaustion, DSP sections, ABI 7's "
+         "hashed stock bytes (kept bytes, stock copies, address arithmetic, replacement over its own patch, mismatch refusals) and "
+         "ABI 9's base features, DSP claims and hook entries passed.");
     return 0;
 }

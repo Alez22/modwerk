@@ -8,6 +8,7 @@
 #ifndef MODWERK_SET_PACKAGE_H
 #define MODWERK_SET_PACKAGE_H
 #include <stdint.h>
+#include "loader.h"
 #define RUNTIME_SET_MAGIC 0x4d574d53u
 #define RUNTIME_SET_HEADER 80u
 #define RUNTIME_SET_CHANGES 20u
@@ -27,7 +28,7 @@ static inline int runtime_set_parse(const uint8_t *data, uint32_t bytes,
         uint32_t n = runtime_set_u32(data+at); at += 4u;
         if (n < 32u || n > bytes-at) return 0;
         const uint8_t *p = data+at;
-        if (runtime_set_u32(p) != 0x4d57524du || p[4] || p[5] < 4u || p[5] > 8u || !runtime_set_u32(p+28)) return 0;
+        if (runtime_set_u32(p) != 0x4d57524du || p[4] || p[5] < 4u || p[5] > RUNTIME_ABI || !runtime_set_u32(p+28)) return 0;
         for (unsigned k=0; k<i; ++k) if (runtime_set_u32(package[k]+28) == runtime_set_u32(p+28)) return 0;
         package[i]=p; length[i]=n; at += n;
         unsigned pad = (4u-n%4u)%4u;

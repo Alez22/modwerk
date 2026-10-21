@@ -10,14 +10,14 @@ import { OctatrackLink, tabLocks, USB_LOCK } from '../src/engine/elekloader/octa
 import { encodeUploadRequest } from '../src/engine/elekloader/upload-wire.ts'
 
 /** Two ends of a WebSocket: what one sends, the other receives on a later tick. */
-function socketPair() {
+function socketPair(delay = 0) {
   const end = () => {
     const listeners = { message: new Set(), close: new Set(), error: new Set(), open: new Set() }
     return { listeners, sent: [], closed: false, addEventListener(type, listener) { listeners[type].add(listener) }, emit(type, event) { for (const listener of listeners[type]) listener(event) } }
   }
   const a = end(), b = end()
   const wire = (from, to) => {
-    from.send = data => { if (from.closed) throw new Error('closed'); from.sent.push(data); setTimeout(() => to.emit('message', { data }), 0) }
+    from.send = data => { if (from.closed) throw new Error('closed'); from.sent.push(data); setTimeout(() => to.emit('message', { data }), delay) }
     from.close = () => { if (from.closed) return; from.closed = to.closed = true; setTimeout(() => { from.emit('close'); to.emit('close') }, 0) }
   }
   wire(a, b); wire(b, a)
@@ -25,15 +25,15 @@ function socketPair() {
 }
 const settle = () => new Promise(resolve => setTimeout(resolve, 5))
 
-async function session({ scope = 'read', endsAt = new Date(Date.now() + 600000).toISOString() } = {}) {
+async function session({ scope = 'read', endsAt = new Date(Date.now() + 600000).toISOString(), hopDelay = 0 } = {}) {
   const unit = fakeUnit('base'), [device] = await unit.usb.getDevices(), finished = []
   const core = new RemoteRelayCore({ scope, endsAt }, (reason, summary) => finished.push({ reason, summary }))
   const held = await holdUnit(device, tabLocks())
   const member = new MemberRelay({ id: '00000000-0000-4000-8000-000000000000', scope, device, vendorInterface: held.vendorInterface, model: 'OCTATRACK MKII',
-    ticket: async () => 'f'.repeat(64), open: () => { const [browser, server] = socketPair(); core.attach('member', server); setTimeout(() => browser.emit('open'), 0); return browser } })
+    ticket: async () => 'f'.repeat(64), open: () => { const [browser, server] = socketPair(hopDelay); core.attach('member', server); setTimeout(() => browser.emit('open'), 0); return browser } })
   member.start('f'.repeat(64))
   let operatorEnd
-  const remote = openRemoteUnit('wss://relay.test/socket', { socket: () => { const [mcp, server] = socketPair(); operatorEnd = server; core.attach('operator', server); return mcp }, timeoutMs: 2000 })
+  const remote = openRemoteUnit('wss://relay.test/socket', { socket: () => { const [mcp, server] = socketPair(hopDelay); operatorEnd = server; core.attach('operator', server); return mcp }, timeoutMs: 2000 })
   await remote.ready
   return { unit, device, core, member, remote, held, finished, operatorEnd }
 }
@@ -58,11 +58,13 @@ describe('a read-only remote session', () => {
     expect(await remote.unit.controlTransferOut({ requestType: 'vendor', recipient: 'interface', request: 1, value: 1, index: 5 }, hello)).toEqual({ status: 'stall', bytesWritten: 0 })
     expect(out).toHaveBeenCalledTimes(1)
     expect(member.getState().log.at(-1)).toMatchObject({ label: 'HELLO', outcome: 'stall' })
-    stop(); remote.end(); await settle()
+    stop(); remote.end()
+    // End crosses the operator and member relay hops; a fixed 5 ms sleep
+    // can observe the core's completion before the member receives it.
+    await vi.waitFor(() => expect(member.getState()).toMatchObject({ status: 'ended', ended: 'operator' }))
     expect(finished).toMatchObject([{ reason: 'operator' }])
     expect(finished[0].summary['in 3 ok']).toBeGreaterThan(0)
     expect(finished[0].summary['out 1 stall']).toBe(1)
-    expect(member.getState()).toMatchObject({ status: 'ended', ended: 'operator' })
     expect(device.opened).toBe(true)
   })
   it('refuses writes, self-test starts and saved-file reads at the relay', async () => {
@@ -114,10 +116,11 @@ describe('a read-only remote session', () => {
     await expect(remote.unit.controlTransferIn({ requestType: 'vendor', recipient: 'interface', request: 3, value: 0, index: 5 }, 72)).rejects.toThrow(/ended/)
   })
   it('passes the administrator’s message to the member’s banner', async () => {
-    const { remote, member } = await session()
-    remote.say('Please switch the Octatrack off and on, then plug it back in.'); await settle()
-    expect(member.getState().messages.map(message => message.text)).toEqual(['Please switch the Octatrack off and on, then plug it back in.'])
-    remote.end()
+    const { remote, member } = await session({ hopDelay: 10 })
+    try {
+      remote.say('Please switch the Octatrack off and on, then plug it back in.')
+      await vi.waitFor(() => expect(member.getState().messages.map(message => message.text)).toEqual(['Please switch the Octatrack off and on, then plug it back in.']))
+    } finally { remote.end() }
   })
   it('fails the administrator’s waiting requests when the member’s browser goes away', async () => {
     const { remote, member, device } = await session()
