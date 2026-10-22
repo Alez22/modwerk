@@ -3,7 +3,7 @@
   "id": "zoom-ms-60b",
   "order": 220,
   "name": "MS-60B",
-  "vendor": "Zoom",
+  "family": "zoom",
   "status": "research",
   "summary": "Same ZDL family; custom effects unconfirmed on stock MS-60B firmware.",
   "steps": {
