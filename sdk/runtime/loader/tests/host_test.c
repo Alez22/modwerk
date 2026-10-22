@@ -91,12 +91,15 @@ unsigned modwerk_machine_dsp_features(void) { return base_features; }
 static int claims_why; static unsigned claims_seen;
 int modwerk_machine_dsp_claims_admit(unsigned requires, const struct runtime_dsp_claim *claims, unsigned count)
 { CHECK(locked && requires <= 0xffff && (claims || !count)); claims_seen += count; return claims_why; }
-/* ABI 10: the engines this host base admits, and the last one it was asked about. */
+/* ABI 10: the engines this host base admits, and the last one it was asked about. Its entries and claims are the
+ * loader's for the call only (its words are not kept yet), so their first ones are copied here. */
 static int engine_why = RUNTIME_CONFLICT; static unsigned engines_seen; static struct runtime_dsp engine_seen;
+static struct runtime_dsp_entry engine_entry; static struct runtime_dsp_claim engine_claim;
 int modwerk_machine_dsp_engine_admit(const struct runtime_dsp *d)
 {
     CHECK(locked && d->engine_count && !d->count && d->entry_count && d->entries && (d->claims || !d->claim_count));
-    engine_seen = *d; ++engines_seen; return engine_why;
+    engine_seen = *d; engine_entry = d->entries[0]; if (d->claim_count) engine_claim = d->claims[0];
+    engine_seen.entries = 0, engine_seen.claims = 0; ++engines_seen; return engine_why;
 }
 /* Trusted synthetic adapter: exercises the actual loader journal; it is not
  * a DSP driver, resource census or physical ACK qualification. */
@@ -724,8 +727,8 @@ int main(void)
     CHECK(!b->prepare(0, p, n) && modwerk_runtime_refusal() == RUNTIME_CONFLICT && modwerk_runtime_free(0) == free &&
           engines_seen == asked + 1 && claims_seen == claims_before);               /* a base that admits no engine */
     CHECK(engine_seen.engine_count == 8 && engine_seen.engine_relocation_count == 2 && engine_seen.entry_count == 1 &&
-          engine_seen.init_count == 3 && engine_seen.entries[0].site == 5 && engine_seen.entries[0].exit == 6 &&
-          engine_seen.claims[0].core == RUNTIME_CLAIM_BOTH_CORES);
+          engine_seen.init_count == 3 && engine_entry.site == 5 && engine_entry.exit == 6 &&
+          engine_claim.core == RUNTIME_CLAIM_BOTH_CORES);
     engine_why = RUNTIME_OK;
     CHECK(b->prepare(0, p, n) && b->publish(0) == MU_APPLIED && b->retire(0));
     const struct runtime_module *engine = modwerk_runtime_module(0);
