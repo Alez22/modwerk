@@ -1,5 +1,15 @@
 # Verification record
 
+## Card firmware: PURGE SAMPLES froze the unit (#707) — 22 October 2026
+
+Every card build moved the arena base literal at all 23 of its uses; the 23rd (`cmpa.l #0x40a955e0,%a2` at `0x400254f8`) ends PURGE SAMPLES' walk over the 16 banks, so the walk ran off the end of RAM. Upstream octabam a49a38de (#753) ported into the vendored `arena.py`.
+- **Platform writes:** `platform-writes.json`'s arena rows and partial-OS cases regenerated with `export-platform-writes.py`'s logic against the vendored SDK; the same run with the old `arena.py` reproduces the committed rows, cases and `arenaSourceSha256` exactly. With the fix, only the `0x400254fa` row goes (27 words), each case one write fewer.
+- **Browser card builds from the stock 1.40C OS:** FM Synth + Sidechain + Play Modes + Apply Scene, Mute Modes + USB Audio Out, and no modules: on main PURGE's compare held the moved base (`b5fc414adde0`); now the stock bytes (`b5fc40a955e0`), with the arena still moved.
+- **Packages:** compiled in the isolated toolchain image and imported (code unchanged, provenance only); `octatrack:module-packages -- --check` with the toolchain: 23 identical, Play Modes held (#764). Tape Echo, Euclid, Play Modes, CC Map and Mute Modes recipes re-pinned (`arena.py`, and the rebuilt asset JSONs for Tape Echo and Euclid).
+- **Analog BD companion proofs:** re-exported natively (`export-composition-proofs.py --suite analog-bd --static-stock --vendored-sdk`, 8 shards, menus precomputed with `defaultChoosers`): 212 proofs, the 162 accepted ones change only `sha256`/`osSha256` (the native image no longer moves the operand), every `maskedOsSha256` and all 50 refusals identical, `moduleSourceTreeSha256` moves. `verify-analog-bd-native.mjs` passes: 162 native OS and GNU bootloader comparisons, 50 matching refusals, 6 firmware round trips.
+- **Already stale on main, unchanged:** `verify-static-composition-native.mjs` and `verify-coldfire-runtime-native.mjs` predate the core logger and fail for every profile on main.
+- **Not tested:** PURGE SAMPLES on a unit with a rebuilt card image.
+
 ## RINGMOD SC 0.2.0-experimental — 22 October 2026
 
 New Octatrack effect by Nathaniel Pavel (@npp1993): an insert whose gain follows another track's audio, read from the base's key bus (USB only, loader ABI 9, `requires keybus`). DUCK pulls the gain down with the key's peak; RING multiplies the audio by the key, with S&H, RECT and SLEW shaping the carrier. Effect ID 6, FX1 and FX2. Hardware (module's `evidence/hardware.md`): on 22 October the author's MKII ran this source's USB package `2ba32a49…` on a RAM-booted development twin (`53ddaf60…`, main's base with the module select step and key bus reader admission fixes): DUCK, plain RING, RECT, SLEW through 0 and S&H turned down by ear; two instances on both cores and slots; Part and project reload; every install and removal order beside Sidechain Compressor; two base self-tests passed. Parameter locks and LFOs, scenes, eight instances a core and a power cycle were not run on a unit.
