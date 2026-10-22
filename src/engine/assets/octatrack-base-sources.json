@@ -53,7 +53,7 @@
   "sdk/machines/octatrack/elekloader/machine_registry.c": "eaeea5364a7d0d073b0c0a9f8c2e462ef6172f12fae9884f88fc9b8285f56c63",
   "sdk/machines/octatrack/elekloader/machine_registry.s": "c218601c9cdad39fe007b60c011704fb0ab8f00d93c433276c826b33232e9176",
   "sdk/machines/octatrack/elekloader/modset.c": "61af8bff20a4a415c87c54d5865a3667e635dcf2ae684e5f8e41c7673d894353",
-  "sdk/machines/octatrack/elekloader/module_packages.py": "4074466bd59572a7f91c621c18562844ef7eb955b5fcf71907198b2e8fd284d7",
+  "sdk/machines/octatrack/elekloader/module_packages.py": "022dc2dba094846b674fce365b5daf7c89bcd3adbe5146cc27c637030a33ed78",
   "sdk/machines/octatrack/elekloader/old_projects.py": "8262ef8fa47fc4aa2354b40699cad960278c5cb998726b0c22ed1d0876ab08de",
   "sdk/machines/octatrack/elekloader/run_pack.py": "9c5370da5109a1cce19fda202923254e93c80f735c1be54d9f3555b11d708c46",
   "sdk/machines/octatrack/elekloader/run_unpack.s": "78241fcab328e00fe5f3e5a51568d3db25c1723708a40d9270491a05d074f592",
