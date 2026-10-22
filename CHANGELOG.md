@@ -1,5 +1,9 @@
 # Application changelog
 
+## 22 October 2026
+
+- Building firmware asks guests to sign in first again. The invitation after a download (21 October) brought in fewer sign-ups, so it is gone and the earlier prompt is back: Build firmware opens Sign in to build firmware, whose Skip for now enables after five seconds, with the remaining seconds on the button. Sign in, Create account and Cancel work at once, and a guest who skips builds for the rest of the visit. Modules a guest downloads are no longer kept in the browser to follow after sign-up; members still follow what they download. Admin statistics no longer show the invitation's counts.
+
 ## 21 October 2026
 
 - Site, USB-only modules: a module whose published USB package requires a base DSP feature (a key bus reader) cannot work in card firmware, which has no Modwerk base. The configurator's card build and the firmware session, which also serves the MCP's `firmware_download`, now refuse card firmware with such a module and say to sync the set over USB. While USB sync is in the beta, members without the beta interface cannot add it from the library (the add button is disabled with the reason), their refusal does not point at a sync they cannot start, and the MCP's public catalogue leaves it out; the MCP lists it with `card: false`. The Octatrack hub no longer suggests installing such a set from the card. The flag is derived from the published package's `requires`, not from a manifest field, and is not checked against a configuration's pinned version. Card rows stay, so native comparisons still cover them. Host tests with an injected USB-only fixture: no published module is USB-only yet, so nothing changes for current sets.
