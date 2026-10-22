@@ -6,6 +6,75 @@ review below. The owner has not reviewed it: the questions at the end are open, 
 receiver change only on that branch until he does. Hardware facts are quoted from the documents named, except the
 key bus's own run on an MKII (20 October 2026, "On the unit" below).
 
+Update, 22 October 2026: the owner ruled that no module is tied to the base; the plan that follows from it is the
+next section, for his review before any of it is built.
+
+## Owner decision and plan, 22 October 2026
+
+Analog BD 0.1.6 changes only its 909's DSP sound, yet shipping it over USB needed a new beta base: its engine and
+tables are built into the base and the base admits its package by an exact hash. The owner: "no module should be tied
+to the base firmware", and on version coupling: "if some modules will require a new base later down the line because
+base has drifted so much or vice versa, it's ok".
+
+So:
+
+- **A module update ships as a module.** Its DSP engine, its DSP tables and its controller code come from its own
+  package, never from the base's build, and nothing in the base names its package's hash.
+- **Versions may still require each other.** A module may need a newer base, or a base newer modules, when one has
+  moved on. That is a declared requirement (`requires`, the capability record, a minimum base), checked at sync, not
+  an exact identity pinned on both sides.
+
+### What ties a module to the base today
+
+Analog BD as the example; Sidechain Compressor and Output Matrix are tied the same way.
+
+| Tie | Where | Consequence |
+| --- | --- | --- |
+| The DSP engine is base code | `resident_dsp.py` builds it from the module folder and pins those files (`SOURCES`, `src/engine/assets/octatrack-base-sources.json`) | Any DSP change is a base input: the base must be rebuilt, or its checks fail |
+| The DSP tables are base data | `resident_dsp._analog`'s X record (3,776 words a core), written at RESET from `resident-engines-data.c` | Same |
+| The base admits the package by hash | `controller-policies.json` trust rows: package SHA-256, entry and lease return offsets | Any package change needs new rows, so a new base |
+| The package calls the base by address | Base-bound packages link the write-lease entries absolutely (`base-binding.json`, `requiredBase`) | Every base change relinks the package (acceptable under the owner's second sentence, but it is what makes the hash change) |
+
+### Plan
+
+**Phase 1: engines and their tables travel in the package.** One base change, one requalification.
+
+- Base: generic hook slots. The base keeps the JSR and dormant stub at each catalogued site (`dsp-sites.json`) and one
+  base word per slot; PLACE names a hook slot instead of a feature bit. The receiver, `resident_engines.c` and its
+  admission take the engine unit (words, relocations, entry offsets) from the installed package's DSP section
+  instead of `resident-engines-data.c`. Stubs, placement, evacuation and the on-demand rules stay as they are.
+- Package, ABI 10: hook entries are accepted (ABI 9 refuses them); a claim may carry initial words, which the base
+  writes before ENABLE in place of today's RESET from base data; `RUNTIME_DSP_WORDS` grows (Analog BD needs its 998
+  code words plus about 3,200 table words, over today's 4,096). Each package declares its per-core DSP cost (today
+  `analog_bd_dsp_price.json`), charged as now.
+- Trust for Phase 1: the controller's trust row pins only its ColdFire image and lease call sites, not its DSP words,
+  so a DSP-only update changes nothing the base pins.
+- Analog BD moves: its package carries the 808/909 engine and tables; the base drops its resident feature and pins.
+- Checks: host tests (receiver model, relocation at several bases, admission refusals, claim init), then on the
+  owner's unit: install, place, both engines playing, Part switches while playing, removal and reinstall, a power
+  cycle restore. Then Analog BD 0.1.6 ships as a module release, card and USB.
+
+**Phase 2: controllers admitted by what they declare.** One base change.
+
+- Packages import the lease entries by symbol at install, as other modules import, so a package no longer belongs to
+  one base link.
+- The base admits a controller by its declared feature and lease call sites, one holder per feature, with no package
+  hash in the base. Trust rows and the exact `requiredBase` go; a minimum base, where needed, is a declared requirement.
+
+**Phase 3: Sidechain Compressor and Output Matrix move** onto Phase 1's path, folded into Phase 1's base change if
+ready by then. The key bus stays base-owned on purpose (readers require it).
+
+Card builds are untouched by all three phases: modules are composed into the OS when the card image is built.
+
+### Risk
+
+Without hashes in the base, the base can only check structure: declared sites, claims, cost, room and lease call
+sites. A published package that passes those checks but misbehaves can silence or stall a core (a hook runs on every
+track of its core) or write its own Part bytes wrongly. That is the risk effect packages already carry, with a larger
+reach; review and CI decide what is published. Signed packages (a key the owner holds, checked by the base) would close
+it at the cost of a signing step in every release; not proposed unless the owner wants it.
+
+
 ## Review against main `e370b78e` (20 October 2026)
 
 What main changed since the first implementation (based on `24a1ece8`), as far as it touches Sidechain Compressor, its
@@ -450,7 +519,9 @@ reviewed change.
 
 ## Open questions for the owner
 
-All five are open. The local implementation assumes B for question 1 and exclusive sites for question 3.
+Answered by the owner's decision of 22 October 2026 (above), as read for his review: 1 B (merged as the key bus,
+#737); 2 yes, structural rules plus the publication path; 3 exclusive sites (no chaining user yet); 4 yes (Phase 2);
+5 yes, all three move (Phases 1 and 3).
 
 1. Option A or B for Sidechain and RINGMOD SC?
 2. Admission of hook packages by structural rules plus the publication path (section 5), instead of hashes pinned in the
