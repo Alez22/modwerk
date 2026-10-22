@@ -15,7 +15,8 @@ Update: Bryan T's octabam pull request 843 (`7795adf0`), the fix for [octabam is
 - **Render gate:** upstream's `verify_lofi2.py`, 73 checks, passes; the three new FDBK 127 tail checks read -69.2, -71.7 and -84.5 dBFS (0.1.0's source fails exactly those three, at about -4 dBFS). A 232-setting feedback scan finds no tail louder than -68.4 dBFS.
 - **Native/browser (`module:verify lofi2`):** 138 selections, 48 matching images (20 identical outright, 28 outside the platform writes), 90 matching refusals, 0 mismatches.
 - **Analog BD companion proofs:** re-exported natively (`export-composition-proofs.py --suite analog-bd --static-stock --vendored-sdk`, toolchain image, 8 shards merged in the committed order): all 212 proofs identical, only `moduleSourceTreeSha256` moves (`1c0b50fe…`).
-- **Not tested:** 0.1.1 on a Modwerk unit (its qualification record still names 0.1.0's report, so the catalogue generator refuses it until a report for this source exists). Upstream reports, on the author's MKII and his own build, that four LOFI2 in SHIFT on one core with FILTER on FX1 lock the unit, on upstream `main` too ([octabam issue 850](https://github.com/sambanks/octabam/issues/850), open); disclosed as a limitation, not tried here.
+- **Hardware:** the contributor's MKII, 22 October 2026, USB package `a2ab2732…` on a RAM-booted development twin of the beta base (`53ddaf60…`, MAIN.raw `712666cb…`), one instance on FX2 beside RINGMOD SC 0.2: the issue 825 repro (DOWN, RNGE HIGH, FREQ 64, MIX 127, FDBK 127) died away and the other functions passed, by ear.
+- **Not tested:** with 0.1.1, more than one instance, FX1, reloads and a power cycle. Upstream reports, on the author's MKII and his own build, that four LOFI2 in SHIFT on one core with FILTER on FX1 lock the unit, on upstream `main` too ([octabam issue 850](https://github.com/sambanks/octabam/issues/850), open); disclosed as a limitation, not tried here.
 
 ## LOFI2 0.1.0-experimental — 20 October 2026
 

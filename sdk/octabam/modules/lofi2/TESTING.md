@@ -6,7 +6,7 @@ Pin history of this import: `a6f41a1d`, then `e8665fae` (pull request 704's head
 
 Recorded 12 and 13 October 2026. The import is based on `main` at `e9186eb3`, which contains the Elekloader migration (pull request 464).
 
-Everything below marked **here** was run for this import, in the emulator and `dsp_host` on a computer. 0.1.1 has not run on a Modwerk unit; the earlier sources' hardware runs are in [evidence/hardware.md](evidence/hardware.md) and [Hardware report](#hardware-report-13-october-2026). Everything marked **upstream** is the author's own report, quoted with attribution, and applies to his octabam images, not to this build.
+Everything below marked **here** was run for this import, in the emulator and `dsp_host` on a computer. 0.1.1 ran once over USB on the contributor's MKII (22 October 2026, by ear); it and the earlier sources' hardware runs are in [evidence/hardware.md](evidence/hardware.md) and [Hardware report](#hardware-report-13-october-2026). Everything marked **upstream** is the author's own report, quoted with attribution, and applies to his octabam images, not to this build.
 
 ## 0.1.1: re-pin to octabam 7795adf0 (here, 21 October 2026)
 
@@ -42,7 +42,7 @@ Bryan T's pull request 843 (merged 21 October 2026 as `7795adf0dff8c650968ff53ab
 
 **Screens.** `scripts/capture-module-ui.py` with `media/capture.json`'s plan on `cd0f7d5a…` (`ot_emu` `23ba6f6c…`): the five PNGs are byte-identical to the 0.1.0 captures; `media/capture.json` and the manifest name the new image and version.
 
-**Hardware.** Not yet on a Modwerk unit: 0.1.1's USB package `a2ab2732…` is untested on hardware, a qualification gap, and `tests.qualification` still names 0.1.0's report, so `modules:generate` refuses this version until a report for this source exists ([evidence/hardware.md](evidence/hardware.md)). **Upstream** (Bryan T, pull request 843; his MKII, his own octabam build `_bt_oct` 16, not this build): the issue 825 repro (DOWN, HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty, no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well (the author: FX1 shares the core's DSP budget; open as [octabam issue 850](https://github.com/sambanks/octabam/issues/850)).
+**Hardware.** On 22 October 2026 0.1.1's USB package `a2ab2732…` ran on the contributor's MKII over USB (RAM-booted development twin `53ddaf60…` of the beta base, one instance on FX2 beside RINGMOD SC 0.2): the issue 825 setting died away and the tester reported LOFI2's other functions passing, by ear ([evidence/hardware.md](evidence/hardware.md)). `tests.qualification` names that report and the twin's MAIN.raw `712666cb…`. One instance, by ear; no reload, power cycle, FX1 or second instance with 0.1.1. **Upstream** (Bryan T, pull request 843; his MKII, his own octabam build `_bt_oct` 16, not this build): the issue 825 repro (DOWN, HIGH, FREQ 64, MIX 127, FDBK 127) dies away; eight LOFI2 in SHIFT DOWN on T1-T8 at once with FX1 empty, no issues; with FILTER on FX1 of T5-T8, four in SHIFT there locked the unit, on upstream `main` as well (the author: FX1 shares the core's DSP budget; open as [octabam issue 850](https://github.com/sambanks/octabam/issues/850)).
 
 ## Re-pin to octabam 8250be0c (here, 20 October 2026)
 
@@ -419,7 +419,7 @@ Taken from the author's README and manifest at the pinned commit (kept under `up
 
 ## Not tested
 
-- 0.1.1 (octabam `7795adf0`): nothing on a Modwerk unit yet; the hardware checks in [evidence/hardware.md](evidence/hardware.md) are for earlier sources.
+- 0.1.1 (octabam `7795adf0`), on a unit: everything beyond one instance on FX2 by ear (see evidence/hardware.md): a second instance, FX1, the other core, the issue 825 case in UP or at FREQ 72, a level measurement, Part and project reload, a power cycle, the full module set, the base self-test.
 - Four SHIFT instances on one core with an effect on FX1 (octabam issue 850): not tried on a Modwerk unit; no guard in card builds.
 - On 0.1.0's source (octabam `8250be0c`), on a unit: BRR and LPF individually, the self-sustaining SHIFT feedback in DOWN, at FREQ other than 64 or with its level measured (UP, FREQ 64 HIGH, FDBK 127 was reproduced on the unit; see evidence/hardware.md), Part and project reload, a power cycle, the missing-module fallback. They ran with the previous source only and carry over by argument (16 coefficient words), not by observation. What did run with this source is in [evidence/hardware.md](evidence/hardware.md) (20 October 2026), including the failed CPU self-test with six modules.
 - On a unit: an MKI, eight instances at once, chip timing, LFO modulation, scenes and the crossfader, and project save and reload as a separate step (evidence/hardware.md lists what was run).
