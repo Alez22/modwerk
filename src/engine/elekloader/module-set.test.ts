@@ -13,13 +13,13 @@ const empty = { moduleIds: [], removedStockFx: [] }
 
 describe('the site’s runtime packages', () => {
   it('publishes each listed module with its checked runtime identity, ABI and record counts', () => {
-    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'lofi2', 'previewvol', 'apply-scene', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'bbd', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'quantize-live-rec-toggle', 'recorder-loop-fix', 'analog-bassdrum', 'usb-audio-out-tracks-main-cue'])
+    expect(USB_MODULE_IDS).toEqual(['everb', 'miniverb', 'tapehead', 'airwindows-chorus', 'lofi2', 'ring-sc', 'previewvol', 'apply-scene', 'repitch', 'poly8', 'vector', 'synth', 'quantizer', 'tapeecho', 'euclid', 'bbd', 'playmodes', 'mute-modes', 'sidechain-compressor', 'output-matrix', 'cc-map', 'quantize-live-rec-toggle', 'recorder-loop-fix', 'analog-bassdrum', 'usb-audio-out-tracks-main-cue'])
     for (const entry of manifest.packages) {
       const data = file(entry.path), view = new DataView(data.buffer), abi = view.getUint16(4)
       expect(entry.path).toBe(`octatrack-modules/${entry.id}/${entry.version}.mwrm`)
       expect([data.length, sha(data), view.getUint32(28).toString(16).padStart(8, '0')]).toEqual([entry.bytes, entry.sha256, runtimeId(entry.id)])
       expect(String.fromCharCode(...data.subarray(0, 4))).toBe('MWRM')
-      if (!('octabam' in entry) && !('machine' in entry) && !('tables' in entry) && !('base' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([6, 0, 0]) // ABI 6 DSP effects carry no stock-code bytes
+      if (!('octabam' in entry) && !('machine' in entry) && !('tables' in entry) && !('base' in entry)) expect([abi, view.getUint32(20), view.getUint32(24)]).toEqual([entry.requires ? 9 : 6, 0, 0]) // ABI 6 DSP effects (9 when they require a base feature) carry no stock-code bytes
       if ('machine' in entry) expect([abi, view.getUint16(6) & 4]).toEqual([8, 0]) // an independent machine package, never a group
       expect([entry.abi, entry.sites, entry.copies, entry.fills]).toEqual([abi, view.getUint32(24), abi >= 7 ? view.getUint32(68) : 0, abi === 8 ? view.getUint32(72) : 0])
       expect(view.getUint32(20) > 0).toBe((entry.features & 128) !== 0) // only a site-event subscriber has hook words
@@ -71,7 +71,8 @@ describe('preparing a module set', () => {
   })
   it('preflights each package’s actual requirements and composes every published package on a capable base', async () => {
     const target = { name: 'All published', moduleIds: USB_MODULE_IDS }, fetched = vi.fn(load)
-    const events = { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
+    // RINGMOD SC is the first published ABI 9 package (a key bus reader): a capable base reports ABI 9.
+    const events = { abi: 9, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
     await expect(prepareModuleSet(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
     await expect(prepareModuleSet(target, empty, fetched, { ...events, features: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired) // Repitch subscribes
     await expect(prepareModuleSet(target, empty, fetched, { ...events, abi: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired)
@@ -81,6 +82,12 @@ describe('preparing a module set', () => {
     const result = await prepareModuleSet(target, empty, fetched, events, baseBinding.identity)
     expect(result.changes.map(change => change.module)).toEqual(manifest.packages.map(entry => entry.name))
     expect(result.changes.every(change => change.undo?.length === 32)).toBe(true)
+    // An ABI 8 loader still takes every package but the ABI 9 ones, which ask for the base update.
+    const abi9 = manifest.packages.filter(entry => (entry as { abi?: number }).abi === 9).map(entry => entry.id)
+    expect(abi9).toEqual(['ring-sc'])
+    for (const id of abi9) await expect(prepareModuleSet({ name: id, moduleIds: [id] }, empty, fetched, { ...events, abi: 8 }, baseBinding.identity)).rejects.toBeInstanceOf(BaseUpdateRequired)
+    const older = await prepareModuleSet({ name: 'ABI 8', moduleIds: USB_MODULE_IDS.filter(id => !abi9.includes(id)) }, empty, fetched, { ...events, abi: 8 }, baseBinding.identity)
+    expect(older.changes.map(change => change.module)).toEqual(manifest.packages.filter(entry => !abi9.includes(entry.id)).map(entry => entry.name))
   })
   it('refuses hook words a subscriber’s manifest does not declare, or more than the base dispatches', async () => {
     const entry = manifest.packages.find(item => item.id === 'repitch')!, data = file(entry.path)

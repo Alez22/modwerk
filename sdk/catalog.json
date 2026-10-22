@@ -63,6 +63,11 @@
       "addedAt": "2026-10-12T23:40:23Z"
     },
     {
+      "id": "ring-sc",
+      "version": "0.2.0-experimental",
+      "addedAt": "2026-10-20T12:00:00Z"
+    },
+    {
       "id": "analog-bassdrum",
       "version": "0.1.5-experimental",
       "addedAt": "2026-10-01T09:19:37Z"
