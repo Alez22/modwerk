@@ -71,7 +71,8 @@ describe('preparing a module set', () => {
   })
   it('preflights each package’s actual requirements and composes every published package on a capable base', async () => {
     const target = { name: 'All published', moduleIds: USB_MODULE_IDS }, fetched = vi.fn(load)
-    const events = { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
+    // ABI 10: Analog BD's package carries its engine for the base's hook site.
+    const events = { abi: 10, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
     await expect(prepareModuleSet(target, empty, fetched)).rejects.toBeInstanceOf(BaseUpdateRequired)
     await expect(prepareModuleSet(target, empty, fetched, { ...events, features: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired) // Repitch subscribes
     await expect(prepareModuleSet(target, empty, fetched, { ...events, abi: 7 })).rejects.toBeInstanceOf(BaseUpdateRequired)
@@ -243,12 +244,15 @@ function abi10(data: Uint8Array, words: number[], relocations: number[], exit: n
 }
 
 describe('ABI 10 packages: an engine for the base\'s hook sites', () => {
-  const controller = manifest.packages.find(item => item.id === 'analog-bassdrum')!, published = file(controller.path)
+  // A synthetic ABI 8 controller of Analog BD's id (its 32-byte image zeros), as base_bound.machine's build.py output.
+  const controller = { ...manifest.packages.find(item => item.id === 'analog-bassdrum')!, features: 0, sites: 0, copies: 0, fills: 0 }
+  const published = new Uint8Array(76 + 32), header = new DataView(published.buffer)
+  header.setUint32(0, 0x4d57524d); header.setUint16(4, 8); header.setUint32(8, 32); header.setUint32(28, Number.parseInt(runtimeId('analog-bassdrum'), 16))
   const base = { abi: 10, features: 7 | 128, maxSites: 128, maxCopies: 128 }, at = baseBinding.identity
   const words = Array.from({ length: 40 }, (_, i) => (i * 0x1357 + 3) & 0xffffff)
   words[3] = 7; words[30] = 0x0d10c0; words[31] = 0 // an address relocation's offset; the exit's long branch
   const region: EngineClaim = [1, 2, 0x2840, Array.from({ length: 16 }, (_, i) => i * 99)]
-  const engine = (data = abi10(published, words, [3, 9 | 0x8000], 31, [region]), fields: Record<string, unknown> = {}) => {
+  const engine = (data: Uint8Array = abi10(published, words, [3, 9 | 0x8000], 31, [region]), fields: Record<string, unknown> = {}) => {
     const entry = { ...controller, abi: 10, requires: 0, claims: 1, entries: 1, bytes: data.length, sha256: sha(data), ...fields }
     return { catalogue: createRuntimeCatalogue({ packages: [entry] }), data }
   }
