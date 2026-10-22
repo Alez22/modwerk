@@ -11,11 +11,7 @@
         | Shown to three significant figures: 13.8Hz, 440Hz, 1.11kHz, 21.1kHz. Every
         | value 0..127 lands within 0.6% of the formula.
 
-        .ifdef  OS174                   | OS 1.74 (build.json's release); else OS 1.73
         .include "../include/ar2-1.74.inc"
-        .else
-        .include "../include/ar2-1.73.inc"
-        .endif
 
         .equ    PARAM_ID_FRQ,   47
 
@@ -30,8 +26,7 @@
         | d3 are free once read and the epilogue restores them.
         | ------------------------------------------------------------------
         | elemod: the site in mod.json replaces the 8 stock bytes at
-        | param_value_text_invoke (0x400a8648 on OS 1.73, 0x400a86b4 on 1.74) with
-        | `jmp filter_hz_gate` and a nop.
+        | param_value_text_invoke (0x400a8648) with `jmp filter_hz_gate` and a nop.
         | The code below is unchanged from rytm-mods; only this label is global,
         | because the site names it. Everything else stays local to this mod.
         .globl  filter_hz_gate
