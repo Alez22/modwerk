@@ -24,7 +24,7 @@ feature's region), and a replacement waiting while the sequencer plays.
 Engines load when a track uses them (owner, 22 October 2026), not at install: modes 2, 3, 15 and 21 admit a module whose
 engine has no room and let it wait; modes 54-58 place an engine only once its feature is used (Analog BD's lease, stock
 COMPRESSOR for Sidechain, a reader's effect for the key bus), park it when a new bank does not use it, and remove a
-parked or never-used module.
+parked or never-used module. Mode 59: an engine is placed on all its cores or none.
 """
 import importlib.util
 import hashlib
@@ -592,7 +592,7 @@ int main(int argc, char **argv)
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
         run(50);
         assert(mw_engines_jobs == jobs && modwerk_controller_held_matrix() && slot_for(MATRIX, MW_CTL_BOUND));
-        assert(mw_engines[0][1].state == MW_ENGINE_FREE && mw_engines_wait[0][1] == MW_WAIT_ROOM);
+        assert(mw_engines[0][1].state == MW_ENGINE_FREE && mw_engines_admitted[1] == 1u + MW_ENGINE_MEMORY);
         /* Analog BD out: Output Matrix takes its room. */
         remove_module(AB);
         run(300);
@@ -829,8 +829,8 @@ int main(int argc, char **argv)
         assert(test_live(0, 3) == (int)(top - 900u) && dispatch[0][3] == 64u + top - 900u + 1u && count_ops(0, 0, 4) == 1);
         assert(dl_engine_evac_failures == 1 && !dl_engine_evacuations && dl_engine_why[0] == 8 && (dl_engine_evacuation() >> 4) == 1);
         assert(mw_engines[0][0].state == MW_ENGINE_FREE && !dl_engine_reserved(0) && test_capacity(0) == top && test_idle());
-        assert(mw_engines_wait[0][0] == MW_WAIT_CLAIM_REFUSED && slot_for(SC, MW_CTL_BOUND) && !cas_count);
-        placed_at(1, 1, sc);
+        assert(mw_engines_admitted[0] == 1u + MW_ENGINE_MEMORY && slot_for(SC, MW_CTL_BOUND) && !cas_count);
+        unplaced(1, 1); /* all its cores or none: core B holds no half (beta finding 63) */
         /* Output Matrix's region holds the effect too: admitted, it waits as well. */
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
         run(20);
@@ -1611,6 +1611,24 @@ int main(int argc, char **argv)
         run(400);
         assert(!kb_charged && !dsp_mask[0] && !dsp_mask[1]);
         unplaced(0, 8); unplaced(1, 8);
+    } else if (mode == 59) {
+        /* All its cores or none (beta finding 63): Analog BD needs both cores, and core B's code cannot move below its
+         * region (1,000 words from the top, 400 at the bottom), so it is placed on neither and core A keeps its whole
+         * arena; once that code is gone, on both. */
+        test_fx(4, 1000);
+        uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
+        ids[0] = 4; ids[1] = 5; /* core B: T1, T2 FX1 */
+        memcpy(test_parts[0], ids, 16);
+        assert(test_select(ids, pump) == 1 && test_live(1, 4) == (int)(top - 1000u));
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(400);
+        assert(slot_for(AB, MW_CTL_BOUND) && !cas_count && test_capacity(0) == top);
+        for (unsigned c = 0; c < 2; ++c) assert(mw_engines[c][2].state == MW_ENGINE_FREE && !dl_engine_reserved(c));
+        memset(ids, 0, 16); memset(test_parts[0], 0, 16);
+        assert(test_select(ids, pump) == 1 && test_live(1, 4) < 0);
+        run(600);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4 && ab_reset_is(0));
+        placed_at(0, 4, top - 998u); placed_at(1, 4, top - 998u);
     } else assert(0);
     return 0;
 }
@@ -1718,7 +1736,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 59
+    MODES = 60
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
