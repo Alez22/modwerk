@@ -95,8 +95,9 @@
   "evidence": {
     "tier": "none",
     "moduleVersion": "0.1.0-experimental",
-    "sourceSha256": null,
+    "sourceSha256": "86f95f641c49ac60d4eab37cdffb6c6ba85c638b45e52beb9b68ca56f3dd434f",
     "reports": [
+      "evidence/source-identity.json",
       "evidence/cpu-load.json",
       "TESTING.md"
     ],
