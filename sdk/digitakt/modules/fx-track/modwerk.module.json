@@ -19,11 +19,11 @@
     "label": "FX TRACK",
     "family": "MIDI",
     "summary": "Turns a MIDI track into an effects track: its control changes on FX CONTROL CH play the delay, reverb, compressor and External Mixer, with parameter locks and the track’s LFO.",
-    "overview": "The Digitakt has no effects track of its own, but it already lets MIDI control its effects: on the channel set in SETTINGS > MIDI CONFIG > CHANNELS > FX CONTROL CH, incoming control changes set the delay (CC 85-92), reverb (CC 24-31), compressor (CC 111-119) and External Mixer (CC 102-109, including the IN L and IN R delay and reverb sends). A MIDI track's own control changes only leave by MIDI OUT and USB, though. With SETTINGS > FX TRACK ticked, a control change that a MIDI track sends on FX CONTROL CH for one of those settings goes straight into the Digitakt's own MIDI handling instead, as if it had come in through MIDI IN, and is not sent out. Give a MIDI track that channel and point its CC SEL slots at the effects' CC numbers: its CC VAL knobs, parameter locks and LFO then play the delay, reverb, compressor and mixer through the sequencer, with the instrument's own tempo, swing and step timing. Unticked, every message goes out as stock.",
+    "overview": "The Digitakt has no effects track of its own, but it already lets MIDI control its effects: on the channel set in SETTINGS > MIDI CONFIG > CHANNELS > FX CONTROL CH, incoming control changes set the delay (CC 85-92), reverb (CC 24-31), compressor (CC 111-119) and External Mixer (CC 102-109, including the IN L and IN R delay and reverb sends). A MIDI track’s own control changes only leave by MIDI OUT and USB, though. With SETTINGS > FX TRACK ticked, a control change that a MIDI track sends on FX CONTROL CH for one of those settings goes straight into the Digitakt’s own MIDI handling instead, as if it had come in through MIDI IN, and is not sent out. Give a MIDI track that channel and point its CC SEL slots at the effects’ CC numbers: its CC VAL knobs, parameter locks and LFO then play the delay, reverb, compressor and mixer through the sequencer, with the instrument’s own tempo, swing and step timing. Unticked, every message goes out as stock.",
     "highlights": [
       "Parameter-lock the delay, reverb, compressor and External Mixer per step, from any MIDI track.",
-      "The MIDI track's LFO modulates the effects, for example a slow delay TIME wobble.",
-      "Sequenced send throws for the external inputs through the External Mixer's IN L/R DEL and REV.",
+      "The MIDI track’s LFO modulates the effects, for example a slow delay TIME wobble.",
+      "Sequenced send throws for the external inputs through the External Mixer’s IN L/R DEL and REV.",
       "Uses the stock FX CONTROL CH, CC SEL and parameter locks; unticked, MIDI output is stock."
     ],
     "usage": [
@@ -32,7 +32,7 @@
       "Select MIDI track H (TRK + trig 16). On its SRC page press FUNC + knob A to switch CHAN on and set it to 16.",
       "On the AMP page (CC Select) set SEL1 to 85 (delay TIME) and SEL2 to 88 (delay FDBK), or any effects CC from the list.",
       "On the FLTR page (CC Value) turn VAL1 and VAL2: the delay follows, and nothing is sent out of MIDI OUT for those CCs.",
-      "Record lock trigs with parameter locks on VAL1 and VAL2, or set the track's LFO to a CC VAL, and press PLAY: the delay changes per step."
+      "Record lock trigs with parameter locks on VAL1 and VAL2, or set the track’s LFO to a CC VAL, and press PLAY: the delay changes per step."
     ]
   },
   "access": {
@@ -52,7 +52,7 @@
     {
       "name": "FX TRACK",
       "default": null,
-      "doc": "Ticked: control changes that MIDI tracks send on FX CONTROL CH with CC 24-31, 85-92, 102-109 or 111-119 set the Digitakt's own reverb, delay, External Mixer and compressor and are not sent out of MIDI OUT or USB. They follow the stock RECEIVE CC/NRPN and INPUT FROM settings, like a control change arriving at MIDI IN. Unticked: stock. Unticked at every power-on; not saved with the project.",
+      "doc": "Ticked: control changes that MIDI tracks send on FX CONTROL CH with CC 24-31, 85-92, 102-109 or 111-119 set the Digitakt’s own reverb, delay, External Mixer and compressor and are not sent out of MIDI OUT or USB. They follow the stock RECEIVE CC/NRPN and INPUT FROM settings, like a control change arriving at MIDI IN. Unticked: stock. Unticked at every power-on; not saved with the project.",
       "labels": null
     }
   ],
@@ -66,8 +66,8 @@
       "Built for OS 1.54 only.",
       "Not saved: FX TRACK starts unticked (stock) at every power-on.",
       "Needs FX CONTROL CH set, RECEIVE CC/NRPN ticked and INPUT FROM including MIDI or USB, as for a control change arriving at MIDI IN.",
-      "The effects' messages also reach any audio or MIDI track whose TRACK CHANNEL equals FX CONTROL CH, as they would through a MIDI cable; set that track channel to OFF.",
-      "Only the effects' CC numbers are taken. Notes, other CCs, pitch bend and aftertouch on that MIDI track still go out of MIDI OUT and USB; use lock trigs for parameter locks without notes.",
+      "The effects’ messages also reach any audio or MIDI track whose TRACK CHANNEL equals FX CONTROL CH, as they would through a MIDI cable; set that track channel to OFF.",
+      "Only the effects’ CC numbers are taken. Notes, other CCs, pitch bend and aftertouch on that MIDI track still go out of MIDI OUT and USB; use lock trigs for parameter locks without notes.",
       "Values have the CC resolution of 128 steps, like the knobs."
     ]
   },
@@ -106,7 +106,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Emulator: with FX TRACK ticked, a MIDI track's parameter locks on CC 24 set the reverb PRE per step and the CC is not sent out; unticked it goes out and the reverb is unchanged. Module alone and with Input Pre-Fader Sends, Digi Health and Digi EQ. Hardware not yet tested.",
+    "summary": "Emulator: with FX TRACK ticked, a MIDI track’s parameter locks on CC 24 set the reverb PRE per step and the CC is not sent out; unticked it goes out and the reverb is unchanged. Module alone and with Input Pre-Fader Sends, Digi Health and Digi EQ. Hardware not yet tested.",
     "documentation": {
       "tutorial": {
         "title": "Quick tutorial: MIDI track H as an effects track",
@@ -116,7 +116,7 @@
           "Select MIDI track H (TRK + trig 16). On its SRC page press FUNC + knob A to switch CHAN on and set it to 16.",
           "On the AMP page (CC Select) set SEL1 to 85 (delay TIME) and SEL2 to 88 (delay FDBK), or any effects CC from the list.",
           "On the FLTR page (CC Value) turn VAL1 and VAL2: the delay follows, and nothing is sent out of MIDI OUT for those CCs.",
-          "Record lock trigs with parameter locks on VAL1 and VAL2, or set the track's LFO to a CC VAL, and press PLAY: the delay changes per step."
+          "Record lock trigs with parameter locks on VAL1 and VAL2, or set the track’s LFO to a CC VAL, and press PLAY: the delay changes per step."
         ]
       },
       "screenshots": [
