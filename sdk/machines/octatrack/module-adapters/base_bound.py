@@ -17,7 +17,9 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -33,6 +35,7 @@ import stock_hook_controllers  # noqa: E402
 BINDING = APP / 'sdk/machines/octatrack/base-binding.json'
 POLICIES = HERE / 'controller-policies.json'
 BUILD = APP / 'sdk/runtime/loader/build.py'
+DSP_ASM = Path.home() / '.cache/modwerk-upstream/octabam/vendor/dsp56300/build/source/dsp_host/dsp_asm'  # octatrack-base.mjs's default
 # The base symbols a package names: the lease entries, the mark that the base owns Output Matrix's boot widenings, and
 # the slot that tells Sidechain the base raises ev_mute_keep.
 SYMBOLS = (*stock_hook_controllers.LEASE_IMPORTS, stock_hook_controllers.BASE_OWNED_MARK,
@@ -71,7 +74,10 @@ def load(binding=None):
 
 
 def _assemble():
-    """The native DSP assembler's API (dsp_packages.assemble; ELEKLOADER_DSP_ASM names the binary)."""
+    """The native DSP assembler's API (dsp_packages.assemble; ELEKLOADER_DSP_ASM names the binary, else dsp_asm on
+    PATH, else the build `npm run upstream:tools` keeps, as for the base)."""
+    if 'ELEKLOADER_DSP_ASM' not in os.environ and not shutil.which('dsp_asm') and DSP_ASM.is_file():
+        os.environ['ELEKLOADER_DSP_ASM'] = str(DSP_ASM)
     spec = importlib.util.spec_from_file_location('base_bound_dsp', APP / 'sdk/machines/octatrack/elekloader/dsp_packages.py')
     packages = importlib.util.module_from_spec(spec); spec.loader.exec_module(packages)
     return packages.assemble

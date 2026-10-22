@@ -2,6 +2,8 @@
 
 ## 22 October 2026
 
+- Fix: a like no longer sends an activity email on its own. A single like on a post or module mailed the maintainer within the hour ("@dobrivoje liked Sidechain Compressor"). Likes now wait for the daily module update digest and go out with it; a member without a pending release sees them only in the bell, and after a week they are no longer mailed. Replies, mentions and other activity keep their chosen interval.
+
 - Building firmware asks guests to sign in first again. The invitation after a download (21 October) brought in fewer sign-ups, so it is gone and the earlier prompt is back: Build firmware opens Sign in to build firmware, whose Skip for now enables after five seconds, with the remaining seconds on the button. Sign in, Create account and Cancel work at once, and a guest who skips builds for the rest of the visit. Modules a guest downloads are no longer kept in the browser to follow after sign-up; members still follow what they download. Admin statistics no longer show the invitation's counts.
 
 ## 21 October 2026

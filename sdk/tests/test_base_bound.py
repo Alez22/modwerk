@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Packages bound to the published base rebuild from source and its committed binding, and refuse any other base."""
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -13,7 +14,8 @@ import base_bound  # noqa: E402
 import stock_hook_controllers  # noqa: E402
 
 UPSTREAM = Path.home() / '.cache/modwerk-upstream/elekloader'
-TOOLS = bool(shutil.which('m68k-elf-as')) and (UPSTREAM / 'elekloader/sdk/octabam.py').is_file()
+TOOLS = bool(shutil.which('m68k-elf-as')) and (UPSTREAM / 'elekloader/sdk/octabam.py').is_file() and \
+    bool(os.environ.get('ELEKLOADER_DSP_ASM') or shutil.which('dsp_asm') or base_bound.DSP_ASM.is_file())  # Analog BD's engine
 MANIFEST = json.loads((ROOT / 'src/engine/assets/octatrack-module-packages.json').read_text())
 
 
@@ -43,7 +45,7 @@ class BaseBound(unittest.TestCase):
         with self.assertRaises(ValueError):
             base_bound.build('everb', UPSTREAM, Path(self.temp.name) / 'work', binding=self.binding)
 
-    @unittest.skipUnless(TOOLS, 'needs m68k-elf binutils and the Elekloader checkout')
+    @unittest.skipUnless(TOOLS, 'needs m68k-elf binutils, the Elekloader checkout and dsp_asm')
     def test_each_package_rebuilds_identically_and_a_controller_needs_its_trust_row(self):
         for entry in (entry for entry in MANIFEST['packages'] if entry.get('base')):
             with self.subTest(module=entry['id']):
