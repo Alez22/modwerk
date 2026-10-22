@@ -213,7 +213,8 @@ export default function App() {
   const machineHasMods = !allMachines && (currentDevice.status === 'available' || currentDevice.status === 'preview')
   const machineBuildPreview = !allMachines && currentDevice.id === 'digitakt-ii' && currentDevice.status === 'research' && !!currentDevice.sdk
   const machineCanConfigure = machineHasMods || machineBuildPreview
-  useEffect(() => { if (allRoute) rememberDevice(ALL_MACHINES); else if (machineView || octatrackRoute) rememberDevice(currentDevice.id) }, [allRoute, machineView, octatrackRoute, currentDevice.id])
+  // The overview shows All machines too, so the forum and other machine-less pages after it don't fall back to an older machine.
+  useEffect(() => { if (allRoute || overviewRoute) rememberDevice(ALL_MACHINES); else if (machineView || octatrackRoute) rememberDevice(currentDevice.id) }, [allRoute, overviewRoute, machineView, octatrackRoute, currentDevice.id])
   // #devices, the old machine overview, opens the overview page.
   useEffect(() => { if (devicesRoute) window.location.replace('#overview'); else if ((route === 'octatrack' || route.startsWith('octatrack/')) && !betaUi) window.location.replace('#library'); else if (betaUi && route === 'your-octatrack') window.location.replace('#octatrack'); else if (route.startsWith('device/')) window.location.replace(DEVICES_BY_ID[route.slice(7)] ? deviceHref(route.slice(7)) : '#devices') }, [route, devicesRoute, betaUi])
   // The sidebar keeps one shape on every machine: the same categories, counted for the current selection.
