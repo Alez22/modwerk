@@ -20,6 +20,11 @@ initial words come from its controller's package (ABI 10, test_controller_board.
 data. Modes 50-53: a DSP-only update under the same trust row (the old engine unplaced, the new one placed and reset
 from its own words), back again, the refusals (an engine from no trusted controller, no exit, claims that are not the
 feature's region), and a replacement waiting while the sequencer plays.
+
+Engines load when a track uses them (owner, 22 October 2026), not at install: modes 2, 3, 15 and 21 admit a module whose
+engine has no room and let it wait; modes 54-58 place an engine only once its feature is used (Analog BD's lease, stock
+COMPRESSOR for Sidechain, a reader's effect for the key bus), park it when a new bank does not use it, and remove a
+parked or never-used module.
 """
 import importlib.util
 import hashlib
@@ -252,6 +257,16 @@ int modwerk_dsp_keybus_charge(int on)
     if (!kb_charged && !kb_fits) return 0;
     kb_charged = 1; return 1;
 }
+/* What the bank uses (controller_board.c use_tick): the current bank, whether its Parts or tracks name stock COMPRESSOR
+ * (Sidechain) or a reader's effect (every module holds handle 63 here), and the features whose controllers ask for the
+ * write lease each frame (Analog BD's renderer, for each track carrying its machine). Everything is used unless a mode
+ * says (modes 54-58). */
+static uint32_t board_bank = 1;
+static unsigned names_compressor = 1, names_reader = 1, leasing = 0xffu;
+volatile uint8_t modwerk_controller_lease_seen;
+uint32_t mw_controller_board_test_bank(void) { return board_bank; }
+int mw_controller_board_test_handle(uint32_t module) { (void)module; return 63; }
+int modwerk_dsp_bank_names(unsigned id) { return id == 24u ? (int)names_compressor : id == 63u ? (int)names_reader : 0; }
 static unsigned refuse_write[2], refuse_place[2]; /* table offsets at which a WRITE chunk, a PLACE is refused */
 static unsigned refuse_bind[2], drop_bind[2], refuse_once[2]; /* a BIND to this table offset refused; applied but never
                                                                  * answered (once); refused once */
@@ -333,10 +348,10 @@ static void dsp(void)
     }
     running_whole();
 }
-static void run(unsigned n) { while (n--) { ++ticks; modwerk_controller_tick(); test_advance(); dsp(); dsp(); } }
+static void run(unsigned n) { while (n--) { ++ticks; modwerk_controller_lease_seen |= (uint8_t)leasing; modwerk_controller_tick(); test_advance(); dsp(); dsp(); } }
 static void pump(void) { dsp(); }
 /* A UI tick of the board alone (the manager advances from the selection's own poll). */
-static void board_pump(void) { ++ticks; modwerk_controller_tick(); dsp(); dsp(); }
+static void board_pump(void) { ++ticks; modwerk_controller_lease_seen |= (uint8_t)leasing; modwerk_controller_tick(); dsp(); dsp(); }
 /* Mode 28's frames: once the transaction runs, core B's table entry 0 is made to differ; an owned reservation held on
  * core B is let go 50 frames after the table step (phase 8) first meets it. */
 /* Mode 27's frames: two owned reservations on core A, one after the other, 400 frames each, the second taken in the
@@ -566,41 +581,40 @@ int main(int argc, char **argv)
         unplaced(0, 1); unplaced(1, 1);
         assert(!dl_engine_reserved(0) && !dl_engine_reserved(1));
     } else if (mode == 2) {
-        /* Full: Sidechain and Analog BD fit on core A; Output Matrix does not, and is refused at admission. */
+        /* Full: Sidechain and Analog BD fit on core A; Output Matrix does not. An engine takes no room at install, so it is
+         * admitted all the same (its region held) and waits for room, never placed, until Analog BD goes. */
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED && install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
         run(1000);
         assert(slot_for(SC, MW_CTL_ACTIVE) && slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 13 && dsp_mask[1] == 13);
         assert(ab_reset_is(0)); /* its package's initial words, on both cores */
         for (unsigned c = 0; c < 2; ++c) { placed_at(c, 1, sc); placed_at(c, 4, ab); assert(dl_engine_reserved(c) == 1386 && test_capacity(c) == ab); }
         unsigned jobs = mw_engines_jobs;
-        assert(refused(pkg_matrix, sizeof pkg_matrix) == RUNTIME_MEMORY);
-        run(50);
-        assert(mw_engines_jobs == jobs && !modwerk_controller_held_matrix());
-        /* Analog BD out: Output Matrix fits where it was. */
-        remove_module(AB);
-        run(20);
-        unplaced(0, 4); unplaced(1, 4);
-        assert(dl_engine_reserved(0) == 388 && dl_engine_reserved(1) == 388);
         assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
+        run(50);
+        assert(mw_engines_jobs == jobs && modwerk_controller_held_matrix() && slot_for(MATRIX, MW_CTL_BOUND));
+        assert(mw_engines[0][1].state == MW_ENGINE_FREE && mw_engines_wait[0][1] == MW_WAIT_ROOM);
+        /* Analog BD out: Output Matrix takes its room. */
+        remove_module(AB);
         run(300);
+        unplaced(0, 4); unplaced(1, 4);
         assert(slot_for(MATRIX, MW_CTL_ACTIVE) && dsp_mask[0] == 11 && dsp_mask[1] == 9);
         placed_at(0, 2, sc - 773u);
         assert(mw_engines[1][1].state == MW_ENGINE_FREE && dl_engine_reserved(0) == 388 + 773 && dl_engine_reserved(1) == 388);
     } else if (mode == 3) {
         /* Live FX code where the engine goes that cannot move below it (1,000 words at the top, 400 at the bottom of the
-         * 1,548 words left; mode 12 moves what can): refused until it is gone. */
+         * 1,548 words left; mode 12 moves what can): admitted all the same, its engine waits there until the code is
+         * gone, nothing moved. */
         test_fx(4, 1000);
         uint8_t ids[16]; memset(ids, 0, sizeof ids);
         ids[4] = 4; ids[5] = 5; /* core A (T5, T6 FX1): 1,000 words, a quarter of the arena or more, so from the top */
         memcpy(test_parts[0], ids, 16);
         assert(test_select(ids, pump) == 1);
         assert(test_live(0, 4) == (int)(top - 1000u));
-        assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(50);
-        assert(!mw_engines_jobs && !dl_engine_reserved(0) && !dl_engine_evacuations);
+        assert(!dl_engine_reserved(0) && !dl_engine_evacuations && slot_for(SC, MW_CTL_BOUND) && !cas_count);
         memset(ids, 0, 16); memset(test_parts[0], 0, 16);
         assert(test_select(ids, pump) == 1 && test_live(0, 4) < 0);
-        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(200);
         assert(slot_for(SC, MW_CTL_ACTIVE)); placed_at(0, 1, sc);
         /* Once placed, a pick of that effect loads below the engines. */
@@ -817,13 +831,16 @@ int main(int argc, char **argv)
         assert(mw_engines[0][0].state == MW_ENGINE_FREE && !dl_engine_reserved(0) && test_capacity(0) == top && test_idle());
         assert(mw_engines_wait[0][0] == MW_WAIT_CLAIM_REFUSED && slot_for(SC, MW_CTL_BOUND) && !cas_count);
         placed_at(1, 1, sc);
-        assert(refused(pkg_matrix, sizeof pkg_matrix) == RUNTIME_MEMORY); /* its region holds the effect too */
+        /* Output Matrix's region holds the effect too: admitted, it waits as well. */
+        assert(install(pkg_matrix, sizeof pkg_matrix) == MU_APPLIED);
+        run(20);
+        assert(slot_for(MATRIX, MW_CTL_BOUND) && mw_engines[0][1].state == MW_ENGINE_FREE && !cas_count);
         /* Once the effect is gone, the claim goes ahead without moving anything. */
         uint8_t none[16]; memset(none, 0, sizeof none); memset(test_parts, 0, sizeof test_parts);
         assert(test_select(none, pump) == 1);
         run(300);
-        assert(slot_for(SC, MW_CTL_ACTIVE) && dl_engine_evac_failures == 1 && !dl_engine_evacuations);
-        placed_at(0, 1, sc);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && slot_for(MATRIX, MW_CTL_ACTIVE) && dl_engine_evac_failures == 1 && !dl_engine_evacuations);
+        placed_at(0, 1, sc); placed_at(0, 2, sc - 773u);
     } else if (mode == 16) {
         /* Several packages in the region move in one transaction, both uploads before either BIND; a Part switch during
          * it waits for it and loads nothing; Part switches after start no move and no engine job. */
@@ -888,15 +905,16 @@ int main(int argc, char **argv)
         assert(!dl_engine_reserved(0) && !dl_engine_reserved(1) && test_capacity(0) == top && !modwerk_controller_held());
     } else if (mode == 21) {
         /* Code that cannot move below the region (no place for it: 1,000 words at the top, 400 at the bottom of a
-         * 1,548-word arena): refused at admission, nothing moved. */
+         * 1,548-word arena): admitted all the same, its engine waiting, nothing moved. */
         test_fx(4, 1000);
         uint8_t ids[16]; memset(ids, 0, sizeof ids); memset(test_parts, 0, sizeof test_parts);
         ids[4] = 4; ids[5] = 5;
         assert(test_select(ids, pump) == 1 && test_live(0, 4) == (int)(top - 1000u) && test_live(0, 5) == 0);
         unsigned from = trails[0];
-        assert(refused(pkg_sc, sizeof pkg_sc) == RUNTIME_MEMORY && dl_engine_why[0] == 2);
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
         run(100);
         assert(trails[0] == from && !dl_engine_evacuations && test_live(0, 4) == (int)(top - 1000u));
+        assert(dl_engine_why[0] == 2 && slot_for(SC, MW_CTL_BOUND) && mw_engines[0][0].state == MW_ENGINE_FREE);
     } else if (mode == 22 || mode == 23 || mode == 24) {
         /* dl_move's rollback (compaction moves code while it plays): the moved effect keeps running its old copy, which
          * stays held until the cancel; it is never sent to the dry stub. 22: the new copy's upload refused part way (no
@@ -1487,6 +1505,112 @@ int main(int argc, char **argv)
         ab_seed = 1;
         assert(slot_for(AB, MW_CTL_ACTIVE) && ab_reset_is(1));
         placed_at(0, 4, top - 1010u);
+    } else if (mode == 54) {
+        /* Installed, not used: Analog BD's engine takes no room until a track asks for its lease (its renderer, every
+         * frame, for each track carrying its machine); then it is placed, reset from its package and enabled. A bank
+         * keeps what it used, so this starts in one that used nothing. */
+        leasing = 0; ++board_bank;
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(400);
+        assert(slot_for(AB, MW_CTL_BOUND) && !mw_engines_jobs && !cas_count && !dl_engine_reserved(0) && !dl_engine_reserved(1));
+        assert(test_capacity(0) == top && test_capacity(1) == top);
+        leasing = 4u;
+        run(600);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4 && ab_reset_is(0));
+        placed_at(0, 4, top - 998u); placed_at(1, 4, top - 998u);
+    } else if (mode == 55) {
+        /* Used, then not: in a new bank whose tracks never ask for it, Analog BD is parked once the unit is stopped and
+         * settled (never while playing, nor within two seconds of a key): its feature goes off first, then the engine is
+         * unplaced and its words given back. Asked again, it comes back as at install. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(600);
+        assert(slot_for(AB, MW_CTL_ACTIVE));
+        unsigned from[2] = {trails[0], trails[1]};
+        leasing = 0; ++board_bank; quiet = 0;
+        run(300);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4);
+        quiet = 1; key_at = ticks;
+        run(60);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4);
+        run(400);
+        assert(slot_for(AB, MW_CTL_RETIRING) && !dsp_mask[0] && !dsp_mask[1]);
+        for (unsigned c = 0; c < 2; ++c) {
+            unplaced(c, 4);
+            assert(!dl_engine_reserved(c) && test_capacity(c) == top);
+            unsigned off = 0, gone = 0;
+            for (unsigned i = from[c]; i < trails[c]; ++i) {
+                if (trail[c][i].op == 10u && !trail[c][i].w7 && (trail[c][i].w4 & 4u) && !(trail[c][i].w5 & 4u)) off = i + 1;
+                if (trail[c][i].op == 10u && trail[c][i].w7 && !trail[c][i].w5) gone = i + 1;
+            }
+            assert(off && gone > off);
+        }
+        memset(ab_reset, 0, sizeof ab_reset);
+        leasing = 4u;
+        run(600);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4 && ab_reset_is(0));
+        placed_at(0, 4, top - 998u); placed_at(1, 4, top - 998u);
+    } else if (mode == 56) {
+        /* Removal: a parked module goes at once (RETIRING, its UI clear), one never used is cancelled unplaced. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(600);
+        leasing = 0; ++board_bank;
+        run(600);
+        assert(slot_for(AB, MW_CTL_RETIRING));
+        assert(install(removal(AB), 32) == MU_APPLIED);
+        run(20);
+        assert(slot_for(AB, MW_CTL_RELEASED) && !modwerk_controller_held());
+        names_compressor = 0; ++board_bank;
+        unsigned jobs = mw_engines_jobs;
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_BOUND) && mw_engines_jobs == jobs);
+        assert(install(removal(SC), 32) == MU_APPLIED);
+        run(20);
+        assert(slot_for(SC, MW_CTL_RELEASED) && mw_engines_jobs == jobs && !modwerk_controller_held());
+    } else if (mode == 57) {
+        /* Sidechain follows stock COMPRESSOR in the bank: nothing (nor the key bus) placed without one; with one, the bus
+         * and Sidechain placed and enabled, the bus first; without it again, Sidechain off before the bus, both unplaced. */
+        names_compressor = 0; leasing = 0; ++board_bank;
+        assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED);
+        run(300);
+        assert(slot_for(SC, MW_CTL_BOUND) && !mw_engines_jobs && !cas_count && !dl_engine_reserved(0) && !dl_engine_reserved(1));
+        names_compressor = 1;
+        run(300);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9 && !sc_before_bus);
+        for (unsigned c = 0; c < 2; ++c) placed_at(c, 1, sc), placed_at(c, 8, kb);
+        unsigned from[2] = {trails[0], trails[1]};
+        names_compressor = 0;
+        run(500);
+        assert(slot_for(SC, MW_CTL_RETIRING) && !dsp_mask[0] && !dsp_mask[1]);
+        for (unsigned c = 0; c < 2; ++c) {
+            unplaced(c, 1); unplaced(c, 8);
+            assert(!dl_engine_reserved(c));
+            unsigned sc_off = 0, kb_off = 0;
+            for (unsigned i = from[c]; i < trails[c]; ++i)
+                if (trail[c][i].op == 10u && !trail[c][i].w7) {
+                    if (!sc_off && (trail[c][i].w4 & 1u) && !(trail[c][i].w5 & 1u)) sc_off = i + 1;
+                    if (!kb_off && (trail[c][i].w4 & 8u) && !(trail[c][i].w5 & 8u)) kb_off = i + 1;
+                }
+            assert(sc_off && kb_off > sc_off);
+        }
+        names_compressor = 1;
+        run(400);
+        assert(slot_for(SC, MW_CTL_ACTIVE) && dsp_mask[0] == 9 && dsp_mask[1] == 9);
+    } else if (mode == 58) {
+        /* A reader brings the key bus only while the bank names its effect: then placed, charged and enabled; once no
+         * Part or track names it, the bus goes off, is unplaced and its price let go. */
+        names_reader = 0;
+        assert(install(pkg_reader, sizeof pkg_reader) == MU_APPLIED);
+        run(300);
+        assert(!mw_engines_jobs && !kb_charged && !dsp_mask[0] && !dl_engine_reserved(0));
+        names_reader = 1;
+        run(300);
+        assert(kb_charged && dsp_mask[0] == 8 && dsp_mask[1] == 8);
+        placed_at(0, 8, kb); placed_at(1, 8, kb);
+        names_reader = 0;
+        run(400);
+        assert(!kb_charged && !dsp_mask[0] && !dsp_mask[1]);
+        unplaced(0, 8); unplaced(1, 8);
     } else assert(0);
     return 0;
 }
@@ -1594,7 +1718,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 54
+    MODES = 59
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
