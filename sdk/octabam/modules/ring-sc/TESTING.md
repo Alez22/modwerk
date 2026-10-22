@@ -95,8 +95,9 @@ LOFI2 0.1.1 in the pool; rerun on the source as released, module source `ed5235c
 56 native module-owned images match (24 identical outright, 32 outside the platform writes), 86 refusals agree, 0
 mismatches.
 
-**Landing** (on main `daffbbab`, with the qualification record of the 22 October run): the beta base regenerated with
-RINGMOD SC's chooser row and main's flags (`237217af…`; the base-bound packages rebuild byte-identical, only
+**Landing** (on main `64d50d80`, with the qualification record of the 22 October run): the beta base regenerated with
+RINGMOD SC's chooser row and main's flags (`7ffeddf9…`, on main's base with the reader admission and module select step
+fixes; the base-bound packages rebuild byte-identical, only
 `requiredBase` moves; Analog BD's recipe unchanged); the source-built packages imported from the isolated toolchain
 build; the Analog BD companion proofs re-exported natively (`export-composition-proofs.py --suite analog-bd`, 8 shards
 in the toolchain image, menus precomputed with `defaultChoosers`: all 212 identical, only `moduleSourceTreeSha256`

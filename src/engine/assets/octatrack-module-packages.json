@@ -337,7 +337,7 @@
       "bytes": 1236,
       "sha256": "7bb63e70b428f9ed31e3cbb0199add2c261580fa5653cf7fb07a09645ca0afaf",
       "path": "octatrack-modules/sidechain-compressor/0.1.2-experimental.mwrm",
-      "requiredBase": "237217af5500d6e0affdec3f3830161882867171dc25068d58972ee3acb8d757"
+      "requiredBase": "7ffeddf9854e1a6dc3f57ce124434465cfbe3cda4f812eff897a2762dc195beb"
     },
     {
       "id": "output-matrix",
@@ -353,7 +353,7 @@
       "bytes": 3740,
       "sha256": "64f9fa7a595f645d79c6c711fb92d0732979788409d3600cb0962a000026941d",
       "path": "octatrack-modules/output-matrix/0.1.1-experimental.mwrm",
-      "requiredBase": "237217af5500d6e0affdec3f3830161882867171dc25068d58972ee3acb8d757"
+      "requiredBase": "7ffeddf9854e1a6dc3f57ce124434465cfbe3cda4f812eff897a2762dc195beb"
     },
     {
       "id": "cc-map",
@@ -369,7 +369,7 @@
       "bytes": 966,
       "sha256": "c7cd39a5f645d69279d3a288c40b8366e6638acdc042cf0fe68dfb9964a68ea2",
       "path": "octatrack-modules/cc-map/0.1.2-experimental.mwrm",
-      "requiredBase": "237217af5500d6e0affdec3f3830161882867171dc25068d58972ee3acb8d757"
+      "requiredBase": "7ffeddf9854e1a6dc3f57ce124434465cfbe3cda4f812eff897a2762dc195beb"
     },
     {
       "id": "quantize-live-rec-toggle",
@@ -400,7 +400,7 @@
       "bytes": 1818,
       "sha256": "22534de96c7f670b47c04b5c176b78b1ac48432739f8989890e4c7deb86cd628",
       "path": "octatrack-modules/recorder-loop-fix/0.1.0-experimental.mwrm",
-      "requiredBase": "237217af5500d6e0affdec3f3830161882867171dc25068d58972ee3acb8d757"
+      "requiredBase": "7ffeddf9854e1a6dc3f57ce124434465cfbe3cda4f812eff897a2762dc195beb"
     },
     {
       "id": "analog-bassdrum",
@@ -416,7 +416,7 @@
       "bytes": 6676,
       "sha256": "74814f7faf4b88e97df5399444febe562fde16f164a63af1da9d31d6bb337034",
       "path": "octatrack-modules/analog-bassdrum/0.1.5-experimental.mwrm",
-      "requiredBase": "237217af5500d6e0affdec3f3830161882867171dc25068d58972ee3acb8d757"
+      "requiredBase": "7ffeddf9854e1a6dc3f57ce124434465cfbe3cda4f812eff897a2762dc195beb"
     }
   ]
 }
