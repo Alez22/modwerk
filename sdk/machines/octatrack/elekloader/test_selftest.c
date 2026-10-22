@@ -120,6 +120,7 @@ static struct runtime_dsp module(uint8_t id, uint32_t words, uint16_t cycles, ui
     return d;
 }
 static uint8_t bank[0x9504a + 4 * 6322];
+static void (*during)(void); /* called on every tick of a run, when a check needs the test running */
 /* One run: `part` is what each slot runs (FX1 T1-T8, then FX2), the modules installed; the record afterwards. */
 static void run(const uint8_t *part, struct runtime_dsp *fx, unsigned n)
 {
@@ -142,13 +143,24 @@ static void run(const uint8_t *part, struct runtime_dsp *fx, unsigned n)
     static uint8_t lanes[sizeof modwerk_test_lanes], before[sizeof bank];
     memcpy(lanes, modwerk_test_lanes, sizeof lanes), memcpy(before, bank, sizeof bank);
     CHECK(modwerk_selftest_start());
-    for (unsigned tick = 0; modwerk_selftest.state == SELFTEST_RUNNING && tick < 200000u; ++tick) manager(), selftest_tick();
+    for (unsigned tick = 0; modwerk_selftest.state == SELFTEST_RUNNING && tick < 200000u; ++tick) {
+        manager(), selftest_tick();
+        if (during) during();
+    }
     CHECK(modwerk_selftest.state != SELFTEST_RUNNING && !modwerk_test_playing);
     CHECK(!memcmp(modwerk_test_live_fx, part, 16) && settled(part));   /* every slot runs what it ran, its code loaded */
     CHECK(!memcmp(modwerk_test_lanes, lanes, sizeof lanes));           /* every knob byte as it was */
     CHECK(!memcmp(bank, before, sizeof bank));                         /* every Part, working and saved, untouched */
     for (unsigned i = 0; i < 16u; ++i) CHECK(dl_intended_override[i] == 255u);
     for (unsigned k = 0; k < n; ++k) modwerk_machine_dsp_switch(&fx[k], &none);
+}
+/* Beta finding 63: while the test runs, a machine voice not charged before waits for its end; one charged keeps its. */
+static unsigned during_checked;
+static void frozen_claims(void)
+{
+    if (during_checked++) return;
+    CHECK(modwerk_dsp_source_claim(1, 0xcdu, 50, 10, RUNTIME_HARDWARE) == RUNTIME_BUSY);
+    CHECK(modwerk_dsp_source_claim(0, 0xabu, 411, 3, RUNTIME_EXECUTED) == RUNTIME_OK);
 }
 int main(void)
 {
@@ -188,6 +200,16 @@ int main(void)
     cached[0][27] = 0;
     CHECK(modwerk_selftest.state == SELFTEST_PASSED && !modwerk_selftest.failed && modwerk_selftest.ran == 2);
     CHECK(modwerk_selftest.track[4] == 27 && !modwerk_selftest.track[5] && dl_residency_failures >= 1u); /* last batch: alone, T5 */
+    /* Beta finding 63: emptying a core must not let a machine voice in (an Analog BD track on T1 took 726 cycles of
+     * core 1 that way on the owner's MKII, and the bank's own effects there could not come back). A voice charged before
+     * the test keeps its claim; a new one waits for the end, then goes through. */
+    CHECK(modwerk_dsp_source_claim(0, 0xabu, 411, 3, RUNTIME_EXECUTED) == RUNTIME_OK);
+    during = frozen_claims;
+    run(blank, &verb, 1);
+    during = 0;
+    CHECK(during_checked && modwerk_selftest.state == SELFTEST_PASSED);
+    CHECK(modwerk_dsp_source_claim(1, 0xcdu, 50, 10, RUNTIME_HARDWARE) == RUNTIME_OK);
+    modwerk_dsp_source_engine_off(0xabu), modwerk_dsp_source_engine_off(0xcdu);
     /* A live reader whose key bus was lost this boot: the test fails with SELFTEST_FEATURE (a trial is not kept), and
      * the record's refusal says RUNTIME_FEATURE while it holds. */
     test_keybus_lost = 1;

@@ -73,6 +73,10 @@ static uint8_t started, closed, mask[2], mask_known;
  * it is restored and placed, reset and enabled as at install. */
 static uint8_t parked[MW_CONTROLLER_SLOTS];
 #ifdef MODWERK_RESIDENT_ON_DEMAND
+/* All its cores or none (beta finding 63): a used engine that cannot be claimed on every core it needs waits whole and
+ * wants no core's words meanwhile. On 22 October 2026 Analog BD, placed on core 0 while core 1 had no room, held 998 of
+ * core 0's words it could never use, and the self-test could no longer place BBD alone there. */
+static uint8_t roomless[MW_CONTROLLER_SLOTS];
 static uint8_t seen, used;
 static uint32_t seen_bank;
 #endif
@@ -494,6 +498,7 @@ static int engine_wanted(unsigned at)
     const struct mw_controller_slot *s = &REGISTRY.slots[at];
     if (!held(s)) return 0;
     if (parked[at]) return s->state != MW_CTL_RETIRING;
+    if (roomless[at] && s->state <= MW_CTL_BOUND) return 0;
     return (used & s->binding.identity.feature) || s->touched || s->state > MW_CTL_BOUND;
 }
 static unsigned engine_features(void)
@@ -703,6 +708,13 @@ static void advance(unsigned at)
                                                                        m->dsp.engine_relocation_count, e->exit, mw_dsp_sites[e->site].exit[c]};
             mw_engines_package(b->identity.feature, b->generation, units);
         }
+        /* The whole engine or nothing: admission's dry run, now when it is used (a partial claim goes back, collected).
+         * Room found again waits a tick, so the key bus Sidechain implies is wanted, and placed above it, first. */
+        unsigned was = roomless[at];
+        roomless[at] = !mw_engines_ready(b->identity.feature, need) &&
+            mw_engines_admit(b->identity.feature, engine_features() | (kb_wanted ? KEYBUS : 0u),
+                             MW_DSP_PACKAGED & b->identity.feature ? m->dsp.engine_count : 0u) == MW_ENGINE_MEMORY;
+        if (roomless[at] || was) break;
         if (mw_engines_place(b->identity.feature, need, b->generation, transport.held, mask, mask_known) <= 0) break;
 #endif
         for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) {
