@@ -87,6 +87,9 @@ enum { MW_ENGINE_FITS, MW_ENGINE_MEMORY, MW_ENGINE_STUCK_BOOT };
 int mw_engines_admit(unsigned feature, unsigned wanted, unsigned words);
 /* ABI 9: the base features this base provides to packages (loader.h): the key bus. */
 unsigned modwerk_machine_dsp_features(void);
+/* The unit may give an unused engine back (the board parks its controller): stopped, no pattern change queued, two
+ * seconds after the last key or knob and no pick waiting, as an evacuation waits. */
+int mw_engines_settled(void);
 /* Unplace and free every engine no held slot names: only when its feature is known dormant on that core (`mask`,
  * bit c of `known`), the core is free (`busy`) and the sequencer is quiet. */
 void mw_engines_collect(unsigned held, const uint8_t mask[2], unsigned known, const uint8_t busy[2]);

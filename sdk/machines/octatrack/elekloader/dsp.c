@@ -465,6 +465,13 @@ fx_set modwerk_dsp_used(void)
         for (unsigned i = 0; i < 16; ++i) used = fx_with(used, PART(bank, part)[i]);
     return fx_and(used, modwerk_fx_modules);
 }
+/* The same for one FX id, stock or module: an engine's controller is used while this holds (controller_board.c). */
+int modwerk_dsp_bank_names(unsigned id)
+{
+    uintptr_t bank = BANK; int named = in_use(id);
+    for (unsigned k = 0; bank && !named && k < 8u * 16u; ++k) named = PART(bank, k >> 4)[k & 15u] == id;
+    return named;
+}
 
 /* MODULE LOAD (status.c): each installed module effect, by handle: its name, an instance's chip cycles a sample
  * (unfloored: what it costs, not the ledger's charge), whether that is a hardware figure, and how many slots run it
