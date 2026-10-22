@@ -562,6 +562,21 @@ of ours that is open costs
 its drawing on every composition: MISSING MODULES 818 µs (4.9 %), the STATUS page about 1 ms. No stock-OS baseline
 exists yet: the meter's 41 % idle is stock's own tasks.
 
+**A controller's write lease is not free** (owner's MKII, 22 October 2026, profiling twins of the package-carried-engines
+branch, uncached module code). Analog BD on one track cost the ColdFire about 20 points, stopped or playing, against a
+FLEX track. Timed around the machine renderer (5,600 calls a second: two a frame) and inside the lease: a call cost
+8,108 DTIM3 counts, 93 % of it the lease's Begin and End, two thirds of that `modwerk_runtime_owner_held`, whose owner
+check reads the module's header (identity and package digest) through the uncached alias on every Begin and End,
+about 0.6 µs a read. Analog BD's own code was about 600 counts. With one lease a frame (the frame's first renderer
+call writes no control record and takes the stock silent source) and no second digest in that check: 2,375 counts a
+call, the module about 10 points. Cached module code (`--cached-modules`) saved about a quarter of the original cost
+on its own. So: take a lease only where a call writes, at most once a frame, and keep the owner check's reads few.
+
+**Core 1's load meter counts at X:$2840** (`dsp_receiver.asm`, `c1wait`) on every USB base: every pass of core 1's
+wait for core 0 adds one there, and each frame takes and clears it. Analog BD's X region starts there, and its 909
+kept PITCH 0's step in that word until 0.1.6 (a wrong, jittery pitch on tracks 1-4 at PITCH 0 over USB). Keep module
+state off X:$2840 on core 1.
+
 *The profile* (development bases only): `modwerk_cost[24]` (diag.h) accumulates DTIM3 counts between stamps at
 each hook's entry and some exits; read it over `mem` twice some seconds apart and divide by 132 for µs (`modwerk_cost[15]`
 counts ticks, `[13]` compositions, `[11]` frames, `[19]` fx map checks). A tester base has none of it.

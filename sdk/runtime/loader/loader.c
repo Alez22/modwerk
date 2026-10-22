@@ -305,7 +305,9 @@ static int owner_intact(unsigned i)
         o->image_offset > o->extent_bytes || o->image_bytes > o->extent_bytes - o->image_offset ||
         o->module != m->id || o->extent_bytes != m->size ||
         (uintptr_t)m->dsp.image != at + o->image_offset || o->image_bytes != m->dsp.image_bytes) return 0;
-    return same_digest(o->package_sha256, m->dsp.package_sha256) && same_digest(o->controller_sha256, m->dsp.controller_sha256);
+    /* The package digest proves the header; the controller digest is read from the owner record only (the board and
+     * the write lease compare that copy), so it costs the lease no uncached reads here. */
+    return same_digest(o->package_sha256, m->dsp.package_sha256);
 }
 int modwerk_runtime_owner_snapshot(const uint8_t *image,struct runtime_owner *out)
 {

@@ -477,10 +477,10 @@
   },
   "analog-bassdrum": {
    "schema": 1,
-   "imageSha256": "22f0ef6f1723f9a2bce74409cd83ef86b3ed6fb41c569aa5de762e57b44d4384",
+   "imageSha256": "35a3bc3c58afcbf1b8947d9817de9ce7b922995376cf8d5bfeb0a0de00866e69",
    "sources": {
     "sdk/machines/octatrack/module-adapters/analog_bd_runtime.py": "c3e3f51076e9ae3579e2e00d96d21eee87a2d12afa4ae69fb7067da3399fa17a",
-    "sdk/machines/octatrack/module-adapters/analog_bd_write_lease.py": "ff7a9f553de1a2ee44793c6cfabac4a95c9c21c62a462ced15e5c509b5364e0b",
+    "sdk/machines/octatrack/module-adapters/analog_bd_write_lease.py": "7ee9a7bfbefc43064b7578dd3c3e23146896e52b24af47aecd2d1ebe16ee3c30",
     "sdk/machines/octatrack/module-adapters/machine-ports.json": "d98a9934e001d0966d38c2f8eb21246445c59d527368d76e25eaffbe59bf2ec6",
     "sdk/machines/octatrack/module-adapters/machine_ports.py": "94261835964867f1dcfaf44173da2562794d319c3ab223742711f7cd34e30cff",
     "sdk/machines/octatrack/module-adapters/stock_hook_write_lease.h": "ab14679a5faae84ef47d1ca37e46b3171da45252d12310e0b4458228be8334be",
@@ -513,14 +513,14 @@
      "purpose": "analog-bassdrum: authored bytes coinciding with stock (strict scan), reconstructed from the identical bytes of the user's OS; review"
     },
     {
-     "offset": 3442,
+     "offset": 3460,
      "length": 16,
      "address": 1073802002,
      "sha256": "cb540dc6673ad766d174c3076671b07e32f5064511c8cd575ccad58fb9d7934b",
      "purpose": "analog-bassdrum: authored bytes coinciding with stock (strict scan), reconstructed from the identical bytes of the user's OS; review"
     },
     {
-     "offset": 3958,
+     "offset": 3976,
      "length": 14,
      "address": 1074237950,
      "sha256": "0939a4ca02b038ba72eec962b17c37d00c17ed240b08a4400cc3d071c8ebbe31",
