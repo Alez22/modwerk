@@ -335,6 +335,25 @@ describe('module update subscriptions', () => {
     expect(sent[0].text).toContain('Mini Verb 10.0.0')
   })
 
+  it('never mails a like on its own and carries likes in the daily release digest', async () => {
+    const f = await fixture(), owner = await f.member('likedfan'), fan = await f.member('likefan')
+    await f.call('/modules/miniverb/updates', 'PATCH', { enabled: true }, owner.session)
+    const { id } = await (await f.call('/forum/threads', 'POST', { title: 'Liked post', body: 'Like this.', category: 'general' }, owner.session)).json()
+    const postId = (await (await f.call('/forum/threads/' + id)).json()).posts[0].id
+    await f.call('/forum/posts/' + postId + '/react', 'POST', { liked: true }, fan.session)
+    expect(await f.digests(15)).toEqual({ sent: 0 })
+    // Other activity mails on its interval without the like.
+    await f.call('/forum/threads/' + id + '/replies', 'POST', { body: 'A timely reply.' }, fan.session)
+    expect(await f.digests(15)).toEqual({ sent: 1 })
+    expect(sent[0].text).toContain('A timely reply.')
+    expect(sent[0].text).not.toContain('@likefan liked')
+    await f.publish(release())
+    expect(await f.digests()).toEqual({ sent: 1 })
+    expect(sent[0].text).toContain('Mini Verb 10.0.0')
+    expect(sent[0].text).toContain('@likefan liked')
+    expect(f.db.prepare('SELECT COUNT(*) AS count FROM notifications WHERE emailed=0').get()!.count).toBe(0)
+  })
+
   it('waits for a fresh latest version to settle and reading it suppresses obsolete release mail', async () => {
     const f = await fixture(), owner = await f.member('freshfan')
     await f.call('/modules/miniverb/updates', 'PATCH', { enabled: true }, owner.session)
