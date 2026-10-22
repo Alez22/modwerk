@@ -1,0 +1,20 @@
+[
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted software preparation: replace 64-bit planner arithmetic with bounded quotient/remainder arithmetic and explicit plan fields so the pinned freestanding ColdFire compile has no unresolved multiply, divide or memory helpers. Beat-grid and marker behavior is unchanged in host regression tests.",
+      "Add 2,000 independent rational-grid/marker cases, 200 exhaustive stereo-search cases and threshold/refusal checks, plus reproducible native and read-only stock-reference probes.",
+      "Native object only: no editor adapter, verified transaction ABI, playback smoothing, installable package or click-free playback claim. Stock preservation, USB lifecycle and physical MKII qualification remain pending."
+    ]
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-22",
+    "changes": [
+      "Unlisted development draft: portable planner for 1, 4, 16, 32 or 64 beat slice intervals, with a choice of sample or project BPM, retained existing markers and a 64-slice capacity check.",
+      "Optional bounded stereo quiet-boundary search and explicit unsafe-boundary flags; no playback fades or click-free audio claim. Fourteen host tests include 250 exact rational grid cases.",
+      "Not installable or published: native editor/base event, stock persistence, playback smoothing, card/browser/USB packages and real MKII verification are pending. No hardware results are claimed."
+    ]
+  }
+]

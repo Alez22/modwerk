@@ -15,11 +15,24 @@ Read [the module guides index](README.md) first.
 - [ ] **No effect slot and no new knob** unless the feature genuinely needs one. The README says so.
 - [ ] **Timing-related settings** follow [sequencing.md](sequencing.md).
 
+For a one-shot sample editor, preserving marker starts is only part of preserving
+the sample: retain complete slice end/loop records and establish whether adding
+a sorted marker renumbers slice locks. Resolve stock minimum-length and
+working/saved-copy behavior before enabling Apply. Bind preview to sample,
+content, markers, trim and chosen tempo; a stale or cancelled preview must not
+write. Quiet marker boundaries are not evidence of click-free playback.
+
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots of the menu path, with exact button sequences.
 - [ ] If the library should group it under System while its manifest says otherwise, that is a one-line override in `src/catalog/modules.ts`, not a reason to change the manifest category.
 - [ ] `npm run module:verify -- <id> --os <your 1.40C>` and `npm run module:doctor -- <id>` are green.
+
+Compile portable C with the pinned freestanding ColdFire toolchain early and
+inspect unresolved symbols (`m68k-elf-nm -u`) before claiming native readiness.
+Host compilation can hide compiler-generated multiply/divide and memory helpers;
+an object file alone does not prove that a module links. Use the shared
+`sdk/runtime/m68k_codegen.py` flags and object guard too.
 
 ## Digitakt and Digitone
 
