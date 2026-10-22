@@ -553,7 +553,7 @@
       }
     ]
   },
-  "sourceCommit": "23cd5e4efee71ba278e9f42339a07890ce4f89c7",
+  "sourceCommit": "7fabb23f2b87a334447ca20f2396d629c5788bf0",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -566,8 +566,7 @@
     "airwindows-chorus": "0.1.2-experimental",
     "everb": "0.1.2-experimental",
     "bbd": "0.1.1-experimental",
-    "lofi2": "0.1.0-experimental",
-    "ring-sc": "0.2.0-experimental",
+    "lofi2": "0.1.1-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",

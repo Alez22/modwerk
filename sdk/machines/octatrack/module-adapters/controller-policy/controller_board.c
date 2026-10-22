@@ -75,6 +75,20 @@ static uint8_t kb_readers;     /* ... and whether a live package requires it (a 
 static uint8_t kb_priced;      /* the tap's price is charged on both cores (dsp.c): only for readers */
 #endif
 static const uint32_t kb_zeros[24];
+/* The key bus cannot come up this boot: the board closed, or a core's state lost (its mask unknown, a lane stuck or its
+ * owned channel closed: an uncertain job closed it for the boot, the transport's fail-closed rule). Nothing reopens it,
+ * which would act on a DSP whose state nobody knows, so a reader is refused (RUNTIME_FEATURE) rather than admitted to
+ * pass its audio until a restart; the view's key bus byte shows it (bit 7). Seen once on an MKII, 21 Oct 2026. */
+static int __attribute__((unused)) keybus_down(void)
+{
+    if (closed || mask_known != 3u) return 1;
+    for (unsigned c = 0; c < 2u; ++c) if (kb_lane[c].op == KB_STUCK || dl_owned_closed(c)) return 1;
+    return 0;
+}
+/* A live reader whose key bus cannot come up this boot (dsp.c: the self-test fails with it and the self-test record's
+ * refusal says RUNTIME_FEATURE while it holds and the loader has none of its own, on production bases too). A reader admitted before its core was lost
+ * stays installed and dry until a restart; this is how the unit says so. */
+int modwerk_controller_keybus_lost(void) { return kb_readers && keybus_down(); }
 /* In-place page extensions: the stock descriptor's bytes before, the SHA-256 of what was written. */
 static struct { uint32_t generation, donor; uint8_t slot, applied; uint8_t saved[PAGE_BYTES], digest[32]; } pages[2];
 static uint32_t page_refused[MW_CONTROLLER_SLOTS];
@@ -386,7 +400,7 @@ static void view(void)
         v->arena[c] = (uint16_t)modwerk_dsp_arena_now(c), v->reserved[c] = (uint16_t)dl_engine_reserved(c), v->claim_why[c] = dl_engine_why[c];
     }
     for (unsigned k = 0; k < MW_ENGINE_FEATURES; ++k) v->admitted[k] = mw_engines_admitted[k];
-    v->keybus = (uint8_t)(kb_wanted | kb_lane[0].op << 1 | kb_lane[1].op << 4);
+    v->keybus = (uint8_t)(kb_wanted | kb_lane[0].op << 1 | kb_lane[1].op << 4 | (keybus_down() ? 0x80u : 0u));
     v->held = (uint8_t)modwerk_controller_held();
     v->evacuation = (uint8_t)dl_engine_evacuation();
     v->evacuations = (uint8_t)((dl_engine_evacuations & 15u) | (dl_engine_evac_failures & 15u) << 4);
@@ -642,7 +656,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 {
     /* Nothing bound: every package is an ordinary one, but a reader would wait for a bus that never comes (the board
      * holds it), unpriced: refused. The first tick runs at boot, long before the saved set's restore. */
-    if (!started || closed) return to && to->present && (to->requires & KEYBUS) ? RUNTIME_CONFLICT : RUNTIME_OK;
+    if (!started || closed) return to && to->present && (to->requires & KEYBUS) ? (closed ? RUNTIME_CONFLICT : RUNTIME_BUSY) : RUNTIME_OK;
     const struct mw_controller_write_policy *incoming = to && to->present ? row_for(to->package_sha256, to->module, to->image_bytes) : 0;
     const struct mw_controller_write_policy *outgoing = from && from->present ? row_for(from->package_sha256, from->module, from->image_bytes) : 0;
     if (incoming) {
@@ -667,15 +681,15 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
     if (to && to->present && (to->requires & KEYBUS)) {
         /* Not while the bus is being let go: a core disabling or scrubbing, or off with its seed not yet zeroed, still
          * shows the last run's mark, which the reader would take for a live bus for a job round trip. Retry. */
-        for (unsigned c = 0; c < 2u; ++c) {
-            /* A seed that can never be scrubbed (the core unknown, its lane stuck or its owned channel closed for the
-             * boot): the window stays held and no reader comes, rather than a retry that never succeeds. */
-            if (kb_dirty[c] && (!(mask_known >> c & 1u) || kb_lane[c].op == KB_STUCK || dl_owned_closed(c))) return RUNTIME_CONFLICT;
+        /* A bus that cannot come up this boot (a core's state lost, keybus_down): refused, seed clean or not, rather
+         * than admitted to pass its audio or told to retry what never succeeds. A dirty seed there is never scrubbed
+         * either, so the window stays held. */
+        if (keybus_down()) return RUNTIME_FEATURE;
+        for (unsigned c = 0; c < 2u; ++c)
             if (kb_lane[c].op == KB_DISABLE || kb_lane[c].op == KB_SCRUB || (kb_dirty[c] && !(mask[c] & KEYBUS))) return RUNTIME_BUSY;
-        }
         int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
         if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
-        if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;
+        if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_FEATURE; /* the bus engine stuck on a core: it never places */
         if (!kb_priced && !modwerk_dsp_keybus_fits()) return RUNTIME_CYCLES;
     }
 #endif

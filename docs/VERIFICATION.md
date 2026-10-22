@@ -11,6 +11,14 @@ New Octatrack effect by Nathaniel Pavel (@npp1993): an insert whose gain follows
 - **Analog BD companion proofs:** re-exported natively in the toolchain image (`export-composition-proofs.py --suite analog-bd`, 8 shards, menus precomputed with `defaultChoosers`): all 212 proofs identical, only `moduleSourceTreeSha256` moves. `verify-analog-bd-native.mjs` passes: 162 native OS and GNU bootloader comparisons, 50 matching refusals, 6 firmware round trips.
 - **Not tested:** on a unit, parameter locks and LFOs, scenes, eight instances a core, a power cycle and MKI; `fx:audit`. The key latency is carried from the 21 October key bus re-check, not re-measured through this module.
 
+## FX Track 0.1.0-experimental — 22 October 2026
+
+New Digitakt I module by draadpiraat for OS 1.54 on Core 2.1: SETTINGS > FX TRACK keeps the control changes a MIDI track sends on FX CONTROL CH for the delay, reverb, compressor and External Mixer inside the Digitakt, so parameter locks and the MIDI track's LFO play the effects. The source-only package from commit `f2de4341` (`fx-track-0.1.0-experimental-os1.54.elemod`, sha256 `41bf2191…b0a68fc5`) is pinned through `npm run elekloader:update -- --overlay sdk/imports/elekloader-fx-track-2026-10-22.json`; kit 0.6.0 is unchanged and the catalogue now holds 41 mods.
+- **Package:** built in the pinned Docker toolchain (`build-elemod-isolated.sh`) from `34d55c7d`; linked with Core 2.1 it reproduces both emulator-tested SysEx files byte for byte (`a2ba6e80…` alone, `de7fb751…` with Input Pre-Fader Sends, Digi Health and Digi EQ).
+- **Emulator (pinned digiemu `c1b5735`):** every CC on FX CONTROL CH read against the render's effects words gives the 33-number allow-list; MIDI track parameter locks on CC 24 set reverb PRE per step with the row ticked and leave by MIDI OUT unticked, alone and in the combined build. Load +66 mean, +74 worst cycles of 166,666 per block idle; no worst-case change while playing.
+- **Hardware:** not yet tested; the PR stays a draft until the author's results are in.
+- **Checks:** `npm run check` and `npm run pr:ready` on macOS. Firmware, linked images and emulator state stayed local.
+
 ## Input Pre-Fader Sends 0.2.0-experimental — 21 October 2026
 
 Digitakt I module update by draadpiraat for OS 1.54 on Core 2.1: SETTINGS > KEEP FX AWAKE releases the stock delay/reverb hold (project load, double STOP) once its fade-out has finished, so external inputs reach the effects with no track playing. The source-only package from commit `bc9f90685cfa0204b43ebe83337197e328745926` (`input-prefader-0.2.0-experimental-os1.54.elemod`, sha256 `3ac8c4f9…fed82b26`) replaces 0.1.0's pin through `npm run elekloader:update -- --overlay sdk/imports/elekloader-input-prefader-2026-10-21.json`; kit 0.6.0 is unchanged and the catalogue still holds 40 mods.
@@ -18,6 +26,16 @@ Digitakt I module update by draadpiraat for OS 1.54 on Core 2.1: SETTINGS > KEEP
 - **Emulator (pinned digiemu `c1b5735`, a tone fed into IN L/R):** a double STOP silences the input effects' tail; ticked, the hold releases within 1.5 s and the tail returns at full level, also with Digi Health and Digi EQ; unticked it stays held. Load +410 mean, +485 worst cycles of 166,666 per block (about 0.2% and 0.3%).
 - **Hardware:** the author reports all seven steps passing on their Digitakt I, OS 1.54 (2026-10-20), alone and with Digi Health and Digi EQ; with those two the input effects were awake at power-on, which a control build without this module also showed. Pattern changes and sampling from the inputs not tested. Details: [TESTING.md](../sdk/digitakt/modules/input-prefader/TESTING.md).
 - **Checks:** `npm run check` and `npm run pr:ready` on macOS. Firmware, linked images and emulator state stayed local.
+
+## LOFI2 0.1.1-experimental — 21 October 2026
+
+Update: Bryan T's octabam pull request 843 (`7795adf0`), the fix for [octabam issue 825](https://github.com/sambanks/octabam/issues/825): SHIFT's feedback cap 0.45 to 0.40, so the top of FDBK no longer sustains a tone after the input stops. One DSP data word changes.
+- **P memory:** LOFI2's 1,354-word DSP package differs from 0.1.0's in one word, P+0x244 (`0x39999a` to `0x333333`); words, init, proc and relocations are identical. The USB package `a2ab2732…` differs from 0.1.0's `4f794ebc…` in those three bytes and keeps the hardware-timed 637. `cycle_count.py` (416), the bench (430.06 worst) and the 32 s stress run repeat 0.1.0's figures.
+- **Render gate:** upstream's `verify_lofi2.py`, 73 checks, passes; the three new FDBK 127 tail checks read -69.2, -71.7 and -84.5 dBFS (0.1.0's source fails exactly those three, at about -4 dBFS). A 232-setting feedback scan finds no tail louder than -68.4 dBFS.
+- **Native/browser (`module:verify lofi2`):** 138 selections, 48 matching images (20 identical outright, 28 outside the platform writes), 90 matching refusals, 0 mismatches.
+- **Analog BD companion proofs:** re-exported natively (`export-composition-proofs.py --suite analog-bd --static-stock --vendored-sdk`, toolchain image, 8 shards merged in the committed order): all 212 proofs identical, only `moduleSourceTreeSha256` moves (`1c0b50fe…`).
+- **Hardware:** the contributor's MKII, 22 October 2026, USB package `a2ab2732…` on a RAM-booted development twin of the beta base (`53ddaf60…`, MAIN.raw `712666cb…`), one instance on FX2 beside RINGMOD SC 0.2: the issue 825 repro (DOWN, RNGE HIGH, FREQ 64, MIX 127, FDBK 127) died away and the other functions passed, by ear.
+- **Not tested:** with 0.1.1, more than one instance, FX1, reloads and a power cycle. Upstream reports, on the author's MKII and his own build, that four LOFI2 in SHIFT on one core with FILTER on FX1 lock the unit, on upstream `main` too ([octabam issue 850](https://github.com/sambanks/octabam/issues/850), open); disclosed as a limitation, not tried here.
 
 ## LOFI2 0.1.0-experimental — 20 October 2026
 
