@@ -91,12 +91,19 @@ DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot,
 the pages, not the effect.
 
 **Native comparison.** `npm run module:verify -- ring-sc` on the tester's 1.40C, on main `4d4f731d` (Apply Scene in
-the pool; rerun on the review-fix source, module source `ce11da4c…`, the same figures as before): 142 selections, 56 native module-owned images match (24 identical outright, 32 outside the platform writes),
-86 refusals agree, 0 mismatches. Run with a local, uncommitted qualification stub (the catalogue offers a module only
-with its qualification record, which waits for the MKII run); with it `module:doctor ring-sc` reports every
-integration point green, and `npm run check` passes but for the landing steps (the beta base regenerated for RINGMOD
-SC's chooser row, the Analog BD companion proofs re-exported, `choosers.test.ts`'s compact FX2 list) and three Python
-tests that fail the same way on main in this checkout.
+the pool; rerun on the source as released, module source `ed5235cb…`, the same figures as before): 142 selections,
+56 native module-owned images match (24 identical outright, 32 outside the platform writes), 86 refusals agree, 0
+mismatches.
+
+**Landing** (on main `4d4f731d`, with the qualification record of the 22 October run): the beta base regenerated with
+RINGMOD SC's chooser row and main's flags (`d5179764…`; the base-bound packages rebuild byte-identical, only
+`requiredBase` moves; Analog BD's recipe unchanged); the source-built packages imported from the isolated toolchain
+build; the Analog BD companion proofs re-exported natively (`export-composition-proofs.py --suite analog-bd`, 8 shards
+in the toolchain image, menus precomputed with `defaultChoosers`: all 212 identical, only `moduleSourceTreeSha256`
+moves), and `verify-analog-bd-native.mjs` passes (162 native OS and GNU bootloader comparisons, 50 matching refusals,
+6 firmware round trips); RING_SC in `choosers.test.ts`'s compact FX2 menu. `module:doctor ring-sc` reports every
+integration point green; `npm run check` passes apart from three Python tests that fail the same way on main in this
+checkout.
 
 **MKII, 21 October 2026** (the owner's unit, OS 1.40C, RAM-booted development twin `f178641b…` of main's base with
 the key bus reader admission fix; package `64dc83b9…`, the build before RECT replaced BIAS; beside Output Matrix,
