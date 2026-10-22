@@ -90,13 +90,13 @@ detent). The RING page names SLEW, S&H and RECT; the DUCK page is unchanged; MOD
 DUCK or RING below it once turned (a NameSelect: 0.1.0's MODE, as the mode_slot, wrote the word into its own name). A card image has no key bus, so these show
 the pages, not the effect.
 
-**Native comparison.** `npm run module:verify -- ring-sc` on the tester's 1.40C, on main `4d4f731d` (Apply Scene in
-the pool; rerun on the source as released, module source `ed5235cb…`, the same figures as before): 142 selections,
+**Native comparison.** `npm run module:verify -- ring-sc` on the tester's 1.40C, on main `daffbbab` (Apply Scene and
+LOFI2 0.1.1 in the pool; rerun on the source as released, module source `ed5235cb…`, the same figures as before): 142 selections,
 56 native module-owned images match (24 identical outright, 32 outside the platform writes), 86 refusals agree, 0
 mismatches.
 
-**Landing** (on main `4d4f731d`, with the qualification record of the 22 October run): the beta base regenerated with
-RINGMOD SC's chooser row and main's flags (`d5179764…`; the base-bound packages rebuild byte-identical, only
+**Landing** (on main `daffbbab`, with the qualification record of the 22 October run): the beta base regenerated with
+RINGMOD SC's chooser row and main's flags (`237217af…`; the base-bound packages rebuild byte-identical, only
 `requiredBase` moves; Analog BD's recipe unchanged); the source-built packages imported from the isolated toolchain
 build; the Analog BD companion proofs re-exported natively (`export-composition-proofs.py --suite analog-bd`, 8 shards
 in the toolchain image, menus precomputed with `defaultChoosers`: all 212 identical, only `moduleSourceTreeSha256`
