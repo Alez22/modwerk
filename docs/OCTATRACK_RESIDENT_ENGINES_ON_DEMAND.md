@@ -6,6 +6,11 @@ host-tested. The ColdFire side places, runs and removes all three engines on
 the unit (below). Clearing the region of live FX code (evacuation) is written
 and host-tested, not yet run on a unit.
 
+Update, 22 October 2026: Analog BD's engine and tables are no longer base data. Its controller package carries them
+(ABI 10), the base keeps its stub, base word and X region, and its trust row pins only the package's ColdFire part
+(docs/OCTATRACK_PACKAGE_DSP_HOOKS.md, "Phase 1 as built"). Every resident build is now on demand: the permanent-engine
+build (`--resident-stock-hooks` alone) is retired. Below, Analog BD's figures are its engine's, which are unchanged.
+
 ## Goal
 
 `--resident-stock-hooks` links the Sidechain Compressor, Output Matrix and

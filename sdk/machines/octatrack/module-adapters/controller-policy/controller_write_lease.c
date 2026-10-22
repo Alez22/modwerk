@@ -52,7 +52,7 @@ static int owner_binding(const struct runtime_owner *o,uintptr_t image,const str
     return o->generation==b->generation && o->module==b->identity.module && image>=o->image_offset &&
         image-o->image_offset==b->canonical_extent && o->extent_bytes==b->extent_bytes &&
         o->image_offset==b->image_offset && o->image_bytes==b->image_bytes &&
-        equal(o->package_sha256,b->identity.package_sha256,32);
+        equal(o->controller_sha256,b->identity.package_sha256,32);
 }
 static uint32_t word(unsigned at) {
     switch(at) {

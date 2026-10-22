@@ -10,7 +10,8 @@
  * the loader's own owner ledger: a live module whose encoded package, module
  * id and image match a row is that controller. Empty rows (the default) make
  * every package an ordinary one and drive nothing. Analog BD (4) is bound the
- * same way on both cores; its reset restores its engine's boot record.
+ * same way on both cores; its engine and its reset's words are its package's
+ * (ABI 10), which the trust row does not pin: a row pins the controller digest.
  *
  * Install: the package's CF sites publish as for any module; the tick then
  * reserves and binds its exact owner generation, resets the feature's DSP

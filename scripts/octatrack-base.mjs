@@ -57,6 +57,7 @@ const same = (fresh, path) => {
 }
 
 if (args['resident-on-demand'] && !args['resident-stock-hooks']) throw new Error('--resident-on-demand needs --resident-stock-hooks.')
+if (args['resident-stock-hooks'] && !args['resident-on-demand']) throw new Error('--resident-stock-hooks needs --resident-on-demand: Analog BD’s engine is its package’s.')
 const work = mkdtempSync(join(tmpdir(), 'modwerk-base-')), core = join(work, 'core')
 const buildLayout = (layout, output, ...rest) => python('build_core.py', '--stock', args.stock, '--upstream', args.upstream, '--output', output, '--dsp-loader',
   ...(args['usb-midi'] ? ['--usb-midi'] : []), ...(layout ? ['--usb-audio', layout] : []),

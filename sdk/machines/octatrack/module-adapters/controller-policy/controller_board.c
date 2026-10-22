@@ -8,6 +8,8 @@
 #include "dsp_ledger.h"       /* the features, their cores, what they imply and their reset words (dsp-sites.json) */
 #ifdef MODWERK_RESIDENT_ON_DEMAND
 #include "resident_engines.h" /* engines on demand: placed before the first RESET, collected once nobody holds them */
+#else
+#define MW_ENGINE_PACKAGED_WORDS 0u /* no engines placed: a packaged feature's controller is never admitted */
 #endif
 
 int modwerk_saved_set_busy(void);
@@ -28,18 +30,12 @@ unsigned modwerk_controller_policy_entries(void);
 uint8_t mw_controller_board_test_read8(uint32_t);
 int mw_controller_board_test_ui(uintptr_t lo, uintptr_t hi);
 uint8_t *mw_controller_board_test_donor(uint32_t);
-const uint8_t *mw_controller_board_test_ab(unsigned core, const uint8_t **end);
 #define READ8(a) mw_controller_board_test_read8(a)
-#define AB_RECORDS(c, end) mw_controller_board_test_ab(c, end)
 #define UI_CLEAR(lo, hi) mw_controller_board_test_ui(lo, hi)
 #define DONOR(a) mw_controller_board_test_donor(a)
 #else
 #define READ8(a) (*(volatile const uint8_t *)(uintptr_t)(a))
 #define DONOR(a) ((uint8_t *)(uintptr_t)(a))
-/* Analog BD's engine records, as the resident boot uploads them (resident_boot.py). */
-extern const uint8_t mw_resident_ab_x_A[], mw_resident_ab_x_A_end[], mw_resident_ab_x_B[], mw_resident_ab_x_B_end[];
-static const uint8_t *AB_RECORDS(unsigned c, const uint8_t **end)
-{ *end = c ? mw_resident_ab_x_B_end : mw_resident_ab_x_A_end; return c ? mw_resident_ab_x_B : mw_resident_ab_x_A; }
 static int board_read(void *context, uint32_t address, void *out, uint32_t length)
 {
     (void)context;
@@ -102,38 +98,11 @@ static unsigned cores(unsigned feature) { return MW_DSP_CORES(feature); }
 /* stock_hooks reset totals, from the ledger (dsp_sites.py --check keeps them equal to resident_dsp.resource_ranges):
  * SC Y $7f0+$210 and the shared tail $202; Matrix Y $c00+$c1 on core A; Analog BD X $2840-$36ff on both cores; the key
  * bus the shared tail $202 first (its seed and counter lead it), then Y $800+$200. */
-#define AB_WORDS MW_DSP_RESET_WORDS(MW_DSP_ANALOG_BD)
 #define KEYBUS MW_DSP_KEYBUS /* the key bus: a base feature, held for packages and Sidechain */
 #define KEYBUS_WORDS MW_DSP_RESET_WORDS(MW_DSP_KEYBUS)
 #define KEYBUS_SPLIT MW_DSP_RESET_SPLIT(MW_DSP_KEYBUS) /* its first owned range: one per reset chunk */
 #define KEYBUS_IMPLIED(f) (MW_DSP_IMPLIED((f) & ~KEYBUS) & KEYBUS) /* what a held controller feature holds too */
 static unsigned total(unsigned feature, unsigned c) { return cores(feature) >> c & 1u ? MW_DSP_RESET_WORDS(feature) : 0u; }
-/* Sidechain's and Matrix's authored initialization is zero; Analog BD's engine is not (its tables). Its reset
- * restores what the resident boot uploaded, from the same authored record: [space, address, count] and then each
- * word, three bytes little-endian, packed as zero and literal runs (resident_boot.pack_zeros). Decoded once per core;
- * a record that is not exactly x:$2840 with AB_WORDS words never resets (the slot cannot become ready). */
-static uint32_t ab_init[2][AB_WORDS];
-static uint8_t ab_state[2]; /* 0 not decoded, 1 ready, 2 refused */
-static int ab_decode(unsigned c)
-{
-    static const uint8_t head[9] = {1, 0, 0, 0x40, 0x28, 0, (uint8_t)AB_WORDS, (uint8_t)(AB_WORDS >> 8), 0};
-    const uint8_t *end, *p = AB_RECORDS(c, &end);
-    uint32_t at = 0, need = 9u + 3u * AB_WORDS;
-    if (ab_state[c]) return ab_state[c] == 1u;
-    ab_state[c] = 2u;
-    while (p < end) {
-        unsigned token = *p++, n = (token & 127u) + 1u;
-        if (n > need - at || (!(token & 128u) && n > (uint32_t)(end - p))) return 0;
-        for (unsigned i = 0; i < n; ++i, ++at) {
-            unsigned byte = token & 128u ? 0u : *p++;
-            if (at < 9u) { if (byte != head[at]) return 0; }
-            else ab_init[c][(at - 9u) / 3u] |= (uint32_t)byte << (8u * ((at - 9u) % 3u));
-        }
-    }
-    if (at != need) return 0;
-    ab_state[c] = 1u;
-    return 1;
-}
 static int same_identity(const struct mw_controller_identity *a, const struct mw_controller_identity *b)
 {
     return same(a->package_sha256, b->package_sha256, 32) && same(a->source_policy_sha256, b->source_policy_sha256, 32) &&
@@ -190,15 +159,72 @@ static unsigned slot_of(const struct mw_controller_binding *b)
     }
     return MW_CONTROLLER_SLOTS;
 }
-/* Published at a position, as this exact owner generation. */
-static int live(const struct mw_controller_binding *b)
+/* Published at a position, as this exact owner generation: that module, or 0. */
+static const struct runtime_module *module_of(const struct mw_controller_binding *b)
 {
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
         const struct runtime_module *m = modwerk_runtime_module(i);
         struct runtime_owner o; uintptr_t canonical;
         if (m && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && o.generation == b->generation &&
             o.module == b->identity.module && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
-            canonical == b->canonical_extent) return 1;
+            canonical == b->canonical_extent) return m;
+    }
+    return 0;
+}
+static int live(const struct mw_controller_binding *b) { return module_of(b) != 0; }
+
+/* A packaged feature's engine (dsp_ledger.h MW_DSP_PACKAGED, ABI 10) is its controller's package's DSP section: the
+ * trust row pins the rest (the controller digest), so this is its whole check, at admission. One entry, at the
+ * feature's one site, on the feature's cores, entered at word 0 (the receiver's stub enters a packaged engine there),
+ * with an exit exactly where the site has one (its package's build checks the long branch before it); its claims
+ * exactly the feature's regions on each core, in the ledger's order (its reset's), each written with its initial
+ * words; no larger than the engines' buffer. */
+static int applies(const struct runtime_dsp_claim *q, unsigned c) { return q->core == c || q->core == RUNTIME_CLAIM_BOTH_CORES; }
+static int engine_shape(const struct runtime_dsp *d, unsigned feature)
+{
+    unsigned sites = 0;
+    for (unsigned s = 0; s < MW_DSP_SITES; ++s) sites += mw_dsp_sites[s].feature == feature;
+    if (!(MW_DSP_PACKAGED & feature) || sites != 1u || !d->engine_count || d->engine_count > MW_ENGINE_PACKAGED_WORDS ||
+        d->entry_count != 1u || !d->entries || (d->claim_count && !d->claims)) return 0;
+    const struct runtime_dsp_entry *e = &d->entries[0];
+    if (e->site >= MW_DSP_SITES || mw_dsp_sites[e->site].feature != feature || e->cores != cores(feature) || e->entry) return 0;
+    for (unsigned c = 0; c < 2u; ++c) {
+        if (!(cores(feature) >> c & 1u)) continue;
+        if (!mw_dsp_sites[e->site].exit[c] != !e->exit) return 0;
+        unsigned at = 0;
+        for (unsigned n = 0; n < MW_DSP_REGIONS; ++n) {
+            const struct mw_dsp_region *g = &mw_dsp_regions[n];
+            if (g->feature != feature || g->core != c) continue;
+            while (at < d->claim_count && !applies(&d->claims[at], c)) ++at;
+            if (at == d->claim_count) return 0;
+            const struct runtime_dsp_claim *q = &d->claims[at++];
+            if (q->space != g->space || q->address != g->address || q->words != g->words) return 0;
+        }
+        while (at < d->claim_count) if (applies(&d->claims[at++], c)) return 0;
+    }
+    for (unsigned i = 0; i < d->claim_count; ++i) {
+        const struct runtime_dsp_claim *q = &d->claims[i];
+        if ((q->access & (RUNTIME_CLAIM_INIT | RUNTIME_CLAIM_WRITE)) != (RUNTIME_CLAIM_INIT | RUNTIME_CLAIM_WRITE) ||
+            (q->core == RUNTIME_CLAIM_BOTH_CORES ? cores(feature) != 3u : !(cores(feature) >> q->core & 1u))) return 0;
+    }
+    return 1;
+}
+/* Its reset on core c from `offset`: the initial words of the claims there, in order, never past one claim. */
+static int engine_init(const struct runtime_dsp *d, unsigned c, uint32_t offset, const uint32_t **words, unsigned *count)
+{
+    uint32_t at = 0, logical = 0;
+    for (unsigned i = 0; d->initial && i < d->claim_count; ++i) {
+        const struct runtime_dsp_claim *q = &d->claims[i];
+        if (!(q->access & RUNTIME_CLAIM_INIT)) continue;
+        if (applies(q, c)) {
+            if (offset < logical + q->words) {
+                uint32_t k = logical + q->words - offset;
+                *words = d->initial + at + (offset - logical), *count = k > 24u ? 24u : k;
+                return 1;
+            }
+            logical += q->words;
+        }
+        at += q->words;
     }
     return 0;
 }
@@ -306,7 +332,7 @@ static int owns_image(void *u, const struct mw_controller_binding *b)
     return modwerk_runtime_owner_at(exec, &o) == 1 && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
         canonical == b->canonical_extent && o.generation == b->generation && o.module == b->identity.module &&
         o.extent_bytes == b->extent_bytes && o.image_offset == b->image_offset && o.image_bytes == b->image_bytes &&
-        same(o.package_sha256, b->identity.package_sha256, 32);
+        same(o.controller_sha256, b->identity.package_sha256, 32);
 }
 /* While no buffer policy exists (every DSP buffer claim refused), no buffer can
  * reach a held range, so the ENABLE-time check stays true for that generation;
@@ -334,17 +360,23 @@ static int roots_clear(void *u, const struct mw_controller_binding *b)
     if (b->identity.feature == 2u && (READ8(MATRIX_MODE) == 2u || READ8(MATRIX_MODE_CS1) == 2u)) return 0;
     return b->canonical_extent <= UINTPTR_MAX - b->extent_bytes && UI_CLEAR(b->canonical_extent, b->canonical_extent + b->extent_bytes);
 }
-/* Sidechain's and Matrix's authored initialization is zero (resident_dsp.initialization_records); Analog BD's is
- * its boot record. Either array stays unchanged through the job's release. */
+/* Sidechain's and Matrix's authored initialization is zero (resident_dsp.initialization_records); a packaged feature's
+ * is its package's initial words (engine_init), which stay in its pool extent while this generation is held: its slot
+ * refuses the module's switch until its jobs are done and its hooks disabled. Either array stays unchanged through the
+ * job's release. */
 static int reset_source(void *u, const struct mw_controller_binding *b, unsigned c, uint32_t offset, const uint32_t **words, unsigned *count)
 {
     static const uint32_t zeros[24];
     (void)u;
     unsigned f = b->identity.feature, n = c < 2u ? total(f, c) : 0u;
-    if (!n || offset >= n || !words || !count || (f == 4u && !ab_decode(c))) return 0;
+    if (!n || offset >= n || !words || !count) return 0;
+    if (MW_DSP_PACKAGED & f) {
+        const struct runtime_module *m = module_of(b);
+        return m && engine_init(&m->dsp, c, offset, words, count) && *count <= n - offset;
+    }
     unsigned k = n - offset > 24u ? 24u : n - offset;
     if (f == 1u && offset < 528u && k > 528u - offset) k = 528u - offset; /* one owned range per chunk */
-    *words = f == 4u ? ab_init[c] + offset : zeros; *count = k; return 1;
+    *words = zeros; *count = k; return 1;
 }
 /* Known from the dormant boot upload and every ACKed owned CAS since; any
  * uncertain job on a core makes it unknown for the rest of the boot. */
@@ -382,7 +414,7 @@ static unsigned live_features(void)
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
         const struct runtime_module *m = modwerk_runtime_module(i);
         struct runtime_owner o; const struct mw_controller_write_policy *p;
-        if (m && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && (p = row_for(o.package_sha256, o.module, o.image_bytes)))
+        if (m && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && (p = row_for(o.controller_sha256, o.module, o.image_bytes)))
             features |= p->identity.feature;
     }
     return features;
@@ -499,7 +531,7 @@ static void keybus_tick(void)
         /* Readers alone wait for the tap's price first; then the engine at the arena's top, as for any engine; nothing
          * is reset before PLACE is ACKed on both cores. */
         if (!sidechain && !kb_priced) return;
-        if (mw_engines_place(KEYBUS, 3u, KEYBUS_GENERATION, busy) <= 0) return;
+        if (mw_engines_place(KEYBUS, 3u, KEYBUS_GENERATION, busy, mask, mask_known) <= 0) return;
 #endif
         for (unsigned c = 0; c < 2u; ++c) {
             if (busy[c] || !(mask_known >> c & 1u) || (mask[c] & KEYBUS)) continue;
@@ -554,7 +586,7 @@ static void bind_live(void)
         const struct mw_controller_write_policy *p;
         if (!m) continue;
         if (modwerk_runtime_owner_snapshot(m->dsp.image, &o) != 1) { bind_again = 1; continue; }
-        if (!(p = row_for(o.package_sha256, o.module, o.image_bytes)) || !binding_of(&o, p, &b) || slot_of(&b) < MW_CONTROLLER_SLOTS) continue;
+        if (!(p = row_for(o.controller_sha256, o.module, o.image_bytes)) || !binding_of(&o, p, &b) || slot_of(&b) < MW_CONTROLLER_SLOTS) continue;
         const struct mw_controller_slot *previous = 0; unsigned others = 0;
         for (unsigned k = 0; k < MW_CONTROLLER_SLOTS; ++k) {
             const struct mw_controller_slot *s = &REGISTRY.slots[k];
@@ -574,7 +606,8 @@ static void advance(unsigned at)
 {
     struct mw_controller_slot *s = &REGISTRY.slots[at];
     const struct mw_controller_binding *b = &s->binding;
-    unsigned need = b->identity.required_cores, published = live(b);
+    const struct runtime_module *m = module_of(b);
+    unsigned need = b->identity.required_cores, published = m != 0;
     int quiesce = !published || (want[at].generation == b->generation && want[at].quiesce);
     switch (s->state) {
     case MW_CTL_RESERVED:
@@ -588,7 +621,16 @@ static void advance(unsigned at)
 #ifdef MODWERK_RESIDENT_ON_DEMAND
         /* The engine is written, read back and PLACEd on every required core before any RESET chunk; a
          * generation that finds it placed (a restore, a successor) adopts it without reloading. */
-        if (mw_engines_place(b->identity.feature, need, b->generation, transport.held) <= 0) break;
+        if (MW_DSP_PACKAGED & b->identity.feature) {
+            if (!engine_shape(&m->dsp, b->identity.feature)) break; /* admitted whole: never, but never placed then */
+            const struct runtime_dsp_entry *e = &m->dsp.entries[0];
+            struct mw_engine_unit units[2] = {{0}};
+            for (unsigned c = 0; c < 2u; ++c)
+                if (need >> c & 1u) units[c] = (struct mw_engine_unit){m->dsp.engine, m->dsp.engine_relocations, (uint16_t)m->dsp.engine_count,
+                                                                       m->dsp.engine_relocation_count, e->exit, mw_dsp_sites[e->site].exit[c]};
+            mw_engines_package(b->identity.feature, b->generation, units);
+        }
+        if (mw_engines_place(b->identity.feature, need, b->generation, transport.held, mask, mask_known) <= 0) break;
 #endif
         for (unsigned c = 0; c < 2u; ++c) if (need >> c & 1u) {
             if (s->state != MW_CTL_READY && s->acknowledged_words[c] < s->reset_words[c]) begin(at, c, MW_CTL_RESET);
@@ -657,9 +699,12 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
     /* Nothing bound: every package is an ordinary one, but a reader would wait for a bus that never comes (the board
      * holds it), unpriced: refused. The first tick runs at boot, long before the saved set's restore. */
     if (!started || closed) return to && to->present && (to->requires & KEYBUS) ? (closed ? RUNTIME_CONFLICT : RUNTIME_BUSY) : RUNTIME_OK;
-    const struct mw_controller_write_policy *incoming = to && to->present ? row_for(to->package_sha256, to->module, to->image_bytes) : 0;
-    const struct mw_controller_write_policy *outgoing = from && from->present ? row_for(from->package_sha256, from->module, from->image_bytes) : 0;
+    const struct mw_controller_write_policy *incoming = to && to->present ? row_for(to->controller_sha256, to->module, to->image_bytes) : 0;
+    const struct mw_controller_write_policy *outgoing = from && from->present ? row_for(from->controller_sha256, from->module, from->image_bytes) : 0;
     if (incoming) {
+        /* A packaged feature's controller brings its engine, whole; no other does. */
+        if (MW_DSP_PACKAGED & incoming->identity.feature ? !engine_shape(to, incoming->identity.feature) : to->engine_count != 0)
+            return RUNTIME_MALFORMED;
         /* One module per resident engine; a quarantined engine admits nobody. */
         for (unsigned k = 0; k < MW_CONTROLLER_SLOTS; ++k) {
             const struct mw_controller_slot *s = &REGISTRY.slots[k];
@@ -669,7 +714,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
 #ifdef MODWERK_RESIDENT_ON_DEMAND
         /* Its engine must fit at the arena's top beside every held or live controller's: a dry run of the claim.
          * Refused here rather than ever making a Part switch load code; a busy manager lets the tick wait. */
-        int fit = mw_engines_admit(incoming->identity.feature, modwerk_controller_held() | live_features());
+        int fit = mw_engines_admit(incoming->identity.feature, modwerk_controller_held() | live_features(), to->engine_count);
         if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
         if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_CONFLICT;
 #endif
@@ -687,7 +732,7 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
         if (keybus_down()) return RUNTIME_FEATURE;
         for (unsigned c = 0; c < 2u; ++c)
             if (kb_lane[c].op == KB_DISABLE || kb_lane[c].op == KB_SCRUB || (kb_dirty[c] && !(mask[c] & KEYBUS))) return RUNTIME_BUSY;
-        int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features());
+        int fit = mw_engines_admit(KEYBUS, modwerk_controller_held() | live_features(), 0);
         if (fit == MW_ENGINE_MEMORY) return RUNTIME_MEMORY;
         if (fit == MW_ENGINE_STUCK_BOOT) return RUNTIME_FEATURE; /* the bus engine stuck on a core: it never places */
         if (!kb_priced && !modwerk_dsp_keybus_fits()) return RUNTIME_CYCLES;
@@ -713,6 +758,15 @@ int modwerk_controller_admit(const struct runtime_dsp *from, const struct runtim
         want[at].generation = b.generation; want[at].quiesce = 1; want[at].since = ticks;
     }
     return operation == RUNTIME_METADATA_PREPARE ? RUNTIME_OK : RUNTIME_BUSY;
+}
+
+/* ABI 10 (loader.h), locked, in place of the claims' check: an engine only from a trusted controller of a packaged
+ * feature, whole (engine_shape); its claims are that feature's regions, which the base keeps for it. */
+int modwerk_machine_dsp_engine_admit(const struct runtime_dsp *d)
+{
+    const struct mw_controller_write_policy *p = started && d ? row_for(d->controller_sha256, d->module, d->image_bytes) : 0;
+    if (!p) return RUNTIME_CONFLICT;
+    return engine_shape(d, p->identity.feature) ? RUNTIME_OK : RUNTIME_MALFORMED;
 }
 
 /* Held features: every held slot's, and the key bus while it is wanted, on or not known to be off on a core (an FX

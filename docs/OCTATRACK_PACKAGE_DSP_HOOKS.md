@@ -54,6 +54,45 @@ Analog BD as the example; Sidechain Compressor and Output Matrix are tied the sa
   owner's unit: install, place, both engines playing, Part switches while playing, removal and reinstall, a power
   cycle restore. Then Analog BD 0.1.6 ships as a module release, card and USB.
 
+**Phase 1 as built (22 October 2026, `claude/package-carried-engines`).** Analog BD only; Sidechain and Output Matrix
+stay base data (Phase 3).
+
+- **The site.** `dsp-sites.json` site 5, `dsp_track_source` (P:$39c / P:$1a2, the stock `move a,x:>$20e`, its guard
+  checked against the stub the base assembles), with an **exit** per payload (P:$426 / P:$221): the stock code after
+  the source, where Analog BD's glue leaves when it rendered the track. Feature 4 is `"packaged"`: its engine is its
+  controller's package's, its region (X:$2840, $ec0 words on both cores) stays the base's.
+- **The package (ABI 10).** `module-adapters/hook_engines.py` assembles Analog BD's engine from the module's own sources
+  (glue, 909, 808, desk), as `resident_dsp` did, but as one unit for both cores: its one jump to the continuation is the
+  site's exit, a long branch whose displacement the base writes per core (`mw_engine_relocate`). Proven: each core's own
+  assembly at four bases equals the unit placed there with that core's exit, and the unit placed with the exit equals
+  main's resident Analog BD engine word for word (998 words). Its 3,776 initial words (the X tables and voice blocks)
+  are one claim on both cores with initial words. `abi9.engine()` writes it into the controller package
+  (`base_bound.machine`). Nothing of it is a base input.
+- **Trust.** A row pins the **controller digest** (`loader.h`: the header with its DSP fields zeroed and everything up
+  to the claims), not the package's SHA-256; the loader keeps it in the owner record, and the board, the owner checks and
+  the write lease compare it. A package that changes only its DSP part (0.1.6) keeps its row, so the base is not rebuilt.
+  The source policy in a row hashes only the controller's inputs (`build.py machine_inputs`), and the price (411 a
+  voice, 3 a core) stays in the machine record (`machine-ports.json`): a price change is a controller change until
+  Phase 2.
+- **Admission.** The loader asks `modwerk_machine_dsp_engine_admit` (the board) for an engine: a trusted controller of a
+  packaged feature, one entry at the feature's one site on its cores, entered at word 0, an exit exactly where the site
+  has one, claims exactly the feature's regions with initial words, at most 2,048 words. A trusted controller of a
+  packaged feature must bring one. Everything is checked at PREPARE: a refusal at the loader's switch is reported as
+  `RUNTIME_BUSY`, which the host retries for good, so the long branch before an exit is checked by the package's build.
+- **Placement.** `resident_engines.c` takes the unit from the bound generation (`mw_engines_package`), never adopts
+  another generation's engine (an update or going back unplaces the old one, while that core is known dormant and the
+  sequencer quiet, then writes and places the new one), and resets the region from that package's initial words. The
+  receiver's PLACE takes the engine's size in word 7 (it was 1, with sizes built in), so a packaged engine is placed as
+  the base's own.
+- **The base.** No Analog BD source is pinned (`resident_dsp.SOURCES`), no X record is uploaded at boot or kept
+  (`resident_boot`), and every resident build is on demand (`--resident-stock-hooks` needs `--resident-on-demand`;
+  the permanent-engine build is retired).
+- **Checked in software.** Loader host test (ABI 10 parse, refusals, the digest across DSP-only changes); the board on
+  demand (`test_resident_engines_board.py` modes 50-53: a DSP-only update under the same row, going back, refusals,
+  a replacement waiting while playing; every earlier mode with Analog BD's engine from its package); the DSP interpreter
+  (`test_resident_engines.py`: relocation with the exit at ten bases, the placed engine bit-exact at two places, base
+  words kept beside Sidechain and the key bus); the site (`module-set.test.ts`, ABI 10 checks); the publication builder.
+
 **Phase 2: controllers admitted by what they declare.** One base change.
 
 - Packages import the lease entries by symbol at install, as other modules import, so a package no longer belongs to

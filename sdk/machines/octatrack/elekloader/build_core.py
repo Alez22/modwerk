@@ -1450,6 +1450,8 @@ def main():
         parser.error('Private resident stock hooks require the ordinary DSP loader, without probes/burn.')
     if args.resident_on_demand and not args.resident_stock_hooks:
         parser.error('--resident-on-demand needs --resident-stock-hooks.')
+    if args.resident_stock_hooks and not args.resident_on_demand:
+        parser.error('--resident-stock-hooks needs --resident-on-demand: Analog BD\'s engine is its package\'s (ABI 10), placed on demand.')
     if bool(args.controller_policies) != bool(args.controller_layout) or (args.controller_policies and not args.resident_stock_hooks):
         parser.error('Controller trust rows need --resident-stock-hooks and the layout their packages were encoded against.')
     global FX_IDS, FX_WORDS
