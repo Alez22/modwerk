@@ -83,9 +83,10 @@ describe('preparing a module set', () => {
     const result = await prepareModuleSet(target, empty, fetched, events, baseBinding.identity)
     expect(result.changes.map(change => change.module)).toEqual(manifest.packages.map(entry => entry.name))
     expect(result.changes.every(change => change.undo?.length === 32)).toBe(true)
-    // An ABI 8 loader still takes every package but the ABI 9 ones, which ask for the base update.
-    const abi9 = manifest.packages.filter(entry => (entry as { abi?: number }).abi === 9).map(entry => entry.id)
-    expect(abi9).toEqual(['ring-sc'])
+    // An ABI 8 loader still takes every package but the ABI 9 and 10 ones (RINGMOD SC, Analog BD's engine package),
+    // which ask for the base update.
+    const abi9 = manifest.packages.filter(entry => ((entry as { abi?: number }).abi ?? 0) >= 9).map(entry => entry.id)
+    expect([...abi9].sort()).toEqual(['analog-bassdrum', 'ring-sc'])
     for (const id of abi9) await expect(prepareModuleSet({ name: id, moduleIds: [id] }, empty, fetched, { ...events, abi: 8 }, baseBinding.identity)).rejects.toBeInstanceOf(BaseUpdateRequired)
     const older = await prepareModuleSet({ name: 'ABI 8', moduleIds: USB_MODULE_IDS.filter(id => !abi9.includes(id)) }, empty, fetched, { ...events, abi: 8 }, baseBinding.identity)
     expect(older.changes.map(change => change.module)).toEqual(manifest.packages.filter(entry => !abi9.includes(entry.id)).map(entry => entry.name))
