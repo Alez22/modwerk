@@ -1,5 +1,13 @@
 # Verification record
 
+## FX Track 0.1.0-experimental — 22 October 2026
+
+New Digitakt I module by draadpiraat for OS 1.54 on Core 2.1: SETTINGS > FX TRACK keeps the control changes a MIDI track sends on FX CONTROL CH for the delay, reverb, compressor and External Mixer inside the Digitakt, so parameter locks and the MIDI track's LFO play the effects. The source-only package from commit `f2de4341` (`fx-track-0.1.0-experimental-os1.54.elemod`, sha256 `41bf2191…b0a68fc5`) is pinned through `npm run elekloader:update -- --overlay sdk/imports/elekloader-fx-track-2026-10-22.json`; kit 0.6.0 is unchanged and the catalogue now holds 41 mods.
+- **Package:** built in the pinned Docker toolchain (`build-elemod-isolated.sh`) from `34d55c7d`; linked with Core 2.1 it reproduces both emulator-tested SysEx files byte for byte (`a2ba6e80…` alone, `de7fb751…` with Input Pre-Fader Sends, Digi Health and Digi EQ).
+- **Emulator (pinned digiemu `c1b5735`):** every CC on FX CONTROL CH read against the render's effects words gives the 33-number allow-list; MIDI track parameter locks on CC 24 set reverb PRE per step with the row ticked and leave by MIDI OUT unticked, alone and in the combined build. Load +66 mean, +74 worst cycles of 166,666 per block idle; no worst-case change while playing.
+- **Hardware:** not yet tested; the PR stays a draft until the author's results are in.
+- **Checks:** `npm run check` and `npm run pr:ready` on macOS. Firmware, linked images and emulator state stayed local.
+
 ## Input Pre-Fader Sends 0.2.0-experimental — 21 October 2026
 
 Digitakt I module update by draadpiraat for OS 1.54 on Core 2.1: SETTINGS > KEEP FX AWAKE releases the stock delay/reverb hold (project load, double STOP) once its fade-out has finished, so external inputs reach the effects with no track playing. The source-only package from commit `bc9f90685cfa0204b43ebe83337197e328745926` (`input-prefader-0.2.0-experimental-os1.54.elemod`, sha256 `3ac8c4f9…fed82b26`) replaces 0.1.0's pin through `npm run elekloader:update -- --overlay sdk/imports/elekloader-input-prefader-2026-10-21.json`; kit 0.6.0 is unchanged and the catalogue still holds 40 mods.
