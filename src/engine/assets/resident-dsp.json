@@ -335,7 +335,7 @@
       ]
     }
   ],
-  "sourceCommit": "7fabb23f2b87a334447ca20f2396d629c5788bf0",
+  "sourceCommit": "ac06e954a64ca64936c77019456289b0e870ca8c",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -349,6 +349,7 @@
     "everb": "0.1.2-experimental",
     "bbd": "0.1.1-experimental",
     "lofi2": "0.1.1-experimental",
+    "ring-sc": "0.2.0-experimental",
     "analog-bassdrum": "0.1.5-experimental",
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
