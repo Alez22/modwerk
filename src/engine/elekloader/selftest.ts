@@ -19,6 +19,7 @@ export const SELFTEST_FAILURES = [
   'a combination the Octatrack allows overloads the CPU',
   'a frame came late (something held the Octatrack’s interrupts too long)',
   'a module’s code on the DSP doesn’t match its package',
+  'the key bus a module needs can’t start until the Octatrack restarts (turn it off and on, then sync again)',
 ] as const
 
 /** After Keep: waits until the base says the running set is saved on the card and read back (true), or the save
