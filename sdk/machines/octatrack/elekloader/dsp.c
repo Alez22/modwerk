@@ -127,6 +127,7 @@ fx_set modwerk_fxmap_used(void);
 uint32_t modwerk_fxmap_generation(void);
 void modwerk_fxmap_assign(unsigned id, uint32_t module, unsigned layout, const char *name);
 void modwerk_fxmap_name(unsigned id, char *out);
+int modwerk_fxmap_loading(void);
 extern volatile uint32_t modwerk_fxmap_read, modwerk_fxmap_written;
 extern volatile uint32_t modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result; /* modset.c */
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots); /* fxpage.c */
@@ -405,11 +406,12 @@ int modwerk_machine_journal_committed(const struct runtime_journal_view *r,int r
 static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles, generation; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured, digest[MU_DIGEST_BYTES]; } moving[MODWERK_FX_IDS];
 static unsigned moving_count;
 static uint32_t mapped; /* the map generation the handles follow */
-static void rebind_tick(void)
+static int rebind_tick(void) /* 1: the handles follow the map's current generation */
 {
     if (!rebinding) {
         uint32_t generation = modwerk_fxmap_generation();
-        if (generation == mapped || !dl_publication_idle()) return;
+        if (generation == mapped) return 1;
+        if (!dl_publication_idle()) return 0;
         mapped = generation;
         fx_set used = modwerk_fxmap_used();
         moving_count = 0;
@@ -431,9 +433,10 @@ static void rebind_tick(void)
             release(k);
         }
         if (moving_count) rebinding = 1, nudge = 1;
-        return;
+        return !moving_count;
     }
-    if (++rebinding < 4u || !dl_publication_idle()) return; /* the manager has retired what let go */
+    if (++rebinding < 4u || !dl_publication_idle()) return 0; /* the manager has retired what let go */
+    int fresh = modwerk_fxmap_generation() == mapped; /* else a newer map came meanwhile: the next tick follows it */
     for (unsigned i = 0; i < moving_count; ++i) {
         int id = choose(moving[i].module, moving[i].pinned ? moving[i].from : MODWERK_FX_IDS, moving[i].pinned); /* pinned: its own or none */
         if (id < 0) continue;
@@ -447,8 +450,9 @@ static void rebind_tick(void)
         list((unsigned)id, moving[i].page, moving[i].page_bytes);
         if (modwerk_fxmap_handle(moving[i].module) != id) modwerk_fxmap_assign((unsigned)id, moving[i].module, moving[i].layout, moving[i].name);
     }
-    mapped = modwerk_fxmap_generation();
+    if (fresh) mapped = modwerk_fxmap_generation();
     rebinding = 0, nudge = 1;
+    return fresh;
 }
 /* The module effects the current bank names: what each track runs, and its four Parts, working and saved.
  * Other banks stay on the card. A bit per effect id, for an update to warn before removing one. */
@@ -511,10 +515,7 @@ int modwerk_dsp_pick(unsigned slot, unsigned track, unsigned row)
     return 1;
 }
 /* A track naming a module effect that is not installed runs stock's null stub, dry,
- * its stored parameters untouched; the unit says so once per change. */
-#ifndef MODWERK_HOST
-static fx_set missing_shown;
-#endif
+ * its stored parameters untouched; the unit says so when such a track is selected. */
 volatile uint32_t modwerk_dsp_missing; /* times the unit said so, for diagnostics */
 fx_set modwerk_dsp_dry(void)
 {
@@ -524,6 +525,33 @@ fx_set modwerk_dsp_dry(void)
         if (fx_in(modwerk_fx_modules, fx) && dl_catalog[fx].resident) dry = fx_with(dry, fx);
     }
     return dry;
+}
+/* Each tick (modwerk_dsp_tick), after the rebind's step (`settled`: rebind_tick's answer): whether to say "MISSING
+ * <NAME>" (into `text`, 24 bytes; 1) for the track just selected (`track`, 8 and up on the MIDI side); the project's
+ * whole list is status.c's page. Only while the handles follow the map of the project that is loaded: during a load
+ * the tracks can run its handles before its end applies its map (fxmap.c), and a rebind takes a module off a handle
+ * before it gets its own, so until then a handle can run dry for a moment under the last project's name for it (MKII,
+ * 21 October 2026: "MISSING SPECTRUM", Spectrum's catalogue handle, for a project whose map gave that handle to
+ * RINGMOD SC, installed). A selection meanwhile waits and is checked once that is over. A load holds it at most
+ * LOAD_HOLD ticks (about a minute), in case one never ends. */
+#define LOAD_HOLD 3600u
+static unsigned last_track = 0xffu, load_held;
+int modwerk_dsp_missing_tick(int settled, unsigned track, char *text)
+{
+    if (!modwerk_fxmap_loading()) load_held = 0;
+    else if (load_held < LOAD_HOLD) ++load_held, settled = 0;
+    if (!settled || track == last_track) return 0;
+    last_track = track;
+    fx_set say = {{0}};
+    if (track < 8u) say = fx_and(modwerk_dsp_dry(), fx_with(fx_with(say, LIVE_FX[track]), LIVE_FX[8u + track]));
+    if (!fx_any(say)) return 0;
+    unsigned k = 0;
+    while (!fx_in(say, k)) ++k;
+    for (unsigned i = 0; i < 8u; ++i) text[i] = "MISSING "[i];
+    modwerk_fxmap_name(k, text + 8);
+    for (char *c = text + 8; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* the popup sizes capitals only */
+    if (!text[8]) for (unsigned i = 0; i < 15u; ++i) text[i] = "MODULE MISSING"[i];
+    return 1;
 }
 /* MISSING (ep0.c, status.c): the modules the project names, in any bank, that no installed module answers for:
  * "MWM" and a count, then per handle 24 bytes: the handle, 0, the layout (big-endian), the module id
@@ -1275,23 +1303,10 @@ void modwerk_dsp_tick(void)
     }
     if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
     else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
-    rebind_tick();
-    fx_set dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = {{0}};
-    missing_shown = dry;
-    /* Said whenever a track running a missing module is selected; the project's whole list is status.c's page. */
-    static unsigned last_track = 0xffu;
-    unsigned track = *(volatile uint8_t *)0x80000000u; /* the current track; 8 and up on the MIDI side */
-    if (track != last_track) {
-        last_track = track;
-        if (track < 8u) say = fx_and(dry, fx_with(fx_with(say, LIVE_FX[track]), LIVE_FX[8u + track]));
-    }
-    if (fx_any(say)) { /* the project's map names what is missing */
-        static char text[24] = "MISSING ";
-        unsigned k = 0;
-        while (!fx_in(say, k)) ++k;
-        modwerk_fxmap_name(k, text + 8);
-        for (char *c = text + 8; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* the popup sizes capitals only */
-        ((void (*)(const char *, unsigned))0x4005a2b8u)(text[8] ? text : "MODULE MISSING", 0xa0);
+    int settled = rebind_tick();
+    static char text[24];
+    if (modwerk_dsp_missing_tick(settled, *(volatile uint8_t *)0x80000000u, text)) { /* the current track */
+        ((void (*)(const char *, unsigned))0x4005a2b8u)(text, 0xa0);
         modwerk_dsp_missing = modwerk_dsp_missing + 1;
     }
     if (nudge) { nudge = 0; dl_residency_nudge(); }
