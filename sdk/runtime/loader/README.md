@@ -120,7 +120,7 @@ limits remain 128 KiB and 2,048.
 
 Package flags remain u16 at 6, module ID u32 at 28 and layout u16 at 66.
 The Octatrack's read-only vendor request 29 (`C1`, value 0, vendor-interface
-index, exact length 12) returns `MWCP`, version u8 = 1, maximum ABI u8 (9 since ABI 9; 8 before),
+index, exact length 12) returns `MWCP`, version u8 = 1, maximum ABI u8 (10 since ABI 10, 9 since ABI 9; 8 before),
 features u16, maximum sites u16 and maximum copies u16, all big-endian.
 Features currently equal 7: ColdFire sites (1), hash-backed copies (2)
 and authored fills (4). Table composition (8), machine groups (16) and
@@ -188,11 +188,38 @@ entry, a DSP word u32. Then the DSP words and relocations, as before. Claims and
   (`modwerk_machine_dsp_claims_admit`, weak: a machine with no DSP ledger refuses every claim). The Octatrack's
   resident base refuses a claim on any base feature's words but a read wholly inside a feature the package requires,
   and one over a live or planned slot buffer (`RUNTIME_MEMORY`), and keeps every buffer clear of live claims.
-- **Hook entries** are checked whole and then refused (`RUNTIME_CONFLICT`): no base has hook slots yet.
+- **Hook entries** are checked whole and then refused (`RUNTIME_CONFLICT`) in an ABI 9 package: an ABI 9 base has no
+  hook slots. ABI 10 gives them to engines (below).
+
+## Engines at hook sites (ABI 10)
+
+ABI 10 keeps ABI 9's 80-byte header and lets a package's DSP words be an **engine** for the base's stock-DSP hook sites
+instead of an effect: DSP words with slots 0 (and id, init, proc, cycles, kind, state and buffer 0). The loader parses
+such words into `runtime_dsp.engine` (count 0, so nothing takes them for an effect) and asks the machine
+(`modwerk_machine_dsp_engine_admit`, weak: refuses every engine) in place of the claims' check.
+
+- **Hook entries** (8 bytes each, at least one, an engine's only): site u8 (the base's catalogue index), cores u8, exit u16
+  and entry u32. `exit` is 0 or the engine word holding a long branch's displacement: the base writes it per core so the
+  branch reaches the site's exit (its stock continuation), and no relocation may name that word. An engine's words are
+  then the same on both cores.
+- **Relocations** of an engine may also name a word holding a fixed P address (`index | 0x8000`: value − base), as the
+  base's own engines (`resident_dsp.engine_unit`).
+- **Claims** of an engine may name both cores (core 2) and carry initial words (access bit 4): the words follow the DSP
+  relocations, each claim's in claim order, 4 bytes a 24-bit word, at most `RUNTIME_DSP_INIT_WORDS` (4,096) in all. The
+  base writes them before it enables the engine's hooks.
+- **The controller digest** (`runtime_dsp.controller_sha256`, kept in the owner record too): SHA-256 of the SHA-256 of
+  the header with its DSP fields zeroed (bytes 32-49, and 76-79 from ABI 9) and the SHA-256 of everything up to the
+  claims (hooks, image, relocations, sites, copies, fills). A base trusts a controller by it, so a package that changes
+  only its DSP part keeps it. Computed for every ABI.
+
+`abi9.py`'s `engine()` writes an ABI 10 package from an ABI 4 to 8 controller package with no DSP code, and
+`controller_sha256()` computes the digest as the loader does. The Octatrack's on-demand base admits an engine only from
+a controller one of its trust rows names, for a feature it packages (`sdk/machines/octatrack/dsp-sites.json` "packaged",
+today Analog BD), with its claims exactly that feature's regions (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md, "Phase 1").
 
 `abi9.py` writes an ABI 9 package from a DSP package `build.py` made (ABI 6, 7 or 8), copying everything else byte
 for byte (`--requires keybus`, `--claim y:0:w:0x7a0:16`). It is kept apart from `build.py`, whose hash is an input of
-the reviewed machine and standalone recipes. The capability record's maximum ABI is 9 on a base built from this loader.
+the reviewed machine and standalone recipes. The capability record's maximum ABI is 10 on a base built from this loader.
 The site's module-set builder (`src/engine/elekloader/module-set.ts`) checks an ABI 9 package as the loader does
 (header, claims, no hook entries) and offers it only to a base whose capability record reports ABI 9; the only
 `requires` bit it accepts is the key bus, and a reader of it goes only to a base the site knows has the bus (the

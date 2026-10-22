@@ -125,13 +125,16 @@ __attribute__((weak)) unsigned modwerk_machine_dsp_features(void) { return 0; }
 /* A machine with no DSP ledger cannot tell what a claim would meet: it refuses every claim. */
 __attribute__((weak)) int modwerk_machine_dsp_claims_admit(unsigned requires, const struct runtime_dsp_claim *claims, unsigned n)
 { (void)requires; (void)claims; return n ? RUNTIME_CONFLICT : RUNTIME_OK; }
+/* ABI 10: a machine without hook sites admits no engine. */
+__attribute__((weak)) int modwerk_machine_dsp_engine_admit(const struct runtime_dsp *d) { (void)d; return RUNTIME_CONFLICT; }
 #endif
-/* Two claims meet: the same core and space, or both in the window both cores see (any space: the window is one memory
- * on the Octatrack, whatever the bus), with a word in common. */
+/* Two claims meet: the same core (an ABI 10 claim on both cores meets either) and space, or both in the window both
+ * cores see (any space: the window is one memory on the Octatrack, whatever the bus), with a word in common. */
 static int claims_meet(const struct runtime_dsp_claim *a, const struct runtime_dsp_claim *b)
 {
     int shared = a->address >= 0x30000u && b->address >= 0x30000u;
-    return (shared || (a->core == b->core && a->space == b->space)) &&
+    int core = a->core == b->core || a->core == RUNTIME_CLAIM_BOTH_CORES || b->core == RUNTIME_CLAIM_BOTH_CORES;
+    return (shared || (core && a->space == b->space)) &&
            a->address < b->address + b->words && b->address < a->address + a->words;
 }
 /* Does a claim of another live module (or a journal's pending one) meet one of these, either of the two writing? */
@@ -302,7 +305,7 @@ static int owner_intact(unsigned i)
         o->image_offset > o->extent_bytes || o->image_bytes > o->extent_bytes - o->image_offset ||
         o->module != m->id || o->extent_bytes != m->size ||
         (uintptr_t)m->dsp.image != at + o->image_offset || o->image_bytes != m->dsp.image_bytes) return 0;
-    return same_digest(o->package_sha256, m->dsp.package_sha256);
+    return same_digest(o->package_sha256, m->dsp.package_sha256) && same_digest(o->controller_sha256, m->dsp.controller_sha256);
 }
 int modwerk_runtime_owner_snapshot(const uint8_t *image,struct runtime_owner *out)
 {
@@ -318,7 +321,8 @@ static int owner_is(unsigned i, const struct runtime_owner *value)
     return value->generation == o->generation && value->module == o->module &&
         value->owned_extent == o->owned_extent && value->extent_bytes == o->extent_bytes &&
         value->image_offset == o->image_offset && value->image_bytes == o->image_bytes &&
-        same_digest(value->package_sha256, o->package_sha256) && owner_intact(i);
+        same_digest(value->package_sha256, o->package_sha256) && same_digest(value->controller_sha256, o->controller_sha256) &&
+        owner_intact(i);
 }
 /* Generations are unique, so at most one entry is `value`; *hint, where it was last, is tried first. */
 int modwerk_runtime_owner_held(const struct runtime_owner *value, unsigned *hint)
@@ -704,7 +708,7 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
     candidate = 0; prepared = 0; refusal = RUNTIME_OK;
     if (length < 28u || data[0] != 'M' || data[1] != 'W' || data[2] != 'R' || data[3] != 'M' || be16(data + 4) < 3u ||
         be16(data + 4) > RUNTIME_ABI || be16(data + 6) & ~(be16(data + 4) >= 8u ? 7u : be16(data + 4) >= 6u ? 3u : 0u)) return refuse(RUNTIME_MALFORMED);
-    uint32_t abi = be16(data + 4), header = abi == 9 ? RUNTIME_HEADER_BYTES : abi == 8 ? 76u : abi == 7 ? 72u : abi == 6 ? 68u : abi == 5 ? 50u : abi == 4 ? 32u : 28u;
+    uint32_t abi = be16(data + 4), header = abi >= 9 ? RUNTIME_HEADER_BYTES : abi == 8 ? 76u : abi == 7 ? 72u : abi == 6 ? 68u : abi == 5 ? 50u : abi == 4 ? 32u : 28u;
     if (length < header) return refuse(RUNTIME_MALFORMED);
     uint32_t image = be32(data + 8), bss = be32(data + 12), count = be32(data + 16), hooks = be32(data + 20),
              sites = be32(data + 24), id = abi > 3 ? be32(data + 28) : 0, end = image + bss, at = header + 4u * hooks,
@@ -724,6 +728,8 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
         }
     }
     if (abi >= 9) dsp.requires = (uint16_t)be16(data + 76), dsp.claim_count = (uint8_t)claims;
+    /* ABI 10: DSP words with no slot are an engine for the base's hook sites, not an effect. */
+    const int engine = abi >= 10u && dsp.count && !dsp.slots;
     if (image > RUNTIME_IMAGE_BYTES || bss > RUNTIME_IMAGE_BYTES - image || hooks > (abi >= 8u ? RUNTIME_HOOKS : RUNTIME_EVENTS) ||
         count > RUNTIME_RELOCATIONS || sites > RUNTIME_SITES || copies > RUNTIME_COPIES || fills > RUNTIME_FILLS ||
         claims > RUNTIME_DSP_CLAIMS || entries > RUNTIME_DSP_HOOK_ENTRIES || length < at + image + 4u * count)
@@ -805,43 +811,70 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
             if (offset < r + 4u && r < offset + n) return refuse(RUNTIME_MALFORMED);
         }
     }
+    /* What is not DSP ends here: the controller digest (loader.h) covers the header, its DSP fields zeroed, and this. */
+    {
+        uint8_t head[RUNTIME_HEADER_BYTES], parts[2u * MU_DIGEST_BYTES];
+        for (uint32_t i = 0; i < header; ++i) head[i] = (abi >= 5u && i >= 32u && i < 50u) || (abi >= 9u && i >= 76u) ? 0u : data[i];
+        mu_sha256(head, header, parts);
+        mu_sha256(data + header, (uint32_t)(p - data) - header, parts + MU_DIGEST_BYTES);
+        mu_sha256(parts, sizeof parts, dsp.controller_sha256);
+    }
     /* ABI 9 claims: space u8 (1 X, 2 Y), core u8 (0, 1), access u8 (1 read, 2 write, 3 both), 0 u8, address u32,
      * words u32. Whole spans of one core's memory or of the window both cores see (at or past 0x30000), never both, and
-     * no two of the package's own meeting. */
+     * no two of the package's own meeting. ABI 10, an engine's only: core 2 (both cores) and access 4 (initial words). */
     struct runtime_dsp_claim claim[RUNTIME_DSP_CLAIMS];
+    uint32_t init_words = 0;
     for (uint32_t i = 0; i < claims; ++i, p += 12u, left -= 12u) {
         if (left < 12u) return refuse(RUNTIME_MALFORMED);
         claim[i] = (struct runtime_dsp_claim){be32(p + 4), be32(p + 8), p[0], p[1], p[2], 0};
         const struct runtime_dsp_claim *c = &claim[i];
-        if (!dsp.count || (c->space != 1u && c->space != 2u) || c->core > 1u || !c->access || c->access > 3u || p[3] || !c->words ||
+        if (!dsp.count || (c->space != 1u && c->space != 2u) || c->core > (engine ? 2u : 1u) || !(c->access & 3u) ||
+            c->access & ~(engine ? 7u : 3u) || p[3] || !c->words ||
             c->address >= 0x40000u || c->words > 0x40000u - c->address || (c->address < 0x30000u && c->address + c->words > 0x30000u))
             return refuse(RUNTIME_MALFORMED);
         for (uint32_t j = 0; j < i; ++j) if (claims_meet(&claim[j], c)) return refuse(RUNTIME_MALFORMED);
+        if (c->access & RUNTIME_CLAIM_INIT) {
+            if (c->words > RUNTIME_DSP_INIT_WORDS - init_words) return refuse(RUNTIME_MALFORMED);
+            init_words += c->words;
+        }
     }
     /* ABI 9 hook entries: site u8 (the base's catalogue index), cores u8 (bit 0 core 0, bit 1 core 1), 0 u16, entry u32 (a
-     * DSP word). Checked whole, one per site, then refused below: no base has hook slots yet. */
-    const uint8_t *entry = p;
+     * DSP word). Checked whole, one per site; ABI 9's are refused below. ABI 10, an engine's: the u16 is its exit (loader.h). */
+    struct runtime_dsp_entry entry[RUNTIME_DSP_HOOK_ENTRIES];
     for (uint32_t i = 0; i < entries; ++i, p += 8u, left -= 8u) {
         if (left < 8u) return refuse(RUNTIME_MALFORMED);
-        if (!p[1] || p[1] > 3u || be16(p + 2) || be32(p + 4) >= dsp.count) return refuse(RUNTIME_MALFORMED);
-        for (uint32_t j = 0; j < i; ++j) if (entry[8u * j] == p[0]) return refuse(RUNTIME_MALFORMED);
+        entry[i] = (struct runtime_dsp_entry){be32(p + 4), (uint16_t)be16(p + 2), p[0], p[1]};
+        if (!p[1] || p[1] > 3u || (abi >= 10u && !engine) || entry[i].entry >= dsp.count ||
+            (entry[i].exit && (!engine || entry[i].exit >= dsp.count))) return refuse(RUNTIME_MALFORMED);
+        for (uint32_t j = 0; j < i; ++j) if (entry[j].site == p[0]) return refuse(RUNTIME_MALFORMED);
     }
-    /* DSP code: 24-bit words; each relocation names a word holding an offset into them, in rising order. */
-    const uint8_t *words = p, *dsp_relocation = p + 4u * dsp.count;
+    /* DSP code: 24-bit words; each relocation names a word holding an offset into them, in rising order. An engine's may
+     * also name a word holding a fixed P address (index | 0x8000), and its exits are no relocation's. Then, ABI 10, the
+     * init claims' words. */
+    const uint8_t *words = p, *dsp_relocation = p + 4u * dsp.count, *init = dsp_relocation + 2u * dsp.relocation_count;
     if (dsp.count > RUNTIME_DSP_WORDS || dsp.relocation_count > RUNTIME_DSP_RELOCATIONS ||
-        left != 4u * dsp.count + 2u * dsp.relocation_count || (!dsp.count && dsp.relocation_count) ||
-        (dsp.count && (dsp.init >= dsp.count || dsp.proc >= dsp.count || !dsp.slots || dsp.slots > 3u)))
+        left != 4u * dsp.count + 2u * dsp.relocation_count + 4u * init_words || (!dsp.count && dsp.relocation_count) ||
+        (dsp.count && !engine && (dsp.init >= dsp.count || dsp.proc >= dsp.count || !dsp.slots || dsp.slots > 3u)) ||
+        (engine && (dsp.init || dsp.proc || dsp.cycles || dsp.kind || dsp.state || dsp.buffer || dsp.id || !entries)))
         return refuse(RUNTIME_MALFORMED);
     for (uint32_t i = 0; i < dsp.count; ++i) if (be32(words + 4u * i) > 0xffffffu) return refuse(RUNTIME_MALFORMED);
+    for (uint32_t i = 0; i < init_words; ++i) if (be32(init + 4u * i) > 0xffffffu) return refuse(RUNTIME_MALFORMED);
     for (uint32_t i = 0; i < dsp.relocation_count; ++i) {
-        uint32_t r = be16(dsp_relocation + 2u * i);
-        if (r >= dsp.count || be32(words + 4u * r) >= dsp.count || (i && r <= be16(dsp_relocation + 2u * i - 2u)))
+        uint32_t r = be16(dsp_relocation + 2u * i), at = engine ? r & 0x7fffu : r;
+        if (at >= dsp.count || (!(engine && r & 0x8000u) && be32(words + 4u * at) >= dsp.count) ||
+            (i && at <= (be16(dsp_relocation + 2u * i - 2u) & (engine ? 0x7fffu : 0xffffu))))
             return refuse(RUNTIME_MALFORMED);
+        for (uint32_t j = 0; j < entries; ++j) if (entry[j].exit && entry[j].exit == at) return refuse(RUNTIME_MALFORMED);
     }
-    dsp.present = (uint8_t)!!(image || sites || dsp.count);
+    uint32_t dsp_words_n = dsp.count, dsp_relocations_n = dsp.relocation_count;
+    if (engine) {
+        dsp.engine_count = dsp.count, dsp.engine_relocation_count = dsp.relocation_count, dsp.count = 0, dsp.relocation_count = 0;
+        dsp.entry_count = (uint8_t)entries, dsp.init_count = init_words, dsp.claims = claim, dsp.entries = entry;
+    }
+    dsp.present = (uint8_t)!!(image || sites || dsp.count || engine);
     mu_sha256(data, length, dsp.package_sha256);
-    /* ABI 9: a stock-DSP hook needs a hook slot no base has yet; a feature this base lacks. */
-    if (entries || (dsp.requires & ~modwerk_machine_dsp_features())) return refuse(RUNTIME_CONFLICT);
+    /* ABI 9: a stock-DSP hook needs a hook slot no ABI 9 base has; a feature this base lacks. */
+    if ((entries && !engine) || (dsp.requires & ~modwerk_machine_dsp_features())) return refuse(RUNTIME_CONFLICT);
     /* Admission: a position, bytes no other live module owns, an effect id and what the machine's DSPs take, memory. */
     slot = position_of(id);
     if (slot == RUNTIME_MODULES || roomless(slot, hook)) return refuse(RUNTIME_FULL);
@@ -850,17 +883,19 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
     for (uint32_t i = 0; i < sites; ++i) if (claimed(slot, address[i], size[i])) return refuse(RUNTIME_CONFLICT);
     if (claims_taken(slot, claim, claims)) return refuse(RUNTIME_CONFLICT); /* another live module's claim */
     uint32_t admission_lock = modwerk_machine_lock();
-    int why = modwerk_machine_dsp_claims_admit(dsp.requires, claim, claims);
+    int why = engine ? modwerk_machine_dsp_engine_admit(&dsp) : modwerk_machine_dsp_claims_admit(dsp.requires, claim, claims);
     if (!why) why = modwerk_machine_metadata_admit(dsp_of(live[slot]), &dsp, context, RUNTIME_METADATA_PREPARE);
     if (!why) why = modwerk_machine_dsp_admit(dsp_of(live[slot]), &dsp);
     modwerk_machine_unlock(admission_lock);
     if (why) return refuse((enum runtime_refusal)why);
-    if (image || sites || dsp.count) {
+    if (image || sites || dsp.count || engine) {
         if (owner_generation == UINT32_MAX) return refuse(RUNTIME_FULL);
         reclaim(context);
         uint32_t head = ((uint32_t)sizeof(struct runtime_module) + sites * (uint32_t)sizeof(struct runtime_site) + 15u) & ~15u,
-                 code = (end + 15u) & ~15u, words_end = (4u * dsp.count + 2u * dsp.relocation_count + 3u) & ~3u,
-                 tail = (words_end + (uint32_t)sizeof(struct runtime_dsp_claim) * claims + 15u) & ~15u;
+                 code = (end + 15u) & ~15u, words_end = (4u * dsp_words_n + 2u * dsp_relocations_n + 3u) & ~3u,
+                 entries_at = words_end + (uint32_t)sizeof(struct runtime_dsp_claim) * claims,
+                 init_at = entries_at + (uint32_t)sizeof(struct runtime_dsp_entry) * entries,
+                 tail = (init_at + 4u * init_words + 15u) & ~15u;
         struct runtime_module *m = take(head + code + tail);
         if (!m) return refuse(RUNTIME_MEMORY);
         struct runtime_site *site = (struct runtime_site *)(void *)(m + 1);
@@ -908,12 +943,19 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
 #endif
         modwerk_machine_invalidate_code();
         uint32_t *dsp_words = (uint32_t *)(void *)((uint8_t *)m + head + code);
-        uint16_t *dsp_relocations = (uint16_t *)(void *)(dsp_words + dsp.count);
-        for (uint32_t i = 0; i < dsp.count; ++i) dsp_words[i] = be32(words + 4u * i);
-        for (uint32_t i = 0; i < dsp.relocation_count; ++i) dsp_relocations[i] = (uint16_t)be16(dsp_relocation + 2u * i);
+        uint16_t *dsp_relocations = (uint16_t *)(void *)(dsp_words + dsp_words_n);
+        for (uint32_t i = 0; i < dsp_words_n; ++i) dsp_words[i] = be32(words + 4u * i);
+        for (uint32_t i = 0; i < dsp_relocations_n; ++i) dsp_relocations[i] = (uint16_t)be16(dsp_relocation + 2u * i);
         struct runtime_dsp_claim *kept = (struct runtime_dsp_claim *)(void *)((uint8_t *)dsp_words + words_end);
         for (uint32_t i = 0; i < claims; ++i) kept[i] = claim[i];
-        dsp.words = dsp_words; dsp.relocations = dsp_relocations; dsp.claims = claims ? kept : 0;
+        struct runtime_dsp_entry *kept_entries = (struct runtime_dsp_entry *)(void *)((uint8_t *)dsp_words + entries_at);
+        for (uint32_t i = 0; i < entries; ++i) kept_entries[i] = entry[i];
+        uint32_t *kept_init = (uint32_t *)(void *)((uint8_t *)dsp_words + init_at);
+        for (uint32_t i = 0; i < init_words; ++i) kept_init[i] = be32(init + 4u * i);
+        if (engine) dsp.engine = dsp_words, dsp.engine_relocations = dsp_relocations, dsp.words = 0, dsp.relocations = 0,
+                    dsp.entries = kept_entries, dsp.initial = init_words ? kept_init : 0;
+        else dsp.words = dsp_words, dsp.relocations = dsp_relocations;
+        dsp.claims = claims ? kept : 0;
         dsp.image = to;
         if (be16(data + 6) & 1u) dsp.page = to, dsp.page_bytes = image; /* a page recipe heads the image; the machine checks it */
         m->id = id; m->size = head + code + tail; m->dsp = dsp;
@@ -922,8 +964,9 @@ static int __attribute__((used)) prepare_context(void *u, const uint8_t *data, u
         /* Only complete, source-checked reconstruction receives a generation.
          * Address reuse cannot recreate an old immutable owner identity. */
         struct runtime_owner identity = {++owner_generation, id, (uintptr_t)m,
-            m->size, head, image, {0}};
-        for (unsigned i = 0; i < MU_DIGEST_BYTES; ++i) identity.package_sha256[i] = dsp.package_sha256[i];
+            m->size, head, image, {0}, {0}};
+        for (unsigned i = 0; i < MU_DIGEST_BYTES; ++i)
+            identity.package_sha256[i] = dsp.package_sha256[i], identity.controller_sha256[i] = dsp.controller_sha256[i];
         owners_changing();
         owner_identity[owners] = identity;
         owned[owners++] = candidate = m;

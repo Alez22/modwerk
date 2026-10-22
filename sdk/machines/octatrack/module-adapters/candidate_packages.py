@@ -53,10 +53,10 @@ def inputs(root, upstream, module):
 def records(data):
     """Read guards from the actual package, not the proposed manifest."""
     abi = int.from_bytes(data[4:6], 'big')
-    if data[:4] != b'MWRM' or abi not in (6, 7, 8, 9):
+    if data[:4] != b'MWRM' or abi not in (6, 7, 8, 9, 10):
         raise ValueError('A private package has an unsupported header.')
     read = lambda at, n=4: int.from_bytes(data[at:at + n], 'big')
-    header = {6: 68, 7: 72, 8: 76, 9: 80}[abi]  # ABI 9's claims and hook entries follow the fills: no stock guards
+    header = {6: 68, 7: 72, 8: 76, 9: 80, 10: 80}[abi]  # ABI 9's claims and hook entries follow the fills: no stock guards
     if len(data) < header:
         raise ValueError('A private package has a truncated header.')
     at = header + read(20) * 4 + read(8) + read(16) * 4

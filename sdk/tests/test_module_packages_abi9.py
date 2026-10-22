@@ -45,6 +45,26 @@ class PublishedAbi9(unittest.TestCase):
         with self.assertRaises(ValueError):
             builder.capabilities(data)
 
+    def test_an_abi_10_engine_reads_with_its_entries_and_its_words_are_scanned(self):
+        """A base-bound controller's engine (hook_engines.py): its entry count in the manifest, and its words and
+        initial words both in the stock-free scan."""
+        controller = (ROOT / 'public/octatrack-modules/analog-bassdrum/0.1.5-experimental.mwrm').read_bytes()
+        words, init = [0x111111 + i for i in range(8)], [0x222222 + i for i in range(5)]
+        words[5] = 0x0d10c0
+        data = abi9.engine(controller, words, [1 | 0x8000], 5, 3, 6, [('x', 2, 0x2840, init)])
+        found = builder.capabilities(data)
+        self.assertEqual((found['abi'], found['requires'], found['claims'], found['entries']), (10, 0, 1, 1))
+        self.assertEqual({k: v for k, v in found.items() if k not in ('abi', 'requires', 'claims', 'entries')},
+                         {k: v for k, v in builder.capabilities(controller).items() if k != 'abi'})
+        big, little = builder.dsp_words(data)
+        self.assertEqual(big, b''.join(w.to_bytes(3, 'big') for w in words + init))
+        self.assertEqual(little, b''.join(w.to_bytes(3, 'little') for w in words + init))
+        # What a trust row pins stays with the controller: another engine, the same digest.
+        other = abi9.engine(controller, [0] + words[1:], [1 | 0x8000], 5, 3, 6, [('x', 2, 0x2840, init[:3])])
+        self.assertEqual(abi9.controller_sha256(other), abi9.controller_sha256(data))
+        self.assertNotEqual(abi9.controller_sha256(abi9.engine(controller[:-1] + b'\x01', words, [1 | 0x8000], 5, 3, 6,
+                                                                [('x', 2, 0x2840, init)])), abi9.controller_sha256(data))
+
 
 if __name__ == '__main__':
     unittest.main()

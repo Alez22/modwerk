@@ -41,7 +41,8 @@ def load(path=REGISTRY):
         raise ValueError('dsp-sites.json: features are the bits 1, 2, 4, ... in order, with distinct names')
     for f in reg['features']:
         if not f['cores'] or set(f['cores']) - {'A', 'B'} or any(i not in bits or i == f['bit'] for i in f['implies']) or \
-                ('executed' in f and not (isinstance(f['executed'], int) and 0 < f['executed'] < 65536)):
+                ('executed' in f and not (isinstance(f['executed'], int) and 0 < f['executed'] < 65536)) or \
+                f.get('packaged', False) not in (True, False):
             raise ValueError('dsp-sites.json: feature ' + f['name'] + ' has bad cores or implies')
     for n, s in enumerate(reg['sites']):
         if s['index'] != n or s['feature'] not in bits or s['kind'] != 'exclusive' or s['words'] != 2:
@@ -52,6 +53,9 @@ def load(path=REGISTRY):
         for tag in ('A', 'B'):
             if tag in s and not 0 <= _int(s[tag], s['name']) < 0x2000:
                 raise ValueError('dsp-sites.json: site %s is outside stock P' % s['name'])
+        if 'exit' in s and (set(s['exit']) != {'A', 'B'} & set(s) or
+                            not all(0 <= _int(v, s['name']) < 0x2000 for v in s['exit'].values())):
+            raise ValueError('dsp-sites.json: site %s has an exit outside stock P or for a payload it lacks' % s['name'])
     for r in reg['regions']:
         start, words = _int(r['start'], 'start'), _int(r['words'], 'words')
         if r['feature'] not in bits or r['space'] not in ('x', 'y') or not words:
@@ -114,6 +118,8 @@ def header(reg):
     for bit, name in names.items():
         lines.append('#define MW_DSP_%s %uu' % (name, bit))
     lines.append('#define MW_DSP_FEATURES %uu  /* every feature bit */' % sum(names))
+    lines.append('/* Features whose engine and initial words come from their controller\'s package (ABI 10), never from the base. */')
+    lines.append('#define MW_DSP_PACKAGED %uu' % sum(f['bit'] for f in reg['features'] if f.get('packaged')))
     for f in reg['features']:
         if 'executed' in f:
             lines.append('#define MW_DSP_%s_EXECUTED %uu  /* its tap: executed instructions a sample for a core\'s four tracks, '
@@ -137,7 +143,15 @@ def header(reg):
     for feature, core, space, address, words in spans(reg):
         lines.append('    {%uu, %uu, %uu, 0, 0x%xu, 0x%xu}, /* %s */' % (feature, core, 1 if space == 'x' else 2, address, words,
                                                                    names[feature].lower()))
-    lines += ['};', '#define MW_DSP_REGIONS (sizeof mw_dsp_regions / sizeof mw_dsp_regions[0])', '', '#endif', '']
+    lines += ['};', '#define MW_DSP_REGIONS (sizeof mw_dsp_regions / sizeof mw_dsp_regions[0])', '',
+              '/* The sites, by index (a package\'s hook entry names one): its feature, and per core its stock P continuation',
+              ' * after the hooked code when it has an exit (0: none, or no such payload). */',
+              'struct mw_dsp_site { uint8_t feature, pad; uint16_t exit[2]; };',
+              'static const struct mw_dsp_site mw_dsp_sites[] = {']
+    for s in reg['sites']:
+        exits = [_int(s['exit'][tag], s['name']) if tag in s.get('exit', {}) else 0 for tag in ('A', 'B')]
+        lines.append('    {%uu, 0, {0x%xu, 0x%xu}}, /* %d %s */' % (s['feature'], exits[0], exits[1], s['index'], s['name']))
+    lines += ['};', '#define MW_DSP_SITES (sizeof mw_dsp_sites / sizeof mw_dsp_sites[0])', '', '#endif', '']
     return '\n'.join(lines)
 
 
@@ -153,11 +167,24 @@ def _manifest_hooks():
         os.chdir(old)
 
 
+def _analog_seams():
+    """Analog BD's seam and continuation per payload, from the layout its card build and package share (ab_image.PAY)."""
+    sys.path.insert(0, str(SDK / 'tools/build'))
+    import ab_image
+    return {tag: (c['seam'], c['cont']) for tag, c in ab_image.PAY.items()}
+
+
 def check(reg):
     """The registry against its sources. Returns a list of problems."""
     problems = []
     hooks = _manifest_hooks()
     for s in reg['sites']:
+        if s['module'] == 'analog-bassdrum':
+            # Its manifest declares no DspHook: the seam is its glue's (ab_glue.asm), shared by the card build.
+            seams = _analog_seams()
+            if any((_int(s[tag], s['name']), _int(s['exit'][tag], s['name'])) != seams[tag] for tag in ('A', 'B')):
+                problems.append('%s: its address or exit differs from ab_image.PAY' % s['name'])
+            continue
         hook = hooks.get(s['module'], {}).get(s['label'])
         if hook is None:
             problems.append('%s: %s declares no hook %s' % (s['name'], s['module'], s['label']))

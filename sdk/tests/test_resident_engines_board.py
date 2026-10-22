@@ -14,6 +14,12 @@ hardware ACK, timing or audio is claimed; the DSP side's own execution is test_r
 The key bus (feature 8, the board's own holder): Sidechain's made-up unit is 300 words and the bus's 88, so the two
 together take the 388 words Sidechain alone took before the split, the bus at the arena's top and Sidechain directly
 under it. Modes 39-40 are an ABI 9 package that requires the bus (a reader), beside Sidechain, in both removal orders.
+
+Analog BD (feature 4) is packaged: its engine (998 made-up words with a long branch to its site's exit) and its
+initial words come from its controller's package (ABI 10, test_controller_board.ab_package), never from the build's
+data. Modes 50-53: a DSP-only update under the same trust row (the old engine unplaced, the new one placed and reset
+from its own words), back again, the refusals (an engine from no trusted controller, no exit, claims that are not the
+feature's region), and a replacement waiting while the sequencer plays.
 """
 import importlib.util
 import hashlib
@@ -49,7 +55,7 @@ from host_flags import SANITIZE  # noqa: E402
 
 TABLE, WORDS = 4096, 2000          # each core's pool in this fixture: arena 1936 words
 ARENA = WORDS - 64
-SIZES = {('A', 1): 300, ('A', 2): 773, ('A', 4): 998, ('A', 8): 88, ('B', 1): 300, ('B', 4): 998, ('B', 8): 88}
+SIZES = {('A', 1): 300, ('A', 2): 773, ('A', 8): 88, ('B', 1): 300, ('B', 8): 88}  # Analog BD's: its package's
 
 
 def unit(tag, feature, n):
@@ -78,8 +84,19 @@ def bundles():
     out = {}
     for tag in 'AB':
         engines = {f: unit(tag, f, n) for (t, f), n in SIZES.items() if t == tag}
-        out[tag] = dict(onDemand=sum(engines), engines=engines)
+        out[tag] = dict(onDemand=sum(engines) | resident_dsp.PACKAGED, engines=engines)
     return out
+
+
+def ab_relocated(seed, core, base):
+    """Analog BD's package engine at absolute P `base` on a core, its exit pointed at its site's continuation there."""
+    words, relocations, exit = board.ab_engine(seed, AB_SIZES[seed])
+    out = resident_dsp.relocate(dict(words=words, relocations=relocations), base)
+    out[exit] = (board.AB_EXITS[core] - (base + exit - 1)) & 0xffffff
+    return out
+
+
+AB_SIZES = (998, 1010)  # pkg_ab's engine and pkg_ab2's
 
 
 def expected(units):
@@ -90,7 +107,9 @@ def expected(units):
             offset = ARENA - len(u['words'])
             words = resident_dsp.relocate(u, TABLE + 64 + offset)
             text += 'static const uint32_t top_%d_%d[%d] = {%s};\n' % (core, feature, len(words), ','.join(map(str, words)))
-        text += ''.join('#define TOP_%d_%d %s\n' % (core, f, 'top_%d_%d' % (core, f) if f in units[tag]['engines'] else '0')
+        words = ab_relocated(0, core, TABLE + 64 + ARENA - AB_SIZES[0])
+        text += 'static const uint32_t top_%d_4[%d] = {%s};\n' % (core, len(words), ','.join(map(str, words)))
+        text += ''.join('#define TOP_%d_%d %s\n' % (core, f, 'top_%d_%d' % (core, f) if f in units[tag]['engines'] or f == 4 else '0')
                         for f in (1, 2, 4, 8))
     return text
 
@@ -206,6 +225,7 @@ extern uint8_t test_parts[4][16];
  * table: the FX code each id runs from the next frame on. */
 static uint32_t P[2][8192];
 static unsigned dsp_mask[2], words[2][4], base_word[2][4], answered[2], cas_count, sc_before_bus;
+static unsigned ab_reset[2][3776]; /* the words each core's Analog BD reset wrote */
 /* The key window held some slot buffer's words since the bus's reset began there (mode 41): only a reset from offset 0
  * (the receiver's fresh start) rewrites them, and the bus is never enabled over them. */
 static unsigned window_dirty[2];
@@ -274,14 +294,17 @@ static void dsp(void)
             unsigned f = w7, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
             if (k <= 3 && !w5 && !(dsp_mask[c] & f)) words[c][k] = 0; /* offset 0: a fresh start (hookready cleared) */
             reject = k > 3 || w5 != words[c][k] || (dsp_mask[c] & f);
+            for (unsigned i = 0; !reject && k == 2 && i < w4 && w5 + i < 3776u; ++i) /* Analog BD's words, as sent */
+                ab_reset[c][w5 + i] = (unsigned)dl_tx[c][8 + 2 * i] << 8 | dl_tx[c][9 + 2 * i];
             if (!reject) words[c][k] += w4;
             if (!reject && f == 8u && !w5) window_dirty[c] = 0, seed_live[c] = 0;
-        } else if (op == 10u && w7 == 1u) {
+        } else if (op == 10u && w7) {
+            /* PLACE: word 7 the engine's words (resident_dsp.receiver_place); core B carries no Output Matrix. */
             unsigned f = w4, k = f == 1u ? 0 : f == 2u ? 1 : f == 4u ? 2 : f == 8u ? 3 : 4;
-            reject = k > 3 || (dsp_mask[c] & f) || !mw_engine_units[c][k].count || (refuse_place[c] && w5 == refuse_place[c]);
+            reject = k > 3 || (dsp_mask[c] & f) || (c && f == 2u) || w7 >= 0x2000u || (refuse_place[c] && w5 == refuse_place[c]);
             if (!reject && base_word[c][k]) { reject = w5 != 0; if (!reject) base_word[c][k] = 0; }
             else if (!reject && w5) {
-                reject = w5 < 64u || w5 + mw_engine_units[c][k].count > MODWERK_DSP_WORDS0;
+                reject = w5 < 64u || w5 + w7 > MODWERK_DSP_WORDS0;
                 if (!reject) base_word[c][k] = MODWERK_DSP_TABLE0 + w5;
             }
         } else if (op == 10u && w7 == 0u) {
@@ -382,10 +405,26 @@ static void remove_module(uint32_t module)
 #define READER 0x6b627264u /* an ABI 9 package that requires the key bus */
 /* Placed exactly: the base word the receiver keeps names the engine's table offset, P holds every relocated word,
  * and the words a placement at the arena's top must have, made by resident_dsp.relocate, where it sits there. */
+/* An engine's unit: the build's, or Analog BD's from the package the mode says is placed (ab_seed: pkg_ab 0, pkg_ab2 1). */
+static unsigned ab_seed;
+static const struct mw_engine_unit *unit_for(unsigned c, unsigned f)
+{
+    static struct mw_engine_unit ab[2];
+    if (f != 4u) return &mw_engine_units[c][K(f)];
+    ab[c] = ab_seed ? (struct mw_engine_unit){ab_engine_words_1, ab_engine_relocations_1, AB_COUNT_1, AB_RELOCATIONS_1, AB_EXIT_1, c ? 0x221u : 0x426u}
+                    : (struct mw_engine_unit){ab_engine_words_0, ab_engine_relocations_0, AB_COUNT_0, AB_RELOCATIONS_0, AB_EXIT_0, c ? 0x221u : 0x426u};
+    return &ab[c];
+}
+/* Each core's Analog BD reset wrote its package's initial words (the seed's), whole. */
+static int ab_reset_is(unsigned seed)
+{
+    for (unsigned c = 0; c < 2; ++c) for (unsigned i = 0; i < 3776u; ++i) if (ab_reset[c][i] != (seed ? ab_expect_1 : ab_expect_0)[i]) return 0;
+    return 1;
+}
 static void placed_at(unsigned c, unsigned f, unsigned offset)
 {
     const struct mw_engine *e = &mw_engines[c][K(f)];
-    const struct mw_engine_unit *u = &mw_engine_units[c][K(f)];
+    const struct mw_engine_unit *u = unit_for(c, f);
     assert(e->state == MW_ENGINE_PLACED && e->offset == offset);
     unsigned base = MODWERK_DSP_TABLE0 + 64u + offset;
     assert(base_word[c][K(f)] == base);
@@ -394,7 +433,7 @@ static void placed_at(unsigned c, unsigned f, unsigned offset)
     for (unsigned i = 0; i < u->count; ++i) assert(P[c][base + i] == want[i]);
     const uint32_t *top = c == 0 ? (f == 1 ? TOP_0_1 : f == 2 ? TOP_0_2 : f == 4 ? TOP_0_4 : TOP_0_8) :
                                    (f == 1 ? TOP_1_1 : f == 2 ? TOP_1_2 : f == 4 ? TOP_1_4 : TOP_1_8);
-    if (offset + u->count == MODWERK_DSP_WORDS0 - 64u) for (unsigned i = 0; i < u->count; ++i) assert(P[c][base + i] == top[i]);
+    if (offset + u->count == MODWERK_DSP_WORDS0 - 64u && (f != 4u || !ab_seed)) for (unsigned i = 0; i < u->count; ++i) assert(P[c][base + i] == top[i]);
 }
 static void unplaced(unsigned c, unsigned f)
 {
@@ -404,11 +443,11 @@ static void unplaced(unsigned c, unsigned f)
  * then the RESETs and the enabling CAS. */
 static void ordered(unsigned c, unsigned f, unsigned offset, unsigned from)
 {
-    unsigned stage = 0, written = 0, n = mw_engine_units[c][K(f)].count, at = 64u + offset;
+    unsigned stage = 0, written = 0, n = unit_for(c, f)->count, at = 64u + offset;
     for (unsigned i = from; i < trails[c]; ++i) {
         const struct entry *t = &trail[c][i];
         if (t->op == 3u && t->w5 >= at && t->w5 < at + n) { assert(stage == 0); written += t->w4; }
-        else if (t->op == 10u && t->w7 == 1u && t->w4 == f) { assert(stage == 0 && written == n && t->w5 == at); stage = 1; }
+        else if (t->op == 10u && t->w7 && t->w5 && t->w4 == f) { assert(stage == 0 && written == n && t->w5 == at && t->w7 == n); stage = 1; }
         else if (t->op == 11u && t->w7 == f) { assert(stage == 1 || stage == 2); stage = 2; }
         else if (t->op == 10u && t->w7 == 0u && (t->w5 & ~t->w4 & f)) { assert(stage == 2); stage = 3; }
     }
@@ -494,7 +533,7 @@ int main(int argc, char **argv)
             unsigned disabled = 0, gone = 0;
             for (unsigned i = from[c]; i < trails[c]; ++i) {
                 if (trail[c][i].op == 10u && !trail[c][i].w7 && (trail[c][i].w4 & 1u) && !(trail[c][i].w5 & 1u)) disabled = i + 1;
-                if (trail[c][i].op == 10u && trail[c][i].w7 == 1u && !trail[c][i].w5) gone = i + 1;
+                if (trail[c][i].op == 10u && trail[c][i].w7 && !trail[c][i].w5) gone = i + 1;
             }
             assert(disabled && gone > disabled);
         }
@@ -531,6 +570,7 @@ int main(int argc, char **argv)
         assert(install(pkg_sc, sizeof pkg_sc) == MU_APPLIED && install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
         run(1000);
         assert(slot_for(SC, MW_CTL_ACTIVE) && slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 13 && dsp_mask[1] == 13);
+        assert(ab_reset_is(0)); /* its package's initial words, on both cores */
         for (unsigned c = 0; c < 2; ++c) { placed_at(c, 1, sc); placed_at(c, 4, ab); assert(dl_engine_reserved(c) == 1386 && test_capacity(c) == ab); }
         unsigned jobs = mw_engines_jobs;
         assert(refused(pkg_matrix, sizeof pkg_matrix) == RUNTIME_MEMORY);
@@ -1368,6 +1408,85 @@ int main(int argc, char **argv)
         run(100);
         assert(refused(second, sizeof second) == RUNTIME_FEATURE); /* for the boot: nothing reopens the core */
         assert(!(dsp_mask[1] & 8u));
+    } else if (mode == 50) {
+        /* A DSP-only update (Phase 1's point): pkg_ab2 is the same controller (the same trust row, the controller digest)
+         * with another engine (1,010 words) and other initial words. The old engine is disabled and unplaced, the new
+         * one written, placed, reset from its own words and enabled; the reserve follows its size. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(800);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4 && ab_reset_is(0));
+        placed_at(0, 4, top - 998u); placed_at(1, 4, top - 998u);
+        unsigned from[2] = {trails[0], trails[1]};
+        assert(refused(pkg_ab2, sizeof pkg_ab2) == RUNTIME_BUSY); /* the hooks first */
+        run(20);
+        assert(install(pkg_ab2, sizeof pkg_ab2) == MU_APPLIED);
+        run(800);
+        ab_seed = 1;
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4 && ab_reset_is(1));
+        for (unsigned c = 0; c < 2; ++c) {
+            placed_at(c, 4, top - 1010u); ordered(c, 4, top - 1010u, from[c]);
+            assert(dl_engine_reserved(c) == 1010 && test_capacity(c) == top - 1010u);
+            /* The old engine unplaced (PLACE offset 0) after its disable, before the new one's words. */
+            unsigned disabled = 0, gone = 0, written = 0;
+            for (unsigned i = from[c]; i < trails[c]; ++i) {
+                const struct entry *x = &trail[c][i];
+                if (!disabled && x->op == 10u && !x->w7 && (x->w4 & 4u) && !(x->w5 & 4u)) disabled = i + 1;
+                if (!gone && x->op == 10u && x->w7 && x->w4 == 4u && !x->w5) gone = i + 1;
+                if (!written && x->op == 3u) written = i + 1;
+            }
+            assert(disabled && gone > disabled && written > gone);
+        }
+        remove_module(AB);
+        run(20);
+        unplaced(0, 4); unplaced(1, 4);
+        assert(!dl_engine_reserved(0) && !dl_engine_reserved(1));
+    } else if (mode == 51) {
+        /* Engines come only from a trusted controller: one beside another image (no row) is refused before anything is
+         * taken; a trusted one whose claims are not Analog BD's region, or which has no exit where its site has one, is
+         * refused whole. Nothing is placed, reset or reserved. */
+        assert(refused(pkg_ab_untrusted, sizeof pkg_ab_untrusted) == RUNTIME_CONFLICT);
+        assert(refused(pkg_ab_badclaim, sizeof pkg_ab_badclaim) == RUNTIME_MALFORMED);
+        assert(refused(pkg_ab_noexit, sizeof pkg_ab_noexit) == RUNTIME_MALFORMED);
+        run(100);
+        assert(!mw_engines_jobs && !trails[0] && !trails[1] && !dl_engine_reserved(0) && !(modwerk_controller_held() & 4u));
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED); /* the good one still installs */
+        run(800);
+        assert(slot_for(AB, MW_CTL_ACTIVE) && ab_reset_is(0));
+    } else if (mode == 52) {
+        /* The update, then back (an Undo is this: the previous package installed again): pkg_ab's engine placed afresh,
+         * reset from its own words again. Each generation's engine is its own package's, never adopted. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(800);
+        remove_module(AB);
+        assert(install(pkg_ab2, sizeof pkg_ab2) == MU_APPLIED);
+        run(800);
+        ab_seed = 1;
+        assert(slot_for(AB, MW_CTL_ACTIVE) && ab_reset_is(1));
+        placed_at(0, 4, top - 1010u);
+        assert(refused(pkg_ab, sizeof pkg_ab) == RUNTIME_BUSY);
+        run(20);
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(800);
+        ab_seed = 0;
+        assert(slot_for(AB, MW_CTL_ACTIVE) && dsp_mask[0] == 4 && dsp_mask[1] == 4 && ab_reset_is(0));
+        placed_at(0, 4, top - 998u); placed_at(1, 4, top - 998u);
+    } else if (mode == 53) {
+        /* While playing, a replacement waits: no unplace, no write, nothing enabled; stopped, it goes through. */
+        assert(install(pkg_ab, sizeof pkg_ab) == MU_APPLIED);
+        run(800);
+        assert(refused(pkg_ab2, sizeof pkg_ab2) == RUNTIME_BUSY);
+        run(20);
+        assert(install(pkg_ab2, sizeof pkg_ab2) == MU_APPLIED);
+        quiet = 0;
+        unsigned from = trails[0];
+        run(300);
+        for (unsigned i = from; i < trails[0]; ++i) assert(trail[0][i].op != 3u && !(trail[0][i].op == 10u && trail[0][i].w7));
+        assert(!slot_for(AB, MW_CTL_ACTIVE) && base_word[0][2] && mw_engines[0][2].count == 998);
+        quiet = 1;
+        run(800);
+        ab_seed = 1;
+        assert(slot_for(AB, MW_CTL_ACTIVE) && ab_reset_is(1));
+        placed_at(0, 4, top - 1010u);
     } else assert(0);
     return 0;
 }
@@ -1424,9 +1543,25 @@ def generated(work, units):
         words=[0x0c0000 + i for i in range(8)], relocations=[], effect=30, slots=1, init=0, proc=1, cycles=100, kind=1,
         state=4, buffer=0, name='READER', layout=1)), abi9.base_features(['keybus']))
     reader = reader[:28] + (0x6b627264).to_bytes(4, 'big') + reader[32:]  # module READER
-    (work / 'packages.h').write_text(board.header() + 'static const uint8_t pkg_ab_other[%d] = {%s};\n' % (
-        len(other), ','.join(map(str, other))) + 'static const uint8_t pkg_reader[%d] = {%s};\n' % (
-        len(reader), ','.join(map(str, reader))))
+    def array(name, data, kind='uint8_t'):
+        return 'static const %s %s[%d] __attribute__((unused)) = {%s};\n' % (kind, name, len(data), ','.join(map(str, data)))
+    text = board.header() + array('pkg_ab_other', other) + array('pkg_reader', reader)
+    # Analog BD's engines as the fixture places them (pkg_ab's, then pkg_ab2's: the same controller, another engine).
+    for seed in (0, 1):
+        words, relocations, exit = board.ab_engine(seed, AB_SIZES[seed])
+        text += array('ab_engine_words_%d' % seed, words, 'uint32_t') + array('ab_engine_relocations_%d' % seed, relocations, 'uint16_t')
+        text += '#define AB_COUNT_%d %du\n#define AB_RELOCATIONS_%d %du\n#define AB_EXIT_%d %du\n' % (
+            seed, len(words), seed, len(relocations), seed, exit)
+    text += array('pkg_ab2', board.ab_package(1, AB_SIZES[1]))
+    image = board.PACKAGES['ab'][2]
+    bare = board.package(0xabdb1445, image)
+    words, relocations, exit = board.ab_engine(0)
+    claim = [('x', 2, 0x2840, board.ab_words(0))]
+    text += array('pkg_ab_badclaim', abi9.engine(bare, words, relocations, board.AB_SITE, 3, exit, [('x', 2, 0x2841, board.ab_words(0))]))
+    text += array('pkg_ab_noexit', abi9.engine(bare, words, relocations, board.AB_SITE, 3, 0, claim))
+    text += array('pkg_ab_untrusted', abi9.engine(board.package(0xabdb1445, bytes(reversed(image))), words, relocations,
+                                                  board.AB_SITE, 3, exit, claim))
+    (work / 'packages.h').write_text(text)
     preamble = board.FIXTURE.split('/* Modelled receiver')[0]
     (work / 'fixture.c').write_text(preamble + 'unsigned modwerk_dsp_arena_now(unsigned);\n'
                                     'static int modwerk_controller_held_matrix(void) { return (modwerk_controller_held() & 2u) != 0; }\n'
@@ -1459,7 +1594,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 50
+    MODES = 54
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -1475,19 +1610,21 @@ class ResidentEnginesBoard(unittest.TestCase):
     def test_relocation_in_c_matches_resident_dsp_relocate(self):
         """The base's relocator (mw_engine_relocate) against resident_dsp.relocate, at several bases, on made-up
         units and on the edge words (0, 0xffffff, wrap both ways)."""
-        units = [unit('A', 1, 388), unit('A', 2, 773), unit('B', 4, 998)]
+        units = [unit('A', 1, 388), unit('A', 2, 773), unit('B', 8, 998)]
         edge = dict(tag='A', feature=1, words=[0, 0xffffff, 5, 0x800000, 0x7fffff, 1],
                     relocations=[0, 1, 2 | 0x8000, 3 | 0x8000, 4, 5 | 0x8000])
         units.append(edge)
+        words, relocations, exit = board.ab_engine(0)  # a packaged engine's exit, pointed at core B's continuation
+        units.append(dict(tag='B', feature=4, words=words, relocations=relocations, exit=exit))
         bases = (0, 1, 0x1000, 0x1333, 0x17ff, 0x1c01, 0x1fff, 0xffffff)
         lines = ['#include <stdio.h>', '#include "resident_engines.h"']
         for n, u in enumerate(units):
-            data = b''.join(w.to_bytes(3, 'big') for w in u['words'])
-            lines += ['static const uint8_t w%d[] = {%s};' % (n, ','.join(map(str, data))),
+            lines += ['static const uint32_t w%d[] = {%s};' % (n, ','.join('%du' % w for w in u['words'])),
                       'static const uint16_t r%d[] = {%s};' % (n, ','.join(map(str, u['relocations'])))]
         lines += ['const struct mw_engine_unit mw_engine_units[2][MW_ENGINE_FEATURES];', 'uint32_t *const mw_engine_buffer[2];',
                   'static const struct mw_engine_unit units[] = {%s};' % ','.join(
-                      '{w%d, r%d, %d, %d}' % (n, n, len(u['words']), len(u['relocations'])) for n, u in enumerate(units)),
+                      '{w%d, r%d, %d, %d, %d, %d}' % (n, n, len(u['words']), len(u['relocations']), u.get('exit', 0),
+                                                      0x221 if u.get('exit') else 0) for n, u in enumerate(units)),
                   'static uint32_t out[2048];',
                   'int main(void) {',
                   '    static const uint32_t bases[] = {%s};' % ','.join('%du' % b for b in bases),
@@ -1533,7 +1670,10 @@ volatile uint8_t dl_engine_why[2];
         k = 0
         for u in units:
             for base in bases:
-                self.assertEqual(list(map(int, rows[k].split())), resident_dsp.relocate(u, base), (u['feature'], base))
+                want = resident_dsp.relocate(u, base)
+                if u.get('exit'):
+                    want[u['exit']] = (0x221 - (base + u['exit'] - 1)) & 0xffffff
+                self.assertEqual(list(map(int, rows[k].split())), want, (u['feature'], base))
                 k += 1
         # And the made-up units' proofs (resident_dsp's own words at the four proof bases) are what data_c accepts.
         text = resident_engines.data_c(bundles())
@@ -1543,7 +1683,7 @@ volatile uint8_t dl_engine_why[2];
         with self.assertRaisesRegex(ValueError, 'not the unit its proofs name'):
             resident_engines.data_c(broken)
         broken = bundles()
-        broken['B']['engines'][4]['relocations'].reverse()
+        broken['B']['engines'][1]['relocations'].reverse()
         with self.assertRaisesRegex(ValueError, 'unordered relocations'):
             resident_engines.data_c(broken)
 
@@ -1565,7 +1705,7 @@ volatile uint8_t dl_engine_why[2];
             resident_engines.manager(once)
         transfer = resident_driver.transport(texts['transfer.c'])
         placed = resident_engines.transport(transfer)
-        self.assertIn('proc==1u && ((id!=1u && id!=2u && id!=4u && id!=8u)', placed)
+        self.assertIn('proc && ((id!=1u && id!=2u && id!=4u && id!=8u)', placed)
         with self.assertRaisesRegex(ValueError, 'seam changed'):
             resident_engines.transport(placed)
         # The default resident transport keeps refusing every op-10 packet with a nonzero word 7.

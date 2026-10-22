@@ -3,7 +3,8 @@
 
 The controller packages (Sidechain Compressor, Output Matrix) and Analog BD call the base's write-lease entries by
 absolute address, and the base admits them only through the trust rows built into it (controller-policies.json, which
-`rows` encodes against the base's empty-row link). The cave ports (CC Map, Recorder Loop Fix) are linked for the base's
+`rows` encodes against the base's empty-row link). A row pins the controller digest (the package without its DSP
+part), so Analog BD's engine, which its package carries (ABI 10, hook_engines.py), can change without a new row. The cave ports (CC Map, Recorder Loop Fix) are linked for the base's
 moved arena and its runtime pool. `npm run octatrack:base` writes what they link against,
 sdk/machines/octatrack/base-binding.json, from the base it actually built (runtime_candidate.bind_base: image,
 symbol map and IDENTIFY digest agree). `build` rebuilds each package from source and that binding, with no firmware;
@@ -25,6 +26,7 @@ APP = HERE.parents[3]
 sys.path.insert(0, str(HERE))
 import candidate_packages  # noqa: E402
 import cave_runtime  # noqa: E402
+import hook_engines  # noqa: E402
 import runtime_candidate  # noqa: E402
 import stock_hook_controllers  # noqa: E402
 
@@ -52,7 +54,7 @@ def bind(build, policies):
     symbols = json.loads((build / 'symbols.json').read_text())
     bound = runtime_candidate.bind_base((build / 'MAIN.raw').read_bytes(), symbols,
                                         json.loads((build / 'proofs.json').read_text()))
-    controllers = {row['module']: row['packageSha256'] for row in policies}
+    controllers = {row['module']: row['controllerSha256'] for row in policies}
     if any(name not in stock_hook_controllers.UNITS and name not in MACHINES for name in controllers):
         raise ValueError('A trust row names a module that is not a controller.')
     return dict(schema=1, identity=bound['identity'], arena=bound['arena'], pool=bound['pool'],
@@ -68,8 +70,16 @@ def load(binding=None):
     return binding
 
 
+def _assemble():
+    """The native DSP assembler's API (dsp_packages.assemble; ELEKLOADER_DSP_ASM names the binary)."""
+    spec = importlib.util.spec_from_file_location('base_bound_dsp', APP / 'sdk/machines/octatrack/elekloader/dsp_packages.py')
+    packages = importlib.util.module_from_spec(spec); spec.loader.exec_module(packages)
+    return packages.assemble
+
+
 def machine(module, symbols, upstream, work, lease=False):
-    """A lease-holding machine through build.py's machine route against these base symbols: (package, lease offsets)."""
+    """A lease-holding machine through build.py's machine route against these base symbols, with its engine for the
+    base's hook site (hook_engines.py): (package, lease offsets)."""
     work = Path(work); work.mkdir(parents=True, exist_ok=True)
     (work / 'base-symbols.json').write_text(json.dumps(symbols))
     out = work / (module + '.mwrm')
@@ -77,7 +87,11 @@ def machine(module, symbols, upstream, work, lease=False):
                     '--base-symbols', str(work / 'base-symbols.json'), '-o', str(out)] +
                    (['--lease-policy', str(work / 'lease.json')] if lease else []),
                    check=True, capture_output=True, text=True, cwd=APP)
-    return out.read_bytes(), json.loads((work / 'lease.json').read_text()) if lease else None
+    data = out.read_bytes()
+    if module in hook_engines.PACKAGES:
+        (work / 'engine').mkdir(exist_ok=True)
+        data = hook_engines.PACKAGES[module](data, APP / 'sdk/octabam', work / 'engine', _assemble())
+    return data, json.loads((work / 'lease.json').read_text()) if lease else None
 
 
 def machine_row(module, data, lease, builder):
@@ -88,7 +102,7 @@ def machine_row(module, data, lease, builder):
                   sourceHashes=builder.machine_inputs(module, HERE), entries=entries)
     if lease['imageBytes'] != int.from_bytes(data[8:12], 'big'):
         raise ValueError('%s: the lease offsets name another image.' % module)
-    return dict(module=module, moduleId=builder.module_id(module), packageSha256=hashlib.sha256(data).hexdigest(),
+    return dict(module=module, moduleId=builder.module_id(module), controllerSha256=stock_hook_controllers.controller_sha256(data),
                 sourcePolicySha256=hashlib.sha256(json.dumps(policy, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
                 revisions=list(stock_hook_controllers.REVISIONS), feature=feature,
                 requiredCores=stock_hook_controllers.REQUIRED_CORES[feature], version=1, imageBytes=lease['imageBytes'],
@@ -126,8 +140,8 @@ def build(module, upstream, work, stock_at=None, binding=None):
     else:
         raise ValueError('No base-bound route for ' + module)
     if (module in stock_hook_controllers.UNITS or module in MACHINES) and \
-            binding['controllers'].get(module) != hashlib.sha256(data).hexdigest():
-        raise ValueError('%s: the base\'s trust row names another package; rebuild the base '
+            binding['controllers'].get(module) != stock_hook_controllers.controller_sha256(data):
+        raise ValueError('%s: the base\'s trust row names another controller (its CF part changed); rebuild the base '
                          '(npm run octatrack:base -- --controllers --write).' % module)
     builder.unevented(*candidate_packages.records(data))  # never a write or copy on a site the base owns
     return data, binding['identity']
