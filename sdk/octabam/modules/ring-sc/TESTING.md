@@ -3,8 +3,9 @@
 ## 0.2.0-experimental: RING's SLEW, S&H and RECT (21 October 2026)
 
 Source: branch `claude/ringmod-sc-0.2` on main `4d4f731d` (the key bus integrated, #750 and #737; the USB-only rule,
-#774). Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Only the MKII session below ran on
-hardware, on the build before RECT; RECT and the review fixes have not.** What changed from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
+#774). Local, on a Mac with the octabam toolchain and the tester's own OS 1.40C. **Hardware: this source's package on an
+MKII on 22 October 2026 (below and `evidence/hardware.md`), and the build before RECT on 21 October.** What changed
+from 0.1.0 (below): in RING the key passes three stages before it multiplies the audio,
 on the knobs DUCK uses for ATK, HOLD and REL, renamed in RING by MODE (a NameSelect, so MODE keeps its own name: SLEW, S&H, RECT):
 - S&H (HOLD): a new key every 16v samples, held between; at 0 the same reload takes every key. The countdown is
   clamped to the period every call, so turning S&H down cuts the current hold short.
@@ -104,10 +105,32 @@ installed: priced 1, readers 1, both resets 1,026, masks `0e 0c`, both cores kno
 By ear: DUCK ducks; SETUP reads MODE over DUCK and RING; the RING page reads SLEW, S&H and BIAS; RING with S&H and BIAS
 at 0, DPTH 127: kick-gated ring modulation; S&H up: stepped; SLEW up: smoother; BIAS up: the dry signal returns under
 the ring (which is why it was replaced: it is the depth again). KEY, after re-entering the page, moved a track per
-several detents (the stock select step). RECT and the review fixes have not run on a unit.
+several detents (the stock select step).
 
-**Not tested (0.2.0):** on a unit, RECT, SLEW's crossfade and S&H cut short (the source as released); parameter
-locks, LFOs, scenes, project save, Part reload and a power cycle; `fx:audit`; MKI.
+**MKII, 22 October 2026: this source** (the owner's unit, OS 1.40C, RAM-booted development twin `53ddaf60…` of main's
+base `4d4f731d` with the module select step fix and the key bus reader admission fix, MAIN.raw `712666cb…`; package
+`2ba32a49…`, evidence revision `60d3ac17`; ears and hands by the owner, readings over USB by a coordinating session;
+the full table is in `evidence/hardware.md`):
+- By ear, KEY T1 with a kick on T1: DUCK, plain RING, RECT swept, SLEW through 0 turned quickly and slowly (no click),
+  S&H 127 → 0 (the hold stops at once): pass. The three names follow MODE on a MODE change, a page change and on
+  leaving and re-entering the FX page. KEY on the first visit steps cleanly (several encoder ticks a track) and DPTH
+  right after it moves at its fine resolution: the base's step fix.
+- Two instances, T4 FX1 (DUCK) and T5 FX2 (RING, DPTH 64), both on KEY T1, on both cores and both slots: both work
+  and do not affect each other. Part SAVE / RELOAD and project save / load another / load back restore them, with
+  the bus live afterwards (handle `0x0a` on both).
+- Over USB: install alone (flags `01 01 01`, resets `0402 0402`, masks `08 08`, the bus placed on both cores, charge
+  72 a core); Sidechain Compressor after it shares the bus (masks `09 09`, no second bus job); every removal order
+  returns the bus and arena as expected; removal while a track uses it is refused (loader refusal 7). The base's
+  self-test passed with Sidechain beside it (CPU 52.8 %, T1-4 27.7 %, T5-8 37.5 %, longest frame 401 µs) and with two
+  instances (CPU 66.7 %, T1-4 21.8 %, T5-8 39.5 %, longest frame 384 µs).
+- Not run on a unit for any 0.2.0 build: parameter locks and LFOs (a lock or LFO on SLEW through 0 included), the
+  stale-seed install while playing, the window and buffer reads, the missing-module message, scenes, eight instances
+  a core. The key latency (T4 0, T2 16, T5 32) is carried from the 21 October key bus re-check, not re-measured
+  through this module. A power cycle cannot be tested on a RAM-booted twin.
+- Seen once after the project reload: "MISSING SPECTRUM" (Spectrum's legacy id is `0x0a`, the handle RINGMOD SC held),
+  probably the base's legacy-name fallback; followed up separately.
+
+**Not tested (0.2.0):** on a unit, the items above; a power cycle; `fx:audit`; MKI.
 
 **Known limits (0.2.0, from the review):**
 - A slow SLEW stalls short of the key's level: each sample adds (1 - s)(|key| - level), truncated to the word, so near
@@ -116,7 +139,8 @@ locks, LFOs, scenes, project save, Part reload and a power cycle; `fx:audit`; MK
   never raises the level from 0.
 - An LFO on S&H (HOLD) adds its fraction to the period's low bits, so S&H 0 under an LFO holds 1 to 15 samples.
 - The register-to-register parallel forms this version uses (`abs a a,b`, `tfr a,b a,y1`, `tfr b,a b,y1`,
-  `add x0,a a,y0`) run in dsp_host's emulation only; the pending MKII step is their first run on the chip.
+  `add x0,a a,y0`) ran in dsp_host's emulation before the 22 October session, which ran them on the chip (by ear;
+  nothing on the unit compares them sample for sample).
 
 ---
 
