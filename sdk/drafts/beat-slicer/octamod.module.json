@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 2,
+  "id": "beat-slicer",
+  "key": "BEAT SLICER",
+  "name": "Beat Slicer",
+  "version": "0.1.1-experimental",
+  "category": "system",
+  "author": {
+    "github": "twwwy",
+    "credits": [
+      "Original Beat Slicer planning core by twwwy and contributors."
+    ]
+  },
+  "nativeManifest": "manifest.py",
+  "presentation": {
+    "label": "BEAT SLICER",
+    "family": "Sample workflow",
+    "summary": "Development draft: preview beat-spaced slice starts from sample or project BPM.",
+    "overview": "A tested portable planning core, not an installed Octatrack module. Native editor, persistence, playback fade and USB integration are pending.",
+    "highlights": [
+      "Choose sample BPM or project BPM.",
+      "1, 4, 16, 32 or 64 beats per slice.",
+      "Retain existing markers and inspect stereo boundary amplitude."
+    ],
+    "usage": [
+      "Not installable yet. See README.md for the proposed editor workflow and integration blockers."
+    ]
+  },
+  "controls": [
+    {
+      "name": "BPM SOURCE",
+      "default": 0,
+      "count": 2,
+      "doc": "Proposed dialog: use the sample ATTR BPM or the project BPM captured at preview. No silent fallback.",
+      "labels": [
+        "SAMPLE",
+        "PROJECT"
+      ]
+    },
+    {
+      "name": "SPACING",
+      "default": 0,
+      "count": 5,
+      "doc": "Proposed dialog: beat spacing, anchored at trim start. A beat is a quarter note.",
+      "labels": [
+        "1 BEAT",
+        "4 BEATS",
+        "16 BEATS",
+        "32 BEATS",
+        "64 BEATS"
+      ]
+    },
+    {
+      "name": "BOUNDARY",
+      "default": 1,
+      "count": 2,
+      "doc": "Proposed dialog: exact grid or a stereo-aware quiet-boundary search within 2 ms. This does not guarantee click-free playback.",
+      "labels": [
+        "EXACT",
+        "SMOOTH"
+      ]
+    }
+  ],
+  "compatibility": {
+    "firmware": "1.40C",
+    "location": "Flex / Static",
+    "conflicts": [],
+    "uiClaims": [],
+    "limitations": [
+      "Development draft, not listed or installable.",
+      "No native slice-editor event/adapter, stock persistence integration or USB package exists yet.",
+      "No audio playback or MKII hardware verification; click-free playback is not established.",
+      "Planner accepts BPM 30\u2013300 in 1/24 BPM units, signed 24-bit mono/stereo decoded PCM, 8\u2013192 kHz, at most 64 slice starts.",
+      "Sample/project identity, live preview invalidation, sample-file saving and Undo must be implemented by the adapter."
+    ],
+    "effectId": null
+  },
+  "resources": {
+    "recorded": "Not measured",
+    "storage": {
+      "label": "Storage",
+      "display": "Not measured",
+      "value": null,
+      "unit": "unknown",
+      "method": "unmeasured",
+      "conditions": "No measurements exist yet. Add exact conditions and source evidence when available.",
+      "source": "TESTING.md"
+    },
+    "processing": {
+      "label": "CPU / DSP load",
+      "display": "Not measured",
+      "value": null,
+      "unit": "unknown",
+      "method": "unmeasured",
+      "conditions": "No measurements exist yet. Add exact conditions and source evidence when available.",
+      "source": "TESTING.md"
+    }
+  },
+  "tests": {
+    "report": "TESTING.md",
+    "summary": "18 host tests pass, including 250 original rational cases, 2,000 independent randomized grid cases and 200 exhaustive stereo-search cases. ColdFire object compiles without unresolved helpers; no native execution, UI, USB, audio or persistence qualification.",
+    "hardwareStatus": "untested",
+    "gates": [
+      "python3 -B sdk/drafts/beat-slicer/test_planner.py",
+      "python3 -B sdk/drafts/beat-slicer/test_independent.py",
+      "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
+    ]
+  },
+  "license": {
+    "spdx": "MIT",
+    "file": "LICENSE",
+    "declaration": "Original planning core and synthetic tests. No Elektron firmware, extracted routines, tables, samples or dumps included."
+  },
+  "media": [],
+  "access": {
+    "location": "Proposed MKII audio editor SLICE menu; unavailable in firmware",
+    "steps": [
+      "Pending native integration: select a Flex or Static audio track and open AED.",
+      "Proposed: press LFO for SLICE, FUNC + YES for its menu, then select BEAT GRID. Stock menu integration is not verified.",
+      "Choose BPM SOURCE, SPACING and BOUNDARY, preview the marker count and warnings, then explicitly Apply or Cancel. Do not use this proposal as instructions for an existing build."
+    ],
+    "screenshots": []
+  }
+}
