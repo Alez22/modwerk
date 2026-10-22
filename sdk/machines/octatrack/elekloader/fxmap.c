@@ -190,8 +190,13 @@ static struct fx_entry staged[MODWERK_FX_IDS];
 static int staging;
 static unsigned lines;
 volatile uint32_t modwerk_fxmap_read, modwerk_fxmap_written; /* lines the last load took, the last save wrote */
+/* Nonzero from the loader's first pass until the load's end has sealed its map: the tracks may already run the loading
+ * project's handles under the last project's map (dsp.c's MISSING popup waits). Another task reads it. */
+static volatile int loading;
+int modwerk_fxmap_loading(void) { return loading; }
 void modwerk_fxmap_begin(uint32_t storing)
 {
+    loading = 1;
     if (!storing) return;
     for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&staged[k], 0, 0, 0);
     staging = 1, lines = 0;
@@ -221,9 +226,9 @@ void modwerk_fxmap_line(const char *line, uint32_t parse_only)
 }
 void modwerk_fxmap_loaded(int32_t result)
 {
-    if (!staging) return;
+    if (!staging) { loading = 0; return; }
     staging = 0;
-    if (result < 0) return; /* a failed load keeps the project that is still there */
+    if (result < 0) { loading = 0; return; } /* a failed load keeps the project that is still there */
     modwerk_fxmap_read = lines;
     if (lines) for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) put(&MAP->e[k], staged[k].module, staged[k].layout, staged[k].name);
     else {
@@ -233,6 +238,7 @@ void modwerk_fxmap_loaded(int32_t result)
                 put(&MAP->e[modwerk_fx_legacy[i].id], modwerk_fx_legacy[i].module, 0, modwerk_fx_legacy[i].name);
     }
     seal();
+    loading = 0; /* after the seal: a tick between would see the old generation and a half-written map */
 }
 /* One line per handle the project uses: "#MODWERK_FX=27:873d83cc:1:E-Verb\r\n". */
 void modwerk_fxmap_write(uint32_t file)
