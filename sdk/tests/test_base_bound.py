@@ -10,6 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT / 'sdk/machines/octatrack/module-adapters'))
 import base_bound  # noqa: E402
+import stock_hook_controllers  # noqa: E402
 
 UPSTREAM = Path.home() / '.cache/modwerk-upstream/elekloader'
 TOOLS = bool(shutil.which('m68k-elf-as')) and (UPSTREAM / 'elekloader/sdk/octabam.py').is_file()
@@ -27,11 +28,12 @@ class BaseBound(unittest.TestCase):
         self.assertEqual(sorted(entry['id'] for entry in bound), sorted(base_bound.MODULES))
         self.assertTrue(all(entry['requiredBase'] == self.binding['identity'] for entry in bound))
         self.assertTrue(all('requiredBase' not in entry for entry in MANIFEST['packages'] if not entry.get('base')))
-        # The base's trust rows name exactly the published controller packages.
-        published = {entry['id']: entry['sha256'] for entry in bound}
+        # The base's trust rows name exactly the published controllers, by what is not DSP in their packages.
+        published = {entry['id']: stock_hook_controllers.controller_sha256((ROOT / 'public' / entry['path']).read_bytes())
+                     for entry in bound}
         self.assertEqual(self.binding['controllers'], {name: published[name] for name in self.binding['controllers']})
         rows = json.loads(base_bound.POLICIES.read_text())
-        self.assertEqual({row['module']: row['packageSha256'] for row in rows}, self.binding['controllers'])
+        self.assertEqual({row['module']: row['controllerSha256'] for row in rows}, self.binding['controllers'])
 
     def test_a_malformed_binding_or_an_unknown_module_is_refused(self):
         for broken in ({}, dict(self.binding, schema=2), dict(self.binding, identity='00'),

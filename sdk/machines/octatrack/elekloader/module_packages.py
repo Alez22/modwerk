@@ -32,9 +32,7 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
   which `npm run octatrack:base` writes from the base it built. Same tools as "octabam";
 - an entry with "requiresFeatures" (a key bus reader, RINGMOD SC): the package build.py makes, written as ABI 9 by
   sdk/runtime/loader/abi9.py with those base features (dsp-sites.json names, e.g. "keybus") and its "dspClaims"
-  (abi9.py's --claim syntax). The manifest then also says `requires` (the feature bits) and `claims` (their count);
-- a base-bound package that carries an engine for the base's hook sites (Analog BD: module-adapters/hook_engines.py
-  writes it as ABI 10): the manifest also says `entries`, its hook-entry count.
+  (abi9.py's --claim syntax). The manifest then also says `requires` (the feature bits) and `claims` (their count).
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
@@ -133,19 +131,12 @@ def runs(data, stock):
 RUNTIME_SITE_EVENT_LIMIT = 64  # hook words past the core four a package may carry; the base refuses more than it has
 
 
-def _abi9():
-    import importlib.util
-    spec = importlib.util.spec_from_file_location('module_packages_abi9', APP / 'sdk/runtime/loader/abi9.py')
-    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-    return module
-
-
 def capabilities(data):
     """Derive browser preflight requirements from the actual record types, never a handwritten module allowlist."""
     if len(data) < 68 or data[:4] != b'MWRM':
         raise ValueError('Not a published runtime package.')
     abi, flags = struct.unpack_from('>HH', data, 4)
-    headers = {6: 68, 7: 72, 8: 76, 9: 80, 10: 80}
+    headers = {6: 68, 7: 72, 8: 76, 9: 80}
     if abi not in headers or len(data) < headers[abi]:
         raise ValueError('Not a supported published runtime ABI.')
     hooks, sites = struct.unpack_from('>II', data, 20)
@@ -153,36 +144,26 @@ def capabilities(data):
     fills = struct.unpack_from('>I', data, 72)[0] if abi >= 8 else 0
     header = headers[abi]
     words = struct.unpack_from('>%dI' % hooks, data, header) if abi >= 8 and len(data) >= header + 4 * hooks else None
-    # ABI 9: base features (key bus readers) and DSP claims; ABI 10: an engine's hook entries (an ABI 9 one is refused by
-    # every base, so never published).
-    requires, claims, entries = struct.unpack_from('>HBB', data, 76) if abi >= 9 else (0, 0, 0)
+    # ABI 9: base features (key bus readers) and DSP claims; hook entries, which every base refuses, are never published.
+    requires, claims, entries = struct.unpack_from('>HBB', data, 76) if abi == 9 else (0, 0, 0)
     if ((hooks and (words is None or hooks > 4 + RUNTIME_SITE_EVENT_LIMIT)) or flags & ~(7 if abi >= 8 else 3)
-            or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64 or claims > 16 or entries > 8
-            or (entries and abi < 10)):
+            or abi == 6 and sites or sites > 128 or copies > 128 or fills > 64 or claims > 16 or entries):
         raise ValueError('The published runtime package has unsupported hooks, flags or records.')
     # One machine group needs both table composition and explicit lifetime admission. A hook word past the four core
     # events subscribes to (or raises) a site event: the base must report events (MWCP 128, loader.h).
     features = (bool(sites) | (bool(copies) << 1) | (bool(fills) << 2) | (24 if flags & 4 else 0)
                 | (128 if words and any(w != 0xffffffff for w in words[4:]) else 0))
     return dict(abi=abi, features=features, sites=sites, copies=copies, fills=fills,
-                **(dict(requires=requires, claims=claims) if abi >= 9 else {}), **(dict(entries=entries) if abi >= 10 else {}))
+                **(dict(requires=requires, claims=claims) if abi == 9 else {}))
 
 
 def dsp_words(data):
-    """A supported stock-free runtime package: its DSP words, and an ABI 10 engine's initial words, packed big- and
-    little-endian."""
-    found = capabilities(data)
+    """A supported stock-free runtime package: its DSP words packed big- and little-endian."""
+    capabilities(data)
     words, count = struct.unpack_from('>IH', data, 32)
-    init = 0
-    if found['abi'] >= 10:  # the init claims' words follow the relocations
-        at = _abi9()._claims_end(data)
-        for i in range(found['claims']):
-            access, n = data[at + 12 * i + 2], struct.unpack_from('>I', data, at + 12 * i + 8)[0]
-            init += n if access & 4 else 0
-    if words > 4096 or count > 256 or init > 4096 or 4 * words + 2 * count + 4 * init > len(data) - 68:
+    if words > 4096 or count > 256 or 4 * words + 2 * count > len(data) - 68:
         raise ValueError('The runtime DSP section exceeds its bounds.')
-    tail = len(data) - 4 * words - 2 * count - 4 * init
-    values = struct.unpack_from('>%dI' % words, data, tail) + struct.unpack_from('>%dI' % init, data, len(data) - 4 * init)
+    values = struct.unpack_from('>%dI' % words, data, len(data) - 4 * words - 2 * count)
     return [b''.join(v.to_bytes(3, order) for v in values) for order in ('big', 'little')]
 
 

@@ -196,7 +196,9 @@ entry, a DSP word u32. Then the DSP words and relocations, as before. Claims and
 ABI 10 keeps ABI 9's 80-byte header and lets a package's DSP words be an **engine** for the base's stock-DSP hook sites
 instead of an effect: DSP words with slots 0 (and id, init, proc, cycles, kind, state and buffer 0). The loader parses
 such words into `runtime_dsp.engine` (count 0, so nothing takes them for an effect) and asks the machine
-(`modwerk_machine_dsp_engine_admit`, weak: refuses every engine) in place of the claims' check.
+(`modwerk_machine_dsp_engine_admit`, weak: refuses every engine) in place of the claims' check. A machine refuses an
+engine there, at admission (its words are not kept yet): a refusal at the switch reaches the host as `RUNTIME_BUSY`,
+which it retries, so check what needs the words when the package is built.
 
 - **Hook entries** (8 bytes each, at least one, an engine's only): site u8 (the base's catalogue index), cores u8, exit u16
   and entry u32. `exit` is 0 or the engine word holding a long branch's displacement: the base writes it per core so the
