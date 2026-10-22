@@ -180,7 +180,9 @@ entry, a DSP word u32. Then the DSP words and relocations, as before. Claims and
   the package (`RUNTIME_CONFLICT`). The Octatrack's on-demand base provides the key bus (KEYBUS, 8, in
   `sdk/machines/octatrack/dsp-sites.json`): every track's FX1 input, which it publishes while a live package requires
   it (docs/OCTATRACK_PACKAGE_DSP_HOOKS.md). A reader of a base feature needs no claim on the feature's words; it may
-  declare reads wholly inside a feature it requires, which the base admits (below).
+  declare reads wholly inside a feature it requires, which the base admits (below). A provided feature that cannot
+  come up this boot refuses the package as `RUNTIME_FEATURE` (10), so it is never admitted to run without it; on the
+  Octatrack, the key bus while a DSP core's state is lost (its owned channel closed for the boot): restart, then retry.
 - **Claims** are the X/Y words the DSP code reads or writes outside its own slot. The loader refuses a claim that
   meets another live module's claim when either of the two writes (`RUNTIME_CONFLICT`); the machine checks the rest
   (`modwerk_machine_dsp_claims_admit`, weak: a machine with no DSP ledger refuses every claim). The Octatrack's

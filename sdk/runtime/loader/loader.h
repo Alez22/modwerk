@@ -116,7 +116,9 @@ uint32_t modwerk_runtime_owner_epoch(void);
 enum runtime_refusal { RUNTIME_OK, RUNTIME_MALFORMED, RUNTIME_MEMORY, RUNTIME_CONFLICT, RUNTIME_FULL, RUNTIME_BUSY, RUNTIME_CYCLES,
                        RUNTIME_IN_USE /* a track runs the effect it would replace or remove */,
                        RUNTIME_STOCK /* ABI 7: the bytes under a site are not the stock bytes its hash names */,
-                       RUNTIME_EVENT /* a site or copy meets a stock site the base owns as an event: subscribe to it */ };
+                       RUNTIME_EVENT /* a site or copy meets a stock site the base owns as an event: subscribe to it */,
+                       RUNTIME_FEATURE /* ABI 9: a base feature the package requires cannot come up this boot (on the
+                                        * Octatrack, the key bus with a DSP core's state lost): restart, then retry */ };
 /* ABI 9 refusals use the codes above: a feature the base does not have, a claim another live module's claim meets
  * (either writing), and any hook entry (no base has hook slots yet) are RUNTIME_CONFLICT. */
 /* ABI 7's site record (a 32-byte hash for the stock bytes) is never longer than ABI 6's (the stock bytes). */

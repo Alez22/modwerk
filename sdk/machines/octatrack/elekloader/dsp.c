@@ -526,7 +526,7 @@ fx_set modwerk_dsp_dry(void)
     }
     return dry;
 }
-/* Each tick (modwerk_dsp_tick), after the rebind's step (`settled`: rebind_tick's answer): whether to say "MISSING
+/* Each tick (modwerk_dsp_tick), after the rebind's step (`following`: rebind_tick's answer): whether to say "MISSING
  * <NAME>" (into `text`, 24 bytes; 1) for the track just selected (`track`, 8 and up on the MIDI side); the project's
  * whole list is status.c's page. Only while the handles follow the map of the project that is loaded: during a load
  * the tracks can run its handles before its end applies its map (fxmap.c), and a rebind takes a module off a handle
@@ -536,11 +536,11 @@ fx_set modwerk_dsp_dry(void)
  * LOAD_HOLD ticks (about a minute), in case one never ends. */
 #define LOAD_HOLD 3600u
 static unsigned last_track = 0xffu, load_held;
-int modwerk_dsp_missing_tick(int settled, unsigned track, char *text)
+int modwerk_dsp_missing_tick(int following, unsigned track, char *text)
 {
     if (!modwerk_fxmap_loading()) load_held = 0;
-    else if (load_held < LOAD_HOLD) ++load_held, settled = 0;
-    if (!settled || track == last_track) return 0;
+    else if (load_held < LOAD_HOLD) ++load_held, following = 0;
+    if (!following || track == last_track) return 0;
     last_track = track;
     fx_set say = {{0}};
     if (track < 8u) say = fx_and(modwerk_dsp_dry(), fx_with(fx_with(say, LIVE_FX[track]), LIVE_FX[8u + track]));
@@ -869,11 +869,23 @@ static uint32_t code_sum(unsigned c, unsigned p, unsigned from, unsigned n, unsi
     }
     return sum & 0xffffffu;
 }
+/* controller_board.c: a live package requires a base feature that cannot come up this boot (the key bus with a DSP
+ * core's state lost). A self-test fails with it (SELFTEST_FEATURE), so a trial is not kept with a module that can only
+ * pass its audio, and the record's refusal says so (RUNTIME_FEATURE) while it holds and the loader has no refusal of its
+ * own to report: the site explains a rejected sync and retries RUNTIME_BUSY from that field, so the loader's own
+ * refusal always comes first. 0 on a base without the board. */
+#ifndef MODWERK_HOST_SELFTEST
+__attribute__((weak)) int modwerk_controller_keybus_lost(void) { return 0; }
+#else
+int modwerk_controller_keybus_lost(void);
+#endif
 void modwerk_selftest_refresh(void)
 {
     modwerk_selftest.saved = modwerk_modset_result, modwerk_selftest.saved_count = modwerk_modset_count;
     modwerk_selftest.live = modwerk_runtime_active();
-    { extern volatile uint32_t modwerk_flash_refusal; modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal : modwerk_runtime_refusal(); } /* flash.h: a refused or failed base write, apart from the loader's */
+    { extern volatile uint32_t modwerk_flash_refusal; uint32_t loader = modwerk_runtime_refusal();
+      modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal : /* flash.h: a refused or failed base write, apart from the loader's */
+          loader ? loader : modwerk_controller_keybus_lost() ? (uint32_t)RUNTIME_FEATURE : (uint32_t)RUNTIME_OK; }
 }
 enum { PLACE, WAIT, HOLD, CODE, CLEAR, EMPTY, RESET };
 /* st_live: what each slot ran before the test; st_base: the batch's background, that with a core the batch emptied
@@ -935,6 +947,7 @@ static void finish(void)
     for (unsigned i = 0; i < 16u; ++i) if (LIVE_SET[i] != st_live[i]) t->failed |= SELFTEST_NOT_BACK;
     t->gap = dl_frame_gap;
     if (dl_frame_gap > SELFTEST_FRAME_LIMIT) t->failed |= SELFTEST_LATE;
+    if (modwerk_controller_keybus_lost()) t->failed |= SELFTEST_FEATURE;
     t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED;
 }
 /* Playing: the live set and the lanes as the Part has them now, then the checks. */
@@ -1303,9 +1316,9 @@ void modwerk_dsp_tick(void)
     }
     if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
     else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
-    int settled = rebind_tick();
+    int following = rebind_tick();
     static char text[24];
-    if (modwerk_dsp_missing_tick(settled, *(volatile uint8_t *)0x80000000u, text)) { /* the current track */
+    if (modwerk_dsp_missing_tick(following, *(volatile uint8_t *)0x80000000u, text)) { /* the current track */
         ((void (*)(const char *, unsigned))0x4005a2b8u)(text, 0xa0);
         modwerk_dsp_missing = modwerk_dsp_missing + 1;
     }

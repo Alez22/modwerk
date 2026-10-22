@@ -1,6 +1,6 @@
 --- a/dsp.c
 +++ b/dsp.c
-@@ -1280,6 +1280,114 @@
+@@ -1293,6 +1293,114 @@
  /* Development (dev.c request 20): this many microseconds with interrupts masked on the next tick, timed by DTCN3
   * (132 MHz), to find how long the frame chain survives a held-off frame interrupt. Off the USB request path. */
  volatile uint32_t modwerk_dsp_mask_test;
@@ -115,7 +115,7 @@
  void modwerk_dsp_tick(void)
  {
      modwerk_dsp_watch_ticks = modwerk_dsp_watch_ticks + 1; /* the watchdog's heartbeat */
-@@ -1292,9 +1400,14 @@
+@@ -1305,9 +1413,14 @@
      }
      static int unpacked;
      if (!unpacked) unpacked = 1, modwerk_dsp_unpack();
@@ -133,14 +133,14 @@
      if (probing >= 0 && dl_job_status((unsigned)probing) != 0) {
          if (dl_job_status((unsigned)probing) > 0) modwerk_dsp_probes_ok = modwerk_dsp_probes_ok + 1;
          else modwerk_dsp_probes_failed = modwerk_dsp_probes_failed + 1;
-@@ -1303,7 +1416,7 @@
+@@ -1316,7 +1429,7 @@
      }
      if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
      else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
--    int settled = rebind_tick();
-+    int settled = !hook_busy && rebind_tick();
+-    int following = rebind_tick();
++    int following = !hook_busy && rebind_tick();
      static char text[24];
-     if (modwerk_dsp_missing_tick(settled, *(volatile uint8_t *)0x80000000u, text)) { /* the current track */
+     if (modwerk_dsp_missing_tick(following, *(volatile uint8_t *)0x80000000u, text)) { /* the current track */
          ((void (*)(const char *, unsigned))0x4005a2b8u)(text, 0xa0);
 --- a/dsp_loader.py
 +++ b/dsp_loader.py

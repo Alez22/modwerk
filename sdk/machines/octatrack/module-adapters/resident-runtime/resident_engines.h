@@ -88,7 +88,8 @@ struct mw_engines_view {
     uint16_t arena[2], reserved[2];   /* 36, 40: the FX arena now and the words reserved for engines, per core */
     uint8_t admitted[4], claim_why[2], held;   /* 44, 48, 50: verdicts, dl_engine_why, held features (8: the key bus) */
     uint8_t evacuation, evacuations;           /* 51: dl_engine_evacuation(); 52: done (low nibble) | failed << 4, mod 16 */
-    uint8_t keybus, keybus_reset[2];           /* 53: key bus wanted | lane op core 0 << 1 | core 1 << 4; 54: reset words / 8 */
+    uint8_t keybus, keybus_reset[2];           /* 53: key bus wanted | lane op core 0 << 1 | core 1 << 4 (1 reset, 2 enable,
+                                                * 3 disable, 4 stuck, 5 scrub) | 128 cannot come up this boot; 54: reset words / 8 */
     uint32_t jobs, placed, unplaced, refused; /* 56 */
     struct { uint32_t module, generation; uint8_t state, feature, enable_acks, disable_acks;
              uint16_t acknowledged[2], reset[2]; } slots[6]; /* 72, 20 bytes each: the controller registry */
