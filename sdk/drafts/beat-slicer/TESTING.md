@@ -1637,3 +1637,49 @@ The ten `ui25-*`, `ui-text25-*` and `waveform25-stock.json` receipts bind
 source `ebf3634483db5971fc92cfdd2fdae7eb3fd661c3`. They retain raw report content
 and exact input hashes; earlier receipts continue to bind their own historical
 source revisions. No binary rerun is implied by the provenance audit.
+
+
+## Engine previews from four stock-loaded formats (0.1.26)
+
+Four fresh full scheduler/DSP boots load authored 44,100-frame, 44.1-kHz files
+through stock into retained 16-bit mono/stereo and 24-bit mono/stereo Flex pools.
+Each runs 20 BPM-source, boundary and spacing combinations through the private
+engine service. All 80 complete plans match the independent decoded-PCM oracle.
+The retained 24-bit fixtures include nonzero low bytes, which remain exact.
+
+| Loaded format | Oracle plans | Page queries for those plans | Explicit steps for those plans |
+| --- | ---: | ---: | ---: |
+| 16-bit mono | 20 | 109 | 1,062 |
+| 16-bit stereo | 20 | 109 | 1,062 |
+| 24-bit mono | 20 | 109 | 1,062 |
+| 24-bit stereo | 20 | 110 | 1,063 |
+
+Each boot also verifies waiting without polling, a separate readiness wake,
+pending cancellation before another query, and invalidation by an unrelated
+message sharing the owned wake opcode. Four additional waiting/resumption cases
+reach READY; those are distinct from the 80 whole-plan oracle comparisons.
+Across all four runs there are 912 engine idle callbacks, 6,534 explicit steps,
+896 posted/consumed owned wakes, 16 ordinary commands, eight cancellations and
+84 READY results. No callback exceeds eight explicit steps plus optional
+begin/setup; these counts do not establish physical CPU time or audio headroom.
+
+All previews preserve full logical PCM, 44 control bytes and 274 settings words.
+Original code and reservation canaries survive, the receive call stays intact,
+and both original and copied cards remain unchanged. The typed three-word
+mailbox is written only while the emulator is paused; all borrowed calls have
+zero arguments. Main's stack compares equal before and after the request cases.
+This driver technique does not qualify a concurrent UI/engine publication API.
+
+Build `engine_service_native.py` with the private pinned stock input and run
+`boot_engine_formats.py` once for each retained-width card/WAV pair; its `--help`
+lists exact hash, arena and explicit-injection arguments. A source compiled for
+another revision or a converted-width project is refused. Keep all images,
+cards and full PCM observations private. These fixed stopped-source tests retain
+synthetic lifetime/admission, partial writer coverage and full masking. Static,
+live replacement, cache behavior, actual playback, browser/USB integration and
+physical persistence remain unqualified.
+
+The source check against current upstream passes 2,529 app tests, 37 SDK tests
+(one skipped), lint, types, bundle and catalogue/import checks. The required
+origin/main invocation retains the inherited historical CHANGELOG.md failure;
+prose/evidence follow-ups use the lightweight checks.

@@ -142,3 +142,20 @@ uint32_t bs_service_block_end(void) {
     if (ok) wake();
     return !ok;
 }
+
+/* Private driver mailbox: native C owns cdecl argument cleanup. The emulator's
+ * borrowed-main call does not pop argument words supplied by its host driver. */
+volatile uint32_t bs_service_request_fields[3];
+uint32_t bs_service_request_mailbox(void) {
+    uint32_t saved = lock();
+    uint32_t t = bs_service_request_fields[0], s = bs_service_request_fields[1];
+    uint32_t b = bs_service_request_fields[2];
+    uint32_t result = bs_service_request(t, s, b);
+    unlock(saved);
+    return result;
+}
+uint32_t bs_service_main_sp(void) {
+    uint32_t value;
+    __asm__ __volatile__("move.l %%sp,%0" : "=d"(value));
+    return value;
+}

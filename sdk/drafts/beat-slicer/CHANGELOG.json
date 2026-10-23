@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.26-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Add a private full-boot engine-preview matrix for retained 16-bit and 24-bit mono/stereo Flex samples.",
+      "Use a typed zero-argument request mailbox in the format fixture and check that borrowed calls preserve the main stack.",
+      "Compare complete plans with the independent PCM oracle and verify full source/settings preservation, pending cancellation and readiness behavior.",
+      "Known issue: synthetic ownership and partial command coverage remain; native publication, playback, browser/USB packages and hardware qualification are unfinished."
+    ]
+  },
+  {
     "version": "0.1.25-experimental",
     "date": "2026-10-24",
     "changes": [

@@ -50,7 +50,13 @@ and exhaustion. `boot_engine_native.py` exercises ordinary stock reverse and
 waveform commands at the two existing hook sites. `boot_engine_service.py`
 exercises complete previews through engine events without driver step calls,
 waiting/resumption, pending cancellation, foreign wake invalidation and stock
-reversals. Consult TESTING.md and source-bound receipts for actual run outcomes.
+reversals. `boot_engine_formats.py` extends the private engine-preview path to
+retained 16-bit and 24-bit mono/stereo sources loaded through stock. Its driver
+writes an original three-word mailbox while the emulator is paused, then calls a
+zero-argument native wrapper; native C performs argument cleanup. A main-stack
+comparison brackets the request scenarios. This is a driver fixture, not a
+production concurrent UI mailbox or live publication protocol. Consult TESTING.md
+and source-bound receipts for actual run outcomes.
 
 All of these use the exact stock image, a disposable card copy and an explicit
 eight-page reservation. Source/owner identities, admission and full interrupt

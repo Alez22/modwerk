@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.25-experimental",
+  "version": "0.1.26-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Private full-boot fixtures drive read-only BEAT GRID controls from the existing UI tick, with captured BPM and existing/new counts. Forty-two plans match the host oracle and preserve PCM/settings. Ordinary Flex waveform reads are distinguished in the exact stopped-source fixture; unknown commands invalidate results. Source admission, mutable command lifetimes, menu removal, Apply, playback, production browser/USB packages and hardware remain unqualified. A separate private engine service exercises bounded scheduling and immutable coalesced wakes; the production base is unchanged.",
+    "summary": "Private full boots exercise automatic read-only BEAT GRID controls and engine-owned previews. Four retained Flex formats (16/24-bit mono/stereo at 44.1 kHz) produce 80 whole-plan oracle matches plus four waiting/resumption cases, preserving PCM/settings/cards and main stack. Earlier automatic UI runs cover both stock layouts and copied tempo/count labels. These are fixed-source fixtures with synthetic ownership: live admission, mutable command lifetime, menu removal, Apply/playback, production browser/USB packages and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
