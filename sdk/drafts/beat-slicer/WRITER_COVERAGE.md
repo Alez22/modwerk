@@ -71,9 +71,41 @@ occupancy are synthetic; no stock tables or code bodies are reproduced.
   a reachable stock UI bug or prove how the real panel blocks repeated input.
 
 These results identify boundaries to investigate, not production hook sites.
-They omit crop, release and copy dispatch, other engine opcodes/callers, actual
-UI completion consumption, scheduler wakeups, cancellation, reentrancy and
-recorder writes outside this worker. Queue capacity/overflow is not qualified.
+The historical 0.1.5 trace omits crop, release and copy dispatch; the extension
+below adds those cases. Other engine opcodes/callers, actual UI completion
+consumption, scheduler wakeups, cancellation, reentrancy and recorder writes
+outside this worker remain unproved. Queue capacity/overflow is not qualified.
+
+## Admission guard and remaining edit dispatch (0.1.6)
+
+The expanded nine-group runner (`evidence/stock-guard.json`) binds the original
+portable guard into its executable and observes the stock instruction stream.
+This guard runs on the host alongside the emulated CPU; it is not a native
+hook. Each observed writer entry retires a previously acquired token, PCM
+writes refuse new tokens, and actual return reopens admission with a fresh
+identity. This also works for refused edits and absent UI completion.
+
+Added dispatch coverage:
+
+- Copy (`0x40094fa4`, opcode 29) copies a distinct stereo source into a disjoint
+  range in the same slot, preserving the source and all other frames. Earlier
+  coherence probes separately cover cross-slot copies; this worker case does
+  not establish all overlap/range conventions.
+- Crop (`0x40095cd8`, opcode 27) enters rotation internally. The guard tracks
+  both tickets; rotation's return leaves crop's exclusion active. A successful
+  fixture changes length/counter and returns through deferred completion.
+- Crop's empty-range refusal returns `-2` **after incrementing the stock slot
+  counter**, without dirty/PCM writes. Error return alone is not proof that
+  source metadata remained unchanged. Full slice/trim preservation and crop
+  range semantics remain outside this fixture.
+- Release (`0x40096300`, opcode 28) clears the two owned pages, empties the slot
+  and allocation count, and advances its counter. It returns to the worker loop
+  without attempting the UI completion helper. The now-idle guard does not make
+  that empty slot readable: the provider must separately validate the source.
+
+See [PREVIEW_GUARD.md](PREVIEW_GUARD.md) for capacity, revocation, exhaustion
+and serialization requirements. The guard is disabled by default and remains
+outside the base ABI. It cannot compensate for an unobserved writer.
 
 ## Consequence for the base service
 
@@ -99,7 +131,7 @@ allocation ownership rules have been established.
   preflight and UI completion consumer, every caller and remaining opcode.
   Prove live cancellation, reentrancy, wakeups and serialization; the synthetic
   FIFO cases alone do not prove those behaviors.
-- Cover crop/resize, slot load/replacement, allocation/release of other slots,
+- Extend crop/release range and allocation coverage; cover slot load/replacement,
   project/sample reload, recording/overdub and every other PCM writer. Enumerate
   cached/uncached aliases and writes that do not touch the dirty array.
 - Prove map ownership and coherent source format/extent discovery during each

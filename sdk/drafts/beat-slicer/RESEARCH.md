@@ -271,6 +271,17 @@ It establishes narrow synthetic command lifetimes, not a complete call census,
 live serialization or approved hook site. No stock instruction bytes or
 tables are included. Native exclusion remains absent.
 
+## Portable admission bookkeeping (0.1.6)
+
+The [guard prototype](PREVIEW_GUARD.md) implements the proposed lifetime rules
+in original, bounded C. Host sanitizers and compiled ColdFire selftests exercise
+nested/overlapping edits, stale tickets, owner revocation, counter exhaustion
+and staged-reader invalidation. The stock worker runner now supplies observed
+entry/return events to a host guard, including copy, crop and release. Crop's
+nested rotation must not release the outer exclusion; an invalid crop range
+can still increment the stock counter; release has no completion-helper call.
+These are executed synthetic cases, not installed native instrumentation.
+
 ## Proposed base contract, not an implemented ABI
 
 The first shared SDK change should own the sample editor menu and its stock

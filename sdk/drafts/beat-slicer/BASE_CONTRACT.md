@@ -3,7 +3,7 @@
 Status: design for owner review, **not an exported ABI or module capability**.
 No event number, base feature bit, address guard or package admission is assigned.
 The implementation belongs in a separate shared-base change before Beat Slicer
-can use it. This draft contains only probes and a portable planner.
+can use it. This draft contains portable core/admission prototypes and stock probes.
 
 ## Preservation rule
 
@@ -112,6 +112,12 @@ UI notification. Queued command pointers are not immutable operation IDs:
 capture validated identity and affected destinations under proved ownership.
 The current seven-operation worker trace does not cover recorder writes,
 all worker opcodes, other callers, live scheduling or cancellation.
+
+The draft [admission prototype](PREVIEW_GUARD.md) implements coarse global
+revisions, unique tickets, nested-writer exclusion and revocation/exhaustion
+behavior in portable C. It is not an assigned ABI or a native serialization
+mechanism. The shared implementation and all writer/copy boundaries still need
+review before a module can subscribe or a live provider can be enabled.
 
 PCM reads copy a bounded block into caller-owned scratch memory. They report
 ready, pending, stale, unsupported or failed; a pending Static read yields

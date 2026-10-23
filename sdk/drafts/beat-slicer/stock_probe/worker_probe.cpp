@@ -11,6 +11,9 @@
 #include "machine.h"
 #include "mc68k/Musashi/m68k.h"
 #include "mc68k/cpuState.h"
+extern "C" {
+#include "../preview_guard.h"
+}
 namespace {
 constexpr uint32_t callStack = 0x47100000, taskStack = 0x47110000, stop = 0x47300000;
 constexpr uint32_t scratch = 0x47200000, engineQ = 0x460d17ce, uiQ = 0x460d17ae;
@@ -130,20 +133,30 @@ struct Probe {
 };
 struct Trace {
     Probe& p;
+    bs_preview_guard guard{};
+    bs_preview_token before{};
     bool active = false, returned = false, emptyDuringPcm = false;
     unsigned entries = 0, pcmStores = 0, notifications = 0;
     uint32_t returnPc = 0, result = 0;
     explicit Trace(Probe& probe) : p(probe) {
+        bs_guard_init(&guard);
+        require(bs_guard_enable(&guard), "synthetic guard enable failed");
         p.m.addWriteWatch(pool, pool+8*pageBytes-1,
             [this](uint32_t, uint8_t, uint32_t, uint32_t) {
                 require(active && !returned && !notifications, "PCM outside writer lifetime");
+                bs_preview_token rejected{123, 456};
+                require(!bs_guard_revision(&guard) && !bs_guard_valid(&guard, &before) &&
+                        !bs_guard_acquire(&guard, &rejected) && rejected.operation == 123,
+                        "guard admitted preview during observed PCM write");
                 ++pcmStores;
                 if (!p.m.read32(engineQ+4)) emptyDuringPcm = true;
             });
     }
-    void one(uint32_t edit) {
+    void one(uint32_t edit, unsigned expectedNotifications = 1) {
         active = returned = emptyDuringPcm = false;
         entries = pcmStores = notifications = 0;
+        require(bs_guard_acquire(&guard, &before), "pre-edit token refused");
+        uint32_t ticket = 0, nestedTicket = 0, nestedReturn = 0;
         p.checkLoop();
         unsigned steps = 0;
         do {
@@ -151,9 +164,26 @@ struct Trace {
             if (pc == edit) {
                 require(!active && !returned, "writer reentered");
                 active = true; ++entries; returnPc = p.m.read32(p.reg(M68K_REG_SP));
+                ticket = bs_guard_writer_begin(&guard);
+                require(ticket != 0, "writer bookkeeping refused");
+            }
+            // Crop calls rotation internally. A shared entry observer would
+            // see both; inner completion must not reopen preview admission.
+            if (edit == 0x40095cd8 && pc == 0x40094b6c) {
+                nestedTicket = bs_guard_writer_begin(&guard);
+                nestedReturn = p.m.read32(p.reg(M68K_REG_SP));
+                require(nestedTicket && active, "nested crop rotation refused");
+            }
+            if (nestedTicket && pc == nestedReturn) {
+                require(bs_guard_writer_end(&guard, nestedTicket) && !bs_guard_revision(&guard),
+                        "nested return reopened admission before crop returned");
+                nestedTicket = 0;
             }
             if (active && pc == returnPc) {
                 active = false; returned = true; result = p.reg(M68K_REG_D0);
+                require(!nestedTicket && bs_guard_writer_end(&guard, ticket) &&
+                        !bs_guard_valid(&guard, &before) && bs_guard_revision(&guard),
+                        "writer cleanup resurrected old preview or left exclusion stuck");
             }
             if (pc == completion) {
                 require(returned && !active, "completion began before writer returned");
@@ -162,8 +192,11 @@ struct Trace {
             p.step();
         } while (p.m.pc() != loop && ++steps < 2000000);
         p.checkLoop();
-        require(entries == 1 && returned && !active && notifications == 1,
-                "writer did not enter, return and attempt completion exactly once");
+        require(entries == 1 && returned && !active && notifications == expectedNotifications,
+                "writer entry/return or completion-attempt count differs");
+        bs_preview_token after{};
+        require(bs_guard_acquire(&guard, &after) && after.operation > before.operation &&
+                after.revision != before.revision, "post-edit identity was reused");
     }
 };
 void producerToWorker(const std::vector<uint8_t>& image) {
@@ -256,6 +289,62 @@ void reusedMessage(const std::vector<uint8_t>& image) {
             "reused message did not resolve to last written payload");
     p.checkCompletion(0, 1); p.checkCompletion(1, 1);
 }
+void copyAndCrop(const std::vector<uint8_t>& image) {
+    for (unsigned opcode : {27u, 29u}) {
+        Probe p(image); p.setup(3);
+        const unsigned length = pageBytes/4+8;
+        p.command(scratch+0x300, opcode, 2, opcode == 27 ? 66 : 6);
+        // Copy uses source and destination slot zero, a disjoint destination.
+        if (opcode == 29) {
+            p.m.write32(scratch+0x300+18, 10);
+            for (unsigned f = 2; f < 6; ++f) {
+                p.m.write16(p.address(3, f), 32); // signed 24-bit value 8192
+                p.m.write16(p.address(3, f)+2, 4); // signed 24-bit value 1024
+            }
+        }
+        Trace trace(p);
+        p.start(); trace.one(opcode == 27 ? 0x40095cd8 : 0x40094fa4);
+        require(trace.result == 1 && trace.pcmStores, "copy/crop writer refused");
+        p.checkCompletion(0, 1);
+        require(p.m.read32(controls+16) == (opcode == 27 ? 64u : length),
+                "crop/copy source extent differs");
+        require(p.m.read32(controls+20) == (opcode == 27 ? 42u : 41u),
+                "crop/copy stock counter differs");
+        require(p.sample(3, opcode == 27 ? 0 : 10, 0) == (opcode == 27 ? 4096 : 8192) &&
+                p.sample(3, opcode == 27 ? 0 : 10, 1) == (opcode == 27 ? 2048 : 1024),
+                "crop/copy PCM differs");
+        if (opcode == 29)
+            for (unsigned f = 0; f < length; ++f) {
+                const bool changed = (f >= 2 && f < 6) || (f >= 10 && f < 14);
+                require(p.sample(3, f, 0) == (changed ? 8192 : 4096) &&
+                        p.sample(3, f, 1) == (changed ? 1024 : 2048),
+                        "copy source preservation or destination extent differs");
+            }
+    }
+    // Crop changes its counter BEFORE rejecting an empty range; failure does
+    // not imply metadata was untouched. No PCM write is expected here.
+    Probe p(image); p.setup(3); Trace trace(p);
+    p.command(scratch+0x300, 27, 2, 2); p.start(); trace.one(0x40095cd8);
+    require(trace.result == uint32_t(-2) && !trace.pcmStores &&
+            p.m.read32(controls+20) == 42 && p.m.read8(dirty) == 0,
+            "crop refusal metadata/PCM differs");
+    p.checkCompletion(0, uint32_t(-2));
+}
+void releaseDispatch(const std::vector<uint8_t>& image) {
+    Probe p(image); p.setup(3);
+    p.m.write32(0x8000691c, 2); p.m.write32(0x80006920, 14602);
+    Trace trace(p);
+    p.command(scratch+0x300, 28, 0, 0);
+    p.start(); trace.one(0x40096300, 0);
+    require(trace.pcmStores && !p.m.read32(uiQ+4) && p.m.read32(controls+8) == 1 &&
+            !p.m.read32(controls+16) && !p.m.read16(0x46c75e88) &&
+            p.m.read32(controls+20) == 42 && !p.m.read32(0x8000691c),
+            "release dispatch extent/map/completion differs");
+    for (unsigned page : {3u, 7u}) for (unsigned b = 0; b < pageBytes; ++b)
+        require(p.m.read8(pool+page*pageBytes+b) == 0, "release did not clear owned page");
+    // Admission is only bookkeeping: the now-empty source must still be
+    // rejected by the native provider's separate slot/format/extent validation.
+}
 void queueBoundaries(const std::vector<uint8_t>& image) {
     Probe p(image);
     for (unsigned round = 0; round < 5; ++round) {
@@ -287,6 +376,8 @@ int main(int argc, char** argv) {
         {"null callback and exhausted completion pool: edit finishes without UI notification", absentCompletion},
         {"two queued writers execute FIFO with separate completion records", fifo},
         {"forced producer-record reuse: queued pointers observe overwritten payload; outer UI preflight omitted", reusedMessage},
+        {"copy and crop dispatch, nested rotation exclusion and crop refusal metadata", copyAndCrop},
+        {"release dispatch retires exclusion without attempting UI completion", releaseDispatch},
         {"35 queue posts/receives wrap FIFO; unknown opcode drains; empty worker stops at event wait", queueBoundaries},
     };
     unsigned failed = 0;
@@ -294,7 +385,7 @@ int main(int argc, char** argv) {
         try { c.second(image); std::printf("PASS: %s\n", c.first); }
         catch (const std::exception& e) { ++failed; std::printf("FAIL: %s: %s\n", c.first, e.what()); }
     }
-    std::printf("%u passed, %u failed; synthetic worker, display mock, no scheduler/UI consumer/hardware\n",
+    std::printf("%u passed, %u failed; synthetic worker with host admission guard, display mock, no scheduler/UI consumer/hardware\n",
                 unsigned(std::size(cases))-failed, failed);
     return failed ? 1 : 0;
 }

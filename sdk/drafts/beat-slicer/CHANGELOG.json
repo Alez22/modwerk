@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.6-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted development: implement portable preview-admission bookkeeping with unique operation/writer tickets, global revision invalidation, nested-writer exclusion, owner revocation and fail-closed capacity/counter exhaustion. It starts disabled and requires externally proved synchronization and complete native writer coverage; no live provider is enabled.",
+      "Connect the guard to staged-reader lifecycle tests and stock worker instruction observations. Extend stock dispatch probes to copy, crop and release, including crop calling rotation, crop changing its counter before an empty-range refusal, and release returning without UI completion.",
+      "Host sanitizers and compiled ColdFire selftests exercise 120 event schedules and three reader invalidation timings. Stock traces use the host guard and remain synthetic. Native hooks/locks, Flex/Static ownership, editor Apply/Undo, playback smoothing, USB lifecycle and physical qualification remain pending; this version is not installable."
+    ]
+  },
+  {
     "version": "0.1.5-experimental",
     "date": "2026-10-23",
     "changes": [

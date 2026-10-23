@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.5-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.6-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -73,6 +73,11 @@ unsafe boundaries but does not render or fade playback. Even a quiet boundary
 is not a click-free guarantee. The adapter must provide verified playback
 fades or refuse unsafe Apply; never overwrite source audio or global AMP
 settings to conceal clicks.
+
+The [preview admission prototype](PREVIEW_GUARD.md) now gives the proposed
+base provider unique operation IDs and writer-lifetime tracking. It invalidates
+old previews and refuses new ones during tracked edits, including nested edits.
+Native instrumentation and serialized live memory access remain unimplemented.
 
 ## Tests and measurements
 

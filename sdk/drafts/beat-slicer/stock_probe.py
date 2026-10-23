@@ -37,9 +37,11 @@ def main():
                             text=True, capture_output=True, timeout=120)
     inputs = [source]
     expected = digest(source)
-    if args.kind == 'coherence':
+    if args.kind in ('coherence', 'worker'):
         names = ('coherence_probe.cpp', '../planner.c', '../planner.h', '../planner_job.c',
                  '../planner_job.h', '../pcm_reader.c', '../pcm_reader.h')
+        if args.kind == 'worker':
+            names = ('worker_probe.cpp', '../preview_guard.c', '../preview_guard.h')
         inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
         binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
         expected = hashlib.sha256(binding.encode()).hexdigest()
@@ -48,7 +50,7 @@ def main():
     report = {
         'scope': ('isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
                   if args.kind == 'storage' else
-                  'synthetic stock producer, queues, worker and completion posts; display mock, no scheduler/UI consumer/device access'
+                  'synthetic stock producer, queues, worker and completion posts with host admission guard; display mock, no scheduler/UI consumer/device access'
                   if args.kind == 'worker' else
                   'isolated stock edits, release and pool-to-host-reader previews; synthetic memory, no mocked callees or device access'
                   if args.kind == 'coherence' else

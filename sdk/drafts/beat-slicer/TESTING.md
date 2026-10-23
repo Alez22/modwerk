@@ -495,3 +495,63 @@ against upstream `4840eb336b3e64195eed1994f83ef3be79735f56` passes, including
 `origin/main` remains at `610a934d`: the required check against that stale base
 rejects inherited upstream CHANGELOG history. Validation against current
 upstream is authoritative; historical changelog contents are left intact.
+
+## Preview admission prototype (0.1.6)
+
+`preview_guard.c` adds portable bookkeeping for the proposed shared-base
+provider; see [PREVIEW_GUARD.md](PREVIEW_GUARD.md). It starts disabled and does
+not install a hook, discover writers, pin PCM or provide a native lock.
+
+- `evidence/guard-host.json`: Apple clang 17 ASan/UBSan selftest passes lifecycle,
+  nested/overlapping writers, stale/duplicate/premature ends, owner revocation,
+  eight-writer saturation and 32-bit ID/revision exhaustion. All 24 permutations
+  of two writer starts/ends are combined with five invalidation positions:
+  120 schedules. Three staged-reader cases invalidate before a pending reply,
+  after a late reply, and after a completed preview; reused reader storage
+  refuses the old operation's reply.
+- `evidence/guard-native.json`: the same selftest compiles with pinned GCC
+  16.2.0, passes the shared code-generation guard, links freestanding with no
+  unresolved helpers and executes as ColdFire code with preserved registers.
+  The guard object has 608 text bytes, no object data/BSS, and 48 bytes of
+  caller-owned state. Compiler reports 0–4 bytes of static local stack per
+  guard function; this excludes caller/return/call-chain costs and is not a
+  hardware stack, cycle or latency measurement.
+- `evidence/stock-guard.json`: nine source-bound stock-worker groups pass with
+  a host-compiled guard observing writer entry/return and PCM writes. Added
+  copy/crop/release dispatch tests include exact copy destination extent,
+  nested crop/rotation lifetime, crop's counter mutation before an empty-range
+  refusal, and release without a UI completion attempt. Both pinned emulator
+  EMAC/peripheral gates also pass. The guard itself runs on the host in these
+  stock traces; do not conflate them with the separate target selftest.
+
+Host command:
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_preview_guard.py --output NEW_REPORT.json
+```
+
+Inside the same pinned source-tools container/mounts as the 0.1.5 worker run:
+
+```sh
+cmake --build /output/build --target beat_slicer_worker_probe beat_slicer_job_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/guard_native.py \
+  --output /evidence/NEW_NATIVE_DIRECTORY --executable /output/build/beat_slicer_job_probe
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind worker \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_worker_probe \
+  --output /evidence/NEW_STOCK_REPORT.json
+```
+
+Keep all inputs frozen through execution. The worker binary binding now covers
+its C++ runner and both guard C/header inputs. A deliberately stale executable
+was refused without creating a report. An initial target harness initializer
+needed `memset`; explicit bounded initialization removed that dependency. A
+strengthened copy fixture initially installed its write watcher before filling
+test PCM; moving fixture preparation before observation corrected that test.
+Only final source-matched passing reports are retained here. Historical reports
+keep their original hashes and are not relabeled as current-source evidence.
+
+No native provider is enabled. Full writer/metadata/caller coverage, live
+scheduler/cancellation behavior, serialized map lookup and copying, real-unit
+audio/timing/persistence, and card/browser/USB qualification remain pending.
+`module:doctor` and `verify.py` still refuse publication of this unlisted draft.

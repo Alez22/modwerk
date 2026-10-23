@@ -39,7 +39,10 @@ These are remaining tasks, not implemented behavior.
    dispatch paths. Queue emptiness can precede PCM mutation; deferred UI
    completion can be absent. Guard actual execution lifetime independently
    of either signal, and capture identity rather than retaining a reusable
-   command pointer. Full caller/writer coverage and native guards remain open.
+   command pointer. The portable admission prototype now implements global
+   revisions and unique writer tickets, including nested edits, owner revocation
+   and exhaustion refusal. Copy/crop/release dispatch is exercised with that
+   host guard; native writer coverage, synchronization and admission remain open.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

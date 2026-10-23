@@ -62,6 +62,13 @@ notification, and capture owned operation identity; a queued pointer can refer
 to a reused command record. Full panel/scheduler/cancellation behavior remains
 unproved by those fixtures.
 
+Track nested writers independently: the 1.40C crop path calls rotation, and
+its inner return must not reopen a preview before the crop finishes. A refused
+crop can also advance the slot counter before range validation. Beat Slicer's
+synthetic worker fixtures exercise both cases. Admission bookkeeping still
+needs a separate verified lock around snapshot/map lookup and bounded copying;
+a valid token alone does not pin memory or establish complete writer coverage.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming
