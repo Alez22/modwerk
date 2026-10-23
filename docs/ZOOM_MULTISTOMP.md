@@ -114,9 +114,10 @@ install cycles), written up in the project's
   identical, kept over a power cycle (the pedal booted and played normally)
   and deleted. Replacing an installed effect works as well: Loop was swapped
   0.03 -> 0.02 -> 0.03 over USB, and each build ran after a power cycle. So a
-  per-effect install without update mode or stock updaters is possible;
-  adding an effect that is not on the pedal yet (which also updates the
-  effect list) is the next test.
+  per-effect install without update mode or stock updaters is possible.
+  Adding a new effect (its file, then one record in the effect list) and
+  removing it again work too: the pedal listed and loaded the added effect
+  after a power cycle, and after removal everything else was unchanged.
 - In normal mode, Effect Manager learns which effects are installed by
   writing a temporary patch with several effect ids into the edit buffer and
   reading it back. That works without update mode.
