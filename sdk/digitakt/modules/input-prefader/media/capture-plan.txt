@@ -1,0 +1,17 @@
+wait 1000
+tap GLOBAL
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+tap DOWN
+snap settings-post
+tap RIGHT
+snap settings-pre
+tap DOWN
+tap RIGHT
+snap settings-awake

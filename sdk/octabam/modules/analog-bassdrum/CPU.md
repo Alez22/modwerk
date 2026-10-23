@@ -1,4 +1,40 @@
+# 0.1.5 assignment-only correction
+
+The 0.1.5 fix changes ColdFire machine assignment by restoring twelve borrowed bytes in both Part copies before clearing AB/1. Runtime code grows by 36 bytes; no DSP code or DSP uploads change. The copy does not execute per sample. Chip timing and complete memory/stack bounds remain unmeasured under the new exact-version owner approval. The measurements below apply to the unchanged 0.1.4 DSP source, not a new 0.1.5 hardware benchmark.
+
+# Analog BD 0.1.4 load measurements
+
+Matched both-core native tests: 909 mean 6524.07 / peak 6563 executed instructions per 16-sample block (410.1875/sample peak), versus approved 0.1.3 mean 6141.77 / peak 6176. Mean increase 6.22%; maximum matched-block increase 6.27%. 808 is unchanged at mean 4268.47 / peak 4294 (268.375/sample). The tests include control endpoints, moving controls and all 16 trigger splits.
+
+Combined code is 997 P words/core plus the separate 35-word stock helper. Existing X upload remains 3776 words/core with four 64-word voices/core; Y and ColdFire allocation are unchanged. These are executed instruction counts, not worst-case chip cycles, wall-clock timing or full-chain headroom. Complete lifetime/stack bounds and maximum FX load remain unmeasured. See [current cost evidence](evidence/909-reference-costs.json) and [TESTING.md](TESTING.md).
+
+## Historical measurements
+
 # Analog BD load measurements
+
+## Modulation smoothing, 8 October 2026 — 0.1.3-experimental
+
+The exact smoothing code tested by the owner and in the isolated native gates
+peaks at 6,176 executed instructions per 16-frame 909 block (386/sample) and
+4,294 per 808 block (268.375/sample). These include the combined engine at both
+core placements under the focused modulation/retrigger workload. They are
+executed instruction counts, not worst-case chip cycles or full-chain budgets.
+
+Combined code uses 946 P words per core plus the separate 35-word stock helper.
+The X upload remains 3,776 words per core; the existing four 64-word voice
+blocks per engine/core and saved control layout are unchanged. No X/Y or
+ColdFire allocation is added. [TESTING.md](TESTING.md) records the reused state
+words, native instance/audio tests and the owner-reported MKII persistence pass.
+Complete stack/lifetime memory bounds remain unmeasured.
+
+The legacy instruction-growth guards and original moving-control state hashes
+below predate smoothing. They are not a pass for 0.1.3, and were not silently
+raised or regenerated. Current smoothing regression results are in
+[evidence/native.json](evidence/native.json), with their reproduction scripts
+retained under `sdk/drafts/analog-bassdrum/qualification/` against the pinned
+0.1.2 base. The earlier full-chain FX/load runs remain historical: eight-voice
+maximum FX load and worst-case chip timing are unqualified for this update.
+The exact source-bound owner approval accepts these incomplete measurements.
 
 ## Louder source output, 30 September 2026
 

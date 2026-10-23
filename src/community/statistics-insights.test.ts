@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { dailyRows, rankedModules, usageCsv, usageInsights } from './statistics-insights'
+import { accountDayValue, accountInsights, dailyRows, hourlyRows, rankedModules, usageCsv, usageInsights } from './statistics-insights'
 import type { UsageDay, UsageStatistics } from './usage-contract'
-import type { AdminModuleInsight } from './admin-insights-contract'
+import type { AdminAccounts, AdminModuleInsight } from './admin-insights-contract'
 
-const row = (day: string, visitors: number): UsageDay => ({day,visitors,page_views:visitors*2,configurations:0,builds:0,downloads:0,exports:0})
+const row = (day: string, visitors: number): UsageDay => ({day,visitors,page_views:visitors*2,configurations:0,builds:0,builds_failed:0,downloads:0,exports:0,support_opens:0,support_clicks:0})
 const data: UsageStatistics = {generatedAt:'2026-10-03T12:00:00Z',collectionStarted:'2026-09-29T12:00:00Z',from:'2026-09-27',to:'2026-10-03',days:7,
   rows:[row('2026-09-29',100),row('2026-10-01',12),row('2026-10-02',6),row('2026-10-03',999)]}
 
 describe('admin statistics interpretation',() => {
+  it('lays out the 7-day view by UTC hour up to the current hour, with no value before hourly counting began',() => {
+    expect(hourlyRows(data)).toBeNull() // A 30- or 90-day response, or an older backend, has no hours.
+    const hour = {visitors:1,page_views:3,configurations:0,builds:0,builds_failed:0,downloads:0,exports:0,support_opens:1,support_clicks:0}
+    const rows = hourlyRows({...data,hourlyStarted:'2026-10-02T22:15:00Z',hourly:[{hour:'2026-10-03T05',...hour}]})!
+    expect(rows).toHaveLength(6*24+13) // Six full days and today's hours 00 to 12.
+    expect(rows[0].hour).toBe('2026-09-27T00'); expect(rows.at(-1)!.hour).toBe('2026-10-03T12')
+    expect(rows.find(row => row.hour==='2026-10-02T21')!.counts).toBeNull()
+    expect(rows.find(row => row.hour==='2026-10-02T22')!.counts).toMatchObject({page_views:0})
+    expect(rows.find(row => row.hour==='2026-10-03T05')!.counts).toMatchObject({page_views:3,support_opens:1})
+  })
   it('distinguishes unavailable history from zero days and excludes partial days from averages and peaks',() => {
     const insights = usageInsights(data)
     expect(dailyRows(data).map(({counts}) => counts?.visitors??null)).toEqual([null,null,100,0,12,6,999])
@@ -34,17 +44,66 @@ describe('admin statistics interpretation',() => {
   })
   it('exports unavailable values as blanks and identifies partial coverage in CSV',() => {
     const csv = usageCsv(data).trimEnd().split('\n')
-    expect(csv[1]).toBe('2026-09-27,uncollected,,,,,,')
-    expect(csv[3]).toBe('2026-09-29,partial,100,200,0,0,0,0')
-    expect(csv[4]).toBe('2026-09-30,complete,0,0,0,0,0,0')
-    expect(csv.at(-1)).toBe('2026-10-03,partial,999,1998,0,0,0,0')
+    expect(csv[1]).toBe('2026-09-27,uncollected,,,,,,,,,')
+    expect(csv[3]).toBe('2026-09-29,partial,100,200,0,0,0,0,0,0,0')
+    expect(csv[4]).toBe('2026-09-30,complete,0,0,0,0,0,0,0,0,0')
+    expect(csv.at(-1)).toBe('2026-10-03,partial,999,1998,0,0,0,0,0,0,0')
   })
   it('ranks unrated modules last, breaks rating ties by sample size and filters IDs without mutating the source',() => {
-    const module = (title: string, ratingAverage: number|null, ratings: number): AdminModuleInsight => ({moduleId:title.toLowerCase()+'-id',title,available:true,ratingAverage,ratings,downloads:2,likes:0,comments:0,openIssues:0})
+    const module = (title: string, ratingAverage: number|null, ratings: number, downloadsWeek = 0, downloadsPreviousWeek = 0): AdminModuleInsight => ({moduleId:title.toLowerCase()+'-id',title,available:true,ratingAverage,ratings,downloads:2,downloadsWeek,downloadsPreviousWeek,likes:0,comments:0,openIssues:0})
     const modules = [module('Zero',null,0),module('Beta',5,2),module('Alpha',5,1)]
     expect(rankedModules(modules,'ratingAverage','').map(module => module.title)).toEqual(['Beta','Alpha','Zero'])
     expect(rankedModules(modules,'downloads','').map(module => module.title)).toEqual(['Alpha','Beta','Zero'])
     expect(rankedModules(modules,'likes',' BETA-ID ').map(module => module.title)).toEqual(['Beta'])
     expect(modules[0].title).toBe('Zero')
+  })
+  it('ranks this week\'s downloads, breaking ties by growth over the previous week',() => {
+    const module = (title: string, week: number, previous: number): AdminModuleInsight => ({moduleId:title.toLowerCase(),title,available:true,ratingAverage:null,ratings:0,downloads:50,downloadsWeek:week,downloadsPreviousWeek:previous,likes:0,comments:0,openIssues:0})
+    expect(rankedModules([module('Steady',4,4),module('Rising',4,0),module('Top',9,20),module('Quiet',0,3)],'downloadsWeek','').map(module => module.title)).toEqual(['Top','Rising','Steady','Quiet'])
+  })
+  it('uses Bayesian scores before search filtering and preserves displayed averages', () => {
+    const module = (title: string, ratingAverage: number | null, ratings: number): AdminModuleInsight => ({moduleId:title.toLowerCase(),title,available:true,ratingAverage,ratings,downloads:0,downloadsWeek:0,downloadsPreviousWeek:0,likes:0,comments:0,openIssues:0})
+    const modules = [module('Visible Alpha',5,1),module('Visible Beta',4.5,20),module('Background',1,20),module('Unrated',null,0)]
+    expect(rankedModules(modules,'ratingAverage','').map(module => module.title)).toEqual(['Visible Beta','Visible Alpha','Background','Unrated'])
+    expect(rankedModules(modules,'ratingAverage','visible').map(module => module.title)).toEqual(['Visible Beta','Visible Alpha'])
+    expect(modules.map(module => module.ratingAverage)).toEqual([5,4.5,1,null])
+    const tied = modules.slice(0,2).map(module => ({...module,title:'Same',ratingAverage:5,ratings:20})).reverse()
+    expect(rankedModules(tied,'ratingAverage','').map(module => module.moduleId)).toEqual(['visible alpha','visible beta'])
+    expect(rankedModules([],'ratingAverage','')).toEqual([])
+  })
+})
+
+const accountDay = (day: string, signups: number, completed: number, visitors: number | null, active: number | null = null) => ({day,signups,completed,visitors,active})
+const accounts: AdminAccounts = {generatedAt:'2026-10-06T12:00:00Z',from:'2026-09-30',to:'2026-10-06',days:7,visitorsFrom:'2026-10-01',activeFrom:null,
+  totals:{members:12,unverified:1,pendingSocial:0,suspended:0,deleted:0,administrators:1,newsOptIns:4,online:2,activeDay:3,activeWeek:5,activeMonth:8,postersMonth:3},
+  signups:{today:2,last7:9,last30:20},methods:[{method:'credential',members:8},{method:'google',members:3},{method:'github',members:2},{method:'discord',members:0}],
+  daily:[accountDay('2026-09-30',1,1,null),accountDay('2026-10-01',2,2,10),accountDay('2026-10-02',1,1,100),accountDay('2026-10-03',0,0,50),accountDay('2026-10-04',3,1,50),accountDay('2026-10-05',0,0,0),accountDay('2026-10-06',2,0,30)],
+  previous:{from:'2026-09-24',to:'2026-09-29',signups:4,completed:4,visitors:null}}
+
+describe('member statistics interpretation',() => {
+  it('excludes today and uncollected days from totals, rates and comparisons',() => {
+    const insights = accountInsights(accounts)
+    expect(insights.completedDays).toBe(6)
+    expect(insights.signups).toEqual({current:7,previous:4,percent:75})
+    // Sign-ups before collection and on the partial first collection day are not divided by visitors.
+    expect(insights.rate).toEqual({value:2,coveredDays:4,visitors:200,previous:null})
+    expect(insights.completion).toEqual({signups:7,completed:5,percent:500/7,previous:100})
+    expect(accounts.daily.map(row => insights.value(row,'rate'))).toEqual([null,null,1,0,6,0,200/30])
+    expect(accounts.daily.map(row => insights.value(row,'completed'))).toEqual([1,2,1,0,1,0,0])
+  })
+  it('reports unavailable rates and zero baselines without dividing by zero',() => {
+    const quiet = accountInsights({...accounts,visitorsFrom:null,daily:accounts.daily.map(row => ({...row,signups:0,completed:0,visitors:null})),previous:{...accounts.previous,signups:0,completed:0}})
+    expect(quiet.signups).toEqual({current:0,previous:0,percent:null})
+    expect(quiet.rate).toEqual({value:null,coveredDays:0,visitors:0,previous:null})
+    expect(quiet.completion.percent).toBeNull(); expect(quiet.completion.previous).toBeNull()
+    const compared = accountInsights({...accounts,previous:{...accounts.previous,visitors:400}})
+    expect(compared.rate.previous).toBe(1)
+    expect(accountDayValue(accountDay('2026-10-01',3,3,0),'rate',null)).toBe(0)
+    expect(accountDayValue(accountDay('2026-10-01',3,3,0),'rate','2026-10-01')).toBeNull()
+  })
+  it('charts active members as counted, leaving days before counting began empty',() => {
+    expect(accountDayValue(accountDay('2026-10-01',0,0,null,null),'active',null)).toBeNull()
+    expect(accountDayValue(accountDay('2026-10-02',0,0,null,0),'active',null)).toBe(0)
+    expect(accountDayValue(accountDay('2026-10-03',0,0,null,4),'active',null)).toBe(4)
   })
 })

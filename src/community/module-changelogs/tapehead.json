@@ -1,0 +1,20 @@
+[
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-05",
+    "changes": [
+      "Corrects the input drive to make up for the stock AMP volume scaling, so the saturation is closer to the original DAW effect.",
+      "Media only: adds an audio preview. The firmware is unchanged.",
+      "On the beta base, picking it no longer shows DSP MEMORY FULL just because the modules named in the bank's Parts do not all fit on one DSP core."
+    ],
+    "sourceCommit": "177df636fde9419cba2fcb42ddaacdc14a736458"
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-02",
+    "changes": [
+      "First Modwerk release of the TapeHead saturation effect, ported from JClones with fixes to its input limiting, clipping and COLOR control."
+    ],
+    "sourceCommit": "979842c888466fc79680ca44f33fd40082e1c50e"
+  }
+]

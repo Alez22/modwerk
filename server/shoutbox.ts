@@ -2,6 +2,7 @@ import type { Database, User } from './platform'
 import { needMember, throttle } from './auth'
 import { HttpError, jsonBody, required, response } from './security'
 import { SHOUT_MAX_LENGTH } from '../src/community/forum-contract'
+import { notifyShoutMentions } from './notifications'
 
 export async function shoutbox(request: Request, db: Database, user: User | null, admin: boolean): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname
@@ -9,8 +10,8 @@ export async function shoutbox(request: Request, db: Database, user: User | null
   if (path === '/api/forum/shouts' && request.method === 'GET') {
     const page = Number(url.searchParams.get('page') ?? 0)
     if (!Number.isInteger(page) || page < 0 || page > 10000) throw new HttpError(400, 'Invalid page.')
-    const limit = url.searchParams.get('compact') === '1' ? 8 : 30
-    const rows = (await db.prepare(`SELECT s.id,s.body,s.created_at,s.edited_at,s.hidden,u.username,s.user_id
+    const limit = url.searchParams.get('compact') === '1' ? 50 : 30
+    const rows = (await db.prepare(`SELECT s.id,s.body,s.created_at,s.edited_at,s.hidden,u.username,u.avatar_id AS avatar,s.user_id
       FROM forum_shouts s JOIN users u ON u.id=s.user_id
       WHERE s.hidden=0 OR ?=1 ORDER BY s.rowid DESC LIMIT ? OFFSET ?`)
       .bind(Number(admin),limit+1,page*limit).all<{id:string;body:string;created_at:string;edited_at:string|null;hidden:number;username:string|null;user_id:string}>()).results
@@ -24,7 +25,7 @@ export async function shoutbox(request: Request, db: Database, user: User | null
     await throttle(db,'shout-send:'+member.id,6,60)
     await throttle(db,'shout-send-hour:'+member.id,30)
     const id = crypto.randomUUID()
-    await db.prepare('INSERT INTO forum_shouts(id,user_id,body) VALUES(?,?,?)').bind(id,member.id,text).run()
+    await db.batch([db.prepare('INSERT INTO forum_shouts(id,user_id,body) VALUES(?,?,?)').bind(id,member.id,text),...notifyShoutMentions(db,text,id,member.id)])
     return response({id},201)
   }
   const match = path.match(/^\/api\/forum\/shouts\/([a-zA-Z0-9-]+)(?:\/(report))?$/)

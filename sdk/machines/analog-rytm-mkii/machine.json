@@ -6,14 +6,96 @@
   "variants": [
     "MKII"
   ],
-  "status": "open",
-  "summary": "Analog drum machine with pads. No public firmware research yet.",
+  "status": "preview",
+  "summary": "OS 1.74 rebuilt byte-identical; modified OSes boot on hardware; stock recovers over MIDI DIN; core-ar2 0.3 with mod storage runs on units. Filter Hz is the first library module.",
+  "firmware": {
+    "releases": [
+      {
+        "version": "1.74",
+        "files": [
+          {
+            "name": "Analog-Rytm_MKII_OS1.74.syx",
+            "sha256": "cb0f99d620edde994fb860c0e79cc2464e427d06882828cfdfb00fc53700e123"
+          }
+        ]
+      }
+    ],
+    "flash": "Elektron Transfer over USB: set MIDI IN and OUT to the device, drop the .syx on and press YES on the device. It restarts by itself.",
+    "recovery": "Recovery mode is MIDI DIN ONLY — it does NOT work over USB: the startup menu never enumerates USB, so once a non-stock OS is on the unit a MIDI-DIN sender is REQUIRED (a USB-MIDI interface, or a hand-wired FT232RL serial adapter at 31250 baud: +5V/220 ohm to DIN 4, TXD/220 ohm to DIN 5, GND to DIN 2, raw .syx). Hold FUNC at power-on, TRIG 4 (OS UPGRADE), send the owner's stock .syx."
+  },
   "steps": {
-    "format": "open",
-    "rebuild": "open",
-    "boot": "open",
-    "core": "open",
-    "mods": "open"
+    "format": "done",
+    "rebuild": "done",
+    "boot": "done",
+    "core": "done",
+    "mods": "done"
+  },
+  "research": [
+    {
+      "label": "rytm-fw-re",
+      "url": "https://github.com/ethernet8023/rytm-fw-re",
+      "note": "Static analysis of OS 1.74: format, boot contract, startup-menu recovery, display pipeline, plus a from-source replacement OS. Hardware-verified: flashed over USB, booted (display + memory probe), recovered to stock 1.74 over MIDI DIN via a hand-wired FT232RL adapter. No firmware hosted."
+    },
+    {
+      "label": "elektron-firmware-tool",
+      "url": "https://github.com/mischa85/elektron-firmware-tool",
+      "note": "Writer. Verified on OS 1.74: unchanged repack is byte-identical to the stock file (sysex re-encode and aPLib recompression included); section replacement round-trips exactly on re-extract."
+    },
+    {
+      "label": "rytm-mods-src",
+      "url": "https://github.com/Iced-Cream/rytm-mods-src",
+      "note": "MrScruff's OS 1.73 mod build, published with permission. make verify rebuilds the stock .syx byte for byte and asserts that only MAIN OS changes; eight of its twelve mods are marked hardware-verified by their author. No firmware hosted."
+    },
+    {
+      "label": "rytm-mods-boot-report",
+      "url": "https://github.com/Iced-Cream/rytm-mods-boot-report",
+      "note": "Stock OS 1.73 .syx rebuilt byte-identical by elektron-firmware-tool (matching SHA-256). A build of rytm-mods-src cf5ac006 then booted on an MKII with 0008-filter-hz working, and the stock .syx restored it. Also shows 1.74 to 1.73 over USB and DIN. Hashes and photos only."
+    },
+    {
+      "label": "elekloader core-ar2",
+      "url": "https://github.com/irpina/elekloader/tree/main/mods/core-ar2",
+      "note": "Device profile and core for OS 1.73: elekloader's Digitakt mk1 core built with the Rytm's addresses. Byte-exact writer, flash limit and DDR area evidenced; boot, tick, draw, key, encoder, SETTINGS and render events run on a unit. No firmware hosted."
+    },
+    {
+      "label": "rytm-mods-boot-report: core",
+      "url": "https://github.com/Iced-Cream/rytm-mods-boot-report/blob/main/CORE_REPORT.md",
+      "note": "Hardware report for the core: builds HM01 (core + hello-marker) and HC01 (core + hooks-check) on OS 1.73, every event observed, plus the DDR-area canary and render-site probes from rytm-mods-src's elemod branch. Hashes and photos only."
+    },
+    {
+      "label": "rytm-emu",
+      "url": "https://github.com/trigcondition/rytm-emu",
+      "note": "Emulator for the Analog Rytm and Analog Four, MKI and MKII (a fork of rouletrro, MIT). Boots stock Rytm MKII OS 1.73 and builds patched from it headless or in a window, with the analog voices stubbed. No firmware hosted."
+    },
+    {
+      "label": "rytm2_mods",
+      "url": "https://github.com/Iced-Cream/rytm2_mods",
+      "note": "All eleven of rytm-mods-src's OS 1.73 mods ported to elemod for core-ar2, MrScruff's code unchanged and checked label by label against his build; each confirmed on a unit. Release v1.0. No firmware hosted."
+    }
+  ],
+  "sdk": {
+    "platform": "elemod",
+    "modules": "sdk/analog-rytm-mkii/modules",
+    "catalog": null,
+    "guide": "sdk/machines/analog-rytm-mkii/README.md",
+    "core": {
+      "version": "0.3",
+      "path": "sdk/analog-rytm-mkii/core-profile"
+    },
+    "toolchain": "m68k-linux-gnu (or m68k-elf) GCC and binutils for ColdFire, and elekloader's builder: core-ar2 0.3 from the owner's exact OS 1.74 .syx.",
+    "budgets": [
+      {
+        "name": "Shared mod memory",
+        "unit": "bytes",
+        "value": 131072,
+        "note": "DDR 0x47BE0000–0x47C00000, shared by the core and every mod; a boot-time fill was read back intact on a unit (DDR-area canary, elekloader core-ar2 evidence)."
+      },
+      {
+        "name": "Core image",
+        "unit": "bytes",
+        "value": 7576,
+        "note": "Core 0.3 build (core-ar2-v0.3 pre-release): 7,540 bytes .run plus 36 bytes .bss in the shared area, and an 88-byte .boot copier; the link check measures each selected module set."
+      }
+    ]
   },
   "art": {
     "body": "wide",

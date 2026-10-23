@@ -1,0 +1,36 @@
+[
+  {
+    "version": "0.1.3-experimental",
+    "date": "2026-10-11",
+    "changes": [
+      "Fixes freezes when opening the trig-mode popup on MIDI tracks. MIDI keeps its stock octave display; SCALE and ROOT on audio tracks work as before.",
+      "Available over USB as its own package on the Modwerk beta base; the module itself is unchanged.",
+      "Known issue: not yet tested on a unit."
+    ]
+  },
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: adds screenshots of the selection and control pages and explains how to open them."
+    ],
+    "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Scale Quantizer can now be built in the browser."
+    ],
+    "sourceCommit": "9c4e0e3b7990c6952812d89ac165dfa14151c3ee"
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "First Modwerk release of the scale quantizer (based on v2.9), adding SCALE, ROOT and synth GLIDE settings.",
+      "Snaps the PTCH knob and chromatic trig keys to the selected scale and root."
+    ],
+    "sourceCommit": "d1136ce4c65ea7e1a00c4516cd4aa41c4b0c0d56"
+  }
+]

@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 3,
+  "id": "euclidean",
+  "name": "Euclidean Sequencing",
+  "version": "1.1.5",
+  "machine": "digitakt",
+  "category": "machines",
+  "exclusive": false,
+  "author": {
+    "github": "sumedho",
+    "credits": [
+      "sumedho — module design and development with Codex assistance.",
+      "irpina — Elekloader Core 2.1, the Core 3.0 header, Machine Pages (adapted to Core 2.1 by sumedho) and SDK."
+    ]
+  },
+  "maintainers": [
+    "sumedho"
+  ],
+  "source": {
+    "repository": "https://github.com/sumedho/digirequests",
+    "revision": "27432d5aa7281422e7f80467e7e848c7f5433f33",
+    "path": "modules/euclidean"
+  },
+  "presentation": {
+    "label": "Euclidean Sequencing",
+    "family": "Sequencer",
+    "summary": "Generate rhythms from two pulse generators on each audio or MIDI track. Rotate either generator, rotate the whole result and combine them with OR, XOR, AND or SUB.",
+    "overview": "Generate rhythms from two pulse generators on each audio or MIDI track. Rotate either generator, rotate the whole result and combine them with OR, XOR, AND or SUB.",
+    "highlights": [
+      "Pulse counts for generators 1 and 2.",
+      "Track length; editable in PER TRACK scale mode, up to 64 steps.",
+      "Turn to enable/disable; press to toggle immediately."
+    ],
+    "usage": [
+      "Create a few source trigs on an audio track with a loaded sample. Hold FUNC + AMP to open Euclidean.",
+      "Set PL1 to 5, PL2 to 0 and enable EUC with D. With a 16-step track this distributes five hits across the loop.",
+      "Press PLAY. Turn RO1 to move those hits, then add PL2 pulses and try the OP combinations.",
+      "Turn D off to restore the ordinary sequence. Press NO, or a page key such as TRIG or FLTR, to leave. Use FUNC while turning D off only when you want to replace the ordinary trigs with the generated result."
+    ]
+  },
+  "access": {
+    "location": "Hold FUNC + AMP; NO or a page key closes the page",
+    "steps": [
+      "Create a few source trigs on an audio track with a loaded sample. Hold FUNC + AMP to open Euclidean.",
+      "Set PL1 to 5, PL2 to 0 and enable EUC with D. With a 16-step track this distributes five hits across the loop."
+    ],
+    "screenshots": [
+      "media/euclidean-open.png"
+    ]
+  },
+  "controls": [
+    {
+      "name": "A — PL1 / B — PL2",
+      "default": null,
+      "doc": "Pulse counts for generators 1 and 2.",
+      "labels": null
+    },
+    {
+      "name": "C — LEN",
+      "default": null,
+      "doc": "Track length; editable in PER TRACK scale mode, up to 64 steps.",
+      "labels": null
+    },
+    {
+      "name": "D — EUC",
+      "default": null,
+      "doc": "Turn to enable/disable; press to toggle immediately.",
+      "labels": null
+    },
+    {
+      "name": "E — RO1 / F — RO2",
+      "default": null,
+      "doc": "Rotate each generator.",
+      "labels": null
+    },
+    {
+      "name": "G — TRO",
+      "default": null,
+      "doc": "Rotate the combined track rhythm.",
+      "labels": null
+    },
+    {
+      "name": "H — OP",
+      "default": null,
+      "doc": "Choose OR, XOR, AND or SUB.",
+      "labels": null
+    },
+    {
+      "name": "FUNC + turn D off",
+      "default": null,
+      "doc": "Convert the generated sequence into ordinary trigs.",
+      "labels": null
+    },
+    {
+      "name": "TRK + trig / NO",
+      "default": null,
+      "doc": "Select an audio or MIDI track / close the page.",
+      "labels": null
+    },
+    {
+      "name": "TRIG / SRC / FLTR / AMP / LFO",
+      "default": null,
+      "doc": "Close Euclidean and open that page. FUNC + TRIG, FLTR, AMP or LFO opens Quantize, Delay, Reverb or Compressor.",
+      "labels": null
+    }
+  ],
+  "compatibility": {
+    "releases": [
+      "1.53",
+      "1.54"
+    ],
+    "requires": [
+      "dt-support"
+    ],
+    "conflicts": [],
+    "limitations": [
+      "Generated hits use successive source steps and their locks.",
+      "Four panel counts move A–H by one value in 1.1.3; D’s press toggle remains immediate.",
+      "In common scale mode, change length through the normal scale menu.",
+      "Conversion replaces ordinary trigs; ordinary EUC-off is nondestructive.",
+      "Stock firmware can discard the Euclidean project extension on save."
+    ]
+  },
+  "platform": {
+    "kind": "elemod",
+    "core": "2.1",
+    "build": "build.json",
+    "events": [],
+    "claims": [
+      "ui:parameter pages:hold FUNC+AMP",
+      "storage:pattern-padding:EUC1"
+    ]
+  },
+  "resources": {
+    "memoryBytes": 34327,
+    "fastBytes": 0,
+    "load": {
+      "display": "Adds under 0.1% of an audio block over stock, average and worst case (emulator)",
+      "method": "emulator",
+      "conditions": "Emulator: OS 1.53 on Core 2.1, 8 audio tracks triggering a full-scale sample and 8 MIDI tracks a note on every step at 120 BPM, 3,000 audio blocks timed with the MCF5441x instruction-timing model at 250 MHz, zero-wait memory. Module workload: Euclidean 16/16 on all sixteen tracks. Stock: 59.1% average, 61.8% worst block. All six mods together: 73.2% worst block on 1.53, 73.3% on 1.54. Not a hardware measurement."
+    }
+  },
+  "evidence": {
+    "tier": "author-hardware",
+    "moduleVersion": "1.1.5",
+    "sourceSha256": "56ce0d64930138fe1bb5d504355d45fd693b10865f0527b56039008c4e36f2df",
+    "reports": [
+      "evidence/page-keys-1.1.5.json",
+      "evidence/hardware-testing.json",
+      "evidence/source-identity.json",
+      "evidence/regressions-core21.json",
+      "evidence/cpu-load.json",
+      "evidence/modwerk-source-parity.json"
+    ],
+    "hardware": {
+      "model": "Digitakt 1",
+      "release": "1.53 and 1.54",
+      "testedOn": "2026-10-16",
+      "tester": "sumedho",
+      "durationMinutes": 30,
+      "summary": "sumedho tested 1.1.5 on a Digitakt 1, OS 1.53 and 1.54, with all six mods and with Euclidean alone: the page keys and FUNC shortcuts leave Euclidean on audio and MIDI tracks, holding FUNC + AMP reopens it, and settings survived project save/reload and a power cycle (2026-10-16). Reported working, with no failures.",
+      "limitations": [
+        "Reported as under 30 minutes in total; 30 is an upper bound, not a measured duration.",
+        "Individual outcomes were not itemized beyond the coverage listed in evidence/page-keys-1.1.5.json.",
+        "Tested SysEx (all six mods): 1.53 f84a7159a4c1054febb9aa566804bc5953507906625815b49fe55d9afabee6cb, 1.54 4479e908e120e2ecb8890b62374355909303790208c8b83b17101704ea3e75fc; Euclidean alone: 1.53 b32f3bb8c7c56a7ff6d9e55b25e35895275d709d0c5ed9cd62ce958bd069aca0, 1.54 e7c3e4448a0fa42908756fe889957b3362e7eff97aa12223523583ec4c30c634. Firmware was not read back from the device."
+      ]
+    },
+    "verifiedBy": null
+  },
+  "tests": {
+    "report": "TESTING.md",
+    "summary": "Runs on Core 2.1. Emulator regressions on OS 1.53 and 1.54, an emulator CPU-load comparison with stock, Modwerk source-build parity with the native build, and the 1.1.5 page-key regression are in TESTING.md. sumedho tested 1.1.5 on a Digitakt 1, OS 1.53 and 1.54, with all six mods and alone, including project save/reload and a power cycle (2026-10-16).",
+    "documentation": {
+      "tutorial": {
+        "title": "Quick tutorial",
+        "steps": [
+          "Create a few source trigs on an audio track with a loaded sample. Hold FUNC + AMP to open Euclidean.",
+          "Set PL1 to 5, PL2 to 0 and enable EUC with D. With a 16-step track this distributes five hits across the loop.",
+          "Press PLAY. Turn RO1 to move those hits, then add PL2 pulses and try the OP combinations.",
+          "Turn D off to restore the ordinary sequence. Press NO, or a page key such as TRIG or FLTR, to leave. Use FUNC while turning D off only when you want to replace the ordinary trigs with the generated result."
+        ]
+      },
+      "screenshots": [
+        "media/euclidean-open.png",
+        "media/euclidean-controls.png",
+        "media/1.54/euclidean-open.png",
+        "media/1.54/euclidean-controls.png"
+      ],
+      "captureRecord": "media/captures.json"
+    }
+  },
+  "license": {
+    "spdx": "GPL-2.0-or-later",
+    "file": "LICENSE",
+    "declaration": "Original module source and irpina’s unchanged Core 3.0 header under GPL-2.0-or-later. Native patch preconditions are represented by addresses, lengths and hashes."
+  },
+  "media": [
+    {
+      "path": "media/thumbnail.svg",
+      "kind": "thumbnail",
+      "caption": "Euclidean Sequencing",
+      "alt": "Two euclidean pulse patterns combined step by step into one rhythm.",
+      "credit": "sumedho",
+      "license": "GPL-2.0-or-later",
+      "source": "Original vector illustration; not a device screenshot."
+    },
+    {
+      "path": "media/euclidean-open.png",
+      "kind": "screenshot",
+      "caption": "Hold FUNC + AMP to open Euclidean for the selected track; D enables its generated rhythm.",
+      "alt": "Euclidean page with pulse counts, length and enable switch.",
+      "credit": "sumedho documentation capture; Elektron interface",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.53",
+        "moduleVersion": "1.1.5",
+        "imageSha256": "f84a7159a4c1054febb9aa566804bc5953507906625815b49fe55d9afabee6cb",
+        "setup": "Actual cold-booted OS 1.53 all-mods SysEx on Core 2.1; cloned drive and native panel input. UI documentation only."
+      }
+    },
+    {
+      "path": "media/euclidean-controls.png",
+      "kind": "screenshot",
+      "caption": "Turn A/B to change pulses and E/F/G to rotate. H chooses how the generators combine.",
+      "alt": "Euclidean page with edited pulse counts.",
+      "credit": "sumedho documentation capture; Elektron interface",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.53",
+        "moduleVersion": "1.1.5",
+        "imageSha256": "f84a7159a4c1054febb9aa566804bc5953507906625815b49fe55d9afabee6cb",
+        "setup": "Actual cold-booted OS 1.53 all-mods SysEx on Core 2.1; cloned drive and native panel input. UI documentation only."
+      }
+    },
+    {
+      "path": "media/1.54/euclidean-open.png",
+      "kind": "screenshot",
+      "caption": "Hold FUNC + AMP to open Euclidean for the selected track; D enables its generated rhythm. (OS 1.54)",
+      "alt": "Euclidean page with pulse counts, length and enable switch.",
+      "credit": "sumedho documentation capture; Elektron interface",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.54",
+        "moduleVersion": "1.1.5",
+        "imageSha256": "4479e908e120e2ecb8890b62374355909303790208c8b83b17101704ea3e75fc",
+        "setup": "Actual cold-booted OS 1.54 all-mods SysEx on Core 2.1; cloned drive and native panel input. UI documentation only."
+      }
+    },
+    {
+      "path": "media/1.54/euclidean-controls.png",
+      "kind": "screenshot",
+      "caption": "Turn A/B to change pulses and E/F/G to rotate. H chooses how the generators combine. (OS 1.54)",
+      "alt": "Euclidean page with edited pulse counts.",
+      "credit": "sumedho documentation capture; Elektron interface",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.54",
+        "moduleVersion": "1.1.5",
+        "imageSha256": "4479e908e120e2ecb8890b62374355909303790208c8b83b17101704ea3e75fc",
+        "setup": "Actual cold-booted OS 1.54 all-mods SysEx on Core 2.1; cloned drive and native panel input. UI documentation only."
+      }
+    }
+  ]
+}

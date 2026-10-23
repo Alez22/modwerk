@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { ModError, applyWholeBuilds, linkMods, parseElemod, type LinkDevice } from './elemod'
+import { fromImage } from '../../../vendor/elekloader/kit/src/store.ts'
 
 // A synthetic machine whose "stock" image is 4 KiB of NOPs: no Elektron firmware involved.
 const image = Uint8Array.from({ length: 4096 }, (_, i) => (i % 2 ? 0x71 : 0x4e))
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const device: LinkDevice = {
-  key: 'test-machine', machine: 'digitakt', name: 'Test machine', mainLoad: 0x40000000,
+  key: 'test-machine', machine: 'digitakt', name: 'Test machine', sysexId: 0x0a, mainLoad: 0x40000000,
   releases: [{ version: '1.0', syxSha256: 'a'.repeat(64), mainSha256: sha(image), mainLength: image.length }],
   areas: { ddr: [0x41000000, 0x41001000] }, ddr: [0x41000000, 0x41001000], sramCode: [0, 0], fastTable: '', protected: [],
 }
@@ -48,5 +49,31 @@ describe('elemod linker', () => {
     expect((await applyWholeBuilds([parse(whole('os'))], image)).length).toBe(image.length + 2)
     await expect(applyWholeBuilds([parse(whole('a')), parse(whole('b'))], image)).rejects.toThrow('more than one whole build')
     expect(() => parse({ ...whole('x'), surprise: 1 })).toThrow(ModError)
+  })
+
+  it('places mod storage fields from the lockfile for a core that keeps them', async () => {
+    // the Rytm's storage room (elekloader's store.ts) on the synthetic image: a core that imports __store_gen
+    const rytm: LinkDevice = { ...device, key: 'analog-rytm-mk2', machine: 'analog-rytm-mkii' }
+    const rytmTarget = { ...target, device: 'analog-rytm-mk2' }
+    const parseRytm = (doc: Record<string, unknown>) => parseElemod(doc, String(doc.id), [rytm])
+    const storeCore = { ...core, version: '0.3', target: rytmTarget, imports: ['__store_gen', '__store_gen2', 'core_store_ids'], collections: { ev_tick: { entry: 4 }, core_store_ids: { entry: 4 } } }
+    const keeper = (id: string, addr: number, bits: number) => ({ ...mod(id, addr), target: rytmTarget, imports: [id + '_f'], storage: [{ sym: id + '_f', scope: 'track', bits }] })
+    const first = await linkMods([parseRytm(storeCore), parseRytm(keeper('one', 0x40000100, 3))], image)
+    expect(first.store?.fields).toEqual([{ mod: 'one', sym: 'one_f', scope: 'track', offset: 0, bits: 3 }])
+    expect(first.map.one_f >>> 0).toBe(((4 << 28) | (3 << 22) | 0) >>> 0)
+    expect(first.map.__store_gen).toBeDefined()
+    expect(first.tables.core_store_ids[1]).toBe(1)
+    expect(fromImage(first.image)).toEqual(first.store)
+    // the next build keeps the field where it was, and a new field takes new bits under a new layout ID
+    const next = await linkMods([parseRytm(storeCore), parseRytm(keeper('one', 0x40000100, 3)), parseRytm(keeper('two', 0x40000200, 5))], image, first.store)
+    expect(next.store?.fields.find(field => field.sym === 'one_f')?.offset).toBe(0)
+    expect(next.store?.fields.find(field => field.sym === 'two_f')?.offset).toBe(3)
+    expect(next.store?.ancestors).toContain(first.store!.id)
+    // an unchanged build keeps the layout ID
+    expect((await linkMods([parseRytm(storeCore), parseRytm(keeper('one', 0x40000100, 3))], image, first.store)).store?.id).toBe(first.store!.id)
+    // storage needs a core that keeps it; fields are C names declared once
+    await expect(linkMods([parseRytm({ ...core, target: rytmTarget }), parseRytm(keeper('one', 0x40000100, 3))], image)).rejects.toThrow('declares mod storage')
+    expect(() => parseRytm({ ...keeper('bad', 0x40000100, 3), storage: [{ sym: 'x', scope: 'song', bits: 3 }] })).toThrow(ModError)
+    expect((await linkMods([parse(core), parse(mod('one', 0x40000100))], image)).store).toBeNull()
   })
 })

@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { api, post } from './api'
 import type { NotificationPreferences as Preferences } from './notification-contract'
 
-const TOPICS: [keyof Pick<Preferences, 'replies' | 'likes' | 'modules' | 'bugs' | 'updates'>, string][] = [
-  ['replies', 'Replies in threads you follow and @mentions'],
+const TOPICS: [keyof Pick<Preferences, 'replies' | 'likes' | 'modules' | 'bugs' | 'updates' | 'messages'>, string][] = [
+  ['replies', 'Replies in threads you follow, @mentions and status changes on feature requests you follow'],
   ['likes', 'Likes on your posts'],
-  ['modules', 'Comments, ratings and likes on modules you maintain'],
+  ['modules', 'Comments and likes on modules you maintain'],
   ['bugs', 'Bug reports for modules you maintain, and replies and status changes for your own reports'],
   ['updates', 'New releases of modules you follow'],
+  ['messages', 'Direct messages from other members'],
 ]
 export function NotificationPreferences({ focus = false }: { focus?: boolean }) {
   const [value, setValue] = useState<Preferences | null>(null), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('')
@@ -27,12 +28,12 @@ export function NotificationPreferences({ focus = false }: { focus?: boolean }) 
     finally { setBusy(false) }
   }
   return <><PushSettings/><section className="configuration-section" id="notification-settings"><h2 ref={heading} tabIndex={-1}>Activity email</h2>
-    <p className="service-note">The bell shows everything. Email sends a digest of what you have not read yet, at most once per chosen interval. Every email has an unsubscribe link.</p>
+    <p className="service-note">The bell shows everything. Email sends a digest of what you have not read yet, at most once per chosen interval. Module releases are bundled once a day, with only the latest update for each module. Every email has an unsubscribe link.</p>
     {value && <>
       <label className="risk-accept"><input type="checkbox" checked={value.emailEnabled} disabled={busy} onChange={event => void change({ emailEnabled: event.target.checked })} />Email me about activity I have not seen</label>
       <fieldset className="notification-topics" disabled={busy || !value.emailEnabled}><legend className="sr-only">Include</legend>
         {TOPICS.map(([key, label]) => <label className="risk-accept" key={key}><input type="checkbox" checked={value[key]} onChange={event => void change({ [key]: event.target.checked })} />{label}</label>)}
-        <label className="notification-frequency">How often<select value={value.frequency} onChange={event => void change({ frequency: event.target.value as Preferences['frequency'] })}><option value="hours">At most every 6 hours</option><option value="daily">At most once a day</option></select></label>
+        <label className="notification-frequency">Other activity<select value={value.frequency} onChange={event => void change({ frequency: event.target.value as Preferences['frequency'] })}><option value="hours">At most every 6 hours</option><option value="daily">At most once a day</option></select></label>
       </fieldset>
       {!value.emailAvailable && <p className="service-note">Email delivery is not connected yet. Your choices are saved for when it is.</p>}
     </>}

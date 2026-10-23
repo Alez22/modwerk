@@ -23,7 +23,13 @@ FX2. Their descriptors, DSP code and dispatch entries stay stock.
 FREQ is the base cutoff for LP/BP/HP/NOTCH and the base gain for AMP. DEPTH is
 bipolar: its center leaves the destination static, positive values increase
 it on a pulse, and negative values decrease it. RES controls the four filter
-types and is inert for AMP. MIX zero is exact dry passthrough.
+types and is inert for AMP. MIX zero is exact dry passthrough and 127 is
+fully wet. Euclid has no sound of its own: its wet signal is the input
+through the pulsed filter or amp, so with the filter wide open or DEPTH at
+center MIX 127 sounds like the dry input
+([#681](https://github.com/repeat98/modwerk/issues/681)). For an audible
+pattern, move DEPTH well away from center and lower FREQ, or use AMP with AMT
+raised.
 
 TYPE offers LP, BP, HP, AMP and NOTCH. AMP retains value 3 so existing saved
 parts remain compatible; NOTCH is appended at value 4. The filter modes use
@@ -176,3 +182,9 @@ These are actual headless-emulator LCD captures, not hardware results. See
 [original capture record](media/capture.json) and [media rights](media/LICENSE.md). The track swing capture above is
 recorded separately in [swing capture provenance](docs/swing-capture.md).
 No audio preview is included.
+
+**Audio preview.** [Listen](media/audio-preview.mp3). Owner-supplied modpad.wav at 128 BPM. An eight-bar middle excerpt (22.5–37.5 s) leaves both render-error ends out and preserves the supplied modulation and decay. Peak adjusted with short edge fades; no added gaps or DSP. Recording setup and module version were not supplied; this clip adds no hardware qualification. Source identity, permission, exact crop and encoding are in [audio preview provenance](media/audio-preview.json).
+
+## Clock reset safety (0.1.4)
+
+Both PLAY paths save the full status register, mask interrupts while resetting Euclid's clock, and restore the previous interrupt mask and condition flags. The C reset clears initialized before rewriting the clock and publishes it last, with compiler memory barriers. This ports [octabam #620](https://github.com/sambanks/octabam/pull/620), pinned at 6f9e5bc9. Track timing, swing, phase policy and controls are unchanged.

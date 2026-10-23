@@ -1,5 +1,25 @@
 # Social sharing preview
 
+## Other projects directory
+
+`/projects/` has its own original Modwerk sharing artwork at
+`public/projects-social-preview-v1.jpg`: a 1200 × 630 JPEG showing “Other
+projects”, “Beyond the builder” and four conceptual drawings for mods, tools,
+emulators and developer tools. It uses the existing Modwerk mark. These drawings are
+only the directory's promotional artwork; project cards use the projects' own
+GitHub repository previews and retain their authorship.
+
+The editable source is [social-preview/projects.svg](social-preview/projects.svg).
+Re-export under Node 24 with `node scripts/render-projects-preview.mjs`.
+The renderer inserts the current mark and uses the existing Sharp dependency.
+The static directory page sets both Open Graph and Twitter metadata to this
+image, with its own canonical URL and alt text. Client navigation uses the same
+image; other pages retain their existing cards. Change the versioned filename
+and `PROJECT_PREVIEW_IMAGE` when replacing published artwork to avoid stale
+sharing-service caches.
+
+## Original Octamod artwork
+
 The static page metadata in `index.html` references `public/social-preview.jpg` at
 `https://modwerk.app/social-preview.jpg`. The production build copies this image
 to `dist/social-preview.jpg`. Open Graph and Twitter cards can read the metadata
@@ -163,3 +183,19 @@ Module links keep their own module thumbnail and inherit the Modwerk site name
 and public origin from `index.html`. The versioned homepage image URL avoids
 reusing the old sharing cache key. Local previews verify the metadata and image;
 the public card changes after these files are deployed.
+
+## Per-page cards
+
+Module pages, forum thread pages and the Start developing page carry their own
+`og:image`. Modules use their artwork (`module-thumbnails/`). A forum thread uses
+its first picture when it has one; otherwise the build draws a 1200 × 630 card
+(`forum-thumbnails/`) with the topic, the title (up to three lines), the author and
+the reply count over the Modwerk mark. The Start developing page is served at
+`submit/` with its own card (`page-thumbnails/`). Cards are rendered with Sharp at
+build time by `scripts/social-cards.ts`, so a thread's card updates on the next
+deploy.
+
+To give another page a card, add it to `SITE_PAGES` in `scripts/site-pages.ts` and
+make its path a route in `src/routing.ts`. Pages that are only hash routes (builder,
+forum index, SDK) cannot have their own card, because crawlers ignore the part of
+the URL after `#`; they show the site card.

@@ -40,6 +40,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -98,7 +99,16 @@ namespace ot
 		//   setup <16 hex>     SETUP packet into the EP0 OUT dQH        -> ok
 		//   in <ep> <maxlen>   IN transfer on EP n                       -> in <ep> [<hex>|stall]
 		//   out <ep> [<hex>]   OUT transfer (bytes, or a ZLP) to EP n    -> out <ep> <count>|stall
-		//   reset              bus reset (URI + PCI, address cleared)    -> ok
+		//   reset              bus reset (URI + PCI, address cleared)    -> ok, once the guest
+		//                      has acknowledged URI (its reset handling done)
+		//   unplug             B-session valid drops, BSVIS latches (the
+		//                      stock ISR's session-end path)             -> ok, once the guest
+		//                      has acknowledged BSVIS (session end handled)
+		//   plug               the cable back: B-session valid returns and
+		//                      BSVIS latches (the stock ISR's session-start
+		//                      path, as at boot)                     -> ok, once the guest
+		//                      has acknowledged BSVIS; a `reset` and an
+		//                      enumeration follow, as from a real host
 		//   speed hs|fs        the port speed PORTSC1 reports            -> ok
 		//   isohz <hz>         the isochronous poll rate the endpoint's
 		//                      bInterval sets (0: 4000 at high speed,
@@ -111,6 +121,7 @@ namespace ot
 		// Two bench commands the machine itself has to serve, from OUTSIDE
 		// the run loop (a borrowed call re-enters it):
 		//   poke <addr> <hex>      write bytes into guest memory   -> poke ok
+		//   peek <addr> <len>      read bytes from guest memory    -> peek <hex>
 		//   call <addr> [arg ...]  run a firmware routine as main   -> call <d0> | call err <why>
 		// The run loop stops when one is queued (`hasRequest`), the caller
 		// serves it and answers with `answerRequest`.
@@ -127,7 +138,19 @@ namespace ot
 		// can count. A bulk IN is served the moment it can be (tryAll);
 		// an isochronous one only here, so a host script that polls as fast
 		// as the socket allows still drains at the device's own rate.
+		//
+		// With a socket client connected, the bench IS the host's schedule:
+		// an enabled isochronous IN endpoint with no IN waiting holds device
+		// time here until the bench's next command arrives, so a bench that is
+		// late on the wall clock (a loaded machine) costs wall time, not
+		// device time. The hold ends early when the bench has a transfer or
+		// request outstanding or a bus reset the guest has not acknowledged
+		// (the device must run to finish it), on hangup, or at the wall
+		// deadline (setBenchDeadline), after which polls are
+		// answered as before. A direct `command()` caller (a test) is never
+		// held.
 		bool isoPoll();		// true when an enabled isochronous IN found no request waiting
+		void setBenchDeadline(std::chrono::steady_clock::time_point _t) { m_benchDeadline = _t; }
 		double isoPollHz() const { return m_isoHz > 0 ? m_isoHz : m_speedHs ? 4000.0 : 1000.0; }
 		bool isIso(int _ep, bool _in) const;
 
@@ -164,11 +187,17 @@ namespace ot
 		void reply(const std::string& _s);
 		void writeSocket(const std::string& _s);
 		void closeClient();
+		bool isoInStarved() const;			// an enabled isochronous IN endpoint with no IN waiting
+		bool benchBusy() const;				// a bench transfer or request still outstanding
+		void awaitBench();
 
 		Read8 m_read8;
 		Write8 m_write8;
 		std::array<uint32_t, g_size / 4> m_regs = {};
 		uint32_t m_otgscIs = 0;				// the latched BSVIS
+		bool m_sessionEnded = false;			// unplug: OTGSC reports no B-session
+		bool m_unplugUnacked = false;			// unplug landed, BSVIS not yet acknowledged: the host's ok waits
+		bool m_plugUnacked = false;			// plug landed, BSVIS not yet acknowledged: the host's ok waits
 		bool m_speedHs = true;
 		double m_isoHz = 0;					// isohz: 0 = by speed
 		bool m_hwFaithful = true;
@@ -179,7 +208,9 @@ namespace ot
 		bool m_sawClient = false;
 		bool m_hostPresent = false;
 		bool m_resetPending = false;
+		bool m_resetUnacked = false;			// landed, URI not yet acknowledged: the host's ok waits
 		std::unique_ptr<Request> m_request;
+		std::chrono::steady_clock::time_point m_benchDeadline = std::chrono::steady_clock::time_point::max();
 		std::function<void(const std::string&)> m_sink;	// where replies go while a command is being served
 		std::string m_line;
 		Stats m_stats;

@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DEVICE } from '../engine/elekloader/digi-build'
-import { DEVICES, KIT_PROTOCOL, catalogChanges, describeChange, followUps, libraryCatalog, readKitZip, type KitJson } from '../../scripts/elekloader-update.ts'
+import { DEVICES, KIT_PROTOCOL, catalogChanges, describeChange, followUps, libraryCatalog, mergeCatalogOverlay, readKitZip, type KitJson } from '../../scripts/elekloader-update.ts'
 import { PROTOCOL } from '../../vendor/elekloader/kit/src/kit/protocol.ts'
 
 const sha = (data: Uint8Array) => createHash('sha256').update(data).digest('hex')
@@ -111,6 +111,46 @@ describe('the elekloader update', () => {
       'digitakt/digichain comes with the catalog because a library mod requires it: it needs no library entry.',
     ])
   })
+  it('retains Digitakt II packages only when the DTII machine library lists them', () => {
+    const pin = (id: string, device: string) => ({
+      file: `${id}-1.0.elemod`, sha256: sha(text(id)), id, version: '1.0', device, os: '1.17',
+      requires: ['core'],
+    })
+    const source = {
+      schema: 1, kind: 'elekloader-catalog', revision: 'dt2',
+      cores: [pin('core', 'digitakt-mk2'), pin('core', 'digitakt-mk1')],
+      mods: [pin('perform-direct', 'digitakt-mk2'), pin('digislicer', 'digitakt-mk1')],
+    }
+    const cut = libraryCatalog(source, (machine, id) => machine === 'digitakt-ii' && id === 'perform-direct')
+
+    expect(cut.catalog.cores.map(item => item.device)).toEqual(['digitakt-mk2', 'digitakt-mk1'])
+    expect(cut.catalog.mods.map(item => item.id)).toEqual(['perform-direct'])
+    expect(cut.leftOut).toEqual(['digitakt/digislicer'])
+    expect(DEVICES['digitakt-mk2']).toBe('digitakt-ii')
+  })
+  it('adds pinned site packages to the existing catalog without replacement and fingerprints the result', () => {
+    const pin = (id: string, device: string, file: string, sha256: string) => ({
+      file, sha256, id, version: '1.0', device, os: '1.17', license: 'GPL-2.0-or-later',
+      source: { repo: 'toonst/digitakt2-perform', tag: 'v1.0' },
+    })
+    const base = {
+      schema: 1, kind: 'elekloader-catalog', revision: 'upstream', about: 'upstream catalog',
+      cores: [pin('core', 'digitakt-mk1', 'core-2.1.elemod', 'a'.repeat(64))], mods: [],
+    }
+    const overlay = {
+      schema: 1, kind: 'elekloader-catalog', revision: 'site overlay',
+      cores: [pin('core', 'digitakt-mk2', 'core-1.0.elemod', 'b'.repeat(64))],
+      mods: [Object.assign(pin('perform-direct', 'digitakt-mk2', 'perform-direct-1.0.elemod', 'c'.repeat(64)), { title: 'Direct perform', requires: ['core'], conflicts: [] })],
+    }
+
+    const merged = mergeCatalogOverlay(base, overlay)
+    expect(merged.about).toBe('upstream catalog')
+    expect(merged.cores.map(item => item.device)).toEqual(['digitakt-mk1', 'digitakt-mk2'])
+    expect(merged.mods.map(item => item.id)).toEqual(['perform-direct'])
+    expect(merged.revision).toMatch(/^[a-f0-9]{64}$/)
+    expect(mergeCatalogOverlay(merged, overlay)).toEqual(merged)
+    expect(() => mergeCatalogOverlay(base, { ...overlay, cores: [pin('core', 'digitakt-mk2', 'core-2.1.elemod', 'd'.repeat(64))] })).toThrow('changes the existing file')
+  })
 })
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
@@ -130,7 +170,9 @@ function fixture() {
     mkdirSync(dirname(join(root, path)), { recursive: true })
     cpSync(join(ROOT, path), join(root, path), { recursive: true })
   }
-  for (const path of [...noticePaths, 'scripts/elekloader-update.ts', 'scripts/elekloader-vendor.ts', 'scripts/licenses.mjs', 'scripts/license-notices.mjs']) copy(path)
+  for (const path of [...noticePaths, 'LICENSE', 'LICENSES', 'docs/USB_AUDIO_ATTRIBUTION.txt', 'scripts/elekloader-update.ts', 'scripts/elekloader-vendor.ts', 'scripts/licenses.mjs', 'scripts/license-notices.mjs']) copy(path)
+  // The module records that add Modwerk-built pins to the upstream catalog.
+  for (const name of readdirSync(join(ROOT, 'sdk/imports')).filter(name => /^elekloader-.*\.json$/.test(name))) copy('sdk/imports/' + name)
   const manifest = JSON.parse(readFileSync(join(root, 'sdk/octabam/licenses/manifest.json'), 'utf8')) as { moduleComponents: Record<string, string[]> }
   for (const id of Object.keys(manifest.moduleComponents)) {
     const folder = `sdk/octabam/modules/${id}`
@@ -139,6 +181,7 @@ function fixture() {
     copy(folder + '/' + document.license.file)
   }
   for (const name of ['react', 'react-dom', 'scheduler']) copy(`node_modules/${name}/LICENSE`)
+  for (const name of ['LICENSE', 'package.json']) copy(`node_modules/wavesurfer.js/${name}`)
   return root
 }
 
@@ -161,7 +204,8 @@ function identities(root: string) {
   return Object.fromEntries(noticePaths.flatMap(path => Object.entries(fileBytes(join(root, path))).map(([name, data]) => [path + '/' + name, sha(data)])))
 }
 
-describe('elekloader update CLI', () => {
+// Each case runs the real CLI, up to 20 s per call: vitest's 5 s default timed out on loaded CI runners.
+describe('elekloader update CLI', { timeout: 60_000 }, () => {
   it('ships changed upstream notices and full licence terms, and keeps an identical update unchanged', () => {
     const root = fixture()
     try {
@@ -207,7 +251,8 @@ describe('elekloader update CLI', () => {
       const absent = join(root, 'public/licenses/THIRD_PARTY_NOTICES.html')
       rmSync(absent)
       if (failure === 'notice generation') writeFileSync(script, `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(absent)}, 'partial notices'); throw new Error('fixture generation failure')`)
-      else writeFileSync(script, "throw new Error('fixture validation failure')")
+      // The update imports this module, so only its run as the final vendor check fails.
+      else writeFileSync(script, readFileSync(script, 'utf8') + "\nif (process.argv[1]?.endsWith('elekloader-vendor.ts')) throw new Error('fixture validation failure')\n")
       const before = identities(root)
       const result = update(root, [...args, catalogPath])
       expect(result.status).toBe(1)

@@ -85,7 +85,7 @@
     },
     {
       "id": "airwindows",
-      "name": "Airwindows Capacitor2 (and historical Pockey transcription)",
+      "name": "Airwindows Chorus, Capacitor2 (and historical Pockey transcription)",
       "spdx": "MIT",
       "noticeFile": "airwindows.txt",
       "sources": [
@@ -93,11 +93,17 @@
           "url": "https://raw.githubusercontent.com/airwindows/airwindows/d22a25b7f7c0c8c05e9f3ae480e7f1da9769f49d/LICENSE",
           "revision": "d22a25b7f7c0c8c05e9f3ae480e7f1da9769f49d",
           "path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/airwindows/airwindows/e718c9bcfcdd736deeddb08bffe6bce2aa8e0eea/LICENSE",
+          "revision": "e718c9bcfcdd736deeddb08bffe6bce2aa8e0eea",
+          "path": "LICENSE"
         }
       ],
       "usedIn": [
         "modules/spectrum: capacitor2_ref.py",
-        "modules/character: retired Pockey attribution"
+        "modules/character: retired Pockey attribution",
+        "modules/airwindows-chorus: Chorus"
       ]
     },
     {
@@ -270,6 +276,34 @@
       "usedIn": [
         "modules/sidechain-compressor"
       ]
+    },
+    {
+      "id": "lofi2",
+      "name": "LOFI2 (Bryan T, in octabam)",
+      "spdx": "MIT",
+      "noticeFile": "lofi2.txt",
+      "sources": [
+        {
+          "path": "sdk/octabam/modules/lofi2/upstream/LICENSE"
+        }
+      ],
+      "usedIn": [
+        "modules/lofi2"
+      ]
+    },
+    {
+      "id": "kyoti-quantize-live-rec-toggle",
+      "name": "Zac Kyoti Quantize Live Rec Toggle",
+      "spdx": "MIT",
+      "noticeFile": "kyoti-quantize-live-rec-toggle.txt",
+      "sources": [
+        {
+          "path": "sdk/octabam/modules/quantize-live-rec-toggle/LICENSE"
+        }
+      ],
+      "usedIn": [
+        "modules/quantize-live-rec-toggle"
+      ]
     }
   ],
   "moduleComponents": {
@@ -300,6 +334,15 @@
     ],
     "synth": [
       "octa-panel"
+    ],
+    "airwindows-chorus": [
+      "airwindows"
+    ],
+    "lofi2": [
+      "lofi2"
+    ],
+    "quantize-live-rec-toggle": [
+      "kyoti-quantize-live-rec-toggle"
     ]
   }
 }

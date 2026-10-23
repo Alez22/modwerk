@@ -1,0 +1,13 @@
+{
+  "kind": "owner-approved-update",
+  "id": "apply-scene",
+  "version": "0.2.0-experimental",
+  "approvedBy": "repeat98",
+  "approvedOn": "2026-10-23",
+  "waived": [
+    "chip-worst-case-cycles"
+  ],
+  "sourceSha256": "d837cd5f07c278d4e7bbc7b0a14fe96197a9f9928fef1fff03ad229b3a8cc0f2",
+  "ownerStatement": "Approved by repeat98 in chat on 23 Oct 2026 for PR #830: \"Approve the documented exception for 0.2.0\", after disclosure of the missing static cycle bound, retained 0.1.0 load/stress measurements, and unverified hardware coverage.",
+  "reason": "Exact Apply Scene 0.2.0-experimental native source only. Stock's page-1 writer has no static bound in this repository. The owner accepts the retained, explicitly labelled 0.1.0 emulator load/stress measurements for the unchanged Part-apply path; new TRIG + SCENE measures at most 98,681 executed emulator instructions, not chip cycles. MKII functional and project/reboot results remain as reported in evidence/hardware.md. Hardware timing, MKI, MIDI mode, later trig pages, pattern/Part changes inside the chord, the card build on hardware and the site review/Keep/Undo flow remain unverified. This exception records no new hardware result and does not apply to other versions or sources."
+}

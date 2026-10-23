@@ -1,5 +1,10 @@
-export type IconName = 'bell' | 'grid' | 'wave' | 'sliders' | 'search' | 'plus' | 'check' | 'arrow' | 'back' | 'download' | 'file' | 'shield' | 'star' | 'close' | 'message' | 'help' | 'heart' | 'bookmark' | 'pin' | 'lock' | 'quote'
+export type IconName = 'home' | 'share' | 'bell' | 'grid' | 'wave' | 'sliders' | 'search' | 'plus' | 'check' | 'arrow' | 'back' | 'download' | 'file' | 'shield' | 'star' | 'close' | 'message' | 'help' | 'heart' | 'bookmark' | 'pin' | 'lock' | 'quote' | 'play' | 'pause' | 'image' | 'mail' | 'sort' | 'filter' | 'external' | 'swap' | 'more' | 'warn'
 const paths: Record<IconName, string> = {
+  home: 'M3 11 12 4l9 7M5 10v10h5v-6h4v6h5V10',
+  external: 'M14 3h7v7m0-7L10 14M10 3H3v18h18v-7',
+  swap: 'M4 8h16m-4-4 4 4-4 4M20 16H4m4-4-4 4 4 4',
+  more: 'M5 11a1 1 0 1 0 0 2 1 1 0 1 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 1 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 1 0 0-2',
+  share: 'M12 3v12m-4-8 4-4 4 4M5 12v8h14v-8',
   bell: 'M6 9a6 6 0 1 1 12 0c0 6 3 8 3 8H3s3-2 3-8M10.3 21a2 2 0 0 0 3.4 0',
   bookmark: 'M6 3h12v18l-6-4-6 4z',
   pin: 'm16 3 5 5-4 1-3 5 1 3-8-8 3 1 5-3zM9 15l-6 6',
@@ -20,6 +25,13 @@ const paths: Record<IconName, string> = {
   star: 'm12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4L12 17.5l-5.7 3.1 1.1-6.4L2.8 9.7l6.4-.9z',
   close: 'm6 6 12 12M6 18 18 6',
   message: 'M4 4h16v13H9l-5 4z',
+  mail: 'M3 5h18v14H3zm0 0 9 7 9-7',
+  image: 'M3 5h18v14H3zm0 10 5-5 4 4 3-3 6 6M15.5 9.5h.01',
+  play: 'M7 4.5v15L19.5 12z',
+  pause: 'M8 5v14M16 5v14',
+  sort: 'M7 4v16m-4-4 4 4 4-4M17 20V4m-4 4 4-4 4 4',
+  filter: 'M4 6h16M7 12h10M10 18h4',
+  warn: 'M12 3 2 20h20zM12 10v4m0 3h.01',
   help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM9 9a3 3 0 1 1 5 2.2c-1.2.8-2 1.1-2 2.8m0 3h.01',
 }
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {

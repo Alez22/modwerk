@@ -33,7 +33,7 @@ from dsp_modmap import BASE, IMG, PAYLOADS, modules  # noqa: E402
 from remix import registry as remix_registry  # noqa: E402
 from remix.registry import modules as remix_modules  # noqa: E402
 from remix.schema import (DEFAULT_HARVEST, NO_FALLBACK, BusRole,  # noqa: E402
-                          YBase)
+                          Formatter, YBase)
 from remix.state import fx1_hazard  # noqa: E402
 from remix import stock as stock_mod  # noqa: E402
 import label_fmt  # noqa: E402
@@ -159,7 +159,9 @@ if not (BUILD_TAG.isdigit() and 1 <= len(BUILD_TAG) <= 2):
 # garbage audio: 0x00-0x03 are the four values stock has always treated as
 # bare synonyms for "no effect". 0x06 is the exact id tools/build/build_dspprobe.py
 # proved runs custom DSP code on real hardware. schema.py enforces the range.
-_MODS = remix_modules()
+from remix.machine_composition import compose_map
+_MODS = compose_map(remix_modules(), REMIX.modules)
+remix_modules = lambda: _MODS
 _SEL = [_MODS[k] for k in CARRIED]
 # A STOCK row (tools/remix/stock.py) gets no clone, no code and no words:
 # its descriptor and dispatch are where stock put them. The build writes
@@ -171,6 +173,7 @@ STOCK_ROWS = [m.key for m in _SEL if m.is_stock]
 # schema.Module.dynamic_stock: a selected loader serves every stock DSP effect
 # on demand, so the whole effect block is harvested while the rows stay.
 DYNAMIC = [k for k in REMIX.modules if _MODS[k].dynamic_stock]
+AB_PLACED = {}                   # payload -> custom DSP spans (Analog BD excludes these)
 AB_TOP = {}                      # payload -> P address Analog BD is placed at
 
 DESC_DONORS = {m.key: m.menu.donor_desc for m in _CLONED}
@@ -225,9 +228,39 @@ for _k, _n in HOST_SLOTS.items():
 PAGE2_COUNTS = {m.key: {i: p.count for i, p in enumerate(m.params)
                         if p.count is not None} for m in _CLONED}
 # Membership here also GATES the display-formatter pass below: a module with
-# no stepped slot keeps its donor's formatters untouched, which is what SEND
-# wants (FILTER's plain-numeric zeros, hardware-confirmed).
+# a stepped slot has all twelve formatter pairs zeroed first; one without
+# keeps its donor's formatters except on its drawn PLAIN slots (PLAIN_SLOTS),
+# which is what SEND wants (FILTER's plain-numeric zeros, hardware-confirmed).
 STEPPED_SLOTS = {m.key: m.stepped_slots for m in _CLONED if m.stepped_slots}
+
+
+def plain_slots(m) -> tuple[int, ...]:
+    """Drawn PLAIN knobs: the build zeroes both formatter words (P+0x0ca,
+    P+0x0fa) even in a module with no stepped slot, which would otherwise keep
+    the donor's renderer (DARK REV's dial on slots 7 and 11). A switched-off
+    slot (active=False) is never drawn and keeps the donor's words, as every
+    module without a stepped slot was built. The recipe exporters
+    (scripts/build-module-packages.py, export-resident-dsp.py) call this too."""
+    return tuple(i for i, p in enumerate(m.params)
+                 if p.formatter is Formatter.PLAIN and p.active is not False)
+
+
+def floating_cave_at(cave_top: int, ovf_top: int, need: int, cave_limit: int) -> int | None:
+    """Where a floating cave of `need` bytes goes: the next 128-byte boundary
+    in the clone window if it fits whole below `cave_limit`, else the next
+    4-byte boundary in the overflow run, else None (it fits neither). The
+    browser composer places requested caves by the same rule
+    (src/engine/requested-modules.ts, requestedCaves); the window's overrun
+    check used to refuse first here, so the two refused one selection for
+    different reasons (module:verify, 15 Oct 2026)."""
+    at = (cave_top + 0x7f) & ~0x7f
+    if at + need <= cave_limit:
+        return at
+    at = (ovf_top + 3) & ~3
+    return at if at + need <= OVERFLOW_RUN_END else None
+
+
+PLAIN_SLOTS = {m.key: plain_slots(m) for m in _CLONED if plain_slots(m)}
 BIPOLAR_SLOTS = {m.key: m.bipolar_slots for m in _CLONED if m.bipolar_slots}
 _DEF_ASM = {m.key: m.dsp.asm for m in _CLONED}
 # DSP code reached from STOCK code rather than a chooser row
@@ -523,6 +556,32 @@ def _listing(text):
     return out
 
 
+_RT_NUM = re.compile(r"(-?)(\$[0-9a-f]+|[0-9]+)")
+_RT_LABEL = re.compile(r"^[a-z][a-z0-9]*_[a-z0-9_]+$")
+
+
+def _rt_fields(ops):
+    """Operand tokens (whitespace-separated), each split into its comma
+    fields, every field lower case with no size marks and its numbers hex."""
+    def field(f):
+        f = f.lower().replace("<", "").replace(">", "")
+        return _RT_NUM.sub(
+            lambda m: m.group(1) + format(int(m.group(2)[1:], 16)
+                                          if m.group(2)[0] == "$"
+                                          else int(m.group(2)), "x"), f)
+    return [[field(x) for x in tok.split(",")] for tok in ops.split()]
+
+
+
+def _rt_same(sop, dop):
+    s, d = _rt_fields(sop), _rt_fields(dop)
+    if [len(t) for t in s] != [len(t) for t in d]:
+        return False
+    return all(sf == df or (_RT_LABEL.match(df) and re.fullmatch(r"-?[0-9a-f]+", sf))
+               for st, dt in zip(s, d) for sf, df in zip(st, dt))
+
+
+
 def _roundtrip(list_out, blob, org, label):
     src = _listing(list_out)
     if not src:
@@ -534,19 +593,27 @@ def _roundtrip(list_out, blob, org, label):
     dec = _listing(r.stdout)
     bad, mpysu = [], {}
     for a, (sm, sop) in src.items():
-        if a not in dec or dec[a][0] == sm:
+        if a not in dec:
+            if sm != "nop":
+                bad.append((a, sm, sop, "(nothing decoded here)", ""))
             continue
         dm, dop = dec[a]
-        if (sm, dm) == ("mpy", "mpysu"):
+        if sm == "lua":
+            # lua's only rN+nN mode is (rN)+nN (D = rN+nN); dsp_asm takes
+            # (rN+nN) as that encoding and the decoder prints it (rN)+nN.
+            sop = re.sub(r"\((r\d)\+(n\d)\)", r"(\1)+\2", sop)
+        if not _rt_same(sop, dop):
+            bad.append((a, sm, sop, dm, dop))
+        elif (sm, dm) == ("mpy", "mpysu"):
             mpysu.setdefault(sop, []).append(a)
-        else:
+        elif dm != sm:
             bad.append((a, sm, sop, dm, dop))
     who = f" in {label}" if label else ""
     if bad:
         detail = "\n".join(f"    P:0x{a:05x}  wrote '{sm} {sop}'  chip runs "
                            f"'{dm} {dop}'" for a, sm, sop, dm, dop in bad)
         sys.exit(f"disassemble-what-you-assemble: dsp_asm wrote bytes{who} that "
-                 f"do not decode to the mnemonic typed:\n{detail}")
+                 f"do not decode to the instruction typed:\n{detail}")
     found = {k: len(v) for k, v in mpysu.items()}
     audited = MPYSU_AUDITED.get(label, {})
     if any(os.environ.get(k) for k in _VARIANT_FLAGS):
@@ -561,6 +628,7 @@ def _roundtrip(list_out, blob, org, label):
                  f"{audited or 'none'}. Every mpy encoded as mpysu needs its "
                  f"second operand shown non-negative (AGENTS.md), then the table "
                  f"in tools/build/build_bus.py updated:\n{sites or '    (no sites)'}")
+
 
 
 def assemble_syms(src_text, org, label=""):
@@ -725,6 +793,11 @@ def main():
         sys.exit("remix %r has colliding modules:\n  %s"
                  % (REMIX.name, "\n  ".join(_clashes)))
     img = bytearray(IMG.read_bytes())
+    from remix import keep as _keep
+    _kept = _keep.violations(img, BASE, [remix_modules()[k] for k in REMIX.modules])
+    if _kept:
+        sys.exit("kept stock bytes differ before build: " + "; ".join(_kept))
+
 
     def rd32(a):
         return int.from_bytes(img[a - BASE:a - BASE + 4], "big")
@@ -799,6 +872,15 @@ def main():
             # slot 7 too, and carries the same 0x400328e4.
             for step_slot in STEPPED_SLOTS[name]:
                 wr32(clone_P + 0x12a + step_slot * 4, 0)
+        else:
+            # PLAIN is "both formatter words zero" (schema.Formatter) with or
+            # without a stepped slot. Without one, the donor's renderer stayed:
+            # DARK REV's balance dial on slot 7 and its slot-11 pair drew a
+            # PLAIN knob as a dial (verify_menu: "is a KNOB, so both
+            # formatters are 0"). Switched-off slots are not in PLAIN_SLOTS.
+            for idx in PLAIN_SLOTS.get(name, ()):
+                wr32(clone_P + 0x0ca + idx * 4, 0)
+                wr32(clone_P + 0x0fa + idx * 4, 0)
         # A BIPOLAR knob (14 Sep 2026: Character's WDTH and TONE, "0 at
         # neutral, negative for mono"): SPRING BAL's exact triple, read from
         # the stock descriptor at donor_desc + 0x38 -- A = 0x4003c7a0 (the
@@ -997,13 +1079,13 @@ def main():
     # module's descriptor (Character's ret_fmt.s did, 20 Sep 2026; no user now).
     _exports.update({"CLONE_" + re.sub(r"\W", "_", _k): _a for _k, _a in clone_addr.items()})
 
-    def _link(src, at, cpu, work, sections=(), defsyms=(), incdir=None):
+    def _link(src, at, cpu, work, sections=(), defsyms=(), incdir=None, asdefs=()):
         """Assemble `src` and link it at `at`; return (bytes, symbols,
         globals). `sections` = objcopy -j selection (empty = every alloc
         section). `defsyms` = (name, value) pairs for symbols defined by
         units already placed. `incdir` = an `.include` search directory
         (a per-remix generated include, schema.Linked.include)."""
-        work = pathlib.Path(work)
+        work = pathlib.Path(work).resolve()
         work.mkdir(parents=True, exist_ok=True)
         o, e, b = work / "u.o", work / "u.elf", work / "u.bin"
         _ld = ["m68k-elf-ld", f"-Ttext=0x{at:x}"] + \
@@ -1012,9 +1094,13 @@ def main():
               [x for s in sections for x in ("-j", s)] + [e, b]
         from remix.compile_cache import assemble_coldfire
         try:
-            assemble_coldfire(src, cpu, o, incdir)
+            assemble_coldfire(src, cpu, o, incdir, defsyms=asdefs)
         except subprocess.CalledProcessError as error:
             sys.exit(f"{src}: m68k-elf-as failed\n{error.stderr[-2000:]}")
+        from remix.platform_build import redefined
+        own = redefined(o, asdefs) if asdefs else []
+        if own:
+            sys.exit(f"{src}: source redefines declared build constants: {own}")
         for _args in (_ld, _oc):
             _r = subprocess.run([str(a) for a in _args], capture_output=True, text=True)
             if _r.returncode:
@@ -1114,23 +1200,27 @@ def main():
         _work = pathlib.Path("out/linked") / _m.name / _u.label
         _work.mkdir(parents=True, exist_ok=True)
         _src = pathlib.Path(_u.source)
-        _defs = tuple(_exports.items())
+        _decl = dict(_u.defsyms)
+        _mine = tuple((n, _exports.get(n, v)) for n, v in _u.defsyms)
+        _rest = tuple((n, v) for n, v in _exports.items() if n not in _decl)
+        _defs = _mine + _rest
         _inc = None
         if _u.include is not None:
             _inc = _work
             (_work / "remix.inc").write_text(
                 _u.include({_k: remix_modules()[_k] for _k in REMIX.modules}))
         if _u.reference is not None:
-            _ra, _rsha = _u.reference
+            _reference = _u.reference_for({_k: remix_modules()[_k] for _k in REMIX.modules})
+            _ra, _rsha = _reference
             (_work / "ref").mkdir(exist_ok=True)
-            _rb, _, _ = _link(_src, _ra, _u.cpu, _work / "ref", defsyms=_defs, incdir=_inc)
+            _rb, _, _ = _link(_src, _ra, _u.cpu, _work / "ref", defsyms=tuple(_u.defsyms) + _rest, incdir=_inc, asdefs=tuple(_u.defsyms))
             _got = hashlib.sha256(_rb).hexdigest()
             if _got != _rsha:
                 sys.exit(f"{_m.key} {_u.label}: linked at the author's address "
                          f"0x{_ra:08x} it is {len(_rb)} B sha256 {_got}, not the "
                          f"author's {_rsha} -- source or toolchain drift; refusing")
         _at = _u.cave_addr if _u.cave_addr is not None else (_cave_top + 0x7f) & ~0x7f
-        _b, _syms, _glob = _link(_src, _at, _u.cpu, _work, defsyms=_defs, incdir=_inc)
+        _b, _syms, _glob = _link(_src, _at, _u.cpu, _work, defsyms=_defs, incdir=_inc, asdefs=_mine)
         _exports.update(_glob)
         if _at >= SAFE_CAVE_CEIL:
             sys.exit(f"{_u.label}: linked at 0x{_at:08x}, above the safe ceiling")
@@ -1143,7 +1233,7 @@ def main():
         _sym[_u.label] = _syms
         print(f"  {_m.key}: {_u.label} {len(_b)} B linked at 0x{_at:08x}"
               f"{' (pinned)' if _u.cave_addr is not None else ''}"
-              f"{' -- matches the author\'s build at 0x%08x' % _u.reference[0] if _u.reference else ''}")
+              f"{' -- matches the author\'s build at 0x%08x' % _reference[0] if _u.reference else ''}")
         if _in:
             _cave_top = max(_cave_top, _at + len(_b))
         elif OVERFLOW_RUN <= _at < OVERFLOW_RUN_END:
@@ -1153,7 +1243,16 @@ def main():
     for _c, _b in _plan:
         _floating = _c.cave_addr is None
         if _floating:
-            _c = dataclasses.replace(_c, cave_addr=(_cave_top + 0x7f) & ~0x7f)
+            # Past the clone window: the overflow run, before any other check
+            # (floating_cave_at says why).
+            _need = max(len(_b), _c.reserve)
+            _at2 = floating_cave_at(_cave_top, _ovf_top, _need, cave_limit)
+            if _at2 is None:
+                sys.exit(f"{_c.label}: {_need} B fits neither the clone window "
+                         f"(from 0x{(_cave_top + 0x7f) & ~0x7f:08x}) nor the overflow run")
+            _c = dataclasses.replace(_c, cave_addr=_at2)
+            if not CLONE_BASE <= _at2 < cave_limit:
+                print(f"  {_c.label}: past the clone window, placed in the overflow run")
         # ⚠️ A CAVE MAY LIVE OUTSIDE THE CLONE WINDOW. The region from
         # CLONE_BASE to the chooser list is crowded -- six descriptor clones
         # and fifteen label formatters left 84 bytes on the rig -- and
@@ -1208,7 +1307,7 @@ def main():
             _lb, _lsyms, _lglob = _link(
                 _c.source, _c.cave_addr, _c.cpu,
                 pathlib.Path("out/linked/caves") / re.sub(r"\W+", "_", _c.label),
-                sections=(".text",), defsyms=_cdefs + tuple(_exports.items()))
+                sections=(".text",), defsyms=_cdefs + tuple((n, v) for n, v in _exports.items() if n not in dict(_cdefs)), asdefs=_cdefs)
             _exports.update(_lglob)
             _ref = (_c.reference(_c.cave_addr) if _c.reference is not None
                     else _c.pinned if _c.emit is None else _b)
@@ -1222,13 +1321,13 @@ def main():
                          f"{len(_ref)} B) -- re-pin them in the manifest deliberately")
             if not _ref and not _lb:
                 sys.exit(f"{_c.label}: source produced no bytes")
-            if _floating and _inside and _c.cave_addr + len(_lb) > cave_limit:
+            if _floating and _inside and _c.cave_addr + max(len(_lb), _c.reserve) > cave_limit:
                 # A floating source cave that no longer fits the clone window
                 # (the ROM units come first since 15 Sep 2026) goes to the
                 # second zero run, as the label formatters do; re-linked
                 # there, since its absolute references follow the address.
                 _at2 = (_ovf_top + 3) & ~3
-                if _at2 + len(_lb) > OVERFLOW_RUN_END:
+                if _at2 + max(len(_lb), _c.reserve) > OVERFLOW_RUN_END:
                     sys.exit(f"{_c.label}: {len(_lb)} B fits neither the clone "
                              f"window (from 0x{_c.cave_addr:08x}) nor the overflow run")
                 _c = dataclasses.replace(_c, cave_addr=_at2)
@@ -1236,17 +1335,19 @@ def main():
                 _lb, _lsyms, _lglob = _link(
                     _c.source, _c.cave_addr, _c.cpu,
                     pathlib.Path("out/linked/caves") / re.sub(r"\W+", "_", _c.label),
-                    sections=(".text",), defsyms=_cdefs + tuple(_exports.items()))
+                    sections=(".text",), defsyms=_cdefs + tuple((n, v) for n, v in _exports.items() if n not in dict(_cdefs)), asdefs=_cdefs)
                 _exports.update(_lglob)
                 if _ref and _c.reference is not None:
                     _ref = _c.reference(_c.cave_addr)
                     if _lb != _ref:
                         sys.exit(f"{_c.source} linked at 0x{_c.cave_addr:08x} no longer "
                                  f"matches the bytes the manifest ratifies")
-                _ovf_top = (_c.cave_addr + len(_lb) + 3) & ~3
+                _ovf_top = (_c.cave_addr + max(len(_lb), _c.reserve) + 3) & ~3
                 if _c.emit is not None:
                     _, _pokes = _c.emit(_c.cave_addr)     # the dispatch repoint follows the cave
                 print(f"  {_c.label}: past the clone window, placed in the overflow run")
+            if _c.reserve and len(_lb) > _c.reserve:
+                sys.exit(f"{_c.label}: source exceeds its declared cave reserve")
             if any(img[_c.cave_addr - BASE:_c.cave_addr - BASE + len(_lb)]):
                 sys.exit(f"{_c.label} not free")
             _b = _lb
@@ -1254,6 +1355,17 @@ def main():
         elif _c.source and not _replay and not _legacy_emit and not _b:
             sys.exit(f"{_c.label}: its source is the only truth and there is no "
                      f"m68k-elf toolchain -- run `make setup`")
+        _used = max(len(_b), _c.reserve)
+        if _c.reserve and len(_b) > _c.reserve:
+            sys.exit(f"{_c.label}: bytes exceed the declared cave reserve")
+        if _c.cave_addr + _used > (cave_limit if _inside else SAFE_CAVE_CEIL):
+            sys.exit(f"{_c.label}: declared cave span overruns its region")
+        if len(img[_c.cave_addr - BASE:_c.cave_addr - BASE + _used]) != _used or any(img[_c.cave_addr - BASE:_c.cave_addr - BASE + _used]):
+            sys.exit(f"{_c.label}: declared cave span is not free")
+        if OVERFLOW_RUN <= _c.cave_addr < OVERFLOW_RUN_END:
+            if _c.cave_addr + _used > OVERFLOW_RUN_END:
+                sys.exit(f"{_c.label}: declared cave span overruns the overflow region")
+            _ovf_top = max(_ovf_top, (_c.cave_addr + _used + 3) & ~3)
         img[_c.cave_addr - BASE:_c.cave_addr - BASE + len(_b)] = _b
         if _c.pool_base_literals:
             _pool_caves.append((_c.label, _c.cave_addr, len(_b), _c.pool_base_literals))
@@ -1287,7 +1399,7 @@ def main():
         print(f"  {_c.label}: {len(_b)} bytes at 0x{_c.cave_addr:08x}"
               f"{_hook}{_c.report_note}")
         if _inside:
-            _cave_top = _c.cave_addr + len(_b)
+            _cave_top = _c.cave_addr + _used
 
     for name in CLONED_ORDER:
         for slot, param in enumerate(_MODS[name].params):
@@ -1385,8 +1497,17 @@ def main():
     _reservations = [(_m.name, _m.arena.where, _m.arena.pages)
                      for _k in REMIX.modules for _m in (remix_modules()[_k],)
                      if getattr(_m, "arena", None) is not None]
+    # The browser's always-present logger takes sixteen further pages. Native
+    # comparison can reserve the identical geometry without carrying logger code.
+    # Keep authored DRAM units at the same base; enlarge their existing reserve.
+    _logger_pages = os.environ.get("OCTAMOD_CORE_LOGGER_PAGES", "0")
+    if _logger_pages not in ("0", "16"):
+        sys.exit("OCTAMOD_CORE_LOGGER_PAGES must be 0 or 16")
+    _logger_pages = int(_logger_pages)
     if _dram:
-        _reservations.append(("octabam platform", "bottom", arena.PLATFORM_PAGES))
+        _reservations.append(("octabam platform", "bottom", arena.PLATFORM_PAGES + _logger_pages))
+    elif _logger_pages:
+        _reservations.append(("Modwerk core logger geometry", "bottom", _logger_pages))
     _reserve = None
     if _reservations:
         _placed, _abase, _acount = arena.layout(_reservations)
@@ -1421,11 +1542,24 @@ def main():
                 img[_ca - BASE + _o:_ca - BASE + _o + 4] = _pbase.to_bytes(4, "big")
             print(f"  arena: {_lbl}: {_want} arena-base literal(s) -> 0x{_pbase:08x}")
 
+    _dram_defs = {}
+    _unit_defs = {}
+    for _m, _u in _dram:
+        _mine = tuple((n, _exports.get(n, v)) for n, v in _u.defsyms)
+        for _n, _v in _mine:
+            if _dram_defs.get(_n, _v) != _v:
+                sys.exit(f"{_u.label}: conflicting DRAM defsym {_n}")
+            _dram_defs[_n] = _v
+        _unit_defs[_u.label] = _mine
+    _pdefs = dict(_dram_defs)
+    _pdefs.update(_defsym_ovr)
+
     if _dram or _payloads:
         from remix import platform_build
         _pappend, _psyms, _boot, _pnames = platform_build.build(
             [(_m.key, _u) for _m, _u in _dram], _payloads, pathlib.Path("out/platform"),
-            reserve=_reserve, defsyms=_defsym_ovr,
+            reserve=_reserve, defsyms=_pdefs, unit_defs=_unit_defs,
+            regions=[(r.symbol, r.size, r.align) for k in REMIX.modules for r in remix_modules()[k].dram_regions],
             includes={_u.label: _u.include({_k: remix_modules()[_k] for _k in REMIX.modules})
                       for _m, _u in _dram if _u.include is not None})
         for _m, _u in _dram:
@@ -1433,10 +1567,16 @@ def main():
             if _u.reference is not None:
                 # The author's oracle for a DRAM unit: linked alone at the
                 # author's own address, for the chip (the platform's ISA).
-                _ra, _rsha = _u.reference
+                _reference = _u.reference_for({_k: remix_modules()[_k] for _k in REMIX.modules})
+                _ra, _rsha = _reference
                 _rw = pathlib.Path("out/platform/ref") / _u.label
                 _rw.mkdir(parents=True, exist_ok=True)
-                _rb, _, _ = _link(pathlib.Path(_u.source), _ra, "54455", _rw)
+                _rinc = None
+                if _u.include is not None:
+                    _rinc = _rw
+                    (_rw / "remix.inc").write_text(_u.include({_k: remix_modules()[_k] for _k in REMIX.modules}))
+                _rb, _, _ = _link(pathlib.Path(_u.source), _ra, "54455", _rw,
+                                  defsyms=tuple(_u.defsyms), incdir=_rinc, asdefs=tuple(_u.defsyms))
                 _got = hashlib.sha256(_rb).hexdigest()
                 if _got != _rsha:
                     sys.exit(f"{_m.key} {_u.label}: linked at the author's address "
@@ -1470,7 +1610,8 @@ def main():
     for _m, _t in [(remix_modules()[_k], _t) for _k in REMIX.modules
                    for _t in getattr(remix_modules()[_k], "tables", ())]:
         _ents = [rd32(_t.old + i * 4) for i in range(_t.count)]
-        _ents += [_sym[u][s] for u, s in _t.symbols]
+        _insert = _t.count if _t.insert_at is None else _t.insert_at
+        _ents[_insert:_insert] = [_sym[u][s] for u, s in _t.symbols]
         _blob = b"".join(v.to_bytes(4, "big") for v in _ents)
         _at = (_cave_top + 0x7f) & ~0x7f
         if any(img[_at - BASE:_at - BASE + len(_blob)]):
@@ -1491,8 +1632,10 @@ def main():
             print(f"  {_m.key}: detour at 0x{_d.site:08x} bridged -- another module's stub "
                   f"stands in for it")
             continue
-        _got = bytes(img[_d.site - BASE:_d.site - BASE + len(_d.expect)])
-        if _got != _d.expect:
+        from remix.detour_guard import expected as _detour_expected
+        _expect = _detour_expected(_d)
+        _got = bytes(img[_d.site - BASE:_d.site - BASE + len(_expect)])
+        if _got != _expect:
             sys.exit(f"{_m.key} detour {_d.note or _d.symbol} at 0x{_d.site:08x} finds "
                      f"{_got.hex()}, not {_d.expect.hex()}; refusing")
         _target = _d.target if _d.target is not None else _sym[_d.unit][_d.symbol]
@@ -2319,6 +2462,24 @@ mkgo:""",
                 runs[-1]["words"] += _rec[2]
             else:
                 runs.append({"base": _rec[1], "words": _rec[2]})
+        if "ANALOG BD" in REMIX.modules and not DYNAMIC:
+            import ab_image
+            unsupported = [m.key for m in _MODS.values() if m.key in REMIX.modules
+                           and m.dsp is not None and m.key not in ab_image.DSP_COMPANIONS]
+            if unsupported:
+                sys.exit("ANALOG BD cannot share DSP memory with " + ", ".join(unsupported))
+            for _a, _n in ab_image.reservations(tag):
+                _free = []
+                for _r in runs:
+                    _lo, _hi = _r["base"], _r["base"] + _r["words"]
+                    if _a >= _hi or _a + _n <= _lo:
+                        _free.append(_r)
+                    else:
+                        if _lo < _a:
+                            _free.append(dict(base=_lo, words=_a - _lo))
+                        if _a + _n < _hi:
+                            _free.append(dict(base=_a + _n, words=_hi - _a - _n))
+                runs = _free
         for _r in runs:
             _r["cursor"] = _r["base"]
         # With nothing harvested there is no region at all -- legal, and
@@ -2326,7 +2487,7 @@ mkgo:""",
         # if anything wanted placing, so the rest of this runs over an empty
         # stream and writes nothing.
         base_a = region[0][1] if region else 0
-        budget = sum(m[2] for m in region)
+        budget = sum(r["words"] for r in runs)
 
         def _end_of_run(a):
             """End address of the run containing `a` (its own value if none)."""
@@ -2335,11 +2496,11 @@ mkgo:""",
                     return r["base"] + r["words"]
             return a
 
-        def _written(a):
+        def _written(a, words=1):
             """Did the placed code actually reach address `a`?"""
             for r in runs:
-                if r["base"] <= a < r["base"] + r["words"]:
-                    return a < r["cursor"]
+                if r["cursor"] > r["base"] and r["base"] < a + words and a < r["cursor"]:
+                    return True
             return False
 
         def place(words, start):
@@ -2750,6 +2911,20 @@ hostquit:
         _xt_tables = [k for k in sorted((k for k in CARRIED if k in _texts),
                                         key=lambda k: _MODS[k].dsp.priority)
                       if "$facade" in _texts[k] or PTABLE_MARK in _texts[k]]
+        # ⚠️ ONLY A DISPATCHED EFFECT'S TABLE IS PARKED. A stock_dsp module's
+        # code has no dispatch entry: stock code reaches it through hooks.
+        # SIDECHAIN_COMPRESSOR is the one with a table, and its table in the
+        # curve bank froze a MKII at step 1 (9 Oct 2026: Analog BD + Mini
+        # Verb + TapeHead + Sidechain, reverbs, LO-FI and DJ EQ given up);
+        # the same image with the table in P runs. ot_emu runs the frozen
+        # image clean, so the cause is not known. Until a unit runs such a
+        # table from X, it stays in P (AGENTS.md; FAILURE_MODES.md).
+        _xt_refused = [k for k in _xt_tables if k in STOCK_DSP]
+        _xt_tables = [k for k in _xt_tables if k not in _xt_refused]
+        if _xt_refused:
+            print(f"  XTABLE: {', '.join(_xt_refused)}'s table stays in P -- "
+                  f"hook-reached code reading the stock curve bank froze a "
+                  f"MKII (9 Oct 2026) and is not hardware-proven")
         _pristine = IMG.read_bytes()
         _xt_rec = {t: stock_mod.curve_bank_record(_pristine, t) for t in "AB"}
         _xt_same = (all(_xt_rec.values()) and
@@ -2921,7 +3096,9 @@ hostquit:
             # has been burned by.
             _fit, _last = None, None
             _xa = _xt_layout.get(name)          # (X address, words) or None
-            for _r in runs:
+            _candidates = sorted(runs, key=lambda r: (r["base"] + r["words"] - r["cursor"], r["base"])) \
+                if "ANALOG BD" in REMIX.modules and not DYNAMIC else runs
+            for _r in _candidates:
                 _c, _end = _r["cursor"], _r["base"] + _r["words"]
                 _tab, _s2, _lfo = None, src, "$facade" in src
                 # LFOTAB, the module's ptable, or BOTH in one slot (LFOTAB
@@ -2946,6 +3123,27 @@ hostquit:
                 if _c + len(_w) <= _end:
                     _fit = (_r, _tab, _s2, _c, _w, _syms)
                     break
+            _split_table = None
+            if _fit is None and name in remix_modules() and remix_modules()[name].dsp.split_ptable and _xa is None:
+                if not _ptab or "$facade" in src or _arena:
+                    sys.exit(f"{name}: separate placement requires one fixed P table")
+                # Try table openings in the same stable order as code. Do not
+                # advance either cursor until both independent runs fit.
+                for _tr in _candidates:
+                    _ta = _tr["cursor"]
+                    if _ta + len(_ptab) > _tr["base"] + _tr["words"]:
+                        continue
+                    _code_runs = sorted(runs, key=lambda r: (r["base"] + r["words"] - r["cursor"] - (len(_ptab) if r is _tr else 0), r["base"])) if "ANALOG BD" in REMIX.modules and not DYNAMIC else runs
+                    for _cr in _code_runs:
+                        _ca = _cr["cursor"] + (len(_ptab) if _cr is _tr else 0)
+                        _s2 = src.replace(PTABLE_MARK, f"${_ta:x}")
+                        _w, _syms = assemble_syms(_s2, _ca, label=name)
+                        if _ca + len(_w) <= _cr["base"] + _cr["words"]:
+                            _split_table = (_tr, _ta, list(_ptab))
+                            _fit = (_cr, None, _s2, _ca, _w, _syms)
+                            break
+                    if _fit is not None:
+                        break
             if _fit is None:
                 if len(runs) < 2 and _last is not None:
                     # ⚠️ WORDING FROZEN: the build report is API (refhash
@@ -2962,6 +3160,11 @@ hostquit:
                          f"only {_big}; harvest an effect BETWEEN two runs to "
                          f"join them into one")
             _r, tab, src, cursor, words, _syms = _fit
+            if _split_table is not None:
+                _tr, _ta, _tw = _split_table
+                place(_tw, _ta)
+                _tr["cursor"] = _ta + len(_tw)
+                print(f"  PTABLE        P:0x{_ta:05x}..0x{_ta + len(_tw):05x} ({len(_tw)} words)  {name}'s separate table")
             _hooks = remix_modules()[name].dsp.hooks if name in remix_modules() else ()
             init_a, proc_a = _syms.get("init"), _syms.get("proc")
             if name not in HOOKED and name not in STOCK_DSP and (init_a is None or proc_a is None):
@@ -3113,6 +3316,10 @@ hostquit:
                       f"{_r['cursor'] - _r['base']:5d}  spare "
                       f"{_e - _r['cursor']:5d}  {_in}")
 
+        if "ANALOG BD" in REMIX.modules:
+            AB_PLACED[tag] = [(r["base"], r["cursor"] - r["base"])
+                              for r in runs if r["cursor"] > r["base"]]
+
         # ---- donor ids -> the null stub, BUT ONLY WHERE OUR CODE LANDED --
         _hv = {k: _sp[k] for k in _harvest}
         # ⚠️ THE REPORT NAMES ARE ONE WORD, and that is load-bearing rather
@@ -3132,7 +3339,7 @@ hostquit:
         # code may be untouched but its dispatch is ours, so it is not
         # stock any more and must not be reported as kept.)
         kept = [d for d, (a, _n) in _hv.items()
-                if not _written(a) and d not in _replaced]
+                if not _written(a, _n) and d not in _replaced]
         if DYNAMIC:
             # Every stock effect's code is gone from its native address, placed
             # there or not: the loader binds it into its arena on demand.
@@ -3239,14 +3446,13 @@ hostquit:
         if ("SPRING REV" in REMIX.modules and not DYNAMIC) or "MACHINEDRUM" in REMIX.modules:
             sys.exit("ANALOG BD owns SPRING REV's code and both DSP uploads; "
                      "remove SPRING REV / MACHINEDRUM from this remix")
-        # Private X and source-stage placement are qualified with stock FX,
-        # which is also what the dynamic stock loader serves: it is the one
-        # other DSP section admitted (its X mailbox is checked in ab_image).
-        if any(_m.dsp is not None for _m in remix_modules().values()
+        if any(_m.dsp is not None and _m.key not in ab_image.DSP_COMPANIONS
+               for _m in remix_modules().values()
                if _m.key in REMIX.modules and not _m.dynamic_stock):
-            sys.exit("ANALOG BD's DSP source currently composes with stock effects only")
+            sys.exit("ANALOG BD cannot share DSP memory with these effects")
         _pres, _apokes, _alog = ab_image.integrate(img, IMG.read_bytes(),
-                                                   org=AB_TOP if DYNAMIC else None)
+                                                   org=AB_TOP if DYNAMIC else None,
+                                                   placed=AB_PLACED, listed=_listed)
         print("\n=== Analog BD: DSP 808/909, both payloads, pre-boot loader ===")
         for _l in _alog:
             print(_l)
@@ -3258,13 +3464,18 @@ hostquit:
             print(f"    poke 0x{_aa:08x}: {_aexp.hex()} -> {_aw.hex()}  {_anote}")
         _pappend, _psyms2, _boot, _pnames = platform_build.build(
             [(_m.key, _u) for _m, _u in _dram], _payloads, pathlib.Path("out/platform"),
-            reserve=_reserve, defsyms=_defsym_ovr, preboot=_pres,
+            reserve=_reserve, defsyms=_pdefs, unit_defs=_unit_defs,
+            regions=[(r.symbol, r.size, r.align) for k in REMIX.modules for r in remix_modules()[k].dram_regions], preboot=_pres,
             includes={_u.label: _u.include({_k: remix_modules()[_k] for _k in REMIX.modules})
                       for _m, _u in _dram if _u.include is not None})
         if _psyms2 != _psyms or _platform_at is None:
             sys.exit("analog bd: the platform runtime linked differently the second time")
         _appends[_platform_at] = (
             "octabam loader + payloads (" + ", ".join(_pnames) + ")", _pappend)
+
+    _kept = _keep.violations(img, BASE, [remix_modules()[k] for k in REMIX.modules])
+    if _kept:
+        sys.exit("build changed kept stock bytes: " + "; ".join(_kept))
 
     _grown = ""
     for _aname, _append in _appends:

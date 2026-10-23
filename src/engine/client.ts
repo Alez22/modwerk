@@ -1,5 +1,12 @@
+import type { UsbAudioConfiguration } from '../config/usb-audio'
 import { BASE_FIRMWARE, type FirmwareInspection } from './base'
-import type { BuildProgress, EngineRequest, EngineResponse } from './protocol'
+import type { BuildProgress, EngineRequest, EngineResponse, StartupAnimation } from './protocol'
+import type { SelectionConflict } from '../catalog/selection-conflicts'
+import type { BaseLayout } from './elekloader/base-variants'
+export class FirmwareBuildError extends Error {
+  readonly conflict?: SelectionConflict
+  constructor(message: string, conflict?: SelectionConflict) { super(message); this.name = 'FirmwareBuildError'; this.conflict = conflict }
+}
 export function createFirmwareClient() {
   let nextId = 0, generation = 0, disposed = false
   let rememberedFile: File | null = null, recovering: Promise<void> = Promise.resolve()
@@ -15,9 +22,10 @@ export function createFirmwareClient() {
       if (!task) return
       if (response.type === 'progress') { task.progress?.(response.phase); return }
       pending.delete(response.id)
-      if (response.type === 'error') task.reject(new Error(response.message)); else task.resolve(response)
+      if (response.type === 'error') task.reject(new FirmwareBuildError(response.message, response.conflict)); else task.resolve(response)
     }
-    worker.onerror = () => rejectPending('The local firmware worker stopped. Choose your file again or reload the page.')
+    // A plain Event without a message means the worker script never loaded: usually a deploy replaced its hashed file after this page opened.
+    worker.onerror = event => rejectPending(event.message ? 'The local firmware worker stopped. Choose your file again or reload the page.' : 'Modwerk was updated since you opened this page. Reload the page, then choose your file again.')
     return worker
   }
   let worker = createWorker()
@@ -45,17 +53,24 @@ export function createFirmwareClient() {
   }
   return {
     inspect,
-    async validate(moduleIds: string[], keepStockFx2: boolean) {
+    async validate(moduleIds: string[], keepStockFx2: boolean, usbAudio?: UsbAudioConfiguration, betaAccess = false, startup: StartupAnimation = 'docking') {
       await recovering
-      const response = await send({ id: ++nextId, type: 'validate', moduleIds, keepStockFx2 })
+      const response = await send({ id: ++nextId, type: 'validate', moduleIds, keepStockFx2, usbAudio, ...(betaAccess ? { betaAccess: true } : {}), startup })
       if (response.type !== 'validated') throw new Error('The local firmware worker returned an unexpected result.')
       return response.report
     },
-    async build(moduleIds: string[], keepStockFx2: boolean, progress: (phase: BuildProgress) => void) {
+    async build(moduleIds: string[], keepStockFx2: boolean, progress: (phase: BuildProgress) => void, usbAudio?: UsbAudioConfiguration, betaAccess = false, startup: StartupAnimation = 'docking') {
       await recovering
-      const response = await send({ id: ++nextId, type: 'build', moduleIds, keepStockFx2 }, [], progress)
+      const response = await send({ id: ++nextId, type: 'build', moduleIds, keepStockFx2, usbAudio, ...(betaAccess ? { betaAccess: true } : {}), startup }, [], progress)
       if (response.type !== 'built') throw new Error('The local firmware worker returned an unexpected result.')
       return response
+    },
+    /** The Modwerk base's .bin, built from the verified OS file. */
+    async buildBase(layout?: BaseLayout) {
+      await recovering
+      const response = await send({ id: ++nextId, type: 'base', ...(layout ? { layout } : {}) })
+      if (response.type !== 'base') throw new Error('The local firmware worker returned an unexpected result.')
+      return { buffer: response.buffer, sha256: response.sha256, base: response.base }
     },
     cancelBuild() {
       const file = rememberedFile; restart('The firmware build was cancelled.')

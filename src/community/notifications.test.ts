@@ -6,6 +6,8 @@ import { sendActivityDigests } from '../../server/activity-mail'
 import { handleCommunity } from '../../server/transport'
 import { mentionedUsernames } from '../../server/notifications'
 import type { NotificationItem } from './notification-contract'
+import { notificationLines } from './notification-text'
+import { threadPath } from './forum-links'
 
 type Sent = { to: string[]; subject: string; text: string; html: string; headers?: Record<string, string> }
 const databases: DatabaseSync[] = [], sent: Sent[] = [], password = 'a long original test passphrase'
@@ -62,6 +64,16 @@ describe('activity notifications', () => {
     expect((await call('/notifications', 'PATCH', { ids: 'all' }, author.session)).status).toBe(400)
   })
 
+  it('links a reply notification to the thread page that holds the reply', async () => {
+    const { call, member, items, db } = await fixture(), author = await member('pageauthor'), other = await member('pagereplier')
+    const { id } = await (await call('/forum/threads', 'POST', thread, author.session)).json()
+    const authorId = String(db.prepare('SELECT user_id FROM forum_posts WHERE thread_id=?').get(id)!.user_id)
+    for (let i = 0; i < 30; i++) db.prepare('INSERT INTO forum_posts(id,thread_id,user_id,body) VALUES(?,?,?,?)').run('filler-' + i, id, authorId, 'Filler ' + i)
+    expect((await call('/forum/threads/' + id + '/replies', 'POST', { body: 'A late reply' }, other.session)).status).toBe(201)
+    const [reply] = (await items(author.session)).items
+    expect(reply).toMatchObject({ kind: 'reply', post_page: 1 })
+    expect(notificationLines([reply])[0].href).toBe(threadPath(id, reply.title) + '?post=' + reply.post_id + '&page=1')
+  })
   it('caps mentions and ignores emails, paths and doubled @', () => {
     expect(mentionedUsernames('@Alice and @alice, mail bob@example.test, path /@carol, @@dave, @ab')).toEqual(['alice'])
     expect(mentionedUsernames(Array.from({ length: 15 }, (_, index) => '@member' + index).join(' '))).toHaveLength(10)
@@ -110,7 +122,7 @@ describe('activity notifications', () => {
     const [mail] = sent
     expect(mail.to).toEqual([author.email]); expect(mail.subject).toBe('@othertwo replied in “Reverb <script>alert(1)</script>”')
     expect(mail.html).not.toContain('<script>'); expect(mail.html).toContain('&lt;script&gt;'); expect(mail.html).not.toContain('<b>short')
-    expect(mail.text).toContain('https://octamod.test/#forum/thread/' + id)
+    expect(mail.text).toContain('https://octamod.test/forum/thread/' + id + '-reverb-script-alert-1-script/')
     expect(mail.headers).toMatchObject({ 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
     expect(mail.headers!['List-Unsubscribe']).toMatch(/^<https:\/\/api\.example\.test\/api\/notifications\/unsubscribe\?token=/)
     expect(JSON.stringify(mail)).not.toContain(other.email)
@@ -148,7 +160,7 @@ describe('activity notifications', () => {
 
   it('defaults to email on and unsubscribes with the signed one-click link, without a session or Origin', async () => {
     const { call, env, member, digests } = await fixture(), author = await member('authorone'), other = await member('othertwo')
-    expect(await (await call('/notifications/preferences', 'GET', undefined, author.session)).json()).toEqual({ emailEnabled: true, frequency: 'hours', replies: true, likes: true, modules: true, bugs: true, updates: true, emailAvailable: true })
+    expect(await (await call('/notifications/preferences', 'GET', undefined, author.session)).json()).toEqual({ emailEnabled: true, frequency: 'hours', replies: true, likes: true, modules: true, bugs: true, updates: true, messages: true, emailAvailable: true })
     expect((await call('/notifications/preferences', 'PATCH', { frequency: 'weekly' }, author.session)).status).toBe(400)
     expect((await call('/notifications/preferences', 'PATCH', { likes: 'no' }, author.session)).status).toBe(400)
     const { id } = await (await call('/forum/threads', 'POST', thread, author.session)).json()
@@ -164,5 +176,18 @@ describe('activity notifications', () => {
     expect((await digests(60 * 7)).sent).toBe(0)
     // The bell keeps working.
     expect((await (await call('/notifications/unread', 'GET', undefined, author.session)).json()).unread).toBe(2)
+  })
+
+  it('spaces digest requests below the mail provider\u2019s two per second', async () => {
+    const { call, member, digests } = await fixture(), author = await member('authorone'), follower = await member('followone'), other = await member('othertwo')
+    const { id } = await (await call('/forum/threads', 'POST', thread, author.session)).json()
+    await call('/forum/threads/' + id + '/follow', 'POST', { enabled: true }, follower.session)
+    await call('/forum/threads/' + id + '/replies', 'POST', { body: 'Try a short decay.' }, other.session)
+    const times: number[] = []
+    vi.stubGlobal('fetch', vi.fn(async () => { times.push(Date.now()); return new Response('{}', { status: 200 }) }))
+    expect((await digests()).sent).toBe(2)
+    expect(times).toHaveLength(2)
+    // The first request is not delayed; the second waits out the provider window (timers may fire a few ms early).
+    expect(times[1] - times[0]).toBeGreaterThanOrEqual(500)
   })
 })

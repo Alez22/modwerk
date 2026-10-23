@@ -83,6 +83,38 @@ describe('forum organization',()=>{
     expect(await(await call('/forum/recent-posts?machine=octatrack')).json()).toEqual([])
     expect((await call('/forum/recent-posts?machine=unknown')).status).toBe(400)
   })
+  it('highlights the most liked posts and reply authors of the last 30 days and the newest members, publicly and cached',async()=>{
+    const {call,member,db,admin}=await fixture(),starter=await member('starter'),helper=await member('helper'),quiet=await member('quietone'),fan=await member('fanone'),second=await member('fantwo')
+    const {id}=await(await call('/forum/threads','POST',{title:'Highlight thread',body:'Opening post',category:'general'},starter.token)).json()
+    const opening=db.prepare('SELECT id FROM forum_posts WHERE thread_id=? ORDER BY created_at,rowid LIMIT 1').get(id)!.id as string
+    const reply=(await(await call('/forum/threads/'+id+'/replies','POST',{body:'A helpful reply'},helper.token)).json()).id as string
+    const hidden=(await(await call('/forum/threads/'+id+'/replies','POST',{body:'A reply the administrator hides'},helper.token)).json()).id as string
+    const earlier=await(await call('/forum/threads','POST',{title:'An old favourite',body:'Opening post from last season',category:'general'},quiet.token)).json()
+    const old=(await(await call('/forum/threads/'+earlier.id+'/replies','POST',{body:'An old reply'},quiet.token)).json()).id as string
+    db.prepare("UPDATE forum_posts SET created_at=datetime('now','-40 days') WHERE thread_id=?").run(earlier.id)
+    db.prepare("UPDATE forum_threads SET created_at=datetime('now','-40 days'),updated_at=datetime('now','-40 days') WHERE id=?").run(earlier.id)
+    for(const token of [fan.token,second.token])for(const post of [opening,reply,hidden,old])expect((await call('/forum/posts/'+post+'/react','POST',{liked:true},token)).status).toBe(200)
+    expect((await call('/forum/posts/'+opening+'/react','POST',{liked:true},helper.token)).status).toBe(200)
+    await call('/admin/forum/posts/'+hidden,'PATCH',{action:'hidden',value:true,reason:'Hidden for the test'},'',await admin())
+    const result=await call('/forum/highlights')
+    expect(result.status).toBe(200)
+    expect(result.headers.get('Cache-Control')).toBe('public, max-age=300')
+    const body=await result.json()
+    // The hidden reply and the post older than 30 days are left out; the opening post leads with three likes.
+    expect(body.topPosts.map((item:{id:string;likes:number})=>[item.id,item.likes])).toEqual([[opening,3],[reply,2]])
+    expect(body.topPosts[0]).toMatchObject({thread_id:id,title:'Highlight thread',username:'starter',category:'general',page:0})
+    // Likes on opening posts do not count towards the most liked replies.
+    expect(body.topMembers).toEqual([{username:'helper',avatar:null,likes:2}])
+    expect(body.newMembers.map((item:{username:string})=>item.username)).toEqual(['fantwo','fanone','quietone','helper','starter'])
+    expect(JSON.stringify(body)).not.toMatch(/user_id|email|password|token|@/)
+    // Suspended members disappear from every list, and an unverified sign-up is not a new member yet.
+    db.prepare('UPDATE users SET suspended=1 WHERE id=?').run(helper.id)
+    db.prepare('UPDATE users SET email_verified=0 WHERE id=?').run(second.id)
+    const after=await(await call('/forum/highlights')).json()
+    expect(after.topPosts.map((item:{id:string})=>item.id)).toEqual([opening])
+    expect(after.topMembers).toEqual([])
+    expect(after.newMembers.map((item:{username:string})=>item.username)).toEqual(['fanone','quietone','starter'])
+  },20_000) // Five real registration/verification/login flows can exceed 5 s on a shared CI runner.
 })
 describe('Shoutbox 8',()=>{
   it('allows public reading, requires verified membership and trusted origin, and bounds messages',async()=>{
@@ -129,21 +161,52 @@ describe('Shoutbox 8',()=>{
   })
   it('caps sending bursts and keeps chat separate from thread notifications',async()=>{
     const {call,member,db}=await fixture(),owner=await member('chatter')
-    for(let index=0;index<6;index++)expect((await call('/forum/shouts','POST',{body:'Message '+index},owner.token)).status).toBe(201)
-    expect((await call('/forum/shouts','POST',{body:'One too many'},owner.token)).status).toBe(429)
-    expect(db.prepare('SELECT COUNT(*) AS count FROM notifications WHERE user_id=?').get(owner.id)!.count).toBe(0)
-    expect((await call('/forum/threads','POST',{title:'Still able to discuss',body:'A slower conversation',category:'general'},owner.token)).status).toBe(201)
+    // Keep the burst in one rate-limit bucket even when a slow CI run crosses a minute.
+    const now=Date.now(),clock=vi.spyOn(Date,'now').mockReturnValue(now)
+    try{
+      for(let index=0;index<6;index++)expect((await call('/forum/shouts','POST',{body:'Message '+index},owner.token)).status).toBe(201)
+      expect((await call('/forum/shouts','POST',{body:'One too many'},owner.token)).status).toBe(429)
+      expect(db.prepare('SELECT COUNT(*) AS count FROM notifications WHERE user_id=?').get(owner.id)!.count).toBe(0)
+      expect((await call('/forum/threads','POST',{title:'Still able to discuss',body:'A slower conversation',category:'general'},owner.token)).status).toBe(201)
+      clock.mockReturnValue(now+60_000)
+      expect((await call('/forum/shouts','POST',{body:'Next minute'},owner.token)).status).toBe(201)
+    }finally{clock.mockRestore()}
+  })
+  it('notifies mentioned members like a forum post, never the author, and hides the entry with the message',async()=>{
+    const {call,member,admin,db}=await fixture(),owner=await member('chatcaller'),called=await member('chatcalled'),other=await member('chatquiet')
+    const {id}=await(await call('/forum/shouts','POST',{body:'Hey @chatcalled and @ChatCaller, look at this'},owner.token)).json()
+    const bell=async(token:string)=>(await(await call('/notifications','GET',undefined,token)).json()).items as {kind:string;thread_id:string|null;actor:string;excerpt:string}[]
+    expect(await bell(called.token)).toEqual([expect.objectContaining({kind:'mention',thread_id:null,actor:'chatcaller',excerpt:'Hey @chatcalled and @ChatCaller, look at this'})])
+    expect(await bell(owner.token)).toEqual([])
+    expect(await bell(other.token)).toEqual([])
+    expect((await(await call('/notifications/unread','GET',undefined,called.token)).json()).unread).toBe(1)
+    const key=await admin()
+    await call('/admin/forum/shouts/'+id,'PATCH',{action:'hidden',value:true,reason:'Hide it'},'',key)
+    expect(await bell(called.token)).toEqual([])
+    await call('/admin/forum/shouts/'+id,'PATCH',{action:'hidden',value:false,reason:'Restore it'},'',key)
+    expect(await bell(called.token)).toHaveLength(1)
+    expect((await call('/forum/shouts/'+id,'DELETE',undefined,owner.token)).status).toBe(200)
+    expect(await bell(called.token)).toEqual([])
+    const names=Array.from({length:12},(_,index)=>'crowd'+index)
+    for(const name of names)db.prepare("INSERT INTO users(id,display_name,username,email_verified) VALUES(?,?,?,1)").run('user-'+name,name,name)
+    const crowd=await call('/forum/shouts','POST',{body:names.map(name=>'@'+name).join(' ')},owner.token)
+    expect(crowd.status).toBe(201)
+    expect(db.prepare("SELECT COUNT(*) AS count FROM notifications WHERE kind='mention' AND comment_id=?").get((await crowd.json()).id)!.count).toBe(10)
   })
   it('paginates compact and archive views, exports only owned chat data, and removes messages on account deletion',async()=>{
     const {call,member,db}=await fixture(),owner=await member('chatprivacy'),other=await member('chatother')
-    for(let index=0;index<35;index++)db.prepare('INSERT INTO forum_shouts(id,user_id,body) VALUES(?,?,?)').run('chat-'+index,index===0?other.id:owner.id,index===0?'Other member text':'Own message '+index)
-    expect((await(await call('/forum/shouts?compact=1')).json()).messages).toHaveLength(8)
-    const first=await(await call('/forum/shouts')).json(),second=await(await call('/forum/shouts?page=1')).json()
-    expect(first.messages).toHaveLength(30);expect(first.hasMore).toBe(true);expect(second.messages).toHaveLength(5);expect(second.hasMore).toBe(false)
-    expect(new Set([...first.messages,...second.messages].map(item=>item.id)).size).toBe(35)
-    await call('/forum/shouts/chat-34/report','POST',{reason:'Other member report'},other.token)
+    for(let index=0;index<65;index++)db.prepare('INSERT INTO forum_shouts(id,user_id,body) VALUES(?,?,?)').run('chat-'+index,index===0?other.id:owner.id,index===0?'Other member text':'Own message '+index)
+    const compact=await(await call('/forum/shouts?compact=1')).json(),older=await(await call('/forum/shouts?compact=1&page=1')).json()
+    expect(compact.messages).toHaveLength(50);expect(compact.hasMore).toBe(true)
+    expect(compact.messages[0].id).toBe('chat-64');expect(compact.messages.at(-1).id).toBe('chat-15')
+    expect(older.messages).toHaveLength(15);expect(older.hasMore).toBe(false)
+    expect(new Set([...compact.messages,...older.messages].map(item=>item.id)).size).toBe(65)
+    const first=await(await call('/forum/shouts')).json(),second=await(await call('/forum/shouts?page=1')).json(),third=await(await call('/forum/shouts?page=2')).json()
+    expect(first.messages).toHaveLength(30);expect(first.hasMore).toBe(true);expect(second.messages).toHaveLength(30);expect(second.hasMore).toBe(true);expect(third.messages).toHaveLength(5);expect(third.hasMore).toBe(false)
+    expect(new Set([...first.messages,...second.messages,...third.messages].map(item=>item.id)).size).toBe(65)
+    await call('/forum/shouts/chat-64/report','POST',{reason:'Other member report'},other.token)
     const exported=await(await call('/auth/data-export','POST',{password},owner.token)).json()
-    expect(exported.data.shoutboxMessages).toHaveLength(34)
+    expect(exported.data.shoutboxMessages).toHaveLength(64)
     expect(exported.data.shoutboxReports).toEqual([])
     expect(JSON.stringify(exported)).not.toContain('Other member text')
     expect((await call('/auth/account','DELETE',{confirm:'DELETE',password},owner.token)).status).toBe(200)

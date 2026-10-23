@@ -1,10 +1,14 @@
 import { PushSettings } from './PushSettings'
 import { BackLink } from '../components/BackLink'
 import { MaintainerAccess } from './MaintainerAccess'
+import { BetaTestersAdmin } from './BetaTestersAdmin'
+import { OctatrackDiagnosticsAdmin } from '../components/OctatrackDiagnostics'
+import { MemberRolesAdmin } from './MemberRolesAdmin'
 import { ForumModeration } from './ForumModeration'
 import { AccountMailHealth, AccountRequestInbox } from './AccountRequests'
 import { StatisticsPanel } from './StatisticsPanel'
 import { AccountStatistics } from './AccountStatistics'
+import { CommunityActivity } from './CommunityActivity'
 import { useEffect, useState } from 'react'
 import { api, post } from './api'
 import { useCommunity } from './context'
@@ -12,6 +16,7 @@ import { SubmissionPage } from './SubmissionPage'
 import { ModerationPanel } from './ModerationPanel'
 import { IssueInbox } from './IssueInbox'
 import { AnnouncementsPanel } from './AnnouncementsPanel'
+import { NewsPanel } from './NewsPanel'
 import type { PublishedModule } from './api'
 type ReviewEvent = { id: string; module_id: string; action: string; note: string; created_at: string; actor: string }
 function PublishedModules({ onChange }: { onChange: () => void }) {
@@ -29,5 +34,5 @@ export function AdminPage() {
   const { session, refresh } = useCommunity(), [tab, setTab] = useState('statistics'), [issueModule,setIssueModule] = useState('')
   function navigate(next: string, moduleId = '') { setIssueModule(moduleId); setTab(next) }
   if (!session.admin) return <div className="community-page admin-page"><BackLink href="#forum">Community forum</BackLink><div className="page-heading"><div><p className="page-kicker">MODWERK / ADMIN</p><h1>Admin workspace</h1><p>Moderation and publication history for the site administrator.</p></div></div><section className="configuration-section"><h2>Administrators only</h2><p className="service-note">{session.available ? (session.user ? 'Your account does not have administrator access.' : 'Sign in with an administrator account to continue.') : 'Community services are not connected yet.'}</p>{session.available && !session.user ? <a className="button button-primary" href="#account/login?next=forum">Sign in</a> : <a className="text-button" href="#library">Return to library →</a>}</section></div>
-  return <div className="community-page admin-page"><BackLink href="#forum">Community forum</BackLink><div className="page-heading"><div><p className="page-kicker">MODWERK / ADMIN</p><h1>Admin workspace</h1><p>Understand site activity, explore module engagement and manage the community.</p></div></div><nav className="admin-tabs" aria-label="Site management">{[['statistics','Statistics'],['issues','Issues'],['comments','Comments'],['forum','Forum'],['accounts','Accounts'],['modules','Modules'],['review','Module PRs'],['announcements','Announcements'],['history','History']].map(([id,label]) => <button key={id} aria-pressed={tab === id} onClick={() => navigate(id)}>{label}</button>)}</nav>{tab === 'statistics' ? <><AccountStatistics/><StatisticsPanel onNavigate={navigate}/></> : tab === 'review' ? <SubmissionPage/> : tab === 'modules' ? <PublishedModules onChange={() => void refresh()}/> : tab === 'accounts' ? <><PushSettings topic="signups"/><AccountStatistics/><AccountMailHealth/><AccountRequestInbox/><MaintainerAccess/></> : tab === 'forum' ? <ForumModeration/> : tab === 'announcements' ? <AnnouncementsPanel/> : tab === 'comments' ? <ModerationPanel/> : tab === 'issues' ? <IssueInbox key={issueModule} moduleId={issueModule} onClearModule={() => navigate('issues')}/> : <ReviewHistory/>}</div>
+  return <div className="community-page admin-page"><BackLink href="#forum">Community forum</BackLink><div className="page-heading"><div><p className="page-kicker">MODWERK / ADMIN</p><h1>Admin workspace</h1><p>Understand site activity, explore module engagement and manage the community.</p></div></div><nav className="admin-tabs" aria-label="Site management">{[['statistics','Statistics'],['issues','Issues'],['comments','Comments'],['forum','Forum'],['accounts','Accounts'],['modules','Modules'],['review','Module PRs'],['announcements','Announcements'],['news','News'],['history','History']].map(([id,label]) => <button key={id} aria-pressed={tab === id} onClick={() => navigate(id)}>{label}</button>)}</nav>{tab === 'statistics' ? <><AccountStatistics/><StatisticsPanel onNavigate={navigate}/><CommunityActivity/></> : tab === 'review' ? <SubmissionPage/> : tab === 'modules' ? <PublishedModules onChange={() => void refresh()}/> : tab === 'accounts' ? <><PushSettings topic="signups"/><AccountStatistics/><AccountMailHealth/><AccountRequestInbox/><MemberRolesAdmin/><BetaTestersAdmin/><OctatrackDiagnosticsAdmin/><MaintainerAccess/></> : tab === 'forum' ? <ForumModeration/> : tab === 'announcements' ? <AnnouncementsPanel/> : tab === 'news' ? <NewsPanel/> : tab === 'comments' ? <ModerationPanel/> : tab === 'issues' ? <IssueInbox key={issueModule} moduleId={issueModule} onClearModule={() => navigate('issues')}/> : <ReviewHistory/>}</div>
 }

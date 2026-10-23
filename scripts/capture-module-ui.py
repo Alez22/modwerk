@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture the real OT LCD from a locally built image; never build/upload firmware.
 
-The plan contains panel presses, encoder turns, waits and PNG filenames. Only
+The plan contains panel presses, encoder turns, crossfader positions, waits and PNG filenames. Only
 the rendered LCD PNGs and their JSON provenance leave the temporary workspace.
 Use a reviewed emulator and a locally built image matching the module version.
 """
@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import selectors
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -21,7 +22,7 @@ KEYS = {'FUNC': 0x2d, 'SRC': 0x22, 'AMP': 0x23, 'LFO': 0x24,
         'FX1': 0x25, 'FX2': 0x26, 'YES': 0x31, 'NO': 0x32,
         'UP': 0x33, 'DOWN': 0x20, 'LEFT': 0x34, 'RIGHT': 0x21,
         'MENU': 0x1c, 'MIDI': 0x35, 'PART': 0x1d, 'PAGE': 0x1b,
-        'CUE': 0x2a, 'PTN': 0x2e, 'BANK': 0x2f,
+        'CUE': 0x2a, 'PTN': 0x2e, 'BANK': 0x2f, 'MIXER': 0x30,
         'REC': 0x29, 'PLAY': 0x28, 'STOP': 0x27,
         'SCENE A': 0x19, 'SCENE B': 0x1a, 'AED': 0x1e,
         **{f'PUSH {name}': 0x38 + i for i, name in enumerate('ABCDEF')},
@@ -36,6 +37,21 @@ def load(name, path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def check_dsp_shared_memory():
+    # Two reviewed DSP MemoryBuffers need 104 MiB of backing storage before
+    # project/audio work. Docker defaults to 64 MiB; mmap succeeds there but
+    # touching the second buffer raises SIGBUS. Reserve some working headroom.
+    if sys.platform != 'linux' or not Path('/dev/shm').exists():
+        return
+    space = os.statvfs('/dev/shm')
+    available = space.f_bavail * space.f_frsize
+    if available < 128 * 1024 * 1024:
+        raise ValueError(
+            f'DSP capture needs at least 128 MiB free in /dev/shm '
+            f'({available // (1024 * 1024)} MiB available). '
+            'For Docker, start the isolated container with --shm-size 256m.')
 
 
 def main():
@@ -66,7 +82,7 @@ def main():
     shots, held = set(), set()
     for action in plan:
         if not isinstance(action, dict) or len(action) != 1:
-            parser.error('Each action contains exactly one of press, hold, release, encoder, wait, capture.')
+            parser.error('Each action contains exactly one of press, hold, release, encoder, fader, wait, capture.')
         key, value = next(iter(action.items()))
         if key in ('press', 'hold', 'release'):
             if not isinstance(value, list) or not value or any(not isinstance(v, str) or v not in KEYS for v in value) or len(set(value)) != len(value):
@@ -83,6 +99,9 @@ def main():
         elif key == 'encoder':
             if not isinstance(value, dict) or set(value) != {'name', 'delta'} or value['name'] not in ENCODERS or type(value['delta']) is not int or not -127 <= value['delta'] <= 127:
                 parser.error('encoder needs a supported name and signed delta in -127..127.')
+        elif key == 'fader':
+            if type(value) is not int or not 0 <= value <= 127:
+                parser.error('fader is a crossfader position 0 (scene A) to 127 (scene B).')
         elif key == 'wait':
             if type(value) is not int or not 1 <= value <= 10000:
                 parser.error('wait is 1–10000 emulated milliseconds.')
@@ -99,6 +118,10 @@ def main():
     output = args.output.resolve()
     if output.exists():
         parser.error('Output exists; choose a new directory to preserve previous captures.')
+    try:
+        check_dsp_shared_memory()
+    except ValueError as error:
+        parser.error(str(error))
     lcd = load('octamod_lcd', ROOT / 'sdk/octabam/tools/emu/lcd_view.py')
     # Render the actual bitplane in the required monochrome documentation style.
     # Preserve every LCD pixel; this changes only the two display colors.
@@ -185,6 +208,9 @@ def main():
                         send(f'run {args.key_ms}')
                 elif key == 'encoder':
                     send(f"knob {0x30 | ENCODERS[value['name']]} {value['delta'] & 255}")
+                    send('run 200')
+                elif key == 'fader':
+                    send(f'key {0x40:#x} {2 * value + 1:#x}')  # the panel's crossfader report
                     send('run 200')
                 elif key == 'wait':
                     send(f'run {value}')

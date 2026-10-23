@@ -1,6 +1,8 @@
 # Contributing to Modwerk
 
-Contribute modules, fixes, documentation, screenshots and audio as pull requests to this repository. The owner merging your pull request approves it; the website has no second approval step. Guest comments and author issue reports on the site need no registration.
+Existing published module authors may use the [automatic author-update workflow](docs/MODULE_AUTHOR_UPDATES.md): verified ownership, changes confined to their modules, explicit evidence review and successful checks on the exact source/base permit bot merge and publication. Other changes retain owner review. Existing qualification gates and exact-version owner exceptions are unchanged.
+
+Contribute modules, fixes, documentation, screenshots and audio as pull requests to this repository. The owner approves first releases and changes beyond registered-author scope; later scoped author updates can publish automatically after evidence verification and required checks; the website has no second approval step. Guest comments and author issue reports on the site need no registration.
 
 ## Modules
 
@@ -8,6 +10,7 @@ Follow [Add or port a module](docs/ADD_A_MODULE.md). It covers porting from octa
 
 What review expects for a new module, or for a change to how a module runs:
 
+- a module that stands alone: it builds and works with no other module chosen. A module that depends on another is refused ([cross-compatibility](docs/module-guides/README.md#cross-compatibility));
 - worst-case cycle counts and exact memory accounting (Octatrack, see [qualification](docs/MODULE_QUALIFICATION.md));
 - a hardware report from a real unit that states its model, how long it ran, what was tested and the limitations. There is no minimum duration or track count;
 - complete documentation with a short tutorial, and real black-and-white screenshots of where the module is selected and of its controls ([captures](docs/MODULE_UI_CAPTURES.md));
@@ -23,6 +26,8 @@ Any change to a module's code needs a strictly higher semantic `version` than on
 
 Submit only original or properly licensed source and media.
 
+Platform contributions follow the [component licence scope](LICENSE): backend changes in `server/`, `worker.ts`, `functions/` and `migrations/` are submitted under Elastic-2.0; changes to the explicit shared-helper inventory in `LICENSES/platform.json` are submitted under GPL-3.0-or-later OR Elastic-2.0. Other frontend code remains GPL-3.0-or-later. Contributors retain copyright and must have authority to grant these terms; this does not assign copyright or grant permission for arbitrary future relicensing. SDKs, module source and media keep their own declared licences. See [platform licensing](docs/PLATFORM_LICENSING.md) before adding cross-boundary imports.
+
 - Do not include Elektron firmware, extracted instructions, routines or tables, stock slices, upgrade or SysEx files, or anyone else's work you have no licence for. Firmware-dependent content comes from each user's own verified OS at build time, matched by address, length and hash.
 - For adapted components, keep their copyright notices and full terms in the module's `LICENSE`. Add their provenance to `sdk/octabam/licenses/manifest.json`, and declare every licence as an SPDX expression, for example `MIT AND ISC`.
 - Run `npm run licenses:generate` and `npm run licenses:check`.
@@ -37,7 +42,7 @@ Limits: up to eight assets; images (PNG, JPEG or WebP) up to 5 MB; audio (WAV, M
 
 ## Review and release
 
-The owner reviews behaviour, tests, resource claims, provenance and compatibility, and merges when the checks pass on the latest commit.
+The reviewer verifies behaviour, tests, resource claims, provenance and compatibility. The owner merges first releases and changes beyond registered-author scope; scoped authors can request automatic merge after all checks pass on the exact latest base and head.
 
 After the merge, release automation:
 

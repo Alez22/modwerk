@@ -7,11 +7,14 @@ import { MODULE_DOCUMENTS_BY_ID } from '../catalog/documents'
 import { moduleBuildPending } from '../catalog/build-support'
 import { DIGI_MODS, type DigiMod } from '../devices/digi-mods'
 import { DEVICES_BY_ID, deviceHref } from '../devices/registry'
-import { DIGI_DOWNLOADS_ENABLED } from '../engine/elekloader/protocol'
+import { digiDownloadsEnabled } from '../engine/elekloader/protocol'
+import { USB_AUDIO_MODULE } from '../config/usb-audio'
+import { useSetWords } from '../community/beta-ui'
 
 const ROWS = ['Machine', 'Version', 'Purpose', 'Location', 'Storage', 'Processing', 'Hardware record', 'Build status'] as const
 
 type ComparisonProps = {
+  betaAccess?: boolean
   ids: string[]
   selected: string[]
   digiSelected: Record<DigiMod['device'], string[]>
@@ -20,10 +23,11 @@ type ComparisonProps = {
   onClose: () => void
 }
 
-export function ModuleComparison({ ids, onClose, onToggle, selected, digiSelected, onToggleDigi }: ComparisonProps) {
+export function ModuleComparison({ betaAccess = false, ids, onClose, onToggle, selected, digiSelected, onToggleDigi }: ComparisonProps) {
+  const w = useSetWords()
   const ref = useRef<HTMLDialogElement>(null)
   const modules = [
-    ...MODULES.filter(module => isModuleAvailable(module.id)).map(module => ({
+    ...MODULES.filter(module => isModuleAvailable(module.id, betaAccess)).map(module => ({
       key: module.id, name: module.name, author: module.authorName, authorUrl: module.authorUrl,
       href: moduleHref(module.id), selected: selected.includes(module.id), toggle: () => onToggle(module.id),
       values: {
@@ -41,7 +45,7 @@ export function ModuleComparison({ ids, onClose, onToggle, selected, digiSelecte
         Location: module.category + ' · OS ' + module.releases.join(' / '),
         Storage: (module.ramBytes / 1024).toFixed(module.ramBytes < 10240 ? 1 : 0) + ' KiB (code and data)',
         Processing: 'Not measured', 'Hardware record': module.hardware ?? 'No hardware report yet',
-        'Build status': DIGI_DOWNLOADS_ENABLED ? 'Experimental' : 'Verification pending',
+        'Build status': digiDownloadsEnabled(module.device) ? 'Experimental' : 'Verification pending',
       },
     })),
   ].filter(module => ids.includes(module.key))
@@ -51,7 +55,7 @@ export function ModuleComparison({ ids, onClose, onToggle, selected, digiSelecte
     <div className="comparison-scroll" tabIndex={0} role="region" aria-label="Module comparison table"><table>
       <thead><tr><th scope="col">Module</th>{modules.map(module => <th scope="col" key={module.key}><a href={module.href} onClick={onClose}>{module.name} ↗</a><small>by <a href={module.authorUrl} target="_blank" rel="noreferrer">{module.author}</a></small></th>)}</tr></thead>
       <tbody>{ROWS.map(label => <tr key={label}><th scope="row">{label}</th>{modules.map(module => <td key={module.key}>{module.values[label]}</td>)}</tr>)}
-        <tr><th scope="row">Configuration</th>{modules.map(module => <td key={module.key}><button className="button button-quiet" aria-pressed={module.selected} onClick={module.toggle}>{module.selected ? 'Added' : 'Add ' + module.name}</button></td>)}</tr>
+        <tr><th scope="row">{w.Set}</th>{modules.map(module => <td key={module.key}><button className="button button-quiet" aria-pressed={!module.selected && module.key === USB_AUDIO_MODULE ? undefined : module.selected} onClick={module.toggle}>{module.selected ? 'Added' : (module.key === USB_AUDIO_MODULE ? 'Configure ' : 'Add ') + module.name}</button></td>)}</tr>
       </tbody>
     </table></div>
     <p className="service-note">Storage and processing values use different measurement methods. Open each module for conditions and test evidence. Adding a module updates its machine’s configuration.</p>

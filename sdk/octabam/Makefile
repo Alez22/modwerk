@@ -18,6 +18,16 @@ DSP_ASM := vendor/dsp56300/build/source/dsp_host/dsp_asm
 BUILD   ?= 79
 VERSION ?= OCTABAM$(BUILD)
 
+# Keep the stock DSP code built in (Remix.static_stock) for every target.
+# tools/remix/registry.py otherwise adds the experimental stock loader (DSP
+# DYNLOAD STOCK, platform/dsp-dynload/README.md: emulator qualification only)
+# to every remix. Images carrying it booted on hardware with no audio and the
+# sequencer stuck on trig 1 (1 Oct 2026; an MKII with the loader and no
+# modules, 8 Oct 2026); ot_emu did not reproduce it. Emulator work on the
+# loader opts in with OCTABAM_STATIC_STOCK=0. Never flash such an image.
+OCTABAM_STATIC_STOCK ?= 1
+export OCTABAM_STATIC_STOCK
+
 # Which modules the image carries. `make modules` lists what is available;
 # remixes/<name>/remix.py is the selection. There is no default: a target
 # that builds or checks an image takes REMIX=<name> (make modules lists
@@ -39,6 +49,8 @@ export OT_PROJECT
 # where the emulator view degrades to "unavailable" and everything else works.
 PY := $(shell [ -x .venv/bin/python3 ] && echo .venv/bin/python3 || echo python3)
 
+HOST_ARCH := $(shell if [ "$$(uname -s)" = Darwin ] && [ "$$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]; then echo arm64; else uname -m; fi)
+
 .DEFAULT_GOAL := help
 
 # ---------------------------------------------------------------- toolchain --
@@ -46,6 +58,12 @@ PY := $(shell [ -x .venv/bin/python3 ] && echo .venv/bin/python3 || echo python3
 .PHONY: setup
 setup: ## Install/build the toolchain (idempotent)
 	scripts/setup.sh
+
+.PHONY: setup-linux setup-mac
+setup-linux: ## Debian/Ubuntu/WSL2: apt install the system tools, build m68k-elf binutils 2.47 + gcc 16.2.0 from source (scripts/m68k-toolchain.sh), then make setup
+	scripts/setup-linux.sh
+setup-mac: ## macOS: brew install the system tools, then make setup
+	scripts/setup-mac.sh
 
 .PHONY: os
 os: ## Download the official Elektron OS (you supply your own copy)
@@ -152,8 +170,9 @@ emu-cf: ## Build and run the headless ColdFire machine (tools/emu/ot_emu) -- boo
 	@# The host's own architecture, explicitly: an Intel-Homebrew cmake
 	@# (/usr/local/bin) configures x86_64 and the port then runs under
 	@# Rosetta -- 4.19 s to the handoff against 3.55 s native (17 Sep 2026).
-	cmake --fresh -B out/emu -S tools/emu/ot_emu -DCMAKE_OSX_ARCHITECTURES=$$(uname -m) >/dev/null
+	cmake --fresh -B out/emu -S tools/emu/ot_emu -DCMAKE_OSX_ARCHITECTURES=$(HOST_ARCH) >/dev/null
 	cmake --build out/emu -j8 >/dev/null
+	$(PY) tools/verify/reach.py --stamp-port
 	./out/emu/ot_emu --image $(if $(IMAGE),$(IMAGE),out/raw/section_3_MAIN_OS.bin)
 
 .PHONY: verify-onebus
@@ -404,10 +423,14 @@ dsp-repatch: ## Re-apply tools/patches/dsp56300.patch to vendor/dsp56300 (revert
 	@echo "now rebuild the port against it: make emu-cf"
 
 .PHONY: check-asm
-check-asm: ## dsp_asm is the patched assembler: it emits the one-word displaced move (0257de)
+check-asm: ## dsp_asm is the patched assembler: the one-word displaced move (0257de), a data-ALU op with an XY move (f4f9ea); prints the binaries' architecture
+	@echo "dsp_asm/dsp_host architecture: $$(file -b $(DSP_ASM) | sed 's/^Mach-O 64-bit executable //; s/^ELF 64-bit LSB [a-z ]*, //; s/,.*//') / $$(file -b $(dir $(DSP_ASM))dsp_host | sed 's/^Mach-O 64-bit executable //; s/^ELF 64-bit LSB [a-z ]*, //; s/,.*//'); host $$(if [ "$$(uname -s)" = Darwin ] && [ "$$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]; then echo arm64; else uname -m; fi)"
 	@t=$$(mktemp -d); printf '\tmove x:(r7+$$15),a\n' > $$t/m.asm; \
 	  if $(DSP_ASM) -in $$t/m.asm -org 0 -list | grep -q 0257de; then echo "dsp_asm: the one-word displaced move (0257de)"; \
-	  else echo "dsp_asm does not emit the one-word displaced move (0257de)"; rm -rf $$t; exit 1; fi; rm -rf $$t
+	  else echo "dsp_asm does not emit the one-word displaced move (0257de)"; rm -rf $$t; exit 1; fi; \
+	  printf '\tmac x1,y0,b x:(r1)+,x1 y:(r7)+,y0\n' > $$t/m.asm; \
+	  if $(DSP_ASM) -in $$t/m.asm -org 0 -list 2>/dev/null | grep -q f4f9ea; then echo "dsp_asm: a data-ALU op with an XY move (f4f9ea)"; \
+	  else echo "dsp_asm does not encode mac x1,y0,b x:(r1)+,x1 y:(r7)+,y0 as f4f9ea (make dsp-repatch)"; rm -rf $$t; exit 1; fi; rm -rf $$t
 
 # What CI runs (.github/workflows/ci.yml). No stock OS, no project, no
 # hardware: each target fetches the vendored trees at their pins

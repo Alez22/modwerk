@@ -628,7 +628,7 @@ namespace ot
 				for(const auto& sh : g_shapes)
 					if(sh.core == core && sh.words == words)
 						return sh.samples;
-				return (2.04 * static_cast<double>(words) + 2.0) / 4160.0;	// DSP instructions per sample (dsp.h g_dspIps)
+				return (2.04 * static_cast<double>(words) + 2.0) / 4532.0;	// DSP instructions per sample (dsp.h g_dspIps)
 			});
 		}
 		m_edma.setCompletionGate([this, co](const uint32_t _ch)
@@ -1543,9 +1543,14 @@ namespace ot
 		// constantly, so the step count is dominated by the OTHER tasks
 		// running underneath it, not by the call itself.
 		m_machine.countPc(g_loadHandler);
-		out.posted = callAsMain(g_postLoad, {g_projectName}, d0, 200000000);
-		if(!out.posted)
-			out.postWhy = m_why;
+		if(m_noPost)
+			out.postWhy = "not posted (--no-post)";
+		else
+		{
+			out.posted = callAsMain(g_postLoad, {g_projectName}, d0, 200000000);
+			if(!out.posted)
+				out.postWhy = m_why;
+		}
 		// Run until the engine has taken LOAD PROJECT and is next at its
 		// queue receive with nothing queued (g_engineQueue), within the
 		// budget. The handler
@@ -1559,7 +1564,7 @@ namespace ot
 			out.stop = runToPc(g_engineReceive, left);
 			if(out.stop != Stop::Gate)
 				break;
-			if(m_machine.pcCount() > 0 && m_machine.peek32(g_engineQueue + 4) == 0)
+			if((m_noPost || m_machine.pcCount() > 0) && (m_loadEarly || m_machine.peek32(g_engineQueue + 4) == 0))
 			{
 				out.handledMs = (m_sample - postSample) / g_sampleHz * 1000.0;
 				out.handledInstr = m_machine.instructions();
@@ -1713,6 +1718,20 @@ namespace ot
 			{
 				if(m_memWrites.size() < 2000000)	// ⚠️ was 20,000: a boot-time init filled it before the frames phase began (O9b)
 					m_memWrites.push_back({m_sample, curTcb(), _pc, _a, _val, _size, m_machine.instructions()});
+			});
+	}
+
+	void Rtos::watchForeign(const uint32_t _addr, const uint32_t _len, std::vector<std::pair<uint32_t, uint32_t>> _stock)
+	{
+		m_machine.addWriteWatch(_addr, _addr + _len - 1,
+			[this, stock = std::move(_stock)](const uint32_t _a, const uint8_t _size, const uint32_t _val, const uint32_t _pc)
+			{
+				for(const auto& [lo, hi] : stock)
+					if(_pc >= lo && _pc < hi)
+						return;
+				++m_foreignCount;
+				if(m_foreignWrites.size() < 10000)
+					m_foreignWrites.push_back({m_sample, curTcb(), _pc, _a, _val, _size, m_machine.instructions()});
 			});
 	}
 
@@ -1922,7 +1941,7 @@ namespace ot
 		f << " \"pit0_fired\": " << pit0Fired() << ",\n";
 		f << " \"dtim1_fired\": " << dtimFired(1) << ", \"dtim2_fired\": " << dtimFired(2) << ",\n";
 		// THE SERIAL STREAM, not its length -- see route A's golden writer and
-		// the O5 section of COLDFIRE_PORT.md. ⚠️ The COUNT tracks the `ips`
+		// the O5 section of git show 3ceba41:docs/history/COLDFIRE_PORT.md. ⚠️ The COUNT tracks the `ips`
 		// knob (5731 at 3900/3990, 4831 at 4100/4200/4300) because the
 		// transmit ring drains in bursts; the BYTES do not.
 		f << " \"serial_sent\": [" << serialA() << ", " << serialB() << "],\n";

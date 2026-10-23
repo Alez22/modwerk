@@ -98,7 +98,7 @@ const log = buildLogText({ title: 'Your site build log', builder: describeBuilde
 - **`prepare`** does the whole selection:
   - checks that the stock file is the device and OS chosen;
   - adds each mod from the catalog, with the mods it requires;
-  - ticks the core the plan needs;
+  - ticks the core the plan needs, one whose RAM holds the mods;
   - runs the live check.
 - **`examples/minimal/`** does all of this, with downloads and the log, in about a hundred lines.
 
@@ -110,7 +110,7 @@ const log = buildLogText({ title: 'Your site build log', builder: describeBuilde
 
 ## Your ids and the catalog's
 
-- **Devices** are the engine's keys: `digitakt-mk1`, `digitakt-mk2`, `digitone-mk1`, `octatrack`. `ready.info.devices` lists them, with their OS versions and their recovery text. If your site names machines its own way, map them to these.
+- **Devices** are the engine's keys: `digitakt-mk1`, `digitakt-mk2`, `digitone-mk1`, `octatrack`, `analog-rytm-mk2`, `analog-four-mk2`. `ready.info.devices` lists them, with their OS versions and their recovery text. If your site names machines its own way, map them to these.
 - **Mods** are the `.elemod`'s own `id`: `catalog.mods[].id`. One id has a file per OS version; `releases(catalog, device, id)` lists those versions.
 - **The OS version** is the stock file's, as the builder recognises it: `stock.os` from `setStock`, or the `os` your site already verified.
 
@@ -195,6 +195,7 @@ Cores come only from the catalog, at `init`. A page cannot add a core of its own
 
 - **What each file says about itself:** `file`, `sha256`, `id`, `version`, `device`, `os`, `license`, `requires` and `conflicts`. `kit.ts feed` reads them from the file with the engine.
 - **What a page shows:** `title`, `summary`, `description`, `category`, `author`, `needs_core` (the oldest core the mod links with) and `on_unit` (what has been checked on real hardware).
+- **Which core a build takes:** a catalog may list several cores for one device and OS (core 2.1, 3.0 and 4.0 for the Digitakt mk1). `planBuild` takes the newest that every selected mod's `needs_core` allows: each core keeps all of the one before it, so a mod built for 2.1 builds with 4.0 as it did with 2.1. The catalog cannot say how much RAM the mods take, so `prepare` plans again once they are loaded, with `planBuild`'s `holds`: of the cores that are new enough, the newest whose RAM holds them (the builder's mod list gives each file's `ram_bound`, and each core's `ram_area`; [CORES.md](CORES.md), "How a build picks one"). The app and elekloader's page take the same core.
 - **Where the file comes from:** `source` is a GitHub release (`repo`, `tag`) or a commit (`repo`, the whole `commit`, `path`).
 - **File names are unique.** A site serves every file beside `catalog.json` under that name.
 
@@ -212,7 +213,7 @@ Cores come only from the catalog, at `init`. A page cannot add a core of its own
 
 ## For elekloader's releases
 
-Each release attaches the kit and the catalog. Both are reproducible from the commit:
+Each release attaches the kit and the catalog: run the **kit-build** workflow (Actions, by hand) with the release's tag. It takes `vX.Y.Z`, or `kit-vX.Y.Z` for a kit-only pre-release, which uses the latest release's cores. It attaches both files and their lines in `SHA256SUMS.txt`, and never replaces a file the release already carries with different bytes. With **test** ticked it keeps them as the run's artifact instead. Both are reproducible from the commit; the workflow runs:
 
 ```bash
 python packaging/build_kit.py --out build/kit                   # elekloader-kit-<version>.zip, and its sha256

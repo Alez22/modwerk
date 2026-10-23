@@ -1,6 +1,7 @@
 // Loader-free DSP composition, ported from the pinned native build_bus static-stock path. Stock effect code
 // stays built in; a module is placed only in the code of stock effects listed on neither chooser. Every
-// selection is checked against native output (static-composition-proofs.json).
+// selection is checked against native output (static-composition-proofs.json;
+// Analog BD's reserved layout has its own analog-bd-composition-proofs.json).
 import facts from './assets/static-dsp.json' with { type: 'json' }
 import stockMetadata from './assets/stock-dsp-metadata.json' with { type: 'json' }
 import dspPackages from './assets/dsp-packages.json' with { type: 'json' }
@@ -12,6 +13,7 @@ import type { StockDspCore } from './stock-dsp.ts'
 import { parseDspMemory, readDspWords, writeDspWords, type DspMemory } from './dsp-memory.ts'
 import { OS_LOAD_ADDRESS, type OsWrite } from './os-patches.ts'
 import type { ChooserProfile } from './choosers.ts'
+import { ANALOG_BD_DSP_COMPANIONS, analogBdReservations } from './analog-bd-layout.ts'
 
 // The shared X dispatch table holds init[32], then process[32].
 const INIT_TABLE = 0x215, PROC_TABLE = 0x235
@@ -23,22 +25,57 @@ type Run = { base: number; words: number; cursor: number }
 export type StaticDspLayout = { core: number; tag: string; region: { base: number; words: number } | null; placed: { key: string; address: number; words: number }[]; nulledDonors: string[] }
 
 type Effect = { key: string; fxId: number; sourceAddress: number; words: number }
-type Placeable = { key: string; fxId: number; words: number }
-/** Native build_bus placement: harvest the effects on neither chooser, then first-fit modules in the given order. */
-export function planStaticPlacement(tag: string, effects: readonly Effect[], listed: ReadonlySet<string>, plan: readonly Placeable[]) {
+type Placeable = { key: string; fxId: number | null; words: number; splitTableWords?: number }
+type Placement = { key: string; fxId: number | null; address: number; words: number; table?: { address: number; words: number } }
+/** Native build_bus placement: harvest unlisted effects, exclude reservations,
+ * then place in module order (first fit, or smallest opening with reservations). */
+export function planStaticPlacement(tag: string, effects: readonly Effect[], listed: ReadonlySet<string>, plan: readonly Placeable[], reserved: readonly { base: number; words: number }[] = []) {
   // stock.harvested: effects on NEITHER chooser give up their words; contiguous ones form one run.
   const harvested = effects.filter(effect => !listed.has(effect.key)).sort((a, b) => a.sourceAddress - b.sourceAddress)
-  const runs: Run[] = []
+  let runs: Run[] = []
   for (const effect of harvested) {
     const last = runs[runs.length - 1]
     if (last && last.base + last.words === effect.sourceAddress) last.words += effect.words
     else runs.push({ base: effect.sourceAddress, words: effect.words, cursor: effect.sourceAddress })
   }
+  for (const span of reserved) {
+    if (!Number.isSafeInteger(span.base) || !Number.isSafeInteger(span.words) || span.base < 0 || span.words <= 0) throw new Error('Invalid reserved DSP span.')
+    runs = runs.flatMap(run => {
+      const end = run.base + run.words, cutEnd = span.base + span.words
+      if (span.base >= end || cutEnd <= run.base) return [run]
+      return [
+        ...(span.base > run.base ? [{ base: run.base, words: span.base - run.base, cursor: run.base }] : []),
+        ...(cutEnd < end ? [{ base: cutEnd, words: end - cutEnd, cursor: cutEnd }] : []),
+      ]
+    })
+  }
   if (!runs.length && plan.length) throw new Error('payload ' + tag + ': nothing is harvested, so there is nowhere to place ' + plan.map(module => module.key).sort().join(', ') + '.')
-  const budget = runs.reduce((sum, run) => sum + run.words, 0), placed: { key: string; fxId: number; address: number; words: number }[] = []
+  const budget = runs.reduce((sum, run) => sum + run.words, 0), placed: Placement[] = []
   for (const module of plan) {
-    const run = runs.find(run => run.cursor + module.words <= run.base + run.words)
+    // With a reserved engine, use the smallest opening first: the five-word
+    // Tape Echo stub fits in Analog BD's gap without consuming another reverb.
+    const candidates = reserved.length ? [...runs].sort((a, b) => (a.base + a.words - a.cursor) - (b.base + b.words - b.cursor) || a.base - b.base) : runs
+    const run = candidates.find(run => run.cursor + module.words <= run.base + run.words)
     if (!run) {
+      const tableWords = module.splitTableWords
+      if (tableWords !== undefined) {
+        if (!Number.isInteger(tableWords) || tableWords <= 0 || tableWords >= module.words) throw new Error('Invalid separate DSP table size.')
+        const codeWords = module.words - tableWords
+        let split: { tableRun: Run; codeRun: Run; codeAddress: number } | undefined
+        for (const tableRun of candidates) {
+          if (tableRun.cursor + tableWords > tableRun.base + tableRun.words) continue
+          const codeRuns = reserved.length ? [...runs].sort((a, b) => (a.base + a.words - a.cursor - (a === tableRun ? tableWords : 0)) - (b.base + b.words - b.cursor - (b === tableRun ? tableWords : 0)) || a.base - b.base) : runs
+          const codeRun = codeRuns.find(run => run.cursor + (run === tableRun ? tableWords : 0) + codeWords <= run.base + run.words)
+          if (codeRun) { split = { tableRun, codeRun, codeAddress: codeRun.cursor + (codeRun === tableRun ? tableWords : 0) }; break }
+        }
+        if (split) {
+          const table = { address: split.tableRun.cursor, words: tableWords }
+          placed.push({ key: module.key, fxId: module.fxId, address: split.codeAddress, words: codeWords, table })
+          split.tableRun.cursor += tableWords
+          split.codeRun.cursor = split.codeAddress + codeWords
+          continue
+        }
+      }
       if (runs.length < 2) throw new Error('payload ' + tag + ': ' + module.key + ' overruns the region (' + (runs[0].cursor + module.words - runs[0].base) + ' > ' + budget + ' words)')
       throw new Error('payload ' + tag + ': ' + module.key + ' does not fit any harvested run.')
     }
@@ -46,7 +83,7 @@ export function planStaticPlacement(tag: string, effects: readonly Effect[], lis
     run.cursor += module.words
   }
   // Donor ids go to the null stub only where placed code reached the effect; the rest stay stock.
-  const nulledDonors = harvested.filter(effect => runs.some(run => run.base <= effect.sourceAddress && effect.sourceAddress < run.cursor))
+  const nulledDonors = harvested.filter(effect => runs.some(run => run.base < effect.sourceAddress + effect.words && effect.sourceAddress < run.cursor && run.cursor > run.base))
   return { runs, budget, placed, nulledDonors }
 }
 
@@ -54,6 +91,20 @@ export function planStaticPlacement(tag: string, effects: readonly Effect[], lis
 export function staticModulePlan(ids: readonly string[]) {
   const selected = new Set(resolveSelection(ids).map(module => module.id))
   return facts.modules.filter(module => selected.has(module.id)).sort((a, b) => a.priority - b.priority)
+}
+/** Native build_bus: hooked code goes only on the payloads it names (its packages' tags); every other module on both. */
+function onPayload<T extends { id: string }>(plan: readonly T[], tag: string) {
+  return plan.filter(module => !dspPackages.packages.some(pkg => pkg.id === module.id && 'stockDsp' in pkg)
+    || dspPackages.packages.some(pkg => pkg.id === module.id && 'stockDsp' in pkg && pkg.tag === tag))
+}
+
+export function planSelectionDsp(tag: string, effects: readonly Effect[], listed: ReadonlySet<string>, plan: readonly Placeable[], ids: readonly string[]) {
+  if (ids.includes('analog-bassdrum')) {
+    const blockers = facts.modules.filter(module => ids.includes(module.id) && !ANALOG_BD_DSP_COMPANIONS.includes(module.id))
+    if (blockers.length) throw new Error('ANALOG BD cannot share DSP memory with ' + blockers.map(module => module.key).join(', '))
+  }
+  const splitPlan = plan.map(module => ({ ...module, splitTableWords: dspPackages.packages.find(pkg => pkg.key === module.key && 'splitTableWords' in pkg)?.splitTableWords }))
+  return planStaticPlacement(tag, effects, listed, splitPlan, ids.includes('analog-bassdrum') ? analogBdReservations(tag) : [])
 }
 
 type Helper = { host: string; start: number; end: number; callers: string[] }
@@ -85,7 +136,7 @@ const DONOR_PREFERENCE = ['SPRING REV', 'PLATE REV', 'DARK REV']
  *  that are on FX2 but not FX1 are candidates. When even all of them are too small, all of them, so that
  *  placement reports the overrun. */
 export function stockFx2Donors(ids: readonly string[], profile: ChooserProfile, required: readonly string[] = []): string[] {
-  const plan = staticModulePlan(ids).map(module => ({ key: module.key, fxId: module.fxId, words: moduleWords(module.id) }))
+  const plan = staticModulePlan(ids).map(module => ({ id: module.id, key: module.key, fxId: module.fxId, words: moduleWords(module.id) }))
   const rank = (key: string) => DONOR_PREFERENCE.includes(key) ? DONOR_PREFERENCE.indexOf(key) : DONOR_PREFERENCE.length
   const candidates = stockMetadata.payloads[0].packages.map(pkg => pkg.key)
     .filter(key => profile.fx2.includes(key) && !profile.fx1.includes(key)).sort((a, b) => rank(a) - rank(b))
@@ -100,7 +151,7 @@ export function stockFx2Donors(ids: readonly string[], profile: ChooserProfile, 
     const listed = new Set([...profile.fx1, ...profile.fx2].filter(key => !set.includes(key)))
     for (const pkg of dspPackages.packages) if (pkg.stockKey !== undefined && plan.some(module => module.key === pkg.key)) listed.add(pkg.stockKey)
     const fits = stockMetadata.payloads.every(payload => {
-      try { return !overwrittenHelper(payload.tag, listed, planStaticPlacement(payload.tag, payload.packages, listed, plan).runs) }
+      try { return !overwrittenHelper(payload.tag, listed, planSelectionDsp(payload.tag, payload.packages, listed, onPayload(plan, payload.tag), ids).runs) }
       catch { return false }
     })
     if (fits) return set
@@ -134,19 +185,21 @@ export async function composeStaticDsp(cores: readonly StockDspCore[], ids: read
   for (const core of [...cores].sort((a, b) => a.core - b.core)) {
     const stock = stockMetadata.payloads.find(payload => payload.core === core.core)!, stub = facts.payloads.find(payload => payload.core === core.core)!
     if (!stock || !stub || core.tag !== stock.tag || stub.tag !== stock.tag || await sha(core.memory.bytes) !== stock.sha256) throw new Error('DSP composition needs the verified original payloads.')
-    for (const module of plan) if (dspPackages.packages.some(pkg => pkg.id === module.id && 'stockDsp' in pkg)) packages.set(module.id, await readDspPackage(module.id, core.tag))
-    const layout = planStaticPlacement(stock.tag, stock.packages, listed, plan.map(module => ({ key: module.key, fxId: module.fxId, words: packages.get(module.id)!.words })))
+    const placing = onPayload(plan, core.tag)
+    for (const module of placing) if (dspPackages.packages.some(pkg => pkg.id === module.id && 'stockDsp' in pkg)) packages.set(module.id, await readDspPackage(module.id, core.tag))
+    const layout = planSelectionDsp(stock.tag, stock.packages, listed, placing.map(module => ({ key: module.key, fxId: module.fxId, words: packages.get(module.id)!.words })), ids)
     const broken = overwrittenHelper(stock.tag, listed, layout.runs)
     if (broken) throw new Error('payload ' + stock.tag + ': module code would overwrite a ' + broken.host + ' routine that ' + broken.callers.join(', ') + ' still calls.')
     const memory = parseDspMemory(new Uint8Array(core.memory.bytes))
     const dispatch: DispatchTarget[] = []
-    for (const [index, module] of plan.entries()) {
+    for (const [index, module] of placing.entries()) {
       const pkg = packages.get(module.id)!, at = layout.placed[index]
       if (pkg.fxId !== module.fxId) throw new Error('The ' + module.key + ' package does not match its native DSP id.')
-      const code = relocateDspPackage(pkg, at.address)
-      writeDspWords(memory, 0, at.address, code.words)
+      const code = relocateDspPackage(pkg, at.address - (at.table?.words ?? 0), at.table?.address)
+      if (at.table) writeDspWords(memory, 0, at.table.address, code.words.subarray(0, at.table.words))
+      writeDspWords(memory, 0, at.address, code.words.subarray(at.table?.words ?? 0))
       if (pkg.stockDsp) {
-        if (!pkg.hooks?.length || pkg.tag !== core.tag || !pkg.stockKey) throw new Error('The stock DSP hooks have an invalid payload declaration.')
+        if (!pkg.hooks?.length || pkg.tag !== core.tag || pkg.fxId !== null && !pkg.stockKey) throw new Error('The stock DSP hooks have an invalid payload declaration.')
         for (const hook of pkg.hooks) {
           if (hook.words !== 2 || !Number.isInteger(hook.site) || hook.site < 0 || !Number.isInteger(hook.entry) || hook.entry < 0 || hook.entry >= pkg.words || !/^[a-f0-9]{64}$/.test(hook.guardSha256)) throw new Error('Invalid stock DSP hook.')
           const inherited = readDspWords(core.memory, 0, hook.site, hook.words), bytes = new Uint8Array(inherited.length * 3)
@@ -154,11 +207,12 @@ export async function composeStaticDsp(cores: readonly StockDspCore[], ids: read
           if (await sha(bytes) !== hook.guardSha256) throw new Error('The stock DSP hook fingerprint differs from the verified original.')
           writeDspWords(memory, 0, hook.site, new Uint32Array([0x0bf080, at.address + hook.entry]))
         }
-      } else dispatch.push({ fxId: module.fxId, init: code.init, proc: code.proc })
+      } else if (module.fxId !== null) dispatch.push({ fxId: module.fxId, init: code.init, proc: code.proc })
+      else throw new Error('The ' + module.key + ' package has neither an effect id nor stock DSP hooks.')
     }
     applyStaticDispatch(memory, dispatch, layout.nulledDonors, stub)
     writes.push({ address: OS_LOAD_ADDRESS + stock.sourceOffset, guardLength: stock.bytes, guardSha256: stock.sha256, bytes: memory.bytes, note: 'DSP payload ' + stock.tag + ' (static stock)' })
-    layouts.push({ core: core.core, tag: stock.tag, region: layout.runs.length ? { base: layout.runs[0].base, words: layout.budget } : null, placed: layout.placed.map(({ key, address, words }) => ({ key, address, words })), nulledDonors: layout.nulledDonors.map(effect => effect.key) })
+    layouts.push({ core: core.core, tag: stock.tag, region: layout.runs.length ? { base: layout.runs[0].base, words: layout.budget } : null, placed: layout.placed.flatMap(({ key, address, words, table }) => [{ key, address, words }, ...(table ? [{ key: key + ' table', ...table }] : [])]), nulledDonors: layout.nulledDonors.map(effect => effect.key) })
   }
   return { writes, layouts }
 }

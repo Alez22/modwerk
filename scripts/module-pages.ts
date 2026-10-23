@@ -9,17 +9,26 @@ import { MODULES } from '../src/catalog/modules.ts'
 import { modulePath } from '../src/catalog/module-links.ts'
 import type { FirmwareModule } from '../src/catalog/modules.ts'
 import { DETAILS } from '../src/catalog/details.ts'
+import { MODULE_DOCUMENTS_BY_ID } from '../src/catalog/documents.ts'
 import { ModulePreview } from '../src/components/ModulePreview.tsx'
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)
-}
+import { DIGI_MODS, type DigiMod } from '../src/devices/digi-mods.ts'
+import { DEVICES_BY_ID } from '../src/devices/registry.ts'
+import { escapeHtml, pageMetadataHtml, pageContentHtml } from './page-html.ts'
+import { pageTitle } from '../src/site-metadata.ts'
+import { digiContent, octatrackContent } from './seo-content.ts'
+import { socialCard } from './social-cards.ts'
 
 /** Rasterize the same artwork and CSS used by the module cards, without browser or firmware input. */
 export async function moduleThumbnail(id: string, stylesheet: string): Promise<Buffer> {
   const markup = renderToStaticMarkup(createElement(ModulePreview, { id }))
-  const artwork = markup.match(/<svg\b[^>]*>[\s\S]*?<\/svg>/)?.[0]
+  let artwork = markup.match(/<svg\b[^>]*>[\s\S]*?<\/svg>/)?.[0]
   if (!artwork) throw new Error('Missing module thumbnail artwork: ' + id)
+  // librsvg cannot fetch the browser's relative image URL. Embed the same published SVG for server previews.
+  if (artwork.includes('<image ')) {
+    const document = MODULE_DOCUMENTS_BY_ID[id]
+    const source = readFileSync(new URL(`../public/module-media/${id}/${document.version}/presentation/thumbnail.svg`, import.meta.url))
+    artwork = artwork.replace(/(<image\b[^>]*href=")[^"]+("[^>]*>)/, '$1data:image/svg+xml;base64,' + source.toString('base64') + '$2')
+  }
   const rules = Array.from(stylesheet.matchAll(/([^{}]+)\{([^{}]+)\}/g), match => ({ selector: match[1].trim(), declarations: match[2] }))
   const palette = rules.find(rule => rule.selector === `.module-preview[data-module="${id}"]`) ?? rules.find(rule => rule.selector === '.module-preview')
   const color = palette?.declarations.match(/--signal:\s*([^;]+)/)?.[1]
@@ -42,14 +51,27 @@ export async function moduleThumbnail(id: string, stylesheet: string): Promise<B
   return sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer()
 }
 
-export function modulePageHtml(html: string, module: FirmwareModule, imagePath: string, base: string): string {
+/** The public site URL from the built page's own Open Graph tags, under the Pages project path when there is one. */
+export function siteUrls(html: string, base: string) {
   const home = html.match(/<meta property="og:url" content="([^"]+)"/)?.[1]
   if (!home) throw new Error('Missing public site URL for module previews.')
-  const appUrl = new URL(base.startsWith('/') ? base : '.', home)
+  return { appUrl: new URL(base.startsWith('/') ? base : '.', home), siteName: html.match(/<meta property="og:site_name" content="([^"]+)"/)?.[1] ?? 'Modwerk' }
+}
+
+/** GitHub Pages serves this for every path without a file: it boots the app from an absolute base so thread and profile paths open client-side. */
+export function notFoundPageHtml(html: string, base: string): string {
+  const { appUrl } = siteUrls(html, base)
+  return html
+    .replace(/\s*<link rel="canonical" href="[^"]*"\s*\/>/g, '')
+    .replace(/<base href="[^"]*"\s*\/>/, `<base href="${escapeHtml(base.startsWith('/') ? base : appUrl.href)}" />`)
+    .replace(/<title>/, '<meta name="robots" content="noindex" />\n    <title>')
+}
+
+export function modulePageHtml(html: string, module: FirmwareModule, imagePath: string, base: string): string {
+  const { appUrl, siteName } = siteUrls(html, base)
   const pageUrl = new URL(modulePath(module.id), appUrl).href
   const imageUrl = new URL(imagePath, appUrl).href
-  const siteName = html.match(/<meta property="og:site_name" content="([^"]+)"/)?.[1] ?? 'Modwerk'
-  const title = module.name + ' — ' + siteName
+  const title = pageTitle(module.name + ' for Elektron Octatrack', siteName)
   const alt = module.name + ' module thumbnail'
   const values: Record<string, string> = {
     description: module.description,
@@ -58,10 +80,21 @@ export function modulePageHtml(html: string, module: FirmwareModule, imagePath: 
     'twitter:title': title, 'twitter:description': module.description,
     'twitter:image': imageUrl, 'twitter:image:alt': alt,
   }
-  return html
-    .replace(/<base href="[^"]*"\s*\/>/, `<base href="${escapeHtml(base === './' || base === '' ? '../../' : base)}" />`)
-    .replace(/(<meta (?:property|name)="([^"]+)" content=")[^"]*("\s*\/>)/g, (tag, start, key: string, end) => key in values ? start + escapeHtml(values[key]) + end : tag)
-    .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>\n    <link rel="canonical" href="${escapeHtml(pageUrl)}" />`)
+  const page = pageMetadataHtml(html, title, pageUrl, values)
+    .replace(/<base href="[^"]*"\s*\/>/, `<base href="${escapeHtml(base.startsWith('/') ? base : '../../')}" />`)
+  return pageContentHtml(page, octatrackContent(module, appUrl))
+}
+
+export function digiModulePageHtml(html: string, mod: DigiMod, imagePath: string, base: string): string {
+  const { appUrl, siteName } = siteUrls(html, base)
+  const pageUrl = new URL(`${mod.device}/module/${mod.id}/`, appUrl).href
+  const title = pageTitle(`${mod.title} for Elektron ${DEVICES_BY_ID[mod.device].name}`, siteName)
+  const imageUrl = new URL(imagePath, appUrl).href, alt = mod.title + ' for ' + DEVICES_BY_ID[mod.device].name
+  const page = pageMetadataHtml(html, title, pageUrl, {
+    description: mod.summary, 'og:title': title, 'og:description': mod.summary, 'og:url': pageUrl, 'og:image': imageUrl, 'og:image:alt': alt,
+    'twitter:title': title, 'twitter:description': mod.summary, 'twitter:image': imageUrl, 'twitter:image:alt': alt,
+  }).replace(/<base href="[^"]*"\s*\/>/, `<base href="${escapeHtml(base.startsWith('/') ? base : '../../../')}" />`)
+  return pageContentHtml(page, digiContent(mod, appUrl))
 }
 
 export function modulePages(): Plugin {
@@ -75,6 +108,7 @@ export function modulePages(): Plugin {
       const index = bundle['index.html']
       if (!index || index.type !== 'asset') throw new Error('Missing built app HTML for module previews.')
       const html = String(index.source)
+      this.emitFile({ type: 'asset', fileName: '404.html', source: notFoundPageHtml(html, config.base) })
       const stylesheet = readFileSync(resolve(config.root, 'src/styles.css'), 'utf8')
       for (const module of MODULES) {
         const thumbnail = await moduleThumbnail(module.id, stylesheet)
@@ -87,6 +121,12 @@ export function modulePages(): Plugin {
         if (modulePath(module.id) !== `module/${module.id}/`) {
           this.emitFile({ type: 'asset', fileName: `module/${module.id}/index.html`, source: page })
         }
+      }
+      for (const mod of DIGI_MODS) {
+        const card = await socialCard(config.root, { kicker: 'Elektron ' + DEVICES_BY_ID[mod.device].name, title: mod.title, left: 'modwerk.app', right: mod.category })
+        const imagePath = `module-thumbnails/${mod.device}-${mod.id}-${createHash('sha256').update(card).digest('hex').slice(0, 12)}.jpg`
+        this.emitFile({ type: 'asset', fileName: imagePath, source: card })
+        this.emitFile({ type: 'asset', fileName: `${mod.device}/module/${mod.id}/index.html`, source: digiModulePageHtml(html, mod, imagePath, config.base) })
       }
     },
   }

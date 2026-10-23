@@ -1,0 +1,55 @@
+[
+  {
+    "version": "0.1.5-experimental",
+    "date": "2026-10-15",
+    "changes": [
+      "Rolls back 0.1.4: Tape Echo runs the 0.1.3 code again and MIX is a plain dry/wet crossfade once more. The level drop at the default MIX 90 (#607) is back.",
+      "Projects set up with 0.1.4 sound different: the dry signal is up to 10.7 dB quieter at MIX 90. Raise the track volume or lower MIX to taste.",
+      "Known issue: the Octatrack can freeze with seven Tape Echo instances."
+    ]
+  },
+  {
+    "version": "0.1.4-experimental",
+    "date": "2026-10-14",
+    "changes": [
+      "Fixes Tape Echo turning the track down (#607): the dry signal stays at full level up to MIX 95 and fades out above it. Echoes, feedback and tone are unchanged.",
+      "Projects saved earlier sound different: the dry signal is up to 10.7 dB louder at MIX 90 and the echoes sit lower. Lower MIX or the track volume to taste.",
+      "Stereo echo, also asked for in #607, is not planned: the echo stays mono and the dry signal stays stereo.",
+      "On the beta base, picking it no longer shows DSP MEMORY FULL just because the modules named in the bank's Parts do not all fit on one DSP core.",
+      "Known issue: not tested on hardware, and the freeze with seven instances is still open."
+    ]
+  },
+  {
+    "version": "0.1.3-experimental",
+    "date": "2026-10-12",
+    "changes": [
+      "Media only: adds an audio preview of a Legowelt Juno 106 chord pluck with clean and worn echoes. The firmware is unchanged.",
+      "Installs over USB on the Modwerk beta base.",
+      "Known issue: the USB version has not yet run on a unit."
+    ]
+  },
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: adds screenshots of the selection and control pages and how to reach them. The firmware is unchanged."
+    ],
+    "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: updates the author credits. The firmware is unchanged."
+    ],
+    "sourceCommit": "d1136ce4c65ea7e1a00c4516cd4aa41c4b0c0d56"
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "First Modwerk catalog release of the CPU-based mono tape echo in FX2, with stereo dry output, tape saturation, age and feedback behaviour."
+    ],
+    "sourceCommit": "b16a5e3b880cb141153f0648e0c8700fc54175ef"
+  }
+]

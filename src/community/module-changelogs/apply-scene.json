@@ -1,0 +1,24 @@
+[
+  {
+    "version": "0.2.0-experimental",
+    "date": "2026-10-22",
+    "changes": [
+      "New: in grid recording, hold trigs and press SCENE A, SCENE B or both. When you let go, the scene's values (or the blend) become p-locks on those steps.",
+      "One scene writes every value it locks, even when muted, replacing that parameter's p-lock on the step. Both keys write what the step plays at the current fader position.",
+      "A trig pressed or a knob turned while the scene key is held still selects a scene or writes a scene lock, and then no p-lock is written.",
+      "To remove the new p-locks, hold the trig and press PLAY, as on stock. SCENE + YES into the Part works as before.",
+      "Known issue: the new trig gesture is tested on one MKII over USB, not yet on the MKI."
+    ]
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-15",
+    "changes": [
+      "New module: hold SCENE A or SCENE B and press YES to write that scene's locked values into the active Part; hold both to write the current crossfader blend.",
+      "Covers SRC page 1, LFO speed and depth, AMP, FX1 and FX2 on all eight audio tracks. XVOL, XLV, trig locks and LFO modulation are not written.",
+      "Scenes, mutes, the crossfader and the saved Part stay unchanged, so RELOAD PART (FUNC + CUE) undoes an apply. NOTHING TO APPLY means no value would change.",
+      "YES with a scene key held no longer shows ARM ALL; YES alone still does. A parameter locked in only one scene can sound different after an apply.",
+      "Documentation only: the module page credits the author as Nathaniel Pavel (GitHub @npp1993)."
+    ]
+  }
+]

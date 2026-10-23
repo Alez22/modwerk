@@ -5,6 +5,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import { digest } from '../../server/security'
 import { MODULES } from '../catalog/modules'
 import { handleCommunity } from '../../server/transport'
+import { cleanupAccounts } from '../../server/accounts'
 const databases:DatabaseSync[]=[]
 const sent:{to:string[];text:string}[]=[]
 const password='a long original test passphrase'
@@ -42,9 +43,16 @@ describe('verified email accounts',()=>{
   expect((await call('/auth/register','POST',{rulesVersion:COMMUNITY_RULES_VERSION,username:'listener',email,password})).status).toBe(202)
   expect((await call('/auth/login','POST',{email,password})).status).toBe(403)
   const token=sent[0].text.match(/#account\/verify\/([^\s]+)/)![1]
+  expect(db.prepare('SELECT COUNT(*) AS count FROM member_discord_invites').get()).toEqual({count:1})
+  // A registration begun before rollout also switches to the inline welcome at verification.
+  db.exec('DELETE FROM member_discord_invites')
   expect(JSON.stringify(db.prepare('SELECT * FROM account_tokens').all())).not.toContain(token)
   expect((await call('/auth/verify','POST',{token,password:'a completely different password'})).status).toBe(400)
-  expect((await call('/auth/verify','POST',{token,password})).status).toBe(200)
+  const verified=await call('/auth/verify','POST',{token,password});expect(verified.status).toBe(200)
+  // Verifying with the registration password starts the member session, so the welcome lands in the forum signed in.
+  const firstSession=verified.headers.get('X-Octamod-Session')!;expect(firstSession).toContain('.');expect(verified.headers.get('set-cookie')).toBeNull()
+  expect((await(await call('/auth/session','GET',undefined,firstSession)).json()).user).toMatchObject({username:'listener',verified:true})
+  expect(await(await call('/auth/discord-invite','POST',{},firstSession)).json()).toEqual({show:false})
   expect((await call('/auth/verify','POST',{token,password})).status).toBe(400)
   const login=await call('/auth/login','POST',{email,password}),session=login.headers.get('X-Octamod-Session')!
   expect(login.status).toBe(200);expect(login.headers.get('set-cookie')).toBeNull()
@@ -76,7 +84,8 @@ describe('verified email accounts',()=>{
  it('supports secure same-origin cookies, other-device revocation and private duplicate responses',async()=>{
   const {call,member,env}=await fixture(),user=await member('devices')
   const second=await call('/auth/login','POST',{email:user.email,password}),secondToken=second.headers.get('X-Octamod-Session')!
-  expect(await(await call('/auth/sessions','GET',undefined,user.session)).json()).toHaveLength(2)
+  // The verification session, the fixture's sign-in and this second sign-in.
+  expect(await(await call('/auth/sessions','GET',undefined,user.session)).json()).toHaveLength(3)
   expect((await call('/auth/sessions','DELETE',undefined,user.session)).status).toBe(200)
   expect((await(await call('/auth/session','GET',undefined,secondToken)).json()).user).toBeNull()
   const duplicate=await call('/auth/register','POST',{rulesVersion:COMMUNITY_RULES_VERSION,username:'anothername',email:user.email,password})
@@ -92,6 +101,22 @@ describe('verified email accounts',()=>{
   const session=await handleCommunity(new Request('https://octamod.test/api/auth/session',{headers:{Cookie:cookie}}),env)
   expect((await session.json()).user.username).toBe(user.username)
   expect((await handleCommunity(new Request('https://octamod.test/api/auth/logout',{method:'POST',headers:{Cookie:cookie}}),env)).status).toBe(403)
+ })
+ it('removes expired sessions and verification links in the hourly cleanup and keeps current ones',async()=>{
+  const {call,db,env,member}=await fixture()
+  const earlier=await member('earlier')
+  expect((await call('/auth/forgot','POST',{email:earlier.email})).status).toBe(202)
+  expect(db.prepare('SELECT COUNT(*) AS count FROM auth_sessions').get()).toEqual({count:2})
+  expect(db.prepare('SELECT COUNT(*) AS count FROM auth_verifications').get()).toEqual({count:1})
+  expect(db.prepare("SELECT typeof(expiresAt) AS type FROM auth_sessions").get()).toEqual({type:'text'})
+  vi.useFakeTimers({toFake:['Date']});vi.setSystemTime(Date.now()+30*24*60*60*1000)
+  try{
+   const current=await member('later')
+   await cleanupAccounts(env.DB!)
+   expect(db.prepare('SELECT COUNT(*) AS count FROM auth_sessions').get()).toEqual({count:2})
+   expect(db.prepare('SELECT COUNT(*) AS count FROM auth_verifications').get()).toEqual({count:0})
+   expect((await call('/auth/build-access','POST',{},current.session)).status).toBe(200)
+  }finally{vi.useRealTimers()}
  })
  it('rejects expired verification and recovery links, weak passwords and reserved usernames',async()=>{
   const {call,db}=await fixture()
@@ -139,9 +164,10 @@ describe('forum ownership and sharing',()=>{
   expect((await call('/forum/posts/'+detail.posts[0].id,'PATCH',{body:'Edited by author'},author.session)).status).toBe(200)
   for(let i=0;i<2;i++)expect((await call('/forum/posts/'+detail.posts[0].id+'/react','POST',{liked:true},other.session)).status).toBe(200)
   expect((await(await call('/forum/threads/'+id)).json()).posts[0].likes).toBe(1)
-  expect(await(await call('/forum/notifications','GET',undefined,author.session)).json()).toHaveLength(1)
-  expect(await(await call('/forum/notifications','GET',undefined,other.session)).json()).toHaveLength(0)
-  expect((await call('/forum/notifications')).status).toBe(401)
+  const replies=async(token:string)=>(await(await call('/notifications','GET',undefined,token)).json()).items.filter((item:{kind:string})=>item.kind==='reply')
+  expect(await replies(author.session)).toHaveLength(1)
+  expect(await replies(other.session)).toHaveLength(0)
+  expect((await call('/notifications')).status).toBe(401)
   await call('/forum/threads/'+id+'/bookmark','POST',{enabled:true},other.session)
   expect((await(await call('/forum/threads?saved=1','GET',undefined,other.session)).json()).threads).toHaveLength(1)
   expect((await(await call('/forum/threads?saved=1','GET',undefined,author.session)).json()).threads).toHaveLength(0)

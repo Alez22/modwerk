@@ -5,6 +5,16 @@ import example from '../../public/module-repository.example.json'
 import catalog from './module-documents.json'
 import sdkCatalog from '../../sdk/catalog.json'
 describe('module folder contract',()=>{
+ it('accepts key gestures and screens in uiClaims and refuses unknown keys',()=>{
+  const claims=(uiClaims:unknown)=>parseModuleDocument({...example,compatibility:{...example.compatibility,uiClaims}}).compatibility.uiClaims
+  expect(claims(['key:UP+TEMPO','key:FUNC+LEFT@CHROMATIC','key:CUE+LEVEL','screen:TEMPO'])).toEqual(['key:UP+TEMPO','key:FUNC+LEFT@CHROMATIC','key:CUE+LEVEL','screen:TEMPO'])
+  for(const invalid of [['key:UP+TMPO'],['key:up+TEMPO'],['TEMPO'],['screen:tempo'],'key:UP'])expect(()=>claims(invalid)).toThrow('compatibility.uiClaims')
+ })
+ it('retains multiple credited contributors without replacing the primary author',()=>{
+  const contributors=[{github:'bryantysinger',name:'Bryan Tysinger'},{github:'tester-two'}]
+  expect(parseModuleDocument({...example,author:{...example.author,contributors}}).author).toEqual({...example.author,contributors})
+  for(const invalid of [[{github:example.author.github.toUpperCase()}],[...contributors,{github:'BRYANTYSINGER'}],[{github:'https://example.com'}],[{github:'tester',name:''}],[{github:'tester',maintainer:true}],Array(21).fill({github:'tester'})])expect(()=>parseModuleDocument({...example,author:{...example.author,contributors:invalid}})).toThrow('author.contributors')
+ })
  it('requires exact versions and retains honest evidence for every catalog module',()=>{
   expect(parseModuleDocument(example).version).toBe('0.1.0')
   expect(catalog.modules.map(module=>parseModuleDocument(module).id)).toEqual(sdkCatalog.modules.map(module=>module.id))
@@ -15,6 +25,7 @@ describe('module folder contract',()=>{
   const source={repository:'https://github.com/sambanks/octabam',revision:'a'.repeat(40),path:'modules/quantizer'}
   const build={status:'pending',reason:'Awaiting Octamod verification.'}
   expect(parseModuleDocument({...example,source,build,category:'machines'}).source).toEqual(source)
+  expect(parseModuleDocument({...example,source,build,category:'system'}).category).toBe('system')
   for(const change of [{revision:'main'},{repository:'http://github.com/sambanks/octabam'},{repository:'https://github.com/sambanks/octabam?token=secret'},{path:'../modules/quantizer'},{extra:true}])expect(()=>parseModuleDocument({...example,source:{...source,...change}})).toThrow()
   expect(()=>parseModuleDocument({...example,build})).toThrow('source pin')
   for(const change of [{status:'verified'},{reason:''},{override:true}])expect(()=>parseModuleDocument({...example,source,build:{...build,...change}})).toThrow()
@@ -52,6 +63,12 @@ describe('module folder contract',()=>{
   expect(()=>parseModuleDocument({...example,access,media:[{...media,otUi:undefined}]})).toThrow()
   const automatic={...example,category:'midi-usb',controls:[],compatibility:{...example.compatibility,location:'USB',effectId:null},access:{...access,screenshots:[],noUiReason:'USB Audio starts automatically and adds no OT page or controls.'},media:[]}
   expect(()=>requireModuleUiForPublication(parseModuleDocument(automatic))).not.toThrow()
+  const documentation={tutorial:{title:'Connect USB',steps:['Select USB.','Connect the host.','Check the input.']},screenshots:[],screenshotStyle:'black-and-white'}
+  expect(parseModuleDocument({...automatic,tests:{...automatic.tests,documentation}}).tests.documentation?.screenshots).toEqual([])
+  expect(()=>parseModuleDocument({...example,tests:{...example.tests,documentation}})).toThrow('real documentation screenshots')
+  const {noUiReason: _reason,...withoutReason}=automatic.access
+  expect(_reason).toBeTruthy()
+  expect(()=>parseModuleDocument({...automatic,access:withoutReason,tests:{...automatic.tests,documentation}})).toThrow('real documentation screenshots')
   expect(()=>parseModuleDocument({...automatic,controls:example.controls})).toThrow('no dedicated OT UI')
   expect(()=>parseModuleDocument({...automatic,compatibility:example.compatibility})).toThrow('no dedicated OT UI')
   expect(()=>parseModuleDocument({...automatic,access:{...automatic.access,noUiReason:''}})).toThrow()

@@ -1,0 +1,24 @@
+[
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-16",
+    "changes": [
+      "In MATRIX, the LEV box always shows each track’s destination (MN, PHN, M+C, …), not only while CUE is held. Turning LEVEL still shows the level.",
+      "Uses less DSP time; the sound is unchanged. The module page now credits the author as Nathaniel Pavel (GitHub @npp1993).",
+      "Over USB, update the Modwerk base before the next sync. The newer base also fixes the LEV box showing split bars until CUE is pressed.",
+      "On the newest beta base, Output Matrix installs even when DSP room is short; its routing starts once there is room.",
+      "Known issue: not yet tested on a unit as a card image, after a project or Part reload, or with MASTER TRACK and STUDIO."
+    ]
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "First release: the CUE CFG box (shown as OUT CFG) gains MATRIX, which makes the headphone jack a third output beside MAIN and CUE.",
+      "CUE + LEVEL picks each track’s outputs (any mix of MAIN, CUE and PHONES, or one of six mono jacks), saved in the Part. MIX sets the PHONES level.",
+      "Switching to or from MATRIX converts every Part’s LEVEL and cue settings; switching to NORMAL also sets the project’s cue settings.",
+      "Takes the place of a stock reverb (SPRING REV first), which leaves the FX2 menu. Cannot be combined with Analog BD yet.",
+      "Over USB on the beta base: fixes MATRIX not being selectable and removal failing with an error. Switch the AUDIO page away from MATRIX before removing it."
+    ]
+  }
+]

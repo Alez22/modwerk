@@ -47,10 +47,46 @@
       "priority": 17
     },
     {
+      "id": "airwindows-chorus",
+      "key": "AIR CHORUS",
+      "fxId": 30,
+      "priority": 18
+    },
+    {
+      "id": "everb",
+      "key": "EVERB",
+      "fxId": 27,
+      "priority": 18
+    },
+    {
+      "id": "bbd",
+      "key": "BBD",
+      "fxId": 14,
+      "priority": 16
+    },
+    {
+      "id": "lofi2",
+      "key": "LOFI2",
+      "fxId": 9,
+      "priority": 19
+    },
+    {
+      "id": "ring-sc",
+      "key": "RING_SC",
+      "fxId": 6,
+      "priority": 31
+    },
+    {
       "id": "sidechain-compressor",
       "key": "SIDECHAIN_COMPRESSOR",
       "fxId": 24,
       "priority": 30
+    },
+    {
+      "id": "output-matrix",
+      "key": "OUTPUT MATRIX",
+      "fxId": null,
+      "priority": 21
     }
   ],
   "customIds": [
@@ -63,7 +99,9 @@
     15,
     23,
     26,
+    27,
     29,
+    30,
     31
   ],
   "payloads": [

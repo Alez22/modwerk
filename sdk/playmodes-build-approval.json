@@ -1,0 +1,13 @@
+{
+  "kind": "owner-approved-update",
+  "id": "playmodes",
+  "version": "0.2.0-experimental",
+  "approvedBy": "repeat98",
+  "approvedOn": "2026-10-19",
+  "ownerStatement": "I approve Play Modes 0.2.0-experimental for release without hardware testing.",
+  "reason": "Owner approves the exact 0.2.0-experimental source from #706 (STEP REPEAT by pgstath, imported from pgstath/Octaplay 73d5f89) for release without hardware testing. 0.2.0 has not been played on a unit: STEP REPEAT, the six earlier modes on this build, reboot and Part/project persistence, track isolation and on-device performance remain unverified. Emulator captures, cycles and memory evidence come from #706.",
+  "waived": [
+    "current-build-hardware"
+  ],
+  "sourceSha256": "da8e028b4c6b9cc881fd0c4cc3533e2c5207d59d4fda6aebaf29e22d591a423d"
+}

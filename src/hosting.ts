@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later OR Elastic-2.0
+// Copyright (c) 2026 Jannik Aßfalg (repeat98)
+/// <reference types="vite/client" />
 /** Public files follow the Pages project path; community API is a separate origin. */
-export function assetUrl(path: string) { return import.meta.env.BASE_URL + path.replace(/^\//, '') }
+export function assetUrl(path: string) { return (import.meta.env?.BASE_URL ?? '/') + path.replace(/^\//, '') }
 export function communityBase(configured = import.meta.env.VITE_COMMUNITY_API_URL ?? '') {
   if (!configured) return '/api'
   const url = new URL(configured)

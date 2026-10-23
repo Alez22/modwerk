@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "machine": "digitakt",
+  "moduleId": "input-prefader",
+  "moduleVersion": "0.2.0-experimental",
+  "capturedAt": "2026-10-20",
+  "firmware": "1.54",
+  "imageSha256": "ddf836a3a1dce14b1813995f24938ac3b5163d253bdec8c2a3215279ff40fa64",
+  "stockSha256": "f78ba80fa7b1da5fb0e1ff61ad61e9e71aafe79f4364fc49679f3651353e3cf6",
+  "source": {
+    "repository": "https://github.com/repeat98/modwerk",
+    "revision": "uncommitted working tree, branch input-prefader-0.2.0-main",
+    "path": "sdk/digitakt/modules/input-prefader"
+  },
+  "kit": {
+    "version": "0.6.0",
+    "lockSha256": "2e1453b609d568674fd546e909cbe67095f35713e1a1596ba523848dd2ea0bc6"
+  },
+  "catalog": {
+    "revision": "71df7763a1702837e1bdcb0c506890177efd6ca8",
+    "sha256": "74942c139d126c4bd083a29bf7debac5e48f0d07d2d0c1c7cbe9ace0688a0fab",
+    "cores": 6,
+    "mods": 40
+  },
+  "build": {
+    "modules": [
+      {
+        "id": "core",
+        "version": "2.1",
+        "sha256": "8c1fe78ccd1427d6a93f181eaad9f064efb65cf6dd683192dbcc33e83dc548b9"
+      },
+      {
+        "id": "input-prefader",
+        "version": "0.2.0-experimental",
+        "sha256": null
+      }
+    ],
+    "linker": "Modwerk engine linkMods; the vendored kit's link() gives the identical MAIN image",
+    "outputVersion": "MW01",
+    "verified": true
+  },
+  "emulator": {
+    "repository": "https://github.com/irpina/digiemu",
+    "revision": "c1b5735835923e328f8b4950d6ba927875e5b669",
+    "unicorn": {
+      "version": "2.1.4",
+      "patches": {
+        "unicorn-2.1.4-m68k-digikit-accel.patch": "7048704a068cb074b93b751df4b1a73fd8972c1c0cc27e30774c4c2771ec2b5c",
+        "unicorn-2.1.4-m68k-digikit-speed.patch": "9560613223502656e82adc1ecc36d5d8486995bed13ea8ddad168f8c4558a799",
+        "unicorn-2.1.4-m68k-emac-mac-load.patch": "ac128dd6836997de55e0d2ad70d7a2978639168090f552c5634da50fddc70bfe",
+        "unicorn-2.1.4-m68k-emac-modes.patch": "5fc44429ea913c5256c34a6e9c93ab90f727f120b4f12922a8f35a952fd1dace",
+        "unicorn-2.1.4-m68k-fast-mem.patch": "7f79332f318352cbd8055386dbf5149efc801d0663ae2450e33f9f39fed53374",
+        "unicorn-2.1.4-m68k-hook-ccr-sync.patch": "56de71acf2adbd5ca2f448095478e65e49fd79d378aeb5b5e4217d2c90f52f4e"
+      },
+      "librarySha256": "ec37f2a15f263c085eec8a2016d60f8006d77a3bd53dd28998f1145635050c47"
+    },
+    "python": "3.12.15",
+    "platform": "macOS arm64",
+    "hle": false,
+    "audioRecording": false,
+    "cycleTiming": false,
+    "framebuffer": "firmware front LCD buffer at panel_diff flush",
+    "scale": 6,
+    "frameSelection": "Most populated actual LCD frame within the final 250 ms after the latest panel action; 6x integer scaling."
+  },
+  "setup": {
+    "project": "Disposable first-boot A01, stock initial track state; no owner projects or samples.",
+    "fixture": "No sample fixture required.",
+    "sandbox": "Private temporary output only."
+  },
+  "inputs": [
+    [
+      1000.004,
+      "press 6"
+    ],
+    [
+      1103.959,
+      "release 6"
+    ],
+    [
+      1403.968,
+      "press 15"
+    ],
+    [
+      1503.971,
+      "release 15"
+    ],
+    [
+      1803.979,
+      "press 15"
+    ],
+    [
+      1903.982,
+      "release 15"
+    ],
+    [
+      2203.991,
+      "press 15"
+    ],
+    [
+      2303.994,
+      "release 15"
+    ],
+    [
+      2604.002,
+      "press 15"
+    ],
+    [
+      2704.005,
+      "release 15"
+    ],
+    [
+      3004.014,
+      "press 15"
+    ],
+    [
+      3104.017,
+      "release 15"
+    ],
+    [
+      3404.026,
+      "press 15"
+    ],
+    [
+      3504.029,
+      "release 15"
+    ],
+    [
+      3804.038,
+      "press 15"
+    ],
+    [
+      3904.041,
+      "release 15"
+    ],
+    [
+      4204.049,
+      "press 15"
+    ],
+    [
+      4304.052,
+      "release 15"
+    ],
+    [
+      4604.061,
+      "press 15"
+    ],
+    [
+      4704.063,
+      "release 15"
+    ],
+    [
+      5004.072,
+      "press 17"
+    ],
+    [
+      5104.075,
+      "release 17"
+    ],
+    [
+      5404.084,
+      "press 15"
+    ],
+    [
+      5504.087,
+      "release 15"
+    ],
+    [
+      5804.095,
+      "press 17"
+    ],
+    [
+      5904.099,
+      "release 17"
+    ]
+  ],
+  "captures": [
+    {
+      "path": "media/settings-post.png",
+      "sha256": "a55931183ac16fef79ce1088f5dd79337be8ecb9509c785c05a66e9fcd4e2e68",
+      "plan": "wait 1000\ntap GLOBAL\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap settings-post\ntap RIGHT\nsnap settings-pre\ntap DOWN\ntap RIGHT\nsnap settings-awake\n",
+      "atMs": 5004.072435897436,
+      "requestedAtMs": 5004.072435897436
+    },
+    {
+      "path": "media/settings-pre.png",
+      "sha256": "061673ae82ee8c46206f9411e962d8c4e78d3d340cae1f879c4671ff8439a82b",
+      "plan": "wait 1000\ntap GLOBAL\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap settings-post\ntap RIGHT\nsnap settings-pre\ntap DOWN\ntap RIGHT\nsnap settings-awake\n",
+      "atMs": 5404.08376068376,
+      "requestedAtMs": 5404.08376068376
+    },
+    {
+      "path": "media/settings-awake.png",
+      "sha256": "e4c00263a56bb365eeccdbc5a210b1bf70e2dbd40df52739d1f4f0659aedfb91",
+      "plan": "wait 1000\ntap GLOBAL\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap settings-post\ntap RIGHT\nsnap settings-pre\ntap DOWN\ntap RIGHT\nsnap settings-awake\n",
+      "atMs": 6204.1070512820515,
+      "requestedAtMs": 6204.1070512820515
+    }
+  ]
+}

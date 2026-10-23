@@ -1,0 +1,505 @@
+{
+ "imageSha256": "e648cee078b70174f250ae61830f644a151ab07f3d553578ae6577c5a1ffa1b9",
+ "seconds": 2.0,
+ "tailSeconds": 2.0,
+ "blocks": 11325,
+ "framesPerBlock": 16,
+ "seed": 20261008,
+ "layout": [
+  {
+   "track": 5,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 0,
+   "alloc": 0,
+   "r7": 1,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 1.895,
+     "depth": 38.9
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 5.827,
+     "depth": 32.0
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 0.703,
+     "depth": 50.7
+    }
+   ]
+  },
+  {
+   "track": 5,
+   "fx": 2,
+   "key": "BBD",
+   "core": 0,
+   "alloc": 1,
+   "r7": 2,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 3.553,
+     "depth": 58.7
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 0.428,
+     "depth": 20.9
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 4.902,
+     "depth": 61.5
+    }
+   ]
+  },
+  {
+   "track": 6,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 0,
+   "alloc": 2,
+   "r7": 4,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 0.962,
+     "depth": 29.6
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 1.112,
+     "depth": 51.2
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 4.676,
+     "depth": 53.6
+    }
+   ]
+  },
+  {
+   "track": 6,
+   "fx": 2,
+   "key": "BBD",
+   "core": 0,
+   "alloc": 3,
+   "r7": 5,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 3.109,
+     "depth": 21.1
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 1.367,
+     "depth": 56.8
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 3.045,
+     "depth": 29.8
+    }
+   ]
+  },
+  {
+   "track": 7,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 0,
+   "alloc": 4,
+   "r7": 7,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 4.606,
+     "depth": 57.3
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 2.717,
+     "depth": 53.2
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 5.729,
+     "depth": 60.9
+    }
+   ]
+  },
+  {
+   "track": 7,
+   "fx": 2,
+   "key": "BBD",
+   "core": 0,
+   "alloc": 5,
+   "r7": 8,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 2.383,
+     "depth": 31.9
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 1.99,
+     "depth": 39.6
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 1.786,
+     "depth": 30.9
+    }
+   ]
+  },
+  {
+   "track": 8,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 0,
+   "alloc": 6,
+   "r7": 10,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 2.908,
+     "depth": 62.0
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 1.572,
+     "depth": 60.3
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 2.932,
+     "depth": 57.4
+    }
+   ]
+  },
+  {
+   "track": 8,
+   "fx": 2,
+   "key": "BBD",
+   "core": 0,
+   "alloc": 7,
+   "r7": 11,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 2.313,
+     "depth": 26.2
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 2.991,
+     "depth": 43.6
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 1.753,
+     "depth": 59.3
+    }
+   ]
+  },
+  {
+   "track": 1,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 1,
+   "alloc": 0,
+   "r7": 1,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 1.234,
+     "depth": 25.7
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 3.877,
+     "depth": 46.4
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 0.639,
+     "depth": 35.9
+    }
+   ]
+  },
+  {
+   "track": 1,
+   "fx": 2,
+   "key": "BBD",
+   "core": 1,
+   "alloc": 1,
+   "r7": 2,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 3.904,
+     "depth": 31.5
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 4.23,
+     "depth": 42.3
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 4.069,
+     "depth": 47.3
+    }
+   ]
+  },
+  {
+   "track": 2,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 1,
+   "alloc": 2,
+   "r7": 4,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 4.13,
+     "depth": 41.1
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 5.816,
+     "depth": 46.8
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 1.592,
+     "depth": 29.6
+    }
+   ]
+  },
+  {
+   "track": 2,
+   "fx": 2,
+   "key": "BBD",
+   "core": 1,
+   "alloc": 3,
+   "r7": 5,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 3.735,
+     "depth": 23.6
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 5.939,
+     "depth": 21.4
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 5.538,
+     "depth": 41.2
+    }
+   ]
+  },
+  {
+   "track": 3,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 1,
+   "alloc": 4,
+   "r7": 7,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 5.945,
+     "depth": 61.4
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 2.368,
+     "depth": 51.8
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 5.303,
+     "depth": 22.4
+    }
+   ]
+  },
+  {
+   "track": 3,
+   "fx": 2,
+   "key": "BBD",
+   "core": 1,
+   "alloc": 5,
+   "r7": 8,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 4.511,
+     "depth": 39.4
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 4.782,
+     "depth": 39.1
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 3.267,
+     "depth": 50.0
+    }
+   ]
+  },
+  {
+   "track": 4,
+   "fx": 1,
+   "key": "CHORUS",
+   "core": 1,
+   "alloc": 6,
+   "r7": 10,
+   "locked": 8,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 5.497,
+     "depth": 40.3
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 4.178,
+     "depth": 58.7
+    },
+    {
+     "slot": 2,
+     "shape": "square",
+     "hz": 5.775,
+     "depth": 41.4
+    }
+   ]
+  },
+  {
+   "track": 4,
+   "fx": 2,
+   "key": "BBD",
+   "core": 1,
+   "alloc": 7,
+   "r7": 11,
+   "locked": 9,
+   "lfos": [
+    {
+     "slot": 0,
+     "shape": "sine",
+     "hz": 1.323,
+     "depth": 39.8
+    },
+    {
+     "slot": 1,
+     "shape": "tri",
+     "hz": 2.125,
+     "depth": 28.2
+    },
+    {
+     "slot": 5,
+     "shape": "square",
+     "hz": 2.193,
+     "depth": 25.5
+    }
+   ]
+  }
+ ],
+ "bbdPerCore": {
+  "0": 4,
+  "1": 4
+ },
+ "splits": {
+  "T1": 0,
+  "T2": 3,
+  "T3": 8,
+  "T4": 15,
+  "T5": 1,
+  "T6": 7,
+  "T7": 12,
+  "T8": 0
+ },
+ "lfosPerTrack": 3,
+ "slotsChangedPerStep": 17,
+ "stepBlocks": 345,
+ "guard": "-guard 0x4000 -guard-shared",
+ "dirty": "0x5a",
+ "hostExit": 0,
+ "hangs": 0,
+ "bbdStrayRegions": 0,
+ "bbdClobbers": 0,
+ "allClobbers": 0,
+ "guardedInstances": 16,
+ "stockStrayRegions": 1564796,
+ "peakPerCorePerSample": {
+  "0": 2695.4,
+  "1": 2697.9
+ },
+ "wallSeconds": 104.3
+}

@@ -114,6 +114,13 @@
       "fx1Only": true
     },
     {
+      "id": "poly8",
+      "key": "POLY8",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
       "id": "miniverb",
       "key": "MINIVERB",
       "fxId": 23,
@@ -149,6 +156,62 @@
       "fx1Only": false
     },
     {
+      "id": "airwindows-chorus",
+      "key": "AIR CHORUS",
+      "fxId": 30,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "everb",
+      "key": "EVERB",
+      "fxId": 27,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "bbd",
+      "key": "BBD",
+      "fxId": 14,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "lofi2",
+      "key": "LOFI2",
+      "fxId": 9,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "ring-sc",
+      "key": "RING_SC",
+      "fxId": 6,
+      "fx1": true,
+      "fx1Only": false
+    },
+    {
+      "id": "analog-bassdrum",
+      "key": "ANALOG BD",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "usb-audio-out-tracks-main-cue",
+      "key": "USB AUDIO OUT TRACKS MAIN CUE",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "quantizer",
+      "key": "SCALE QUANTIZER",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
       "id": "synth",
       "key": "SYNTH MACHINE",
       "fxId": null,
@@ -169,6 +232,48 @@
       "fxId": null,
       "fx1": false,
       "fx1Only": false
+    },
+    {
+      "id": "playmodes",
+      "key": "PLAY MODES",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "mute-modes",
+      "key": "MUTE_MODES",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "recorder-loop-fix",
+      "key": "RECORDER LOOP FIX",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "output-matrix",
+      "key": "OUTPUT MATRIX",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "quantize-live-rec-toggle",
+      "key": "QUANTIZE_LIVE_REC_TOGGLE",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
+    },
+    {
+      "id": "apply-scene",
+      "key": "APPLY SCENE",
+      "fxId": null,
+      "fx1": false,
+      "fx1Only": false
     }
   ],
   "customIds": [
@@ -181,7 +286,9 @@
     15,
     23,
     26,
+    27,
     29,
+    30,
     31
   ],
   "layout": {

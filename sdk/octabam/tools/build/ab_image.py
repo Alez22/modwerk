@@ -82,6 +82,8 @@ def layout():
     end = max(a + n for a, n in ((lay[k], len(v)) for k, v in
                                   list(dsp909.tables()[0].items()) + list(dsp909.tables()[2].items())))
     vbase = (end + 0x3F) & ~0x3F
+    if max(*dsp909.OFF.values(), *dsp808.OFF.values()) >= VOICE_STRIDE:
+        die("Analog BD state or scratch exceeds the 64-word voice stride")
     if dsp909.SWORDS > KNOBS or KNOBS + 13 > VOICE_STRIDE:
         die(f"a voice block holds {dsp909.SWORDS} state words and 13 knob words: "
             f"stride {VOICE_STRIDE:#x} is too small")
@@ -117,7 +119,7 @@ def x_image(lay, vbase):
 def assemble(org, cont, lay, vbase, tag):
     glue = GLUE.read_text().replace("@VBASE@", f"${vbase:x}").replace("@CONT@", f"${cont:x}")
     glue = glue.replace("@V808@", f"${VOICES808:x}")
-    src = glue + "\n" + dsp909.source(lay) + "\n" + dsp808.source(dsp808.layout(TABLES808), lay)
+    src = glue + "\n" + dsp909.source(lay, shared_desk=True, include_desk=False) + "\n" + dsp808.source(dsp808.layout(TABLES808), lay, shared_desk=True) + "\n" + dsp909.shared_desk_source(lay)
     OUT.mkdir(parents=True, exist_ok=True)
     binf = OUT / f"ab_{tag}.bin"
     syms, _ = dsp909.assemble(org, lay, binf, src)
@@ -128,7 +130,21 @@ def assemble(org, cont, lay, vbase, tag):
     return words, syms
 
 
-def integrate(img, stock_img, org=None):
+# Reviewed companions: instance-owned X state / allocator-owned Y, or the
+# sidechain's disjoint Y ranges. Keep unreviewed DSP modules refused.
+DSP_COMPANIONS = frozenset(("MINIVERB", "TAPE ECHO", "EUCLID", "TAPEHEAD", "SIDECHAIN_COMPRESSOR", "AIR CHORUS"))
+
+
+def reservations(tag):
+    """Exact engine + relocated helper extents; the intervening gap is free."""
+    c = PAY[tag]
+    lay, vbase = layout()
+    words, _ = assemble(c["spring"], c["cont"], lay, vbase, tag)
+    return ((c["spring"], len(words)),
+            (c["spring"] + SPRING_WORDS - SHARED_WORDS, SHARED_WORDS))
+
+
+def integrate(img, stock_img, org=None, placed=None, listed=()):
     """Patch both payloads in `img` (bytearray); return ([pre-boot dicts], [pokes], log).
     `stock_img` is the pristine image: SPRING's words are checked against it.
     `org` ({payload: P address}) places the engines there instead, for the
@@ -150,6 +166,16 @@ def integrate(img, stock_img, org=None):
             for lo, hi in LOADER_X:
                 if lo < X_TOP and TABLES < hi:
                     die(f"payload {tag}: the loader's X words {lo:05x}..{hi:05x} overlap the private X")
+        spans = (placed or {}).get(tag, ())
+        def overlaps(address, count):
+            return any(a < address + count and address < a + n for a, n in spans)
+        if not org and (overlaps(at, len(words)) or
+                        overlaps(c["spring"] + SPRING_WORDS - SHARED_WORDS, SHARED_WORDS)):
+            die(f"payload {tag}: Analog BD reservation is already occupied")
+        # PLATE calls DARK's last 93 words even when DARK is omitted.
+        dark_helper = c["spring"] + SPRING_WORDS + 974
+        if not org and "PLATE REV" in listed and overlaps(dark_helper, 93):
+            die(f"payload {tag}: custom DSP overwrites the DARK routine PLATE still calls")
         helper_old = c["spring"] + SHARED_OFFSET
         helper_new = c["spring"] + SPRING_WORDS - SHARED_WORDS
         if org:
@@ -171,10 +197,14 @@ def integrate(img, stock_img, org=None):
                     die(f"payload {tag}: shared reverb destination P:{addr:05x} is not stock")
                 ab_records.wr(img, off, word)
             for call in SHARED_CALLS[tag]:
+                # An omitted DARK effect can hold custom code. Do not patch
+                # those instructions as though they were a stock helper call.
+                if overlaps(call, 2):
+                    continue
                 ab_records.patch(img, recs, 0, call, (0x0bf080, helper_old),
                                (0x0bf080, helper_new), f"{tag} preserve shared reverb call", log)
             log.append(f"  analog bd {tag}: shared reverb {SHARED_WORDS} words "
-                       f"P:{helper_old:05x} -> P:{helper_new:05x}; 3 stock calls retargeted")
+                       f"P:{helper_old:05x} -> P:{helper_new:05x}; retained stock calls retargeted")
         # 1. the code over its donor words, which must still be stock
         for i, w in enumerate(words):
             off = ab_records.word_at(recs, 0, at + i)

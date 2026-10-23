@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// ELE3 containers in Digitakt / Digitone mk1 OS files: read, rebuild with a new main OS, verify.
+// ELE3 containers in Digitakt, Digitone mk1 and Analog Rytm MKII OS files: read, rebuild with a new main OS, verify.
 // The layout follows elektron-firmware-tool (MIT) and digikit / elekloader (GPL-2.0-or-later). A rebuild changes only
 // the main OS section's stored bytes, the 4-character version field and the framing messages' count; everything else
 // is copied from the owner's own stock file. No firmware content is embedded here.
@@ -9,12 +9,21 @@ import { CHUNK_SIZE, FIRST_COUNTER, contentChecksum, decodeDataMessages, encodeS
 const COUNT_OFFSET = 0x1c, TABLE_OFFSET = 0x20, ENTRY_SIZE = 16, VERSION_FIELD = [0x14, 0x18] as const
 const OFFSET_BIAS = 767, FAR_OFFSET = 3328
 
-export type Ele3Device = { mainSection: number; mainLoad: number; stage: number; flashAt: number; flashLimit: number; sysexId: number }
+export type DigiMachine = 'digitakt' | 'digitakt-ii' | 'digitone' | 'analog-rytm-mkii'
+// Machines with a container and linker profile; the app's firmware flow covers DigiMachine only.
+export type ElemodMachine = DigiMachine | 'syntakt'
+export type Ele3Device = { mainSection: number; mainLoad: number; stage: number; flashAt: number; flashLimit: number; sysexId: number; seal?: 'hmac' }
 
 // Facts about each machine's container and loader, from public research (elekloader device profiles).
-export const ELE3_DEVICES: Record<'digitakt' | 'digitone', Ele3Device> = {
+export const ELE3_DEVICES: Record<ElemodMachine, Ele3Device> = {
   digitakt: { mainSection: 3, mainLoad: 0x40000400, stage: 0x40200000, flashAt: 0x80000, flashLimit: 0x380000, sysexId: 0x0a },
+  'digitakt-ii': { mainSection: 3, mainLoad: 0x40000400, stage: 0x40400000, flashAt: 0x80000, flashLimit: 0x380000, sysexId: 0x14, seal: 'hmac' },
   digitone: { mainSection: 3, mainLoad: 0x40000400, stage: 0x40200000, flashAt: 0x80000, flashLimit: 0x380000, sysexId: 0x0d },
+  // The Analog Rytm MKII's OS keeps its own store at 0x300000, so the main OS must end below it.
+  'analog-rytm-mkii': { mainSection: 3, mainLoad: 0x40000400, stage: 0x40200000, flashAt: 0x80000, flashLimit: 0x300000, sysexId: 0x0c },
+  // Syntakt (docs/SYNTAKT_OS_RESEARCH.md): the container is read from host SPI flash at 0x80000; the limit is the 2 MB
+  // in-OS upgrade receive buffer, the only size bound seen (inferred), so a build never exceeds a stock-sized container by more.
+  syntakt: { mainSection: 3, mainLoad: 0x40000400, stage: 0x40200000, flashAt: 0x80000, flashLimit: 0x280000, sysexId: 0x16 },
 }
 
 export type Ele3Section = { id: number; offset: number; length: number; destination: number }
@@ -89,6 +98,7 @@ export function mainImage(file: Ele3File, device: Ele3Device): Uint8Array {
 
 /** The stock file with the main OS section's stored bytes replaced and, optionally, a new 4-character version. */
 export function writeEle3Syx(stock: Ele3File, storedMain: Uint8Array, device: Ele3Device, version?: string): Uint8Array {
+  if (device.seal === 'hmac') throw new Error('This writer cannot rebuild a sealed HMAC OS.')
   const parts: Uint8Array[] = [stock.container.slice(0, stock.dataStart)]
   const head = parts[0], view = new DataView(head.buffer)
   if (version !== undefined) {
@@ -155,6 +165,7 @@ export type Ele3BuildFacts = { bytes: number; messages: number; containerLength:
 
 /** Refuses unless `output` is `stock` with only the main OS changed, depacking in place to `wantMain`. */
 export function verifyEle3Build(output: Uint8Array, stock: Ele3File, wantMain: Uint8Array, device: Ele3Device, version?: string): Ele3BuildFacts {
+  if (device.seal === 'hmac') throw new Error('This verifier cannot qualify a sealed HMAC OS build.')
   const built = readEle3Syx(output)
   if (built.dataMessages.some(message => message[4] !== stock.deviceId)) throw new Error('A data message carries another device id.')
   built.dataMessages.forEach((message, index) => {

@@ -418,7 +418,10 @@ dsp=DspSection(
   shared-window address that must not move to the other half cannot be
   spelled `$30000`, and the literal is censused.
 - **`ptable`**: a tuple of words the build parks in the stock curve bank
-  (X:0x4840) and points the source's `$fab1e0` literal at.
+  (X:0x4840) and points the source's `$fab1e0` literal at. It stays in P,
+  before the code, while a stock reader of the bank survives, and always
+  for a `stock_dsp` module, whose code only hooks reach (Sidechain
+  Compressor's table in X froze a MKII; `FAILURE_MODES.md`).
 - **`hooks`**: entries from STOCK P code (`schema.DspHook(site, stock,
   label)`). The two stock words at `site` become `jsr >label` after
   placement, the build asserting them first; the section replays the
@@ -835,8 +838,10 @@ absent: the two cores run lock-step or under a chosen `-skew`.
 
 ## Replacing a stock effect
 
-**No module in the library does this since 30 Sep 2026.** Every image
-loads the stock effects on demand (DSP DYNLOAD STOCK), so a module needs no
+**No module in the library does this since 30 Sep 2026.** An image built
+with the stock loader (DSP DYNLOAD STOCK, `OCTABAM_STATIC_STOCK=0`; emulator
+only, never flashed: see docs/remixer/FLASHING.md, and `make` builds without
+it) loads the stock effects on demand, so a module needs no
 stock effect's words, and an insert is itself loaded on demand
 (`build_bus.LOADABLE`): take a free id and every stock effect stays. The
 five that replaced one (Spectrum, Modulation, Tape Echo, Miniverb,

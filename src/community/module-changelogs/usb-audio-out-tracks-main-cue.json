@@ -1,0 +1,54 @@
+[
+  {
+    "version": "0.2.0-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "Adds Outbox 8 support and six USB audio output layouts. You pick one before adding the module, and the builder shows its routing and CPU cost.",
+      "Supports the Outbox 44.1 kHz handshake and keeps USB MIDI receive, clock and reset. USB settings are saved in backups; older ones keep the twenty-channel layout.",
+      "On the Octatrack beta base, USB Audio now syncs over USB: the Load dialog installs the base for your layout.",
+      "Documentation only: like every DRAM module it takes about 10 MB of sample memory, so a full project can show OUT OF MEMORY (#433).",
+      "Known issue: only the twenty-channel layout has run on a unit, and reports #548, #689, #718, #489 and #462 are still open."
+    ]
+  },
+  {
+    "version": "0.1.4-experimental",
+    "date": "2026-10-07",
+    "changes": [
+      "Closes the audio stream cleanly when USB is reset or unplugged.",
+      "Reopening the stream no longer plays a tail of the previous session's audio."
+    ],
+    "sourceCommit": "0b8d61038fbc4eece094d73480217608bfa17f7b"
+  },
+  {
+    "version": "0.1.3-experimental",
+    "date": "2026-10-07",
+    "changes": [
+      "Incoming USB MIDI clock now sets the tempo as well, so timestretch, LFOs and effects follow it."
+    ],
+    "sourceCommit": "9bb586344f6684363e6593ad31d4d1d3b9989ca8"
+  },
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: explains that streaming starts from the computer and has no control page on the instrument. The firmware is unchanged."
+    ],
+    "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Can now be built in the browser firmware builder."
+    ],
+    "sourceCommit": "9c4e0e3b7990c6952812d89ac165dfa14151c3ee"
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "First Modwerk catalog release of USB audio output for the track, main and cue streams alongside USB MIDI."
+    ],
+    "sourceCommit": "d1136ce4c65ea7e1a00c4516cd4aa41c4b0c0d56"
+  }
+]

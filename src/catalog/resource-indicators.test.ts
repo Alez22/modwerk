@@ -10,6 +10,12 @@ import retained from '../../sdk/module-resource-estimates.json'
 import waivers from '../../sdk/module-release-waivers.json'
 import midiScenesApproval from '../../sdk/midi-scenes-build-approval.json'
 import synthApproval from '../../sdk/synth-build-approval.json'
+import muteApproval from '../../sdk/mute-modes-build-approval.json'
+import recorderApproval from '../../sdk/recorder-loop-fix-build-approval.json'
+import airChorusApproval from '../../sdk/airwindows-chorus-build-approval.json'
+import poly8Approval from '../../sdk/poly8-build-approval.json'
+import everbApproval from '../../sdk/everb-build-approval.json'
+import playmodesApproval from '../../sdk/playmodes-build-approval.json'
 import sdkCatalog from '../../sdk/catalog.json'
 
 const draft = () => parseModuleDocument(example)
@@ -19,7 +25,7 @@ describe('required relative module resource gauges', () => {
   it('populates CPU, DSP and memory for every current version without inventing measurements', () => {
     expect(MODULE_DOCUMENTS).toHaveLength(sdkCatalog.modules.length)
     // Only versions under an owner exception may go without a qualification record; none is invented for them.
-    const exempt = new Set([...baseline.modules, ...waivers.modules, midiScenesApproval, synthApproval].map(module => module.id))
+    const exempt = new Set([...baseline.modules, ...waivers.modules, midiScenesApproval, synthApproval, muteApproval, recorderApproval, airChorusApproval, poly8Approval, everbApproval, playmodesApproval].map(module => module.id))
     for (const document of MODULE_DOCUMENTS) {
       const indicators = moduleResourceIndicators(document)
       expect(indicators.map(indicator => indicator.id)).toEqual(['cpu', 'dsp', 'memory'])
@@ -29,7 +35,7 @@ describe('required relative module resource gauges', () => {
         expect(indicator.description.length).toBeGreaterThan(20)
         expect(indicator.value).not.toContain('%')
       }
-      if(document.id==='sidechain-compressor') expect(document.tests.hardwareStatus).toBe('historical')
+      if(document.id==='sidechain-compressor') expect(document.tests.hardwareStatus).toBe('reported')
       if(document.id==='tapehead') expect(document.tests.hardwareStatus).toBe('reported')
       if(!document.tests.qualification) expect(exempt, document.id + ' needs tests.qualification').toContain(document.id)
     }

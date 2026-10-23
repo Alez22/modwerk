@@ -1,0 +1,32 @@
+[
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "Fixes Air Chorus on T3 and T7 overwriting data the Octatrack shares between tracks. It is no longer offered beside Sidechain Compressor, which uses the same memory there.",
+      "Needs less DSP space, so it now combines with E-Verb, Analog BD and more DSP effects. Very large module sets can still run out of space.",
+      "Beta base update: picking Air Chorus no longer shows DSP MEMORY FULL just because the effects of the bank's other Parts don't all fit.",
+      "Media only: a new thumbnail and an audio preview.",
+      "Known issue: the T3 clicking reported in 0.1.1 may not be fixed, and this version is not yet tested on hardware."
+    ]
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "Uses about a third less DSP time with the same sound, delay range, smoothing and controls. Saved settings are unchanged.",
+      "Aims to reduce the clicking heard with several Air Chorus instances; it is not yet confirmed that the clicking is gone.",
+      "Known issue: this version is not yet tested on hardware."
+    ]
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "First release of Chris Johnson's Airwindows Chorus (MIT licence) as an Octatrack FX2 effect, with the original source and full credit.",
+      "SPD, RNG and MIX move smoothly, the original sound character is kept, and the effect starts without a long pause.",
+      "Known issue: not yet tested on all eight tracks, with locks, scenes and LFOs, or across reloads and power cycles.",
+      "Known issue: extreme modulation settings can add pitch and aliasing artifacts."
+    ]
+  }
+]

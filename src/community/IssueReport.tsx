@@ -1,36 +1,42 @@
-import { BugReportNotice, BugReportSuccess, ExistingIssues } from './BugReportNotice'
+import { BetaReportReminder, BugReportNotice, BugReportSuccess, ExistingIssues } from './BugReportNotice'
 import { ReportNotifications } from './ReportNotifications'
-import { useIssueTracker, type BugReportResult } from './issue-tracker'
+import { refreshModuleIssues, useIssueTracker, type BugReportResult } from './issue-tracker'
 import { useEffect, useId, useRef, useState } from 'react'
 import { post } from './api'
 import { useCommunity } from './context'
 import { MemberPrompt } from './MemberPrompt'
-import { FLASH_STATES, LOG_MISSING_REASONS, OT_MODELS } from './issue-context'
-import type { FlashState, IssueContext, LogMissingReason, OtModel } from './issue-context'
+import { CONFIGURATION_REQUIRED, FLASH_STATES, OT_MODELS } from './issue-context'
+import type { FlashState, IssueContext, OtModel } from './issue-context'
 import { describeOtLog, OT_LOG_MAX_BYTES, OT_LOG_NAME, OtLogError, parseOtLog } from './ot-log'
 import type { OtLog } from './ot-log'
-import { REPORT_OS, useWorkspaceReportContext } from './report-context'
+import { REPORT_OS, useWorkspaceReportContext, type WorkspaceReportContext } from './report-context'
 import { useOpenIssueReport } from './useOpenIssueReport'
 import { DiscussionIssueDraft } from './DiscussionIssueDraft'
 import { useDiscussionIssueDraft } from './discussion-issue-draft'
+import { ReportConfiguration } from './ReportConfiguration'
+import { defaultConfigurationChoice, resolveReportConfiguration, type ConfigurationChoice } from './report-configuration'
+import recipes from '../catalog/module-sets.json'
+import { ReportMoreDetails } from './ReportMoreDetails'
 
-export function IssueReport({id,author,openRequest=0}:{id:string;author:string;openRequest?:number}){
- const {session}=useCommunity()
+export function IssueReport({id,author,openRequest=0,embedded=false,workspaceContext,baseOs=REPORT_OS,preview=false,onReported}:{id:string;author:string;openRequest?:number;embedded?:boolean;workspaceContext?:WorkspaceReportContext;baseOs?:string;preview?:boolean;onReported?:()=>void}){
+ const {session,preview:contextPreview}=useCommunity(),isPreview=import.meta.env.DEV&&(preview||contextPreview)
  const report=useRef<HTMLDetailsElement>(null),title=useRef<HTMLInputElement>(null),success=useRef<HTMLDivElement>(null)
  const fileInput=useRef<HTMLInputElement>(null),readRequest=useRef(0),helpId=useId()
  useOpenIssueReport(report,title,openRequest)
- const {draft,clearDraft}=useDiscussionIssueDraft(id)
- const workspace=useWorkspaceReportContext()
- const [opened,setOpened]=useState(false),tracker=useIssueTracker(id,opened)
- const [model,setModel]=useState<OtModel|''>(''),[flash,setFlash]=useState<FlashState|''>('')
+ const {draft,clearDraft}=useDiscussionIssueDraft(id,report)
+ const savedWorkspace=useWorkspaceReportContext(),workspace=workspaceContext??savedWorkspace
+ const [opened,setOpened]=useState(embedded),tracker=useIssueTracker(id,opened)
+ const [model,setModel]=useState<OtModel|''>(''),[flash,setFlash]=useState<FlashState>('flashed')
  const [log,setLog]=useState<OtLog|null>(null),[logError,setLogError]=useState('')
  const [reading,setReading]=useState(false),[logName,setLogName]=useState(''),[logNote,setLogNote]=useState('')
- const [noLog,setNoLog]=useState(false),[reason,setReason]=useState<LogMissingReason|''>(''),[note,setNote]=useState('')
  const [sent,setSent]=useState<BugReportResult|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('')
+ const [formKey,setFormKey]=useState(0),[follow,setFollow]=useState(true)
+ // A module set has no module of its own to check for; its modules are ticked when the reporter names the configuration by hand.
+ const reportedModule=id.startsWith('remix-')?'':id
+ const [configuration,setConfiguration]=useState<ConfigurationChoice>(()=>defaultConfigurationChoice(reportedModule?[id]:recipes.find(recipe=>'remix-'+recipe.id===id)?.moduleIds??[]))
+ const resolved=resolveReportConfiguration(configuration,workspace,'octatrack',log?.summary??null)
  useEffect(()=>{if(sent){success.current?.focus();report.current?.scrollIntoView({block:'start'})}},[sent])
- const inConfiguration=workspace.modules.some(item=>item.id===id)||id.startsWith('remix-')
- const reasonOptions=(Object.keys(LOG_MISSING_REASONS) as LogMissingReason[]).filter(item=>!(item==='not-flashed'&&flash==='flashed'))
- const logReady=!!log||(noLog&&!!reason&&reasonOptions.includes(reason)&&(reason!=='other'||note.trim().length>=10))
+ useEffect(()=>{if(formKey)title.current?.focus()},[formKey])
 
  async function readLogs(files:File[]){
   const request=++readRequest.current
@@ -49,7 +55,7 @@ export function IssueReport({id,author,openRequest=0}:{id:string;author:string;o
    // choice explicitly and allow either file to be selected on its own.
    valid.sort((a,b)=>b.file.lastModified-a.file.lastModified)
    if(valid.length){
-    setLog(valid[0].log);setLogName(valid[0].file.name);setNoLog(false)
+    setLog(valid[0].log);setLogName(valid[0].file.name)
     setLogNote(rejected.length?'The other file could not be checked; using this complete log.':valid.length>1?'Using the complete log with the newest file date. Choose either file on its own to change this.':'')
    }else if(rejected.length)setLogError(rejected.join(' '))
   }catch(error){if(request===readRequest.current)setLogError(error instanceof Error?error.message:'Unable to read the log.')}
@@ -59,77 +65,70 @@ export function IssueReport({id,author,openRequest=0}:{id:string;author:string;o
   ++readRequest.current;setReading(false);setLog(null);setLogError('');setLogNote('')
   if(fileInput.current)fileInput.current.value=''
  }
+ /** A fresh form for the next bug; the Octatrack, running state and follow choice stay as answered. */
+ function reportAnother(){removeLog();setSent(null);setError('');setFormKey(key=>key+1)}
  async function send(form:HTMLFormElement){
-  if(!model||!flash||reading||busy)return
-  if(!logReady){setError('Attach '+OT_LOG_NAME+', or tick “I can’t attach” and choose why.');return}
+  if(!model||reading||busy)return
   setBusy(true);setError('')
   const fields=Object.fromEntries(new FormData(form)) as Record<string,string>
-  if(fields.actual.length>2000){setError('Keep the actual result under 2,000 characters. Your complete discussion draft is available above for reference.');setBusy(false);return}
-  const context:IssueContext={model,flash,os:REPORT_OS,modules:workspace.modules,keepStockFx2:workspace.keepStockFx2,build:workspace.build}
+  if(isPreview){setSent({id:'local-preview',author,github:'none',githubUrl:null,forumThreadId:null});setBusy(false);onReported?.();return}
+  if(fields.actual.length>2000){setError('Keep the description under 2,000 characters. Your complete discussion draft is available above for reference.');setBusy(false);return}
+  if(!log&&!resolved.modules.length){setError(CONFIGURATION_REQUIRED);setBusy(false);return}
+  // With a log the Worker reads the configuration from the log itself; this mirrors what the form showed.
+  const context:IssueContext={model,flash,os:log?.summary.os??baseOs,modules:resolved.modules,keepStockFx2:resolved.keepStockFx2,build:resolved.build}
   try{
-   const result=await post<BugReportResult>('/modules/'+id+'/issues',{title:fields.title,steps:fields.steps,expected:fields.expected,actual:fields.actual,context,visibility:'forum',notifyUpdates:fields.notifyUpdates==='on',...(log?{log:log.text}:{logMissing:{reason,note}})})
+   const result=await post<BugReportResult>('/modules/'+id+'/issues',{title:fields.title,steps:fields.steps,expected:fields.expected,actual:fields.actual,context,visibility:'forum',notifyUpdates:fields.notifyUpdates==='on',...(log?{log:log.text}:{})})
+   onReported?.()
+   refreshModuleIssues(id)
    setSent(result)
+   setFollow(fields.notifyUpdates==='on')
    window.dispatchEvent(new Event('modwerk-module-updates'))
    clearDraft()
   }catch(error){setError(error instanceof Error?error.message:'Unable to send issue.')}
   finally{setBusy(false)}
  }
 
- return <details ref={report} className="issue-report" onToggle={event=>{if(event.currentTarget.open)setOpened(true)}}><summary>Report an issue <span>For @{author}</span></summary>
+ return <details ref={report} className="issue-report" open={embedded||undefined} onToggle={event=>{if(event.currentTarget.open)setOpened(true)}}><summary>Report an issue <span>For @{author}</span></summary>
   {sent?<div ref={success} className="issue-report-success" role="status" tabIndex={-1}>
-   <BugReportSuccess report={sent}/>
+   <BugReportSuccess report={sent} onReportAnother={reportAnother}/>
   </div>:!session.user?.verified?<MemberPrompt/>:
-  <form className="community-form" aria-busy={busy} onSubmit={event=>{event.preventDefault();void send(event.currentTarget)}}>
-   <BugReportNotice tracker={tracker}/>
-   <ExistingIssues id={id} tracker={tracker}/>
-   <fieldset><legend>1. Describe the problem</legend>
+  <form key={formKey} className="community-form" aria-busy={busy} onSubmit={event=>{event.preventDefault();void send(event.currentTarget)}}>
+   <BetaReportReminder/>
+   {!embedded&&<ExistingIssues id={id} tracker={tracker}/>}
    {draft&&<DiscussionIssueDraft body={draft.body}/>}
-   <label>Issue title<input ref={title} name="title" required maxLength={160} defaultValue={draft?.title??''} placeholder="What went wrong, in one line"/></label>
+   <label>Title<input ref={title} name="title" required maxLength={160} defaultValue={draft?.title??''} placeholder="What went wrong, in one line"/></label>
+   <label>What happened?<textarea name="actual" required maxLength={2000} rows={3} defaultValue={draft?.body??''} placeholder="What you did and what you heard or saw: sound, screen message, freeze, reboot …"/></label>
    <div className="issue-report-row">
     <label>Octatrack<select required value={model} onChange={event=>setModel(event.target.value as OtModel)}><option value="" disabled>Choose…</option>{(Object.keys(OT_MODELS) as OtModel[]).map(key=><option key={key} value={key}>{OT_MODELS[key]}</option>)}</select></label>
-    <label>It is running<select required value={flash} onChange={event=>setFlash(event.target.value as FlashState)}><option value="" disabled>Choose…</option>{(Object.keys(FLASH_STATES) as FlashState[]).map(key=><option key={key} value={key}>{FLASH_STATES[key]}</option>)}</select></label>
+    {!embedded&&<label>It is running<select required value={flash} onChange={event=>setFlash(event.target.value as FlashState)}>{(Object.keys(FLASH_STATES) as FlashState[]).map(key=><option key={key} value={key}>{FLASH_STATES[key]}</option>)}</select></label>}
    </div>
-   <label>Steps to reproduce<textarea name="steps" required maxLength={3000} rows={4} placeholder={'1. Load a project with …\n2. Set FX1 to …\n3. Turn …'}/></label>
-   <label>Expected result<textarea name="expected" required maxLength={1000} rows={2}/></label>
-   <label>Actual result<textarea name="actual" required maxLength={2000} rows={draft?4:2} defaultValue={draft?.body??''} placeholder="What happened instead: sound, screen message, freeze, reboot …"/>{draft&&<span className="service-note">Copied from your discussion draft. Review and keep this under 2,000 characters.</span>}</label>
-
-   </fieldset>
-   <fieldset className="issue-report-attached"><legend>2. Check your configuration</legend>
-    {workspace.modules.length?<><p className="service-note">Attached from this browser’s active configuration <strong>{workspace.configurationName}</strong>, base OS {REPORT_OS}: {workspace.modules.map(item=>item.id+' '+item.version).join(', ')}.{workspace.build?' Build fingerprint '+workspace.build.slice(0,12)+'….':' Not built in this browser session, so no build fingerprint.'}</p>
-     {!inConfiguration&&<p className="file-error">This module is not in your active configuration. If you have it saved here, select the configuration you flashed before reporting.</p>}</>
-    :<p className="service-note">No modules are selected in your active configuration. If you have it saved here, select the configuration you flashed. An attached device log also includes its own module list.</p>}
-   </fieldset>
-
-   <fieldset className="issue-report-log"><legend>3. Attach the device log</legend>
-    <p className="service-note">Logging is built in; there is nothing to select or enable. Older builds may not have a log.</p>
-    <details className="issue-report-help" open><summary>Where to find the log</summary>
-     <ol className="issue-report-steps" id={helpId}>
-      <li>If the Octatrack still responds, stop playback and recording. Wait at least 30 seconds after the last save, then save the project from the <kbd>PROJECT</kbd> menu. Wait for saving to finish.</li>
-      <li>Connect it by USB and open <kbd>PROJECT</kbd> › SYSTEM › USB DISK MODE. Alternatively, switch it off before removing the CF card and use a card reader.</li>
-      <li>Open the card in Finder (Mac) or File Explorer (Windows). Look in the <strong>top folder of the card</strong>, beside your set folders, for <strong>OCTAMOD.LOG</strong> and <strong>OCTAMOD1.LOG</strong>.</li>
-      <li>Choose one or both files below. We check them on your device and select the complete log with the newest file date. Nothing is uploaded until you press “Post bug report”.</li>
-      <li>Eject the card on your computer before leaving USB disk mode or removing the card.</li>
-     </ol>
-     <p className="service-note"><strong>After a freeze or crash:</strong> copy the logs already on the card as soon as possible. The latest events may be missing. Restarting cannot guarantee their recovery; describe the last action and screen in your report. You can report without a log if neither file is readable.</p>
-    </details>
-    <label>Choose log files<input ref={fileInput} type="file" multiple accept=".log,.LOG,text/plain" disabled={busy} aria-describedby={helpId} onChange={event=>void readLogs(Array.from(event.target.files??[]))}/></label>
+   <ReportMoreDetails embedded={embedded}>
+   <details className="issue-report-more"><summary>Steps to reproduce <span>Optional</span></summary>
+    {embedded&&<label>It is running<select value={flash} onChange={event=>setFlash(event.target.value as FlashState)}>{(Object.keys(FLASH_STATES) as FlashState[]).map(key=><option key={key} value={key}>{FLASH_STATES[key]}</option>)}</select></label>}
+    <label>Steps to reproduce<textarea name="steps" maxLength={3000} rows={3} placeholder={'1. Load a project with …\n2. Set FX1 to …\n3. Turn …'}/></label>
+    <label>Expected result<textarea name="expected" maxLength={1000} rows={2}/></label>
+   </details>
+   <details className="issue-report-more issue-report-log"><summary>{log?logName+' attached':'Attach '+OT_LOG_NAME}<span>{log?'Ready, with the exact configuration':'Optional. Records the exact configuration; helps most after a crash or freeze'}</span></summary>
+    <ol className="issue-report-steps" id={helpId}>
+     <li>Stop playback, wait 30 seconds, save the project, then open <kbd>PROJECT</kbd> › SYSTEM › USB DISK MODE. A card reader works too.</li>
+     <li>Choose <strong>OCTAMOD.LOG</strong> and <strong>OCTAMOD1.LOG</strong> from the top folder of the card. They are checked on this device and only sent when you post.</li>
+     <li>Eject the card before leaving USB disk mode. After a crash, copy the logs soon: the last events may be missing.</li>
+    </ol>
+    <input ref={fileInput} type="file" multiple accept=".log,.LOG,text/plain" aria-label="Choose log files" disabled={busy} aria-describedby={helpId} onChange={event=>void readLogs(Array.from(event.target.files??[]))}/>
     {reading&&<p className="service-note" role="status">Checking your log on this device…</p>}
     {log&&<div className="issue-report-log-preview">
      <p className="success-note" role="status"><strong>{logName} is ready.</strong> {describeOtLog(log.summary)}.</p>
      {logNote&&<p className="service-note">{logNote}</p>}
-     <p className="service-note">Device log: OS {log.summary.os}; {log.summary.modules.map(item=>item.id+' '+item.version).join(', ')||'no modules listed'}. This stays separate from your browser configuration.</p>
-     <details><summary>Preview the log to attach</summary><pre tabIndex={0}>{log.text.trimEnd()}</pre></details>
+     <details><summary>Preview the log</summary><pre tabIndex={0}>{log.text.trimEnd()}</pre></details>
      <button type="button" className="button button-quiet" disabled={busy} onClick={removeLog}>Remove log</button>
     </div>}
-    {logError&&<p className="file-error" role="alert">{logError} Try the other log, or choose why you cannot attach one below.</p>}
-    {!log&&<label className="issue-report-escape"><input type="checkbox" checked={noLog} onChange={event=>setNoLog(event.target.checked)}/><span>I can’t attach {OT_LOG_NAME}</span></label>}
-    {!log&&noLog&&<><label>Why not?<select required value={reasonOptions.includes(reason as LogMissingReason)?reason:''} onChange={event=>setReason(event.target.value as LogMissingReason)}><option value="" disabled>Choose…</option>{reasonOptions.map(key=><option key={key} value={key}>{LOG_MISSING_REASONS[key]}</option>)}</select></label>
-     <label>Details{reason==='other'?'':' (optional)'}<input value={note} onChange={event=>setNote(event.target.value)} maxLength={500} required={reason==='other'} minLength={reason==='other'?10:undefined} placeholder="For example: blank screen after the Elektron logo"/></label></>}
-   </fieldset>
-
-   <p className="service-note">The bug description will be public. Your configuration and log stay private to the people helping with your report.</p>
-   <ReportNotifications id={id}/>
-   <button className="button button-primary" disabled={busy||reading}>{busy?'Posting…':'Post bug report'}</button>
+    {logError&&<p className="file-error" role="alert">{logError} Try the other log, or post without one.</p>}
+   </details>
+   {embedded&&!log?<details className="issue-report-more"><summary>Downloaded build <span>{workspace.modules.length} modules attached</span></summary><ReportConfiguration machine="octatrack" moduleId={reportedModule} workspace={workspace} log={null} value={configuration} onChange={setConfiguration} disabled={busy} os={baseOs}/></details>:<ReportConfiguration machine="octatrack" moduleId={reportedModule} workspace={workspace} log={log?.summary??null} value={configuration} onChange={setConfiguration} disabled={busy} os={baseOs}/>}
+   </ReportMoreDetails>
+   {isPreview?<p className="service-note">Local preview — nothing is sent.</p>:embedded?<p className="service-note">{tracker?.tracker==='github'?'Your report, configuration and any log are public on GitHub and notify the module’s developers.':'Your report is public and notifies the module’s developers. The configuration and any log stay private to you, the maintainers and the administrator.'}</p>:<BugReportNotice tracker={tracker}/>}
+   <ReportNotifications id={id} defaultChecked={follow}/>
+   <button className="button button-primary" disabled={busy||reading}>{busy?'Posting…':'Post report'}</button>
   </form>}
   {error&&<p className="file-error" role="alert">{error}</p>}</details>
 }

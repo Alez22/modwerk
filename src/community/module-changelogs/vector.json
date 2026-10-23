@@ -1,0 +1,23 @@
+[
+  {
+    "version": "0.2.4-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "Fixes saved VECTOR settings making the Octatrack reject the bank at startup, which reset machines to STATIC and left PLAY stuck on the first step. Existing settings are kept.",
+      "Projects already reset by this bug need to be restored from a backup.",
+      "Installs over USB beside every other module on the Modwerk beta base.",
+      "Documentation only: switching a VECTOR track back to STATIC or FLEX with SPAN 8 or higher can empty the bank after a save and reboot; the guide shows how to avoid it (#596).",
+      "Known issue: #596 is not fixed, and a reboot and the audio are not yet tested on hardware."
+    ]
+  },
+  {
+    "version": "0.2.3-experimental",
+    "date": "2026-10-06",
+    "changes": [
+      "First Modwerk release of VECTOR, an SRC pattern generator for Flex and Static sample phrases.",
+      "Adds sample selection and two control pages; generated phrases edit the current pattern.",
+      "Known issue: saved projects and hardware are not yet tested."
+    ],
+    "sourceCommit": "10775906ee490a590460c5fa7215cf1bd1db61cf"
+  }
+]

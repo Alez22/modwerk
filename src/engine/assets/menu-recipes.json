@@ -664,6 +664,185 @@
           "sha256": "4fdf4a515aa11f5569e1b7166f70907bcad463adce8c027e815a77819a8b50f3"
         }
       ]
+    },
+    {
+      "id": "everb",
+      "key": "EVERB",
+      "author": "user1303836",
+      "slot": 8,
+      "name": "REV",
+      "labels": [
+        "OFF",
+        "ON"
+      ],
+      "renames": {},
+      "wideMaximum": null,
+      "proofs": [
+        {
+          "namesAddress": 1074621238,
+          "bytes": 52,
+          "sha256": "ba4ba6ad69779d2df8e9a1c0cc8293c0b5698a75d0fa43798eb1dbb32f7b370a"
+        },
+        {
+          "namesAddress": 1074623350,
+          "bytes": 52,
+          "sha256": "ba4ba6ad69779d2df8e9a1c0cc8293c0b5698a75d0fa43798eb1dbb32f7b370a"
+        }
+      ]
+    },
+    {
+      "id": "bbd",
+      "key": "BBD",
+      "author": "JamCones",
+      "slot": 6,
+      "name": "STGS",
+      "labels": [
+        "1024",
+        "4096"
+      ],
+      "renames": {},
+      "wideMaximum": null,
+      "proofs": [
+        {
+          "namesAddress": 1074621238,
+          "bytes": 54,
+          "sha256": "eb676fe52d63e37e3646f249ce8932f827bfead29843cb69d684a635adcafb4b"
+        },
+        {
+          "namesAddress": 1074623350,
+          "bytes": 54,
+          "sha256": "eb676fe52d63e37e3646f249ce8932f827bfead29843cb69d684a635adcafb4b"
+        }
+      ]
+    },
+    {
+      "id": "lofi2",
+      "key": "LOFI2",
+      "author": "bryantysinger",
+      "slot": 6,
+      "name": "RNGE",
+      "labels": [
+        "LOW",
+        "HIGH"
+      ],
+      "renames": {},
+      "wideMaximum": null,
+      "proofs": [
+        {
+          "namesAddress": 1074621238,
+          "bytes": 54,
+          "sha256": "c31cb220419b30c61b60f7520e0da937235891e95acdb7f6b8995d609f463a1e"
+        },
+        {
+          "namesAddress": 1074623350,
+          "bytes": 54,
+          "sha256": "c31cb220419b30c61b60f7520e0da937235891e95acdb7f6b8995d609f463a1e"
+        }
+      ]
+    },
+    {
+      "id": "lofi2",
+      "key": "LOFI2",
+      "author": "bryantysinger",
+      "slot": 8,
+      "name": "MODE",
+      "labels": [
+        "RING",
+        "DOWN",
+        "UP"
+      ],
+      "renames": {
+        "0": {
+          "2": "GAIN"
+        },
+        "1": {
+          "2": "FDBK"
+        },
+        "2": {
+          "2": "FDBK"
+        }
+      },
+      "wideMaximum": null,
+      "proofs": [
+        {
+          "namesAddress": 1074621238,
+          "bytes": 164,
+          "sha256": "f4508b33fca5101ea2aa901fc8799de019d716304ba91014c2578bfae199f71f"
+        },
+        {
+          "namesAddress": 1074623350,
+          "bytes": 164,
+          "sha256": "924730ca295591744386d1e5e001c4e485319aa488889ff61cbd5f8b2e69627c"
+        }
+      ]
+    },
+    {
+      "id": "ring-sc",
+      "key": "RING_SC",
+      "author": "npp1993",
+      "slot": 0,
+      "name": "KEY",
+      "labels": [
+        "OFF",
+        " T1 ",
+        " T2 ",
+        " T3 ",
+        " T4 ",
+        " T5 ",
+        " T6 ",
+        " T7 ",
+        " T8 "
+      ],
+      "renames": {},
+      "wideMaximum": 8,
+      "proofs": [
+        {
+          "namesAddress": 1074621238,
+          "bytes": 102,
+          "sha256": "44d9efb348f34bbe0a06ba407629c395ab871464052a004579f5e47fda987cac"
+        },
+        {
+          "namesAddress": 1074623350,
+          "bytes": 102,
+          "sha256": "44d9efb348f34bbe0a06ba407629c395ab871464052a004579f5e47fda987cac"
+        }
+      ]
+    },
+    {
+      "id": "ring-sc",
+      "key": "RING_SC",
+      "author": "npp1993",
+      "slot": 6,
+      "name": "MODE",
+      "labels": [
+        "DUCK",
+        "RING"
+      ],
+      "renames": {
+        "0": {
+          "3": "ATK",
+          "4": "HOLD",
+          "5": "REL"
+        },
+        "1": {
+          "3": "SLEW",
+          "4": "S&H",
+          "5": "RECT"
+        }
+      },
+      "wideMaximum": null,
+      "proofs": [
+        {
+          "namesAddress": 1074621238,
+          "bytes": 172,
+          "sha256": "28bcf1ac312918e6556e83176571539b61406a65657375711be38ec7a520f83a"
+        },
+        {
+          "namesAddress": 1074623350,
+          "bytes": 172,
+          "sha256": "64930e3c966c8621732e4c28422236697dc30739c96f102f7615ee9628e78393"
+        }
+      ]
     }
   ],
   "repitchPatches": [
@@ -1246,24 +1425,36 @@
       "caveLimit": 1074625596
     }
   ],
-  "sourceCommit": "a4989b337a06da76c3d9645d8cc0eb420567e896",
+  "sourceCommit": "b28f5275fa014f66f63d60878bb500f69039dc88",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
     "character": "0.1.1-experimental",
-    "miniverb": "0.1.2-experimental",
-    "tapeecho": "0.1.2-experimental",
-    "euclid": "0.1.3-experimental",
-    "repitch": "0.1.2-experimental",
+    "miniverb": "0.2.3-experimental",
+    "tapeecho": "0.1.5-experimental",
+    "euclid": "0.1.4-experimental",
+    "repitch": "0.2.0-experimental",
     "tapehead": "0.1.2-experimental",
-    "analog-bassdrum": "0.1.2-experimental",
-    "midi-scenes": "0.2.4-experimental",
-    "usb-audio-out-tracks-main-cue": "0.1.2-experimental",
-    "quantizer": "0.1.2-experimental",
-    "synth": "0.1.1-experimental",
+    "airwindows-chorus": "0.1.2-experimental",
+    "everb": "0.1.2-experimental",
+    "bbd": "0.1.1-experimental",
+    "lofi2": "0.1.1-experimental",
+    "ring-sc": "0.2.0-experimental",
+    "analog-bassdrum": "0.1.5-experimental",
+    "midi-scenes": "0.2.5-experimental",
+    "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
+    "quantizer": "0.1.3-experimental",
+    "synth": "0.1.2-experimental",
     "previewvol": "0.1.2-experimental",
     "cc-map": "0.1.2-experimental",
-    "sidechain-compressor": "0.1.1-experimental",
-    "vector": "0.2.3-experimental"
+    "sidechain-compressor": "0.1.2-experimental",
+    "vector": "0.2.4-experimental",
+    "playmodes": "0.2.0-experimental",
+    "mute-modes": "0.2.1-experimental",
+    "recorder-loop-fix": "0.1.0-experimental",
+    "poly8": "0.3.1-experimental",
+    "output-matrix": "0.1.1-experimental",
+    "quantize-live-rec-toggle": "0.1.0-experimental",
+    "apply-scene": "0.2.0-experimental"
   }
 }

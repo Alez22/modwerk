@@ -13,7 +13,7 @@ Octamod becomes **Modwerk** (modwerk.app): custom firmware for every Elektron ma
   - Modwerk builds Digitakt/Digitone firmware with its own TypeScript engine, interoperable with `.elemod`; elekloader is only a local byte-comparison reference.
   - Module source lives in Modwerk module folders (or a pinned commit) and is compiled by Modwerk CI.
   - New machines use tiered evidence: author-hardware evidence to publish, and owner verification as a badge.
-  - Modwerk's own code is GPL-3.0-or-later.
+  - Modwerk's own code was GPL-3.0-or-later at this decision. The [9 October platform licensing decision](DECISIONS.md#independent-platform-backend-licensing--9-october-2026) supersedes this blanket statement: the independent backend uses ELv2, while the frontend and SDK/component licences remain as documented in [LICENSE](../LICENSE).
   - "Standalone firmware" is a shared library category for exclusive, uncombinable complete builds.
 
 ## Phases
@@ -54,7 +54,7 @@ The aim is that the owner reviews new modules, new maintainers and shared infras
   - every automated gate passes: schema, licence, no firmware, reproducible build, resource budgets, required docs, media and evidence fields.
   - The bot merges after a cooling-off period (for example 48 hours), during which the owner or a co-maintainer can block it with a label.
 - **Owner review lane:** new modules, new devices, cores and platform, SDK and tooling, the frozen baseline, and maintainer changes.
-- **Easy updates.** When an author tags a release in their own repository, a workflow opens the version-bump PR in Modwerk, in the style of Renovate. Authors can also run `npm run module:update`.
+- **Easy updates.** When an author tags a release in their own repository, a workflow opens the version-bump PR in Modwerk, in the style of Renovate. A planned `module:update` command would open the same pull request from the author's checkout.
 - **Channels.** Maintainers can publish `beta` versions that users opt into; promotion to stable uses the same lane.
 - **Community moderation by maintainers.**
   - A maintainer links their forum account by listing it in the manifest (the merged PR proves GitHub identity) and confirming the claim from the account page. Both sides have to agree.

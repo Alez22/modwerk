@@ -1,0 +1,36 @@
+[
+  {
+    "version": "0.2.0-experimental",
+    "date": "2026-10-14",
+    "changes": [
+      "Installs over USB on the Modwerk beta base beside POLY8 and other modules that change playback speed. The sound is unchanged.",
+      "Needs a Modwerk base with module events; older bases refuse this version and keep 0.1.2-experimental.",
+      "Known issue: this version has not yet run on a unit."
+    ]
+  },
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: adds screenshots of the selection and control pages and how to reach them. The firmware is unchanged."
+    ],
+    "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: updates the author credits. The firmware is unchanged."
+    ],
+    "sourceCommit": "d1136ce4c65ea7e1a00c4516cd4aa41c4b0c0d56"
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "First Modwerk catalog release of REPITCH for Flex/Static tracks: follow project tempo through playback speed instead of granular timestretch.",
+      "Add RPCH to track TSTR and REPITCH to sample attributes. PTCH is disabled while RATE still applies; Pickup machines are unsupported."
+    ],
+    "sourceCommit": "b16a5e3b880cb141153f0648e0c8700fc54175ef"
+  }
+]

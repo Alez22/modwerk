@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """The 909 voice on the DSP: tables, the assembled engine and its reference.
 
-fit909.json holds the numbers fitted to the user's Drumazon 2 (DSP909.md
-says how and with which scripts). From them this builds:
+fit909.json holds the private TR-909 reference candidate. The body, pulse
+and short Tune endpoint use Skee Mask's supplied recordings; other controls
+and the shared desk retain the approved model. From them this builds:
 
   tables()        the 128-entry knob tables and fixed coefficients, 24-bit
   source(layout)  bd909.asm with every placeholder filled
@@ -45,6 +46,10 @@ STATE = ['EP', 'U', 'O', 'C', 'PULSE', 'R8', 'UPPREV', 'HP', 'BX1', 'BX2',
          'GDC', 'GP', 'GN', 'KLPF', 'LMH', 'LML', 'THH', 'THL',
          'TIN', 'PAD', 'GB', 'OB', 'GH', 'OH', 'LB', 'M2', 'KHP', 'HPH', 'HPL']
 OFF = {name: k for k, name in enumerate(STATE)}
+# Reuse the per-sample scratch words for depth history; scratch moves into
+# MODEL/hidden-control transport slots after the glue has consumed MODEL.
+OFF.update(SINCA=OFF['ACC'], SGDC=OFF['PT'], ACC=54, PT=59,
+           SSAT=61, FAST=62, GS=63)
 SWORDS = len(STATE)
 
 
@@ -186,9 +191,9 @@ def tables():
         T_THS=[OUT * B['k_dc'] * thump((i + .5) / 128 * a_max) * VBS for i in range(128)],
         T_VB=[(max(i, 1) / 100) ** 2 / VBS for i in range(128)],
         T_VA=[VA(max(i, 1)) / VAS for i in range(128)],
-        T_ATP=[OUT * (B['k0'] + u_of(i)) * VAS for i in range(128)],
+        T_ATP=[OUT * (B['k0'] + u_of(i)) * VAS / PU['gain_scale'] for i in range(128)],
         # the noise chain runs at half scale: its HP swings (w - prev), up to 2
-        T_ATN=[2 * OUT * u_of(i) * NZ['g'] / NOISE_RMS * VAS / SHIFT for i in range(128)],
+        T_ATN=[2 * OUT * (NZ['attack_floor'] + (1-NZ['attack_floor'])*u_of(i)) * NZ['g'] / NOISE_RMS * VAS / SHIFT for i in range(128)],
         T_LPF=[1 - 2 ** -23] + [1 - k_pole(f) for f in LPF_HZ[1:]],
         # SAT: drive / stage / 32 (five asl) and the make-up / 2 (one asl)
         T_TIN=[mk_drive(i) / MK['stage'] / 32 for i in range(128)],
@@ -199,14 +204,18 @@ def tables():
         T_GB=[min(u_of(i) ** 2, 1 - 2 ** -23) for i in range(128)],
         T_OB=[math.sqrt(2 * u_of(i)) * MK['stage'] / 16 for i in range(128)],
     )
+    tfb=2*FIT['tune']['base_delta_hz']/RATE/(t['T_GT'][-1]-t['T_GT'][0])
     b0, b1, b2, a1, a2 = biquad_lp(PU['f0'], PU['q'])
     ahp, anh = k_pole(PU['f_hp']), k_pole(NZ['f_hp'])
     c = dict(
+        KTFB=tfb,KTFB0=-tfb*t['T_GT'][0],
         KA_INC=k_inc, K_BODY=4 * OUT * B['G'] * VBS,
-        NREL=math.ceil(B['t_r'] * RATE), FRAC=1 - (math.ceil(B['t_r'] * RATE) - B['t_r'] * RATE),
-        U0=-0.5 + B['x_r'] / 2, THETA=FIT['theta'], NHOLD=round(B['t_h'] * RATE),
+        NREL=math.ceil(B['t_r'] * RATE), FRAC=B.get('release_fraction', 1 - (math.ceil(B['t_r'] * RATE) - B['t_r'] * RATE)),
+        U0=B.get('phase_reset', -0.5 + B['x_r'] / 2), THETA=FIT['theta'], NHOLD=round(B['t_h'] * RATE),
         KA=1 - k_exp(B['tau_a']), DKDROOP=1 - k_exp(B['tau_droop']), KTH=1 - k_exp(B['tau_dc']),
-        KR=1 - k_exp(PU['tau_r2']), KR8=8 * (1 - k_exp(PU['tau_r2'])),
+        KPR=k_exp(PU['tau_decay']), KPLP=1-k_pole(PU['f_output']),
+        KPBASE=PU['jitter_base'], KPJIT=PU['jitter_depth'],
+        KFAST=k_exp(PU['fast_tau']), KGS=PU['fast_gain']*OUT*VAS/PU['gain_scale'], KFDR=PU['fast_depth']/4,
         AHP=ahp, BHP=(1 + ahp) / 2, KU=1 - k_pole(PU['f_u']),
         KW16=PU['k_w'] / 128, KU16=PU['k_u'] / 128,
         ANH=anh, BNH=(1 + anh) / 4, KL1=1 - k_pole(NZ['f_lp1']), KL2=1 - k_pole(NZ['f_lp2']),
@@ -214,14 +223,15 @@ def tables():
         LCGK=LCG_K, LCGC=LCG_C, SEED=SEED,
         KSAT=MK['k_sat'], KB=MK['kb'], KM=MK['km'], KMS=2 * MK['stage'] / 16,
     )
-    # S/16 in Horner order: the degree-11 partial sums reach 2.8 at S/4; the
-    # engine's two asl bring the result back to S/4
+    # S/16 in Horner order; the two asl bring the result back to S/4.
+    # Check every partial sum after refitting, not only the final output.
     cpoly = [x / 16 for x in list(B['c'])[::-1]] + [B['c0'] / 16]
-    assert horner_ok(cpoly) < 1, 'Horner partial sum overflows'
+    cquad=[x/16 for x in B['quadrature'][::-1]]
+    assert horner_ok(cpoly) < 1 and horner_ok(cquad)<1, 'Horner partial sum overflows'
     cbiq = [b0, b1, b2, -a1 / 2, -a2]
-    for name, v in list(t.items()) + [('CPOLY', cpoly), ('CBIQ', cbiq)]:
+    for name, v in list(t.items()) + [('CPOLY', cpoly), ('CQUAD',cquad), ('CBIQ', cbiq)]:
         assert all(-1 <= x < 1 for x in v), name
-    return t, c, dict(CPOLY=cpoly, CBIQ=cbiq), dict(a_max=a_max, k_inc=k_inc)
+    return t, c, dict(CPOLY=cpoly, CQUAD=cquad, CBIQ=cbiq), dict(a_max=a_max, k_inc=k_inc)
 
 
 def q24(x):
@@ -242,10 +252,25 @@ def horner_ok(cpoly):
     return worst
 
 
-def source(layout, *, output_gain=True):
+def source(layout, *, output_gain=True, shared_desk=False, include_desk=True):
     """bd909.asm with its placeholders filled. layout: table and list bases."""
     tab, con, lists, _ = tables()
     text = (HERE / 'bd909.asm').read_text()
+    if shared_desk:
+        # Both engines call the same unboosted desk. Gain stays at each output.
+        helpers = []
+        for tag, label in (('desk-decode', 'zd01'), ('desk', 'zd02')):
+            start, end = text.index(';<' + tag + '>'), text.index(';</' + tag + '>')
+            body = text[start:end]
+            if tag == 'desk':
+                body = body[:body.index('        move    a,x:(r0)+')]
+                call = '        bsr     >' + label + '\n' + '        move    a,x:(r0)+\n' * 2
+            else:
+                call = '        bsr     >' + label + '\n'
+            helpers.append(label + ':\n' + body + '        rts\n')
+            text = text[:start] + call + text[end:]
+        if include_desk:
+            text += '\n' + '\n'.join(helpers)
     if output_gain:
         assert OUTPUT_GAIN > 0 and OUTPUT_GAIN & (OUTPUT_GAIN - 1) == 0
         # Read the original limited 24-bit sample before applying gain. The
@@ -275,6 +300,12 @@ def source(layout, *, output_gain=True):
         for b in labels:
             assert a == b or not b.startswith(a), f'label {a} prefixes {b}'
     return out
+
+
+def shared_desk_source(layout):
+    """Place both shared routines after the engines (forward relative calls)."""
+    full = source(layout, output_gain=False, shared_desk=True)
+    return full[full.index('zd01:'):]
 
 
 def desk_source(layout):
@@ -370,6 +401,12 @@ def fl24(x):
     return math.floor(x * 8388608) / 8388608
 
 
+def slew24(current, target):
+    """The native signed 24-bit 1/64 slew; downward steps use arithmetic shift."""
+    value, dest = round(current * 8388608), round(target * 8388608)
+    return (value + ((dest - value) >> 6)) / 8388608
+
+
 class Voice:
     """Float reference with the engine's structure, block by block. The
     phase path (control products, ep, inc) is quantised as the DSP does it:
@@ -386,7 +423,7 @@ class Voice:
                       for k, v in self.c.items()}
         self.ep = self.u = self.o = self.m = self.th = 0.0
         self.cnt = (1 << 23) - 1
-        self.pulse = 0.0
+        self.pulse = self.fast = 0.0
         self.r = self.upp = self.hp = self.lpu = 0.0
         self.bx1 = self.bx2 = self.by1 = self.by2 = 0.0
         self.lcg = SEED
@@ -394,10 +431,11 @@ class Voice:
         self.e2 = self.e3 = 0.0
         self.yl = 0.0
         self.lb = self.m2 = self.hps = 0.0
+        self.sat_position = self.depth_values = None
 
     def block(self, k, trig=None, frames=16):
         t, c = self.t, self.c
-        inc_b = t['T_INCB'][k[0]]
+        inc_b = fl24(t['T_INCB'][k[0]]+c['KTFB0']+c['KTFB']*t['T_GT'][k[2]])
         q = rnd24(rnd24(t['T_AP'][k[0]] * t['T_GT'][k[2]]) * t['T_GD'][k[4]])
         inc_a = rnd24(q * c['KA_INC'])
         dkp, dkd = t['T_DKP'][k[2]], t['T_DKD'][k[1]]
@@ -406,19 +444,28 @@ class Voice:
         gbody = vb * c['K_BODY']
         va = t['T_VA'][k[7]]
         gp = va * t['T_ATP'][k[3]]
+        gs = va * c['KGS'] + 4*gp*c['KFDR']
         gn = va * t['T_ATN'][k[3]]
         klpf = t['T_LPF'][k[8]]
+        targets = (inc_a, rnd24(gdc))
+        if self.depth_values is None:
+            self.depth_values = targets
         self.desk_knobs(k)
         b0, b1, b2, na1h, na2 = self.lists['CBIQ']
-        cp = self.lists['CPOLY']
+        cp = self.lists['CPOLY']; cq=self.lists['CQUAD']
         out = []
         for i in range(frames):
             if trig is not None and i == trig:
-                self.ep = self.pulse = self.e2 = self.e3 = 1 - 2 ** -23
+                self.ep = self.e2 = self.e3 = 1 - 2 ** -23
+                white = (self.lcg - (1 << 24) if self.lcg & 0x800000 else self.lcg) / 8388608
+                self.pulse = rnd24(c['KPBASE'] + c['KPJIT'] * white)
+                self.fast = self.pulse
+                self.o = 0.0
                 self.cnt = 0
-                self.r = 0.0
                 self.m = 1.0
-                self.u = fl24(c['U0'] - c['FRAC'] * (inc_b + inc_a))
+                self.u = fl24(c['U0'] - c['FRAC'] * (inc_b + self.depth_values[0]))
+            self.depth_values = tuple(slew24(v, target) for v, target in zip(self.depth_values, targets))
+            inc_a, gdc = self.depth_values
             inc = fl24(inc_b + inc_a * self.ep)
             self.ep = fl24(self.ep - self.ep * dkp)
             if self.cnt >= c['NREL']:
@@ -426,27 +473,30 @@ class Voice:
                 if self.u >= 1:
                     self.u -= 2
             x = 1 - 2 * abs(self.u)
-            if x >= c['THETA']:
-                self.pulse = 0.0
             x = min(x, 1 - 2 ** -23)
             h = cp[0]
             for cf in cp[1:]:
                 h = cf + h * x
-            s4 = 4 * h
+            qh=cq[0]
+            for cf in cq[1:]: qh=cf+qh*x
+            s4=4*(h+self.u*(1+x)*qh)
             self.o += c['KA'] * (1 - self.o)
             self.m -= self.m * (c['DKDROOP'] if self.cnt < c['NHOLD'] else dkd)
             g = self.o * self.m
             body = gbody * g * s4
             self.th += c['KTH'] * (g - self.th)
             body -= gdc * self.th
-            self.r += c['KR'] * (1 - self.r)
-            up8 = -8 * self.r * self.pulse
+            up8 = -(self.pulse * gp + self.fast * gs) / 4
+            self.fast = fl24(self.fast * c['KFAST'])
+            self.pulse = fl24(self.pulse * c['KPR'])
             self.lpu += c['KU'] * (up8 - self.lpu)
             self.hp = c['AHP'] * self.hp + c['BHP'] * (up8 - self.upp)
             self.upp = up8
             w8 = b0 * self.hp + b1 * self.bx1 + b2 * self.bx2 + 2 * na1h * self.by1 + na2 * self.by2
             self.bx2, self.bx1, self.by2, self.by1 = self.bx1, self.hp, self.by1, w8
-            pt = gp * (c['KW16'] * w8 + c['KU16'] * self.lpu)
+            pulse_term = c['KW16'] * w8 + c['KU16'] * self.lpu
+            self.r += c['KPLP'] * (pulse_term - self.r)
+            pt = self.r
             self.lcg = (self.lcg * LCG_M + LCG_C) & 0xffffff
             wn = (self.lcg - (1 << 24) if self.lcg & 0x800000 else self.lcg) / 8388608
             self.nh = c['ANH'] * self.nh + c['BNH'] * (wn - self.nprev)
@@ -464,13 +514,24 @@ class Voice:
 
     def desk_knobs(self, k):
         t = self.t
+        self.sat_target = k[5] << 16
+        if self.sat_position is None:
+            self.sat_position = self.sat_target
         self.dk = (t['T_TIN'][k[5]], t['T_PAD'][k[5]], t['T_KHP'][k[5]],
                    t['T_GB'][k[9]], t['T_OB'][k[9]], t['T_GB'][k[10]], t['T_OB'][k[10]])
 
     def desk(self, y):
         """The Mackie stage, one sample; the scalings are bd909.asm step 12's."""
         c = self.c
-        tin, pad, khp, gb, ob, gh, oh = self.dk
+        self.sat_position += (self.sat_target - self.sat_position) >> 6
+        index, fraction = self.sat_position >> 16, (self.sat_position & 65535) / 65536
+        values = []
+        for table in ('T_TIN', 'T_PAD', 'T_KHP'):
+            lo = self.t[table][index]
+            hi = self.t[table][min(127, index + 1)]
+            values.append(fl24(lo + fraction * (hi - lo)))
+        tin, pad, khp = values
+        gb, ob, gh, oh = self.dk[3:]
         clip = lambda v: max(-1.0, min(1 - 2 ** -23, v))
         sat = lambda v: clip(v) - c['KSAT'] * clip(v) ** 5
         self.hps += khp * (y - self.hps)

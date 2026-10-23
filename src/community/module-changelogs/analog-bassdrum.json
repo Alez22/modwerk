@@ -1,0 +1,60 @@
+[
+  {
+    "version": "0.1.5-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "Switching an Analog BD track to another machine now restores the FLEX defaults, so the bank is no longer rejected. Locks, scenes and LFOs keep their slots and may need adjusting.",
+      "Now loads over USB on the Modwerk beta base; the site asks for a base update first. Installing, removing or self-testing it no longer fails a sync (#791).",
+      "Beta base: an Analog BD track no longer silences the unit after a reboot. Stock firmware or an older base still shows BANK UNAVAILABLE for such a bank until LOAD PROJECT.",
+      "Known issue: over USB, a 909 on tracks 1-4 with PITCH at 0 plays a wrong, jittery pitch (fixed in 0.1.6). A track first set to Analog BD during playback stays silent until you stop.",
+      "Media only: a new audio preview, a 128 BPM groove with 808 and 909 sounds."
+    ]
+  },
+  {
+    "version": "0.1.4-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "The 909 now matches recordings of a real TR-909 more closely in body, envelope, Attack and Tune.",
+      "Many thanks to Skee Mask, who recorded his TR-909 for this. His 909 has a decay modification whose full range is not reproduced.",
+      "Adds subtle attack and noise differences between hits, without random pitch or timing.",
+      "The 808, saved controls and smoothing are unchanged; the 909 uses about 6% more DSP time.",
+      "Known issue: not yet tested on hardware, and high ACCNT or LOW settings can reach the output limiter."
+    ]
+  },
+  {
+    "version": "0.1.3-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "Smooths the 909's TDEP and both engines' SAT to reduce zipper noise. Saved settings sound the same.",
+      "Known issue: not yet tested with the heaviest effect loads.",
+      "Development note: many thanks to Skee Mask, who recorded his TR-909 for a closer 909 in a later version. This version sounds the same."
+    ]
+  },
+  {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Documentation only: adds emulator screenshots of the selection and control pages and how to reach them."
+    ],
+    "sourceCommit": "dd9ea93fd62a3699d54f5e63c5f1a33fe1544cad"
+  },
+  {
+    "version": "0.1.1-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "Analog BD can now be built into firmware in the browser on the site."
+    ],
+    "sourceCommit": "9c4e0e3b7990c6952812d89ac165dfa14151c3ee"
+  },
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-01",
+    "changes": [
+      "First Modwerk release of the native 808/909 bass drum track machine, with synthesis before the stock AMP and FX stages.",
+      "Known issue: the machine chooser and use on all eight tracks are not yet tested on hardware.",
+      "USB package for the beta base: it now starts on the unit, and restoring a Part no longer writes a wrong value.",
+      "Known issue: over USB it may play silence or stall with trigs, and a second track in the same Part is refused without a message. Don't use it for music in the beta yet."
+    ],
+    "sourceCommit": "d1136ce4c65ea7e1a00c4516cd4aa41c4b0c0d56"
+  }
+]

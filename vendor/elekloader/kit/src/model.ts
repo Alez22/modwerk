@@ -4,12 +4,13 @@
 // it, such as the site's cores), describe(), the live check, build(), with_requirements and suggested_name.
 import { sha } from './bytes.ts'
 import type { Device, Release } from './devices.ts'
-import { type AnyMod, EXTS, ModError, get } from './elemod.ts'
+import { type AnyMod, EXTS, ModError, cmpVersions, get, pickCore } from './elemod.ts'
 import * as formats from './formats.ts'
-import { type Mod2, link } from './link.ts'
+import { type Mod2, ddrFor, link } from './link.ts'
 import { apply, type Mod } from './elemod.ts'
 import { basename, build as patchBuild, dirname, loadAny, save } from './patch.ts'
 import { PyException, truthy } from './py.ts'
+import type { Lock } from './store.ts'
 
 /** Python's OSError: a file that is not there. */
 export class OSError_ extends PyException {}
@@ -46,25 +47,70 @@ export function modFiles(store: Store, folder: string): string[] {
 export type Desc = Record<string, any>
 export type Stock = Record<string, any>
 
+/** The listed files with this id, made for the stock firmware, by file name (sorted() is stable: equal names keep
+ * their order). */
+function candidates(descs: Map<string, Desc>, id: string): string[] {
+  return [...descs].filter(([, x]) => x.id === id && x.fits && !('error' in x)).map(([p]) => p)
+    .map((p, i) => [p, i] as const).sort((a, b) => (basename(a[0]) < basename(b[0]) ? -1 : basename(a[0]) > basename(b[0]) ? 1 : a[1] - b[1]))
+    .map(([p]) => p)
+}
+
 /** `enabled` plus `path`, plus the mods it requires (and theirs) that are listed and made for the stock firmware,
- * when none enabled already provides them. Of several files with the id, the last (by file name) is taken. */
+ * when none enabled already provides them. Of several files with the id, the last (by file name) is taken, and for
+ * core the one withCore takes. */
 export function withRequirements(descs: Map<string, Desc>, enabled: Iterable<string>, path: string): Set<string> {
   const out = new Set([...enabled, path])
   const todo = [path]
+  let core = false
   while (todo.length) {
     const d = descs.get(todo.pop()!) ?? {}
     for (const rid of d.requires ?? []) {
+      if (rid === 'core') {
+        core = true
+        continue
+      }
       if ([...out].some(p => descs.get(p)?.id === rid)) continue
-      const cands = [...descs].filter(([, x]) => x.id === rid && x.fits && !('error' in x)).map(([p]) => p)
-        .map((p, i) => [p, i] as const).sort((a, b) => (basename(a[0]) < basename(b[0]) ? -1 : basename(a[0]) > basename(b[0]) ? 1 : a[1] - b[1]))
-        .map(([p]) => p)
+      const cands = candidates(descs, rid)
       if (cands.length) {
         out.add(cands[cands.length - 1])
         todo.push(cands[cands.length - 1])
       }
     }
   }
-  return out
+  return core ? withCore(descs, out) : out
+}
+
+/** `out` with the core its mods need (their resources.core) and whose RAM holds them: the core enabled when it is new
+ * enough and holds them (or no core listed for the stock firmware does both), else the one pickCore takes of those
+ * listed, in its place (the newest, when none is new enough, for the check to say so). A core holds the mods when its
+ * area (describe's ram_area) is at least their ram_bound and its own. gui.with_core. */
+export function withCore(descs: Map<string, Desc>, out: Set<string>): Set<string> {
+  let need: string | null = null
+  for (const p of out) {
+    const v = descs.get(p)?.needs_core
+    if (v && (need === null || cmpVersions(v, need) > 0)) need = v
+  }
+  let ram = 0
+  for (const p of out) if (descs.get(p)?.id !== 'core') ram += descs.get(p)?.ram_bound ?? 0
+  const newEnough = (p: string) => need === null || cmpVersions(descs.get(p)!.version ?? '', need) >= 0
+  const holds = (p: string) => !('ram_area' in descs.get(p)!) || ram + (descs.get(p)!.ram_bound ?? 0) <= descs.get(p)!.ram_area
+  const on = [...out].filter(p => descs.get(p)?.id === 'core')
+  const cands = candidates(descs, 'core')
+  if (on.length && on.every(newEnough) && (on.every(holds) || !cands.some(p => newEnough(p) && holds(p)))) return out
+  if (!cands.length) return out
+  let i = pickCore(cands.map(p => descs.get(p)!.version ?? ''), need, cands.map(holds))
+  if (i === null) {
+    if (on.length) return out
+    i = cands.length - 1
+  }
+  return new Set([...[...out].filter(p => !on.includes(p)), cands[i]])
+}
+
+/** `paths` with one core, when it has several: the one withCore takes. gui.one_core. */
+export function oneCore(descs: Map<string, Desc>, paths: Iterable<string>): Set<string> {
+  const all = [...paths]
+  if (all.filter(p => descs.get(p)?.id === 'core').length < 2) return new Set(all)
+  return withCore(descs, new Set(all.filter(p => descs.get(p)?.id !== 'core')))
 }
 
 export function suggestedName(descs: Desc[], version: string | null): string {
@@ -159,7 +205,7 @@ export class LoaderModel {
       title: get(m.doc, 'title', m.id), description: get(m.doc, 'description', ''),
       category: truthy(cat) ? cat : (m.format !== 2 ? 'Whole build' : ''),
       author: get(m.doc, 'author', ''), license: get(m.doc, 'license', ''), sha256: m.sha256,
-      requires: [...m.requires], conflicts: [...m.conflicts], names: [...m.names],
+      requires: [...m.requires], conflicts: [...m.conflicts], names: [...m.names], needs_core: m.needsCore ?? null,
     }
     d.sites = m.sites.map(s => {
       let tgt = ''
@@ -171,6 +217,11 @@ export class LoaderModel {
       d.format = 2
       d.ram = m2.size('.run') + m2.size('.bss')
       d.fast = m2.size('.fast')
+      d.ram_bound = m2.ramBound()
+      if (m2.sections.has('.boot')) {         // a core: the linker's area with it (withCore)
+        const [lo, hi] = ddrFor(m2.dev, m2.version)
+        d.ram_area = hi - lo
+      }
       d.events = m2.contribute.filter(c => c.to.startsWith('ev_')).map(c => {
         if (!c.relocs.length) throw new Error('IndexError: list index out of range')
         return [c.to, c.order, c.relocs[0][2].slice(4)]
@@ -252,9 +303,10 @@ export class LoaderModel {
   }
 
   /** Build, verify and write outPath (+ .json, + .map.json) into the store. -> facts and the files. */
-  async build(paths: string[], version: string | null, outPath: string, log: (line: string) => void = () => {}) {
+  async build(paths: string[], version: string | null, outPath: string, log: (line: string) => void = () => {},
+    lock: Lock | null = null) {
     const [outputs, man] = await patchBuild({ path: this.stock.path, data: this.store.read(this.stock.path) },
-      paths.map(p => ({ path: p, data: this.store.read(p) })), version || null, false, log)
+      paths.map(p => ({ path: p, data: this.store.read(p) })), version || null, false, log, lock)
     const files = save(outputs!, man, outPath)
     for (const f of files) this.store.write(f.path, f.data)
     const f = man.output

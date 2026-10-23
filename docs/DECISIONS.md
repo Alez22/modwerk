@@ -1,10 +1,44 @@
 # Architecture decisions
 
+## One Elekloader builder for every machine — 9 October 2026
+
+The owner chose Elekloader as the core builder, with each machine extending its
+profiles, cores, linkable modules and resource rules. Retire the Octabam-derived
+production composer once the replacement preserves the approved catalogue,
+mandatory logger/startup infrastructure and qualification. Keep Octabam source
+and independent validation tools. Wrapping the old composer in a whole-image
+`.elemod` does not implement this decision.
+
+`src/engine/elekloader/machine-build.ts` is the shared kit entry point; Digitakt
+and Digitone already use it. Private Octatrack format-2 builds now run through
+the unchanged kit. The public OT cutover remains pending. The owner also wants
+safer updates with fewer power cycles: a resident base and verified USB runtime
+updates are the implementation target, with restart requirements explicit for
+unsupported changes. See [actual evidence and outstanding work](OCTATRACK_ELEKLOADER_MIGRATION.md).
+
+## Independent platform backend licensing — 9 October 2026
+
+The owner selected Elastic License 2.0 for the independent Modwerk API/backend
+in `server/`, `worker.ts`, `functions/` and `migrations/` to restrict hosted or
+managed reuse of its substantial functionality. The explicit owner-authored
+shared-helper inventory offers GPL-3.0-or-later OR Elastic-2.0 so the GPL browser
+frontend and ELv2 backend can each use it. The frontend, SDKs, modules, vendored
+builders and third-party contributions retain their existing licences. Earlier
+GPL revisions retain their rights. See [licence scope](../LICENSE) and the
+[ownership/dependency audit and limits](PLATFORM_LICENSING.md).
+
+This supersedes the blanket Modwerk GPL statements in the dated decisions
+below; it does not relicense upstream GPL code or extend to the frontend.
+
 ## Repository and source provenance
 
 The React frontend, community API, Octamod SDK, module sources, developer documentation and release tooling live in one repository. The SDK is a distinct directory and developer entry point. Preserve upstream octabam provenance, module authorship and applicable licences. Firmware, downloads, native build outputs, caches, secrets and local development notes do not belong in the public source tree.
 
 Module page content comes from `sdk/octabam/modules/<id>/octamod.module.json`, generated through `scripts/modules.mjs`. Keep the strict schema, README, TESTING, licences and version pins synchronized.
+
+On 8 October 2026, the owner required screenshot galleries across all modules and machines to explain basic usage in a few images. Lead with two to five essential screenshots in task order: find/enable the module, make a useful control change, then understand the expected result and how to stop/reset/bypass. Captions must name the action, the relevant button/encoder and its effect in plain language; lists of labels and emulator-fixture descriptions are insufficient. Keep alt text descriptive of the visible screen. Put alternate routes and extra reference pages under More screenshots, and preserve honest capture provenance and limitations. Review the whole gallery as a small tutorial whenever adding or updating a module. See [the caption standard](MODULE_UI_CAPTURES.md#write-a-short-screenshot-walkthrough).
+
+Website-only teaching captions and gallery ordering for retained module versions live in `src/catalog/module-media-guides.ts`, bound to the exact module version and declared media paths. This site copy can improve without changing a module release or its qualification identity. Original module manifests, README, PNGs, capture credits/licences and evidence remain the release authority; changes inside module folders still follow the version and qualification rules below. New releases should supply useful captions directly in their manifests, and any retained website guide must be reviewed against the new version before reuse.
 
 ## Hosting and API boundary
 
@@ -22,7 +56,7 @@ Firmware stays on the user's device throughout import, persistence, composition 
 
 Never distribute Elektron firmware, extracted routines/tables or stock-containing generated artifacts. Derive stock content from the user's own verified file at composition time. SDK automation compiles original or properly licensed module source only, without firmware.
 
-Configuration builds perform compatibility, placement and packaging integrity checks. They do not run the octabam stress/emulator suite. Downloads require real browser composition, native byte-parity and rejection evidence and container validation. The active path composes verified selections without the dynamic DSP loader, which remains disabled after its hardware failure. Byte parity does not establish hardware safety. See [verification status](VERIFICATION.md) for evidence and remaining qualification.
+Configuration builds perform compatibility, placement and packaging integrity checks. They do not run the octabam stress/emulator suite. Downloads require real browser composition, native byte-parity and rejection evidence and container validation. The card configuration path composes verified selections without the dynamic DSP loader. The Octatrack beta's USB base is built with it (`--dsp-loader`); its early hardware failures are fixed and recorded in [the hardware traps](OCTATRACK_HARDWARE_TRAPS.md). Byte parity does not establish hardware safety. See [verification status](VERIFICATION.md) for evidence and remaining qualification.
 
 ## Contributions and approval
 
@@ -107,7 +141,7 @@ The owner bought modwerk.app on 4 October 2026. It stays registered, with its DN
 
 The community API keeps trusting exactly one origin, set by `APP_URL`; the launch moves it from octamod.app to modwerk.app with the Worker, the sender and the Pages custom domain in one ordered cutover. octamod.app is not retired: it becomes a plain redirect to the same path on modwerk.app, so shared links and mail links already sent keep working. Browser storage is per site, so saved configurations are not carried over; the move is announced first so people can export them.
 
-Whether the public support contact becomes a `support@modwerk.app` forwarder is left to the owner; the Gmail contact chosen on 3 October stays until a forwarder is proven. Nothing in the repository edits DNS or a provider account. The order, records and checks are in [DOMAIN_AND_MAIL.md](DOMAIN_AND_MAIL.md); `npm run domain:check` reads public DNS and pages to report progress.
+On 10 October 2026 the owner decided the public support contact is `support@modwerk.app`, received through Resend's inbound mail, instead of the personal address chosen on 3 October, so no personal address is published. The switch is merged only after a message sent to the alias is proven to arrive. Nothing in the repository edits DNS or a provider account. The order, records and checks are in [DOMAIN_AND_MAIL.md](DOMAIN_AND_MAIL.md); `npm run domain:check` reads public DNS and pages to report progress.
 
 
 ## 4 October 2026 — Bug Reports forum and automatic developer delivery
@@ -186,7 +220,7 @@ elekloader packaged its builder as a kit that any website can use, with nothing 
 
 - **Vendored kit.** [`vendor/elekloader/kit`](../vendor/elekloader/README.md) is the kit's release zip, unchanged: the engine, the builder worker, the page's client and the catalog format.
 - **The catalog.** [`vendor/elekloader/catalog`](../vendor/elekloader/README.md) holds the same cores and mods, in the kit's catalog format, with revision `e4d8ba8`, so backups keep importing.
-- **The lock.** `vendor/elekloader/elekloader.lock.json` pins every kit file and the catalog. `npm run elekloader:check` checks against it.
+- **The lock.** `vendor/elekloader/elekloader.lock.json` pins every kit file and the upstream catalog (`upstream-catalog.json`). Site-owned modules keep their pins in their own records under `sdk/imports/`, so module PRs never edit the lock; the served `catalog.json` is generated from both. `npm run elekloader:check` checks against it.
 - **What Modwerk keeps.** `src/engine/elekloader/digi-build.ts` maps machine ids to the kit's device keys and starts the kit's worker. Modwerk's own worker and client are gone.
 - **Same builds.** It is the same engine, so the same bytes: the browser check gave the parity record's identities ([verification record](VERIFICATION.md)).
 
@@ -199,3 +233,84 @@ Taking an elekloader update was four manual steps, and every catalog change brok
 - **Backups across catalogs.** A backup naming another catalog revision now imports. Its modules are looked up again in the library by id: ones no longer there are left out, and the page lists them and each version that changed. A backup whose modules are all gone is refused. With the current revision an unknown module still means an altered backup, and is refused.
 - **The revision test** compares the catalog with the lock instead of a fixed revision, so a catalog update does not need a test edit.
 
+## 6 October 2026 — Short issue reports
+
+The owner found the report form too long: members posted problems in module discussions instead of using it. This replaces the 3 October requirement for `OCTAMOD.LOG`.
+
+- **Required:** a title, what happened, and the device fields (model, what it is running and, on Digitakt/Digitone, the base OS). Steps to reproduce, the expected result and the log are optional, in collapsed sections.
+- **The configuration** is attached as before and shown as one line.
+- **The Worker** accepts reports without steps, expected result or log. It still validates a `logMissing` reason when an older client sends one.
+- **Wording** speaks of problems that are "not working right", not only bugs, so sound and behaviour complaints are reported too.
+
+
+## 6 October 2026 — Direct messages
+
+The owner asked for private messages between members and chose:
+
+- **Who can write:** any verified member, by default. Each member can turn incoming messages off on the Messages page and block individual members from a conversation. Being blocked is not announced; it looks the same as the member turning messages off.
+- **Who can read:** only the two members. The administrator can open a conversation only after one of its members reports it, and the report form says so. The privacy notice states this.
+- **Notifications:** a new message appears in the bell, in the activity email digest (its own topic, on by default) and as device push, like a reply. Further messages in a conversation stay quiet until the first unread one is read.
+- **Deletion:** account deletion removes the member's messages, conversation memberships, blocks and reports. The conversation disappears from the other member's inbox.
+
+## 6 October 2026 — Proposed: elekloader's other Digitakt and Digitone mods
+
+Proposed for the owner's decision, as the 4 October import was decided: import the Digitakt and Digitone mods in elekloader's mod shop that Modwerk does not have, as Modwerk module folders under their licences, with attribution.
+
+- **The mods:**
+  - gdeo607's digi1_mods (MIT), pinned to commit `35bacb3`, each for Digitakt OS 1.53 and 1.54: digichain 1.6, Digi EQ 1.0b, Digi Matrix 1.0b, Digi Mono 0.13b, Digi Poly 2.0 and Digi utilities 1.9a.
+  - digitables 1.3 by irpina (GPL-2.0-or-later), for Digitone OS 1.43.
+- **As on 4 October:**
+  - each folder keeps its author's source unchanged, with the author's licence and README under `upstream/`;
+  - each upstream stock byte run became an address, length and SHA-256 guard in `build.json`;
+  - a Modwerk README, an honest TESTING page and an original thumbnail are added;
+  - all are drafts (evidence tier `none`): the authors' own reports belong to their builds;
+  - `sdk/imports/elemod-2026-10-06.json` pins every file.
+- **One change to an author's file.** Digi utilities' generated quarter-sine table moved from `.incbin "spec_sin.bin"` to `.include "spec_sin.inc"`. It holds the same 257 values and assembles to the same bytes, because module folders accept no binary files.
+- **The catalog** is elekloader's kit-v0.4.0 catalog, cut to Modwerk's library with `npm run elekloader:update -- elekloader-catalog.json --library`. Its revision is now `a1be3ce`. Older configuration backups still import, with their modules checked again.
+- **The Digitone core 2.2.** digitables needs core-dn1 2.2, which the Digitone profile already names. With it in the catalog, every Digitone OS 1.43 build uses it, digihealth's included, so those builds have new identities. OS 1.44 keeps core 2.0a.
+- **What does not combine.** digichain patches the same SRC page sites as the shop's NEIGHBOR, DIGISLICER and SOPHIE, so the builder refuses them together. Digi Mono and Digi Poly require digichain, so they inherit those refusals. The author's chain builds of those three are not in the shop.
+- **Small changes this needs:**
+  - `build.json` may name up to 64 weak symbols, not 16: digichain names 33.
+  - The library draws cover art for the new families (Mixing, Modulation, Polyphony, Utility, Framework, Sequencing).
+- **One module per pull request.** This proposes the seven together, one commit each, as the 4 October import did. The owner can ask for them one by one instead.
+
+## 7 October 2026 — The configuration comes from the log, or the reporter names it
+
+Since the log became optional, a report could leave with no configuration at all: the form attached whatever configuration was active in the browser, and said only "no active configuration" when there was none. Authors cannot reproduce such a report. The on-device logger already writes the exact configuration (modules and versions, base OS, FX2 chooser setting, configuration and source hashes) into every v2 checkpoint, so a log makes the browser's guess unnecessary.
+
+- **With a log,** the Worker reads the modules, base OS and FX2 setting from the validated log and stores those; the form shows them as "read from OCTAMOD.LOG" and asks nothing more. A v1 log has no FX2 setting, so the reporter's answer stands there. The browser's image fingerprint is only kept when the active configuration is the one the log records.
+- **Without a log,** the configuration is required and named in the form: a dropdown of the configurations saved in this browser with the active one preselected, or the modules picked one by one, as removable chips plus a search box that scales with the catalog, at current catalog versions, with the reported module already in the list. The workspace's empty "My first configuration" is not offered. Nothing leaves the form, and the workspace's active configuration is not changed by the choice.
+- **The Worker refuses** a report with neither a log nor at least one module. Digitakt and Digitone have no device log, so their reports always name a configuration.
+- **Not done:** asking for exact module versions by hand. The log is the precise source; a hand-picked list says which modules, at the versions the catalog offers today.
+
+## 8 October 2026 — GitHub is the developer home
+
+The owner requested all day-to-day developer work in GitHub and users in the frontend. Public replies go into one GitHub thread from either surface; signed GitHub status events update Modwerk. Registered authors can close/reopen their own shared public reports and complete verified published fixes through scoped GitHub comment commands, without a fork, website claim or repository-wide permissions. Existing numeric ownership, suspension/revocation, privacy consent and exact live-release gates remain enforced. A merged PR is not a resolved report.
+
+The former developer workspace becomes Creator settings for claims, support links and direct private diagnostic access. The duplicate public report/activity inbox and frontend public closure controls are removed. Existing member module notifications, private reports and compatibility APIs remain.
+
+## 10 October 2026 — Reports about a whole configuration
+
+Every report belonged to one module and went to that module's author. A freeze that only happens with two effects loaded, or a build that fails, has no single module to name, so it reached no one, or only whichever author the reporter guessed.
+
+- **A report can be about a whole saved configuration.** It starts from the configuration page, not a module page, and is for problems in the combination or of unknown cause.
+- **Every module's authors receive it** (superseded on 16 October 2026, below; the owner chose this over owner triage and over a reporter-named suspect). Each distinct author and declared maintainer is mentioned once, and each can see the private details and close or reopen it. The cost is that an author may be pinged for a problem in someone else's module; the report says it concerns the whole configuration, and the cap on mentions stops a very large configuration from pinging dozens of people.
+- **The fix is released by one module,** so `/modwerk resolve` names it. Closing it for another reason works from any of them.
+- **The modules and versions are public;** the build fingerprint, the FX2 setting and the log are not. Authors without a Modwerk account need the list to reproduce the problem, and the `module:<id>` labels reveal it anyway. This widens what a report publishes beyond a module report's single version, so the privacy notice needs the owner's review.
+- **It does not count against a module.** A report that may not be that module's fault stays out of the per-module statistics behind the stability grade; each module's Issues tab still lists and counts it.
+- **Not done:** the module-page report form still files against one module and is unchanged, and the log reader is a copy in the configuration report rather than shared with it.
+
+## 13 October 2026 — Reports live entirely on GitHub
+
+A contributor following a report's "open them on Modwerk" link landed on Creator settings: only the module's own verified maintainers could open the private part, and a coding agent working from the issue asked for "the full report". The owner chose to keep report work completely on GitHub.
+
+- **New GitHub reports publish everything.** The issue also carries the firmware state, build fingerprint, module configuration and the validated `OCTAMOD.LOG` in a collapsed block (oldest records left out when it would pass GitHub's size limit). The forms say so before posting. Reports filed earlier are never republished; their `public_json` lacks `full`.
+- **Maintainers talk to reporters on GitHub.** Comments reach the reporter on Modwerk; the reporter's replies from Modwerk appear on the issue.
+- **The maintainer report page is gone from the frontend.** `#developer/report/<id>` shows Creator settings, and the report page no longer shows maintainer triage, close or release forms. The private-report API, the reporter's sharing toggle, Creator settings with claims and Ko-fi links, `/modwerk` commands and the release-completion endpoint are unchanged.
+
+## 16 October 2026 — Configuration reports ping no one
+
+Mentioning every module's authors on a configuration report pinged every author in the configuration on every such report (#653, #658, #660), most of them for a problem outside their module.
+
+- **A configuration report mentions no author and sends no maintainer notification.** It keeps its `configuration` and `module:<id>` labels, is listed on each module's Issues tab, and maintainers of any listed module can still manage it.
+- **The owner triages it.** Once it points to one module, whoever narrowed it down mentions that module's author in the issue.

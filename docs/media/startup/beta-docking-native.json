@@ -1,0 +1,115 @@
+{
+  "kind": "modwerk-beta-startup-native",
+  "packageSha256": "62dbceb8a9264b9b477dcf96b507773c74854d9ca22c1e9f9ec3b233c7ac9fb1",
+  "nativeLinkParity": "passed at both runtime bases",
+  "proofs": [
+    {
+      "modules": [],
+      "mainBytes": 1121073,
+      "mainSha256": "6f30984720e8aeac55db7731a148f5fa5b5644cee3dc85bd7a058e280e067f64",
+      "updateSha256": "8ad6529cab46a34d015ad01ba93804337b12ae53f9e278b9470358cc99346c1f",
+      "reservedBytes": 98304,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "repitch"
+      ],
+      "mainBytes": 1121101,
+      "mainSha256": "1e44eeeefaa5c57ab52d16b41ca01b031857543007b955bb6fffc2b8622435d6",
+      "updateSha256": "e8cc5c01323f485106a28230818985ac8069de3d10cb3755ef507bad522f426e",
+      "reservedBytes": 98304,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "miniverb"
+      ],
+      "mainBytes": 1121099,
+      "mainSha256": "52c465b03debb7f0e9871d8be31fb7d43deec069bef10fc08f0629312b22d126",
+      "updateSha256": "368a2ae11a9fd410610f5a0154fae5f267b35bfc423ac0f246d7dfa0b8605f18",
+      "reservedBytes": 98304,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "tapeecho",
+        "euclid"
+      ],
+      "mainBytes": 1225402,
+      "mainSha256": "cd90cc4f543e6518fe40d712857c0732cd35c77ffe33a47088d491308138f09e",
+      "updateSha256": "850cd4d616a9b6d43bbea100d66d3db4a02c2619e43c72e4503d6b298a1337e2",
+      "reservedBytes": 10586112,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "analog-bassdrum"
+      ],
+      "mainBytes": 1274359,
+      "mainSha256": "ff3af824f2ae4ac82df6b24a36a42e835548b70d9a9162cfc9acb0be4336a4d0",
+      "updateSha256": "db7492e217325fcbb2ad1ccd53f1ce12f3ac13837c772bf4e329e970182357a7",
+      "reservedBytes": 10586112,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "sidechain-compressor"
+      ],
+      "mainBytes": 1121113,
+      "mainSha256": "d43cd776e9b1f111d1ad157151eaaba4c63453a9ae2f98a1f5b601c5d784f454",
+      "updateSha256": "907e61374552cdce7b7fd63057d5e7eec5ef1b3921e6938e2d5caa604f3d707a",
+      "reservedBytes": 98304,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "usb-audio-out-tracks-main-cue",
+        "quantizer"
+      ],
+      "mainBytes": 1126028,
+      "mainSha256": "176608c1bf908928d25494763734c1b2403b72a36423be83b9bc55ba98207f28",
+      "updateSha256": "78c72e27c841b029bff3a07259b3d5372f6029906c0a1c2c7bf15ad20b0859f4",
+      "reservedBytes": 10586112,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "midi-scenes"
+      ],
+      "mainBytes": 1121109,
+      "mainSha256": "7e09dd029c276ebddb37c2da884a948b5e4959a1d4ce598a55e253fac853694e",
+      "updateSha256": "10a71353550c7cf2822f28cea7dbe662fc9a6da8a2f4c9b625492be9c9c0a34b",
+      "reservedBytes": 178176,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "airwindows-chorus"
+      ],
+      "mainBytes": 1121109,
+      "mainSha256": "7efd088904acf2d1aeceb4c94da81f9f58501c5b27e292ee1378d339388c37b3",
+      "updateSha256": "f7859004422ca8091e8db2e9a9cb9679f2c017fe6d6890416e092424cb099ad4",
+      "reservedBytes": 98304,
+      "roundTrip": "passed"
+    },
+    {
+      "modules": [
+        "poly8"
+      ],
+      "mainBytes": 1133858,
+      "mainSha256": "061df6e289d49adb7fa21b8ce30bb16a700d402edccf896d53db731711856028",
+      "updateSha256": "0c0f4f6fa5590ada0506232401b07c059ca1745cb916f91ea820025aaaa12899",
+      "reservedBytes": 10586112,
+      "roundTrip": "passed"
+    }
+  ],
+  "dynamicBuild": "Repitch passed",
+  "alteredHooksRejected": true,
+  "repeatPatchRejected": true,
+  "inputUnchanged": true,
+  "hardware": "untested",
+  "packageArtifactSha256": "c5c8f33c289120892dc57bd38f8af3e1684942ebe3653025c9613f3e38836854",
+  "verifierSha256": "9c2fc402b1be03f71878c76e4ea842507853b8ed073428f72efb8f19bab4b2d2",
+  "startupPackageVersion": "3.0.0"
+}

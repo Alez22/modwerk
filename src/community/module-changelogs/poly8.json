@@ -1,0 +1,105 @@
+[
+  {
+    "version": "0.3.1-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Fixes the Octatrack freezing while POLY8 plays (#646, likely #520). When the CPU runs short, POLY8 now drops voices: release tails first, then the oldest notes.",
+      "Fixes the sequencer and audio stopping until a power cycle with many held voices (likely #408).",
+      "Uses much less CPU on the beta base. The sound is unchanged.",
+      "How many voices play at once depends on your base: about three on the current beta base, more on others.",
+      "Known issue: not yet tested on the MKI, after reloading a project or after a power cycle."
+    ]
+  },
+  {
+    "version": "0.3.0-experimental",
+    "date": "2026-10-14",
+    "changes": [
+      "POLY8 now installs beside Repitch and Mute Modes without being bundled with them.",
+      "Available over USB as its own package, beside every other module, on the Modwerk beta base.",
+      "Needs a recent Modwerk base; older bases refuse this version and keep 0.2.7-experimental.",
+      "Known issue: not yet tested on a unit."
+    ]
+  },
+  {
+    "version": "0.2.7-experimental",
+    "date": "2026-10-12",
+    "changes": [
+      "Media only: new POLY8 thumbnail.",
+      "With HOLD INF, a finite AMP REL now lets the previous chord’s tails end when the next trig plays (#447). Notes played from the panel or MIDI are kept.",
+      "Finite HOLD, REL INF and STOP work as before. With HOLD INF, the last chord sustains until another trig or STOP; recorded key-up timing is not supported.",
+      "Known issue: the fix for #447 is not yet confirmed on the affected MKI."
+    ]
+  },
+  {
+    "version": "0.2.6-experimental",
+    "date": "2026-10-09",
+    "changes": [
+      "POLY8 can now be combined with Repitch, Mute Modes and Scale Quantizer.",
+      "Adds a machine chooser for using POLY8, Analog BD, VECTOR and FM Synth together; each keeps its own saved Parts, controls and sound.",
+      "Fixes builds with other machines that could fail to boot or overwrite the other machine’s code.",
+      "Selecting POLY8 now stays on the current page, as with FLEX and STATIC; double-press TRACK for FLEX samples. NO closes the one-POLY8 message again.",
+      "Known issue: cannot be combined with Octakit; recording, loading and keeping settings over a restart are not yet fully tested."
+    ]
+  },
+  {
+    "version": "0.2.5-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "First public experimental release as POLY8: eight shared sample voices, one POLY8 per Part, independent envelopes and fixed 1/8 gain.",
+      "Reselecting POLY8 keeps the track’s LOOP setting; newly assigned tracks still start with LOOP OFF.",
+      "LEFT from POLY8’s sample slots returns to the machine list; RIGHT opens FLEX samples again.",
+      "Uses less CPU; voices, envelopes and gain are unchanged.",
+      "Known issue: panel recording takes up to four notes within eleven semitones, length follows AMP HOLD, and MIDI recording and grid root editing are unfinished."
+    ]
+  },
+  {
+    "version": "0.2.4-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "Test build: leaves the stock DSP code untouched to help find why POLY8 made no sound on an MKII.",
+      "Adds more diagnostic counters to the log.",
+      "Known issue: not a confirmed fix; recording, reboot, playback and audio are not yet tested with this version."
+    ]
+  },
+  {
+    "version": "0.2.3-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "Test build: writes a diagnostic log to the card to help find the MKII stall.",
+      "Fixes a possible out-of-range memory access with many voices; not confirmed as the cause of the stall.",
+      "The one-POLY message now closes by itself after a short time, so it can no longer block the panel.",
+      "Known issue: the MKII recording and playback stalls stay open until this build is tested on hardware."
+    ]
+  },
+  {
+    "version": "0.2.2-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "Allows one POLY track per Part; a second one is refused with a message you close with NO, before anything is changed.",
+      "Applies a fixed 1/8 (−18 dB) gain so eight full-level voices fit without the volume pumping as voices come and go.",
+      "Fixes POLY tracks being forgotten after a normal restart.",
+      "Known issue: the recording failure reported on the MKII is not fixed by this release."
+    ]
+  },
+  {
+    "version": "0.2.1-experimental",
+    "date": "2026-10-08",
+    "changes": [
+      "Restores panel recording for chords of up to four notes within eleven semitones; sample locks still work.",
+      "Limits POLY to eight shared voices; released tails are taken before held notes, and pressing a held key again is ignored.",
+      "New POLY tracks start with LOOP OFF; existing LOOP settings are kept.",
+      "Known issue: recorded length follows AMP HOLD; wider chords, extended MIDI recording and grid root editing are not supported yet."
+    ]
+  },
+  {
+    "version": "0.2.0-experimental",
+    "date": "2026-10-07",
+    "changes": [
+      "Adds 32 POLY voices in one shared pool; a single track can use all free voices.",
+      "Each voice has its own AMP envelope; filters and effects are shared per track.",
+      "PTCH tuning works independently of chromatic and MIDI notes, with ten panel octave positions and MIDI notes 0–127.",
+      "Selecting POLY opens FLEX samples directly; STATIC is not supported.",
+      "Known issue: hardware timing and note recording are not yet tested."
+    ]
+  }
+]

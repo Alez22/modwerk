@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Prerender new forum pages; the current main commit still needs independent release authorization.
+    - cron: '23 4 * * *'
 permissions:
   contents: read
 concurrency:
@@ -26,8 +29,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-      - name: Verify the owner merged this exact source commit
-        run: node scripts/verify-merge-approval.mjs "$RUNNER_TEMP/octamod-approval.json"
+      - name: Verify owner or scoped module-author approval for this exact source commit
+        run: node scripts/verify-merge-approval.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
           OCTAMOD_APPROVER_ID: ${{ vars.MODULE_APPROVER_GITHUB_ID }}
@@ -38,16 +41,10 @@ jobs:
         run: |
           # Compare with the last successful release, not the previous commit, so a failed module build is never skipped.
           last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pages.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha // ""')
-          # Documentation and media of a module are not compiled (scripts/module-source.mjs), so they never need a rebuild.
-          paths=(sdk ':(exclude,glob)sdk/**/*.md' ':(exclude,glob)sdk/octabam/modules/*/media/**' ':(exclude,glob)sdk/octabam/modules/*/presentation/**'
-            ':(exclude,glob)sdk/octabam/modules/*/evidence/**' scripts/build-module-packages.py scripts/build-utility-packages.py scripts/build-modules-isolated.sh
-            scripts/import-module-build.mjs scripts/stamp-module-build.mjs scripts/module-source.mjs scripts/license-notices.mjs scripts/licenses.mjs src/engine/assets src/release)
-          if [ -n "$last" ] && git cat-file -e "$last^{commit}" 2>/dev/null && git diff --quiet "$last" HEAD -- "${paths[@]}"; then
-            echo "modules=false" >> "$GITHUB_OUTPUT"
-            echo "No module change since the last successful release ($last): publishing the verified committed packages."
+          if [ -n "$last" ] && git cat-file -e "$last^{commit}" 2>/dev/null; then
+            node scripts/change-scope.mjs --base "$last" --head HEAD >> "$GITHUB_OUTPUT"
           else
-            echo "modules=true" >> "$GITHUB_OUTPUT"
-            echo "Module source changed since ${last:-the first release}: rebuilding in isolation."
+            echo 'modules=true' >> "$GITHUB_OUTPUT"
           fi
   source-packages:
     needs: approval
@@ -69,6 +66,11 @@ jobs:
       - run: npm run modules:check
       - run: npm run licenses:check
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # Use the public cache without changing checksum-pinned compiler inputs.
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
       # Every toolchain input is pinned by digest or checksum, so cached layers equal a fresh build.
       # Main-branch caches cannot be written by pull requests.
       - name: Prepare the pinned patched assembler toolchain
@@ -101,6 +103,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -117,7 +120,7 @@ jobs:
         with:
           name: octamod-source-${{ github.sha }}
           path: ${{ runner.temp }}/octamod-packages
-      - name: Independently verify owner merge, versions, sources and artifact hashes
+      - name: Independently verify release authorization, versions, sources and artifact hashes
         if: needs.approval.outputs.modules == 'true'
         run: node scripts/import-module-build.mjs "$RUNNER_TEMP/octamod-packages"
         env:
@@ -136,6 +139,13 @@ jobs:
         env:
           VITE_COMMUNITY_API_URL: ${{ vars.COMMUNITY_API_URL }}
           VITE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: module-release-inventory-${{ github.sha }}
+          path: dist/module-releases.json
+          retention-days: 30
+          overwrite: true
+          if-no-files-found: error
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist
@@ -144,11 +154,27 @@ jobs:
     if: ${{ !cancelled() && needs.frontend.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
+      contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: module-release-inventory-${{ github.sha }}
+          path: ${{ runner.temp }}/module-release-inventory
       - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
         id: deployment
+      - name: Queue release notifications from the live frontend
+        run: node scripts/sync-module-releases.mjs "$RUNNER_TEMP/module-release-inventory/module-releases.json"
+        env:
+          COMMUNITY_API_URL: ${{ vars.COMMUNITY_API_URL }}
