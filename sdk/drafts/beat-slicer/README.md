@@ -96,6 +96,10 @@ Native cycles, device memory, actual audio and hardware are unmeasured.
 Five additional stock storage probe groups pass with synthetic memory IO,
 including complete marker round-trips and failures that change memory before
 returning an error. They do not qualify real stock save/reload or Undo.
+Five pool/converter probe groups also pass: Flex page boundaries, recorder
+length selection with mocks, and signed PCM conversion with measured read
+extents. The 24-bit converter reads one padding byte in its scalar tail.
+These probes do not implement a reader or qualify Static streaming.
 The `planner_job` prototype makes preview resumable: it requests one PCM
 frame at a time, can wait without blocking, rejects stale read replies within
 a job and can be cancelled without exposing a partial plan. It copies input

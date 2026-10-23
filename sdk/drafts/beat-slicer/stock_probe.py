@@ -23,9 +23,10 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader'), default='editor')
     args = parser.parse_args()
-    source = ROOT / 'stock_probe' / ('storage_probe.cpp' if args.kind == 'storage' else 'probe.cpp')
+    source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
+                                     'reader': 'reader_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
@@ -37,6 +38,8 @@ def main():
     report = {
         'scope': ('isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
                   if args.kind == 'storage' else
+                  'isolated stock pool lookup and PCM conversion with synthetic memory and recorder mocks; no device access'
+                  if args.kind == 'reader' else
                   'isolated stock CPU routines with explicit UI/task mocks; no device access'),
         'mainSha256': STOCK_MAIN_SHA256,
         'sourceSha256': {str(p.relative_to(ROOT)): digest(p) for p in

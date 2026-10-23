@@ -158,6 +158,52 @@ Relevant upstream research (reported evidence, not newly observed hardware):
   address correction on current main also reinforces checking both cores;
   do not derive resource layout from the older tooling pin.
 
+### Isolated pool lookup and PCM conversion
+
+Five probe groups execute private 1.40C instructions against authored memory
+fixtures (`evidence/stock-reader.json`). These addresses identify routines
+under investigation, not SDK entry points, proposed patch sites or a usable
+native reader. The raw pool and descriptor values are synthetic; no stock
+table, audio, disassembly or firmware bytes are included in the report.
+
+- Control lookup `0x400946d8(kind, slot)` distinguishes the Flex/recorder arena
+  from Static. The pool walker `0x4009499c(slot, position, direction)` calls
+  it with kind 1 unconditionally and does not null-check the returned pointer.
+  The helper returns zero for an unavailable Flex pool or slot 136 in the
+  tested fixtures. The walker must never be called with those preconditions;
+  it is not a general Static reader or a validating public service.
+- In 88 forward cases across four authored mono/stereo 16/24-bit layouts and
+  Flex slots 0/127, the walker follows non-contiguous physical pages. `d0`
+  points at the requested frame; `d1` limits the run by both the page edge
+  and sample end. Negative/out-of-range positions return a zero run in the
+  exercised valid-slot fixtures. Source pool bytes remain unchanged. The
+  test supplies page geometry explicitly; actual runtime table initialization,
+  allocation ownership, format validation and concurrent reclamation are not
+  qualified by it.
+- The reverse convention differs: 36 cases show a pointer immediately after
+  frame `position - 1`, with raw `d1 = (position - 1) % page_frames`, including
+  zero at the first frame of a page. Do not treat it as a conventional reverse
+  block length. Beat Slicer can scan source coordinates forward regardless
+  of how a musician later plays the slices.
+- Four recorder fixtures (slots 128/135, active/inactive) confirm dynamic
+  length selection. The recorder-state and length helpers are explicit mocks;
+  this does not establish coherent reads of a recording in progress.
+- Converters `0x4009825c` and `0x400982e4` pass 40 fixtures covering 16/24-bit
+  signed extrema, both byte orders, lengths 0–9, four-value vector loops and
+  scalar tails. Output is left-aligned signed 32-bit PCM, not the planner's
+  right-aligned signed 24-bit representation. Output sentinels, source bytes
+  and callee-saved registers remain intact. A data-read watch confirms the
+  24-bit scalar tail reads **one byte beyond the logical input extent**; the
+  extra byte is discarded, but must still be readable. Use padded staging
+  or a separately verified bounded decoder, not an arbitrary unpadded span.
+
+The upstream `docs/firmware/SAMPLE_SAVE.md` supplied the initial pool-walk
+lead. Its claim of exactly two callers is incomplete for this MAIN: local
+analysis also finds direct callers in the sample-editing routines. Keep the
+preserved upstream document unchanged and treat these observations as narrow
+evidence. Static streaming, the editor's read path, live metadata/content
+pinning, cancellation, scheduler timing and playback smoothing remain open.
+
 ## Proposed base contract, not an implemented ABI
 
 The first shared SDK change should own the sample editor menu and its stock

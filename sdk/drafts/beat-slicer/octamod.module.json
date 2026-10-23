@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "18 original/independent host tests, 164 compiled synchronous planner vectors, six isolated editor CPU probes and five synthetic-IO stock storage probe groups pass. Resumable preview adds 500 host and 100 target comparisons plus lifecycle checks. No full editor, USB, audio or physical persistence qualification.",
+    "summary": "18 original/independent host tests, 164 compiled synchronous planner vectors, six isolated editor CPU probes, five synthetic-IO storage groups and five synthetic pool/converter groups pass. Resumable preview adds 500 host and 100 target comparisons plus lifecycle checks. No native reader, full editor, USB, audio or physical persistence qualification.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

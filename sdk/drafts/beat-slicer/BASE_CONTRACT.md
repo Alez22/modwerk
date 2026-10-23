@@ -86,6 +86,18 @@ audio interrupt. A recorder or file being modified is refused until content
 can be pinned consistently. A sequence of individually valid reads is not
 a coherent preview if the source changes between them.
 
+Distinguish a raw pool page lookup from decoded PCM. Validate pool readiness,
+slot kind/range, encoding, frame extent and allocation ownership before any
+native lookup. Flex and Static require their own proven access paths; a slot
+number alone cannot choose one. Bound copies by both the remaining sample
+extent and the current contiguous page, then decode into the planner's signed,
+right-aligned 24-bit values (duplicate mono). Verify each decoder's actual
+read extent, including vector tails and required padding. Never retain a raw
+page pointer across a yield or assume that an active recorder's current
+length makes its contents stable. Reverse playback does not require a reverse
+preview scan: scanning source coordinates forward avoids imposing unverified
+reverse-reader conventions on this one-shot action.
+
 The synchronous `bs_preview` remains an arithmetic oracle. The portable
 `planner_job` prototype now advances one bounded transition at a time and
 requests PCM frames without calling a reader. A pending frame can yield;

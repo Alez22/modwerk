@@ -154,6 +154,43 @@ report paths. `--kind editor` remains the default for the earlier six probes.
 The first four-group exploratory run is retained privately; only the final
 five-group source-matched run is recorded here.
 
+## Isolated stock pool and converter probes
+
+`evidence/stock-reader.json` records **five passing groups** using the same
+pinned CPU emulator/toolchain and hash-bound private MAIN described above:
+
+- Control lookup distinguishes Flex/recorder from Static and rejects the
+  exercised unavailable/out-of-range Flex cases. The page walker itself is
+  not called with those invalid preconditions because it omits a null check.
+- 88 forward lookups: four authored page layouts, two Flex slots,
+  non-contiguous pages, page/sample boundaries and invalid frame coordinates.
+- 36 reverse lookups establish its different pointer and raw `d1` convention.
+- Four recorder fixtures with explicitly mocked active/length helpers.
+- 40 PCM conversion fixtures: both byte orders, 16/24-bit signed values,
+  lengths 0–9, vector/scalar paths, unchanged source and output sentinels.
+  A CPU data-read watch verifies the 24-bit scalar tail's extra-byte read.
+
+All calls check callee-saved registers and stack return. Page geometry and
+allocation maps are **authored fixtures**, not observed runtime initialization.
+These tests do not establish a safe native reader: no Static file streaming,
+booted editor, real content generation, allocation lifetime, concurrent
+recording, scheduler integration, device timing or audible output is tested.
+The probes do not copy stock routines/tables into the repository.
+
+With the earlier mounts and machine lock, reconfigure CMake to pick up the
+new target, then run:
+
+```sh
+cmake --build /output/build --target beat_slicer_reader_probe --parallel 4
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind reader \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_reader_probe \
+  --output /output/stock-reader.json
+```
+
+Only the final source-matched run, including the read watch, is retained as
+repository evidence. The preliminary run remains private. Existing reports
+keep the wrapper/CMake hashes of their own runs, not the new reader target.
+
 ## Resumable preview prototype
 
 `python3 -B sdk/drafts/beat-slicer/test_job.py` passes **500 comparisons**

@@ -30,6 +30,14 @@ edit that would alter preserved records rather than silently sanitizing them.
 See the Beat Slicer draft's [storage probes](../../sdk/drafts/beat-slicer/TESTING.md#isolated-stock-storage-probes);
 these are emulator observations, not physical save/reload qualification.
 
+A stock sample-pool lookup is not necessarily a decoded reader or a safe
+service for both Flex and Static. Verify readiness, sample kind, page bounds
+and pointer lifetime before using it. Measure decoder reads as well as writes:
+a packed 24-bit converter can read a fourth byte while returning the correct
+three-byte value. Stage readable padding or use a bounded decoder. The Beat
+Slicer draft's pool/converter probes demonstrate this in synthetic CPU state;
+they do not qualify live streaming or concurrent sample changes.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

@@ -16,6 +16,10 @@ These are remaining tasks, not implemented behavior.
    support Flex/Static, mono/stereo and sample encodings; refuse unsupported data.
    `planner_job.c` supplies a portable resumable scan prototype with no reader
    callbacks; native scheduling, decoding and content pinning remain absent.
+   The traced pool lookup is Flex/recorder-specific and does not decode PCM.
+   Validate its preconditions before use; establish Static access separately.
+   Stage bounded bytes and prove decoder read extents before using a native
+   converter. A raw pointer must not survive a scheduler yield.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or
