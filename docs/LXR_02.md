@@ -6,7 +6,7 @@ On 23 October 2026 Erica Synths published the LXR-02's firmware and bootloader s
 
 ## What was published
 
-- **Hardware:** STM32F765VG (Cortex-M7, 216 MHz). Flash: bootloader at 0x08000000 (32 KB, sector 0), firmware from 0x08008000 (992 KB). ITCM 16 KB (hot DSP code, already tight), DTCM 128 KB (DMA buffers, stack), RAM 384 KB at 0x20020000. Six drum voices, FX bus, 64-step sequencer, DIN and USB MIDI (a custom USB-MIDI class), SD card (FatFs R0.12c), character LCD. The panel has four endless knobs, six voice faders, an encoder and 16 step keys.
+- **Hardware:** STM32F765VG (Cortex-M7, 216 MHz). Flash: bootloader at 0x08000000 (32 KB, sector 0), firmware from 0x08008000 (992 KB). ITCM 16 KB (hot DSP code, already tight), DTCM 128 KB (DMA buffers, stack), RAM 384 KB at 0x20020000. Six drum voices, FX bus, 64-step sequencer, DIN and USB MIDI (a custom USB-MIDI class), SD card (FatFs R0.12c), character LCD. The panel has four endless knobs, six voice faders and a volume fader, an encoder and 16 step keys.
 - **Build:** CMake 3.21+, Ninja, Python 3 and the Arm GNU Toolchain (`arm-none-eabi-gcc`; Erica tested 14.3.rel1 and 11.3.rel1). `cmake --preset release && cmake --build --preset release` writes `build/release/LXR_V2_V<version>.img`. The audio engine needs `-O3`; translation units with ITCM code build at `-O2` (`LXR_ITCM_OPT`) because current GCC overflows the ITCM at `-O3`, and GCC 15 also needs `-fno-thread-jumps`.
 - **Update image:** a 16-byte header (`LXRV2IMG`, the binary's size as a little-endian u32, an 8-bit checksum `0xFF - (sum & 0xFF)`, 3 zero bytes) followed by the raw binary programmed at 0x08008000 (`cmake/tools/mkimage.py`).
 - **Install and recovery:** copy the image to the SD card's top folder (the bootloader takes the first `LXR*.img`), hold the encoder while switching on. The bootloader write-protects its own sector at every boot and an update never changes it, so a failed or bad firmware is fixed by installing the official update the same way. Only the `flash_full` and `flash_bootloader` targets (ST-Link and OpenOCD) rewrite it; if that write fails, only a debug probe brings the unit back. Modwerk never uses them.
@@ -21,7 +21,7 @@ GPL-3.0-only with section 7 terms ([NOTICE.md](https://github.com/erica-synths/l
 - **Marked as modified:** the start-up screen of a modified build has to show it, and it must not pass as official firmware. Stock shows "Sonic Potions" / "LXR2 Drums V<version>" (`Core/Src/main.c`); a Modwerk build changes that text.
 - **Trademarks:** "Erica Synths", "LXR" and "LXR-02" may be used only as truthful compatibility statements ("custom firmware for the Erica Synths LXR-02"), never as Modwerk's own name for a build. The update file still has to be named `LXR*.img`, or the bootloader does not find it.
 - **Support:** Erica Synths does not support modified firmware, and a damaged bootloader is a paid repair. Modwerk's pages say so and send questions to Modwerk.
-- **Hardware:** the hardware and its look are Erica's and not licensed. The page uses Modwerk's schematic line drawing, never a product photo.
+- **Hardware:** the hardware and its look are Erica's and not licensed. The page shows Erica's own product image, credited and without a licence, until Erica Synths confirms or objects ([machine images](MACHINE_IMAGES.md)).
 
 ## How it maps onto Modwerk
 
