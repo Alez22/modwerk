@@ -555,3 +555,11 @@ No native provider is enabled. Full writer/metadata/caller coverage, live
 scheduler/cancellation behavior, serialized map lookup and copying, real-unit
 audio/timing/persistence, and card/browser/USB qualification remain pending.
 `module:doctor` and `verify.py` still refuse publication of this unlisted draft.
+
+The three 0.1.6 reports match source commit `f75263f3e8a7dcbf4e7f84f5e9918871b784e2ca`,
+now pinned by `tests.evidenceRevision`. With Node 24.22.1 / `npm ci`, the
+repository check against upstream `8965a69c` passes (2,519 app tests, SDK
+checks, lint, type checking and bundle). The required comparison with the
+fork's stale `origin/main` still rejects inherited upstream CHANGELOG history;
+that historical file remains unchanged, and authoritative validation uses
+current upstream main.
