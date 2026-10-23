@@ -3,7 +3,7 @@
     "version": "0.1.23-experimental",
     "date": "2026-10-24",
     "changes": [
-      "Development integration: run compiled Flex previews against a real stock-loaded sample in a reserved-memory full-boot emulator fixture.",
+      "Source-bound development evidence: compiled Flex previews read a real stock-loaded sample in a reserved-memory full-boot emulator fixture.",
       "All 28 plans match the host PCM oracle; normal stock reversals invalidate running and completed previews before further reads, and fresh previews match edited audio.",
       "Preview-only operations preserve complete PCM, controls and settings; the second stock reverse restores the original sample and both cards stay unchanged.",
       "Observe native Flex lock scope with no planner/decoder work inside; regression-test retries limited to the emulator's proven pre-entry refusal.",

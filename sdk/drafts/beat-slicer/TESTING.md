@@ -1493,7 +1493,8 @@ driver retries only that exact pre-entry guard, advancing normal execution in
 0.01 ms increments with a fixed retry bound; any uncertain/post-entry error is
 terminal. Four driver tests include wrong target/spin contracts and budget
 exhaustion. The first run remains a failed private diagnostic, not evidence.
-The successful run is bound to its source after validation.
+The successful compile, boot and lock receipts `evidence/source23-*.json` bind
+`1179af1f4c33a6f6f38fd8f86928057a6338bac3`.
 
 A separate physical MCP preflight on 24 October read base
 `d6bfff70cd237c1c2597ce37273cbdc4e8da0c595a9378455d3861137aa53224`,
