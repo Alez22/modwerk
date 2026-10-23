@@ -20,6 +20,10 @@ These are remaining tasks, not implemented behavior.
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or
    cancellation changes nothing. Use stock storage, no custom project format.
+   Isolated stock storage probes now confirm complete marker round-trips, but
+   also mutation before checksum/short-read failure. Those parsers are not
+   atomic transaction services. Stock sanitation can alter existing records;
+   preflight must refuse such changes before any live write.
 5. Implement verified short playback attack/release smoothing at the correct
    source boundary, through base events where shared. Test reverse, RATE/PTCH,
    timestretch, retriggers, slice locks, loops, arbitrary jumps, active voices,

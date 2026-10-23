@@ -102,16 +102,51 @@ The draft [base-service proposal](BASE_CONTRACT.md) makes the resulting
 preservation and lifetime requirements explicit. No registry or base code
 has been changed and no patch guard has been promoted from these observations.
 
+### Isolated storage execution
+
+Five additional probe groups execute the actual stock serializer/parser and
+sanitizer instructions, with file primitives replaced by synthetic memory IO.
+Source and private MAIN hashes are in `evidence/stock-storage.json`. Nothing
+is written to a real project, sample, card or instrument.
+
+- Project markers: writer `0x40089d84` and parser `0x40085ca4` round-trip all
+  264 synthetic slot records, preserving trim, all 64 complete slice records
+  (including inactive ones), count and unrelated settings bytes. The exercised
+  current stream has a 22-byte prefix, 264 × 784-byte records and a two-byte
+  checksum. Checksum coverage starts at byte 20. In-memory records have a
+  12-byte reserved gap before the count; copying 784 contiguous bytes from
+  trim would therefore be wrong. This is not a proposed custom serializer.
+- Failure paths: a bad project-marker header returns -51 without changing
+  the tested settings region. A bad checksum returns -54 and truncation after
+  the first slot returns -29, but both have already changed marker memory.
+  The writer's protection flag returns -53 before invoking the write mock.
+- Sample settings: writer `0x40089940` and parser `0x4008b8d0` round-trip the
+  complete marker region for Flex and Static through 832-byte synthetic
+  streams. Other slots remain identical. The track-refresh callee is mocked;
+  attributes, active voices and physical `.ot` persistence are not qualified.
+  A bad checksum again returns -54 after marker memory has been changed.
+- Sanitizer `0x40099374`: six Flex/Static fixtures with lengths 32, 64 and
+  1,000 frames demonstrate 12-byte slice stride, a minimum region of
+  `min(length, 64)`, clamping of starts/ends/loops, preservation of disabled
+  slice loops and no changes to inactive records or other slots. Repeating
+  sanitation is idempotent in these fixtures. Tempo/name/track-update callees
+  are mocked; recorder special cases and live concurrency remain untested.
+
+These results exclude two unsafe integration shortcuts: using a stock parser
+as an atomic transaction, and running stock sanitation speculatively on live
+records. Preflight must reject an edit that would normalize an existing
+record. Whole editor flows, working/saved-copy selection, Undo, native file
+failure recovery and physical reboot remain unproved.
+
 Relevant upstream research (reported evidence, not newly observed hardware):
 
 - `docs/firmware/STORAGE.md` section 4 describes complete marker records,
-  working/saved copies, stock sanitation and a minimum 64-frame region. Its
-  earlier summary and later parser description disagree on the header
-  boundary (16 versus 22 bytes); its sanitizer note's 20-byte slice stride
-  also differs from the 12-byte editor stride measured above. Resolve the
-  exact path against execution before
-  implementing any adapter. Do not create a `.ot` or project writer from a
-  guessed layout.
+  working/saved copies and stock sanitation. Its 16-byte header summary and
+  20-byte sanitizer stride differ from the current stream and 12-byte stride
+  executed above. The older compatibility branch is not exercised by these
+  probes. Keep the preserved upstream file exact; do not build an adapter or
+  a custom `.ot`/project writer from either an untested layout or these narrow
+  isolated fixtures.
 - `docs/firmware/REPITCH.md` distinguishes the sample's ATTR tempo from the
   latched project tempo and explains forward/reverse renderer paths.
   Revalidate the chosen value at Apply; the other source must not silently

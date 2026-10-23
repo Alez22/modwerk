@@ -93,6 +93,9 @@ ordinals as well as their records may require refusing some merged grids;
 that policy is proposed for review, not implemented.
 
 Native cycles, device memory, actual audio and hardware are unmeasured.
+Five additional stock storage probe groups pass with synthetic memory IO,
+including complete marker round-trips and failures that change memory before
+returning an error. They do not qualify real stock save/reload or Undo.
 The `planner_job` prototype makes preview resumable: it requests one PCM
 frame at a time, can wait without blocking, rejects stale read replies within
 a job and can be cancelled without exposing a partial plan. It copies input

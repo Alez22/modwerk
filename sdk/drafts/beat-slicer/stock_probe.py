@@ -23,20 +23,24 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--kind', choices=('editor', 'storage'), default='editor')
     args = parser.parse_args()
+    source = ROOT / 'stock_probe' / ('storage_probe.cpp' if args.kind == 'storage' else 'probe.cpp')
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
         parser.error('Use a new report path; preserve previous evidence.')
     result = subprocess.run([str(args.executable.resolve()), str(args.main.resolve())],
-                            text=True, capture_output=True)
-    if 'SOURCE_SHA256: ' + digest(ROOT / 'stock_probe/probe.cpp') not in result.stdout.splitlines():
+                            text=True, capture_output=True, timeout=120)
+    if 'SOURCE_SHA256: ' + digest(source) not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
-        'scope': 'isolated stock CPU routines with explicit UI/task mocks; no device access',
+        'scope': ('isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
+                  if args.kind == 'storage' else
+                  'isolated stock CPU routines with explicit UI/task mocks; no device access'),
         'mainSha256': STOCK_MAIN_SHA256,
         'sourceSha256': {str(p.relative_to(ROOT)): digest(p) for p in
-                         (ROOT / 'stock_probe.py', ROOT / 'stock_probe/probe.cpp',
+                         (ROOT / 'stock_probe.py', source,
                           ROOT / 'stock_probe/CMakeLists.txt')},
         'executableSha256': digest(args.executable),
         'exitCode': result.returncode, 'stdout': result.stdout.splitlines(),

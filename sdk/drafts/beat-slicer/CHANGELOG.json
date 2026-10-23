@@ -7,6 +7,7 @@
       "Add 2,000 independent rational-grid/marker cases, 200 exhaustive stereo-search cases and threshold/refusal checks, plus reproducible native and read-only stock-reference probes.",
       "Development evidence: execute the compiled planner on 164 synthetic CPU-emulator vectors and six isolated stock editor probes. Document complete-record sorting, slice renumbering and retained menu-pointer lifetime in an unimplemented shared-base contract; no hardware or persistence qualification is implied.",
       "Add a resumable preview prototype that requests PCM without blocking callbacks, snapshots request metadata, rejects out-of-order read replies and cancels without publishing partial results. Native sample identity, streaming and scheduler integration remain pending; this does not enable Apply.",
+      "Add isolated stock storage probes using synthetic memory IO. Establish complete marker round-trips, late checksum/short-read failures that already changed destination memory, and Flex/Static sanitization that can alter retained records. These findings tighten the proposed transaction contract; no physical save/reload or audio behavior is qualified.",
       "Native planner only: no editor adapter, verified transaction ABI, playback smoothing, installable package or click-free playback claim. Stock preservation, USB lifecycle and physical MKII qualification remain pending."
     ]
   },

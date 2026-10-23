@@ -22,6 +22,14 @@ working/saved-copy behavior before enabling Apply. Bind preview to sample,
 content, markers, trim and chosen tempo; a stale or cancelled preview must not
 write. Quiet marker boundaries are not evidence of click-free playback.
 
+Test error paths before treating a stock loader as a transaction: a checksum
+or short-read error can be returned after destination records have changed.
+Likewise, a stock sanitizer may move old markers to satisfy its minimum-length
+rules. Establish the exact behavior with synthetic fixtures; reject a proposed
+edit that would alter preserved records rather than silently sanitizing them.
+See the Beat Slicer draft's [storage probes](../../sdk/drafts/beat-slicer/TESTING.md#isolated-stock-storage-probes);
+these are emulator observations, not physical save/reload qualification.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming
