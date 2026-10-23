@@ -2,8 +2,9 @@
 
 Current draft: 0.1.4-experimental. Local checks: 23 October 2026.
 The prior 0.1.3 evidence source is `105f96022b23f05eb7e1af160eab8d2e9c5317e1`.
-The 0.1.4 writer report binds its source files directly; its commit pin is
-recorded in the manifest after committing the tested source.
+The 0.1.4 writer report binds its source files directly and the manifest pins
+the tested source commit `8c6d64e9832de11fd39490c9609d838c57aece4a`.
+Only this provenance note and the manifest evidence pin follow that commit.
 Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
 Current development includes upstream main d8059069.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes
