@@ -1,5 +1,12 @@
 # Verification record
 
+## Analog Rytm MKII core build preview — 22 October 2026
+
+The Rytm's page gets the Digitakt II's local core build preview: its configuration page reads the owner's stock OS, then checks and builds core-ar2 0.3 alone with the vendored kit 0.7.0. Downloads stay off (`DIGI_DOWNLOADS_ENABLED`), the machine stays in research and no Rytm module is in the library (the submissions stay in `_submissions`). The core is pinned in its own record, `sdk/imports/elekloader-core-ar2-v0.3.json`, from irpina's [core-ar2-v0.3](https://github.com/irpina/elekloader/releases/tag/core-ar2-v0.3) pre-release (`core-ar2-0.3.elemod`, sha256 `6b97dfb3…3e58`, as kit 0.7.0's web catalog pins it), fetched with `npm run elekloader:update -- --overlay`.
+- **Wiring:** the kit device key `analog-rytm-mk2` maps to `analog-rytm-mkii` in the updater's `DEVICES`, `MACHINE_DEVICE` and the builder's machine types; the Digitakt II's preview checks become `isCoreBuildPreview` for both machines. Preview builds stay out of usage and download counts. The Digi recovery FAQ answer adds the Rytm's startup-menu route (FUNC at power-on, OS UPGRADE, MIDI DIN only).
+- **Checks (Node 24.21, Linux):** `npm run pr:ready`; the builder plans core-ar2 0.3 for OS 1.74 and no core for 1.73; the page renders in Chromium (dev server) with the core build preview, core 0.3 and its 7.4 KiB of 128 KiB.
+- **Not tested:** a browser build from a stock OS file (none here). The kit's linker and Modwerk's link core-ar2 0.3 alone on the owner's stock 1.74 byte for byte (#801's parity run). OS 1.73 is still listed as a stock release; its build stops at the missing core.
+
 ## Card firmware: PURGE SAMPLES froze the unit (#707) — 22 October 2026
 
 Every card build moved the arena base literal at all 23 of its uses; the 23rd (`cmpa.l #0x40a955e0,%a2` at `0x400254f8`) ends PURGE SAMPLES' walk over the 16 banks, so the walk ran off the end of RAM. Upstream octabam a49a38de (#753) ported into the vendored `arena.py`.

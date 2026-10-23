@@ -59,7 +59,7 @@ import { useBaseInstallPrompt } from './hooks/useBaseInstallPrompt'
 import { OctatrackLinkContext, useInventory, useMissing } from './hooks/useOctatrackLink'
 import { recordLoad } from './hooks/useOctatrackLoad'
 import { pendingBaseInstall } from './config/octatrack-progress'
-import { digiDownloadsEnabled } from './engine/elekloader/protocol'
+import { digiDownloadsEnabled, isCoreBuildPreview } from './engine/elekloader/protocol'
 import { USB_AUDIO_MODULE, usbAudioLayout, type UsbAudioConfiguration } from './config/usb-audio'
 import { downloadSelection, parseSelection } from './config/selection'
 import { Icon } from './components/Icon'
@@ -211,7 +211,7 @@ export default function App() {
   const allMachines = allRoute || overviewRoute || (!machineView && !octatrackRoute && remembered === ALL_MACHINES)
   const currentDevice = DEVICES_BY_ID[machineView ? machineRoute!.device.id : octatrackRoute ? 'octatrack' : remembered && remembered !== ALL_MACHINES ? remembered : 'octatrack']
   const machineHasMods = !allMachines && (currentDevice.status === 'available' || currentDevice.status === 'preview')
-  const machineBuildPreview = !allMachines && currentDevice.id === 'digitakt-ii' && currentDevice.status === 'research' && !!currentDevice.sdk
+  const machineBuildPreview = !allMachines && isCoreBuildPreview(currentDevice.id) && currentDevice.status === 'research' && !!currentDevice.sdk
   const machineCanConfigure = machineHasMods || machineBuildPreview
   // The overview shows All machines too, so the forum and other machine-less pages after it don't fall back to an older machine.
   useEffect(() => { if (allRoute || overviewRoute) rememberDevice(ALL_MACHINES); else if (machineView || octatrackRoute) rememberDevice(currentDevice.id) }, [allRoute, overviewRoute, machineView, octatrackRoute, currentDevice.id])
