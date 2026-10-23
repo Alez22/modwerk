@@ -37,6 +37,7 @@ static uint32_t chip_cycles(const struct runtime_dsp *d) { return charged(d->cyc
 #define SOURCE_ENGINES 8u
 uint32_t dl_slot_cycles(unsigned slot); /* manager.c (build_core.py): a slot's committed or pending charge */
 static uint32_t source_voice[8], source_owner[8];
+static volatile uint8_t source_frozen; /* the self-test runs: no voice is charged anew until it ends (beta finding 63) */
 static struct { uint32_t module, cycles; } source_engine[2][SOURCE_ENGINES];
 static unsigned source_core(unsigned track) { return track < 4u ? 1u : 0u; } /* the allocator's core_of: tracks 1-4 on core 1 */
 static uint32_t slot_charge(unsigned core) /* each of the core's eight slots at least the stock reserve */
@@ -59,6 +60,8 @@ uint32_t modwerk_dsp_source_charge(unsigned core)
 int modwerk_dsp_source_claim(unsigned track, uint32_t module, uint32_t voice, uint32_t engine, uint8_t kind)
 {
     if (track >= 8u || !module || !kind || kind > RUNTIME_HARDWARE || voice > 0xffffu || engine > 0xffffu) return RUNTIME_MALFORMED;
+    /* Its emptied cores would let a voice in that leaves the Part's own effects no room to come back: wait for its end. */
+    if (source_frozen && source_owner[track] != module) return RUNTIME_BUSY;
     unsigned c = source_core(track), at = SOURCE_ENGINES;
     for (unsigned e = 0; e < SOURCE_ENGINES; ++e) if (source_engine[c][e].module == module) at = e; /* its engine */
     for (unsigned e = 0; at == SOURCE_ENGINES && e < SOURCE_ENGINES; ++e) if (!source_engine[c][e].module) at = e;
@@ -464,6 +467,13 @@ fx_set modwerk_dsp_used(void)
     for (unsigned part = 0; bank && part < 8; ++part)
         for (unsigned i = 0; i < 16; ++i) used = fx_with(used, PART(bank, part)[i]);
     return fx_and(used, modwerk_fx_modules);
+}
+/* The same for one FX id, stock or module: an engine's controller is used while this holds (controller_board.c). */
+int modwerk_dsp_bank_names(unsigned id)
+{
+    uintptr_t bank = BANK; int named = in_use(id);
+    for (unsigned k = 0; bank && !named && k < 8u * 16u; ++k) named = PART(bank, k >> 4)[k & 15u] == id;
+    return named;
 }
 
 /* MODULE LOAD (status.c): each installed module effect, by handle: its name, an instance's chip cycles a sample
@@ -948,7 +958,7 @@ static void finish(void)
     t->gap = dl_frame_gap;
     if (dl_frame_gap > SELFTEST_FRAME_LIMIT) t->failed |= SELFTEST_LATE;
     if (modwerk_controller_keybus_lost()) t->failed |= SELFTEST_FEATURE;
-    t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED;
+    t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED, source_frozen = 0;
 }
 /* Playing: the live set and the lanes as the Part has them now, then the checks. */
 static void started(volatile struct selftest *t)
@@ -978,7 +988,7 @@ int modwerk_selftest_start(void)
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
     st_counted = counted(), st_ticks = st_step = st_back = 0, st_played = 0;
     modwerk_status_fast = 1;
-    t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING; /* the tick presses PLAY */
+    t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING, source_frozen = 1; /* the tick presses PLAY */
     return 1;
 }
 void modwerk_selftest_abort(void)

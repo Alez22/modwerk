@@ -250,8 +250,14 @@ int main(void)
     bank[0x9504a + 1 * 6322 + 0] = 27;                  /* Part 2's saved copy, FX1 on T1 */
     bank[0x8ed80 + 5] = 21;                             /* SPRING REV: stock, not a module */
     CHECK(modwerk_dsp_used().w[0] == (1u << 26 | 1u << 27));
+    /* One id, stock or module: what an engine's use reads (stock COMPRESSOR, 24, for Sidechain). */
+    CHECK(modwerk_dsp_bank_names(21) && modwerk_dsp_bank_names(26) && modwerk_dsp_bank_names(27) && !modwerk_dsp_bank_names(24));
+    bank[0x9504a + 2 * 6322 + 15] = 24;                 /* Part 3's saved copy, FX2 on T8 */
+    CHECK(modwerk_dsp_bank_names(24));
+    bank[0x9504a + 2 * 6322 + 15] = 0;
     modwerk_test_live_fx[2] = 4; bank[0x8ed80 + 3 * 6322 + 9] = 0;
     CHECK(modwerk_dsp_used().w[0] == 1u << 27);
+    CHECK(!modwerk_dsp_bank_names(26) && !modwerk_dsp_bank_names(24));
     /* What runs dry: an uninstalled module's effect only; a stock effect loads its package. */
     modwerk_test_live_fx[3] = 27; modwerk_test_live_fx[9] = 21;
     CHECK(modwerk_dsp_dry().w[0] == 1u << 27);

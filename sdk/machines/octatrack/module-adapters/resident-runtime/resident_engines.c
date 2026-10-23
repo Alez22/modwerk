@@ -44,6 +44,7 @@ static uint32_t packaged_generation[MW_ENGINE_FEATURES];
 static uint8_t closed[2];
 static unsigned wanted_now; /* mw_engines_want */
 void mw_engines_want(unsigned features) { wanted_now = features; }
+int mw_engines_settled(void) { return QUIET() && SETTLED(); }
 
 typedef char mw_engine_features_are_the_ledgers[MW_ENGINE_FEATURES == MW_DSP_COUNT ? 1 : -1]; /* dsp_ledger.h */
 static unsigned index_of(unsigned feature) { return MW_DSP_INDEX(feature); }
