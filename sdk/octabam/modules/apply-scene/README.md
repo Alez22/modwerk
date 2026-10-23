@@ -16,6 +16,11 @@ Scenes on the Octatrack lock target values. The crossfader blends side A's value
 
 - **On trigs** (grid recording: hold trigs, then SCENE A, SCENE B or both): the same values become p-locks on the held steps of the active track instead of Part values.
 
+The rule for both gestures:
+
+- **One scene key** writes that scene's locks, whatever the crossfader position and whether or not the scene is muted. A scene works as a set of values you can stamp onto the Part or onto trigs.
+- **Both scene keys** write what you hear right now: the crossfader's blend, with a muted scene counting as unlocked, as stock's morph plays it.
+
 From there you keep working as usual: turn knobs, make new scenes, morph again.
 
 The scenes, the scene selection, the scene mutes, the crossfader and the saved Part are not touched. RELOAD PART therefore brings back the Part as it was last saved.
