@@ -29,6 +29,15 @@ NO at the grid alignment question accepts an unaligned grid. Keep stock slice
 clearing available; clearing removes slices rather than restoring the old grid.
 Verify the exact prompts and saved-settings behavior separately on hardware.
 
+Distinguish sample-settings save/revert from project save/load. Beat Slicer's
+stock 1.40C emulator fixture keeps different Flex/Static layouts for the same
+file. Check complete on-card tables separately from active metadata after
+reload: the observed load normalizes a deleted inactive row even though both
+project marker files stored it exactly. Wait for stock's final save completion
+before flushing; a flush only persists writes already performed. Fresh emulator
+processes do not establish physical reboot or module persistence. See the
+[stock persistence probe](../../sdk/drafts/beat-slicer/BOOT_OBSERVATION.md#stock-sample-settings-versus-project-storage).
+
 Test error paths before treating a stock loader as a transaction: a checksum
 or short-read error can be returned after destination records have changed.
 Likewise, a stock sanitizer may move old markers to satisfy its minimum-length

@@ -32,8 +32,12 @@ These are remaining tasks, not implemented behavior.
    fixtures. The binding/ownership/metadata remain synthetic; no live reader
    service, writer coverage or cache/lock boundary is installed.
    The full compiled Flex preview/candidate chain now passes against stock page
-   lookup and gain with a synthetic provider. Real identity/tempo/rate getters,
-   native scheduling and ownership remain separate integration work.
+   lookup and gain with a synthetic provider. `flex_metadata.c` now decodes the
+   observed control/settings layout through bounded supplied regions, checks
+   editor selection and preserves complete records and independent BPM values.
+   Its tests connect the decoder to previews/candidates with synthetic ownership.
+   Exact live binding, identity/tempo-source qualification, native scheduling
+   and ownership remain separate integration work.
    The stock-page-to-host-reader pipeline passes eight synthetic previews.
    Coherence probes show that stock rotation/polarity edits leave the slot's
    counter unchanged, with a sticky dirty flag. A base-owned revision must
@@ -89,11 +93,16 @@ These are remaining tasks, not implemented behavior.
    also mutation before checksum/short-read failure. Those parsers are not
    atomic transaction services. Stock sanitation can alter existing records;
    preflight must refuse such changes before any live write.
+   The normal stock persistence probe separately checks `.OT` save/revert and
+   project `markers.work`/`markers.strd`, with independent Flex/Static layouts
+   for the same file. Compare exact serialized records separately from active
+   metadata after reload: stock can normalize an inactive deleted row. A fresh
+   emulator process is not physical reboot or installed-module evidence.
    `marker_edit.c` now prepares complete before/after tables under a conservative
    preserve-ordinals policy, retains inactive rows and refuses incompatible plans
    without output mutation. Its full-table comparisons are tested on host/target;
    accepted synthetic candidates also survive stock sort/sanitation. These are
-   preparation/history primitives, not native Apply/Undo or qualified playback.
+   preparation/rollback primitives, not native publication or qualified playback.
    `edit_candidate.c` now binds preparation to an exact portable preview and
    unique ID, revalidating source and complete active/inactive table under the
    supplied lock. A returned candidate still grants no native write permission.
@@ -139,7 +148,7 @@ untouched. Keep firmware private and never expose the device socket publicly.
 See [RESEARCH.md](RESEARCH.md) for the local source/stock investigation and
 the unimplemented base transaction and playback contracts. The concrete
 [base-service proposal](BASE_CONTRACT.md) specifies menu lifetime, complete
-record/ordinal preservation, job cancellation and atomic Apply/Undo requirements.
+record/ordinal preservation, job cancellation and atomic commit/rollback requirements.
 
 Draft release notes live in CHANGELOG.json. Move them to
 `src/community/module-changelogs/beat-slicer.json` in the same change that

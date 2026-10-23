@@ -1,12 +1,18 @@
 # Beat Slicer testing
 
-Current draft: 0.1.4-experimental. Local checks: 23 October 2026.
-The prior 0.1.3 evidence source is `105f96022b23f05eb7e1af160eab8d2e9c5317e1`.
-The 0.1.4 writer report binds its source files directly and the manifest pins
-the tested source commit `8c6d64e9832de11fd39490c9609d838c57aece4a`.
-Only this provenance note and the manifest evidence pin follow that commit.
+Current draft: 0.1.19-experimental. Development checks: 23–24 October 2026 (Taipei).
+The chronological records below retain their own versions and source bindings;
+older results do not qualify newer source or an installed module.
+See the latest [Flex metadata results](#bounded-flex-metadata-0119) and the
+[stock-style commit results](#stock-style-commit-and-clearing-0118).
+
+Historical 0.1.4 record: the prior 0.1.3 evidence source was
+`105f96022b23f05eb7e1af160eab8d2e9c5317e1`. The 0.1.4 writer report binds its
+source files directly and its manifest pin was
+`8c6d64e9832de11fd39490c9609d838c57aece4a`; its provenance follow-up changed
+only this note and the evidence pin.
 Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
-Current development includes upstream main d8059069.
+That development checkout included upstream main d8059069.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes
 describe the imported source, not the subsequently repaired planner.
 
@@ -1268,3 +1274,69 @@ is qualified by these tests. Raw logs, memory and images remain private.
 The six 0.1.18 receipts (`commit18-host/native`, `commit18-stock-host/native`,
 `stock-clearing` and `boot-slices`) bind source commit `36101a8a5da74f6101f9a5dcedcdc441a66e172d`.
 Historical source pins remain unchanged; `audit_evidence.py` verifies the inventory.
+
+## Bounded Flex metadata (0.1.19)
+
+`test_flex_metadata.py` passes host ASan/UBSan. `metadata_native.py` executes
+the same selftest as compiled ColdFire code with the pinned stock-free CPU
+runner, preserving callee-saved registers. This is original decoder code
+against synthetic bindings, identities, locks and PCM, not an installed
+native provider. The existing actual-stock observations establish the layout
+under investigation; no guessed live address is introduced by this component.
+
+- 1,536 captures cover all 128 Flex slots, all four loaded formats and counts
+  0/1/64. Both snapshot and full-table APIs retain complete records, including
+  inactive values, while leaving source settings/controls unchanged.
+- 39 malformed-binding/source cases refuse both APIs without changing output;
+  null outputs are also refused. Cases include missing lifetimes, wrong editor
+  kind/slot, truncated or unaligned regions, address wrap, unavailable/busy
+  sources, unsupported format, invalid extent/trim and count overflow.
+- 40 preview integration cases exercise both tempo choices, selected-tempo
+  changes, missing unselected tempo, trim/loop/record changes, source format and
+  extent changes, lifetime changes, clearing and unavailable sources. The
+  unselected-tempo case stays usable without falling back to another value.
+- Two prepared-candidate cases change an inactive row. The active preview still
+  matches, but complete-table candidate validation refuses publication and
+  leaves its output unchanged. This protects internal preservation/rollback;
+  it adds no user Undo action.
+
+The metadata object contains 940 text bytes and no data/BSS. Compiler local
+stack reports are 28 bytes for validation, 36 for snapshot capture and 16 for
+complete-table capture, excluding callees and the caller's context. The shared
+code-generation guard and freestanding link pass with no unresolved helpers.
+These are compilation/execution measurements, not hardware cycles, actual RAM
+placement or whole-call-chain stack qualification.
+
+For native reproduction, use the existing private mounts/image and machine-wide
+lock, then run `metadata_native.py --output <fresh-private-directory>
+--executable <built-beat_slicer_job_probe>`. Host reproduction is
+`python3 -B sdk/drafts/beat-slicer/test_flex_metadata.py`.
+Exact live bindings, native lifetime/generation tracking, complete writer
+coverage, project-tempo behavior with pattern tempo/external clock, ownership,
+Static reading, playback, USB packages and physical qualification remain open.
+
+## Normal stock persistence (0.1.19 research)
+
+The final `boot_persistence.py` run passes across three fresh stock emulator
+processes on a newly copied disposable card with explicit private-write opt-in.
+SAVE SAMPLE SETTINGS adds only the expected 832-byte `.OT` file; all 53 prior
+files and the original WAV remain exact. The next project load restores its
+four-slice layout. Cancelled file revert changes nothing, confirmed revert
+restores the three-slice sample layout, and loading that file into Static
+leaves a separately cleared Flex slot unchanged.
+
+The project save reaches its actual marker writer, successful close and final
+successful UI callback before the card flush. Six files change, all inside the
+disposable project. Both `markers.work` and `markers.strd` contain the exact
+complete 64-record tables, trim and counts with valid extents/checksums. The
+third process restores zero Flex slices and three Static slices, preserving
+active start/end/loop records, trim and sample BPM. In each slot the observed
+load changes one inactive deleted-row field and one field outside the serialized
+table; the runner allows only those exact changes. Complete Flex PCM matches
+the original at each sampled stage, and the original source card stays exact.
+
+The initial timeout and the subsequent overbroad full-settings oracle failure
+are described in BOOT_OBSERVATION.md and excluded from passing evidence. The
+accepted run checks final save completion and distinguishes exact file contents
+from inactive-row normalization. No physical reboot, installed Beat Slicer,
+Static streaming or audio behavior is qualified.

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.18-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.19-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -112,6 +112,12 @@ playback policy and quarantine remain synthetic callbacks; native Apply is disab
 Its explicit Undo API is retained research, not the planned player workflow;
 the native adapter must not expose it as an additional slicing action.
 
+The [Flex metadata component](FLEX_METADATA.md) now decodes bounded settings
+and control regions into preview snapshots and complete marker tables. It
+checks source selection, readiness and format, preserves inactive records and
+keeps sample/project tempo independent. Its native bindings and lifetime/lock
+provider remain unimplemented; this does not enable live preview access.
+
 Normal stock Flex/Static menu tests now cover alignment choices, backing out,
 confirmed/cancelled individual and all-slice deletion, and clearing an empty
 table. Those emulator tests verify the workflow to match, not a Beat Grid UI.
@@ -131,8 +137,9 @@ routine probes cover menu lifetime and complete slice record sorting; UI
 callees are mocked, so this is not whole-editor qualification.
 See [RESEARCH.md](RESEARCH.md) and the proposed [base contract](BASE_CONTRACT.md)
 for shared-event, preservation and smoothing work. Preserving old slice
-ordinals as well as their records may require refusing some merged grids;
-that policy is proposed for review, not implemented.
+ordinals as well as their records can require refusing some merged grids.
+The portable preflight implements that conservative policy; native admission
+and owner review of the restriction remain pending.
 
 Native cycles, device memory, actual audio and hardware are unmeasured.
 Five additional stock storage probe groups pass with synthetic memory IO,

@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.19-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Development draft: decode bounded Flex metadata into previews and complete marker tables; check source selection, readiness and format without altering settings.",
+      "Keep sample and project BPM independent; preserve inactive records for commit validation and internal failure rollback.",
+      "Development tests cover all Flex slots/formats and preview invalidation, including changed inactive records; live ownership remains unimplemented.",
+      "Documentation: record stock sample/project persistence and exact test sources; stock reload can normalize a deleted inactive slice record.",
+      "Known issue: not installable; live bindings, source ownership, atomic publication, playback, USB and physical qualification remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.18-experimental",
     "date": "2026-10-23",
     "changes": [

@@ -275,8 +275,9 @@ save sample settings or demonstrate Undo. UI callees are mocked explicitly.
 
 Still required: full editor traces through the actual panel path; all incoming
 branches and overwritten instructions for a candidate base site; callback
-register/stack contracts; PCM cache/streaming lifetime; native save/reload and
-Undo behavior; working/saved-copy publication; generation coverage; resource
+register/stack contracts; PCM cache/streaming lifetime; native commit, internal
+failure rollback and stock clear/save/reload behavior; working/saved-copy
+publication; generation coverage; resource
 and compatibility review; removal and missing-module handling. Only then can
 the reviewed registry, loader, browser builder and module adapter be changed.
 

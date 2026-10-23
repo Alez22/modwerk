@@ -79,11 +79,11 @@ class Port:
                 self.pending += chunk
         raise RuntimeError('Emulator command timed out; no successful observation recorded.')
 
-    def command(self, text, prefixes=b'ok'):
+    def command(self, text, prefixes=b'ok', timeout=60):
         self.log.write(('> ' + text + '\n').encode('ascii'))
         self.process.stdin.write((text + '\n').encode('ascii'))
         self.process.stdin.flush()
-        return self.reply(prefixes)
+        return self.reply(prefixes, timeout=timeout)
 
     def peek(self, address, size):
         if size < 1 or size > 4096:

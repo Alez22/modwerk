@@ -24,6 +24,49 @@ Run with the same private mounts and arguments as `boot_static.py`, substituting
 checks actual menu labels/callback identities before each choice and exports
 only hashes, counts and outcomes; raw memory/logs remain private.
 
+## Stock sample settings versus project storage
+
+`boot_persistence.py` uses only normal stock panel actions across three fresh
+1.40C MKII emulator processes. It requires `--allow-private-card-writes`, copies
+the original fixture to a new private directory, and enables write-back only
+on that copy. No custom serializer, injected code or direct firmware call
+writes the card. Use the `boot_slices.py` arguments plus the pinned `--card-tool`,
+`--card-tool-sha256` and the explicit private-write opt-in.
+
+The sequence distinguishes these stock operations:
+
+1. Delete one of four Flex slices, then SAVE SAMPLE SETTINGS. The test requires
+   an 832-byte `.OT` file to be the only added/changed file; the original WAV
+   and all 53 original project files must remain exact.
+2. Reload the project in a fresh process. Its saved four-slice layout takes
+   precedence over the three-slice `.OT` layout. Clear the current slices,
+   cancel REVERT TO SAVED FILE once, then confirm it. Cancellation must preserve
+   settings; confirmation must restore the complete saved sample metadata.
+3. Clear Flex again and load the same WAV into Static through the browser.
+   Static loads three slices while Flex stays cleared. Save the project,
+   observe the marker writer, file close and successful final UI callback,
+   then flush the completed writes. A flush alone is not save completion.
+4. Check both `markers.work` and `markers.strd`: complete trim, all 64 records
+   and count must exactly match the current slots, with valid extents/checksums.
+   Reload again and require the distinct active layouts, trim and sample tempo
+   to survive. Full Flex PCM must match the original at every sampled stage.
+
+Stock reload is not a byte-for-byte restoration of all settings memory. In
+this fixture it normalizes the deleted inactive fourth row's end to its
+sentinel start, and clears one field outside the serialized marker table.
+The final test permits only those specific observed changes, records their
+counts separately, and still requires exact active records. Internal failed
+commit rollback must retain all in-memory rows; this stock reload behavior
+does not relax that requirement or introduce user Undo history.
+
+The first attempt timed out while stock still displayed SAVING PROJECT. The
+next reached a fresh load but rejected its overly broad full-settings equality
+oracle. Inspection confirmed exact on-card tables and the inactive/unserialized
+changes above. Those attempts are not passing evidence. The final runner waits
+in bounded steps for stock completion and distinguishes disk serialization from
+reload normalization. This remains stock-emulator evidence, not Beat Slicer
+installation, physical reboot, audible output or Static streaming qualification.
+
 ## Project and PCM baseline
 
 `boot_observe.py` connects an actual stock project/file load in the pinned
@@ -78,7 +121,7 @@ and the copied card remain private in the output directory. The source sample
 rate comes from the verified WAV and matching loaded frame extent, not a new
 native rate getter. Other rates/encodings, replacement failure, Static streaming,
 concurrent writers, physical audio/save/reboot behavior and Beat Slicer's
-Apply/Undo and USB lifecycle remain unqualified.
+commit/rollback and USB lifecycle remain unqualified.
 
 The initial exploratory session also attempted borrowed stock lookup calls.
 The emulator refused them before execution because its main task was not in
