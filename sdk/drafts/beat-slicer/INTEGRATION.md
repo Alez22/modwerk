@@ -10,15 +10,19 @@ These are remaining tasks, not implemented behavior.
    site, whole-instruction length and guard hash, in a separate owner-reviewed
    SDK change. The module subscribes, never patches a shared site itself.
    `editor_menu.c` now composes copied stock/contributed labels and owner-checked
-   dispatch with explicit retirement. Native locking, package admission, rendered
-   menus, event assignment and actual detachment/removal remain absent.
+   dispatch with explicit retirement. Private full-boot fixtures now render and
+   select an appended action in both stock menu variants and exercise read-only
+   controls. Native locking, package admission, event assignment and actual
+   detachment/removal remain absent; test storage stays pinned for the boot.
 3. Compile planner.c with the pinned ColdFire toolchain and a real adapter.
    The standalone planner now links and executes 164 synthetic CPU-emulator
    vectors; the real adapter is still absent.
    Read PCM through bounded background work, not the audio interrupt. Explicitly
    support Flex/Static, mono/stereo and sample encodings; refuse unsupported data.
    `planner_job.c` supplies a portable resumable scan prototype with no reader
-   callbacks; native scheduling and content pinning remain absent.
+   callbacks. The private engine-service fixture now advances bounded work from
+   stock idle events with a coalesced wake; production scheduling and content
+   pinning remain absent.
    The traced pool lookup is Flex/recorder-specific and does not decode PCM.
    Validate its preconditions before use; establish Static access separately.
    Stage bounded bytes and prove decoder read extents before using a native

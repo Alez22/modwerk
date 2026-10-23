@@ -172,6 +172,15 @@ pre-entry refusal; never replay a call after an uncertain timeout or CPU stop.
 Do not force PC/registers to manufacture that boundary. Keep such driver behavior
 bound to the tested emulator source and separate from native service scheduling.
 
+Use the base-owned engine boundaries for background work, retiring the previous
+writer before a reader runs. An idle callback may need an explicit queue wake;
+do not assume it runs periodically. Coalesce wakes using stable base-owned
+identity, not an opcode exemption that would admit unrelated commands. A pending
+reader must wait for readiness or cancellation instead of immediately waking
+itself forever. Beat Slicer's private 1.40C engine fixture exercises this with
+at most eight transitions per event; that is not a physical-time budget or
+qualification of the production USB/module-set service chain.
+
 Keep loader ownership and sample ownership separate. The current
 [`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader
 stability while deliberately allowing real-time interrupts. It is not, by
@@ -182,6 +191,10 @@ Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming
 module memory; a callback that is not currently running can still be retained.
+An appended action must also leave the native remembered selection valid for a
+later stock-only menu. Test both selected-slice and unsliced variants and prepare
+their marker state explicitly. A closed window may be used to cancel a preview,
+but is not evidence that retained table pointers can be reclaimed.
 
 ## Integrate
 

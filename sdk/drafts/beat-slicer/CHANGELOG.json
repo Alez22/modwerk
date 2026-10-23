@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.24-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Add a private native BEAT GRID contribution that preserves stock SLICE rows and their remembered selection; reject cancelled and stale-owner actions.",
+      "Exercise read-only SAMPLE/PROJECT, five spacings and SMOOTH/EXACT controls through stock menus, with result counts and fade warnings.",
+      "Cancel previews on option changes, dismissal or owner retirement; revalidate completed results and preserve PCM and settings.",
+      "Adapt source exclusion to base-owned engine boundaries and prototype bounded preview scheduling with coalesced wakes; stock slice edits still invalidate old previews.",
+      "Known issue: pinned test storage and synthetic ownership only; production scheduling, native removal, Apply, playback, USB and hardware remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.23-experimental",
     "date": "2026-10-24",
     "changes": [

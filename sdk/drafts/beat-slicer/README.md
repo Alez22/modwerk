@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.23-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.24-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -17,7 +17,8 @@ automatically rewrite slices.
 
 ## Controls
 
-Proposed dialog, not implemented on the instrument:
+Planned controls; a private emulator fixture now exercises the read-only dialog.
+They are not installed on the instrument:
 
 | Control | Values and behavior |
 | --- | --- |
@@ -47,7 +48,8 @@ MKI operation is a future qualification target.
 
 Proposed access: Flex/Static audio track → AED → AMP (SLICE) → YES →
 BEAT GRID. The stock AED → AMP → YES path is observed in the pinned 1.40C
-emulator; Beat Grid integration and physical operation remain unverified.
+emulator. The [private native UI fixture](NATIVE_UI.md) now adds BEAT GRID
+and read-only previews there; released integration and physical operation remain unverified.
 No stock gesture or screen is claimed by this draft.
 
 ## Quick tutorial
@@ -65,8 +67,9 @@ Planned acceptance workflow, unavailable until native integration:
 
 ## Compatibility and limitations
 
-No native hooks, guessed patch addresses, base changes, runtime subscriptions
-or installable packages are included. Compatibility is unproved. See
+No production hooks, base changes, runtime subscriptions or installable
+packages are included. Private fixtures bind observed stock sites to the exact
+stock hash; those addresses are not an exported ABI. Compatibility is unproved. See
 [INTEGRATION.md](INTEGRATION.md).
 
 Installing the eventual module must do nothing until Apply. Preserve source
@@ -90,7 +93,9 @@ old previews and refuses new ones during tracked edits, including nested edits.
 Production instrumentation and serialized live memory access remain unimplemented.
 The [whole-command observer](WORKER_BOUNDARY.md) now runs as compiled ColdFire
 in private stock-worker fixtures, retaining exclusion through optional completion
-and retiring it before the next queue wait. It is not an admitted source service.
+and retiring it before the next queue wait. The [engine service experiment](ENGINE_SERVICE.md)
+adapts this to the base-owned idle/job hooks and queued bounded preview work.
+Neither is an admitted production source service.
 The recorder investigation adds 20 synthetic calls covering stereo page crossings,
 lazy shared-pool allocation and early exits. Recorder position/map publication can
 precede PCM without an edit-queue, dirty-flag or counter signal; a live provider
@@ -101,7 +106,7 @@ snapshots and the staged reader through a serialized backend interface. It handl
 waiting, cancellation and stale results on host and compiled ColdFire. Private
 planning and decoding run outside the source lock; a copy reacquires ownership
 and revalidates before touching PCM. The actual
-stock callbacks and synchronization are still missing. Failed-load probes also
+live source ownership and native synchronization are still missing. Failed-load probes also
 confirm that replacement errors can already have released the old sample.
 
 The [marker candidate preflight](MARKER_EDIT.md) now preserves complete existing
@@ -125,7 +130,10 @@ provider remain unimplemented; this does not enable live preview access.
 
 Normal stock Flex/Static menu tests now cover alignment choices, backing out,
 confirmed/cancelled individual and all-slice deletion, and clearing an empty
-table. Those emulator tests verify the workflow to match, not a Beat Grid UI.
+table. Separate compiled previews now expire across those stock operations.
+The [native UI fixture](NATIVE_UI.md) contributes BEAT GRID and exercises all
+read-only controls, cancellation and result summaries. Native removal,
+publication and playback remain unimplemented.
 
 ## Tests and measurements
 

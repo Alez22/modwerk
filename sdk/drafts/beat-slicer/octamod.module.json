@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.23-experimental",
+  "version": "0.1.24-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "The compiled composed Flex backend now produces 28 exact host-matching previews from stock-loaded PCM in a full-boot private emulator. Real stock reverse edits retire both running and ready previews before more reads; fresh plans match edited PCM and previews leave source/settings intact. Eight audio pages are explicitly reserved. Test-owned lifetimes, partial worker coverage and driver scheduling remain unqualified for live admission or hardware; no installed controls, publication or USB package.",
+    "summary": "Private full-boot fixtures append BEAT GRID to the stock SLICE menu and exercise native read-only BPM, spacing and boundary controls. Menu cancellation and stale-owner dispatch fail closed; previews match the host oracle and preserve PCM/settings. Stock slice deletion, clearing and grid creation invalidate old previews. These use pinned storage, synthetic admission and driver scheduling; native removal, Apply, playback, USB and hardware remain unfinished. A separate private service tests bounded engine-event scheduling and immutable coalesced wake ownership; the production base is unchanged.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -117,6 +117,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_flex_metadata.py",
       "python3 -B sdk/drafts/beat-slicer/test_flex_source.py",
       "python3 -B sdk/drafts/beat-slicer/test_boot_source.py",
+      "python3 -B sdk/drafts/beat-slicer/test_engine_boundary.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
@@ -132,8 +133,8 @@
     "location": "Proposed MKII audio editor SLICE menu; unavailable in firmware",
     "steps": [
       "Pending native integration: select a Flex or Static audio track and open AED.",
-      "Proposed: press AMP for SLICE, then YES for its menu, then select BEAT GRID. Stock menu integration is not verified.",
-      "Choose BPM SOURCE, SPACING and BOUNDARY, preview and confirm through the stock-style slice workflow. Use stock slice clearing afterwards; no separate Undo action. Native controls remain unimplemented."
+      "Proposed: press AMP for SLICE, then YES for its menu, then select BEAT GRID. A private full-boot emulator fixture exercises this contribution; it is not installed on the instrument.",
+      "Choose BPM SOURCE, SPACING and BOUNDARY, then preview. Native read-only controls are emulator fixtures only. Confirm and stock clearing are the planned final workflow; no separate Undo action."
     ],
     "screenshots": []
   }

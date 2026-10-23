@@ -69,9 +69,11 @@ pointer. Test closing, replacing and removing at each callback/job boundary.
 
 The [menu composition prototype](EDITOR_MENU.md) implements copied labels,
 identity-based dispatch, deterministic contribution ordering and explicit
-retire/detach states under a required stable caller lock. It does not supply
-that native lock or prove detachment. Rendering/scrolling with all contributed
-rows, admission, removal hooks and job cancellation still need implementation.
+retire/detach states under a required stable caller lock. The private full-boot
+[native UI fixture](NATIVE_UI.md) now renders and selects an appended action in
+both stock menu variants and cancels read-only previews. Its fixed storage stays
+pinned forever. The native loader lock, admission, actual detachment and removal
+hooks remain unimplemented; dismissal is not permission to reclaim pointers.
 
 ## Snapshot and job contract
 
@@ -118,7 +120,9 @@ whole writer lifetime and identify the destination of cross-slot copies;
 retire exclusion on all return paths, including normalization's observed
 dirty-without-PCM failure. See [writer coverage](WRITER_COVERAGE.md) for the
 executed cases and still-missing writers. The compiled [worker observer](WORKER_BOUNDARY.md)
-now tracks complete commands in private tests; complete native exclusion is not implemented.
+now tracks complete commands in private tests. The [engine service experiment](ENGINE_SERVICE.md)
+adapts this to the existing base-owned idle/job sites and coalesced background
+work; complete native exclusion and production scheduling are not implemented.
 
 Worker lifecycle probes add two constraints: an empty command queue does not
 mean the dequeued writer has finished, and UI completion is an asynchronous

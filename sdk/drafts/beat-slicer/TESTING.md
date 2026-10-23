@@ -1,6 +1,6 @@
 # Beat Slicer testing
 
-Current draft: 0.1.23-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.24-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -1510,3 +1510,64 @@ copies and 66 stock page queries occur while held. All 439 planner calls and
 130 PCM decodes occur outside. Stack and callee-save registers are preserved.
 This uses a different backend/fixture from the earlier session baseline and is
 not a matched performance comparison, cycle count or hardware-time bound.
+
+
+## Private native menu and engine service (0.1.24)
+
+The one-shot menu fixture preserves all six unsliced or nine selected-slice
+stock rows, labels and callbacks, appends BEAT GRID and selects it through real
+panel events. All eight normal/stale-owner/late-owner/cancel combinations pass.
+A normal selection begins a matching read-only preview; stale or cancelled
+selection makes no PCM query. The second open is stock-only and its remembered
+index stays valid. Stable menu storage remains pinned forever. The initial
+unsliced attempt failed because the saved fixture already had four slices;
+the successful runner explicitly clears or creates the required stock layout.
+
+The configuration fixture exercises 20 BPM/spacing/boundary combinations and
+an option-change restart in each stock menu variant, giving 42 whole plans that
+match the host oracle. READY does not restart; a synthetic invalidation removes
+its result, and BACK returns to configuration before closing. The unsliced
+stock-NO and owner-retirement runs cancel a running preview before another
+query and close the owned popup. The corresponding selected-slice terminal
+cases are being completed separately; their receipts will record actual results.
+Every completed run preserves full PCM, controls and settings and both cards.
+The dialog shows total count/fade flags, not a qualified playback policy or Apply.
+
+A separate compiled-source run follows actual stock DELETE SLICE, DELETE ALL,
+unaligned grid and aligned grid creation. Each retires RUNNING or READY before
+another query; fresh previews match the new stock table and leave it unchanged.
+Twenty previews use 148 page queries and 4,331 steps. Guard revisions also
+advance, so this is not isolated metadata-only invalidation evidence. The actual
+stock actions leave PCM unchanged; previews preserve active/inactive markers,
+other metadata, controls and the Static settings arena. Cards stay unchanged.
+
+The new idle/job boundary passes host ASan/UBSan and compiled ColdFire tests for
+120 lifetimes, closed bootstrap, independent writer ownership, reentry, invalid
+retirement and exhaustion. Its native object is 374 text bytes, no data/BSS;
+compiler local stack reports 0–12 bytes, excluding callees and the full chain.
+Its full-boot hook-only experiment remains separate from those unit results.
+
+The engine-service full boot uses those existing base-owned hook sites, leaving
+the receive call intact. Twenty initial previews plus four after each of two
+normal stock reversals give 28 whole-plan matches, 167 queries and 2,386 steps,
+with no driver step calls. A further waiting/readiness case completes one plan.
+An independent synthetic writer makes the service wait without self-posting or
+polling; a separate readiness notification resumes it. Cancellation before
+consumption makes no new query. An unrelated message with the same no-op opcode
+still advances the guard and invalidates READY without touching result output.
+
+Across that run the service sees 403 idle calls, 2,957 transitions, 394 posted
+and consumed owned wakes, nine ordinary commands, two cancellations and 29 ready
+results. No idle callback advances more than eight transitions. These counts
+are not cycle or hardware-time measurements. Source/settings stay unchanged by
+previews, the second stock reversal restores PCM, code/canaries survive and both
+cards stay unchanged. The real base USB/logging/module-set chain is not installed;
+its ordering, full ownership, cache, stack and hardware budget remain unqualified.
+
+Node 24.22.1 full validation against actual `upstream/main` passes: 2,529 app
+tests, SDK tests, lint, typecheck, production build and catalogue/import checks.
+The required `origin/main` invocation still fails on inherited CHANGELOG.md
+history from the stale fork base; no unrelated history or remote ref is rewritten.
+These are development fixtures, with no source service/ABI published and no
+module installed or qualified on hardware. Source-bound receipts follow the
+source commit; earlier evidence retains its exact historical source identity.
