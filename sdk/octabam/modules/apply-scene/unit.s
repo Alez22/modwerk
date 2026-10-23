@@ -392,26 +392,23 @@ as_chord_begin:
         lea     12(%a0),%a1
         bsr.w   as_snap
         | the held trigs are used, as a knob turn uses them: stock keeps them
-        moveq   #0,%d0
-        move.w  %d0,(PEND_KEEP).l
-        move.w  %d0,(PEND_KEEP+2).l
-        move.w  %d0,(PEND_KEEP+4).l
-        move.w  %d0,(PEND_KEEP+6).l
-        move.w  %d0,(PEND_KEEP+8).l
-        move.w  %d0,(PEND_X).l
+        lea     (PEND_KEEP).l,%a1
+        clr.l   (%a1)+
+        clr.l   (%a1)+
+        clr.w   (%a1)
+        clr.w   (PEND_X).l
         moveq   #1,%d0
         move.l  %d0,(TRIG_USED).l
         rts
 
 | a0 = the active working Part; d0-d1 clobbered
 as_work:
-        movea.l (BANK_BASE).l,%a0
         moveq   #0,%d0
         move.b  (CUR_PART).l,%d0
-        move.l  #0x18b2,%d1
-        muls.l  %d1,%d0
+        mulu.w  #0x18b2,%d0
+        add.l   #0x8ed80,%d0
+        movea.l (BANK_BASE).l,%a0
         adda.l  %d0,%a0
-        adda.l  #0x8ed80,%a0
         rts
 
 | a1 = 86 bytes: the scene selection, then per side the chord track's lock
@@ -621,8 +618,7 @@ as_lock:
         | the track's step locks: bank + pattern*0x8ed8 + t*0x91a + 0x59
         moveq   #0,%d0
         move.b  (CUR_PAT).l,%d0
-        move.l  #0x8ed8,%d1
-        muls.l  %d1,%d0
+        mulu.w  #0x8ed8,%d0             | 16 patterns: fits the word multiply
         move.l  #0x91a,%d1
         muls.l  %d7,%d1
         add.l   %d1,%d0
@@ -733,11 +729,11 @@ as_lock:
         tst.l   40(%sp)
         beq.s   .Ltoast
         | after the writes, the calls stock's lock writer makes after its own
-        movea.l (BANK_BASE).l,%a0
         moveq   #1,%d0
-        move.l  #BANK_EDIT,%d1
-        move.l  %d0,(%a0,%d1.l)
         move.l  %d0,(EDITED).l
+        movea.l (BANK_BASE).l,%a0
+        adda.l  #BANK_EDIT,%a0
+        move.l  %d0,(%a0)
         jsr     (UNDO_OFF).l
         move.l  %d7,-(%sp)
         jsr     (TRACK_REBUILD).l
@@ -747,8 +743,9 @@ as_lock:
         beq.s   1f
         move.l  %d0,(TRIG_USED).l       | only while a trig is held: its release clears it
 1:      move.l  %d0,(LOCK_DRAW).l
+        moveq   #-1,%d0
+        move.l  %d0,-(%sp)              | REDRAW's argument; LEDS takes none
         jsr     (LEDS).l
-        pea     (-1).w
         jsr     (REDRAW).l
         addq.l  #4,%sp
         jsr     (UNDO_CLEAR).l

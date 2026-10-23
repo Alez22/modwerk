@@ -64,8 +64,8 @@
     "recorded": "ot_emu and one MKII, 15 Oct 2026",
     "storage": {
       "label": "Storage",
-      "display": "2,098 bytes of ColdFire code and state in the DRAM reserve; no DSP code, no saved data",
-      "value": 2098,
+      "display": "2,062 bytes of ColdFire code and state in the DRAM reserve; no DSP code, no saved data",
+      "value": 2062,
       "unit": "bytes",
       "method": "static",
       "conditions": "Assembled unit size (m68k-elf-size) of the 0.2.0 source; 636 bytes in 0.1.0.",
@@ -97,7 +97,7 @@
       "memory": {
         "level": "minimal",
         "basis": "measured-comparison",
-        "rationale": "2,098 bytes of ColdFire code and state (101 bytes of it state: the YES press and the TRIG + SCENE chord); no DSP memory and no saved data of its own.",
+        "rationale": "2,062 bytes of ColdFire code and state (101 bytes of it state: the YES press and the TRIG + SCENE chord); no DSP memory and no saved data of its own.",
         "source": "TESTING.md"
       }
     }
