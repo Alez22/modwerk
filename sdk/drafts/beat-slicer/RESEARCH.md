@@ -264,11 +264,12 @@ writer-lifetime exclusion as well as old-token invalidation. The
 [coverage checklist](WRITER_COVERAGE.md) separates observed operation families
 from missing loader, recorder, allocation, metadata and Static evidence.
 
-Local static inspection also finds these edit calls grouped in the stock
-worker dispatcher, with calls in the `0x4008590c`–`0x40085a14` region. That is
-a lead for tracing enqueue/completion and serialization, not an executed
-dispatcher contract, complete call census or approved hook site. No stock
-instruction bytes or tables are included. Native exclusion remains absent.
+The 0.1.5 worker probe follows this lead through the actual task prologue,
+queue operations, seven edit dispatch paths and completion posting. See
+[worker lifetime evidence](WRITER_COVERAGE.md#executed-worker-lifetime).
+It establishes narrow synthetic command lifetimes, not a complete call census,
+live serialization or approved hook site. No stock instruction bytes or
+tables are included. Native exclusion remains absent.
 
 ## Proposed base contract, not an implemented ABI
 

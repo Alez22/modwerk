@@ -23,11 +23,12 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker'), default='editor')
     args = parser.parse_args()
     source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
                                      'reader': 'reader_probe.cpp',
-                                     'coherence': 'coherence_probe.cpp'}[args.kind]
+                                     'coherence': 'coherence_probe.cpp',
+                                     'worker': 'worker_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
@@ -47,6 +48,8 @@ def main():
     report = {
         'scope': ('isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
                   if args.kind == 'storage' else
+                  'synthetic stock producer, queues, worker and completion posts; display mock, no scheduler/UI consumer/device access'
+                  if args.kind == 'worker' else
                   'isolated stock edits, release and pool-to-host-reader previews; synthetic memory, no mocked callees or device access'
                   if args.kind == 'coherence' else
                   'isolated stock pool lookup and PCM conversion with synthetic memory and recorder mocks; no device access'

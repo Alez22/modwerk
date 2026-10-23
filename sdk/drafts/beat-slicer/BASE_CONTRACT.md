@@ -104,6 +104,15 @@ retire exclusion on all return paths, including normalization's observed
 dirty-without-PCM failure. See [writer coverage](WRITER_COVERAGE.md) for the
 executed cases and still-missing writers. No native exclusion is implemented.
 
+Worker lifecycle probes add two constraints: an empty command queue does not
+mean the dequeued writer has finished, and UI completion is an asynchronous
+notification that can be omitted when its record pool is full. Retire writer
+exclusion at a verified execution boundary on every path, independently of
+UI notification. Queued command pointers are not immutable operation IDs:
+capture validated identity and affected destinations under proved ownership.
+The current seven-operation worker trace does not cover recorder writes,
+all worker opcodes, other callers, live scheduling or cancellation.
+
 PCM reads copy a bounded block into caller-owned scratch memory. They report
 ready, pending, stale, unsupported or failed; a pending Static read yields
 to the scheduler. No filesystem wait, allocation or sample scan runs in the

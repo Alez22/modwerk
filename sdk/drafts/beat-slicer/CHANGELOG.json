@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.5-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted integration research: execute the stock zero-gain producer, actual queue post/receive, worker prologue and seven edit dispatch paths using original synthetic memory. Trace writer entry/return, deferred completion and balanced worker frames; portable planner and reader behavior is unchanged.",
+      "Verify that queue emptiness does not mean an edit is finished, and that a null callback or exhausted completion-record pool can omit UI notification after a successful edit. Test FIFO/wrap, refused operations and forced reuse of a queued command pointer; the latter bypasses panel preflight and is not a demonstrated stock UI bug.",
+      "Require native writer exclusion to follow actual execution lifetime independently of UI completion, with owned operation identity. Full caller/writer coverage, scheduler behavior, live Flex/Static reading, editor Apply/Undo, smoothing, USB lifecycle and hardware qualification remain pending. No production hook, shared ABI or installable module is added."
+    ]
+  },
+  {
     "version": "0.1.4-experimental",
     "date": "2026-10-23",
     "changes": [

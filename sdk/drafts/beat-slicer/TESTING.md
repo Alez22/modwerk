@@ -446,3 +446,44 @@ bounds, not native timing or memory measurements.
 draft. No LCD captures, card/browser/runtime builds, parity checks, USB trial,
 self-test, Keep/Undo/removal or hardware compatibility evidence exists.
 This draft is not ready for publication.
+
+## Stock worker lifetime probes (0.1.5)
+
+`evidence/stock-worker.json` records **seven passing groups** from
+`stock_probe/worker_probe.cpp`. It binds the private 1.40C MAIN, runner,
+wrapper, CMake inputs and executable hashes. The pinned emulator/toolchain
+and Docker mounts are the same as the 0.1.4 writer run above. The new target
+is `beat_slicer_worker_probe`; run the wrapper with `--kind worker`.
+
+The original synthetic fixtures execute the stock zero-gain operation handler,
+queue post/receive, complete engine-task prologue, seven edit dispatch paths,
+and completion allocation/posting. Only message display is mocked. They check
+exact producer-originated zero gain across four packed formats and page
+boundaries, writer entry/return ordering, worker stack/frame/interrupt-mask
+restoration, failure results, FIFO/wrap, null callbacks, exhausted completion
+records and forced command-pointer reuse. See [coverage](WRITER_COVERAGE.md#executed-worker-lifetime)
+for the observed constraints and omitted paths.
+
+Build and run inside the pinned source-tools container, with sources frozen
+from configure until execution:
+
+```sh
+cmake --build /output/build --target beat_slicer_worker_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind worker \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_worker_probe \
+  --output /evidence/stock-worker.json
+```
+
+Both emulator gates pass. An initial fixture incorrectly expected `-1` for
+busy/empty-range refusals; the stock routines return `-3`/`-2`, consistent with
+the earlier isolated writer tests. After correcting that expectation, the
+wrapper rejected the stale executable without creating evidence; rebuilding
+produced the retained seven-group passing report. The earlier private failed
+run is not presented as passing evidence. Historical reports remain bound to
+their original source hashes; this run does not replace their provenance.
+
+There is no live scheduler, UI completion consumer, DSP or physical unit in
+these fixtures. No interrupt is injected, no cancellation or queue overflow
+is qualified, and no runtime hook or live-reader service is implemented.
+Hardware, audio, persistence and USB qualification remain absent.

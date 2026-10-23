@@ -54,6 +54,14 @@ an early dirty-store notification alone only retires older ones. Cross-slot
 copies invalidate the destination, and a failed operation can still mark it
 dirty. These are synthetic execution results, not live scheduler evidence.
 
+An empty worker queue also does not prove an edit has finished: the dequeued
+command can still be writing PCM. Beat Slicer's synthetic 1.40C worker probes
+find deferred UI completions that can be omitted when their record pool is
+full. Retire exclusion at verified execution boundaries independently of UI
+notification, and capture owned operation identity; a queued pointer can refer
+to a reused command record. Full panel/scheduler/cancellation behavior remains
+unproved by those fixtures.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

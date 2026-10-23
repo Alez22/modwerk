@@ -35,6 +35,11 @@ These are remaining tasks, not implemented behavior.
    families leave the busy field untouched and restore the unmasked state
    between PCM writes. Exclude reads for the complete operation, not only
    individual writes; a dirty-store notification alone is insufficient.
+   The worker probe executes a producer, real queue operations and seven edit
+   dispatch paths. Queue emptiness can precede PCM mutation; deferred UI
+   completion can be absent. Guard actual execution lifetime independently
+   of either signal, and capture identity rather than retaining a reusable
+   command pointer. Full caller/writer coverage and native guards remain open.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

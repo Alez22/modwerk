@@ -38,6 +38,43 @@ across channel processing, reverse, fade, gain and normalization perform none
 of those stores. Existing polarity refusals cover eight more cases. These are
 specific fixtures, not a general promise of stock error atomicity.
 
+## Executed worker lifetime
+
+The 0.1.5 runner adds seven groups bound in `evidence/stock-worker.json`.
+It executes the real engine-task prologue at `0x4008445c`, queue post/receive
+at `0x40000c3c` / `0x40000d00`, and dispatch from the loop at `0x4008484e`.
+Only message display is mocked. The rings, slots, PCM and completion-pool
+occupancy are synthetic; no stock tables or code bodies are reproduced.
+
+- Four zero-gain producer calls (`0x40074694`, one per packed format) set
+  editor busy and enqueue a pointer without editing PCM. The worker dequeues,
+  edits the exact page-crossing range, returns from the writer and posts a
+  completion record. The queue count is already zero during PCM writes.
+- Seven dispatch cases cover gain, normalize, reverse, rotate, channel swap,
+  polarity and fade. The traced writer returns before completion is attempted;
+  the task then restores its loop stack/frame and interrupt mask. Busy and
+  empty-range gain refusals return `-3` and `-2` through deferred completion
+  without PCM/dirty mutation.
+- Completion helper `0x40084110` queues a UI record containing callback/result,
+  rather than invoking it. The fixtures leave the UI consumer unexecuted and
+  editor busy remains set after the producer-originated edit. A null callback
+  or all 32 completion records occupied still permits the edit to finish, with
+  **no UI notification enqueued**. Do not release writer exclusion from this
+  optional notification.
+- Two pending edits execute FIFO with separate completion records. Thirty-five
+  standalone posts/receives exercise ring wrap below capacity. An unknown
+  opcode drains without completion; an empty worker reaches the event-wait
+  entry, where the test stops before running the scheduler.
+- Calling the same producer twice while deliberately bypassing the outer panel
+  preflight queues the same global command pointer twice. Both executions then
+  observe the last payload. This tests pointer ownership; it does **not** show
+  a reachable stock UI bug or prove how the real panel blocks repeated input.
+
+These results identify boundaries to investigate, not production hook sites.
+They omit crop, release and copy dispatch, other engine opcodes/callers, actual
+UI completion consumption, scheduler wakeups, cancellation, reentrancy and
+recorder writes outside this worker. Queue capacity/overflow is not qualified.
+
 ## Consequence for the base service
 
 An epoch increment at a dirty store can retire old previews, but cannot by
@@ -47,6 +84,9 @@ an operation lifetime: retire old tokens before mutation; refuse snapshot/read
 acquisition while the writer is active; release that exclusion on every
 completion/failure path. Repeated/no-op/failed edits must not accidentally
 reactivate an older token. Cross-slot work must identify the destination.
+An empty queue cannot admit a new preview while its dequeued writer runs.
+Completion/cleanup must track execution even if UI notification is absent,
+and owned identity must not depend on a reusable command-record pointer.
 
 The instrumentation here only observes stores and instructions. It does not
 install a dirty-store hook, synthesize native revisions or implement a lock.
@@ -55,9 +95,10 @@ allocation ownership rules have been established.
 
 ## Missing evidence before live-provider admission
 
-- Trace actual panel commands through enqueue, dispatch and completion. Local
-  static inspection groups these calls in the stock worker dispatcher, but
-  does not prove all callers, cancellation, reentrancy or queue serialization.
+- Extend the executed operation-handler/worker trace to the actual panel
+  preflight and UI completion consumer, every caller and remaining opcode.
+  Prove live cancellation, reentrancy, wakeups and serialization; the synthetic
+  FIFO cases alone do not prove those behaviors.
 - Cover crop/resize, slot load/replacement, allocation/release of other slots,
   project/sample reload, recording/overdub and every other PCM writer. Enumerate
   cached/uncached aliases and writes that do not touch the dirty array.
