@@ -122,7 +122,7 @@ For now: download the `.ZDL` and add it to the pedal with Zoom Effect Manager
 effect in Effect Manager; for a boot freeze, All Initialize, then remove it).
 The browser install is planned separately: from the user's own Zoom updater,
 or as a per-effect install over the pedal's own file commands, which write
-single files (tested on the MS-70CDR 2.10 with a test file and replacement of an installed effect; adding a new effect is next) ([Installing on stock firmware](ZOOM_MULTISTOMP.md#installing-on-stock-firmware)).
+single files (tested on the MS-70CDR 2.10 with a test file, replacement of an installed effect, and adding/removing a new effect) ([Installing on stock firmware](ZOOM_MULTISTOMP.md#installing-on-stock-firmware)).
 
 ## Machine profiles
 

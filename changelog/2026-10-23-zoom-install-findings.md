@@ -2,4 +2,4 @@ Docs: the Zoom MultiStomp proposal records how Zoom Effect Manager installs effe
 
 A second proposal, `docs/ZDL_MODULE_CONTRACT.md`, sets out the module contract for Zoom effects for owner review: the `zdl` platform fields, one module per pedal family with per-pedal status, effect-ID ranges, combination checks, and the two questions to settle first (stock code in the built effects, and whether Modwerk builds the file or pins the author's release).
 
-The proposal also records successful per-effect USB replacement on the MS-70CDR 2.10; the summary distinguishes this from Effect Manager’s full reflash, and adding a new effect remains untested.
+The proposal also records successful per-effect USB replacement and adding/removing a new effect on the MS-70CDR 2.10; the summary distinguishes this from Effect Manager’s full reflash.
