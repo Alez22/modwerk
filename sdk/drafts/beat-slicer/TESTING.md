@@ -826,3 +826,39 @@ working/saved-copy publication, project save/reload and reboot remain unproved.
 
 The 0.1.11 report matches source commit `c8780c374760765df6996f2c52a16c40344b6726`, pinned by
 `tests.evidenceRevision`. Prior reports keep their historical source identities.
+
+## Preview-bound edit candidates (0.1.12)
+
+`evidence/candidate-host.json` records the candidate selftest under ASan/UBSan.
+`evidence/candidate-native.json` executes the same C tests compiled for ColdFire,
+with code-generation checks, no unresolved runtime helpers and preserved target
+registers. The candidate object has 1316 text bytes and no object data/BSS;
+local compiler stack reports range 0–48 bytes, excluding callers and callbacks.
+Caller-owned candidate/session storage is separate from these object numbers.
+
+- 40 accepted candidates cover Flex/Static shape, both tempo choices, exact/
+  smooth boundaries and 0–4 retained prefix records. Complete before/after
+  records, inactive tails, unchanged live tables and distinct IDs are checked.
+- 193 stale cases change each field of every active/inactive row or the count.
+  21 source/metadata changes independently retire a candidate, with selected
+  versus unselected tempo behavior exercised separately.
+- Wrong/old IDs, candidate and preview cancellation/restart, writer/revocation,
+  unavailable locks/captures, second-capture waiting, changes during preparation,
+  callback failures, ID exhaustion and ordinal conflict refuse or retry as
+  documented. Failed result requests leave output unchanged.
+
+`candidate-session-host.json` and `candidate-session-native.json` rerun the
+existing 32 complete previews and 22 snapshot invalidations plus lifecycle/error
+coverage after introducing the shared locked-result helper. Both pass; pinned
+EMAC/peripheral gates pass too. No native backend, publication or device runs.
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_edit_candidate.py --output NEW_CANDIDATE_HOST.json
+python3 -B sdk/drafts/beat-slicer/test_preview_session.py --output NEW_SESSION_HOST.json
+```
+
+Inside the private source-tools mounts, build `beat_slicer_job_probe` as above,
+freeze inputs and run `candidate_native.py` and `session_native.py`, each with a
+new `--output` directory and `--executable /output/build/beat_slicer_job_probe`.
+Synthetic ownership and metadata remain the backend contract, not proof of live
+writer coverage, native atomic Apply/Undo, timing, audio or physical persistence.

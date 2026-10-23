@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.12-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted development: bind complete marker candidates to an exact ready preview and unique candidate operation ID. Capture complete active/inactive records under the supplied ownership boundary, preserve exact before/after tables and revalidate the source, chosen tempo, guard and full before-table before returning a candidate. Cancellation/restart retires older IDs; pending callbacks yield.",
+      "Host ASan/UBSan and compiled ColdFire selftests pass 40 successful candidates, 193 full-table stale cases, 21 metadata changes, selected-tempo handling, cancellation/restart, busy/pending/failure and exhaustion cases. The refactored locked-result helper retains the existing 32-preview/22-invalidation session coverage on host and target.",
+      "Candidates remain read-only preparation, not permission to perform a later unlocked write. Native lock/callbacks, writer coverage, atomic Apply/Undo, playback policy, browser/card/USB integration and physical qualification remain absent. No installable module is released."
+    ]
+  },
+  {
     "version": "0.1.11-experimental",
     "date": "2026-10-23",
     "changes": [

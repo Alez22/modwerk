@@ -25,7 +25,9 @@ Unused rows after the new count are copied unchanged. Before/after equality
 helpers compare the count and every record field, so an intervening inactive-row
 change also refuses a history match.
 
-These comparisons supply neither source identity nor authorization to publish.
+These comparisons alone supply neither source identity nor authorization to publish.
+The [candidate binder](EDIT_CANDIDATE.md) now binds them to an exact portable
+preview session and revalidates the complete table under supplied ownership.
 A future native service must bind the candidate to the session's owner/source,
 content/metadata generation, chosen tempo and qualified playback policy, recheck
 under the shared ownership boundary, and atomically publish with the actual

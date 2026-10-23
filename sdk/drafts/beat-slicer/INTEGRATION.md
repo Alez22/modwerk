@@ -68,6 +68,9 @@ These are remaining tasks, not implemented behavior.
    without output mutation. Its full-table comparisons are tested on host/target;
    accepted synthetic candidates also survive stock sort/sanitation. These are
    preparation/history primitives, not native Apply/Undo or qualified playback.
+   `edit_candidate.c` now binds preparation to an exact portable preview and
+   unique ID, revalidating source and complete active/inactive table under the
+   supplied lock. A returned candidate still grants no native write permission.
 5. Implement verified short playback attack/release smoothing at the correct
    source boundary, through base events where shared. Test reverse, RATE/PTCH,
    timestretch, retriggers, slice locks, loops, arbitrary jumps, active voices,

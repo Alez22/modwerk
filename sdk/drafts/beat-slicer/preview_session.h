@@ -73,4 +73,10 @@ void bs_session_cancel(struct bs_preview_session *);
  * out must not alias session storage.
  */
 int bs_session_result(struct bs_preview_session *, struct bs_plan *out);
+/* Base-side composition only: same result validation, but the caller already
+ * owns this session's backend lock and must keep it through its whole operation.
+ * Never call from an unlocked/UI callback or reenter a session. No native write
+ * is authorized by this helper. The normal result API acquires the lock itself.
+ */
+int bs_session_result_locked(struct bs_preview_session *, struct bs_plan *out);
 #endif

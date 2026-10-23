@@ -146,13 +146,17 @@ enum bs_session_state bs_session_begin(struct bs_preview_session *s, const struc
     s->state = BS_SESSION_RUNNING;
     return bs_session_step(s);
 }
-int bs_session_result(struct bs_preview_session *s, struct bs_plan *out) {
+int bs_session_result_locked(struct bs_preview_session *s, struct bs_plan *out) {
     enum bs_session_state state;
-    int result = 0;
-    if (!out || s->state != BS_SESSION_READY || !s->captured) return 0;
-    if (!s->backend->try_lock(s->context)) return 0;
+    if (!s || !out || s->state != BS_SESSION_READY || !s->captured) return 0;
     state = revalidate(s);
-    if (state == BS_SESSION_RUNNING) result = bs_reader_result(&s->reader, s->token.revision, out);
+    return state == BS_SESSION_RUNNING && bs_reader_result(&s->reader, s->token.revision, out);
+}
+int bs_session_result(struct bs_preview_session *s, struct bs_plan *out) {
+    int result;
+    if (!s || !out || s->state != BS_SESSION_READY || !s->captured) return 0;
+    if (!s->backend->try_lock(s->context)) return 0;
+    result = bs_session_result_locked(s, out);
     s->backend->unlock(s->context);
     return result;
 }
