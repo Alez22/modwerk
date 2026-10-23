@@ -3,3 +3,5 @@ Document sample-editor integration requirements learned while developing the unl
 Documented selection retirement before rebuilding a reduced slice table, based on isolated stock refresh probes.
 
 The guide also requires a known-write positive control for emulator memory watches; an incorrect address alias can silently hide edits.
+
+Clarified that internal rollback does not imply a new Undo control. Documented the observed stock distinction between cancelling slice deletion and choosing an unaligned grid with NO, while retaining the hardware qualification gap.

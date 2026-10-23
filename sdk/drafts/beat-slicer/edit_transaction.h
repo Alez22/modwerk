@@ -44,9 +44,10 @@ enum bs_transaction_reply { BS_TRANSACTION_OK, BS_TRANSACTION_WAIT,
     BS_TRANSACTION_REJECTED, BS_TRANSACTION_STALE, BS_TRANSACTION_NO_CHANGE,
     BS_TRANSACTION_BROKEN, BS_TRANSACTION_BUSY };
 struct bs_edit_transaction {
-    /* Private, except state and undo.operation for the confirmation UI. One
-     * fixed base-owned journal. A new Apply requires explicit forget; history
-     * is never silently overwritten. No module memory is retained by history.
+    /* Private, except state. One fixed base-owned workspace. commit retains no
+     * history and needs no forget step. The research apply/undo API exposes
+     * undo.operation to its test caller and requires explicit forget; it is
+     * not the planned player workflow. No module memory is retained by history.
      * Backend/context/guard must be base-owned and outlive the journal.
      */
     uint32_t state, tempo_source;
@@ -69,6 +70,16 @@ int bs_transaction_forget(struct bs_edit_transaction *);
  * accidental callback reentry. Failure before exchange leaves source untouched.
  */
 enum bs_transaction_reply bs_transaction_apply(struct bs_edit_transaction *,
+    struct bs_edit_candidate *, uint32_t confirmed, const struct bs_transaction_backend *);
+/* Planned stock-style workflow: commit a confirmed candidate and retain no
+ * Undo history. On every non-fault result the workspace is EMPTY, permitting
+ * the next candidate without a forget/history prompt. WAIT preserves the
+ * candidate for retry; a publication attempt consumes it, even after rollback.
+ * BROKEN remains terminal and quarantines as above. Existing research history
+ * is refused as BUSY, never silently discarded. Backend atomicity/rollback and
+ * native ownership are still prerequisites, not supplied by this helper.
+ */
+enum bs_transaction_reply bs_transaction_commit(struct bs_edit_transaction *,
     struct bs_edit_candidate *, uint32_t confirmed, const struct bs_transaction_backend *);
 /* Exact post-Apply token, full metadata and all 64 rows must still match.
  * Intervening tracked edits retire Undo even if bytes later look identical.

@@ -81,6 +81,10 @@ These are remaining tasks, not implemented behavior.
    and invalidate previews when they run. Their successful result is removal,
    not restoration of a previous grid. See EDIT_TRANSACTION.md for the retained
    prototype API and its distinction from the player workflow.
+   Use `bs_transaction_commit`, which releases non-faulted workspace without a
+   history-discard step. Its host/ColdFire tests retain failure rollback and
+   stale-preview refusal after modeled clear operations; native exclusion and
+   publication callbacks remain absent.
    Isolated stock storage probes now confirm complete marker round-trips, but
    also mutation before checksum/short-read failure. Those parsers are not
    atomic transaction services. Stock sanitation can alter existing records;

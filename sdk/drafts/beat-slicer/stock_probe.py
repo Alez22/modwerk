@@ -23,12 +23,12 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'load', 'markers', 'pool-session', 'publication', 'refresh'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'load', 'markers', 'pool-session', 'publication', 'refresh', 'clearing'), default='editor')
     args = parser.parse_args()
     source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
                                      'reader': 'reader_probe.cpp',
                                      'coherence': 'coherence_probe.cpp',
-                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'load': 'load_probe.cpp', 'markers': 'marker_probe.cpp', 'pool-session': 'pool_session_probe.cpp', 'publication': 'publication_probe.cpp', 'refresh': 'refresh_probe.cpp'}[args.kind]
+                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'load': 'load_probe.cpp', 'markers': 'marker_probe.cpp', 'pool-session': 'pool_session_probe.cpp', 'publication': 'publication_probe.cpp', 'refresh': 'refresh_probe.cpp', 'clearing': 'clearing_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
@@ -37,10 +37,10 @@ def main():
                             text=True, capture_output=True, timeout=120)
     inputs = [source]
     expected = digest(source)
-    if args.kind in ('coherence', 'worker', 'recorder', 'load'):
+    if args.kind in ('coherence', 'worker', 'recorder', 'load', 'clearing'):
         names = ('coherence_probe.cpp', '../planner.c', '../planner.h', '../planner_job.c',
                  '../planner_job.h', '../pcm_reader.c', '../pcm_reader.h')
-        if args.kind in ('worker', 'recorder', 'load'):
+        if args.kind in ('worker', 'recorder', 'load', 'clearing'):
             names = (args.kind + '_probe.cpp', '../preview_guard.c', '../preview_guard.h')
         inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
         binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
@@ -61,7 +61,8 @@ def main():
     if 'SOURCE_SHA256: ' + expected not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
-        'scope': ('real stock editor binding/selection refresh with synthetic settings and viewport mock; no scheduler, transaction or device'
+        'scope': ('real stock confirmed/cancelled slice deletion with synthetic settings, host guard and formatting/display/viewport/task mocks; no scheduler, native hooks or device'
+                  if args.kind == 'clearing' else 'real stock editor binding/selection refresh with synthetic settings and viewport mock; no scheduler, transaction or device'
                   if args.kind == 'refresh' else 'real stock grid publication/pointer refresh with synthetic settings and display/progress/zero-search mocks; no scheduler, native transaction, persistence or device'
                   if args.kind == 'publication' else 'host preview session with real stock Flex page lookup/edit/release; synthetic ownership/identity/rate/tempo, no scheduler, native hooks or device'
                   if args.kind == 'pool-session' else 'portable candidate preparation with real stock record sort/sanitation; synthetic memory and explicit tempo/name/track mocks, no native Apply/Undo or device'

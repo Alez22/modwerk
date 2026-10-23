@@ -1215,3 +1215,52 @@ The nine 0.1.17 receipts (`transaction17-host/native`,
 `boot-formats24`, `boot-writer`, `boot-static`, all JSON under `evidence/`)
 bind source commit `af35f3084e01448c26e0cc6a7a287f33756a4eb8`. The manifest pins that source
 revision; the evidence index preserves every earlier binding separately.
+
+## Stock-style commit and clearing (0.1.18)
+
+`bs_transaction_commit` retains no user Undo history. Host ASan/UBSan and
+compiled ColdFire pass 120 create/clear cycles, including no-op previews,
+refusal of a preview invalidated by a modeled clear, repeated creation without
+forgetting history, 194 internal rollback points, pending/refused preflight,
+callback reentry, identity exhaustion and terminal quarantine. The existing
+research Apply/Undo regression still passes; its retained history cannot be
+silently erased by the new entry point. No native callbacks or locking are added.
+
+The compiled Flex chain adds 64 commit/clear cycles and four rollback cases to
+the historical 32 Apply/Undo pairs/eight rollbacks. All four packed formats,
+slots 0/127, boundary modes and retained/empty layouts are covered. It executes
+300 actual stock pointer/selection/redraw refresh sequences without NULL reads.
+Clear's metadata change and ownership/publication/playback remain synthetic;
+the actual stock clear callback is exercised separately below. PCM remains exact.
+
+The coordinator is 2,850 target text bytes with no object data/BSS. Local
+function stack use is 0–52 bytes, excluding callees; caller-owned workspace is
+still 10,092 bytes. No hardware cycles, contiguous placement or live UI latency
+is qualified. Reproduce with `test_edit_transaction.py`, `transaction_native.py`,
+`test_transaction_stock.py` and `transaction_stock_native.py` under the machine
+lock. The code-generation guard and freestanding links pass.
+
+`stock_probe.py --kind clearing` with `beat_slicer_clearing_probe` passes 88
+clear-all and 56 individual-delete cases on Flex/Static slots 0/127, including
+cancelled callbacks and first/middle/last selections. Compare complete settings
+including inactive rows, controls and the other source arena. Confirmed writes
+occur under the stock interrupt mask; the host guard remains closed through
+refresh and callback return. Cancel neither writes nor invalidates its model
+token. Formatting/message/viewport/task callbacks are explicitly mocked. The
+matrix observes retired-row reads in 28 clear-all and 12 single-delete cases;
+these synthetic observations are not a demonstrated stock UI/hardware defect.
+The existing selection-retirement requirement remains for our own publisher.
+Pinned EMAC/peripheral gates pass before this probe.
+
+`boot_slices.py` separately passes 24 full-stock panel observations (12 each on
+Flex and Static): back from grid count selection, aligned/unaligned four-slice
+grids, cancel/confirm individual and all-slice deletion, and clearing an empty
+table. Menu row/callback identities are checked. NO at the alignment question
+creates the unaligned grid. Deletion prompts leave markers unchanged until
+confirmed; individual deletion preserves the remaining records and order.
+Clear removes all slices and selection rather than restoring an old layout.
+Non-marker settings, source controls and the other source kind's settings stay
+unchanged. Complete Flex PCM matches the original WAV after both workflows;
+both private card hashes stay unchanged. No Beat Grid action, native writer
+instrumentation, Static streaming, save/reload, physical audio or persistence
+is qualified by these tests. Raw logs, memory and images remain private.

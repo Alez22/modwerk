@@ -130,6 +130,8 @@ static enum bs_exchange_reply exchange(void *ctx, const struct bs_source_snapsho
     if (p->reenter) {
         if (bs_transaction_apply(&p->transaction, &p->candidate, p->candidate.token.operation,
                                  &transaction_backend) != BS_TRANSACTION_BUSY ||
+            bs_transaction_commit(&p->transaction, &p->candidate, p->candidate.token.operation,
+                                  &transaction_backend) != BS_TRANSACTION_BUSY ||
             bs_transaction_undo(&p->transaction, p->transaction.undo.operation) != BS_TRANSACTION_BUSY ||
             bs_transaction_forget(&p->transaction)) p->reentry_bad = 1;
     }
@@ -177,6 +179,90 @@ static enum bs_transaction_reply apply(void) {
                                  &transaction_backend);
 }
 static int balanced(void) { return !f.bad && !f.held && f.locks == f.unlocks && !f.reentry_bad; }
+static enum bs_transaction_reply commit(void) {
+    return bs_transaction_commit(&f.transaction, &f.candidate, f.candidate.token.operation,
+                                  &transaction_backend);
+}
+static int empty_workspace(void) {
+    return f.transaction.state == BS_TRANSACTION_EMPTY && !f.transaction.undo.operation &&
+        !f.transaction.guard && !f.transaction.backend && !f.transaction.source_backend &&
+        !f.transaction.context && !f.transaction.capture;
+}
+static int commit_workflow(void) {
+    /* No user Undo or forget step: successive commits and stock-style clears
+     * reuse one workspace. These clears model metadata only, not native stock.
+     */
+    for (uint32_t kind = 0; kind < 2; ++kind)
+    for (uint32_t tempo = 0; tempo < 2; ++tempo)
+    for (uint32_t snap = 0; snap < 2; ++snap)
+    for (uint32_t retained = 0; retained <= 4; ++retained) {
+        setup(retained); f.live.kind = kind;
+        for (uint32_t pass = 0; pass < 3; ++pass) {
+            CHECK(preview(tempo, snap));
+            CHECK(bs_candidate_begin(&f.candidate, &f.session, table) == BS_CANDIDATE_READY);
+            bytes(&f.out, &f.candidate.edit, sizeof(f.out));
+            uint32_t old = f.candidate.token.operation, before = f.exchanges;
+            CHECK(commit() == (f.out.added ? BS_TRANSACTION_OK : BS_TRANSACTION_NO_CHANGE));
+            CHECK(empty_workspace() && balanced() && !f.quarantined);
+            CHECK(bs_marker_matches_after(&f.out, &f.table));
+            CHECK(f.exchanges == before + (f.out.added != 0));
+            CHECK(bs_transaction_undo(&f.transaction, old) == BS_TRANSACTION_REJECTED);
+            if (f.out.added) CHECK(commit() == BS_TRANSACTION_REJECTED && f.exchanges == before+1);
+            /* A fresh no-op preview must not create history or invoke exchange. */
+            CHECK(preview(tempo, snap));
+            CHECK(bs_candidate_begin(&f.candidate, &f.session, table) == BS_CANDIDATE_READY);
+            before = f.exchanges;
+            CHECK(commit() == BS_TRANSACTION_NO_CHANGE && f.exchanges == before && empty_workspace());
+            /* Clearing retires that outstanding preview; it cannot recreate
+             * deleted slices unless a new preview is explicitly prepared.
+             */
+            uint32_t ticket = bs_guard_writer_begin(&f.guard);
+            CHECK(ticket); f.table.count = 0; publish_active(&f);
+            CHECK(bs_guard_writer_end(&f.guard, ticket));
+            CHECK(commit() == BS_TRANSACTION_STALE && !f.table.count && f.exchanges == before);
+            CHECK(empty_workspace() && balanced());
+        }
+    }
+    return 0;
+}
+static int commit_failures(void) {
+    for (uint32_t word = 0; word < 194; ++word) {
+        CHECK(ready(1)); bytes(&f.out, &f.candidate.edit, sizeof(f.out));
+        uint32_t aux = f.auxiliary;
+        f.fail_word = word;
+        CHECK(commit() == BS_TRANSACTION_NO_CHANGE && empty_workspace());
+        CHECK(bs_marker_matches_before(&f.out, &f.table) && f.auxiliary == aux && f.rollback_auxiliary == 1);
+        CHECK(f.candidate.state == BS_CANDIDATE_CANCELLED && !f.quarantined && balanced());
+        CHECK(commit() == BS_TRANSACTION_REJECTED && f.exchanges == 1);
+    }
+    CHECK(ready(1));
+    f.denied = 1; CHECK(commit() == BS_TRANSACTION_WAIT && empty_workspace());
+    f.capture_pending = 1; CHECK(commit() == BS_TRANSACTION_WAIT && empty_workspace());
+    f.table_pending = 1; CHECK(commit() == BS_TRANSACTION_WAIT && empty_workspace());
+    f.policy_reply = BS_PROVIDER_PENDING; CHECK(commit() == BS_TRANSACTION_WAIT && empty_workspace());
+    f.policy_reply = (uint32_t)BS_PROVIDER_FAILED;
+    CHECK(commit() == BS_TRANSACTION_REJECTED && empty_workspace() && !f.exchanges);
+    f.policy_reply = BS_PROVIDER_READY; f.reenter = 1;
+    CHECK(commit() == BS_TRANSACTION_OK && empty_workspace() && balanced());
+    for (uint32_t mode = 1; mode <= 7; ++mode) {
+        CHECK(ready(1));
+        if (mode <= 5) f.fault_mode = mode;
+        if (mode == 6) f.exchange_guard = 1;
+        if (mode == 7) f.post_pending = 1;
+        CHECK(commit() == BS_TRANSACTION_BROKEN && f.transaction.state == BS_TRANSACTION_FAULT);
+        CHECK(f.quarantined == 1 && f.quarantine_locked && !bs_transaction_forget(&f.transaction));
+        CHECK(commit() == BS_TRANSACTION_BROKEN && f.quarantined == 1 && balanced());
+    }
+    /* The new API must not erase history left by a research caller. */
+    CHECK(ready(1)); CHECK(apply() == BS_TRANSACTION_OK);
+    uint32_t old = f.transaction.undo.operation;
+    CHECK(commit() == BS_TRANSACTION_BUSY && f.transaction.undo.operation == old && f.exchanges == 1);
+    CHECK(bs_transaction_undo(&f.transaction, old) == BS_TRANSACTION_OK && balanced());
+    CHECK(ready(1)); f.guard.serial = UINT32_MAX;
+    CHECK(commit() == BS_TRANSACTION_REJECTED && empty_workspace() && f.guard.poisoned && !f.exchanges);
+    CHECK(balanced());
+    return 0;
+}
 static int successful(void) {
     for (uint32_t kind = 0; kind < 2; ++kind)
     for (uint32_t tempo = 0; tempo < 2; ++tempo)
@@ -387,5 +473,7 @@ int bs_transaction_selftest(void) {
     error = stale_metadata(); if (error) return error;
     error = faults(); if (error) return error;
     error = lifecycle(); if (error) return error;
-    return boundary_changes();
+    error = boundary_changes(); if (error) return error;
+    error = commit_workflow(); if (error) return error;
+    return commit_failures();
 }

@@ -152,8 +152,62 @@ static int rollback_cases(void) {
     return 0;
 }
 int bs_flex_chain_selftest(void);
+static int commit_and_clear(void) {
+    for(uint32_t format=0;format<4;++format)for(uint32_t slot=0;slot<2;++slot)
+    for(uint32_t snap=0;snap<2;++snap)for(uint32_t retained=0;retained<2;++retained) {
+        setup_publication(format,slot?127:0,retained);
+        uint32_t audio=pcm_hash();
+        for(uint32_t pass=0;pass<2;++pass) {
+            CHECK(complete(snap)==BS_SESSION_READY);
+            CHECK(bs_candidate_begin(&c.candidate,&c.session,markers)==BS_CANDIDATE_READY);
+            CHECK(bs_candidate_result(&c.candidate,c.candidate.token.operation,&c.edit));
+            uint32_t old=c.candidate.token.operation;
+            CHECK(bs_transaction_commit(&transaction,&c.candidate,old,&publication_backend)==BS_TRANSACTION_OK);
+            CHECK(transaction.state==BS_TRANSACTION_EMPTY && !transaction.undo.operation);
+            CHECK(bs_transaction_undo(&transaction,old)==BS_TRANSACTION_REJECTED);
+            CHECK(owned(&c));
+            CHECK(markers(&c,&c.identity,&publication.captured)==BS_PROVIDER_READY);
+            CHECK(bs_marker_matches_after(&c.edit,&publication.captured));release(&c);
+            int error=check_bindings(c.edit.after.count);if(error)return error;
+            CHECK(pcm_hash()==audio);
+            /* Keep a new preview pending while stock-style clearing occurs.
+             * This models clear's metadata effect; the full stock callback is
+             * exercised separately, not called by this publication fixture.
+             */
+            CHECK(complete(snap)==BS_SESSION_READY);
+            CHECK(bs_candidate_begin(&c.candidate,&c.session,markers)==BS_CANDIDATE_READY);
+            CHECK(owned(&c));
+            CHECK(markers(&c,&c.identity,&publication.captured)==BS_PROVIDER_READY);
+            uint32_t ticket=bs_guard_writer_begin(&c.guard);CHECK(ticket);
+            publication.captured.count=0;store_table(&publication.captured);
+            CHECK(bs_guard_writer_end(&c.guard,ticket));release(&c);
+            uint32_t cleared=settings_hash(),exchanges=publication.exchanges;
+            CHECK(bs_transaction_commit(&transaction,&c.candidate,c.candidate.token.operation,
+                                         &publication_backend)==BS_TRANSACTION_STALE);
+            CHECK(settings_hash()==cleared && settings()[273]==0 && publication.exchanges==exchanges);
+            CHECK(transaction.state==BS_TRANSACTION_EMPTY && pcm_hash()==audio);
+            error=check_bindings(0);if(error)return error;
+            CHECK(!publication.wrong && !publication.quarantined && !c.bad && !c.held);
+        }
+    }
+    for(uint32_t format=0;format<4;++format) {
+        setup_publication(format,127,0);
+        uint32_t before=settings_hash(),audio=pcm_hash();
+        CHECK(complete(0)==BS_SESSION_READY);
+        CHECK(bs_candidate_begin(&c.candidate,&c.session,markers)==BS_CANDIDATE_READY);
+        publication.fail_after=1;
+        CHECK(bs_transaction_commit(&transaction,&c.candidate,c.candidate.token.operation,
+                                     &publication_backend)==BS_TRANSACTION_NO_CHANGE);
+        CHECK(transaction.state==BS_TRANSACTION_EMPTY && !transaction.undo.operation);
+        CHECK(settings_hash()==before && pcm_hash()==audio);
+        int error=check_bindings(0);if(error)return error;
+        CHECK(!publication.wrong && !publication.quarantined && !c.bad && !c.held);
+    }
+    return 0;
+}
 int bs_transaction_stock_selftest(void) {
     int error=bs_flex_chain_selftest();if(error)return error;
     error=publications();if(error)return error;
-    return rollback_cases();
+    error=rollback_cases();if(error)return error;
+    return commit_and_clear();
 }

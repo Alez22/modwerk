@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.17-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.18-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -104,12 +104,17 @@ records and slice numbers, refuses incompatible additions and retains inactive
 rows for exact failure rollback. It prepares memory snapshots only; native
 publication and the playback acceptance gate remain unimplemented.
 
-The [transaction coordinator](EDIT_TRANSACTION.md) now binds confirmation,
-publication results and experimental Undo history under one supplied lock. Its tests
-cover rollback, stale full tables and fault containment. Publication, playback
-policy and quarantine are synthetic callbacks; this does not enable native Apply.
+The [transaction coordinator](EDIT_TRANSACTION.md) now offers a commit path that
+binds confirmation and publication under one supplied lock and retains no Undo
+history. Repeated creation needs no history-discard step. Internal failure
+rollback, stale-clear refusal and fault containment are tested. Publication,
+playback policy and quarantine remain synthetic callbacks; native Apply is disabled.
 Its explicit Undo API is retained research, not the planned player workflow;
 the native adapter must not expose it as an additional slicing action.
+
+Normal stock Flex/Static menu tests now cover alignment choices, backing out,
+confirmed/cancelled individual and all-slice deletion, and clearing an empty
+table. Those emulator tests verify the workflow to match, not a Beat Grid UI.
 
 ## Tests and measurements
 

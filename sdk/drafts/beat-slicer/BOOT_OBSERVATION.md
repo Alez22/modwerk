@@ -1,5 +1,31 @@
 # Full stock project observation
 
+## Stock slicing workflow (0.1.18 research)
+
+`boot_slices.py` drives normal 1.40C MKII panel actions on the private stock
+fixture. It passes 12 observations each on Flex slot 0 and Static slot 0:
+backing out of the count chooser; creating four slices with NO (unaligned) and
+YES (aligned); cancelling and confirming individual/all-slice deletion for each
+grid; and clearing an empty table. Opening the deletion confirmation or the
+alignment question changes no markers. NO at the alignment question creates
+an exact four-way grid; it is not cancellation. Confirmed individual deletion
+preserves the remaining complete records and order. Clear leaves zero active
+slices and no selected row; it does not restore an earlier layout.
+
+Every observation compares non-marker settings, source controls and the other
+sample kind's settings. The complete Flex PCM still matches the original WAV
+after both workflows. Source and copied cards are unchanged. The stock menus
+examined contain no Undo row. These are the specific menus exercised, not a
+claim about every Octatrack operation. Static PCM streaming, saved settings,
+physical audio and the module's eventual UI are not qualified by this test.
+
+Run with the same private mounts and arguments as `boot_static.py`, substituting
+`boot_slices.py` and a fresh output directory. No `--card-rw` is used. The script
+checks actual menu labels/callback identities before each choice and exports
+only hashes, counts and outcomes; raw memory/logs remain private.
+
+## Project and PCM baseline
+
 `boot_observe.py` connects an actual stock project/file load in the pinned
 headless emulator to the host planner and marker-preparation code. It does not
 install Beat Slicer, inject code, call firmware functions, edit the panel or

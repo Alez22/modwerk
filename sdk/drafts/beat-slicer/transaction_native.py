@@ -74,7 +74,7 @@ def main():
              'test_edit_transaction.c', 'transaction_native.py',
              'stock_probe/job_probe.cpp', 'stock_probe/CMakeLists.txt')
     report = {
-        'scope': 'preview-bound transaction target execution: 40 confirmations, 388 publication rollbacks, 386 stale tables, 23 stale metadata cases and fault/lifecycle checks',
+        'scope': 'commit without history: 120 create/clear cycles, 194 rollback points and failure/stale lifecycle checks; historical Apply/Undo regression: 40 confirmations, 388 rollbacks, 386 stale tables and 23 metadata cases',
         'sourceSha256': {n: sha(ROOT / n) for n in names},
         'compiler': run('m68k-elf-gcc', '--version').splitlines()[0], 'flags': flags,
         'objectSha256': {o.name: sha(o) for o in objects},

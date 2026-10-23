@@ -70,7 +70,7 @@ def main():
              'test_flex_fixture.h', 'test_chain_fixture.h', 'test_flex_copy.c', 'test_flex_chain.c', 'test_transaction_stock.c', 'transaction_stock_native.py', 'stock_probe/transaction_native_probe.cpp',
              'stock_probe/CMakeLists.txt')
     report = {
-        'scope': 'compiled Flex preview, candidate and transaction chain: 32 Apply/Undo pairs, eight rollback cases and stock pointer/selection/redraw refresh; synthetic ownership/playback policy, no live transaction',
+        'scope': 'compiled Flex chain: 32 historical Apply/Undo pairs, 64 commit/clear cycles without history, 12 rollback cases and 300 stock refreshes; synthetic ownership/publication/clear/playback, no live transaction',
         'mainSha256': STOCK_MAIN_SHA256,
         'sourceSha256': {n: sha(ROOT / n) for n in names},
         'compiler': run('m68k-elf-gcc', '--version').splitlines()[0], 'flags': flags,

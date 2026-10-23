@@ -27,8 +27,9 @@ policy on complete in-memory tables, preparing before/after snapshots without
 native writes. It retains inactive rows for exact restoration and exposes only
 table equality checks for future history validation. The [candidate binder](EDIT_CANDIDATE.md) now connects these tables to an exact
 portable preview and unique operation ID. The [transaction coordinator](EDIT_TRANSACTION.md) now manages exact confirmation,
-post-state checks and Undo history against an atomic backend contract. Native
-callbacks, atomic publication, playback qualification and actual Undo remain absent.
+post-state checks against an atomic backend contract. Its commit entry point
+retains no user history; the older Undo API remains research. Native callbacks,
+atomic publication and playback qualification remain absent.
 
 Beat Slicer submits requested additions, not replacement records. The base
 retains existing records itself, constructs new records with verified stock

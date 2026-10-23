@@ -1,4 +1,4 @@
-# Apply/Undo transaction coordinator
+# Grid commit and retained Undo research
 
 `edit_transaction.c` is a portable base-side coordinator, **not a native atomic
 publisher, installed service or exported ABI**. The source, ownership, playback,
@@ -17,12 +17,23 @@ expose the prototype's history lifecycle as UI. Clearing slices removes them;
 it does not restore an earlier grid. Stock clear/edit operations must invalidate
 any outstanding Beat Grid preview before it can publish stale markers.
 
+`bs_transaction_commit` is the planned entry point. It runs the same full
+candidate, policy, publication and post-state checks as the research path, but
+does not issue an Undo identity or retain history after returning. A non-faulted
+operation releases its workspace for the next candidate without a forget call.
+Pending preflight preserves the candidate; an attempted publication consumes
+it even if the backend rolls back. Faults still quarantine and permanently
+disable the workspace. Existing history from a research caller is refused as
+busy rather than silently erased. This is orchestration against the backend
+contract, not native reader/writer exclusion or a firmware UI implementation.
+
 The baseline is the stock SLICE workflow in the
 [Elektron MKII OS 1.40A manual, sections 13.2.2 and 13.2.5](https://www.elektron.se/wp-content/uploads/2024/09/Octatrack-MKII-User-Manual_ENG_OS1.40A_210414.pdf).
 It documents individual/all-slice deletion and stock settings saving, not a
 slice-grid Undo action. At the zero-cross prompt, NO accepts an unaligned grid;
-do not map every NO press to cancellation. Confirm exact 1.40C behavior in the
-native acceptance work before assigning the module's prompts and buttons.
+do not map every NO press to cancellation. The full stock 1.40C emulator now
+exercises these choices on Flex and Static (BOOT_OBSERVATION.md); the actual
+Beat Grid controls and physical-unit comparison remain unimplemented/unverified.
 
 ## Retained prototype contract
 

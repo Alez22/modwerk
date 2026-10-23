@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.17-experimental",
+  "version": "0.1.18-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Host and compiled ColdFire tests cover planning, bounded decoding, admission, preview/candidate coordination, Apply/Undo orchestration and menu lifetime. The compiled Flex transaction chain runs actual stock lookup and editor refresh with synthetic ownership/publication; full settings and PCM restore after Undo. Isolated probes identify selection-retirement ordering, storage failures and writer/worker/recorder behavior. Full stock project loads verify eight original WAV format/rate combinations in a 16-bit Flex pool and four further loads under an authored 24-bit-retaining project setting; the original file rate is not distinguished by the observed controls/settings. Normal stock reverse and Static load/editor/confirmed-clear paths also run, with the observed reverse endpoint limitation stated separately. Reports retain exact source/input hashes and explicit mocks/limits in TESTING.md. No installed Beat Grid action, complete native writer exclusion, live source service, atomic Apply/Undo, card/browser/USB package, audible smoothing or physical persistence qualification exists.",
+    "summary": "Commit without user history passes host sanitizers and compiled ColdFire, including repeated create/clear cycles, stale-clear refusal, internal rollback and terminal faults. The stock-backed Flex chain exercises 300 actual editor refreshes with synthetic ownership/publication/playback. Normal stock Flex/Static menus cover grid alignment choices, cancellation and individual/all-slice deletion; isolated callbacks cover 144 cancellation/deletion cases. Earlier PCM, source lifecycle and historical Undo research retains its exact evidence bindings. No installed Beat Grid controls, complete native source ownership, atomic publisher, playback qualification, browser/USB package or physical persistence results exist.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

@@ -22,6 +22,13 @@ working/saved-copy behavior before enabling Apply. Bind preview to sample,
 content, markers, trim and chosen tempo; a stale or cancelled preview must not
 write. Quiet marker boundaries are not evidence of click-free playback.
 
+Match the stock edit workflow before adding recovery controls. Internal failure
+rollback does not imply a user-facing Undo action. Beat Slicer's 1.40C emulator
+observations distinguish cancelling deletion from confirming it, and show that
+NO at the grid alignment question accepts an unaligned grid. Keep stock slice
+clearing available; clearing removes slices rather than restoring the old grid.
+Verify the exact prompts and saved-settings behavior separately on hardware.
+
 Test error paths before treating a stock loader as a transaction: a checksum
 or short-read error can be returned after destination records have changed.
 Likewise, a stock sanitizer may move old markers to satisfy its minimum-length

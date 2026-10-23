@@ -20,6 +20,7 @@ int main(void) {
     int line = bs_transaction_stock_selftest();
     if (line) { printf("FAIL line %d\n", line); return 1; }
     puts("PASS: 32 Flex Apply/Undo pairs, eight publication rollbacks and preview/candidate regressions");
+    puts("PASS: 64 commit/clear cycles without history, stale-clear refusal and four further publication rollbacks");
     return 0;
 }
 '''
@@ -47,7 +48,7 @@ def main():
         print(result.stderr, end='')
         if args.output:
             report = {
-                'scope': '32 full Flex Apply/Undo pairs and eight rollback cases; synthetic metadata, query, ownership, playback and publication',
+                'scope': '32 historical Flex Apply/Undo pairs, 64 commit/clear cycles without history and 12 rollback cases; synthetic metadata, query, ownership, playback and publication',
                 'sourceSha256': {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in SOURCES},
                 'compiler': subprocess.check_output([cc, '--version'], text=True).splitlines()[0],
                 'flags': flags, 'exitCode': result.returncode, 'stdout': result.stdout.splitlines(),

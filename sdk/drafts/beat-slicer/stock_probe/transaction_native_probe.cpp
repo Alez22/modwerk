@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
             if(m.pc()==0x4006dbdc)++redraws;
             if (!m.step()) throw std::runtime_error("CPU stop: " + m.why());
         }
-        if(nullReads || pointers!=128 || selections!=128 || redraws!=128)
+        if(nullReads || pointers!=300 || selections!=300 || redraws!=300)
             throw std::runtime_error("refresh/null-read count differs: "+std::to_string(pointers)+","+
                                      std::to_string(selections)+","+std::to_string(redraws)+","+std::to_string(nullReads));
         if (m.pc() != stop) throw std::runtime_error("instruction budget exhausted");
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
             if (r != M68K_REG_A0 && r != M68K_REG_A1 && get(m68k_register_t(r)) != 0x12340000 + r)
                 throw std::runtime_error("preserved register mismatch");
         if (get(M68K_REG_D0)) throw std::runtime_error("selftest source line " + std::to_string(get(M68K_REG_D0)));
-        std::puts("PASS: 32 compiled Apply/Undo chains, eight rollback cases, 128 stock refresh sequences and no null reads");
+        std::puts("PASS: 32 historical Apply/Undo chains, 64 commit/clear cycles, 12 rollback cases, 300 stock refresh sequences and no null reads");
         return 0;
     } catch (const std::exception& e) { std::printf("FAIL: %s\n", e.what()); return 1; }
 }

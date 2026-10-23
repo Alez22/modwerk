@@ -225,3 +225,28 @@ its independent oracle. Do not borrow this convention for the module's bounded
 reader, or call it a hardware defect from emulator evidence alone. See TESTING.md
 for the classification of separate waveform work, exact metadata scope and
 remaining native ownership/playback limits.
+
+## Confirmed slice deletion (0.1.18 research)
+
+The isolated `clearing_probe.cpp` executes stock clear-all callback `0x40071eb0`
+and individual-delete callback `0x40073064` on Flex/Static slots 0/127. Its 88
+clear-all and 56 single-delete cases cover cancellation, empty/full tables and
+first/middle/last selections. The host guard surrounds each confirmed callback
+through its return, including pointer/selection refresh; this is proposed
+instrumentation, not installed native hooks or a verified lock. Cancel performs
+no table write and leaves the model preview valid. Confirmed callbacks retire
+old model previews; fresh admission resumes only after the callback returns.
+
+Clear-all changes only the count, retaining inactive records. Single deletion
+moves the selected record to the old last row after replacing its start with a
+sentinel, reduces count and preserves remaining complete records. Table stores
+are interrupt-masked in these isolated calls, while refresh continues after
+the mask is restored. Source controls and the other settings arena stay exact.
+The fixture mocks formatting/messages, viewport and the single-delete task
+follow-up; it does not prove live task/ISR exclusion or audio behavior.
+
+Stock refresh reads a retired row in 28 clear-all and 12 single-delete cases
+in this synthetic matrix, consistent with the earlier refresh probe. This is
+not a demonstrated physical fault and the module does not change stock clear.
+Its own publisher must still retire selection before rebuilding shorter tables.
+The separate full-stock `boot_slices.py` passes normal menu/deletion paths.

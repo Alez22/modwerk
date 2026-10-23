@@ -19,6 +19,7 @@ int main(void) {
     int line = bs_transaction_selftest();
     if (line) { printf("FAIL line %d\n", line); return 1; }
     puts("PASS: 40 confirmations, 388 publication rollbacks, 386 stale tables, 23 stale metadata cases and fault/lifecycle checks");
+    puts("PASS: commit without history: 120 create/clear cycles, 194 internal rollback points, stale-clear refusal, waits/reentry and terminal faults");
     return 0;
 }
 '''
@@ -46,7 +47,7 @@ def main():
         print(result.stderr, end='')
         if args.output:
             report = {
-                'scope': 'Apply/Undo orchestration with a synthetic atomic publication backend; no native transaction or hardware qualification',
+                'scope': 'commit without history and historical Apply/Undo orchestration with a synthetic atomic publication backend; no native transaction or hardware qualification',
                 'sourceSha256': {n: hashlib.sha256((ROOT / n).read_bytes()).hexdigest() for n in SOURCES},
                 'compiler': subprocess.check_output([cc, '--version'], text=True).splitlines()[0],
                 'flags': flags, 'exitCode': result.returncode, 'stdout': result.stdout.splitlines(),

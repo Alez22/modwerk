@@ -68,11 +68,11 @@ static enum bs_transaction_reply fault(struct bs_edit_transaction *t) {
     t->backend->quarantine(t->context);
     return BS_TRANSACTION_BROKEN;
 }
-static enum bs_transaction_reply exchange(struct bs_edit_transaction *t, int undo) {
+static enum bs_transaction_reply exchange(struct bs_edit_transaction *t, int undo, int retain_history) {
     uint32_t ticket, revision;
     enum bs_exchange_reply reply;
     enum bs_transaction_reply check;
-    if (!undo && !bs_guard_acquire(t->guard, &t->undo)) return BS_TRANSACTION_REJECTED;
+    if (!undo && retain_history && !bs_guard_acquire(t->guard, &t->undo)) return BS_TRANSACTION_REJECTED;
     ticket = bs_guard_writer_begin(t->guard);
     if (!ticket) {
         t->undo.operation = 0; t->state = BS_TRANSACTION_RETIRED;
@@ -102,15 +102,16 @@ static enum bs_transaction_reply exchange(struct bs_edit_transaction *t, int und
         return BS_TRANSACTION_NO_CHANGE;
     }
     if (undo) { t->state = BS_TRANSACTION_UNDONE; t->undo.operation = 0; }
-    else {
+    else if (retain_history) {
         t->undo.revision = bs_guard_revision(t->guard);
         snapshot_copy(&t->snapshot, &t->observed);
         t->state = BS_TRANSACTION_APPLIED;
-    }
+    } else t->state = BS_TRANSACTION_RETIRED;
     return BS_TRANSACTION_OK;
 }
-enum bs_transaction_reply bs_transaction_apply(struct bs_edit_transaction *t,
-        struct bs_edit_candidate *c, uint32_t confirmed, const struct bs_transaction_backend *b) {
+static enum bs_transaction_reply apply(struct bs_edit_transaction *t,
+        struct bs_edit_candidate *c, uint32_t confirmed, const struct bs_transaction_backend *b,
+        int retain_history) {
     enum bs_transaction_reply result;
     enum bs_provider_reply policy;
     struct bs_preview_session *s;
@@ -136,13 +137,22 @@ enum bs_transaction_reply bs_transaction_apply(struct bs_edit_transaction *t,
         if (policy != BS_PROVIDER_READY)
             result = policy == BS_PROVIDER_PENDING ? BS_TRANSACTION_WAIT : BS_TRANSACTION_REJECTED;
         else if (bs_candidate_result_locked(c, confirmed, &t->edit)) {
-            result = exchange(t, 0);
+            result = exchange(t, 0, retain_history);
             bs_candidate_cancel(c);
         } else result = c->state == BS_CANDIDATE_WAITING ? BS_TRANSACTION_WAIT : BS_TRANSACTION_STALE;
     }
     if (t->state == BS_TRANSACTION_ACTIVE) t->state = BS_TRANSACTION_EMPTY;
+    if (!retain_history && t->state != BS_TRANSACTION_FAULT) bs_transaction_init(t);
     s->backend->unlock(s->context);
     return result;
+}
+enum bs_transaction_reply bs_transaction_apply(struct bs_edit_transaction *t,
+        struct bs_edit_candidate *c, uint32_t confirmed, const struct bs_transaction_backend *b) {
+    return apply(t, c, confirmed, b, 1);
+}
+enum bs_transaction_reply bs_transaction_commit(struct bs_edit_transaction *t,
+        struct bs_edit_candidate *c, uint32_t confirmed, const struct bs_transaction_backend *b) {
+    return apply(t, c, confirmed, b, 0);
 }
 enum bs_transaction_reply bs_transaction_undo(struct bs_edit_transaction *t, uint32_t confirmed) {
     enum bs_transaction_reply result;
@@ -165,7 +175,7 @@ enum bs_transaction_reply bs_transaction_undo(struct bs_edit_transaction *t, uin
         else {
             result = bs_guard_valid(t->guard, &t->undo) ? inspect(t, 1) : BS_TRANSACTION_STALE;
             if (result == BS_TRANSACTION_OK)
-                result = bs_guard_valid(t->guard, &t->undo) ? exchange(t, 1) : BS_TRANSACTION_STALE;
+                result = bs_guard_valid(t->guard, &t->undo) ? exchange(t, 1, 1) : BS_TRANSACTION_STALE;
         }
     }
     if (t->state == BS_TRANSACTION_ACTIVE)
