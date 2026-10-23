@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.11-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted integration research: execute stock grid opening, generation, complete-record publication, editor pointer/selection refresh and redraw notification against original synthetic Flex/Static settings. Twenty-four immediate grids, four deferred grids, four busy-source refusals and a redraw-only fixture pass with explicit display/progress/zero-search mocks.",
+      "Grid creation clears the count before deferred searches finish, then publishes records without raising the fixture interrupt mask and finally refreshes editor pointers/selection. The redraw helper is a notification, not a marker-history or transaction service. Update the shared proposal to require exclusion across the entire deferred operation.",
+      "The stock grid replaces existing markers and cannot implement Beat Slicer preservation or atomic Apply directly. Actual zero-search scheduling/cancellation, voice refresh, Undo, working/saved-copy persistence, native backend, USB and physical qualification remain open. Portable runtime code is unchanged; no installable module is released."
+    ]
+  },
+  {
     "version": "0.1.10-experimental",
     "date": "2026-10-23",
     "changes": [

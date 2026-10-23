@@ -343,3 +343,15 @@ compatibility/admission/removal and emulator lifecycle, and measure resources.
 Only then name an exact private build and request a scoped disposable-project
 trial. The existing unit's missing module references remain untouched. Actual
 audio and physical save/reload/reboot evidence remain separate requirements.
+
+## Editor publication observation (0.1.11)
+
+`stock-publication.json` executes the grid dialog opener (`0x40073984`), its
+selection callback (`0x40073a68`), completion path (`0x40072e74`), pointer refresh
+and selection refresh (`0x400718f8`). Display/progress/search callees are mocks.
+The redraw helper (`0x4006dbdc`) sets a notification and changes no marker
+records; earlier descriptions of that mocked follow-up as possibly dirty/Undo
+were unresolved guesses, not established history behavior. Deferred grids
+clear count before search completion and publish records later. These are
+observations on synthetic state, not approved native entry points or patch sites.
+See TESTING.md for scope and remaining persistence/Undo limitations.

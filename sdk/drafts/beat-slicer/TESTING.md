@@ -780,3 +780,46 @@ and persistence. Source hashes bind the retained report to the exact inputs.
 
 The 0.1.10 report matches source commit `b745c6749e6e2b5b876f1d25d8ead6f2d2818660`, pinned by
 `tests.evidenceRevision`; prior reports retain their historical identities.
+
+## Stock editor publication (0.1.11)
+
+`evidence/stock-publication.json` binds four passing groups to private 1.40C
+MAIN and original synthetic settings. Stock grid opening/generation, arithmetic,
+record writes, pointer refresh, selection and redraw notification execute;
+formatting/display/progress completion and zero-search requests are explicit
+mocks. No scheduler, audio, physical file or device is used.
+
+- 24 immediate grids cover Flex/Static, slots 0/127, counts 2/8/64 and 0/3
+  previous records. Opening the dialog changes no settings. Completion replaces
+  the active grid, disables its loops, preserves trim/attributes/inactive rows
+  and the other arena, rebuilds all 64 editor record pointers, selects the cursor's
+  slice and requests redraw once.
+- Four deferred grids clear the live count to zero before the first mocked
+  zero search returns. Old record bytes remain until eight authored search
+  continuations complete for four slices. Final records and refresh agree with
+  the immediate path. Actual zero-search behavior/cancellation is untested.
+- Four busy-source fixtures refuse the grid dialog without marker changes.
+- The redraw helper changes its notification field without changing markers;
+  it is not an Undo/history operation.
+
+Instruction/write observation sees count clearing before record writes, then
+final count publication. Record stores run at the supplied unmasked interrupt
+level (`0x2000`); no interrupts are injected. This does not prove a real race,
+stock UI defect or a safe native locking boundary. The stock grid intentionally
+replaces records and cannot satisfy Beat Slicer's preserve-or-refuse policy.
+Keep exclusion from the first mutation through all deferred continuations and
+refresh. A ready preview must prepare privately before any native publication.
+
+Configure/build the private source-tools mounts as above, freeze inputs, then:
+
+```sh
+cmake --build /output/build --target beat_slicer_publication_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind publication \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_publication_probe \
+  --output /evidence/NEW_PUBLICATION.json
+```
+
+The tested callbacks restore the stack, callee-saved registers and interrupt
+mask. This remains narrow ABI evidence. Stock Undo, voice-state refresh,
+working/saved-copy publication, project save/reload and reboot remain unproved.

@@ -91,6 +91,14 @@ the complete expected after-state before restoring it. Beat Slicer's candidate
 tests cover this in memory; such equality still needs source identity, ownership
 and verified native publication/persistence around it.
 
+A stock editor action may mutate settings before its asynchronous search or
+completion callback returns. Beat Slicer's synthetic 1.40C grid fixtures clear
+the marker count before deferred zero searches and publish records later,
+followed by pointer/selection refresh. Its redraw notification is not an Undo
+service. Track the entire mutation/refresh lifetime; do not reuse this replacing
+grid action as a preserving atomic Apply. Actual scheduling/cancellation and
+physical persistence remain unproved by those fixtures.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

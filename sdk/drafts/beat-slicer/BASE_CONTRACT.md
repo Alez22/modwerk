@@ -256,3 +256,15 @@ register/stack contracts; PCM cache/streaming lifetime; native save/reload and
 Undo behavior; working/saved-copy publication; generation coverage; resource
 and compatibility review; removal and missing-module handling. Only then can
 the reviewed registry, loader, browser builder and module adapter be changed.
+
+## Stock grid publication observation
+
+The 0.1.11 synthetic 1.40C fixtures execute both immediate and deferred grid
+publication. Count clearing precedes asynchronous zero-search completion;
+records are later written at the supplied unmasked level, followed by pointer
+and selection refresh and a redraw notification. The redraw helper itself
+changes no marker history. This grid replaces old records and is not the
+preserving transaction service. Exclude previews for its whole deferred
+lifetime, including failure/cancellation and final refresh; never substitute
+its notification field for a generation or native Undo. Actual zero-search
+scheduling, cancellation and working/saved-copy behavior remain unproved.
