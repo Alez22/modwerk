@@ -22,7 +22,7 @@ import { assetUrl } from './hosting'
 import { octatrackMatchesQuery } from './catalog/module-search'
 import { getRoute, moduleHref } from './routing'
 import { setPageMetadata } from './page-metadata'
-import { HOME_DESCRIPTION, HOME_TITLE } from './site-metadata'
+import { HOME_DESCRIPTION, HOME_TITLE, pageTitle } from './site-metadata'
 import { ModuleSets } from './components/ModuleSets'
 import { ModuleComparison } from './components/ModuleComparison'
 import { api, onCommunityReconnect } from './community/api'
@@ -59,7 +59,7 @@ import { useBaseInstallPrompt } from './hooks/useBaseInstallPrompt'
 import { OctatrackLinkContext, useInventory, useMissing } from './hooks/useOctatrackLink'
 import { recordLoad } from './hooks/useOctatrackLoad'
 import { pendingBaseInstall } from './config/octatrack-progress'
-import { digiDownloadsEnabled } from './engine/elekloader/protocol'
+import { digiDownloadsEnabled, isCoreBuildPreview } from './engine/elekloader/protocol'
 import { USB_AUDIO_MODULE, usbAudioLayout, type UsbAudioConfiguration } from './config/usb-audio'
 import { downloadSelection, parseSelection } from './config/selection'
 import { Icon } from './components/Icon'
@@ -211,7 +211,7 @@ export default function App() {
   const allMachines = allRoute || overviewRoute || (!machineView && !octatrackRoute && remembered === ALL_MACHINES)
   const currentDevice = DEVICES_BY_ID[machineView ? machineRoute!.device.id : octatrackRoute ? 'octatrack' : remembered && remembered !== ALL_MACHINES ? remembered : 'octatrack']
   const machineHasMods = !allMachines && (currentDevice.status === 'available' || currentDevice.status === 'preview')
-  const machineBuildPreview = !allMachines && currentDevice.id === 'digitakt-ii' && currentDevice.status === 'research' && !!currentDevice.sdk
+  const machineBuildPreview = !allMachines && isCoreBuildPreview(currentDevice.id) && currentDevice.status === 'research' && !!currentDevice.sdk
   const machineCanConfigure = machineHasMods || machineBuildPreview
   // The overview shows All machines too, so the forum and other machine-less pages after it don't fall back to an older machine.
   useEffect(() => { if (allRoute || overviewRoute) rememberDevice(ALL_MACHINES); else if (machineView || octatrackRoute) rememberDevice(currentDevice.id) }, [allRoute, overviewRoute, machineView, octatrackRoute, currentDevice.id])
@@ -303,13 +303,13 @@ export default function App() {
   useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); if (faqEntry) document.getElementById('faq-' + faqEntry)?.scrollIntoView({ block: 'start' }) }, [route, faqEntry])
   useEffect(() => {
     const appUrl = new URL(document.baseURI)
-    if (detailModule) setPageMetadata({ title: detailModule.name + ' for Elektron Octatrack — Modwerk', description: detailModule.description, url: new URL(moduleHref(detailModule.id), appUrl).href })
-    else if (digiMod) setPageMetadata({ title: digiMod.title + ' for Elektron ' + currentDevice.name + ' — Modwerk', description: digiMod.summary, url: new URL(deviceHref(digiMod.device, 'module/' + digiMod.id), appUrl).href })
-    else if (projectsRoute) setPageMetadata({ title: PROJECT_TITLE + ' — Modwerk', description: PROJECT_DESCRIPTION, url: new URL('projects/', appUrl).href, image: PROJECT_PREVIEW_IMAGE, imageAlt: PROJECT_PREVIEW_ALT })
-    else if (route === 'submit') setPageMetadata({ title: 'Start developing — Modwerk', description: 'Build a mod for Elektron instruments: write it with the SDK, submit it through GitHub and get it reviewed for the Modwerk library.', url: new URL('submit/', appUrl).href })
+    if (detailModule) setPageMetadata({ title: pageTitle(detailModule.name + ' for Elektron Octatrack'), description: detailModule.description, url: new URL(moduleHref(detailModule.id), appUrl).href })
+    else if (digiMod) setPageMetadata({ title: pageTitle(digiMod.title + ' for Elektron ' + currentDevice.name), description: digiMod.summary, url: new URL(deviceHref(digiMod.device, 'module/' + digiMod.id), appUrl).href })
+    else if (projectsRoute) setPageMetadata({ title: pageTitle(PROJECT_TITLE), description: PROJECT_DESCRIPTION, url: new URL('projects/', appUrl).href, image: PROJECT_PREVIEW_IMAGE, imageAlt: PROJECT_PREVIEW_ALT })
+    else if (route === 'submit') setPageMetadata({ title: pageTitle('Start developing'), description: 'Build a mod for Elektron instruments: write it with the SDK, submit it through GitHub and get it reviewed for the Modwerk library.', url: new URL('submit/', appUrl).href })
     // A public thread owns its title and description, supplied by its static page and refreshed after loading.
     else if (!route.startsWith('forum/thread/')) {
-      const title = overviewRoute || allRoute || route === 'library' ? HOME_TITLE : (hubRoute?'Your Octatrack':machineView==='configuration'?currentDevice.name+' '+w.set:machineView?currentDevice.name+' modules':forumRoute?'Forum':accountRoute?(betaInvitationRoute?'Join the beta':'Account'):developerRoute?(developer?.user&&!route.startsWith('developer/complete')?'Creator settings':'Account'):faqRoute?'FAQ':route==='credits'?'Credits':route==='privacy'?'Privacy':route==='impressum'?'Impressum':route==='community-rules'?'Community rules':route==='report-content'?'Report content':route==='configuration'?w.Set:route.startsWith('submit')?'Start developing':(route==='review'||route==='admin')?'Admin workspace':route.startsWith('module-set')?'Module sets':'Module library')+' · Modwerk'
+      const title = overviewRoute || allRoute || route === 'library' ? HOME_TITLE : pageTitle(hubRoute?'Your Octatrack':machineView==='configuration'?currentDevice.name+' '+w.set:machineView?currentDevice.name+' modules':forumRoute?'Forum':accountRoute?(betaInvitationRoute?'Join the beta':'Account'):developerRoute?(developer?.user&&!route.startsWith('developer/complete')?'Creator settings':'Account'):faqRoute?'FAQ':route==='credits'?'Credits':route==='privacy'?'Privacy':route==='impressum'?'Impressum':route==='community-rules'?'Community rules':route==='report-content'?'Report content':route==='configuration'?w.Set:route.startsWith('submit')?'Start developing':(route==='review'||route==='admin')?'Admin workspace':route.startsWith('module-set')?'Module sets':'Module library')
       setPageMetadata({ title, description: HOME_DESCRIPTION, url: appUrl.href })
     }
   }, [overviewRoute, projectsRoute, faqRoute, route,detailModule,digiMod,forumRoute,accountRoute,betaInvitationRoute,developerRoute,developer?.user,allRoute,machineView,currentDevice.name,w,hubRoute])
@@ -454,7 +454,7 @@ export default function App() {
       <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus() }}>Skip to content</a>
       <aside className="sidebar" aria-label="App sidebar">
         <div className="sidebar-brand">
-          <a className="app-brand" href="#overview"><img src={import.meta.env.BASE_URL + 'modwerk-mark.svg'} width="34" height="34" alt="" /><BrandName session={session} /><small>Custom Firmware</small></a>
+          <a className="app-brand" href="#overview"><img src={import.meta.env.BASE_URL + 'modwerk-mark.svg'} width="34" height="34" alt="" /><BrandName session={session} /><small>Community-built firmware</small></a>
         </div>
         <nav className="sidebar-nav sidebar-home" aria-label="Home"><a href="#overview" className={overviewRoute ? 'active' : ''} aria-current={overviewRoute ? 'page' : undefined}><Icon name="home" /><span>Overview</span><small>{DEVICES.length}</small></a></nav>
         {DEVELOP_HIGHLIGHT && <DevelopCard current={route.startsWith('submit')} />}
