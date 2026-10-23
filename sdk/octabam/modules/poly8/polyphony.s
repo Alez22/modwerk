@@ -80,6 +80,7 @@
         .equ    MIDI_ON_HELD, 0x4000e75a
         .equ    MIDI_OFF_MATCH, 0x4000dfdc
         .equ    MIDI_OFF_NEXT, 0x4000dff8
+        .equ    DTCN3, 0xfc07c00c          | stock's frame timer, 132 MHz, free-running
 | A voice owner: panel MIDI pitch 0..124, MIDI 0..126 as 128..254,
 | MIDI 127 as 127. 0xff remains exclusively the empty sentinel.
         .equ    MIDI_KEY, 0x80
@@ -98,7 +99,12 @@ poly_is_track:
         bhi.s .pit_no
         move.l %d0,%d1
         movea.l (BANK_PTR).l,%a0
+        cmpa.l #0x40000000,%a0            | a bank, as registration.c's valid_bank
+        bcs.s .pit_no
+        cmpa.l #0x47f00000,%a0
+        bcc.s .pit_no
         mvz.b (PART_INDEX).l,%d0
+        andi.l #3,%d0                     | the Part, as current_part() reads it
         mulu.w #PART_STRIDE,%d0
         adda.l %d0,%a0
         adda.l #0x8ed80,%a0
@@ -517,6 +523,15 @@ polyphony_call:
         beq.w   .mono
         cmpi.l  #MAX_SOURCE_FRAMES,%d5
         bhi.w   .reset_mono
+        move.l  (DTCN3).l,%d0             | this chunk's start, for pm_govern
+        move.l  %d0,poly_gov_start:l
+        move.l  #poly_cached_call,%d0     | 0x08000000 from the pool's uncached alias, else 0
+        andi.l  #0xf8000000,%d0
+        subi.l  #0x40000000,%d0
+        cmpi.l  #0x08000000,%d0
+        beq.s   1f
+        moveq   #0,%d0
+1:      move.l  %d0,poly_cache_delta:l
 
         move.l  %d2,-(%sp)
         jsr     pm_enforce_budget
@@ -526,21 +541,14 @@ polyphony_call:
         tst.l   %d6
         beq.w   .mono                     | stock call clears the destination
 
-        move.l  %d2,%d0
-        move.l  %d0,%d1
-        lsl.l   #2,%d0
-        add.l   %d1,%d0
-        lsl.l   #3,%d0                    | track * 40
-        lea     (STATES).l,%a0
-        move.l  36(%a0,%d0.l),%d7         | primary increment (octave applied)
-
 | The renderer does not resample: it fetches RAW source frames, and the DSP
 | resamples the whole track by STATES+36 -- unity on a POLY track
 | (poly_increment_shift).  So each voice, the primary too, fetches its own
-| frame count and is resampled here to d5 frames at d7 (.render_voice).
+| frame count and is resampled here to d5 frames (.render_voice).
         moveq   #1,%d0
         move.l  %d0,poly_rendering
         move.l  %d6,%d4
+        moveq   #0,%d7                    | voices rendered
 .voice_loop:
         move.l  %d4,%d3
         bitrev  %d3
@@ -548,14 +556,21 @@ polyphony_call:
         bclr    %d3,%d4
         move.l  %d3,poly_voice_selector
         bsr.w   .render_voice
+        addq.l  #1,%d7
         tst.l   %d4
         bne.s   .voice_loop
         clr.l   poly_voice_selector
+        move.l  %d7,-(%sp)                | pm_govern's voices, kept to its call
         move.l  %d6,-(%sp)
         bsr.w   .mix
         move.l  (%sp)+,%d6
+        lea     poly_flush_render:l,%a1
+        jsr     poly_cached_call:l
         bsr.w   .env_reap
         clr.l   poly_rendering
+        move.l  poly_gov_start:l,-(%sp)
+        jsr     pm_govern                 | may lower the voice cap and retire voices
+        addq.l  #8,%sp
         bra.s   .done
 
 .reset_mono:
@@ -625,6 +640,7 @@ polyphony_call:
         moveq   #9,%d0
         lsl.l   %d0,%d1
         lea     poly_scratch(%pc),%a3
+        suba.l  poly_cache_delta:l,%a3   | cached alias (poly_flush_render)
         adda.l  %d1,%a3                   | a3 = output
 .re_active:
 | The stock builder supplies only track tuning. Apply this voice's note
@@ -688,6 +704,7 @@ polyphony_call:
 
 | Carried frames go to the front of the fetch buffer.
         lea     poly_fetch(%pc),%a4
+        suba.l  poly_cache_delta:l,%a4   | cached alias (poly_flush_render)
         lea     poly_rs_carry(%pc),%a0
         move.l  (%a0,%d4.l*4),%d2         | carried frames c (0..2)
         move.l  %d4,%d0
@@ -724,6 +741,10 @@ polyphony_call:
         move.l  #FETCH_FRAMES,%d0         | out of range: cap, never overrun
 .re_total_ok:
         movea.l %d0,%a2                   | a2 = total
+        cmp.l   poly_fetch_used:l,%d0
+        bls.s   1f
+        move.l  %d0,poly_fetch_used:l     | the furthest frame poly_flush_render pushes
+1:
         sub.l   %d2,%d0                   | frames to fetch
         ble.s   .re_fetched
         move.l  %d2,%d1
@@ -751,37 +772,12 @@ polyphony_call:
 | Interpolate d5 output frames.  Sample words are 16-bit PCM << 16, so the
 | difference is taken on the top halves and scaled by a 13-bit fraction.
         lea     poly_fetch(%pc),%a4
+        suba.l  poly_cache_delta:l,%a4   | cached alias (poly_flush_render)
         move.l  %d3,%d2                   | pos = p
         move.l  %d5,%d7
         subq.l  #1,%d7
-.re_interp:
-        move.l  %d2,%d0
-        clr.w   %d0
-        swap    %d0
-        lsl.l   #3,%d0
-        lea     (%a4,%d0.l),%a0           | &buf[floor(pos)]
-        move.l  %d2,%d1
-        andi.l  #0xffff,%d1
-        lsr.l   #3,%d1                    | 13-bit fraction
-        move.l  (%a0),%d3                 | left a
-        mvs.w   8(%a0),%d0                | signed high half of b (big-endian PCM)
-        mvs.w   (%a0),%d5                | signed high half of a
-        sub.l   %d5,%d0
-        muls.l  %d1,%d0
-        asl.l   #3,%d0
-        add.l   %d3,%d0
-        move.l  %d0,(%a3)+
-        move.l  4(%a0),%d3                | right a
-        mvs.w   12(%a0),%d0                | signed high half of b (big-endian PCM)
-        mvs.w   4(%a0),%d5                | signed high half of a
-        sub.l   %d5,%d0
-        muls.l  %d1,%d0
-        asl.l   #3,%d0
-        add.l   %d3,%d0
-        move.l  %d0,(%a3)+
-        add.l   %d6,%d2
-        subq.l  #1,%d7
-        bpl.s   .re_interp
+        lea     poly_interp_loop:l,%a1
+        jsr     poly_cached_call:l
 
 | Carry buf[k..total-1] and keep p in [0,1) relative to buf[k].
         move.l  %d2,%d0
@@ -1051,27 +1047,22 @@ polyphony_call:
         moveq   #9,%d1
         lsl.l   %d1,%d0
         lea     poly_scratch(%pc),%a0
+        suba.l  poly_cache_delta:l,%a0   | cached alias (poly_flush_render)
         adda.l  %d0,%a0
-        movea.l 40(%a5),%a1
+        movea.l 40(%a5),%a2
         move.l  %d5,%d7
         add.l   %d7,%d7
         subq.l  #1,%d7
-.mx_copy:
-        move.l  (%a0)+,%d0
-        asr.l   #3,%d0                    | fixed 1/8 gain, even for one voice
-        move.l  %d0,(%a1)+
-        subq.l  #1,%d7
-        bpl.s   .mx_copy
-        rts
+        lea     poly_copy_loop:l,%a1
+        jmp     poly_cached_call:l        | its rts returns from .mix
 .mx_full:
         lea     poly_sum(%pc),%a0
+        suba.l  poly_cache_delta:l,%a0   | cached alias (poly_flush_render)
         move.l  %d5,%d0
         add.l   %d0,%d0
         subq.l  #1,%d0
-.mx_clear:
-        clr.l   (%a0)+
-        subq.l  #1,%d0
-        bpl.s   .mx_clear
+        lea     poly_clear_loop:l,%a1
+        jsr     poly_cached_call:l
 .mx_voice:
         move.l  %d6,%d3
         bitrev  %d3
@@ -1080,6 +1071,7 @@ polyphony_call:
         moveq   #9,%d1
         lsl.l   %d1,%d0
         lea     poly_scratch(%pc),%a0
+        suba.l  poly_cache_delta:l,%a0   | cached alias (poly_flush_render)
         adda.l  %d0,%a0
 .mx_src:
         lea     poly_g0(%pc),%a1
@@ -1093,19 +1085,13 @@ polyphony_call:
         bne.s   .mx_gain
         cmp.l   %d0,%d1
         bne.s   .mx_gain
-        lea     poly_sum(%pc),%a1
+        lea     poly_sum(%pc),%a2
+        suba.l  poly_cache_delta:l,%a2   | cached alias (poly_flush_render)
         move.l  %d5,%d7
         subq.l  #1,%d7
         moveq   #9,%d0
-.mx_unity:
-        move.l  (%a0)+,%d4                | stereo pair, one loop branch
-        asr.l   %d0,%d4                   | Q25 with 1/8 headroom for eight voices
-        add.l   %d4,(%a1)+
-        move.l  (%a0)+,%d4
-        asr.l   %d0,%d4
-        add.l   %d4,(%a1)+
-        subq.l  #1,%d7
-        bpl.s   .mx_unity
+        lea     poly_unity_loop:l,%a1
+        jsr     poly_cached_call:l
         bra.w   .mx_next
 .mx_gain:
         sub.l   %d0,%d1
@@ -1114,29 +1100,15 @@ polyphony_call:
         divs.l  %d5,%d1                   | gain step per frame, Q16.16
         swap    %d0
         clr.w   %d0                       | gain, Q16.16
-        lea     poly_sum(%pc),%a1
+        lea     poly_sum(%pc),%a2
+        suba.l  poly_cache_delta:l,%a2   | cached alias (poly_flush_render)
         lea     -12(%sp),%sp
         movem.l %d2-%d3/%d6,(%sp)
         moveq   #14,%d4
         move.l  %d5,%d7
         subq.l  #1,%d7
-.mx_frame:
-        move.l  %d0,%d6
-        swap    %d6
-        ext.l   %d6                       | this frame's gain, Q13
-        move.l  (%a0)+,%d2                | left: sample (PCM << 16) >> 14 * gain
-        asr.l   %d4,%d2
-        muls.l  %d6,%d2
-        asr.l   #8,%d2                    | Q25 with the same fixed 1/8 gain
-        add.l   %d2,(%a1)+
-        move.l  (%a0)+,%d2                | right
-        asr.l   %d4,%d2
-        muls.l  %d6,%d2
-        asr.l   #8,%d2
-        add.l   %d2,(%a1)+
-        add.l   %d1,%d0
-        subq.l  #1,%d7
-        bpl.s   .mx_frame
+        lea     poly_gain_loop:l,%a1
+        jsr     poly_cached_call:l
         movem.l (%sp),%d2-%d3/%d6
         lea     12(%sp),%sp
 .mx_next:
@@ -1155,6 +1127,7 @@ polyphony_call:
 | The limiter: recover toward unity (time constant ~23 ms), never above the
 | gain that keeps this chunk's peak inside full scale.
         lea     poly_sum(%pc),%a0
+        suba.l  poly_cache_delta:l,%a0   | cached alias (poly_flush_render)
         move.l  %d5,%d7
         add.l   %d7,%d7
         subq.l  #1,%d7
@@ -1190,7 +1163,8 @@ polyphony_call:
         move.l  %d1,(%a0,%d2.l*4)         | this chunk ends at d1
 .mx_output:
         lea     poly_sum(%pc),%a0
-        movea.l 40(%a5),%a1
+        suba.l  poly_cache_delta:l,%a0   | cached alias (poly_flush_render)
+        movea.l 40(%a5),%a2
         move.l  %d5,%d7
         subq.l  #1,%d7
         move.l  #LIM_FS-1,%d3
@@ -1201,21 +1175,8 @@ polyphony_call:
         bne.s   .mx_ramp
         add.l   %d7,%d7
         addq.l  #1,%d7
-.mx_out:
-        move.l  (%a0)+,%d0
-        cmp.l   %d3,%d0
-        ble.s   .mx_hi
-        move.l  %d3,%d0
-.mx_hi:
-        cmp.l   %d4,%d0
-        bge.s   .mx_lo
-        move.l  %d4,%d0
-.mx_lo:
-        lsl.l   #6,%d0                    | Q25 -> PCM << 16
-        move.l  %d0,(%a1)+
-        subq.l  #1,%d7
-        bpl.s   .mx_out
-        rts
+        lea     poly_out_loop:l,%a1
+        jmp     poly_cached_call:l        | its rts returns from .mix
 | The limiter's gain moves linearly across the chunk (a gain that stepped
 | at each 16-sample boundary clicked while a chord was being held down).
 .mx_ramp:
@@ -1239,7 +1200,7 @@ polyphony_call:
         move.l  %d4,%d0
 .mx_rlo:
         lsl.l   #6,%d0
-        move.l  %d0,(%a1)+
+        move.l  %d0,(%a2)+
         move.l  (%a0)+,%d0
         asr.l   #8,%d0
         asr.l   #2,%d0
@@ -1253,7 +1214,7 @@ polyphony_call:
         move.l  %d4,%d0
 .mx_rlo2:
         lsl.l   #6,%d0
-        move.l  %d0,(%a1)+
+        move.l  %d0,(%a2)+
         add.l   %d1,%d6
         subq.l  #1,%d7
         bpl.s   .mx_rframe
@@ -1806,6 +1767,8 @@ poly_press_key:
         move.w  #0x2700,%sr
         move.l  %d0,%d4
         move.l  %d1,%d3
+        move.l  (DTCN3).l,%d0
+        move.l  %d0,poly_mask_at:l
         bsr.w   .hold_find
         tst.l   %d0
         bpl.s   .ppk_done
@@ -1838,6 +1801,7 @@ poly_press_key:
         bsr.w   .hold_add
         bsr.w   .arm_key
 .ppk_done:
+        jsr     poly_mask_note:l
         move.w  %d5,%sr
         movem.l (%sp),%d2-%d5/%a0-%a1
         lea     24(%sp),%sp
@@ -1857,6 +1821,8 @@ poly_release_key:
         move.w  #0x2700,%sr
         move.l  %d0,%d4
         move.l  %d1,%d3
+        move.l  (DTCN3).l,%d0
+        move.l  %d0,poly_mask_at:l
 
         lea     poly_chord_count(%pc),%a2
         mvz.b   (%a2,%d4.l),%d2
@@ -1928,6 +1894,7 @@ poly_release_key:
 .prk_busy:
         moveq   #0,%d0
 .prk_out:
+        jsr     poly_mask_note:l
         move.w  %d5,%sr
         movem.l (%sp),%d2-%d6/%a0-%a2
         lea     32(%sp),%sp
@@ -2376,3 +2343,230 @@ poly_voice_bind_run:
         move.l  (%sp)+,%d2
         rts
         .endif
+
+| ---------------------------------------------------------------------------
+| Cached inner loops.  A base built without --cached-modules runs module code
+| from the pool's uncached alias, so every instruction of it is fetched from
+| SDRAM: on the owner's MKII (23 Oct 2026) each further POLY voice cost about
+| 13 points of CPU there and about 3.5 with module code cached.  The render's
+| tight loops are the routines below, run through the cached alias by
+| poly_cached_call.  Each addresses data only through the registers its caller
+| set, which stay on the caller's alias, so the data cache never holds a line
+| of POLY8's memory.  Appended past the data with absolute addressing, as the
+| subscribers above, so no PC-relative reach moves.
+        .text
+        .balign 4
+poly_gov_start:
+        .long   0                         | the frame timer at this chunk's start
+poly_icache_at:
+        .long   0                         | where the code caches were last cleared
+poly_cache_delta:
+        .long   0                         | uncached - cached alias of this code, or 0
+poly_fetch_used:
+        .long   0                         | frames of poly_fetch the render used, its furthest
+poly_mask_at:
+        .long   0                         | the frame timer when a key handler masked
+        .global poly_mask_max
+poly_mask_max:
+        .long   0                         | its longest masked span, counts (diagnostics)
+
+| The key handlers' masked span, for diagnostics: the frames stop for good when
+| the frame interrupt waits about 300 us (docs/OCTATRACK_HARDWARE_TRAPS.md).
+| Called with interrupts masked.  Preserves every register.
+poly_mask_note:
+        move.l  %d0,-(%sp)
+        move.l  (DTCN3).l,%d0
+        sub.l   poly_mask_at:l,%d0
+        cmp.l   poly_mask_max:l,%d0
+        bls.s   1f
+        move.l  %d0,poly_mask_max:l
+1:      move.l  (%sp)+,%d0
+        rts
+
+| The render's own buffers (poly_fetch, poly_scratch, poly_sum) are written and
+| read only by the frame interrupt, within one chunk.  From the uncached alias
+| it works on them through the cached one (poly_cache_delta), and every line it
+| touched leaves the data cache before the chunk ends: pushed and, with CACR's
+| DPI clear as stock leaves it, invalidated, every way of each line's set, as
+| the base's modwerk_machine_flush_data.  So no line of POLY8's memory outlives
+| the interrupt, and an Undo, a removal or the next module in this memory finds
+| memory exact.  d5 = frames, d6 = the voices rendered.  Preserves every
+| register.
+poly_flush_render:
+        tst.l   poly_cache_delta:l
+        beq.s   9f
+        lea     -24(%sp),%sp
+        movem.l %d0-%d4/%a0,(%sp)
+        move.l  %d5,%d0
+        lsl.l   #3,%d0                    | d5 stereo frames of 8 bytes
+        lea     poly_sum:l,%a0
+        bsr.s   .pf_push
+        move.l  poly_fetch_used:l,%d0
+        addq.l  #2,%d0                    | the carry reads one frame past the last
+        lsl.l   #3,%d0
+        lea     poly_fetch:l,%a0
+        bsr.s   .pf_push
+        clr.l   poly_fetch_used:l
+        move.l  %d6,%d4
+2:      move.l  %d4,%d3
+        bitrev  %d3
+        ff1     %d3
+        bclr    %d3,%d4
+        moveq   #9,%d0
+        lsl.l   %d0,%d3
+        lea     poly_scratch:l,%a0
+        adda.l  %d3,%a0                   | this voice's 512 bytes
+        move.l  %d5,%d0
+        lsl.l   #3,%d0
+        bsr.s   .pf_push
+        tst.l   %d4
+        bne.s   2b
+        nop                               | the pushes reach memory
+        movem.l (%sp),%d0-%d4/%a0
+        lea     24(%sp),%sp
+9:      rts
+| a0 = a buffer (this code's alias), d0 = bytes: push its cached lines.
+| Clobbers d0-d2/a0.
+.pf_push:
+        suba.l  poly_cache_delta:l,%a0
+        move.l  %a0,%d1
+        add.l   %d1,%d0                   | end
+        moveq   #-16,%d2
+        and.l   %d2,%d1                   | first line
+3:      movea.l %d1,%a0
+        cpushl  %dc,(%a0)                 | ways 0..3 of the line's set
+        addq.l  #1,%a0
+        cpushl  %dc,(%a0)
+        addq.l  #1,%a0
+        cpushl  %dc,(%a0)
+        addq.l  #1,%a0
+        cpushl  %dc,(%a0)
+        moveq   #16,%d2
+        add.l   %d2,%d1
+        cmp.l   %d0,%d1
+        bcs.s   3b
+        rts
+
+| a1 = one of the routines below, in this code's alias.  From the pool's
+| uncached alias (0x48000000-0x4fffffff: cached + 0x08000000, runtime.c) it
+| jumps to the routine's cached twin.  The first time at this address, after
+| an install or a move, it first invalidates the instruction and branch
+| caches, so no line of earlier code here runs (stock's CACR value plus
+| ICINVA, as the base's modwerk_machine_invalidate_code).  A card build and a
+| base with cached modules run cached already and take a1 as it is.  The
+| routine's rts returns to the caller.  Preserves every register but a1.
+poly_cached_call:
+        move.l  %d0,-(%sp)
+        move.l  %a1,%d0
+        andi.l  #0xf8000000,%d0
+        cmpi.l  #0x48000000,%d0
+        bne.s   2f
+        move.l  #poly_cached_call,%d0
+        cmp.l   poly_icache_at:l,%d0
+        beq.s   1f
+        move.l  %d0,poly_icache_at:l
+        move.l  #0xa40ce100,%d0
+        movec   %d0,%cacr
+        nop
+1:      suba.l  #0x08000000,%a1
+2:      move.l  (%sp)+,%d0
+        jmp     (%a1)
+
+        .balign 16
+| .render_voice's interpolation: d7+1 stereo frames from the fetch buffer a4
+| at pos d2 (Q16), step d6, to (a3)+.  Clobbers d0/d1/d3/d5/a0.
+poly_interp_loop:
+1:      move.l  %d2,%d0
+        clr.w   %d0
+        swap    %d0
+        lsl.l   #3,%d0
+        lea     (%a4,%d0.l),%a0           | &buf[floor(pos)]
+        move.l  %d2,%d1
+        andi.l  #0xffff,%d1
+        lsr.l   #3,%d1                    | 13-bit fraction
+        move.l  (%a0),%d3                 | left a
+        mvs.w   8(%a0),%d0                | signed high half of b (big-endian PCM)
+        mvs.w   (%a0),%d5                 | signed high half of a
+        sub.l   %d5,%d0
+        muls.l  %d1,%d0
+        asl.l   #3,%d0
+        add.l   %d3,%d0
+        move.l  %d0,(%a3)+
+        move.l  4(%a0),%d3                | right a
+        mvs.w   12(%a0),%d0               | signed high half of b (big-endian PCM)
+        mvs.w   4(%a0),%d5                | signed high half of a
+        sub.l   %d5,%d0
+        muls.l  %d1,%d0
+        asl.l   #3,%d0
+        add.l   %d3,%d0
+        move.l  %d0,(%a3)+
+        add.l   %d6,%d2
+        subq.l  #1,%d7
+        bpl.s   1b
+        rts
+
+| .mix's one voice at unity: d7+1 longs from (a0)+ to (a2)+ at the fixed 1/8.
+poly_copy_loop:
+1:      move.l  (%a0)+,%d0
+        asr.l   #3,%d0                    | fixed 1/8 gain, even for one voice
+        move.l  %d0,(%a2)+
+        subq.l  #1,%d7
+        bpl.s   1b
+        rts
+
+| .mix's sum: clear d0+1 longs at (a0)+.
+poly_clear_loop:
+1:      clr.l   (%a0)+
+        subq.l  #1,%d0
+        bpl.s   1b
+        rts
+
+| .mix's voice held at unity: d7+1 stereo frames (a0)+ >> d0 added to (a2)+.
+| Clobbers d4.
+poly_unity_loop:
+1:      move.l  (%a0)+,%d4                | stereo pair, one loop branch
+        asr.l   %d0,%d4                   | Q25 with 1/8 headroom for eight voices
+        add.l   %d4,(%a2)+
+        move.l  (%a0)+,%d4
+        asr.l   %d0,%d4
+        add.l   %d4,(%a2)+
+        subq.l  #1,%d7
+        bpl.s   1b
+        rts
+
+| .mix's voice with a moving gain: d7+1 stereo frames (a0)+ added to (a2)+,
+| gain d0 (Q16.16) stepping by d1, shift d4.  Clobbers d2/d6.
+poly_gain_loop:
+1:      move.l  %d0,%d6
+        swap    %d6
+        ext.l   %d6                       | this frame's gain, Q13
+        move.l  (%a0)+,%d2                | left: sample (PCM << 16) >> 14 * gain
+        asr.l   %d4,%d2
+        muls.l  %d6,%d2
+        asr.l   #8,%d2                    | Q25 with the same fixed 1/8 gain
+        add.l   %d2,(%a2)+
+        move.l  (%a0)+,%d2                | right
+        asr.l   %d4,%d2
+        muls.l  %d6,%d2
+        asr.l   #8,%d2
+        add.l   %d2,(%a2)+
+        add.l   %d1,%d0
+        subq.l  #1,%d7
+        bpl.s   1b
+        rts
+
+| .mix's output at limiter unity: d7+1 longs (a0)+ saturated to d3..d4 and
+| shifted to PCM << 16 at (a2)+.
+poly_out_loop:
+1:      move.l  (%a0)+,%d0
+        cmp.l   %d3,%d0
+        ble.s   2f
+        move.l  %d3,%d0
+2:      cmp.l   %d4,%d0
+        bge.s   3f
+        move.l  %d4,%d0
+3:      lsl.l   #6,%d0                    | Q25 -> PCM << 16
+        move.l  %d0,(%a2)+
+        subq.l  #1,%d7
+        bpl.s   1b
+        rts
