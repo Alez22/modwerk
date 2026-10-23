@@ -135,7 +135,6 @@ extern volatile uint32_t modwerk_fxmap_read, modwerk_fxmap_written;
 extern volatile uint32_t modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result; /* modset.c */
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots); /* fxpage.c */
 void modwerk_fxpage_drop(unsigned id);
-void modwerk_fxpage_missing(void);
 static uint32_t owner[MODWERK_FX_IDS];
 static uint8_t catalogue_digest[MODWERK_FX_IDS][MU_DIGEST_BYTES];
 static uint32_t catalogue_generation[MODWERK_FX_IDS]; /* immutable loader generation, never a host claim */
@@ -1315,7 +1314,7 @@ void modwerk_dsp_tick(void)
         modwerk_dsp_mask_test = 0;
     }
     static int unpacked;
-    if (!unpacked) unpacked = 1, modwerk_dsp_unpack(), modwerk_fxpage_missing();
+    if (!unpacked) unpacked = 1, modwerk_dsp_unpack();
     peek_tick();
     selftest_tick();
     compact_tick();

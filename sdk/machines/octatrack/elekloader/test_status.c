@@ -44,6 +44,7 @@ int modwerk_fxmap_where(unsigned id, unsigned *bank, unsigned *part, unsigned *t
     *bank = 0, *part = 0, *track = 1;
     return id < 20u + listed ? 1 : 0;
 }
+void modwerk_fxpage_missing(void) {}
 static int restored;
 int modwerk_modset_restored(void) { return restored; }
 volatile uint32_t modwerk_modset_result;
@@ -112,10 +113,12 @@ int main(void)
     CHECK(modwerk_status_key(UP, 1) && modwerk_status_key(UP, 0) && missing_top == 0);
     /* Each module's second line: where the project names it. */
     char where[32];
-    missing_where(where, 20, 0); CHECK(!strcmp(where, "BANK C SAVED PART 2 T5"));
-    missing_where(where, 20, 1); CHECK(!strcmp(where, "C SAVED PART 2 T5"));
-    missing_where(where, 21, 0); CHECK(!strcmp(where, "BANK A PART 1 T2"));
-    missing_where(where, 99, 0); CHECK(!where[0]);                     /* named nowhere any more: an empty line */
+    CHECK(missing_at[0][0] == 2 && missing_at[1][0] == 1 && missing_at[4][0] == 1); /* looked up while it shows */
+    missing_where(where, missing_at[0], 0); CHECK(!strcmp(where, "BANK C SAVED PART 2 T5"));
+    missing_where(where, missing_at[0], 1); CHECK(!strcmp(where, "C SAVED PART 2 T5"));
+    missing_where(where, missing_at[1], 0); CHECK(!strcmp(where, "BANK A PART 1 T2"));
+    static const uint8_t nowhere[4];
+    missing_where(where, nowhere, 0); CHECK(!where[0]);                /* named nowhere any more: an empty line */
     CHECK(!modwerk_status_key(STOP, 1) && !modwerk_status_key(STOP, 0) && open == MISSING); /* STOP reaches stock, it stays */
     CHECK(modwerk_status_key(YES, 1) && open == CLOSED && modwerk_status_key(YES, 0));
     missing_check(); CHECK(open == CLOSED);                            /* told already: it stays closed */

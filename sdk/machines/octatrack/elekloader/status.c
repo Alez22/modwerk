@@ -87,6 +87,7 @@ static uint32_t cpu_recent[8];
 static void missing_check(void);
 static void memory_tick(void);
 static void status_tick(void);
+void modwerk_fxpage_missing(void); /* fxpage.c: once, unlisted module handles show MISSING, not NONE */
 void modwerk_status_tick(void)
 {
     MW_STAMP(5); status_tick(); MW_STAMP(6);
@@ -95,6 +96,7 @@ static void status_tick(void)
 {
     modwerk_status_close_menu();
     memory_tick();
+    modwerk_fxpage_missing(); /* the first tick builds it; after that it returns at once */
     if (++ticks % 30u) return; /* twice a second */
     missing_check();
     uint32_t count = DTCN3, frames = dl_frames, idle = modwerk_idle_counts;
@@ -166,7 +168,8 @@ static int missing_asked; /* MISSING opened from the menu: it stays open with no
 static uint32_t tip_until;
 void modwerk_load_menu(int unused) { (void)unused; if (menu_open()) open = SHOWN, close_menu = 1, tip_until = ticks + 120u; }
 void modwerk_modules_menu(int unused) { (void)unused; if (menu_open()) open = MODULE_LOAD, modules_top = 0, close_menu = 1; }
-void modwerk_missing_menu(int unused) { (void)unused; if (menu_open()) open = MISSING, missing_top = 0, missing_asked = 1, close_menu = 1; }
+static void missing_locate(void);
+void modwerk_missing_menu(int unused) { (void)unused; if (menu_open()) open = MISSING, missing_top = 0, missing_asked = 1, close_menu = 1, missing_locate(); }
 /* SELF TEST (dsp.c's self-test): its page shows at once, the test starting if it can. */
 static int test_started;
 void modwerk_test_menu(int unused)
@@ -184,18 +187,17 @@ void modwerk_test_menu(int unused)
 #define ROWS 4u
 #define MISSING_ROWS 2u /* the missing page: two lines a module, its name and where the project names it */
 int modwerk_fxmap_where(unsigned id, unsigned *bank, unsigned *part, unsigned *track); /* fxmap.c */
-/* Where the project names a missing module (fxmap.c's first find): "BANK A PART 1 T2", with SAVED before PART when only
- * a Part's saved copy names it (a RELOAD brings it back). `brief` leaves out "BANK " for a line that would not fit. */
-static void missing_where(char *out, unsigned handle, int brief)
+/* Where the project names a missing module, as `at` holds it (fxmap.c's first find: kind, bank, Part, track):
+ * "BANK A PART 1 T2", with SAVED before PART when only a Part's saved copy names it (a RELOAD brings it back).
+ * `brief` leaves out "BANK " for a line that would not fit. */
+static void missing_where(char *out, const uint8_t *at, int brief)
 {
-    unsigned bank, part, track;
-    int found = modwerk_fxmap_where(handle, &bank, &part, &track);
     char *s = out;
-    if (found) {
+    if (at[0]) {
         if (!brief) for (const char *t = "BANK "; *t; ) *s++ = *t++;
-        *s++ = (char)('A' + bank);
-        for (const char *t = found == 2 ? " SAVED PART " : " PART "; *t; ) *s++ = *t++;
-        *s++ = (char)('1' + part), *s++ = ' ', *s++ = 'T', *s++ = (char)('1' + track);
+        *s++ = (char)('A' + at[1]);
+        for (const char *t = at[0] == 2 ? " SAVED PART " : " PART "; *t; ) *s++ = *t++;
+        *s++ = (char)('1' + at[2]), *s++ = ' ', *s++ = 'T', *s++ = (char)('1' + at[3]);
     }
     *s = 0;
 }
@@ -203,7 +205,18 @@ unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most);
 int modwerk_modset_restored(void);
 extern volatile uint32_t modwerk_modset_result;
 static uint8_t missing[4 + 24 * MODWERK_FX_IDS];
+/* Where each listed module is named, refreshed with the list while the page shows: a lookup reads every bank's Parts,
+ * too slow for each drawing (the open page already costs about 0.8 ms a composition, OCTATRACK_HARDWARE_TRAPS.md). */
+static uint8_t missing_at[MODWERK_FX_IDS][4];
 static fx_set missing_told, missing_last; /* the handles the page told about; the list at the last check */
+static void missing_locate(void)
+{
+    for (unsigned i = 0; i < missing[3]; ++i) {
+        unsigned bank = 0, part = 0, track = 0;
+        missing_at[i][0] = (uint8_t)modwerk_fxmap_where(missing[4 + 24 * i], &bank, &part, &track);
+        missing_at[i][1] = (uint8_t)bank, missing_at[i][2] = (uint8_t)part, missing_at[i][3] = (uint8_t)track;
+    }
+}
 static void missing_check(void)
 {
     unsigned n = (modwerk_dsp_missing_list(missing, 0, MODWERK_FX_IDS) - 4u) / 24u;
@@ -218,6 +231,7 @@ static void missing_check(void)
      * opening, ones added while it showed reopened it at once after NO, 12 October 2026.) */
     missing_told = open == MISSING ? handles : fx_and(missing_told, handles);
     missing_last = handles;
+    if (open == MISSING) missing_locate();
 }
 /* The memory after a module loads (owner, 11 October 2026): picked onto a track, or accepted over USB. A box with
  * each core's code memory and the module pool, used, for a second and a half; it takes no key, and a key closes it. */
@@ -478,8 +492,8 @@ static void missing_page(unsigned char *frame)
         for (unsigned c = 0; c < 16u; ++c) name[c] = e[8 + c] >= 'a' && e[8 + c] <= 'z' ? (char)(e[8 + c] - 32) : (char)e[8 + c];
         name[16] = 0;
         label(X0 + 6u, Y0 + 14u + 18u * i, name[0] ? name : "UNNAMED MODULE");
-        missing_where(where, e[0], 0);
-        if (TEXT_WIDTH(FONT, -1, where) > (int)(X1 - 14u - (X0 + 10u))) missing_where(where, e[0], 1); /* clear of the arrows */
+        missing_where(where, missing_at[missing_top + i], 0);
+        if (TEXT_WIDTH(FONT, -1, where) > (int)(X1 - 14u - (X0 + 10u))) missing_where(where, missing_at[missing_top + i], 1);
         label(X0 + 10u, Y0 + 22u + 18u * i, where);
     }
     if (missing_top) arrow(frame, X1 - 10u, Y0 + 14u, 1);
