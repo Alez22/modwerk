@@ -1012,11 +1012,12 @@ pm_enforce_budget:
 	.type	pm_govern, @function
 pm_govern:
 	lea (-32,%sp),%sp
-	move.l 36(%sp),%d0
 	move.l -66600948,%d1
+	move.l 36(%sp),%d0
 	sub.l %d0,%d1
 	movem.l #1052,(%sp)
 	move.l win_voices,%a0
+	add.l %d1,pm_gov_total
 	tst.l 40(%sp)
 	jeq .L200
 	move.l %d0,%a1
@@ -2273,6 +2274,12 @@ win_start:
 	.size	pm_gov_cost, 36
 pm_gov_cost:
 	.zero	36
+	.globl	pm_gov_total
+	.align	2
+	.type	pm_gov_total, @object
+	.size	pm_gov_total, 4
+pm_gov_total:
+	.zero	4
 	.globl	pm_gov_peak
 	.align	2
 	.type	pm_gov_peak, @object

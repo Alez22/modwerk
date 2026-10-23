@@ -5,8 +5,8 @@
   "poly8": {
    "sources": {
     "sdk/octabam/modules/poly8/manifest.py": "1b9dfc90a6d5901ee3e453b7c3854363aad82f7267edc090b5f4439a57f12ddb",
-    "sdk/octabam/modules/poly8/polyphony.s": "adba0688e4e2094d5f1ceb0075f0f3824c3c80825c9d5334939f49795c4af521",
-    "sdk/octabam/modules/poly8/registration.s": "271460916ed7de1324d983e90d855374af0dcaf3195d2c76d1344f1e17a42f33",
+    "sdk/octabam/modules/poly8/polyphony.s": "c86a3a783c46ecdbb3b44341098f0c094c65b9a8d11716835c2d28c2d2d6ecee",
+    "sdk/octabam/modules/poly8/registration.s": "4ae56736e98987dc93074fade4149c49166888bf641a8cbe89c07e836cbd7ef8",
     "sdk/octabam/modules/poly8/shared-machine.s": "e49d47ed22aa70a770e5738e69225106219b0337eabe67351d2e09150220ee80"
    },
    "subscribe": [

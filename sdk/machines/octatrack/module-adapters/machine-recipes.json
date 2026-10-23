@@ -4,47 +4,47 @@
  "ports": {
   "poly8": {
    "schema": 1,
-   "imageSha256": "195fdd8f12296587aae946ccef3837d331826fc3425851a19cd0d62631b6b058",
+   "imageSha256": "185d3a000547fc99f76f7a4b302c4c862d06fd2138c7bb9f0bb2ddad9244008c",
    "sources": {
-    "sdk/machines/octatrack/module-adapters/machine-ports.json": "d39ff63cc57dee75853c25c0435850570b36cf6a0db766360601cdf76cf5e3ea",
+    "sdk/machines/octatrack/module-adapters/machine-ports.json": "07b012cbfe80942f02ec8fe36175753776f42030fd2bbe8e43636d1613fed468",
     "sdk/machines/octatrack/module-adapters/machine_ports.py": "94261835964867f1dcfaf44173da2562794d319c3ab223742711f7cd34e30cff",
     "sdk/octabam/modules/poly8/manifest.py": "1b9dfc90a6d5901ee3e453b7c3854363aad82f7267edc090b5f4439a57f12ddb",
-    "sdk/octabam/modules/poly8/polyphony.s": "adba0688e4e2094d5f1ceb0075f0f3824c3c80825c9d5334939f49795c4af521",
-    "sdk/octabam/modules/poly8/registration.s": "271460916ed7de1324d983e90d855374af0dcaf3195d2c76d1344f1e17a42f33",
+    "sdk/octabam/modules/poly8/polyphony.s": "c86a3a783c46ecdbb3b44341098f0c094c65b9a8d11716835c2d28c2d2d6ecee",
+    "sdk/octabam/modules/poly8/registration.s": "4ae56736e98987dc93074fade4149c49166888bf641a8cbe89c07e836cbd7ef8",
     "sdk/octabam/modules/poly8/shared-machine.s": "e49d47ed22aa70a770e5738e69225106219b0337eabe67351d2e09150220ee80",
     "sdk/runtime/loader/build.py": "1bc1a0e66f9b93871f429c53c8adebb39d21b5da7b7b101bf0f1f7c558313407"
    },
    "copies": [
     {
-     "offset": 1384,
+     "offset": 1416,
      "length": 15,
      "address": 1073899102,
      "sha256": "fc763eb6eb8fdb76998e60d1b32659ddcaa82bda8f02e938d3ea7c32b78213b3",
      "purpose": "poly8: authored bytes coinciding with stock (strict scan), reconstructed from the identical bytes of the user's OS; review"
     },
     {
-     "offset": 3952,
+     "offset": 4108,
      "length": 18,
      "address": 1073799142,
      "sha256": "3167c7fdac0bdf54487c1d5faa4e775f7dca4fa9fd0ba54e5a3914d1b952bbe0",
      "purpose": "poly8: authored bytes coinciding with stock (strict scan), reconstructed from the identical bytes of the user's OS; review"
     },
     {
-     "offset": 54218,
+     "offset": 54416,
      "length": 20,
      "address": 1073802002,
      "sha256": "4c14741dff5ce18a933b30875f7e3a0ac8d633db0096af8f7a7a31a88e1313b0",
      "purpose": "poly8: authored bytes coinciding with stock (strict scan), reconstructed from the identical bytes of the user's OS; review"
     },
     {
-     "offset": 54316,
+     "offset": 54514,
      "length": 20,
      "address": 1074428104,
      "sha256": "96966986164a24f9ca5be84cca807a016a828da2bcc3167b831be52acad2a9a7",
      "purpose": "poly8: authored bytes coinciding with stock (strict scan), reconstructed from the identical bytes of the user's OS; review"
     },
     {
-     "offset": 54734,
+     "offset": 54932,
      "length": 12,
      "address": 1074100132,
      "sha256": "fa4871f504c0f71c15f06b76536f127ec74d257852ce50a1b9f16b3d14e8688c",

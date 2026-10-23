@@ -51,7 +51,7 @@ extern volatile uint32_t test_timer;
 #define GOV_STARVED 280u        /* frames, about 100 ms */
 #define GOV_CALM 256u           /* frames, about 93 ms */
 volatile uint32_t pm_voice_cap=POOL_CAPACITY, pm_ui_ticks=0;
-volatile uint32_t pm_gov_sheds=0, pm_gov_starved=0, pm_gov_peak=0;
+volatile uint32_t pm_gov_sheds=0, pm_gov_starved=0, pm_gov_peak=0, pm_gov_total=0;
 volatile uint32_t pm_gov_cost[POOL_CAPACITY+1]={0}; /* the last frame's counts by voices rendered, for diagnostics */
 static uint32_t win_start=0, win_cost=0, win_voices=0, seen_ticks=0, starved=0, calm=0;
 
@@ -145,6 +145,7 @@ static void judge(uint32_t cost, unsigned voices) {
  * read at its start. The calls of one frame (about 362.8 us apart) add up. */
 void pm_govern(uint32_t start, unsigned voices) {
     uint32_t cost=DTCN3-start;
+    pm_gov_total+=cost;                /* all POLY render time, for diagnostics */
     if(voices && start-win_start<GOV_FRAME/2u) {
         win_cost+=cost; if(voices>win_voices) win_voices=voices;
         return;
