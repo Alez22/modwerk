@@ -38,7 +38,13 @@ The user's MKII (OS 1.40C), freshly powered on from its flashed main base `a408c
 
 Put back: P16 cleared with stock FUNC + PLAY (its trigs and locks are empty again; stock's clear also set the hidden pattern field at `+0x8e50` from 16 to its default 64, as it does under ot_emu; the PATTERN SCALE page still reads 16/16 1x). RELOAD refused (SAVE PART FIRST!: bank P's Part 1 was never saved), so the test's scene locks were removed with SCENE + encoder push and two AMP knobs turned back: Part 1's working copy equals its saved copy again, which never changed. Nothing was saved; the unit stays on the RAM-booted twin until a power cycle returns it to its flashed base and kept modules.
 
-Not run on hardware: SAVE and reload, a power cycle with the locks (both would write the user's project), the MKI, audible output, MIDI mode, trig pages past the first, the card build, and the site's review/Keep/Undo flow (the session's `try`/`remove` were used).
+### The user's own run on the flashed base (23 Oct 2026, MKII)
+
+After the power cycle, on the flashed main base `a408c505…`, the agent reinstalled the user's eight modules with the session's `try`, Apply Scene as this package (`5b1db5c7…`), and the user tested by hand in a scratch project or empty pattern. User-reported, all pass: TRIG + SCENE A (and B) writes the scene's values onto the held trigs; TRIG + SCENE A + SCENE B writes the blend; playback, listened to; the p-locks kept through a project save and a power cycle; inside the gesture a trig still selects a scene and a knob still writes a scene lock, with no p-lock written; TRIG + PLAY clears a step's p-locks.
+
+(The twin run above overwrote the flashed base's kept set: both `/MODWERK?.SET` card files then carried the twin's identity, so the flashed base loaded no modules after the power cycle. Restored by reinstalling each package, the base-bound Analog BD and Output Matrix from the commit that built `a408c505`. Written up in docs/OCTATRACK_DRIVING.md on its own branch.)
+
+Not run on hardware: the MKI, MIDI mode, trig pages past the first, the card build, and the site's review/Keep/Undo flow (the session's `try`/`remove` were used).
 
 **Not tested (emulator section):** any hardware run (see above for the MKII), audible output, the USB package build and its stock-free scan, the browser builder's comparison (`module:verify`), MIDI mode, a pattern or Part change inside the chord (the chord is then dropped, by design, untested), trig pages past the first, and track 8 as the master track.
 

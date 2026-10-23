@@ -56,7 +56,7 @@
       "With MASTER TRACK on, track 8's SRC and AMP scene locks are not applied: stock has no knob there.",
       "Not in MIDI mode, and not on MIDI tracks (stock has no scene locks there).",
       "Undo is stock RELOAD PART, which also discards any other unsaved edits since the last Part save.",
-      "Tested on one MKII over USB, by reading values from the unit (no audio check): the Part apply with 0.1.0, TRIG + SCENE with 0.2.0 on a development twin of main's base. Not tested on the MKI; the card build was not run on hardware."
+      "Tested on one MKII over USB: the Part apply with 0.1.0 (values watched, no audio check); TRIG + SCENE with 0.2.0, including playback by ear, a project save and a power cycle. Not tested on the MKI; the card build was not run on hardware."
     ],
     "effectId": null
   },

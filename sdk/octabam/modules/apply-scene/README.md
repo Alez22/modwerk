@@ -89,7 +89,7 @@ Not written: XVOL and XLV (the crossfader volume locks have no Part knob and sta
 - Undo is stock RELOAD PART, which also discards any other unsaved edits since the last Part save.
 - One apply runs a few million ColdFire instructions in the UI task (measured under the emulator; see TESTING.md). How long that takes on the unit is not measured yet.
 - Patch sites: the entries of stock's YES handler (0x4005e4c8) and of the SCENE key's press (0x4004348c) and release (0x40054ca4) handlers. No DSP code, no saved data of its own.
-- Tested on one MKII over USB: the Part apply with 0.1.0, TRIG + SCENE with 0.2.0 (values read from the unit, no audio check). Not tested on the MKI. See [TESTING.md](TESTING.md).
+- Tested on one MKII over USB: the Part apply with 0.1.0; TRIG + SCENE with 0.2.0, including playback by ear, a project save and a power cycle. Not tested on the MKI. See [TESTING.md](TESTING.md).
 
 ## Tests and measurements
 
