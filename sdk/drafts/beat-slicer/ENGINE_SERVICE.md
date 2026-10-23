@@ -58,6 +58,16 @@ comparison brackets the request scenarios. This is a driver fixture, not a
 production concurrent UI mailbox or live publication protocol. Consult TESTING.md
 and source-bound receipts for actual run outcomes.
 
+The separate `preview_async.c` prototype replaces the paused driver's mailbox
+with ownership-protected copied UI intents and results. `test_async_boot.c`
+services it from the engine while `test_async_tick.c` calls the UI adapter once
+per ordinary tick. UI code never owns the session or reader. The proxy checks
+accepted cancellation/replacement again before capture and PCM copy, including
+after unlocked private work. Every accepted intent must independently wake the
+engine, including one accepted after a service selected its local return state.
+See PREVIEW_ASYNC.md for the contract and NATIVE_UI.md for the combined fixture.
+This remains test-owned integration, with the same admission and lifetime gaps.
+
 All of these use the exact stock image, a disposable card copy and an explicit
 eight-page reservation. Source/owner identities, admission and full interrupt
 masking remain test-owned. Recorder and other writer coverage, source lifetime,

@@ -1687,3 +1687,69 @@ prose/evidence follow-ups use the lightweight checks.
 The five `formats26-*` compile/boot receipts bind source
 `1338539aba333f37b3dbfd9e6867c875c9fe66c3`. Their raw contents and complete
 source hashes are retained, alongside earlier exact historical evidence.
+
+
+## Copied UI/engine exchange (0.1.27)
+
+The portable exchange gives one engine consumer ownership of the preview
+session. UI producers submit copied options/cancellation and read a copied plan
+with its exact request sequence. A backend gate checks cancellation/replacement
+again before capture and copy, after any unlocked planner work. No UI callback
+mutates the reader or session. Published results remain preview-only.
+
+Host ASan/UBSan and compiled ColdFire tests pass 32 complete plans and 72 modeled
+interleavings covering cancellation, replacement, owner retirement, nested
+service refusal, lock denial and publication. Two cases deliver a new intent as
+the completed result's final lock is released: old results stay unreadable even
+though the engine's local return value was already selected. Each accepted intent
+therefore still needs its own wake/ordinary-event guarantee. Further cases cover
+wrong owners/options, waiting without immediate begin retry, source readiness,
+pending READY revalidation, unchanged output on refusal, metadata becoming stale
+and sequence exhaustion. These are serialized callback models, not RTOS or
+physical concurrency evidence.
+
+The target library object has 3,148 text bytes and no global data/BSS of its own;
+its caller-owned state is 4,244 bytes in the compiled native fixture. Local
+compiler stack estimates are 8–40 bytes, excluding callees and the full chain.
+The combined native test image compiles at 23,436 text bytes, no initialized data
+and 10,212 BSS bytes, including the retained manual reference session. It fits
+its explicit eight-page arena reservation. These sizes do not establish timing,
+cache behavior, shared-base memory placement or installable-package headroom.
+
+`test_preview_async.py` and `async_native.py` reproduce the portable checks.
+`async_ui_native.py` compiles the separate engine/UI fixture; `boot_async_ui.py`
+exercises its conservative or explicitly opted-in fixed-input waveform-read
+classification. Completed native run outcomes follow below.
+The fixture retains pinned storage, synthetic source/owner identities and partial
+writer coverage. No production API, event assignment, loader retirement, native
+Apply, playback, browser/USB package or hardware qualification is implied.
+
+Six fresh scheduler/DSP boots cover controls, waiting cancellation and owner
+retirement in both six-row and nine-row stock menus. The two control runs
+produce 42 complete oracle-matching plans and correct tempo/count/fade labels.
+Changing options while waiting cancels the old request before another query;
+normal NO and owner retirement close the waiting dialog without another read.
+A foreign message sharing the wake opcode invalidates a completed preview.
+The explicitly opted-in fixed-input waveform classification lets completed
+results survive normal redraw work; it is not production writer admission.
+
+Across those six boots, 2,942 UI ticks each perform exactly one UI service call,
+with no reentry. All observed PCM queries occur in the separate engine task.
+There are 508 engine callbacks, 2,944 explicit session steps, 48 begin calls and
+458 posted/consumed owned wakes, with no wake left pending. The maximum remains
+eight explicit steps plus optional begin/setup and result validation/publication.
+These are execution/work counts, not cycles or physical latency.
+
+A seventh, conservative six-row boot keeps the default all-command invalidation.
+Its UI briefly completes one preview, then normal waveform work retires it before
+the driver observes READY; this receipt contains **zero** whole-plan oracle
+comparisons. It verifies the stale result, no subsequent queries and normal
+closure. Every successful boot preserves complete logical PCM, controls,
+settings, both cards, code/reservation canaries, the original receive call and
+main's stack. All storage remains pinned, so none proves physical removal,
+reclamation or a production base/USB lifecycle.
+
+The source check against current upstream passes 2,529 app tests, 37 SDK tests
+(one skipped), lint, types, bundle and catalogue/import checks in 135.90 seconds.
+The required origin/main check retains the inherited CHANGELOG.md history
+failure. Documentation/evidence follow-ups use the lightweight checks.

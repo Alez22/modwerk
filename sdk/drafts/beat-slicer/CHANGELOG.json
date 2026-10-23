@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.27-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Add copied UI requests and results around one engine-owned preview session; tag publication with the exact request and owner.",
+      "Recheck accepted cancellation or replacement before the next source capture/copy, including after unlocked planning; reject stale results and sequence reuse.",
+      "Check pending readiness, lock refusal, owner retirement and late publication with host sanitizers and compiled ColdFire execution.",
+      "Exercise separate native UI/engine tasks in both stock menus: 42 complete plans, waiting cancellation and owner retirement; keep conservative command handling by default.",
+      "Known issue: synthetic lifetimes and pinned storage remain; live writer/cache admission, removal, Apply/playback, production browser/USB packages and hardware qualification are unfinished."
+    ]
+  },
+  {
     "version": "0.1.26-experimental",
     "date": "2026-10-24",
     "changes": [

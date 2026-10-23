@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.26-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.27-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -95,7 +95,10 @@ The [whole-command observer](WORKER_BOUNDARY.md) now runs as compiled ColdFire
 in private stock-worker fixtures, retaining exclusion through optional completion
 and retiring it before the next queue wait. The [engine service experiment](ENGINE_SERVICE.md)
 adapts this to the base-owned idle/job hooks and queued bounded preview work.
-Neither is an admitted production source service.
+Neither is an admitted production source service. The [copied preview exchange](PREVIEW_ASYNC.md)
+separates UI intent/result access from the engine-owned session and gates old
+requests before another source read. Its portable host/ColdFire tests pass;
+combined native UI/engine emulator results are recorded separately in TESTING.md.
 The recorder investigation adds 20 synthetic calls covering stereo page crossings,
 lazy shared-pool allocation and early exits. Recorder position/map publication can
 precede PCM without an edit-queue, dirty-flag or counter signal; a live provider

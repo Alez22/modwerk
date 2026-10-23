@@ -181,6 +181,16 @@ itself forever. Beat Slicer's private 1.40C engine fixture exercises this with
 at most eight explicit steps plus optional begin/setup per event; that is not a
 physical-time budget or qualification of the production USB/module-set chain.
 
+Keep one background owner for a mutable preview session. UI callbacks publish
+copied, sequence-tagged intents and consume copied results; they must not inspect
+or cancel the engine's session storage directly. Recheck cancellation/replacement
+under source ownership before capture or copy, including after unlocked planning.
+An old result must remain unreadable after a newer intent is accepted. Every
+accepted intent also needs a wake or ordinary-event guarantee: it may arrive as
+a service releases its final lock, after its local return-state value was chosen.
+Beat Slicer's host/ColdFire exchange tests inject those late-publication cases;
+this is not proof of a native loader lifetime, writer coverage or physical budget.
+
 Distinguish source writers from editor visualization work before invalidating
 every preview on every engine command. Beat Slicer's pinned 1.40C full boot
 observes recurring waveform commands invalidating a read-only preview under

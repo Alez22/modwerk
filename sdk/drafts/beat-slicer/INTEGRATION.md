@@ -26,14 +26,21 @@ experiments from the shared services and qualification still required.
    callbacks. The private engine-service fixture now advances bounded work from
    stock idle events with a coalesced wake; production scheduling and content
    pinning remain absent.
+   `preview_async.c` now separates copied UI intents/results from one
+   engine-owned session. The combined native fixture uses the existing tick
+   and engine topology, checking accepted intent identity again before reads.
+   Portable cancellation/publication interleavings and full-boot task identity
+   are recorded separately in TESTING.md. These do not supply the production
+   base's owner lease, event registration or removal protocol.
    The traced pool lookup is Flex/recorder-specific and does not decode PCM.
    Validate its preconditions before use; establish Static access separately.
    Stage bounded bytes and prove decoder read extents before using a native
    converter. A raw pointer must not survive a scheduler yield.
    `pcm_reader.c` now supplies bounded packed-PCM decoding and a 32-frame
    copied cache, accepts page-shortened replies and checks operation/revision
-   tags. Its provider is still synthetic: native pool ownership, file IO,
-   format discovery, generation coverage and scheduling remain absent.
+   tags. The private Flex binding now exercises actual stock-loaded formats;
+   production pool ownership, Static file IO, complete generation coverage and
+   qualified base scheduling remain absent.
    `flex_copy.c` and its original ColdFire ABI shim now validate bounded Flex
    map/geometry conditions and copy from actual stock lookup in compiled-target
    fixtures. The binding/ownership/metadata remain synthetic; no live reader
@@ -72,7 +79,7 @@ experiments from the shared services and qualification still required.
    `preview_session.c` now connects complete metadata snapshots, guard admission
    and the staged reader through a nonblocking serialized callback interface.
    Host and compiled-target tests cover complete previews and stale/cancel/error
-   handling; native callbacks/locking remain absent. Flex replacement-refusal
+   handling; qualified production callbacks/locking remain absent. Flex replacement-refusal
    probes cover real nested release and allocator behavior with filesystem/header
    mocks. Full stock-emulator loads now verify original mono/stereo 16/24-bit
    files at 44.1/48 kHz and their real pool geometry/PCM. This project's Flex

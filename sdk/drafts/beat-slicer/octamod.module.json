@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.26-experimental",
+  "version": "0.1.27-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Private full boots exercise automatic read-only BEAT GRID controls and engine-owned previews. Four retained Flex formats (16/24-bit mono/stereo at 44.1 kHz) produce 80 whole-plan oracle matches plus four waiting/resumption cases, preserving PCM/settings/cards and main stack. Earlier automatic UI runs cover both stock layouts and copied tempo/count labels. These are fixed-source fixtures with synthetic ownership: live admission, mutable command lifetime, menu removal, Apply/playback, production browser/USB packages and hardware remain unqualified.",
+    "summary": "Copied UI requests/results feed one engine-owned preview session. Host sanitizers and ColdFire cover 32 plans and 72 modeled interleavings. Six full boots cover both stock menus: 42 oracle plans, waiting cancellation and owner retirement, with one UI call per tick, separate engine queries and unchanged PCM/settings/cards/main stack. A separate conservative run retires a preview on stock waveform work. Synthetic ownership and pinned storage remain; live admission, removal, Apply/playback, browser/USB packages and hardware are unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -119,6 +119,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_boot_source.py",
       "python3 -B sdk/drafts/beat-slicer/test_engine_boundary.py",
       "python3 -B sdk/drafts/beat-slicer/test_ui_text.py",
+      "python3 -B sdk/drafts/beat-slicer/test_preview_async.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

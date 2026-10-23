@@ -83,6 +83,30 @@ experiment must not be enabled as a general live source service. Production
 ownership, cache behavior, complete writer coverage and physical qualification
 remain required. TESTING.md records which automatic scenarios actually passed.
 
+## Copied UI and engine experiment
+
+`async_ui_native.py` combines the same stock menu and UI-tick topology with a
+separate engine consumer. `test_async_ui.c` submits options and cancellation
+through `preview_async.c`, then reads a request-tagged copied result. It never
+steps, cancels or reads the engine's session/reader directly. The tick performs
+one UI service call. Source capture, PCM queries and preview work belong to the
+engine task, with at most eight explicit steps plus optional begin/setup and
+result validation/publication per callback.
+
+Leaving a result also cancels its outstanding request, even though the UI is no
+longer RUNNING. Waiting cancellation, owner retirement and option replacement
+follow the same accepted-intent sequence rules. Every accepted intent posts a
+coalesced owned wake independently of the previous service's return value.
+Storage remains pinned and the menu contribution is still one-shot per boot;
+this does not qualify package removal or reopening with reused callbacks.
+
+`boot_async_ui.py` observes task identities and compares whole plans and result
+labels. The default command boundary is conservative: recurring stock waveform
+work may retire a result before the driver sees it. Only the explicit
+`--allow-private-waveform-reads` fixed-input experiment exempts that path.
+Actual run counts and limits are recorded in TESTING.md. These are full emulator
+boots, not a production base chain or physical concurrency/timing evidence.
+
 ## Reproduce privately
 
 Build with `menu_boot_native.py` or `grid_ui_boot_native.py`, supplying the private
@@ -99,7 +123,7 @@ restarts after an option change and invalidates a completed result. Its READY
 invalidation is synthetic guard input; actual stock edit/clear invalidation has
 separate full-boot tests. The original menu/configuration runners borrow service
 calls from the emulator driver; the automatic UI runner uses the private tick
-fixture above. Neither installs a production base service. Source identities, admission and owner
+fixture above. These fixtures do not install a production base service. Source identities, admission and owner
 generation are test-owned, with partial writer coverage and unqualified full
 interrupt masking. Static reads, atomic publication, playback, source-built
 browser/USB packages and physical persistence remain unfinished.
