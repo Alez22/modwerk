@@ -52,7 +52,7 @@ own pipelines.
 | Platform (`octabam`, `elemod`) | A new `zdl` platform | Contract section in `module-contract-v3.ts` |
 | Module | One ZDL effect, or a NAM/cab slot built from a template | Module manifest for a prebuilt binary plus source |
 | Build | Effects: prebuilt (the TI compiler cannot run in CI or the browser and is not redistributed). NAM/cab: in the browser from MIT templates (`nam_loader.js`, `cab_loader.js`, `slot_identity.js`, `cover_art.js`) | No native build in Modwerk |
-| Install | Now: Zoom Effect Manager 2.3.3+ (USB), a guided download. Planned: a browser install from the owner's own Zoom updater ([below](#installing-on-stock-firmware)) | No runtime loader, trial or Keep/Undo: every install reflashes the pedal's whole effect file system |
+| Install | Now: Zoom Effect Manager 2.3.3+ (USB), a guided download. Planned: a browser install from the owner's own Zoom updater ([below](#installing-on-stock-firmware)) | No runtime loader, trial or Keep/Undo: Effect Manager reflashes the whole effect file system; per-effect USB replacement is now demonstrated |
 | Patches | The project's Web MIDI patch editor (MS-70CDR mapped; read-only elsewhere) | Optional integration |
 | Combination budget | Summed DSP cost per patch: refused between 224.4 and 228.4 on the MS-70CDR 2.10 (measured); 6 slots | A `percent`-style budget in the profile |
 | Resource rules | Effect ID unique per pedal (the project reserves 403-499, 500-699 NAM, 700-899 cab, 900-957), file name 8 characters unique, file size cap (~32 KB proven) | A per-family ID ledger, like Stomphacks' author ranges for ZD2 |
@@ -88,8 +88,8 @@ Still to come: `MACHINE_PLATFORMS` gains `zdl`, with its module contract.
    should be a direct install from the browser; that needs the effect-transfer
    protocol, which is being researched on the project side (read-only first:
    list installed effects) and is not available yet.
-   *Update, 23 October 2026:* the protocol is known now, and it is a reflash
-   of the whole effect file system; see the next section. Until that path is
+   *Update, 23 October 2026:* the protocol is known now: Effect Manager reflashes
+   the whole effect file system, while the pedal also accepts per-effect USB writes; see the next section. Until that path is
    qualified, Effect Manager is the install path.
 
 ## Installing on stock firmware
@@ -156,7 +156,7 @@ Before any browser write, in this order:
 
 What this means for the Octatrack interface ([ADD_A_MACHINE.md](ADD_A_MACHINE.md#aim-for-the-octatracks-interface)):
 stock Zoom firmware has no way to load an effect into RAM, so there is no
-trial, Keep or Undo; every install is a flash write. That is a resource
+trial, Keep or Undo; installs write persistent storage. That is a resource
 reason for the exception, for owner review. A Modwerk base firmware for these
 pedals, which could load and flash differently and need no stock updater, is
 an option for later (owner, 23 October 2026), not the current priority: the
