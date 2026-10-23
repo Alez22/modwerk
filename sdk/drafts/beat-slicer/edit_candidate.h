@@ -42,4 +42,9 @@ void bs_candidate_cancel(struct bs_edit_candidate *);
  * out must not alias candidate/session/backend memory.
  */
 int bs_candidate_result(struct bs_edit_candidate *, uint32_t id, struct bs_marker_edit *out);
+/* Base-side composition: caller ALREADY holds the session backend lock and
+ * retains it throughout validation/publication. Never permission to write after
+ * unlocking. Same output/identity rules as result; callbacks cannot reenter.
+ */
+int bs_candidate_result_locked(struct bs_edit_candidate *, uint32_t id, struct bs_marker_edit *out);
 #endif

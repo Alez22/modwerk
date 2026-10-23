@@ -83,28 +83,32 @@ enum bs_candidate_state bs_candidate_begin(struct bs_edit_candidate *c,
     c->state = BS_CANDIDATE_WAITING;
     return bs_candidate_step(c);
 }
-int bs_candidate_result(struct bs_edit_candidate *c, uint32_t id, struct bs_marker_edit *out) {
+int bs_candidate_result_locked(struct bs_edit_candidate *c, uint32_t id, struct bs_marker_edit *out) {
     uint32_t i;
-    int ready = 0;
-    if (!out || !id || id != c->token.operation || !c->prepared ||
+    if (!c || !out || !id || id != c->token.operation || !c->prepared ||
+        (c->state != BS_CANDIDATE_READY && c->state != BS_CANDIDATE_WAITING)) return 0;
+    if (step_locked(c) != BS_CANDIDATE_READY) return 0;
+    out->frames = c->edit.frames; out->trim_start = c->edit.trim_start;
+    out->trim_end = c->edit.trim_end; out->added = c->edit.added;
+    out->before.count = c->edit.before.count; out->after.count = c->edit.after.count;
+    for (i = 0; i < BS_MAX_SLICES; ++i) {
+        out->before.records[i].start = c->edit.before.records[i].start;
+        out->before.records[i].end = c->edit.before.records[i].end;
+        out->before.records[i].loop = c->edit.before.records[i].loop;
+        out->after.records[i].start = c->edit.after.records[i].start;
+        out->after.records[i].end = c->edit.after.records[i].end;
+        out->after.records[i].loop = c->edit.after.records[i].loop;
+    }
+    return 1;
+}
+int bs_candidate_result(struct bs_edit_candidate *c, uint32_t id, struct bs_marker_edit *out) {
+    int ready;
+    if (!c || !out || !id || id != c->token.operation || !c->prepared ||
         (c->state != BS_CANDIDATE_READY && c->state != BS_CANDIDATE_WAITING)) return 0;
     if (!c->session->backend->try_lock(c->session->context)) {
         (void)state(c, BS_CANDIDATE_WAITING); return 0;
     }
-    if (step_locked(c) == BS_CANDIDATE_READY) {
-        out->frames = c->edit.frames; out->trim_start = c->edit.trim_start;
-        out->trim_end = c->edit.trim_end; out->added = c->edit.added;
-        out->before.count = c->edit.before.count; out->after.count = c->edit.after.count;
-        for (i = 0; i < BS_MAX_SLICES; ++i) {
-            out->before.records[i].start = c->edit.before.records[i].start;
-            out->before.records[i].end = c->edit.before.records[i].end;
-            out->before.records[i].loop = c->edit.before.records[i].loop;
-            out->after.records[i].start = c->edit.after.records[i].start;
-            out->after.records[i].end = c->edit.after.records[i].end;
-            out->after.records[i].loop = c->edit.after.records[i].loop;
-        }
-        ready = 1;
-    }
+    ready = bs_candidate_result_locked(c, id, out);
     c->session->backend->unlock(c->session->context);
     return ready;
 }

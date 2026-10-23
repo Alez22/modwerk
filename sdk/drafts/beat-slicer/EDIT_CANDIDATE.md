@@ -28,8 +28,8 @@ new ID even when the underlying preview is unchanged. IDs are trusted internal
 lifetime bookkeeping, not authentication or protection against memory corruption.
 
 The session and backend must outlive the candidate. One background owner calls
-both; no concurrent or reentrant calls are allowed. `bs_session_result_locked`
-is for composition while that caller already holds the same backend lock.
+both; no concurrent or reentrant calls are allowed. `bs_candidate_result_locked` and `bs_session_result_locked`
+are for composition while that caller already holds the same backend lock.
 Normal callers continue using `bs_session_result`, which acquires it itself.
 
 Returning a candidate is **not Apply permission**. A future native publication

@@ -1048,3 +1048,28 @@ Apply/Undo, USB, physical save/reboot behavior or audible playback.
 The full-stock observer report binds source commit `ba7c7c99e6b1f815db65e40b6cdb30c9843f4eba`,
 pinned by the current metadata. Its native prototype inputs are unchanged from
 the earlier source-bound target reports.
+
+## Apply/Undo coordinator (0.1.16)
+
+`edit_transaction.c` passes host ASan/UBSan and compiled ColdFire execution with
+a synthetic publication backend. The same tests exercise 40 confirmation/no-op
+cases, 388 injected publication/refresh rollbacks, 386 full-table stale cases,
+23 independent Undo identity/metadata invalidations, selected-tempo behavior,
+callback-boundary invalidation, history replay/reuse, pending/refused policy,
+exhaustion, reentry and 14 fault/quarantine cases. All complete inactive rows
+are preserved. A failed Undo that rolls back requires a newly issued confirmation.
+
+The compiled coordinator has 2682 text bytes, no object data/BSS and local stack
+frames of 0–52 bytes, excluding callees and caller-owned journal storage. It
+passes the code-generation guard, freestanding link and runner stack/register
+checks. These are executed instructions, not measured hardware timing.
+
+The candidate regression also passes on host and target after introducing its
+locked-result composition helper. Publication/rollback, exclusive ownership,
+playback policy and quarantine remain authored model callbacks. No native atomic
+Apply/Undo, live source service, audio, persistence or hardware is qualified.
+
+Reproduce host checks with `test_edit_transaction.py` and `test_edit_candidate.py`.
+For ColdFire, use `transaction_native.py` and `candidate_native.py` with the pinned
+`beat_slicer_job_probe` and toolchain/machine lock documented above. Binaries and
+raw logs stay private; source-bound reports will be pinned after this source commit.

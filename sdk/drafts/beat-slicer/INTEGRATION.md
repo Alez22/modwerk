@@ -123,3 +123,9 @@ record/ordinal preservation, job cancellation and atomic Apply/Undo requirements
 Draft release notes live in CHANGELOG.json. Move them to
 `src/community/module-changelogs/beat-slicer.json` in the same change that
 registers the qualified module; the live changelog validator rejects unlisted IDs.
+
+The portable [transaction coordinator](EDIT_TRANSACTION.md) now exercises Apply
+and Undo confirmation, complete history, failure rollback contracts and source
+quarantine against a synthetic backend. Its backend must provide actual atomic
+publication and complete auxiliary rollback under a verified reader/writer
+boundary; no installed service or native transaction is supplied by this draft.

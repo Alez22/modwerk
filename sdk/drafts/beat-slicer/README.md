@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.15-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.16-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -94,6 +94,11 @@ The [marker candidate preflight](MARKER_EDIT.md) now preserves complete existing
 records and slice numbers, refuses incompatible additions and retains inactive
 rows for a future exact Undo. It prepares memory snapshots only; native Apply,
 Undo and the playback acceptance gate remain unimplemented.
+
+The [transaction coordinator](EDIT_TRANSACTION.md) now binds confirmation,
+publication results and exact Undo history under one supplied lock. Its tests
+cover rollback, stale full tables and fault containment. Publication, playback
+policy and quarantine are synthetic callbacks; this does not enable native Apply.
 
 ## Tests and measurements
 

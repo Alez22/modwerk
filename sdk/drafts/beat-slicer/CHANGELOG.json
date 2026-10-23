@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.1.16-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Development draft: bind Apply and Undo confirmations to exact previews and complete slice history; refuse stale edits and replayed confirmations.",
+      "Known issue: not installable; native atomic publication, sample ownership, playback safety, USB and hardware tests remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.15-experimental",
     "date": "2026-10-23",
     "changes": [
