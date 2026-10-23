@@ -22,6 +22,11 @@ working/saved-copy behavior before enabling Apply. Bind preview to sample,
 content, markers, trim and chosen tempo; a stale or cancelled preview must not
 write. Quiet marker boundaries are not evidence of click-free playback.
 
+Establish menu-pointer lifetime before adding a row: stock menus can retain
+label, callback and selection storage after their opener returns. Keep that
+storage base-owned and make removal retire every reference before reclaiming
+module memory; a callback that is not currently running can still be retained.
+
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots of the menu path, with exact button sequences.

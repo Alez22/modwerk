@@ -419,9 +419,10 @@ arena starts. Moved with the base, the walk runs past the banks, reads off
 the end of RAM and the unit freezes on PURGE SAMPLES. Reported from a
 tester's MKII, 16 October 2026, and reproduced on the ColdFire emulator.
 Anything that moves the arena base leaves that operand (`0x400254fa`)
-stock. Elekloader's core-ot does from 0.3.1; check every other list of
-arena writes, such as `src/engine/assets/platform-writes.json` and
-`sdk/octabam/tools/remix/arena.py`, the same way.
+stock. Elekloader's core-ot does from 0.3.1, and the card builder
+(`sdk/octabam/tools/remix/arena.py`, `src/engine/assets/platform-writes.json`)
+from 22 October 2026, after card builds froze on PURGE SAMPLES (#707); check
+any new list of arena writes the same way.
 
 **`movem.l …,(%sp)` writes over the caller's frame.** `(%sp)` is plain
 indirect (mode 2): it stores at sp and leaves sp where it was, so a

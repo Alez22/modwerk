@@ -98,11 +98,12 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "18 host tests pass, including 250 original rational cases, 2,000 independent randomized grid cases and 200 exhaustive stereo-search cases. ColdFire object compiles without unresolved helpers; no native execution, UI, USB, audio or persistence qualification.",
+    "summary": "18 original/independent host tests, 164 compiled synchronous planner vectors and six isolated stock CPU probes pass. Resumable preview adds 500 host and 100 target comparisons plus cancellation/read lifecycle checks. No full editor, USB, audio or persistence qualification.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
       "python3 -B sdk/drafts/beat-slicer/test_independent.py",
+      "python3 -B sdk/drafts/beat-slicer/test_job.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ]
   },
