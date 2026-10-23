@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.6-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.7-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -78,6 +78,10 @@ The [preview admission prototype](PREVIEW_GUARD.md) now gives the proposed
 base provider unique operation IDs and writer-lifetime tracking. It invalidates
 old previews and refuses new ones during tracked edits, including nested edits.
 Native instrumentation and serialized live memory access remain unimplemented.
+The recorder investigation adds 20 synthetic calls covering stereo page crossings,
+lazy shared-pool allocation and early exits. Recorder position/map publication can
+precede PCM without an edit-queue, dirty-flag or counter signal; a live provider
+must cover those writers too. No device-testable package is available yet.
 
 ## Tests and measurements
 

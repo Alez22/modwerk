@@ -563,3 +563,55 @@ checks, lint, type checking and bundle). The required comparison with the
 fork's stale `origin/main` still rejects inherited upstream CHANGELOG history;
 that historical file remains unchanged, and authoritative validation uses
 current upstream main.
+
+## Ordinary recorder and shared allocation (0.1.7)
+
+`evidence/stock-recorder.json` binds the new runner, guard C/header, wrapper,
+CMake inputs, executable and private MAIN. Three groups (20 complete calls)
+pass, using original synthetic already-active recorder state and silent inputs:
+
+- Eight preallocated and eight lazy-allocation page crossings: 16/24-bit stereo,
+  tracks 1/8 and both state banks. Check exact PCM bytes and untouched pages,
+  position publication, free-list mirrors, recorder map, page count and logical
+  extent. Watchers verify no dirty-array/slot-counter stores; engine/UI queues
+  remain empty. Position/map preparation precedes PCM packing.
+- Four early-exit cases: inactive recorder, empty call, exhausted pool and
+  disabled dynamic allocation. The two shortages stop after preparing the first
+  segment, publish frame 1024, clear active position/state, return zero and write
+  none of this call's PCM. Real queue helpers post an engine opcode-34 follow-up
+  and a UI record. Their consumers are not run.
+- The host guard invalidates the pre-call token, excludes new tokens at PCM,
+  map and position stores, and retires the exact writer ticket on real return.
+  Fresh admission does not revive old tokens or establish source eligibility.
+  General callee-saved registers, return stack and supplied interrupt mask are
+  checked. This is not native hook/lock integration.
+
+Both pinned EMAC/peripheral gates pass. These runs use upstream Octabam commit
+`8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5`, mc68k commit
+`4a6d0d17a1f2b30077ab726c27fe9bb770fa0456` and source-tools image
+`sha256:da70d46e10b243277fa3ae2e015f7258d56b3ee08ca4be47e61899958872e792`.
+Inside the previously documented private mounts, freeze source inputs through
+configure, build and execution:
+
+```sh
+cmake -S /source/sdk/drafts/beat-slicer/stock_probe -B /output/build \
+  -DCMAKE_BUILD_TYPE=Release -DOT_LTO=OFF -DOCTABAM_ROOT=/upstream \
+  -DOT_VENDOR=/output/vendor
+cmake --build /output/build --target beat_slicer_recorder_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind recorder \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_recorder_probe \
+  --output /evidence/NEW_STOCK_RECORDER_REPORT.json
+```
+
+An intermediate expanded runner failed C++ compilation because a hexadecimal
+literal ending in `e` was adjacent to `+`; separating the tokens fixed the
+fixture. Only the final rebuilt, source-matched passing report is retained.
+Older evidence retains its original hashes. The portable core is unchanged.
+
+The caller interrupt mask is a fixture input, not a measurement of the real
+audio ISR. No interrupt/scheduler interleaving, non-silent mixing, arming,
+Pickup/overdub, reverse recording, stop finalization, queued follow-up execution
+or physical recording is qualified. Shared-map mutation requires serialization
+even if preview refuses recorder slots. Native reader/provider, Apply/Undo,
+playback smoothing and exact card/browser/USB/device qualification remain open.

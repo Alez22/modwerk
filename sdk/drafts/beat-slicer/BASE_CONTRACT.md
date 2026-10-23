@@ -110,8 +110,14 @@ notification that can be omitted when its record pool is full. Retire writer
 exclusion at a verified execution boundary on every path, independently of
 UI notification. Queued command pointers are not immutable operation IDs:
 capture validated identity and affected destinations under proved ownership.
-The current seven-operation worker trace does not cover recorder writes,
-all worker opcodes, other callers, live scheduling or cancellation.
+The expanded worker trace and separate ordinary-recorder fixtures do not cover
+all worker opcodes, recorder modes, other callers, live scheduling or cancellation.
+Recorder allocation and position publication can precede PCM packing, outside
+the edit queue and without dirty/counter stores. A shortage can return without
+writing the prepared PCM and queue further work. Neither a position nor return
+alone establishes a readable source; validate ownership/state and cover the
+follow-up writer independently. The recorder also changes shared free-page maps,
+so refusing recorder slots alone does not serialize a Flex reader's map access.
 
 The draft [admission prototype](PREVIEW_GUARD.md) implements coarse global
 revisions, unique tickets, nested-writer exclusion and revocation/exhaustion

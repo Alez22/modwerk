@@ -43,6 +43,11 @@ These are remaining tasks, not implemented behavior.
    revisions and unique writer tickets, including nested edits, owner revocation
    and exhaustion refusal. Copy/crop/release dispatch is exercised with that
    host guard; native writer coverage, synchronization and admission remain open.
+   Separate recorder fixtures now cover preallocated/lazy page crossings in both
+   stereo formats, both state banks and tracks 1/8, plus early exits and allocation
+   shortages. Recorder map/position updates precede PCM without queue/dirty/counter
+   signals; shortage cleanup queues more work. Remaining modes/follow-up writers,
+   real ISR scheduling and shared-pool serialization still need investigation.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

@@ -69,6 +69,14 @@ synthetic worker fixtures exercise both cases. Admission bookkeeping still
 needs a separate verified lock around snapshot/map lookup and bounded copying;
 a valid token alone does not pin memory or establish complete writer coverage.
 
+Cover recorder and allocator writes outside the edit worker too. Beat Slicer's
+synthetic 1.40C ordinary-recorder calls change shared page maps and PCM without
+dirty/counter stores. Position/map publication precedes PCM; allocation shortage
+can publish a prepared position, write none of that call's PCM and queue follow-up
+work. A position or routine return therefore does not establish source readiness.
+Refusing recorder slots alone does not serialize shared-pool access for Flex.
+These fixtures do not establish the real ISR mask, timing or recording behavior.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

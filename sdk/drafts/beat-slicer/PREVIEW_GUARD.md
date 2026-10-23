@@ -64,3 +64,9 @@ These two test layers are distinct: the guard selftest runs compiled target
 code; the stock trace uses a host guard. Neither installs native instrumentation,
 interleaves a live scheduler, performs hardware timing or qualifies USB/audio.
 See [TESTING.md](TESTING.md) and [writer coverage](WRITER_COVERAGE.md).
+
+The 0.1.7 recorder trace uses the same host guard around complete stock calls,
+including shared-page allocation and early exits outside the edit worker.
+Position/map stores can precede PCM. After an allocation shortage the guard's
+ticket ends at return, but queued follow-up work and source eligibility remain
+separate concerns. Idle bookkeeping never authorizes a raw recorder/Flex read.

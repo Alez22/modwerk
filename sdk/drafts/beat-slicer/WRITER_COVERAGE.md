@@ -107,6 +107,40 @@ See [PREVIEW_GUARD.md](PREVIEW_GUARD.md) for capacity, revocation, exhaustion
 and serialization requirements. The guard is disabled by default and remains
 outside the base ABI. It cannot compensate for an unobserved writer.
 
+## Recorder outside the edit worker (0.1.7)
+
+`evidence/stock-recorder.json` adds three groups (20 calls) from the complete
+ordinary-recorder entry `0x400068e4`, with real callees, synthetic already-active
+state and silent inputs. It does not boot the OS or invoke an audio interrupt.
+
+- Sixteen successful page-crossing calls cover packed 16/24-bit stereo, tracks
+  1 and 8, both recorder state banks, and preallocated versus lazy second pages.
+  Exact PCM extents and untouched pages are checked. The call writes PCM with
+  an empty engine queue and no dirty-array or recorder-slot counter stores.
+- Lazy allocation takes the high end of the shared free-page interval, clears
+  both free-list mirrors, publishes the recorder page and updates page count
+  and logical extent. Those map changes and the active position updates precede
+  this call's PCM packing. Thus an advanced position is not a completed-write
+  barrier. Stores retain the fixture's unmasked caller state; the real caller's
+  interrupt level, interleaving and latency are not established here.
+- Inactive state and a zero-frame call return without PCM/map changes. With the
+  first page present and the second unavailable (pool empty or dynamic allocation
+  disabled), segment preparation reaches frame 1024, then stop resets the active
+  position/state and publishes 1024. The routine returns zero, with **no PCM from
+  this call written**, one engine follow-up (opcode 34) and one UI notification.
+  This synthetic partial-preparation case is not a claim about an audible stock
+  recording fault. Queued follow-up execution remains untested.
+- A host guard enters before the complete call and leaves on its actual return.
+  PCM, map and position stores refuse new tokens; old tokens remain invalid
+  afterwards, including early exits. This does not install native hooks or make
+  a recorder source readable after return. Source state and queued follow-up
+  writers need separate validation and coverage.
+
+These calls cover neither arming, Pickup/overdub, reverse recording, non-silent
+mixing, stop finalization nor scheduler/ISR behavior. Shared allocation means
+excluding only recorder slots from preview does not establish pool ownership
+for Flex readers. All allocator and copy boundaries still need serialization.
+
 ## Consequence for the base service
 
 An epoch increment at a dirty store can retire old previews, but cannot by
@@ -132,11 +166,13 @@ allocation ownership rules have been established.
   Prove live cancellation, reentrancy, wakeups and serialization; the synthetic
   FIFO cases alone do not prove those behaviors.
 - Extend crop/release range and allocation coverage; cover slot load/replacement,
-  project/sample reload, recording/overdub and every other PCM writer. Enumerate
+  project/sample reload, remaining recorder modes/follow-up execution, overdub
+  and every other PCM writer. Enumerate
   cached/uncached aliases and writes that do not touch the dirty array.
 - Prove map ownership and coherent source format/extent discovery during each
   bounded copy. Release can change a surviving slot's map without changing its
-  control record. The current probes do not interleave an allocator or recorder.
+  control record. Recorder allocation now runs in isolation; the current probes
+  still do not interleave an allocator, recorder or reader.
 - Cover trim/loop/markers, chosen tempo, editor/sample switch, owner replacement
   and removal. These must invalidate the right operation without using slot
   number, filename or counter reuse as identity.

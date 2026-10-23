@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.7-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted integration research: add complete ordinary-recorder stock-CPU fixtures for 16/24-bit stereo page crossings, tracks 1/8, both state banks and lazy shared-pool allocation. Original synthetic silent inputs and the host admission guard exercise 20 calls without mocking callees; portable core behavior is unchanged.",
+      "Observe map/position publication before PCM, with no edit-queue, dirty-array or slot-counter signal. Inactive/empty calls and allocation shortages exercise guard cleanup; a shortage can publish a prepared position without writing this call’s PCM and queue engine/UI follow-up work. Refine the provider contract to require independent source validation, follow-up writer coverage and shared-pool serialization.",
+      "This remains noninstallable staging. Arming, Pickup/overdub, remaining recorder modes, non-silent mixing, follow-up execution, real ISR/scheduling, native hooks/locks, Flex/Static access, editor Apply/Undo, playback smoothing, USB lifecycle and physical qualification remain pending."
+    ]
+  },
+  {
     "version": "0.1.6-experimental",
     "date": "2026-10-23",
     "changes": [
