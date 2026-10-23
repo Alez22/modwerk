@@ -6,7 +6,7 @@
       "Move private preview planning and PCM decoding outside source lock sections; keep capture and bounded source copies protected.",
       "Revalidate after reacquiring for a copy, and reject changed sources after lock release; waiting retries retain the exact pending request.",
       "Host and ColdFire regressions cover nine lock-release interleavings, metadata, candidates, commit/clear and failure rollback.",
-      "Development measurements show no planner/decoder calls under the lock; instruction counts remain distinct from physical timing.",
+      "Development evidence: exact source-bound receipts show no planner/decoder calls under the lock; instruction counts are not physical timing.",
       "Known issue: not installable; complete ownership, native admission, publication, playback, USB and hardware qualification remain unfinished."
     ]
   },

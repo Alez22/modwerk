@@ -1438,4 +1438,4 @@ The session component is 2,828 text bytes, zero data/BSS; compiler local stack
 reports range from 0 to 164 bytes, excluding callees and the full call chain.
 No native backend, package, USB or hardware qualification is introduced.
 The baseline receipt is bound to `79cde45170681eb6abda0e249456a78cec416654`;
-new result receipts will bind the source commit after validation.
+the thirteen `*21-host.json` / `*21-native.json` receipts bind `a5254c50e562c0b54c336a173f0e199becd3b536`.
