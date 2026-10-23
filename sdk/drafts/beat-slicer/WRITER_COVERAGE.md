@@ -214,8 +214,8 @@ project. Two reverse operations enter `0x40095268`, return through `0x4008594c`,
 post through `0x40084110`, and reach the real UI callback `0x40075564`; waveform
 completion `0x40077a5c` follows. Editor busy is set and cleared on the UI task;
 the dirty store occurs on the engine task. The complete slot control record
-remains unchanged even though every logical PCM frame differs after the first
-operation. The second restores the original PCM. This confirms one successful
+remains unchanged even though the first operation changes PCM. Individual
+frame values can coincide; the comparison covers the complete payload. The second restores the original PCM. This confirms one successful
 UI completion path, not missing/exhausted completion handling or all writers.
 
 The observed whole-selection end argument is inclusive in this routine and
