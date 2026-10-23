@@ -35,11 +35,11 @@ Duration and readings beyond those were not recorded.
 
 ## Source build comparison
 
-The module is a submission (`modules/_submissions/`) until the browser can build it. Modwerk's own validation and compiler path, run on this folder:
+Modwerk's own validation and compiler path, run on this folder:
 
 ```sh
-node scripts/machine-modules.mjs --drafts --base origin/main
-MODWERK_CROSS=m68k-linux-gnu- node scripts/build-elemod-packages.mjs --output OUT --source-commit <commit> --drafts --module analog-rytm-mkii:filter-hz
+node scripts/machine-modules.mjs --base origin/main
+MODWERK_CROSS=m68k-linux-gnu- node scripts/build-elemod-packages.mjs --output OUT --source-commit <commit> --module analog-rytm-mkii:filter-hz
 node scripts/verify-elemod-source-parity.mjs --packages OUT --oracle ORACLE --out RESULT \
   --firmware analog-rytm-mkii:Analog-Rytm_MKII_OS1.74.syx
 ```
@@ -51,8 +51,14 @@ release object, `2d8aead1…948d`, which is FZ74, the build tested on the unit
 ([source-parity.json](evidence/source-parity.json)). `.run` is 256 bytes, one site, no relocations.
 
 Compiler: Ubuntu 24.04 `m68k-linux-gnu` GCC 13.3.0 and binutils 2.42. Modwerk's pinned Docker
-toolchain was not run here, and CI's `elemod-source` job compiles published folders only. The
-firmware and the linked builds stayed on the owner's computer.
+toolchain (`m68k-elf` binutils 2.47) was not run here; CI's `elemod-source` job compiles this
+folder with it and checks the committed export against that build. The firmware and the linked
+builds stayed on the owner's computer.
+
+The source-only export, `sdk/imports/packages/filter-hz/filter-hz-1.2.0-os1.74.elemod`
+(`95e455cb…0446`), comes from that compiled recipe with `scripts/package-elemod-recipe.mjs`.
+Elekloader kit 0.7.0, as vendored in Modwerk, builds it with the released core-ar2 0.3 on stock
+1.74, with display version FZ74, into FZ74's .syx byte for byte (`62c25626…7745`), so the browser's build is the tested build.
 
 ## Emulator
 

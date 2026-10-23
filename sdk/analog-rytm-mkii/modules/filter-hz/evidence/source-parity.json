@@ -29,7 +29,7 @@
         "linker": "GNU ld (GNU Binutils for Ubuntu) 2.42",
         "node": "v24.21.0"
       },
-      "artifactSha256": "374040df2fa0a3012bde0228237470d8afb0fc4f0933875a6e2e5f89cf2097b7",
+      "artifactSha256": "20cbd9fc99242fa8fed6326a8c82ff1bf4b5a3eb3ca1e3c4fcb9d278ef4a25d9",
       "authorObjectSha256": "25055fc7662efd8b1035f7840ccb5c02087ca384ae0801917560c9f5fe16512a",
       "ownSha256": "2d8aead1932dd07003c75b233c4c93291d144c4eb5d6a8a11f1fecece1ea948d",
       "referenceSha256": "2d8aead1932dd07003c75b233c4c93291d144c4eb5d6a8a11f1fecece1ea948d",

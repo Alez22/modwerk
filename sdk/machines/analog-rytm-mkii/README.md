@@ -1,8 +1,8 @@
 # Analog Rytm MKII SDK
 
-**Platform:** elemod · **OS:** 1.74 · **Core:** elekloader core-ar2 0.3 · **Modules:** [`sdk/analog-rytm-mkii/modules/`](../../analog-rytm-mkii/modules/) · **Status:** research
+**Platform:** elemod · **OS:** 1.74 · **Core:** elekloader core-ar2 0.3 · **Modules:** [`sdk/analog-rytm-mkii/modules/`](../../analog-rytm-mkii/modules/) · **Status:** preview
 
-The Analog Rytm MKII runs on the same ColdFire platform as the Digitakt mk1, and its OS entry and bootstrap loader match the Digitakt's instruction for instruction. Its core is elekloader's Digitakt mk1 core (`core.s`, `settings.s`, `render.s`) built with the Rytm's addresses. The core hooks eight shared sites and calls every subscribed mod's handler, in order, from tables the linker builds, so any set of mods that fits the budgets combines. From 0.2 it also keeps mod storage: fields a mod declares, saved with sounds, kits, global slots and projects (below). Core 0.3 is for OS 1.74 only; new core versions drop old OS support, so Modwerk supports the Rytm on OS 1.74 alone. Every event below has run on a unit. Modwerk's linker builds Rytm modules. The browser builds the core alone on OS 1.74, as a local preview with downloads off like the Digitakt II's, and no module is in the library yet, so the machine stays in research.
+The Analog Rytm MKII runs on the same ColdFire platform as the Digitakt mk1, and its OS entry and bootstrap loader match the Digitakt's instruction for instruction. Its core is elekloader's Digitakt mk1 core (`core.s`, `settings.s`, `render.s`) built with the Rytm's addresses. The core hooks eight shared sites and calls every subscribed mod's handler, in order, from tables the linker builds, so any set of mods that fits the budgets combines. From 0.2 it also keeps mod storage: fields a mod declares, saved with sounds, kits, global slots and projects (below). Core 0.3 is for OS 1.74 only; new core versions drop old OS support, so Modwerk supports the Rytm on OS 1.74 alone. Every event below has run on a unit. Modwerk's linker builds Rytm modules. Filter Hz is the first library module, so the machine is in preview: the browser builds the core with library modules on OS 1.74, with downloads off until the owner turns them on.
 
 ## Create a mod
 
@@ -70,7 +70,7 @@ python -m elekloader.patch --stock Analog-Rytm_MKII_OS1.74.syx \
     --out my-build.syx --version XX01
 ```
 
-Modwerk's linker covers OS 1.74 (`src/engine/elektron/elemod.ts`), mod storage included. On the owner's stock 1.74 file it links core-ar2 0.3 with each of rytm2_mods v1.2's eleven mods, with the storage mods together, with all eleven, and again from a kept lockfile, byte for byte as elekloader kit 0.7.0 does. In the browser, the Rytm's configuration page checks and builds core-ar2 0.3 alone from the owner's stock OS 1.74, with elekloader's kit and the core pinned in `sdk/imports/elekloader-core-ar2-v0.3.json`; downloads stay off until the owner turns them on. To build firmware with mods, use elekloader.
+Modwerk's linker covers OS 1.74 (`src/engine/elektron/elemod.ts`), mod storage included. On the owner's stock 1.74 file it links core-ar2 0.3 with each of rytm2_mods v1.2's eleven mods, with the storage mods together, with all eleven, and again from a kept lockfile, byte for byte as elekloader kit 0.7.0 does. In the browser, the Rytm's configuration page checks and builds core-ar2 0.3 and the selected library modules from the owner's stock OS 1.74, with elekloader's kit, the core pinned in `sdk/imports/elekloader-core-ar2-v0.3.json` and each module's source-only package pinned in its own record (`sdk/imports/elekloader-filter-hz-2026-10-23.json`). Downloads stay off until the owner turns them on. The browser does not keep a configuration's storage lockfile yet, so it rebuilds a fresh storage layout each time; no library module declares storage, so nothing is lost. A module with storage needs that lockfile before it enters the library. Until then, build firmware with storage mods with elekloader.
 
 ## Flash and recover
 
@@ -78,7 +78,7 @@ Send the .syx with Elektron Transfer over USB (MIDI IN and OUT set to the device
 
 ## Status
 
-The first port, core-ar2 0.1 for OS 1.73, is in elekloader (merged in irpina/elekloader#89); Modwerk no longer supports OS 1.73. Builds HM01 (core and hello-marker) and HC01 (core and hooks-check) ran every event on a unit on OS 1.73, and the stock .syx restored it each time ([core report](https://github.com/Iced-Cream/rytm-mods-boot-report/blob/main/CORE_REPORT.md)). Core-ar2 0.3 (OS 1.74, with mod storage) is on elekloader's [core-ar2-v0.3](https://github.com/irpina/elekloader/releases/tag/core-ar2-v0.3) pre-release and in kit 0.7.0's catalog. No module in this SDK is approved or qualified for publication yet.
+The first port, core-ar2 0.1 for OS 1.73, is in elekloader (merged in irpina/elekloader#89); Modwerk no longer supports OS 1.73. Builds HM01 (core and hello-marker) and HC01 (core and hooks-check) ran every event on a unit on OS 1.73, and the stock .syx restored it each time ([core report](https://github.com/Iced-Cream/rytm-mods-boot-report/blob/main/CORE_REPORT.md)). Core-ar2 0.3 (OS 1.74, with mod storage) is on elekloader's [core-ar2-v0.3](https://github.com/irpina/elekloader/releases/tag/core-ar2-v0.3) pre-release and in kit 0.7.0's catalog. Filter Hz is the first library module ([folder](../../analog-rytm-mkii/modules/filter-hz/)).
 
 ## Credits
 
