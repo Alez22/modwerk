@@ -1000,4 +1000,5 @@ recipe, then run `menu_native.py --main <private-original-MAIN>
 --executable <runner> --output <new-private-directory>`. Reports bind original
 source, private MAIN, runner, compiler flags and object hashes. Binaries and
 stock-derived logs stay private. Retained reports are `evidence/menu-host.json`
-and `evidence/menu-native.json`; their source commit is pinned after validation.
+and `evidence/menu-native.json`; both bind source commit `de9a5f1f6d2137a01c7db91d5f344dc9517879e3`,
+pinned in the 0.1.15 metadata. Earlier reports retain their historical bindings.
