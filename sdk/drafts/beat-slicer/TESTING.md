@@ -1683,3 +1683,7 @@ The source check against current upstream passes 2,529 app tests, 37 SDK tests
 (one skipped), lint, types, bundle and catalogue/import checks. The required
 origin/main invocation retains the inherited historical CHANGELOG.md failure;
 prose/evidence follow-ups use the lightweight checks.
+
+The five `formats26-*` compile/boot receipts bind source
+`1338539aba333f37b3dbfd9e6867c875c9fe66c3`. Their raw contents and complete
+source hashes are retained, alongside earlier exact historical evidence.
