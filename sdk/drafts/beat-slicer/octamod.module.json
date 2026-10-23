@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Bounded Flex metadata capture now feeds preview/candidate tests, preserving complete records and independent tempo values while refusing invalid bindings. Native identity, binding and ownership remain unimplemented. Commit without user history passes host sanitizers and compiled ColdFire, including repeated create/clear cycles, stale-clear refusal, internal rollback and terminal faults. The stock-backed Flex chain exercises 300 actual editor refreshes with synthetic ownership/publication/playback. Normal stock Flex/Static menus cover grid alignment choices, cancellation and individual/all-slice deletion; isolated callbacks cover 144 cancellation/deletion cases. Earlier PCM, source lifecycle and historical Undo research retains its exact evidence bindings. No installed Beat Grid controls, complete native source ownership, atomic publisher, playback qualification, browser/USB package or physical persistence results exist.",
+    "summary": "Stock save/revert and project reload now pass across three fresh emulator processes, with exact serialized tables and separately reported inactive-row normalization. Bounded Flex metadata capture now feeds preview/candidate tests, preserving complete records and independent tempo values while refusing invalid bindings. Native identity, binding and ownership remain unimplemented. Commit without user history passes host sanitizers and compiled ColdFire, including repeated create/clear cycles, stale-clear refusal, internal rollback and terminal faults. The stock-backed Flex chain exercises 300 actual editor refreshes with synthetic ownership/publication/playback. Normal stock Flex/Static menus cover grid alignment choices, cancellation and individual/all-slice deletion; isolated callbacks cover 144 cancellation/deletion cases. Earlier PCM, source lifecycle and historical Undo research retains its exact evidence bindings. No installed Beat Grid controls, complete native source ownership, atomic publisher, playback qualification, browser/USB package or physical persistence results exist.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -118,7 +118,7 @@
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
-    "evidenceRevision": "36101a8a5da74f6101f9a5dcedcdc441a66e172d"
+    "evidenceRevision": "b53daa6b06ff7ed5d43507e696419dfaaa86ed8e"
   },
   "license": {
     "spdx": "MIT",

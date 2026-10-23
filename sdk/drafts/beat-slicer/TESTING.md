@@ -1340,3 +1340,10 @@ are described in BOOT_OBSERVATION.md and excluded from passing evidence. The
 accepted run checks final save completion and distinguishes exact file contents
 from inactive-row normalization. No physical reboot, installed Beat Slicer,
 Static streaming or audio behavior is qualified.
+
+The three 0.1.19 receipts (`metadata-host.json`, `metadata-native.json`,
+`boot-persistence.json`) bind exact source `b53daa6b06ff7ed5d43507e696419dfaaa86ed8e`.
+The provenance audit now covers 57 reports and 650 source bindings; the one
+explicitly unbound historical compile diagnostic remains excluded. Historical
+receipts and their source revisions are unchanged. Full Node 24 validation of
+this source passes 2,527 app tests plus SDK checks, lint, types and bundling.
