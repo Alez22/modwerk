@@ -1202,3 +1202,9 @@ It does not read Static PCM through a new adapter, establish a safe file lease,
 cover concurrent playback/card writes, measure streaming latency, or qualify
 hardware/persistence. The earlier attempt refused an incorrect input identity
 before boot; only the completed reproduction is retained as passing evidence.
+
+The nine 0.1.17 receipts (`transaction17-host/native`,
+`transaction-stock-host/native`, `stock-refresh`, `boot-formats`,
+`boot-formats24`, `boot-writer`, `boot-static`, all JSON under `evidence/`)
+bind source commit `af35f3084e01448c26e0cc6a7a287f33756a4eb8`. The manifest pins that source
+revision; the evidence index preserves every earlier binding separately.

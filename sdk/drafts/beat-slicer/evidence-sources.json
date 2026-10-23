@@ -2,7 +2,11 @@
   "schemaVersion": 1,
   "scope": "Exact recorded source inputs only; this index does not qualify execution, integration or hardware.",
   "bindings": {
+    "boot-formats.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
+    "boot-formats24.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
     "boot-observation.json": "ba7c7c99e6b1f815db65e40b6cdb30c9843f4eba",
+    "boot-static.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
+    "boot-writer.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
     "candidate-host.json": "29c1a305a54ec83c4d3876304d8b304287d698a8",
     "candidate-native.json": "29c1a305a54ec83c4d3876304d8b304287d698a8",
     "candidate-session-host.json": "29c1a305a54ec83c4d3876304d8b304287d698a8",
@@ -34,13 +38,18 @@
     "stock-publication.json": "c8780c374760765df6996f2c52a16c40344b6726",
     "stock-reader.json": "fc79b393367e63da823d21131c758c642f6d4399",
     "stock-recorder.json": "95a33062f8d34631d963044311012da720511aa2",
+    "stock-refresh.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
     "stock-storage.json": "dfa5530344b93296b18cb4d24d2e7dbeb861b956",
     "stock-worker.json": "139c3ea55002db4e639f5fcb2e4fb3d8234dbf4f",
     "stock-writers.json": "8c6d64e9832de11fd39490c9609d838c57aece4a",
     "transaction-candidate-host.json": "c5979beacdfd40b0092aa43f2183df133734b58b",
     "transaction-candidate-native.json": "c5979beacdfd40b0092aa43f2183df133734b58b",
     "transaction-host.json": "c5979beacdfd40b0092aa43f2183df133734b58b",
-    "transaction-native.json": "c5979beacdfd40b0092aa43f2183df133734b58b"
+    "transaction-native.json": "c5979beacdfd40b0092aa43f2183df133734b58b",
+    "transaction-stock-host.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
+    "transaction-stock-native.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
+    "transaction17-host.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
+    "transaction17-native.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8"
   },
   "unboundDiagnostics": {
     "native-import.json": {
