@@ -1072,4 +1072,6 @@ Apply/Undo, live source service, audio, persistence or hardware is qualified.
 Reproduce host checks with `test_edit_transaction.py` and `test_edit_candidate.py`.
 For ColdFire, use `transaction_native.py` and `candidate_native.py` with the pinned
 `beat_slicer_job_probe` and toolchain/machine lock documented above. Binaries and
-raw logs stay private; source-bound reports will be pinned after this source commit.
+raw logs stay private. `evidence/transaction-host.json`, `transaction-native.json`,
+`transaction-candidate-host.json` and `transaction-candidate-native.json` bind
+source commit `c5979beacdfd40b0092aa43f2183df133734b58b`; metadata pins it as evidenceRevision.
