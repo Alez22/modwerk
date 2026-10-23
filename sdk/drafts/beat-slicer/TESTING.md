@@ -1458,4 +1458,5 @@ refused; unlocked/stale marker reads leave output untouched. Locks balance.
 real private stock page lookup and its preserved-register checks. Fixture regions,
 identities and ownership remain synthetic. No live admission, address discovery,
 writer completion guarantee, native publication, cache or hardware timing is
-established. Exact source receipts are retained after source validation.
+established. `evidence/source22-host.json` and `evidence/source22-native.json` bind the exact
+source `c49c3cff97c5cccb745bd3a17b39575ecb315b96`.
