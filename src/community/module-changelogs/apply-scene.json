@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.2.0-experimental",
+    "date": "2026-10-22",
+    "changes": [
+      "New: TRIG + SCENE. In grid recording, hold one or more trigs and press SCENE A, SCENE B or both; when you let go of the last scene key, the scene's locked values (or the crossfader's current blend) become p-locks on the held steps of the active track. Requested by an MK1 user on Discord.",
+      "One scene writes every value it locks, replacing a p-lock the step already had for that parameter and leaving the step's other p-locks alone; the blend writes what each step plays at the current fader position, using the step's own p-lock where it has one. Slots the page lacks are skipped and values stay inside each parameter's range, as stock's own p-lock writer does; the held trigs stay. Toasts: SCENE A TO TRIGS, SCENE B TO TRIGS, SCENE BLEND TO TRIGS, or NOTHING TO LOCK.",
+      "Stock gestures inside the chord keep their meaning: a trig pressed while the scene key is held selects a scene and a knob turned writes a scene lock, and then no p-lock is written. SCENE first, then a trig, still selects a scene. There is no undo; hold the trig and press PLAY (stock) to clear that step's p-locks.",
+      "Two new patch sites: the entries of stock's SCENE press and release handlers. The Part apply (SCENE + YES) is unchanged.",
+      "Tested under ot_emu only (verify.py). TRIG + SCENE has not run on hardware, on the MKII or the MK1; the card build was not run on hardware for this version."
+    ]
+  },
+  {
     "version": "0.1.0-experimental",
     "date": "2026-10-15",
     "changes": [

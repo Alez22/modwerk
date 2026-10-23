@@ -1,6 +1,26 @@
 # Apply Scene testing
 
-## Commands and exact revision
+## 0.2.0: TRIG + SCENE (emulator only, 22 Oct 2026)
+
+Not run on hardware. Everything in this section is ot_emu (`--mkii`), which does not count as hardware evidence.
+
+**Stock first.** On the stock 1.40C image under ot_emu, in grid recording on the TMPL project: holding a trig and pressing SCENE A changes no pattern or Part byte, and the held trig stays after its release. A trig pressed while SCENE is held still selects a scene (trig 9 → scene 9, held mask unchanged), and a knob writes a scene lock, not a p-lock. Outside grid recording the held-trig mask `0x460d174a` stays 0. SCENE's press `0x4004348c(key, 1)` and release `0x40054ca4(key, 0)` handlers are the same with or without a trig held. Stock's knob-with-trig lock writer `0x400508e4` stores bank RAM and the battery copy at `0x1001614e`, sets the step's has-locks bit `0x46c7d48c[step]`, the edited flags `bank + 0x9b332` and `0x100f8598`, calls `0x40027e00`, then `0x4009da20(track)`, and clears the remove-on-release masks `0x460d1a9e..0x460d1aa6` and `0x460d10dc`. It writes no lock-trig mask: in grid recording a press on an empty step places a trig at once, so every held step has a trig.
+
+**The module.** The source on branch `claude/apply-scene-extension-f84ceb` (on main f99681ec), built as in the commands below (`make bus REMIX=apply-scene-stock BUILD=0`, every stock effect, `static_stock=True`): MAIN OS SHA-256 `dde5f7f92b0d4891005b0a0edf89e5380ddee1f785b0eeab399e6ea61dae514b`, the unit in the DRAM reserve at 0x40a955e0 with three detours (`as_yes_hook` 0x4005e4c8, `as_scene_press` 0x4004348c, `as_scene_release` 0x40054ca4). verify.py passed 264/264, the 179 checks of 0.1.0 among them. The new checks, on T3 (the fixture's current track) with trigs poked onto steps 2, 5 and 10 and 16 pseudo-random p-locks on step 5:
+
+- The blend on two steps at fader 127, 64 and 0, SCENE A and SCENE B on two steps, the blend on three steps at fader 32: every held step's lock bytes equal the model, no other pattern byte moved (the trig masks included, so the held trigs stayed), the battery copy equals RAM, the Part is unchanged, the step's has-locks bit is set, one toast with the mode's text.
+- SCENE A twice: the second writes nothing and shows NOTHING TO LOCK.
+- Key order: B then A pressed and A released first; A and B pressed, B released, then A; the trig released before SCENE A. Each writes as the model.
+- Scene A muted: the blend treats A as unlocked; TRIG + SCENE A still writes A's locks.
+- Stock inside the chord: TRIG + SCENE A + TRIG 3 selects scene 3 and writes no lock and no toast; TRIG + SCENE A + knob D on AMP writes the scene lock (52 → 57) and no p-lock. TRIG + knob D without a scene key still writes stock's one p-lock byte.
+- Persistence: a blend written before PROJECT SAVE is in T3's pattern track after a fresh boot of the saved card; an unsaved SCENE B write survives the emulated power cycle (`--cs1-in --no-post`), the whole pattern byte for byte.
+
+**Cost.** One more probe on the same image: all 16 trigs held, every scene byte of the track locked in both scenes (A 0, B 127), so every enabled slot of every step changes. From the last scene key's release to the toast: 66,929 executed ColdFire instructions for the blend, 98,681 for SCENE A after it, 19,444 for a repeat that changes nothing. Nothing runs between presses. The p-lock path writes bytes directly as stock's lock writer does and calls stock's refresh once, not per write, so it is far below a Part apply (2.3 to 11.1 million). Time on the unit is not measured.
+
+**Size.** The unit assembles to 2,098 bytes (`m68k-elf-size`, both `-mcpu=5475` and `54455`), including 100 bytes of chord state; it was 636.
+
+**Not tested:** any hardware run (MKII or MK1, USB package or card), audible output, the USB package build and its stock-free scan, the browser builder's comparison (`module:verify`), MIDI mode, a pattern or Part change inside the chord (the chord is then dropped, by design, untested), trig pages past the first, and track 8 as the master track.
+
 
 Emulator only, 15 Oct 2026. The source is commit `ae2a6eed` on branch `claude/apply-scene` (merged with main 86e0dfb8). The image is byte for byte MAIN OS SHA-256 `c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b`. From a90849c9 the card build links the unit in the DRAM reserve (Play Modes' path), so the site's builder and native octabam agree beside Preview Vol, Mute Modes and the caves; that image (MAIN OS `3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc`, the unit at 0x40a955e0, loaded at boot) passed verify.py 179/179, including the worst case and the emulated power cycle. The USB package is byte-identical to ae2a6eed's. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
 
@@ -48,6 +68,9 @@ Cost under ot_emu, from the YES press to the toast: 2.3 to 3.4 million ColdFire 
 | YES alone (ARM ALL) | unchanged |
 | SCENE A, SCENE B or both + YES | replaced by the apply (deliberate; README) |
 | SCENE + TRIG select, SCENE + knob lock, SCENE + REC/STOP/PLAY | unchanged |
+| Grid recording: TRIG held + SCENE A/B (0.2.0) | replaced: the scene's values become p-locks on release (deliberate; README). On stock the press changed no data |
+| TRIG + SCENE + TRIG (scene select), TRIG + SCENE + knob (scene lock) (0.2.0) | unchanged; the p-lock write is dropped |
+| TRIG + knob p-lock, hold trig + PLAY clear (0.2.0) | the p-lock unchanged; the clear not run |
 | FUNC + SCENE mute | unchanged; the blend follows it, a one-scene apply ignores it |
 | RELOAD PART, Part SAVE, PROJECT SAVE, project load, power cycle | unchanged; carry the applied values |
 | MIDI mode | the gesture is not taken (falls through to stock); not run |

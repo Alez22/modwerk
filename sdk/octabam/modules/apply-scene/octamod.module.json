@@ -3,7 +3,7 @@
   "id": "apply-scene",
   "key": "APPLY SCENE",
   "name": "Apply Scene",
-  "version": "0.1.0-experimental",
+  "version": "0.2.0-experimental",
   "category": "scenes",
   "author": {
     "github": "npp1993",
@@ -16,19 +16,21 @@
   "presentation": {
     "label": "Apply Scene",
     "family": "Scenes",
-    "summary": "Hold SCENE A or SCENE B and press YES: that scene's locked values become the active Part's own. Hold both and press YES to keep the crossfader's current blend.",
-    "overview": "Keep a scene, or keep a blend. SCENE A + YES writes every value scene A locks into the active Part, as if you had turned each knob there yourself; SCENE B + YES does the same for scene B. Hold both scene keys and press YES to write the sound the crossfader plays right now instead. The scenes, the crossfader and the saved Part stay as they were, so the scenes keep morphing from the new base and RELOAD PART takes you back to the last saved Part.",
+    "summary": "Hold SCENE A or SCENE B and press YES: that scene's locked values become the active Part's own. Hold both and press YES to keep the crossfader's current blend. In grid recording, hold trigs and press a scene key (or both) to write the same values as p-locks on those steps.",
+    "overview": "Keep a scene, or keep a blend. SCENE A + YES writes every value scene A locks into the active Part, as if you had turned each knob there yourself; SCENE B + YES does the same for scene B. Hold both scene keys and press YES to write the sound the crossfader plays right now instead. The scenes, the crossfader and the saved Part stay as they were, so the scenes keep morphing from the new base and RELOAD PART takes you back to the last saved Part. In grid recording the same gesture works on steps: hold trigs, press SCENE A, SCENE B or both, and let go; the values become p-locks on the held steps of the active track.",
     "highlights": [
       "Covers every scene-lockable page on all eight audio tracks: SRC (the assigned machine), LFO speed and depth, AMP, FX1 and FX2.",
       "One scene: its locked values, wherever the crossfader is and even when that scene is muted.",
       "The blend: the value stock's scene morph plays at the current crossfader position, rounded to the nearest knob step; a muted scene counts as not locked, exactly as stock morphs it.",
+      "On trigs: hold trigs in grid recording and press a scene key, or both: the scene's values, or the blend at the current fader position, become p-locks on those steps.",
       "Nothing new is stored: the result is ordinary Part data that saves, loads and survives a power cycle like a hand-turned knob.",
       "Pressing it when nothing would change shows NOTHING TO APPLY."
     ],
     "usage": [
       "Lock some parameters in SCENE A and SCENE B. Hold SCENE A (or SCENE B) and press YES to make that scene's values the Part's own: SCENE A APPLIED (or SCENE B APPLIED).",
       "To keep an in-between sound, move the crossfader, hold SCENE A and SCENE B, and press YES: SCENE BLEND APPLIED.",
-      "Save the Part to keep it, or press FUNC + CUE (RELOAD PART) to go back to the last saved Part."
+      "Save the Part to keep it, or press FUNC + CUE (RELOAD PART) to go back to the last saved Part.",
+      "To put a scene on particular steps: in grid recording hold the trigs, press SCENE A (or SCENE B, or both for the blend) and let go: SCENE A TO TRIGS. Hold a trig and press PLAY to clear its p-locks."
     ]
   },
   "controls": [],
@@ -39,17 +41,22 @@
     "uiClaims": [
       "key:SCENEA+YES",
       "key:SCENEB+YES",
-      "key:SCENEA+SCENEB+YES"
+      "key:SCENEA+SCENEB+YES",
+      "key:TRIG+SCENEA",
+      "key:TRIG+SCENEB",
+      "key:TRIG+SCENEA+SCENEB"
     ],
     "limitations": [
       "YES with SCENE A, SCENE B or both held no longer shows ARM ALL; YES alone still does.",
+      "In grid recording, SCENE A or SCENE B pressed with trigs held writes p-locks when the last scene key is released. A trig pressed or a knob turned inside that gesture keeps its stock meaning (scene select, scene lock) and then nothing is written.",
       "The crossfader stays where it is and the scenes keep their locks: a parameter locked in both scenes keeps its sound, while one locked in only one scene can change (after a one-scene apply it plays that lock at every fader position; after the blend stock blends that lock with the new base).",
       "XVOL and XLV (the crossfader volume locks) have no Part knob and stay scene locks.",
       "Trig locks and LFO modulation are not written into the Part; the result is the sound on steps without a trig lock.",
+      "On trigs: only the active track and the held steps of the trig page shown. There is no undo beyond stock's hold trig + PLAY, which clears all of that step's p-locks.",
       "With MASTER TRACK on, track 8's SRC and AMP scene locks are not applied: stock has no knob there.",
       "Not in MIDI mode, and not on MIDI tracks (stock has no scene locks there).",
       "Undo is stock RELOAD PART, which also discards any other unsaved edits since the last Part save.",
-      "Tested on one MKII over USB on the beta base, by watching values (no audio check); the card build was not run on hardware for this version."
+      "The Part apply was tested on one MKII over USB on the beta base (0.1.0), by watching values (no audio check). TRIG + SCENE (0.2.0) has run under ot_emu only; neither the card build nor TRIG + SCENE was run on hardware for this version."
     ],
     "effectId": null
   },
@@ -57,11 +64,11 @@
     "recorded": "ot_emu and one MKII, 15 Oct 2026",
     "storage": {
       "label": "Storage",
-      "display": "636 bytes of ColdFire code in the image's free run; no DSP code, no saved data",
-      "value": 636,
+      "display": "2,098 bytes of ColdFire code and state in the DRAM reserve; no DSP code, no saved data",
+      "value": 2098,
       "unit": "bytes",
       "method": "static",
-      "conditions": "Linked unit size reported by the native build of the apply-scene-stock remix.",
+      "conditions": "Assembled unit size (m68k-elf-size) of the 0.2.0 source; 636 bytes in 0.1.0.",
       "source": "TESTING.md"
     },
     "processing": {
@@ -90,7 +97,7 @@
       "memory": {
         "level": "minimal",
         "basis": "measured-comparison",
-        "rationale": "636 bytes of ColdFire code and data, one byte of it state; no DSP memory and no saved data of its own.",
+        "rationale": "2,098 bytes of ColdFire code and state (101 bytes of it state: the YES press and the TRIG + SCENE chord); no DSP memory and no saved data of its own.",
         "source": "TESTING.md"
       }
     }
@@ -309,11 +316,12 @@
     }
   ],
   "access": {
-    "location": "Any audio-track page, with SCENE A, SCENE B or both held.",
+    "location": "Any audio-track page, with SCENE A, SCENE B or both held; for p-locks, grid recording with trigs held.",
     "steps": [
       "Lock parameters in SCENE A and SCENE B as usual (hold the scene key and turn knobs).",
       "Hold SCENE A (or SCENE B) and press YES: that scene's values become the Part's own.",
       "Or move the crossfader to the blend you want, hold SCENE A and SCENE B, and press YES: SCENE BLEND APPLIED.",
+      "For p-locks: press REC (grid recording), hold trigs, press SCENE A, SCENE B or both, and let go: SCENE A TO TRIGS, SCENE B TO TRIGS or SCENE BLEND TO TRIGS.",
       "Save the Part to keep the result, or RELOAD PART (FUNC + CUE) to undo."
     ],
     "screenshots": [
