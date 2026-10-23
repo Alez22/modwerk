@@ -159,6 +159,12 @@ length makes its contents stable. Reverse playback does not require a reverse
 preview scan: scanning source coordinates forward avoids imposing unverified
 reverse-reader conventions on this one-shot action.
 
+The [native Flex copy component](FLEX_COPY.md) now checks source/descriptor
+geometry, current map regions and allocation/page bounds, invokes a supplied
+verified stock entry through an original target ABI shim, and copies only the
+validated span. Compiled-target stock fixtures pass, but no live binding, native
+lock/cache boundary, writer coverage or source admission is installed.
+
 The tested release routine publishes a temporary allocation-map pair before
 copying the map back. A surviving slot's map offset changes even though its
 control record and audio do not. Use the current maps under a verified guard

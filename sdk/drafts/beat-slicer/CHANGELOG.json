@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.13-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted development: add bounded native Flex copying and an original ColdFire ABI shim for the stock page lookup. Validate source readiness/format/extent, runtime descriptor geometry, current map pointer regions, owned-page extent and physical-page bounds before lookup; verify returned pointer/run before copying. Maps are reacquired for every call and no raw pointer escapes.",
+      "Host ASan/UBSan and compiled ColdFire code calling actual private stock pass 96 boundary/page-shortened copies, 34 precondition refusals, four malformed reply cases, short output capacity and four map relocations. The C component and ABI shim pass code-generation, freestanding-link and register-preservation checks.",
+      "The binding and memory geometry are synthetic fixtures, not a live source service. Complete writer tracking, a verified native lock/cache boundary, metadata identity/getters, Static access, scheduling, Apply/Undo, USB and hardware qualification remain pending. This does not enable source admission or publish an installable module."
+    ]
+  },
+  {
     "version": "0.1.12-experimental",
     "date": "2026-10-23",
     "changes": [

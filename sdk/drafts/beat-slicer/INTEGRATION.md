@@ -24,6 +24,10 @@ These are remaining tasks, not implemented behavior.
    copied cache, accepts page-shortened replies and checks operation/revision
    tags. Its provider is still synthetic: native pool ownership, file IO,
    format discovery, generation coverage and scheduling remain absent.
+   `flex_copy.c` and its original ColdFire ABI shim now validate bounded Flex
+   map/geometry conditions and copy from actual stock lookup in compiled-target
+   fixtures. The binding/ownership/metadata remain synthetic; no live reader
+   service, writer coverage or cache/lock boundary is installed.
    The stock-page-to-host-reader pipeline passes eight synthetic previews.
    Coherence probes show that stock rotation/polarity edits leave the slot's
    counter unchanged, with a sticky dirty flag. A base-owned revision must

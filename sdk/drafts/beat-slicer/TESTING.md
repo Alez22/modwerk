@@ -865,3 +865,44 @@ writer coverage, native atomic Apply/Undo, timing, audio or physical persistence
 
 The 0.1.12 candidate and session-regression reports match source commit
 `29c1a305a54ec83c4d3876304d8b304287d698a8`, pinned by `tests.evidenceRevision`.
+
+## Native Flex copy component (0.1.13)
+
+`evidence/flex-copy-host.json` runs the C component with ASan/UBSan and a synthetic
+lookup. `evidence/flex-copy-native.json` compiles that same component plus the
+original assembly ABI shim and test harness, then executes it against actual
+private 1.40C page lookup instructions. Unlike the earlier pool-session probe,
+the copy component itself now runs as ColdFire code; there is still no live
+native provider, lock, writer instrumentation or device.
+
+- 96 copied blocks span four packed formats, slots 0/127, six boundary positions
+  and single/block requests. Independent authored byte values and output
+  sentinels verify exact copying and page/end shortening.
+- 34 precondition failures refuse before lookup, covering source/format/extent,
+  descriptors, busy/readiness, map ownership/ranges/alignment and physical pages.
+- Four altered returned spans and a short output capacity refuse without output
+  or byte-count mutation. Four map relocations use freshly fetched pointers.
+
+Both host and target pass. The shared code-generation guard, freestanding link,
+callee-save/register/stack checks and pinned EMAC/peripheral gates pass. Target
+objects contain 1010 C text bytes plus 40 assembly bytes, with no object data/BSS.
+The compiler reports 116 local stack bytes for copying; wrapper/callee/whole-chain
+cost and hardware timing are not included. The assembly source uses an entry
+supplied by a verified binding and embeds no stock instruction bytes.
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_flex_copy.py --output NEW_FLEX_HOST.json
+```
+
+Inside the existing private mounts, configure CMake, build
+`beat_slicer_flex_native_probe`, freeze inputs and run:
+
+```sh
+python3 -B /source/sdk/drafts/beat-slicer/flex_native.py \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_flex_native_probe \
+  --output /evidence/NEW_FLEX_NATIVE_DIRECTORY
+```
+
+Descriptors, ownership and ready state are synthetic. These results do not
+qualify real lock/cache behavior, complete writer coverage, Static streaming,
+metadata getters, editor transactions, USB or physical audio/persistence.
