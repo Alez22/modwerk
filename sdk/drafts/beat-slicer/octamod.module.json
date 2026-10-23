@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.27-experimental",
+  "version": "0.1.28-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Copied UI requests/results feed one engine-owned preview session. Host sanitizers and ColdFire cover 32 plans and 72 modeled interleavings. Six full boots cover both stock menus: 42 oracle plans, waiting cancellation and owner retirement, with one UI call per tick, separate engine queries and unchanged PCM/settings/cards/main stack. A separate conservative run retires a preview on stock waveform work. Synthetic ownership and pinned storage remain; live admission, removal, Apply/playback, browser/USB packages and hardware are unqualified.",
+    "summary": "A 30-second stock-loaded Flex source passes 21 complete native preview plans through copied UI/engine requests. Synthetic compiled probes separate total service, maximum callback and locked instruction counts across 16 cases. Borrowed calls use bounded verified pre-entry waiting. These are private emulator measurements; live admission, removal, Apply/playback, browser/USB packages and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

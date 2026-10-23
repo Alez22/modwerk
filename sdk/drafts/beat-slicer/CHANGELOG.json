@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.28-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Exercise the full trim of a 30-second stock-loaded Flex source across 21 preview-control cases, including the 64-slice limit.",
+      "Measure compiled service and lock instruction counts for 16 synthetic previews, separating total work from the longest callback.",
+      "Allow bounded waiting after verified pre-entry refusal of emulator calls; uncertain execution still stops without replay.",
+      "Known issue: measurements are emulator-only; live writer/cache admission, removal, Apply/playback, browser/USB packages and hardware qualification remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.27-experimental",
     "date": "2026-10-24",
     "changes": [

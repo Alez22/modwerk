@@ -1756,3 +1756,60 @@ failure. Documentation/evidence follow-ups use the lightweight checks.
 
 The ten asynchronous-exchange reports are pinned to source commit
 `e9169abf655f1fefef4c9cc7fdccae57a925714a` in `evidence-sources.json`.
+
+
+## Longer previews and measured baseline (0.1.28)
+
+`preview_cost_native.py` compiles an original synthetic provider with the preview
+exchange and runs sixteen one/30-second cases: exact/smooth boundaries, one/64
+beats and sample/project tempo. All complete plans match the direct planner.
+The observer counts executed ColdFire instructions within service calls and
+ownership sections, with positive controls and preserved stack/callee registers.
+Planner/decoder entries are never observed under the backend lock. This provider
+models 1,536-frame page boundaries; it does not model stock metadata capture,
+cache, RTOS scheduling, cycles or physical time.
+
+For the 30-second, smooth, one-beat sample-tempo case (120.25 BPM), the baseline
+uses 4,074 service calls and 22,924,183 service instructions; its longest call is
+19,160 instructions. It enters 41,166 lock sections, totaling 13,900,774 locked
+instructions, with a longest section of 1,969. It performs 32,591 explicit steps,
+33,439 captures and 423 copies to produce 61 markers. Project tempo (120 BPM)
+uses 4,007 calls, 22,540,198 service instructions and a longest call of 19,437,
+with 60 markers. These are a reproducible optimization baseline, not a native
+performance qualification or a stock-effect comparison.
+
+A separate full scheduler/DSP boot uses authored 16-bit stereo PCM with
+1,323,000 frames at 44.1 kHz. Loading a longer WAV into the retained project
+initially leaves the old one-second trim. Stock EDIT SELECT ALL does not change
+that trim in this pinned 1.40C emulator. The driver therefore uses ordinary stock
+sample clear/reload, verifies the full trim and zero markers, then admits the
+preview. Stock sets sample BPM to 128; project BPM remains 120. The driver checks
+the captured values rather than assuming the older fixture's sample tempo.
+
+All 21 control plans match the independent PCM oracle, including a 64-marker
+sample-tempo plan and 60-marker project-tempo plan. Normal UI ticks produce the
+results without driver service calls. The run records 1,344 UI calls, 10,991
+engine callbacks, 87,505 explicit steps, 22 begins and 10,969 posted/consumed owned
+wakes. PCM, unrelated settings, cards, code/reservation canaries, receive call and
+main stack remain unchanged. The LCD's tempo, existing/new counts and fade
+warning match the plan. No Apply or audible playback is exercised.
+
+Each plan records the window from request selection through first observed READY.
+The smooth one-beat sample request records 115,158,006 whole-machine instructions
+and 840.282 emulated ms; the project request records 87,275,438 and 580.264 ms.
+These windows include panel holds/releases, polling, UI, stock work and scheduler
+execution. They are neither isolated module CPU cost nor measured hardware time.
+
+The first long-source driver attempt exhausted the existing two-ms pre-entry idle
+wait before activation; no borrowed call executed. The successful run permits
+200 verified pre-entry waits of five emulated ms. Seven driver regressions cover
+bounded custom waits, invalid budgets, terminal uncertain execution and failure
+while advancing normal execution. The default remains 200 waits of 0.01 ms;
+callers cannot request more than 200 waits or ten ms per wait. This is emulator
+driver readiness, not a new module clock or permission to replay uncertain work.
+
+The full boot reuses the exact 0.1.27 native image because all its compiled inputs
+are unchanged. The changed driver and new compiled cost fixture have their own
+source hashes. Synthetic ownership, pinned storage and private fixed-input
+waveform classification remain. Live admission, Static, native publication,
+playback, production base/browser/USB lifecycle and hardware are still unqualified.

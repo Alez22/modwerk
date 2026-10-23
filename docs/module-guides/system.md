@@ -172,6 +172,16 @@ pre-entry refusal; never replay a call after an uncertain timeout or CPU stop.
 Do not force PC/registers to manufacture that boundary. Keep such driver behavior
 bound to the tested emulator source and separate from native service scheduling.
 
+A longer source file does not prove a longer preview extent. In the pinned 1.40C
+emulator, replacing a one-second WAV with a 30-second file retained the old trim;
+EDIT SELECT ALL changed the edit selection, not that trim. Verify the actual
+trim and tempo after normal sample preparation. Measure both total service work
+and the longest callback when optimizing bounded background work; fewer calls
+alone can hide a longer interruption. Whole-machine request windows include
+stock/UI/scheduler work and must not be labeled isolated module cost or hardware
+time. Bounded idle retries may advance normal execution only after a verified
+pre-entry refusal; all uncertain execution remains terminal.
+
 Use the base-owned engine boundaries for background work, retiring the previous
 writer before a reader runs. An idle callback may need an explicit queue wake;
 do not assume it runs periodically. Coalesce wakes using stable base-owned

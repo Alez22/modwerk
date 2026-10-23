@@ -1,4 +1,4 @@
-"""Exercise copied UI intents/results and engine-owned native previews.
+"""Measure full-boot copied UI/engine previews on authored one- or thirty-second samples.
 
 Explicitly reserves eight audio pages with the pinned upstream arena helper.
 Injects ORIGINAL test code into that reservation, calls its fixture initializer,
@@ -31,11 +31,15 @@ def main():
     for name in ('emulator', 'main', 'card', 'wav', 'output', 'arena-tool', 'native'):
         p.add_argument('--' + name, type=Path, required=True)
     p.add_argument('--card-sha256', required=True)
+    p.add_argument('--expected-frames', type=int, choices=(44100,1323000), default=44100)
     p.add_argument('--scenario', choices=('controls', 'cancel', 'owner', 'conservative'), default='controls')
     p.add_argument('--selected', action='store_true')
     p.add_argument('--allow-private-waveform-reads', action='store_true', help='Fixed-input private classification only; mutable queued-record lifetime is not qualified')
     p.add_argument('--allow-private-injection', action='store_true', required=True)
     a = p.parse_args()
+    wait_ms = 5 if a.expected_frames != 44100 else 0.01
+    def call_native(address):
+        return call_original(port, address, wait_ms=wait_ms)
     if a.scenario == 'conservative' and a.allow_private_waveform_reads:
         p.error('The conservative boundary scenario must not exempt waveform reads.')
     if not __debug__:
@@ -70,10 +74,10 @@ def main():
         assert private_main[at:at+len(expected)] == expected
         private_main[at:at+len(value)] = value
     with wave.open(str(a.wav), 'rb') as file:
-        if (file.getnchannels(), file.getsampwidth(), file.getframerate(), file.getnframes()) != (2, 2, 44100, 44100):
-            p.error('Expected the original one-second stereo 16-bit 44.1 kHz fixture.')
+        if (file.getnchannels(), file.getsampwidth(), file.getframerate(), file.getnframes()) != (2, 2, 44100, a.expected_frames):
+            p.error('Expected an authored stereo 16-bit 44.1 kHz fixture with the exact requested frame count.')
         raw = file.readframes(file.getnframes())
-    original = list(struct.unpack('<' + 'h' * (len(raw) // 2), raw))
+    original = [v[0] for v in struct.iter_unpack('<h', raw)]
     out.mkdir(parents=True)
     patched_main = out / 'reserved-main.private.bin'
     patched_main.write_bytes(private_main)
@@ -92,6 +96,7 @@ def main():
         assert port.loaded, 'LOAD PROJECT did not finish'
         before = out / 'before'; before.mkdir()
         baseline = observe(port, 16, 2, original, before)
+        initial_settings = struct.unpack('>274I', port.peek(0x100b14f0, 1096))
         # This mutable map boundary also excludes stock recorder reservations;
         # it is not the cold physical page count. Verify the actual patched
         # geometry operands, and keep the current boundary within that pool.
@@ -109,7 +114,7 @@ def main():
         poke(reserve.start, bytes([0xa5]) * (reserve.end-reserve.start))
         poke(native['textBase'], data)
         poke(symbols['__bss_start'], bytes(symbols['_end']-symbols['__bss_start']))
-        assert call_original(port, symbols['bs_engine_test_init']) == 0
+        assert call_native(symbols['bs_engine_test_init']) == 0
         original_call = port.peek(0x40084854, 6)
         assert original_call[:2] == bytes.fromhex('4eb9') and int.from_bytes(original_call[2:], 'big') == 0x40000d00
         for name in ('idle', 'job'):
@@ -149,6 +154,24 @@ def main():
         # Finish the editor-open waveform job before measuring a new edit; its
         # separate completion is not part of the reverse transaction.
         port.command('run 1000')
+        if a.expected_frames != 44100:
+            # Repacking the WAV alone preserves the project's one-second trim.
+            # SELECT ALL changes editor selection, not that sample trim. Use
+            # ordinary stock slot clearing/browser reload before admission.
+            tap(port, 'no'); tap(port, 'track1'); tap(port, 'track1')
+            for mask in (0x20, 0x21, 0x20, 0):
+                port.command(f'key 0x25 {mask}'); port.command('run 60')
+            tap(port, 'yes'); port.command('run 1000')
+            cleared = struct.unpack('>11I', port.peek(0x46c922c4, 44))
+            assert cleared[2] == 1 and cleared[4] == 0, 'Stock clear did not release Flex slot zero'
+            for _ in range(3): tap(port, 'yes')
+            port.command('run 2000')
+            loaded = struct.unpack('>11I', port.peek(0x46c922c4, 44))
+            assert loaded[0] == 3 and loaded[2] == 0 and loaded[4] == a.expected_frames
+            tap(port, 'yes'); tap(port, 'no'); tap(port, 'aed'); port.command('run 1000')
+            assert port.peek(0x46c8d19c, 8) == bytes.fromhex('0000000000000001')
+            settings = struct.unpack('>274I', port.peek(0x100b14f0, 1096))
+            assert settings[75:78] == (0, a.expected_frames, 0) and settings[273] == 0
         # Enter the ordinary SLICE page. Optionally create stock's unaligned
         # four-slice grid first to exercise its selected-slice nine-row variant.
         port.command('key 0x24 8'); port.command('run 60')
@@ -163,15 +186,16 @@ def main():
         assert (int.from_bytes(port.peek(0x400ceb3c, 4), 'big') != 0xffffffff) == a.selected
         prepared = out / 'prepared'; prepared.mkdir()
         baseline = observe(port, 16, 2, original, prepared)
-        assert call_original(port, symbols['bs_engine_test_enable']) == 0
+        prepared_settings = struct.unpack('>274I', port.peek(0x100b14f0, 1096))
+        assert call_native(symbols['bs_engine_test_enable']) == 0
         native_state()
         if a.allow_private_waveform_reads:
-            assert call_original(port, symbols['bs_async_allow_private_waveform_reads']) == 0
-        assert call_original(port, symbols['bs_async_fixture_init']) == 0
+            assert call_native(symbols['bs_async_allow_private_waveform_reads']) == 0
+        assert call_native(symbols['bs_async_fixture_init']) == 0
         assert symbols['wake_message'] != symbols['foreign_message']
-        assert call_original(port, symbols['bs_boot_menu_prepare']) == 0
+        assert call_native(symbols['bs_boot_menu_prepare']) == 0
         def call(name):
-            return call_original(port, symbols[name])
+            return call_native(symbols[name])
         def word_at(address):
             return int.from_bytes(port.peek(address, 4), 'big')
         def word(name):
@@ -253,7 +277,19 @@ def main():
                         'fixtureWrites': [r for r in writes(port) if reserve.start <= r[2] < reserve.end]}
             (out/'unexpected-preview.private.json').write_text(json.dumps(observed, indent=2)+'\n')
             raise AssertionError(f"Unexpected preview UI state {observed['uiState']}, session {observed['sessionState']}")
+        measurement_start = None
+        def counters():
+            status = port.command('cfstatus', b'cfstatus ')
+            fields = dict(part.split('=',1) for part in status.split()[1:])
+            return {'machineInstructions': int(fields['instructions']), 'emulatedMs': float(fields['ms']),
+                    **{name: word(symbol) for name,symbol in (
+                        ('sourceQueries','bs_boot_queries'),('sourceLocks','bs_boot_locks'),
+                        ('engineCalls','bs_async_engine_calls'),('engineSteps','bs_async_engine_steps'),
+                        ('engineBegins','bs_async_engine_begins'),('postedWakes','bs_async_posted'),
+                        ('consumedWakes','bs_async_consumed'))}}
         def request_preview():
+            nonlocal measurement_start
+            measurement_start = counters()
             select(3, 5)
             if word('bs_grid_ui_state') not in (2, 3, 4):
                 unexpected_preview()
@@ -263,12 +299,15 @@ def main():
                 state = service()
                 if state != 3: break
             if state != 4: unexpected_preview()
+            completed = counters()
             assert names()[3] == 'BACK'
             tempo = word('bs_grid_ui_tempo')
             snap = word('bs_grid_ui_snap')
             beats = (1, 4, 16, 32, 64)[word('bs_grid_ui_spacing')]
             settings = struct.unpack('>274I', port.peek(0x100b14f0, 1096))
             project = word_at(0x80001814)
+            if not a.selected:
+                assert settings[75:77] == (0,a.expected_frames), 'Long preview did not cover the full sample'
             request = oracle.request(existing=[settings[78+3*i] for i in range(settings[273])],
                                      trim_start=settings[75], trim_end=settings[76],
                                      sample_bpm24=settings[69], project_bpm24=project,
@@ -287,7 +326,10 @@ def main():
             assert service() == 4 and word('bs_boot_queries') == queries
             item = {'tempoSource': tempo, 'beats': beats, 'snap': snap, 'observedTickWaits': waits+1, 'driverServiceCalls': 0,
                     'markerCount': expected.count, 'wholePlanMatchesHost': True,
-                    'summaryTempoCountsAndFadeStatusMatch': True, 'readyDoesNotRestart': True}
+                    'summaryTempoCountsAndFadeStatusMatch': True, 'readyDoesNotRestart': True,
+                    'trimStart': settings[75], 'trimEnd': settings[76],
+                    'sampleBpm24': settings[69], 'projectBpm24': project, 'resultBpm24': expected.bpm24,
+                    'requestWindow': {k: completed[k]-measurement_start[k] for k in completed}}
             results.append(item)
             return item
         def capture(name):
@@ -343,6 +385,7 @@ def main():
             select(4, 5); assert service() == 0
             terminal = 'explicit-back'
         elif a.scenario == 'conservative':
+            measurement_start = counters()
             ordinary = word('bs_ui_ordinary_jobs')
             select(3, 5)
             for _ in range(3000):
@@ -413,6 +456,12 @@ def main():
               'nativeReceiptSha256': digest(a.native / 'source-boot.json'), 'nativeBinarySha256': digest(binary),
               'arenaToolSha256': ARENA_SHA, 'reservedPages': 8, 'nativeAddress': native['textBase'],
               'emulatorSha256': digest(a.emulator), 'cardSha256': a.card_sha256, 'wavSha256': digest(a.wav),
+              'expectedFrames': a.expected_frames,
+              'initialTrim': list(initial_settings[75:78]), 'preparedTrim': list(prepared_settings[75:78]),
+              'initialSampleBpm24': initial_settings[69], 'preparedSampleBpm24': prepared_settings[69],
+              'borrowedCallPreEntryWaitMs': wait_ms, 'borrowedCallMaximumAttempts': 200,
+              'longSourcePreparation': 'normal stock slot clear/browser reload before preview admission' if a.expected_frames != 44100 else 'retained saved source',
+              'measurementScope': 'Request selection, panel holds/releases and polling through first observed READY; whole-machine executed instructions and emulated elapsed time include stock work, UI and scheduler. Not isolated module cost, cycles, audible headroom or hardware time.',
               'scenario': a.scenario, 'stockRows': stock_count, 'terminal': terminal, 'results': results, 'uiCompletedPreviews': ui_completed,
               'tickCounters': counters, 'waitingOneServicePerTick': a.scenario != 'conservative',
               'engineJobs': jobs, 'engineCounters': engine, 'wakeCounters': wakes,

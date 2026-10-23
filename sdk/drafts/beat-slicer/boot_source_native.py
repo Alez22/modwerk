@@ -8,6 +8,7 @@ installed source service, card writes, cache proof or complete writer coverage i
 import argparse
 import test_planner as ffi
 import json
+import math
 import re
 import importlib.util
 import sys
@@ -23,14 +24,19 @@ ROOT = Path(__file__).resolve().parent
 from boot_worker_native import tap, allocated_end_frame, ARENA_SHA
 
 
-def call_original(port, address, *args):
+def call_original(port, address, *args, wait_ms=0.01, attempts=200):
     """Only retry the emulator's explicit pre-entry not-at-main refusal.
 
     Reviewed pinned Rtos::callAsMain checks this BEFORE changing SP/PC or
     running code. Every other error is terminal: never replay an uncertain call.
-    A short normal run advances the scheduler; no forced register/PC mutation.
+    A bounded normal run advances the scheduler; no forced register/PC mutation.
+    Default is 200 x 0.01 ms; larger waits are explicit and never exceed 2 s total.
     """
-    for attempt in range(200):
+    if (not isinstance(attempts, int) or isinstance(attempts, bool) or not 1 <= attempts <= 200 or
+        not isinstance(wait_ms, (int, float)) or isinstance(wait_ms, bool) or
+        not math.isfinite(wait_ms) or not 0 < wait_ms <= 10):
+        raise ValueError('Borrowed-call readiness must have bounded positive attempts and wait.')
+    for attempt in range(attempts):
         try:
             reply = port.command(f'call {address:#x}' + ''.join(f' {arg:#x}' for arg in args))
             assert reply.startswith('ok d0='), reply
@@ -43,7 +49,7 @@ def call_original(port, address, *args):
             pattern = rf"err did not return: callAsMain\({address:#x}\): pc is 0x[0-9a-f]+, not main's spin 0x4001fc9c"
             if not re.fullmatch(pattern, last):
                 raise
-            port.command('run 0.01')
+            port.command(f'run {wait_ms:g}')
     raise RuntimeError('Could not reach the verified main idle boundary; no call executed.')
 
 

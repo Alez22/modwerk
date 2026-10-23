@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.27-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.28-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -229,3 +229,8 @@ not a live source service or installable module.
 The compiled backend now passes [full-boot preview tests](BOOT_SOURCE.md) against
 stock-loaded PCM, including invalidation by ordinary stock edits. This uses a
 private fixture with test-owned identities, not an installed editor/USB service.
+
+The long-source preview fixture also exercises a full 30-second trim and the
+64-slice limit. Compiled cost probes distinguish total service instructions,
+maximum callback instructions and source-lock sections. See TESTING.md for the
+baseline; none of these measurements establishes physical latency or headroom.

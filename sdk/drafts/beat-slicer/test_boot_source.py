@@ -49,6 +49,37 @@ class RetrySafety(unittest.TestCase):
                     call_original(port, 0x46010000)
                 self.assertEqual(port.commands, ['call 0x46010000'])
 
+    def test_explicit_long_source_readiness_wait(self):
+        with tempfile.TemporaryDirectory() as work:
+            port = FakePort(work, ["err did not return: callAsMain(0x46010000): pc is 0x4008e556, not main's spin 0x4001fc9c", 'ok d0=0'])
+            with port.log:
+                self.assertEqual(call_original(port, 0x46010000, wait_ms=5, attempts=2), 0)
+                self.assertEqual(port.commands, ['call 0x46010000', 'run 5', 'call 0x46010000'])
+
+    def test_invalid_wait_budget_never_calls(self):
+        cases = ({'wait_ms': 0}, {'wait_ms': -1}, {'wait_ms': float('nan')},
+                 {'wait_ms': float('inf')}, {'wait_ms': 10.01}, {'wait_ms': True},
+                 {'attempts': 0}, {'attempts': 201}, {'attempts': 1.5}, {'attempts': True})
+        for options in cases:
+            with self.subTest(options=options), tempfile.TemporaryDirectory() as work:
+                port = FakePort(work, ['ok d0=0'])
+                with port.log, self.assertRaises(ValueError):
+                    call_original(port, 0x46010000, **options)
+                self.assertEqual(port.commands, [])
+
+    def test_readiness_run_failure_is_terminal(self):
+        class RunFailure(FakePort):
+            def command(self, command):
+                if command.startswith('run '):
+                    self.commands.append(command)
+                    raise RuntimeError('CPU stopped while reaching readiness')
+                return super().command(command)
+        with tempfile.TemporaryDirectory() as work:
+            port = RunFailure(work, ["err did not return: callAsMain(0x46010000): pc is 0x4008e556, not main's spin 0x4001fc9c", 'ok d0=0'])
+            with port.log, self.assertRaisesRegex(RuntimeError, 'CPU stopped'):
+                call_original(port, 0x46010000, wait_ms=5)
+            self.assertEqual(port.commands, ['call 0x46010000', 'run 5'])
+
     def test_preentry_wait_is_bounded(self):
         with tempfile.TemporaryDirectory() as work:
             port = FakePort(work, ["err did not return: callAsMain(0x46010000): pc is 0x4000c9d8, not main's spin 0x4001fc9c"] * 200)
