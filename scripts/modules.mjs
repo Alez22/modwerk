@@ -55,6 +55,9 @@ for(const entry of await readdir(modules,{withFileTypes:true})){
  documents.set(document.id,document)
 }
 for(const document of documents.values())requireKnownConflicts('octatrack',document,new Set(documents.keys()))
+// The two DSP source gates from octabam (no rep, no label that prefixes another), over every module, platform and base source: scripts/dsp-source-gates.py.
+try{execFileSync(process.platform==='win32'?'python':'python3',['-B','scripts/dsp-source-gates.py',...(baseCommit?['--base',baseCommit]:[])],{cwd:root,encoding:'utf8',stdio:['ignore','ignore','pipe']})}
+catch(error){throw new Error('DSP source gates: '+(error.stderr||error.message).trim().split('\n').filter(line=>line.startsWith('error: ')).join('\n'),{cause:error})}
 const catalog=await json(resolve(root,'sdk/catalog.json'))
 if(catalog.schemaVersion!==1||!Array.isArray(catalog.modules)||!/^[a-f0-9]{40}$/.test(catalog.sourceRevision))throw new Error('Invalid SDK catalog pin')
 const selected=[],seen=new Set()
