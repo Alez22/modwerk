@@ -22,7 +22,7 @@ import { assetUrl } from './hosting'
 import { octatrackMatchesQuery } from './catalog/module-search'
 import { getRoute, moduleHref } from './routing'
 import { setPageMetadata } from './page-metadata'
-import { HOME_DESCRIPTION, HOME_TITLE } from './site-metadata'
+import { HOME_DESCRIPTION, HOME_TITLE, pageTitle } from './site-metadata'
 import { ModuleSets } from './components/ModuleSets'
 import { ModuleComparison } from './components/ModuleComparison'
 import { api, onCommunityReconnect } from './community/api'
@@ -303,13 +303,13 @@ export default function App() {
   useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); if (faqEntry) document.getElementById('faq-' + faqEntry)?.scrollIntoView({ block: 'start' }) }, [route, faqEntry])
   useEffect(() => {
     const appUrl = new URL(document.baseURI)
-    if (detailModule) setPageMetadata({ title: detailModule.name + ' for Elektron Octatrack — Modwerk', description: detailModule.description, url: new URL(moduleHref(detailModule.id), appUrl).href })
-    else if (digiMod) setPageMetadata({ title: digiMod.title + ' for Elektron ' + currentDevice.name + ' — Modwerk', description: digiMod.summary, url: new URL(deviceHref(digiMod.device, 'module/' + digiMod.id), appUrl).href })
-    else if (projectsRoute) setPageMetadata({ title: PROJECT_TITLE + ' — Modwerk', description: PROJECT_DESCRIPTION, url: new URL('projects/', appUrl).href, image: PROJECT_PREVIEW_IMAGE, imageAlt: PROJECT_PREVIEW_ALT })
-    else if (route === 'submit') setPageMetadata({ title: 'Start developing — Modwerk', description: 'Build a mod for Elektron instruments: write it with the SDK, submit it through GitHub and get it reviewed for the Modwerk library.', url: new URL('submit/', appUrl).href })
+    if (detailModule) setPageMetadata({ title: pageTitle(detailModule.name + ' for Elektron Octatrack'), description: detailModule.description, url: new URL(moduleHref(detailModule.id), appUrl).href })
+    else if (digiMod) setPageMetadata({ title: pageTitle(digiMod.title + ' for Elektron ' + currentDevice.name), description: digiMod.summary, url: new URL(deviceHref(digiMod.device, 'module/' + digiMod.id), appUrl).href })
+    else if (projectsRoute) setPageMetadata({ title: pageTitle(PROJECT_TITLE), description: PROJECT_DESCRIPTION, url: new URL('projects/', appUrl).href, image: PROJECT_PREVIEW_IMAGE, imageAlt: PROJECT_PREVIEW_ALT })
+    else if (route === 'submit') setPageMetadata({ title: pageTitle('Start developing'), description: 'Build a mod for Elektron instruments: write it with the SDK, submit it through GitHub and get it reviewed for the Modwerk library.', url: new URL('submit/', appUrl).href })
     // A public thread owns its title and description, supplied by its static page and refreshed after loading.
     else if (!route.startsWith('forum/thread/')) {
-      const title = overviewRoute || allRoute || route === 'library' ? HOME_TITLE : (hubRoute?'Your Octatrack':machineView==='configuration'?currentDevice.name+' '+w.set:machineView?currentDevice.name+' modules':forumRoute?'Forum':accountRoute?(betaInvitationRoute?'Join the beta':'Account'):developerRoute?(developer?.user&&!route.startsWith('developer/complete')?'Creator settings':'Account'):faqRoute?'FAQ':route==='credits'?'Credits':route==='privacy'?'Privacy':route==='impressum'?'Impressum':route==='community-rules'?'Community rules':route==='report-content'?'Report content':route==='configuration'?w.Set:route.startsWith('submit')?'Start developing':(route==='review'||route==='admin')?'Admin workspace':route.startsWith('module-set')?'Module sets':'Module library')+' · Modwerk'
+      const title = overviewRoute || allRoute || route === 'library' ? HOME_TITLE : pageTitle(hubRoute?'Your Octatrack':machineView==='configuration'?currentDevice.name+' '+w.set:machineView?currentDevice.name+' modules':forumRoute?'Forum':accountRoute?(betaInvitationRoute?'Join the beta':'Account'):developerRoute?(developer?.user&&!route.startsWith('developer/complete')?'Creator settings':'Account'):faqRoute?'FAQ':route==='credits'?'Credits':route==='privacy'?'Privacy':route==='impressum'?'Impressum':route==='community-rules'?'Community rules':route==='report-content'?'Report content':route==='configuration'?w.Set:route.startsWith('submit')?'Start developing':(route==='review'||route==='admin')?'Admin workspace':route.startsWith('module-set')?'Module sets':'Module library')
       setPageMetadata({ title, description: HOME_DESCRIPTION, url: appUrl.href })
     }
   }, [overviewRoute, projectsRoute, faqRoute, route,detailModule,digiMod,forumRoute,accountRoute,betaInvitationRoute,developerRoute,developer?.user,allRoute,machineView,currentDevice.name,w,hubRoute])
