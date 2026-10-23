@@ -487,3 +487,11 @@ There is no live scheduler, UI completion consumer, DSP or physical unit in
 these fixtures. No interrupt is injected, no cancellation or queue overflow
 is qualified, and no runtime hook or live-reader service is implemented.
 Hardware, audio, persistence and USB qualification remain absent.
+
+The worker evidence's source inputs are committed at `139c3ea55002db4e639f5fcb2e4fb3d8234dbf4f`;
+`tests.evidenceRevision` pins that commit. Node 24.22.1 repository validation
+against upstream `4840eb336b3e64195eed1994f83ef3be79735f56` passes, including
+2,519 app tests, SDK gates, lint, type checking and bundling. The fork's
+`origin/main` remains at `610a934d`: the required check against that stale base
+rejects inherited upstream CHANGELOG history. Validation against current
+upstream is authoritative; historical changelog contents are left intact.
