@@ -98,12 +98,18 @@ Findings from recording Zoom Effect Manager 2 on an MS-70CDR 2.10 (two full
 install cycles), written up in the project's
 [EFFECT-INSTALL-PROTOCOL.md](https://github.com/themanro/ZoomMultistompZDL/blob/main/docs/EFFECT-INSTALL-PROTOCOL.md):
 
-- There is no per-effect transfer. The owner starts the pedal in update mode,
-  and Effect Manager erases and rewrites the whole effect file system
-  (2.7 MB) over USB MIDI, then the pedal reboots. Adding one effect rewrites
-  them all.
-- So the image must hold every effect that stays on the pedal, Zoom's
+- Effect Manager has no per-effect transfer. The owner starts the pedal in
+  update mode, and Effect Manager erases and rewrites the whole effect file
+  system (2.7 MB) over USB MIDI, then the pedal reboots. Adding one effect
+  rewrites them all.
+- So its image must hold every effect that stays on the pedal, Zoom's
   included, and Effect Manager does not read them back from the pedal.
+- The pedal itself can do more (probe on the owner's MS-70CDR 2.10, normal
+  mode, 23 October 2026): it answers the file commands that zoom-zt2 uses on
+  the ZD2 pedals, with its disk usage and a list of all 162 files on it with
+  their sizes. Reading a file back is the next read-only test; writing single
+  files, which would make a per-effect install possible without update mode
+  or stock updaters, is untested and needs the same care as any write.
 - In normal mode, Effect Manager learns which effects are installed by
   writing a temporary patch with several effect ids into the edit buffer and
   reading it back. That works without update mode.
