@@ -465,6 +465,9 @@ NOR when a host asks, with stock's OS UPGRADE routines (the sector erase and
    an OS entry carrying NOR's bootstrap version, stock's bootloader copy byte for
    byte and the running base's own packed `.run` stream: **a base writes only
    itself**, so nothing reaches NOR that did not boot and answer on this unit.
+   Both are compared by SHA-256, never with the running RAM, which stock rewrites
+   once started: the copy with stock 1.40C's digest, the stream with the digest
+   `.boot` takes right after unpacking it (`modwerk_flash_snapshot`).
    Then OS UPGRADE's quiesce, the sectors up to the container's end erased, the
    pages programmed, NOR compared word by word (once more after a second write),
    and the reply. A container NOR already holds writes nothing.

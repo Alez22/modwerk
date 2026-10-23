@@ -577,6 +577,15 @@ describe('updating the base over USB', () => {
     expect(dedupe(steps2)).toEqual(['staging', 'starting', 'started']) // the trial ran; nothing was written
     expect(older.flashed).toBe(FAKE_BASE); expect(older.base).toBe(expected)
   })
+  it('says why the new base refused to write itself, and leaves upload mode', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    unit.writeRefusal = 5 // flash.h FLASH_PROTECTED: every write was refused this way before the boot snapshot
+    await expect(link.updateBase(bin, expected, step => steps.push(step))).rejects.toThrow(
+      'The new base refused to write itself (reason 105), so nothing was written. A power cycle returns the Octatrack to its current base and modules.')
+    expect(dedupe(steps)).toEqual(['staging', 'starting', 'started', 'writing'])
+    expect(unit.flashed).toBe(FAKE_BASE); expect(unit.base).toBe(expected)
+    await vi.waitFor(() => expect(link.getState().status).toBe('ready'))
+  })
 })
 
 it('uploads a capable base’s complete set once and accepts nothing before the user presses Keep', async () => {
