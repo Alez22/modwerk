@@ -12,11 +12,13 @@ as MrScruff measured it on the self-oscillating LP2 filter (every fourth value f
 16 to 116 within 0.01 semitone of the formula). Only the text changes: the filter,
 its range, saved kits and every other parameter are untouched.
 
-Version **1.0.0** for Analog Rytm MKII OS **1.73**, with core-ar2 0.1. It is
+Version **1.1.0** for Analog Rytm MKII OS **1.73**, with core-ar2 0.1, and OS
+**1.74**, with core-ar2 0.3. The code is the same on both. It is
 [rytm2_mods](https://github.com/Iced-Cream/rytm2_mods)' elemod port of MrScruff's
 `0008-filter-hz` from [rytm-mods-src](https://github.com/Iced-Cream/rytm-mods-src),
 with his code unchanged. Hardware testing is recorded in the
-[hardware report](evidence/hardware-testing.json) and [TESTING.md](TESTING.md).
+hardware reports for [OS 1.73](evidence/hardware-testing.json) and
+[OS 1.74](evidence/hardware-testing-1.74.json), and in [TESTING.md](TESTING.md).
 
 ## Controls
 
@@ -47,26 +49,29 @@ The popup appears whenever FRQ is turned, on any track and in any kit.
 
 ## Compatibility and limitations
 
-Requires core-ar2 0.1 on OS 1.73. Use your own original stock OS 1.73 file.
+Requires core-ar2 0.1 on OS 1.73, or core-ar2 0.3 on OS 1.74. Use your own original
+stock OS file.
 
-- Built for OS 1.73 only.
+- Built for OS 1.73 and 1.74 only.
 - The scale was measured on the self-oscillating LP2 filter; the other filter types are assumed to share it.
 - The popup shows the knob's value: envelope depth, LFO modulation and parameter locks applied elsewhere are not included.
 - The 0 to 127 number is no longer shown for FRQ, so check the ends (13.8Hz, 21.1kHz) rather than a middle value when comparing with stock.
 
-The module patches one site, eight bytes in `param_value_text` at `0x400a8648`,
+The module patches one site, eight bytes in `param_value_text` at `0x400a8648` (OS 1.73) or
+`0x400a86b4` (OS 1.74),
 the same site as the original mod. Another module patching those bytes cannot be
 combined with it.
 
 ## Tests and measurements
 
 See [TESTING.md](TESTING.md) for the commands and results. In short: the popup
-shows Hz on an Analog Rytm MKII; Modwerk's own build of this folder, linked with
-core-ar2 0.1, gives a main OS byte-identical to elekloader's build of the
-rytm2_mods v1.0 release and to the build tested on the unit; and in rytm-emu the
-popup reads 440Hz and 21.1kHz where stock reads 60 and 127, with every other pixel
-the same. Memory: 256 bytes of the 128 KiB shared mod area. There is no code in
-the audio, sequencer or tick paths.
+shows Hz on an Analog Rytm MKII in builds of the core and Filter Hz alone, on OS
+1.73 and OS 1.74, and on 1.74 beside the other rytm2_mods ports. Modwerk's own build of this folder gives main OSes
+byte-identical to elekloader's builds of the rytm2_mods v1.0 (1.73) and v1.2
+(1.74) releases. In rytm-emu the popup reads 440Hz and 21.1kHz where stock reads
+60 and 127, with every other pixel the same, on both releases. Memory: 256 bytes
+of the 128 KiB shared mod area. There is no code in the audio, sequencer or tick
+paths.
 
 ## Authorship and licences
 
@@ -75,16 +80,19 @@ frequency measurements, published in rytm-mods-src with his permission.
 Iced-Cream: the elemod port in rytm2_mods and this module. irpina: Elekloader and
 core-ar2.
 
-Code: [GPL-2.0-only](LICENSE), as rytm-mods-src. `src/filter-hz.s` and
-`include/ar2-1.73.inc` are rytm2_mods' files at `698b859`, unchanged; the include
-names firmware routines by address only. The upstream README is in
+Code: [GPL-2.0-only](LICENSE), as rytm-mods-src. `include/ar2-1.73.inc` is
+rytm2_mods' file at `698b859` and `include/ar2-1.74.inc` its file at `afd461d`
+(v1.2), unchanged. `src/filter-hz.s` is rytm2_mods' `filter-hz.s`, with an
+`.ifdef OS174` choosing the include and one comment naming both addresses. The
+includes name firmware routines by address only. The upstream README is in
 [upstream/README.md](upstream/README.md). Screens show Elektron's interface solely
 to document the modification. No Elektron firmware is included.
 
 ## Screens and audio
 
 These captures are from rytm-emu running a build of core-ar2 0.1 and Filter Hz
-from stock OS 1.73. See [capture provenance](media/capture.json) for hashes and
+from stock OS 1.73. The same input on OS 1.74, with core-ar2 0.3, gives the same
+three screens byte for byte. See [capture provenance](media/capture.json) for hashes and
 inputs. The mod changes no sound, so there is no audio demonstration.
 
 ![FILTER page with ATK, DEC, SUS and REL above FRQ, RES, TYP and ENV.](media/filter-page.png)
