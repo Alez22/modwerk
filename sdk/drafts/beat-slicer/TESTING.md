@@ -1753,3 +1753,6 @@ The source check against current upstream passes 2,529 app tests, 37 SDK tests
 (one skipped), lint, types, bundle and catalogue/import checks in 135.90 seconds.
 The required origin/main check retains the inherited CHANGELOG.md history
 failure. Documentation/evidence follow-ups use the lightweight checks.
+
+The ten asynchronous-exchange reports are pinned to source commit
+`e9169abf655f1fefef4c9cc7fdccae57a925714a` in `evidence-sources.json`.
