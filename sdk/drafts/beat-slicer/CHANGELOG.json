@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.14-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted integration evidence: execute the entire compiled planner, bounded decoder, serialized session, marker preparation and candidate binder through the native Flex copy/lookup ABI. Thirty-two chains cover all packed formats, slots 0/127, exact/smooth boundaries and unsliced/retained-prefix settings, preserving PCM/settings and matching independent logical-signal reference plans.",
+      "Four stale cases cover source generation, inactive records and actual stock gain after completed or partial previews. Writer invalidation prevents another read from the partial preview. The raw-copy regression suite runs in the same host-sanitized and compiled-target harness; native stack/register/code-generation/link checks pass.",
+      "Identity, tempo, rate and exclusive ownership are still authored fixture values; the test provider is not installed or admitted. Native lock/cache/writer coverage, real metadata getters, Static access, atomic Apply/Undo, browser/card/USB lifecycle and physical qualification remain pending. No installable module is released."
+    ]
+  },
+  {
     "version": "0.1.13-experimental",
     "date": "2026-10-23",
     "changes": [

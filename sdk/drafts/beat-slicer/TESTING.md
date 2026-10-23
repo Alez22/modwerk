@@ -909,3 +909,43 @@ metadata getters, editor transactions, USB or physical audio/persistence.
 
 The 0.1.13 reports match source commit `0501a11413d40a0e898bd67936eafa9008dab477`, pinned by
 `tests.evidenceRevision`. Prior evidence retains its historical bindings.
+
+## Complete compiled Flex preview chain (0.1.14)
+
+`evidence/flex-chain-host.json` runs the full chain under ASan/UBSan with a host
+query/PCM-edit substitute. `evidence/flex-chain-native.json` compiles all original
+planner, decoder, guard, session, marker, candidate and copy code for ColdFire
+and runs it against the actual private stock lookup and gain routines. The same
+raw-copy regression suite is included. Shared fixture helpers now live in
+`test_flex_fixture.h`; production behavior is unchanged from 0.1.13.
+
+32 complete chains cover four packed formats, slots 0/127, exact/smooth modes
+and unsliced/one-retained-record settings. All starts/fade flags match a
+synchronous reference using independently generated logical sample values.
+Complete candidate records preserve existing metadata, and whole synthetic
+pool/settings hashes stay unchanged. Ownership waiting retries successfully.
+
+Four stale cases cover sample generation, an inactive marker row, real stock
+gain after a ready candidate and real stock gain during a partial preview.
+The last case retires the session before another reader copy. The host uses an
+explicit byte-change substitute for those gain calls; target execution runs the
+actual stock operation under the test guard. Failed results keep output intact.
+
+The complete preview chain now runs as target instructions, unlike 0.1.10's
+host session with emulated stock callbacks. Ownership is still a sequential
+fixture flag. Source IDs/generations, sample rate and tempo are authored;
+controls, trim and full records are read from synthetic firmware memory. No
+live native provider, real ISR/task lock, cache proof, complete writer tracking,
+Static streaming, editor Apply/Undo, USB or hardware qualification follows.
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_flex_chain.py --output NEW_CHAIN_HOST.json
+```
+
+With the existing private mounts and source-bound `beat_slicer_flex_native_probe`,
+freeze source and execute `flex_chain_native.py --main /stock/stock-main.bin
+--executable /output/build/beat_slicer_flex_native_probe --output
+/evidence/NEW_CHAIN_NATIVE_DIRECTORY`. Target code-generation, freestanding link,
+stack and callee-save checks pass. The generic runner's PASS line reports the
+return status of the complete `bs_flex_chain_selftest` entry, including all cases
+above. No elapsed emulator time is reported as instrument timing.

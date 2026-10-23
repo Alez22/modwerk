@@ -64,7 +64,7 @@ def main():
         p.error('Runner differs from current source; rebuild it.')
     names = ('flex_copy.c', 'flex_copy.h', 'flex_lookup.S', 'preview_session.h',
              'preview_guard.h', 'pcm_reader.h', 'planner_job.h', 'planner.h',
-             'test_flex_copy.c', 'flex_native.py', 'stock_probe/flex_native_probe.cpp',
+             'test_flex_fixture.h', 'test_flex_copy.c', 'flex_native.py', 'stock_probe/flex_native_probe.cpp',
              'stock_probe/CMakeLists.txt')
     report = {
         'scope': 'compiled Flex copy and real stock lookup with synthetic metadata/maps: 96 copies, 34 precondition refusals, four malformed replies, short capacity and four map relocations',

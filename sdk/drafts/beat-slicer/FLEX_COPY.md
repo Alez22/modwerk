@@ -34,3 +34,9 @@ its bound checks. Static/recorder/little-endian sources are refused.
 A source provider must independently validate the preview token and metadata
 before and after copying, and use nonblocking external prefetch for Static.
 No native service or module is enabled by the component's passing tests.
+
+The 0.1.14 fixture additionally runs the entire compiled decoder/preview/session/
+candidate chain through this component, with actual stock gain invalidating
+partial and completed previews. This proves composition of those target paths;
+the fixture's sequential ownership and authored identities are still not a live
+provider or native writer-tracking implementation. See TESTING.md.

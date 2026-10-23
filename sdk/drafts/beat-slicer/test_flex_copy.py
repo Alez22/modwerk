@@ -9,7 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent
 SOURCES = ('flex_copy.c', 'flex_copy.h', 'preview_session.h', 'preview_guard.h',
-           'pcm_reader.h', 'planner_job.h', 'planner.h', 'test_flex_copy.c', 'test_flex_copy.py')
+           'pcm_reader.h', 'planner_job.h', 'planner.h', 'test_flex_fixture.h', 'test_flex_copy.c', 'test_flex_copy.py')
 DRIVER = r'''
 #include <stdio.h>
 int bs_flex_selftest(void);
