@@ -58,7 +58,10 @@
     "transaction-stock-host.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
     "transaction-stock-native.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
     "transaction17-host.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
-    "transaction17-native.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8"
+    "transaction17-native.json": "af35f3084e01448c26e0cc6a7a287f33756a4eb8",
+    "worker20-boot.json": "37cb05abbb02e7c56917b9a23a61185cd20d68ca",
+    "worker20-host.json": "37cb05abbb02e7c56917b9a23a61185cd20d68ca",
+    "worker20-native.json": "37cb05abbb02e7c56917b9a23a61185cd20d68ca"
   },
   "unboundDiagnostics": {
     "native-import.json": {

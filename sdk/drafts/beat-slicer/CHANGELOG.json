@@ -6,7 +6,7 @@
       "Development draft: track whole engine commands around queue receive, invalidating previews before dispatch and retiring exclusion before waiting.",
       "Preserve stock queue results when completion is absent or commands fail; recursive receives and exhausted identities close preview admission.",
       "Test compiled observation against stock queues and full-boot edit/waveform commands; exact PCM restoration passes, but this remains partial ownership coverage.",
-      "Documentation: distinguish command execution from optional UI completion and preserve stock slice clearing with internal failure rollback.",
+      "Documentation: bind worker and full-boot receipts to exact source; distinguish command execution from optional completion and retain stock slice clearing.",
       "Known issue: not installable; recorder/UI writer coverage, native admission, atomic publication, playback, USB and hardware qualification remain unfinished."
     ]
   },

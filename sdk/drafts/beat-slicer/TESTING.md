@@ -1387,7 +1387,8 @@ pages: the passed fixture has 14,599 physical usable pages and a map endpoint
 of 10,919. The rerun checks the actual geometry operands and current map bounds.
 Only the corrected run is passing evidence; its predecessor remains private.
 
-Source-bound receipts are added after committing these exact sources. No
+The three `worker20-{host,native,boot}.json` receipts bind their exact inputs
+to `37cb05abbb02e7c56917b9a23a61185cd20d68ca`. No
 installable module, exported ABI, browser/USB package, complete source ownership
 or hardware qualification follows. The injection/initializer are private test
 operations, and the first command already waiting inside an unwrapped receive
