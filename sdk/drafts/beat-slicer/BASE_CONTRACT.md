@@ -117,7 +117,8 @@ tokens but cannot prevent a new snapshot during an unfinished edit. Track the
 whole writer lifetime and identify the destination of cross-slot copies;
 retire exclusion on all return paths, including normalization's observed
 dirty-without-PCM failure. See [writer coverage](WRITER_COVERAGE.md) for the
-executed cases and still-missing writers. No native exclusion is implemented.
+executed cases and still-missing writers. The compiled [worker observer](WORKER_BOUNDARY.md)
+now tracks complete commands in private tests; complete native exclusion is not implemented.
 
 Worker lifecycle probes add two constraints: an empty command queue does not
 mean the dequeued writer has finished, and UI completion is an asynchronous
@@ -142,7 +143,9 @@ review before a module can subscribe or a live provider can be enabled.
 
 The [session prototype](PREVIEW_SESSION.md) now coordinates that guard with full
 metadata capture, bounded copies, pending/cancel/restart and result revalidation
-through a supplied lock/backend interface. Its native callbacks do not exist.
+through a supplied lock/backend interface. The [composed Flex backend](FLEX_SOURCE.md)
+now supplies metadata/copy callbacks, tested with fixture-owned identities and
+ownership; production admission and the reviewed native lock remain absent.
 The Flex replacement-refusal trace additionally proves that failed loads may
 already clear old PCM and relocate surviving maps. Outer replacement exclusion
 must span its nested release and every failure path; error return cannot restore

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.22-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.23-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -214,3 +214,7 @@ limits of software evidence. This audit is not an installation or hardware gate.
 The composed [Flex source backend](FLEX_SOURCE.md) now joins metadata and bounded
 PCM reads under caller-supplied ownership. It remains a tested building block,
 not a live source service or installable module.
+
+The compiled backend now passes [full-boot preview tests](BOOT_SOURCE.md) against
+stock-loaded PCM, including invalidation by ordinary stock edits. This uses a
+private fixture with test-owned identities, not an installed editor/USB service.

@@ -1,6 +1,6 @@
 # Beat Slicer testing
 
-Current draft: 0.1.22-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.23-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -1460,3 +1460,52 @@ identities and ownership remain synthetic. No live admission, address discovery,
 writer completion guarantee, native publication, cache or hardware timing is
 established. `evidence/source22-host.json` and `evidence/source22-native.json` bind the exact
 source `c49c3cff97c5cccb745bd3a17b39575ecb315b96`.
+
+
+## Compiled full-boot Flex previews (0.1.23)
+
+The private 1.40C fixture reserves eight top audio pages with the pinned arena
+helper and injects only original test code there. The actual scheduler, both
+DSPs, stock-loaded BEATLAB PCM and the whole-command observer run. The native
+metadata/PCM backend reads stock regions through real page lookup. Lifetimes
+and admission remain test-owned; the fixture's interrupt mask is not hardware
+ownership or latency qualification. No module/base package is installed.
+
+Twenty initial previews cover SAMPLE/PROJECT, EXACT/SMOOTH and all five beat
+spacings. Four further previews after each of two stock reverse operations give
+28 exact whole-plan comparisons, 167 page queries and 2,386 bounded step calls.
+Sample tempo is 2,886 and runtime project tempo 2,880 in 1/24 BPM units, so the
+test exercises distinct actual values. Pattern multipliers/external clock and
+live tempo ownership remain unqualified. Plans match the host synchronous
+planner over the original or expected reversed PCM, including all fade flags.
+
+The first reverse retires RUNNING, the second READY. Neither stale case copies
+another block or alters result output. Fresh previews match the changed sample.
+Every preview batch leaves all logical PCM, 44 control bytes and 274 settings
+words exact; only the deliberate stock reverse operations alter audio. The
+second reverse restores the original under the previously observed inclusive
+endpoint model. Original code/reservation canaries survive; both source and
+private cards stay unchanged. There is no marker publication or playback claim.
+
+The initial run stopped before native initialization: an interactive `call`
+refused because panel runs had paused outside main's idle spin. The corrected
+driver retries only that exact pre-entry guard, advancing normal execution in
+0.01 ms increments with a fixed retry bound; any uncertain/post-entry error is
+terminal. Four driver tests include wrong target/spin contracts and budget
+exhaustion. The first run remains a failed private diagnostic, not evidence.
+The successful run is bound to its source after validation.
+
+A separate physical MCP preflight on 24 October read base
+`d6bfff70cd237c1c2597ce37273cbdc4e8da0c595a9378455d3861137aa53224`,
+ABI 10/features 903, ten installed modules and no missing modules. Its public
+status/load reads work; development panel/memory reads are refused. No Beat
+Slicer package, project edit or hardware behavior was tested by this preflight.
+
+
+The separate `source_lock_native.py` runner executes the composed-backend suite
+with real stock lookup and synthetic regions/ownership. It observes 514 lock
+sections, longest 2,652 executed instructions; all 544 metadata captures, 66
+copies and 66 stock page queries occur while held. All 439 planner calls and
+130 PCM decodes occur outside. Stack and callee-save registers are preserved.
+This uses a different backend/fixture from the earlier session baseline and is
+not a matched performance comparison, cycle count or hardware-time bound.

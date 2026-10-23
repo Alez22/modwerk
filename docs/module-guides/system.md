@@ -165,6 +165,13 @@ each release, including after a successful copy. Instruction counts from a
 synthetic backend can verify lock scope, but do not establish physical interrupt
 latency or a safe native time budget.
 
+The pinned full-boot emulator's interactive `call` requires main's idle spin;
+a normal panel `run` may pause elsewhere. Advance normal execution to a verified
+idle boundary before borrowing a call. A retry is safe only for a proved
+pre-entry refusal; never replay a call after an uncertain timeout or CPU stop.
+Do not force PC/registers to manufacture that boundary. Keep such driver behavior
+bound to the tested emulator source and separate from native service scheduling.
+
 Keep loader ownership and sample ownership separate. The current
 [`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader
 stability while deliberately allowing real-time interrupts. It is not, by

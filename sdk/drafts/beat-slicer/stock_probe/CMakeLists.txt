@@ -170,3 +170,10 @@ target_compile_options(beat_slicer_session_lock_probe PRIVATE -Wall -Wextra -Wer
 file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/session_lock_probe.cpp" SESSION_LOCK_PROBE_SHA)
 target_compile_definitions(beat_slicer_session_lock_probe PRIVATE PROBE_SOURCE_SHA="${SESSION_LOCK_PROBE_SHA}")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS session_lock_probe.cpp)
+
+add_executable(beat_slicer_source_lock_probe source_lock_probe.cpp)
+target_link_libraries(beat_slicer_source_lock_probe PRIVATE ot_machine)
+target_compile_options(beat_slicer_source_lock_probe PRIVATE -Wall -Wextra -Werror)
+file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/source_lock_probe.cpp" SOURCE_LOCK_PROBE_SHA)
+target_compile_definitions(beat_slicer_source_lock_probe PRIVATE PROBE_SOURCE_SHA="${SOURCE_LOCK_PROBE_SHA}")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS source_lock_probe.cpp)
