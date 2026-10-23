@@ -22,6 +22,13 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
 - Keep each command short: a few steps, a time limit, its output read at once. A long run goes in the
   background and logs every step, and you look at the log.
 - Never power-cycle on your own; ask the owner. Never flash.
+- A Keep on a RAM-booted base overwrites the owner's kept modules. The kept set lives in two card files,
+  `/MODWERK0.SET` and `/MODWERK1.SET`, written alternately and stamped with the writing base's identity
+  (`modset.c`); a base loads neither file another base wrote. Two Keeps on a twin (a `try`, then a `remove`)
+  replace both, and after the power cycle the flashed base starts with no modules (23 October 2026, MKII, flashed
+  `a408c505`, twin `8dc7692c`). Before a twin, note the flashed set (`inventory`) and where its packages are; base-bound
+  ones (Analog BD, Output Matrix) must be the copies bound to that base, from the commit that built it. Afterwards,
+  power-cycle and `try` each again.
 - After a crash restart, or finding the unit on the flashed base with no power cycle you know of, ask for a power
   cycle before the next RAM boot: one such boot hung at the logo (12 October 2026,
   [traps](OCTATRACK_HARDWARE_TRAPS.md#dsp-loader-dynamic-dsp-code)).
