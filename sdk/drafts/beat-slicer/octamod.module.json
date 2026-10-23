@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.19-experimental",
+  "version": "0.1.20-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Stock save/revert and project reload now pass across three fresh emulator processes, with exact serialized tables and separately reported inactive-row normalization. Bounded Flex metadata capture now feeds preview/candidate tests, preserving complete records and independent tempo values while refusing invalid bindings. Native identity, binding and ownership remain unimplemented. Commit without user history passes host sanitizers and compiled ColdFire, including repeated create/clear cycles, stale-clear refusal, internal rollback and terminal faults. The stock-backed Flex chain exercises 300 actual editor refreshes with synthetic ownership/publication/playback. Normal stock Flex/Static menus cover grid alignment choices, cancellation and individual/all-slice deletion; isolated callbacks cover 144 cancellation/deletion cases. Earlier PCM, source lifecycle and historical Undo research retains its exact evidence bindings. No installed Beat Grid controls, complete native source ownership, atomic publisher, playback qualification, browser/USB package or physical persistence results exist.",
+    "summary": "A compiled whole-command observer now covers isolated stock queue/edit/completion cases. It retires prior work before waiting and invalidates previews before dispatch, including missing completion and failed commands. The reserved-memory full-boot candidate also passes two stock reversals and five edit/waveform command lifetimes, with exact PCM restoration and intact code/canaries. The earlier metadata, commit and stock-clearing evidence retains its exact sources. This remains an unlisted draft: complete writer ownership, installed controls, atomic publication, playback policy, browser/USB packages and hardware qualification are unfinished.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

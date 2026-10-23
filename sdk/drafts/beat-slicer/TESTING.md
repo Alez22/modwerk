@@ -1,9 +1,9 @@
 # Beat Slicer testing
 
-Current draft: 0.1.19-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.20-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
-See the latest [Flex metadata results](#bounded-flex-metadata-0119) and the
+See the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
 [stock-style commit results](#stock-style-commit-and-clearing-0118).
 
 Historical 0.1.4 record: the prior 0.1.3 evidence source was
@@ -1347,3 +1347,48 @@ The provenance audit now covers 57 reports and 650 source bindings; the one
 explicitly unbound historical compile diagnostic remains excluded. Historical
 receipts and their source revisions are unchanged. Full Node 24 validation of
 this source passes 2,527 app tests plus SDK checks, lint, types and bundling.
+
+
+## Whole-command observer (0.1.20)
+
+The original `worker_boundary.c` wraps a supplied queue receive with native
+admission bookkeeping. Host ASan/UBSan passes 120 consecutive commands, a
+reader acquiring while receive waits, nested exclusion, revoke, recursive
+receive, null reply, exhausted identities and malformed bindings.
+
+The compiled ColdFire fixture redirects the private stock worker's single
+six-byte receive call, retaining its stock return path. Twelve cases pass:
+four packed-format gain paths, busy/empty-range failures, null callback,
+exhausted UI completion pool, release, unknown opcode, crop refusal and FIFO
+commands. Actual native guard stores cover PCM writes and optional completion
+posting; previous tickets retire before entering the empty queue's wait.
+Stock PCM and completion results remain independently checked.
+
+The observer is 398 text bytes, zero data/BSS, with a 28-byte local stack report
+excluding callees. The largest observed observer-masked run is 49 executed
+instructions: not cycles, cache cost or hardware time. The isolated fixture
+mocks display and runs no scheduler, DSP or UI consumer. The production source
+provider stays disabled; other-task/recorder writers remain outside this observer.
+
+The full-boot `boot_worker_native.py` experiment also passes on the exact
+reserved-placement binary: two stock reversals and five edit/waveform commands,
+with the native writer ticket set before each edit's dirty store and retired
+before queue wait. Original PCM is restored by the second reversal. Both
+prepared settings/control records, original observer code and reservation
+canaries stay exact; the copied/source cards remain unchanged. The real stock
+scheduler and both DSPs run. The retained trace has 46 increasing frame samples
+from 40,006 through 55,242; this is emulator progress, not hardware timing.
+
+Three top audio pages are reserved using pinned upstream `arena.py` before
+boot; code begins sixteen bytes inside the reserve to avoid the known clear
+overshoot. The first attempt rejected an incorrect test assumption that the
+mutable map endpoint equals physical pool capacity. Stock also reserves recorder
+pages: the passed fixture has 14,599 physical usable pages and a map endpoint
+of 10,919. The rerun checks the actual geometry operands and current map bounds.
+Only the corrected run is passing evidence; its predecessor remains private.
+
+Source-bound receipts are added after committing these exact sources. No
+installable module, exported ABI, browser/USB package, complete source ownership
+or hardware qualification follows. The injection/initializer are private test
+operations, and the first command already waiting inside an unwrapped receive
+must not be assumed covered during future native admission.

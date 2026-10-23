@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.19-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.20-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -87,7 +87,10 @@ settings to conceal clicks.
 The [preview admission prototype](PREVIEW_GUARD.md) now gives the proposed
 base provider unique operation IDs and writer-lifetime tracking. It invalidates
 old previews and refuses new ones during tracked edits, including nested edits.
-Native instrumentation and serialized live memory access remain unimplemented.
+Production instrumentation and serialized live memory access remain unimplemented.
+The [whole-command observer](WORKER_BOUNDARY.md) now runs as compiled ColdFire
+in private stock-worker fixtures, retaining exclusion through optional completion
+and retiring it before the next queue wait. It is not an admitted source service.
 The recorder investigation adds 20 synthetic calls covering stereo page crossings,
 lazy shared-pool allocation and early exits. Recorder position/map publication can
 precede PCM without an edit-queue, dirty-flag or counter signal; a live provider

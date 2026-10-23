@@ -78,6 +78,20 @@ notification, and capture owned operation identity; a queued pointer can refer
 to a reused command record. Full panel/scheduler/cancellation behavior remains
 unproved by those fixtures.
 
+When adding a worker observer at runtime, account for the command already
+waiting inside the old receive call. A changed call site does not wrap that
+in-flight receive. Start admission closed and establish quiescence before
+opening it; keep queue waiting outside the observer lock. Beat Slicer's 1.40C
+reserved-memory emulator experiment checks a compiled whole-command observer,
+not complete writer coverage or physical lock timing.
+
+Do not infer physical pool capacity from a mutable allocation-map endpoint.
+In the 1.40C full-boot fixture, recorder reservations reduce that endpoint; after
+three explicit arena pages are removed, 14,599 physical usable pages coexist
+with a 10,919 map endpoint. Verify the build's actual reservation geometry and
+current map bounds separately. Never inject test code into apparently unused
+stock heap/globals or delay memory; use a real arena reservation.
+
 Track nested writers independently: the 1.40C crop path calls rotation, and
 its inner return must not reopen a preview before the crop finishes. A refused
 crop can also advance the slot counter before range validation. Beat Slicer's
