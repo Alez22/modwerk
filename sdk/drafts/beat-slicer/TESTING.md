@@ -46,8 +46,71 @@ fields; native builds also disable loop-to-libcall conversion. Final result:
   static compiler stack reports, **not total device stack bounds**. The PCM
   callback and native adapter add their own usage.
 
-See evidence/native.json. No target code was executed, no runtime package
-was produced and no UI latency, cycles or real device memory was measured.
+See evidence/native.json for that compile/link run. Subsequent target-code
+execution is documented below. No runtime package was produced and no UI
+latency, cycles or real device memory was measured.
+
+## Isolated CPU execution, 23 October 2026
+
+The same pinned object (SHA-256
+`862fbf786e4388477f7c3efa7601dad7bef8d9583c5b0a21db5351e3276594d4`)
+passes **164 native planner vectors** in synthetic CPU memory, with no stock
+OS input. The runner compares mathematical grids against an independent
+64-bit rational oracle, exercises both tempo sources and all spacings, checks
+PCM callback arguments, callee-saved registers, input immutability, boundary
+flags, output sentinels and atomic invalid/read/capacity failures. This is
+execution of the compiled ColdFire instructions, not on-device timing.
+See `evidence/native-execution.json`.
+
+**Six isolated stock routine probes pass** against the private original
+1.40C MAIN: settings lookup boundaries, both slice-menu variants, retained
+menu pointers and synchronous selection, complete-record stable sorting,
+12-byte slice record pointers, and insertion that renumbers an old record.
+The formatting/display/editor-follow-up calls listed in `probe.cpp` are mocked.
+The stock sorter and its copy helper execute. This is not full editor,
+scheduler, save/reload or playback evidence. See `evidence/stock-cpu.json`.
+
+Both runners use the upstream `ot::Machine` source at
+`8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5`, mc68k pin
+`4a6d0d17a1f2b30077ab726c27fe9bb770fa0456`, GNU 13.3.0 host C++, Release
+without LTO. The emulator's **EMAC and peripheral gates pass** before these
+results are accepted. No DSP core executes in these probes. The DSP library
+dependency comes from the prepared toolchain image, not an updated SDK import.
+
+To reproduce inside the image above, mount the repository at `/source`
+read-only, the verified Octabam tools checkout at `/upstream` read-only,
+mc68k at `/cpu` read-only and a private empty build folder at `/output`.
+Create `/output/vendor/mc68k → /cpu` and
+`/output/vendor/dsp56300 → /opt/toolchain/vendor/dsp56300`. Under the machine
+lock, with Docker networking disabled:
+
+```sh
+cmake -S /source/sdk/drafts/beat-slicer/stock_probe -B /output/build \
+  -DCMAKE_BUILD_TYPE=Release -DOT_LTO=OFF \
+  -DOCTABAM_ROOT=/upstream -DOT_VENDOR=/output/vendor
+cmake --build /output/build --target beat_slicer_stock_probe \
+  beat_slicer_planner_probe ot_emac_test ot_periph_test --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/native_probe.py --output /output/native
+python3 -B /source/sdk/drafts/beat-slicer/native_execution.py \
+  --compiled /output/native --executable /output/build/beat_slicer_planner_probe \
+  --output /output/execution
+```
+
+Only the stock probe needs an additional read-only mount of the private MAIN:
+
+```sh
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_stock_probe \
+  --output /output/stock-probe.json
+```
+
+The wrapper refuses any other MAIN hash. CMake embeds each runner's source
+hash, and the wrappers reject stale runner binaries before recording evidence.
+Keep source fixed during builds and use fresh evidence paths. The preliminary
+stock probe run made during a source refinement is excluded; only the rebuilt,
+source-matched final run is recorded. All binaries/raw emulator logs remain
+outside Git. The reports contain only hashes and test summaries.
 
 ## Original cloud results (0.1.0)
 

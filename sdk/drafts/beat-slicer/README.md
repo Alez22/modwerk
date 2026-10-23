@@ -83,8 +83,14 @@ arithmetic, no heap and no independent clock.
 The local independent audit adds 2,000 randomized grid/marker cases, 200
 exhaustive stereo-search cases, threshold/refusal checks and arithmetic
 extremes (`test_independent.py`). The pinned ColdFire object compiles without
-unresolved runtime helpers and passes the shared code-generation guard.
-See [RESEARCH.md](RESEARCH.md) for shared-event and smoothing investigation.
+unresolved runtime helpers and passes the shared code-generation guard. It
+also executes 164 synthetic cases in the CPU emulator. Six isolated stock
+routine probes cover menu lifetime and complete slice record sorting; UI
+callees are mocked, so this is not whole-editor qualification.
+See [RESEARCH.md](RESEARCH.md) and the proposed [base contract](BASE_CONTRACT.md)
+for shared-event, preservation and smoothing work. Preserving old slice
+ordinals as well as their records may require refusing some merged grids;
+that policy is proposed for review, not implemented.
 
 Native cycles, device memory, actual audio and hardware are unmeasured.
 [TESTING.md](TESTING.md) separates host results from pending qualification.

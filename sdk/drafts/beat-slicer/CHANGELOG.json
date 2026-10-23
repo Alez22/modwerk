@@ -5,7 +5,8 @@
     "changes": [
       "Unlisted software preparation: replace 64-bit planner arithmetic with bounded quotient/remainder arithmetic and explicit plan fields so the pinned freestanding ColdFire compile has no unresolved multiply, divide or memory helpers. Beat-grid and marker behavior is unchanged in host regression tests.",
       "Add 2,000 independent rational-grid/marker cases, 200 exhaustive stereo-search cases and threshold/refusal checks, plus reproducible native and read-only stock-reference probes.",
-      "Native object only: no editor adapter, verified transaction ABI, playback smoothing, installable package or click-free playback claim. Stock preservation, USB lifecycle and physical MKII qualification remain pending."
+      "Development evidence: execute the compiled planner on 164 synthetic CPU-emulator vectors and six isolated stock editor probes. Document complete-record sorting, slice renumbering and retained menu-pointer lifetime in an unimplemented shared-base contract; no hardware or persistence qualification is implied.",
+      "Native planner only: no editor adapter, verified transaction ABI, playback smoothing, installable package or click-free playback claim. Stock preservation, USB lifecycle and physical MKII qualification remain pending."
     ]
   },
   {

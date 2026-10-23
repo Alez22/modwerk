@@ -74,12 +74,37 @@ That is an analysis-span identity, **not a proposed patch guard**. Full call
 ABI, every incoming branch, selection lifetime and transaction/Undo behavior
 still need execution traces. No code or stock table is included here.
 
+Six isolated CPU-emulator probes now narrow that uncertainty (not a full
+panel/editor trace; see `evidence/stock-cpu.json`):
+
+- The six/nine-row opener passes count, selected index, selection-output
+  pointer, label array and callback array to the common menu routine.
+- The common routine retains those pointer arguments. Selection stores the
+  index and closes the menu before invoking the callback synchronously through
+  `0x40020c28`; that helper is an immediate null-safe call, not a task queue.
+  Label/array lifetime still extends beyond the open call. Loader removal must
+  account for these retained pointers.
+- Settings lookup and the slice pointer-refresh routine agree on a slot
+  stride of `0x448`, count at `+0x444`, and 12-byte start/end/loop records from
+  `+312`. These are observed in synthetic CPU state, not a public SDK layout.
+- Stock `0x40070c28` sorts complete records stably by start in the exercised
+  fixture. A manual insert at frame 200 between records starting at 100 and
+  300 moves the latter from ordinal 1 to 2 while preserving its end/loop.
+  This confirms an ordinal-preservation hazard; it does not trace pattern
+  lock playback. UI/refresh follow-up calls in that insertion probe are mocked.
+
+The draft [base-service proposal](BASE_CONTRACT.md) makes the resulting
+preservation and lifetime requirements explicit. No registry or base code
+has been changed and no patch guard has been promoted from these observations.
+
 Relevant upstream research (reported evidence, not newly observed hardware):
 
 - `docs/firmware/STORAGE.md` section 4 describes complete marker records,
   working/saved copies, stock sanitation and a minimum 64-frame region. Its
   earlier summary and later parser description disagree on the header
-  boundary (16 versus 22 bytes). Resolve this against parser execution before
+  boundary (16 versus 22 bytes); its sanitizer note's 20-byte slice stride
+  also differs from the 12-byte editor stride measured above. Resolve the
+  exact path against execution before
   implementing any adapter. Do not create a `.ot` or project writer from a
   guessed layout.
 - `docs/firmware/REPITCH.md` distinguishes the sample's ATTR tempo from the

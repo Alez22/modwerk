@@ -10,6 +10,8 @@ These are remaining tasks, not implemented behavior.
    site, whole-instruction length and guard hash, in a separate owner-reviewed
    SDK change. The module subscribes, never patches a shared site itself.
 3. Compile planner.c with the pinned ColdFire toolchain and a real adapter.
+   The standalone planner now links and executes 164 synthetic CPU-emulator
+   vectors; the real adapter is still absent.
    Read PCM through bounded background work, not the audio interrupt. Explicitly
    support Flex/Static, mono/stereo and sample encodings; refuse unsupported data.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
@@ -50,7 +52,9 @@ That is connection evidence only, not Beat Slicer execution. Keep access
 read-only until an exact trial is authorized; leave missing-module references
 untouched. Keep firmware private and never expose the device socket publicly.
 See [RESEARCH.md](RESEARCH.md) for the local source/stock investigation and
-the unimplemented base transaction and playback contracts.
+the unimplemented base transaction and playback contracts. The concrete
+[base-service proposal](BASE_CONTRACT.md) specifies menu lifetime, complete
+record/ordinal preservation, job cancellation and atomic Apply/Undo requirements.
 
 Draft release notes live in CHANGELOG.json. Move them to
 `src/community/module-changelogs/beat-slicer.json` in the same change that
