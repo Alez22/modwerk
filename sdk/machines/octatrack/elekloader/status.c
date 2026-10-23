@@ -182,6 +182,23 @@ void modwerk_test_menu(int unused)
 #define UP 0x33
 #define DOWN 0x20
 #define ROWS 4u
+#define MISSING_ROWS 2u /* the missing page: two lines a module, its name and where the project names it */
+int modwerk_fxmap_where(unsigned id, unsigned *bank, unsigned *part, unsigned *track); /* fxmap.c */
+/* Where the project names a missing module (fxmap.c's first find): "BANK A PART 1 T2", with SAVED before PART when only
+ * a Part's saved copy names it (a RELOAD brings it back). `brief` leaves out "BANK " for a line that would not fit. */
+static void missing_where(char *out, unsigned handle, int brief)
+{
+    unsigned bank, part, track;
+    int found = modwerk_fxmap_where(handle, &bank, &part, &track);
+    char *s = out;
+    if (found) {
+        if (!brief) for (const char *t = "BANK "; *t; ) *s++ = *t++;
+        *s++ = (char)('A' + bank);
+        for (const char *t = found == 2 ? " SAVED PART " : " PART "; *t; ) *s++ = *t++;
+        *s++ = (char)('1' + part), *s++ = ' ', *s++ = 'T', *s++ = (char)('1' + track);
+    }
+    *s = 0;
+}
 unsigned modwerk_dsp_missing_list(uint8_t *out, unsigned first, unsigned most);
 int modwerk_modset_restored(void);
 extern volatile uint32_t modwerk_modset_result;
@@ -193,7 +210,7 @@ static void missing_check(void)
     fx_set handles = {{0}};
     for (unsigned i = 0; i < n; ++i) handles = fx_with(handles, missing[4 + 24 * i]);
     if (open == MISSING && !n && !missing_asked) open = CLOSED;
-    if (missing_top + ROWS > n) missing_top = n > ROWS ? n - ROWS : 0;
+    if (missing_top + MISSING_ROWS > n) missing_top = n > MISSING_ROWS ? n - MISSING_ROWS : 0;
     if (fx_any(fx_less(handles, missing_told)) && fx_same(handles, missing_last) && open == CLOSED && modwerk_modset_restored() &&
         modwerk_modset_result)
         open = MISSING, missing_top = 0, missing_asked = 0, missing_told = handles;
@@ -281,7 +298,7 @@ int modwerk_status_key(int code, int pressed)
     if (list && (code == UP || code == DOWN)) {
         unsigned *top = open == MISSING ? &missing_top : &modules_top, n = open == MISSING ? missing[3] : modules_count();
         if (code == UP && *top) --*top;
-        if (code == DOWN && *top + ROWS < n) ++*top;
+        if (code == DOWN && *top + (open == MISSING ? MISSING_ROWS : ROWS) < n) ++*top;
         taken = code;
         return 1;
     }
@@ -444,7 +461,8 @@ static void test_page(unsigned char *frame)
     label(X0 + 4u, Y1 - 8u, verdict);
     button(frame, X1 - 24u, Y1 - 10u, "NO");
 }
-/* The missing modules: four names at a time, arrows when there are more, the count and YES. */
+/* The missing modules: two at a time, each its name and where it is named, arrows when there are more, the count
+ * and YES. */
 static void arrow(unsigned char *frame, unsigned x, unsigned y, int up)
 {
     for (unsigned r = 0; r < 3u; ++r) fill(frame, x + 2u - r, up ? y + r : y + 2u - r, x + 2u + r, up ? y + r : y + 2u - r, 1);
@@ -454,15 +472,18 @@ static void missing_page(unsigned char *frame)
     unsigned n = missing[3];
     dialog(frame, "MISSING MODULES");
     if (!n) label(X0 + 6u, Y0 + 17u, "NOTHING MISSING.");
-    for (unsigned i = 0; i < ROWS && missing_top + i < n; ++i) {
+    for (unsigned i = 0; i < MISSING_ROWS && missing_top + i < n; ++i) {
         const uint8_t *e = missing + 4u + 24u * (missing_top + i);
-        char name[17];
+        char name[17], where[32];
         for (unsigned c = 0; c < 16u; ++c) name[c] = e[8 + c] >= 'a' && e[8 + c] <= 'z' ? (char)(e[8 + c] - 32) : (char)e[8 + c];
         name[16] = 0;
-        label(X0 + 6u, Y0 + 14u + 9u * i, name[0] ? name : "UNNAMED MODULE");
+        label(X0 + 6u, Y0 + 14u + 18u * i, name[0] ? name : "UNNAMED MODULE");
+        missing_where(where, e[0], 0);
+        if (TEXT_WIDTH(FONT, -1, where) > (int)(X1 - 14u - (X0 + 10u))) missing_where(where, e[0], 1); /* clear of the arrows */
+        label(X0 + 10u, Y0 + 22u + 18u * i, where);
     }
     if (missing_top) arrow(frame, X1 - 10u, Y0 + 14u, 1);
-    if (missing_top + ROWS < n) arrow(frame, X1 - 10u, Y0 + 14u + 9u * (ROWS - 1u) + 3u, 0);
+    if (missing_top + MISSING_ROWS < n) arrow(frame, X1 - 10u, Y0 + 14u + 9u * (ROWS - 1u) + 3u, 0);
     char text[24], *s = number(text, n);
     for (const char *t = " NOT INSTALLED"; *t; ) *s++ = *t++;
     *s = 0;
