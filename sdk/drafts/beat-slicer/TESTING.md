@@ -1,10 +1,11 @@
 # Beat Slicer testing
 
-Current draft: 0.1.3-experimental. Local checks: 23 October 2026.
-The manifest evidence source is `105f96022b23f05eb7e1af160eab8d2e9c5317e1`;
-only this provenance note and manifest/changelog metadata follow that tested commit.
+Current draft: 0.1.4-experimental. Local checks: 23 October 2026.
+The prior 0.1.3 evidence source is `105f96022b23f05eb7e1af160eab8d2e9c5317e1`.
+The 0.1.4 writer report binds its source files directly; its commit pin is
+recorded in the manifest after committing the tested source.
 Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
-Current development includes upstream main a3995bca.
+Current development includes upstream main d8059069.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes
 describe the imported source, not the subsequently repaired planner.
 
@@ -339,6 +340,66 @@ Only the final five-group run is retained as repository evidence. The initial
 four-group run is private. No portable planner/reader firmware source changed
 in 0.1.3; this version adds integration probes and tightens the documented
 native-provider requirements.
+
+## Expanded writer-lifetime probes (0.1.4)
+
+The source-matched coherence runner passes **12 groups** in
+`evidence/stock-writers.json`, retaining the earlier five-group report as
+historical evidence. Same pinned MAIN, Octabam/mc68k sources and immutable
+toolchain image as above; EMAC and peripheral gates pass. No callees are
+mocked. The original planner/job/reader C files are unchanged.
+
+- Sixty-eight successful edit calls across rotation, polarity, stereo channel
+  processing, reverse, fade, zero/half gain, normalization and cross-slot
+  copy/mix compare PCM against independent expectations. New fixtures cross
+  pool pages; the existing rotations retain their small repeated fixture.
+- Store observers see one destination dirty store before PCM on each call,
+  including already-dirty samples. There are no slot-control stores, so the
+  tested busy fields and counters remain unchanged even transiently.
+- These calls start at SR `0x2000`, restore that mask and preserve stack and
+  callee-saved registers. Every observed PCM store is masked; instruction
+  observations see an unmasked interval after some but before all PCM stores.
+  No interrupt is injected and no scheduler executes: this proves the narrow
+  instruction behavior, not actual task interleaving or live race freedom.
+- Sixteen copy/mix fixtures cross source pages and affect only the intended
+  destination frames/dirty byte. Source PCM and both slot records stay exact.
+  These use matching source/destination formats; conversion between different
+  formats, clipping/overflow and every stock mode are not qualified.
+- Four silent normalization fixtures return `-1` after setting dirty, with
+  no PCM/control writes. Thirty-five additional pool/slot/busy/range refusals
+  across five edit families perform no dirty/PCM/control writes. The earlier
+  eight polarity refusals, three releases and eight previews still pass.
+
+The reverse fixtures exercise a particular inclusive-endpoint behavior with
+even endpoint differences. They do not establish all odd-length or UI range
+conventions. Gain/fade/normalize fixtures avoid clipping and use predictable
+values; this is coherence investigation, not general audio-effect qualification.
+
+Reproduce with the existing pinned mounts and machine-wide lock, rebuilding
+`beat_slicer_coherence_probe`, running the EMAC/peripheral gates, then:
+
+```sh
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind coherence \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_coherence_probe \
+  --output /evidence/stock-writers.json
+```
+
+Only the final twelve-group, source-matched report is retained. An intermediate
+binary was refused by the wrapper after its source changed; it produced no
+accepted report. Keep probe sources fixed from configure through execution.
+
+The required lifetime exclusion and missing native writers are listed in
+[WRITER_COVERAGE.md](WRITER_COVERAGE.md). No hooks, source revision service,
+live reader, editor transaction or installable package was added. Hardware,
+actual audio, live timing and persistence remain untested.
+
+On upstream `d8059069`, Node 24.22.1 / `npm ci`, `modules:generate` and
+`npm run check -- --base origin/main` pass (2,513 app tests plus SDK gates).
+The 18 planner tests, 500 resumable-job comparisons and the PCM sanitizer
+suite also pass. The earlier `play-start` catalogue blocker was fixed upstream;
+the historical failure recorded above remains the result for that older tree.
+`module:doctor -- beat-slicer` still refuses the unlisted draft as expected.
+That refusal is not a passing release gate; publication remains blocked.
 
 ## Original cloud results (0.1.0)
 

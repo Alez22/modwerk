@@ -247,6 +247,29 @@ proof. The adapter still needs writer coverage and a verified copy/ownership
 guard, as specified in BASE_CONTRACT.md. Metadata equality and a correct
 decoder cannot compensate for untracked content mutation.
 
+## Expanded writer lifetime investigation
+
+The 0.1.4 coherence runner adds channel transforms, reverse, fades, gain,
+normalization and cross-slot copy/mix to the executed stock operations.
+Sixty-eight successful edit calls show a destination dirty store before PCM,
+unchanged control records (including busy/counter) and unmasked instruction
+intervals between masked PCM stores. Silent normalization marks dirty and
+returns failure without any PCM write. See the exact fixtures and limitations
+in [TESTING.md](TESTING.md#expanded-writer-lifetime-probes-014).
+
+This rules out using the busy field or an early dirty-store notification alone
+to admit new previews: a new read could otherwise start during an unfinished
+operation. It does not prove an actual live interleaving. The service needs
+writer-lifetime exclusion as well as old-token invalidation. The
+[coverage checklist](WRITER_COVERAGE.md) separates observed operation families
+from missing loader, recorder, allocation, metadata and Static evidence.
+
+Local static inspection also finds these edit calls grouped in the stock
+worker dispatcher, with calls in the `0x4008590c`–`0x40085a14` region. That is
+a lead for tracing enqueue/completion and serialization, not an executed
+dispatcher contract, complete call census or approved hook site. No stock
+instruction bytes or tables are included. Native exclusion remains absent.
+
 ## Proposed base contract, not an implemented ABI
 
 The first shared SDK change should own the sample editor menu and its stock

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.4-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted integration research: extend the hash-bound stock-CPU probes to stereo channel processing, reverse, fade, gain, normalization and cross-slot copy/mix, with independent PCM expectations and invalid-input checks. Portable planner and reader behavior is unchanged.",
+      "Observe dirty-store ordering and interrupt masks across eight edit families. The tested busy fields and counters stay unchanged while unmasked instruction intervals occur between PCM writes. Silent normalization can fail after marking dirty without writing PCM. These observations require complete writer-lifetime exclusion; a dirty-store notification alone cannot admit a safe live reader.",
+      "Add an explicit writer-coverage checklist and refine the proposed base contract. Full writer enumeration, native exclusion, coherent Flex/Static access, editor Apply/Undo, playback smoothing, USB lifecycle and hardware qualification remain pending. No installable module or production hook is published."
+    ]
+  },
+  {
     "version": "0.1.3-experimental",
     "date": "2026-10-23",
     "changes": [

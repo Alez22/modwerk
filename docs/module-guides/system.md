@@ -46,6 +46,14 @@ not only reload/release counters, length or a dirty flag. Allocation maps can
 also change while another slot's metadata stays identical; reacquire them
 under the verified ownership guard for each bounded read.
 
+An unchanged stock busy field does not prove that an edit has finished.
+Beat Slicer's isolated 1.40C instruction probes observe unmasked intervals
+between masked PCM writes across eight edit families, without busy-field
+updates. Track the complete writer lifetime before allowing new snapshots;
+an early dirty-store notification alone only retires older ones. Cross-slot
+copies invalidate the destination, and a failed operation can still mark it
+dirty. These are synthetic execution results, not live scheduler evidence.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

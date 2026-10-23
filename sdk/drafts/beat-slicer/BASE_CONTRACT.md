@@ -95,6 +95,15 @@ metadata/tempo changes. Do not enable a live provider until that coverage and
 its serialization are proved. The current probes demonstrate missing coverage;
 they do not enumerate every writer or assign hook sites to a new ABI.
 
+Expanded instruction/store observations now cover eight edit families. They
+leave the busy field and counter untouched, with unmasked instruction intervals
+between masked PCM writes. A dirty-store notification can invalidate existing
+tokens but cannot prevent a new snapshot during an unfinished edit. Track the
+whole writer lifetime and identify the destination of cross-slot copies;
+retire exclusion on all return paths, including normalization's observed
+dirty-without-PCM failure. See [writer coverage](WRITER_COVERAGE.md) for the
+executed cases and still-missing writers. No native exclusion is implemented.
+
 PCM reads copy a bounded block into caller-owned scratch memory. They report
 ready, pending, stale, unsupported or failed; a pending Static read yields
 to the scheduler. No filesystem wait, allocation or sample scan runs in the

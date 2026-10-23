@@ -31,6 +31,10 @@ These are remaining tasks, not implemented behavior.
    would allow stale or mixed-content previews. This writer coverage is not
    implemented. The probes also exercise temporary allocation-map publication
    during release; no provider may cache page-map pointers across a yield.
+   Expanded [writer coverage](WRITER_COVERAGE.md) shows that eight edit
+   families leave the busy field untouched and restore the unmasked state
+   between PCM writes. Exclude reads for the complete operation, not only
+   individual writes; a dirty-store notification alone is insufficient.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

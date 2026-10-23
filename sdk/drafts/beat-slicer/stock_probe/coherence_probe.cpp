@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <stdexcept>
 #include <vector>
@@ -29,17 +30,20 @@ struct Probe {
     explicit Probe(const std::vector<uint8_t>& image) : m(image) {}
     uint32_t reg(m68k_register_t r) { return m68k_get_reg(m.getCpuState(), r); }
     void reg(m68k_register_t r, uint32_t v) { m68k_set_reg(m.getCpuState(), r, v); }
-    uint32_t run(uint32_t entry, std::initializer_list<uint32_t> args) {
-        reg(M68K_REG_SR, 0x2700); reg(M68K_REG_SP, stack); m.write32(stack, stop);
+    uint32_t run(uint32_t entry, std::initializer_list<uint32_t> args,
+                 uint32_t sr = 0x2700, const std::function<void()>& observe = {}) {
+        reg(M68K_REG_SR, sr); reg(M68K_REG_SP, stack); m.write32(stack, stop);
         for (unsigned i = 0; i < saved.size(); ++i) reg(saved[i], 0x12340000+i);
         unsigned i = 0;
         for (auto a : args) m.write32(stack+4+4*i++, a);
         reg(M68K_REG_PC, entry);
         unsigned steps = 0;
-        while (m.pc() != stop && ++steps < 2000000)
+        while (m.pc() != stop && ++steps < 2000000) {
             if (!m.step()) throw std::runtime_error("CPU stopped: " + m.why());
+            if (observe) observe();
+        }
         require(m.pc() == stop && reg(M68K_REG_SP) == stack+4, "return/budget differs");
-        require(reg(M68K_REG_SR) >> 8 == 0x27, "interrupt mask not restored");
+        require(reg(M68K_REG_SR) >> 8 == sr >> 8, "interrupt mask not restored");
         for (unsigned n = 0; n < saved.size(); ++n)
             require(reg(saved[n]) == 0x12340000+n, "callee-saved register changed");
         return reg(M68K_REG_D0);
@@ -89,15 +93,233 @@ struct Probe {
             }
     }
 };
+// Observe instructions without injecting interrupts or changing execution.
+// A dirty STORE is observable even when the byte was already set. It is not
+// a production hook or a claim that this range covers every native writer.
+struct EditTrace {
+    Probe& p;
+    unsigned dirtyStores = 0, pcmStores = 0, controlStores = 0, firstUnmasked = 0;
+    bool beforePcm = true, maskedPcm = true;
+    explicit EditTrace(Probe& probe, unsigned destination = 0) : p(probe) {
+        p.m.addWriteWatch(dirty+destination, dirty+destination,
+            [this](uint32_t, uint8_t, uint32_t v, uint32_t) {
+                require(v == 255, "unexpected dirty store"); ++dirtyStores;
+            });
+        p.m.addWriteWatch(controls, controls+44*136-1,
+            [this](uint32_t, uint8_t, uint32_t, uint32_t) { ++controlStores; });
+        p.m.addWriteWatch(pool, pool+8*pageBytes-1,
+            [this](uint32_t, uint8_t, uint32_t, uint32_t) {
+                beforePcm = beforePcm && dirtyStores == 1;
+                maskedPcm = maskedPcm && (p.reg(M68K_REG_SR) & 0x700) == 0x700;
+                ++pcmStores;
+            });
+    }
+    void observe() {
+        if (pcmStores && !firstUnmasked && !(p.reg(M68K_REG_SR) & 0x700))
+            firstUnmasked = pcmStores;
+    }
+    void reset() {
+        dirtyStores = pcmStores = controlStores = firstUnmasked = 0;
+        beforePcm = maskedPcm = true;
+    }
+    void check() {
+        require(dirtyStores == 1 && pcmStores && beforePcm, "dirty store did not precede every PCM store");
+        require(!controlStores, "edit wrote control state, including busy/counter");
+        require(maskedPcm, "PCM write was not masked");
+        require(firstUnmasked && firstUnmasked < pcmStores,
+                "no unmasked instruction interval between PCM writes");
+    }
+};
+void channelEdits(const std::vector<uint8_t>& image) {
+    for (unsigned format : {1u, 3u}) for (unsigned mode = 0; mode < 4; ++mode) {
+        Probe p(image);
+        unsigned edge = pageBytes/p.width(format), length = edge+5;
+        p.setup(format, length); p.m.write8(dirty, 255);
+        const auto meta = p.bytes(controls, 44);
+        EditTrace trace(p);
+        require(p.run(0x40094dc8, {0, edge-2, edge+3, mode}, 0x2000,
+                      [&] { trace.observe(); }) == 1, "channel operation refused");
+        trace.check();
+        require(p.bytes(controls, 44) == meta, "channel operation changed metadata");
+        for (unsigned f = 0; f < length; ++f) {
+            int32_t left = Probe::value(f, 0), right = Probe::value(f, 1);
+            if (f >= edge-2 && f < edge+3) {
+                if (mode == 0) left = right = left+right;
+                else if (mode == 1) left = right = left-right;
+                else if (mode == 2) left = right = right-left;
+                else std::swap(left, right);
+            }
+            require(p.sample(format, f, 0) == left && p.sample(format, f, 1) == right,
+                    "channel operation PCM differs");
+        }
+    }
+}
+void reverseEdits(const std::vector<uint8_t>& image) {
+    // Isolated routine's second endpoint is exercised as an inclusive frame.
+    // Even interval differences avoid assuming its odd-length UI convention.
+    for (unsigned format = 0; format < 4; ++format) {
+        Probe p(image);
+        unsigned edge = pageBytes/p.width(format), length = edge+5;
+        p.setup(format, length); p.m.write8(dirty, 255);
+        const auto meta = p.bytes(controls, 44);
+        EditTrace trace(p);
+        require(p.run(0x40095268, {0, edge-2, edge+2}, 0x2000,
+                      [&] { trace.observe(); }) == 1, "reverse refused");
+        trace.check();
+        require(p.bytes(controls, 44) == meta, "reverse changed metadata");
+        for (unsigned f = 0; f < length; ++f)
+            for (unsigned ch = 0; ch < (format & 1 ? 2u : 1u); ++ch)
+                require(p.sample(format, f, ch) == Probe::value(
+                            f >= edge-2 && f <= edge+2 ? 2*edge-f : f, ch),
+                        "reverse PCM/endpoints differ");
+    }
+}
+void gainAndFade(const std::vector<uint8_t>& image) {
+    for (unsigned format = 0; format < 4; ++format) for (unsigned op = 0; op < 4; ++op) {
+        Probe p(image);
+        unsigned edge = pageBytes/p.width(format), length = edge+5;
+        p.setup(format, length); p.m.write8(dirty, 255);
+        const auto meta = p.bytes(controls, 44);
+        EditTrace trace(p);
+        // Four-frame fade gives exactly representable binary fractions; the
+        // gain fixtures exercise zero and an independently expected half gain.
+        require(p.run(op >= 2 ? 0x40095560 : 0x40095394,
+                      {0, edge-2, edge+2, op == 3 ? 1024u : op == 1 ? 1u : 0u}, 0x2000,
+                      [&] { trace.observe(); }) == 1, "gain/fade refused");
+        trace.check();
+        require(p.bytes(controls, 44) == meta, "gain/fade changed metadata");
+        for (unsigned f = 0; f < length; ++f)
+            for (unsigned ch = 0; ch < (format & 1 ? 2u : 1u); ++ch) {
+                int32_t expected = Probe::value(f, ch);
+                if (f >= edge-2 && f < edge+2) {
+                    unsigned offset = f-(edge-2);
+                    expected = op == 2 ? 0 : op == 3 ? expected/2 :
+                               expected*int32_t(op == 1 ? offset : 4-offset)/4;
+                    // Stock packs the high 16 bits, discarding low bits.
+                    if (format & 2) expected = (expected >= 0 ? expected/256 : (expected-255)/256)*256;
+                }
+                require(p.sample(format, f, ch) == expected, "gain/fade PCM differs");
+            }
+    }
+}
+void copyEdits(const std::vector<uint8_t>& image) {
+    for (unsigned format = 0; format < 4; ++format) for (unsigned mode = 0; mode < 4; ++mode) {
+        Probe p(image);
+        unsigned edge = pageBytes/p.width(format), length = edge+5;
+        p.setup(format, length);
+        // Slot 0 crosses two non-contiguous pages. Slot 1 owns a third page.
+        p.m.write32(controls+44, format); p.m.write32(controls+44+8, 0);
+        p.m.write32(controls+44+16, 17); p.m.write32(controls+44+20, 99);
+        p.m.write32(offsets+4, 2); p.m.write16(counts+2, 1);
+        p.m.write8(dirty+1, 255);
+        unsigned sampleBytes = format & 2 ? 2 : 3;
+        auto destination = [&](unsigned f) { return pool+pages[2]*pageBytes+f*p.width(format); };
+        for (unsigned f = 0; f < 17; ++f)
+            for (unsigned ch = 0; ch < (format & 1 ? 2u : 1u); ++ch) {
+                uint32_t value = uint32_t(Probe::value(f+5, ch));
+                if (sampleBytes == 2) value >>= 8;
+                for (unsigned b = 0; b < sampleBytes; ++b)
+                    p.m.write8(destination(f)+ch*sampleBytes+b, value >> (8*(sampleBytes-1-b)));
+            }
+        auto expected = p.bytes(pool, 8*pageBytes);
+        for (unsigned f = 5; f < 9; ++f)
+            for (unsigned ch = 0; ch < (format & 1 ? 2u : 1u); ++ch) {
+                int32_t source = Probe::value(edge-2+f-5, ch), old = Probe::value(f+5, ch);
+                int32_t result = mode == 0 ? source : mode == 1 ? source/2 :
+                                 mode == 2 ? source+old : source/2+old/2;
+                uint32_t packed = uint32_t(result);
+                if (sampleBytes == 2) packed >>= 8;
+                for (unsigned b = 0; b < sampleBytes; ++b)
+                    expected[destination(f)-pool+ch*sampleBytes+b] = packed >> (8*(sampleBytes-1-b));
+            }
+        const auto meta = p.bytes(controls, 88);
+        EditTrace trace(p, 1);
+        require(p.run(0x40094fa4, {0, 1, edge-2, edge+2, 5, mode}, 0x2000,
+                      [&] { trace.observe(); }) == 1, "copy/mix refused");
+        trace.check();
+        require(p.bytes(pool, 8*pageBytes) == expected, "copy/mix changed unexpected PCM");
+        require(p.bytes(controls, 88) == meta && p.m.read8(dirty) == 0 && p.m.read8(dirty+1) == 255,
+                "copy/mix changed source dirty state or slot metadata");
+    }
+}
+void additionalRefusals(const std::vector<uint8_t>& image) {
+    for (uint32_t entry : {0x40094dc8u, 0x40095268u, 0x40095394u, 0x40095560u, 0x40095774u})
+        for (unsigned test = 0; test < 7; ++test) {
+            Probe p(image); p.setup(3, 17);
+            unsigned slot = 0, first = 0, end = 17;
+            uint32_t expected = uint32_t(-2);
+            switch (test) {
+            case 0: p.m.write32(0x46105408, 0); break;
+            case 1: slot = 136; break;
+            case 2: p.m.write32(controls+8, 1); expected = uint32_t(-3); break;
+            case 3: first = UINT32_MAX; break;
+            case 4: end = 18; break;
+            case 5: first = 9; end = 8; break;
+            case 6: end = first; break;
+            }
+            const auto audio = p.bytes(pool, 8*pageBytes), meta = p.bytes(controls, 44);
+            EditTrace trace(p);
+            require(p.run(entry, {slot, first, end, 0}, 0x2000) == expected,
+                    "additional refusal return differs");
+            require(!trace.dirtyStores && !trace.pcmStores && !trace.controlStores &&
+                    p.bytes(pool, 8*pageBytes) == audio && p.bytes(controls, 44) == meta,
+                    "additional refusal wrote source or metadata");
+        }
+}
+void normalizeSilence(const std::vector<uint8_t>& image) {
+    for (unsigned format = 0; format < 4; ++format) {
+        Probe p(image); p.setup(format, 17);
+        for (unsigned f = 0; f < 17; ++f)
+            for (unsigned b = 0; b < p.width(format); ++b) p.m.write8(p.address(format, f)+b, 0);
+        const auto before = p.bytes(pool, 8*pageBytes), meta = p.bytes(controls, 44);
+        EditTrace trace(p);
+        require(p.run(0x40095774, {0, 0, 17}, 0x2000) == UINT32_MAX,
+                "silent normalize return differs");
+        require(trace.dirtyStores == 1 && !trace.pcmStores && !trace.controlStores &&
+                p.bytes(pool, 8*pageBytes) == before && p.bytes(controls, 44) == meta,
+                "silent normalize did more than mark dirty");
+    }
+}
+void normalizeEdits(const std::vector<uint8_t>& image) {
+    for (unsigned format = 0; format < 4; ++format) {
+        Probe p(image);
+        unsigned edge = pageBytes/p.width(format), length = edge+5;
+        p.setup(format, length); p.m.write8(dirty, 255);
+        const unsigned sampleBytes = format & 2 ? 2 : 3;
+        for (unsigned f = edge-2; f < edge+2; ++f)
+            for (unsigned ch = 0; ch < (format & 1 ? 2u : 1u); ++ch) {
+                uint32_t value = uint32_t(ch ? -4096 : 4096);
+                if (sampleBytes == 2) value >>= 8;
+                for (unsigned b = 0; b < sampleBytes; ++b)
+                    p.m.write8(p.address(format, f)+ch*sampleBytes+b,
+                               value >> (8*(sampleBytes-1-b)));
+            }
+        const auto meta = p.bytes(controls, 44);
+        EditTrace trace(p);
+        require(p.run(0x40095774, {0, edge-2, edge+2}, 0x2000,
+                      [&] { trace.observe(); }) == 1, "normalize refused");
+        trace.check();
+        require(p.bytes(controls, 44) == meta, "normalize changed metadata");
+        for (unsigned f = 0; f < length; ++f)
+            for (unsigned ch = 0; ch < (format & 1 ? 2u : 1u); ++ch)
+                require(p.sample(format, f, ch) == (f >= edge-2 && f < edge+2 ?
+                            (ch ? -0x7fff00 : 0x7fff00) : Probe::value(f, ch)),
+                        "normalize PCM differs");
+    }
+}
 void inversion(const std::vector<uint8_t>& image) {
     for (unsigned format : {1u, 3u}) for (unsigned mode = 0; mode < 3; ++mode) {
         Probe p(image);
         const unsigned boundary = pageBytes/p.width(format), length = boundary+3;
         p.setup(format, length);
         const auto controlBefore = p.bytes(controls, 44);
+        EditTrace trace(p);
         // Repeat the edit: dirty is already set on the second operation.
         for (unsigned repeat = 0; repeat < 2; ++repeat) {
-            require(p.run(0x40094c94, {0, boundary-1, boundary+2, mode}) == 1, "invert refused");
+            trace.reset();
+            require(p.run(0x40094c94, {0, boundary-1, boundary+2, mode}, 0x2000,
+                          [&] { trace.observe(); }) == 1, "invert refused");
+            trace.check();
             require(p.bytes(controls, 44) == controlBefore, "invert changed control metadata");
             require(p.m.read8(dirty) == 255, "invert dirty flag differs");
             for (unsigned frame = 0; frame < length; ++frame) for (unsigned ch = 0; ch < 2; ++ch) {
@@ -113,8 +335,12 @@ void rotation(const std::vector<uint8_t>& image) {
     for (unsigned format = 0; format < 4; ++format) {
         Probe p(image); p.setup(format, 17);
         const auto controlBefore = p.bytes(controls, 44);
+        EditTrace trace(p);
         for (unsigned repeat = 1; repeat <= 2; ++repeat) {
-            require(p.run(0x40094b6c, {0, 3}) == 1, "rotate refused");
+            trace.reset();
+            require(p.run(0x40094b6c, {0, 3}, 0x2000,
+                          [&] { trace.observe(); }) == 1, "rotate refused");
+            trace.check();
             require(p.bytes(controls, 44) == controlBefore, "rotate changed control metadata");
             require(p.m.read8(dirty) == 255, "rotate dirty flag differs");
             for (unsigned frame = 0; frame < 17; ++frame)
@@ -245,12 +471,20 @@ int main(int argc, char** argv) {
         {"eight unsupported/busy/range refusals preserve source and metadata", refusals},
         {"three pool releases: counter wrap, clearing, temporary maps and survivor isolation", release},
         {"eight stock-page to host-reader previews and explicit post-edit invalidation", pipeline},
+        {"eight stereo transforms: exact PCM, early dirty store, partial-write unmasked intervals", channelEdits},
+        {"four reversals: exercised endpoint convention and partial-write unmasked intervals", reverseEdits},
+        {"16 fades/zero/half-gain edits: exact PCM and partial-write unmasked intervals", gainAndFade},
+        {"four normalizations: exact PCM and partial-write unmasked intervals", normalizeEdits},
+        {"four silent normalizations return failure after marking dirty without PCM writes", normalizeSilence},
+        {"16 cross-slot copy/mixes: destination-only mutation and partial-write unmasked intervals", copyEdits},
+        {"35 additional writer refusals perform no PCM, dirty or control stores", additionalRefusals},
     };
     unsigned failed = 0;
     for (const auto& c : cases) {
         try { c.second(image); std::printf("PASS: %s\n", c.first); }
         catch (const std::exception& e) { ++failed; std::printf("FAIL: %s: %s\n", c.first, e.what()); }
     }
-    std::printf("%u passed, %u failed; isolated synthetic pool, no concurrent scheduler or hardware\n", 5-failed, failed);
+    std::printf("%u passed, %u failed; isolated synthetic pool, no concurrent scheduler or hardware\n",
+                unsigned(std::size(cases))-failed, failed);
     return failed ? 1 : 0;
 }
