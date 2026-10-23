@@ -26,8 +26,13 @@ changed on the device.
 - The local Octatrack catalogue/drafts contain no equivalent beat slicer.
   Digitakt DIGISLICER is a different machine/platform and storage design;
   its implementation is not an Octatrack ABI. No code was copied from it.
-- Elekloader tools are pinned at `7b5b5b8` (kit 0.6.0), as required by the
-  repository. These tool checkouts are outside Git.
+- Elekloader was initially pinned at `7b5b5b8` (kit 0.6.0). After integrating
+  Modwerk main `f99681ec170884593079b514da8b2f706d07e7d6`, the documented
+  `upstream:tools` command verified Octabam's unchanged pin/repairs and updated
+  the cached Elekloader checkout to `3b31ef3` (kit 0.7.0), matching the vendored
+  kit. These tool checkouts remain outside Git. The event registry and native
+  toolchain Dockerfile were unchanged across this upstream update; it supplies
+  no new sample-editor transaction or playback-boundary service.
 
 ## What the shared interfaces actually provide
 

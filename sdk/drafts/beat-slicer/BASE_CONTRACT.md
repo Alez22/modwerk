@@ -86,10 +86,14 @@ audio interrupt. A recorder or file being modified is refused until content
 can be pinned consistently. A sequence of individually valid reads is not
 a coherent preview if the source changes between them.
 
-The current synchronous `bs_preview` is an arithmetic oracle. The real
-adapter needs a resumable scan or a bounded prefetch strategy with measured
-time, cancellation and cache limits. Merely limiting the number of callback
-calls does not limit the time spent in one callback.
+The synchronous `bs_preview` remains an arithmetic oracle. The portable
+`planner_job` prototype now advances one bounded transition at a time and
+requests PCM frames without calling a reader. A pending frame can yield;
+replies must match that job's serial and frame, and cancellation retires the
+preview. This is not a base service. The real adapter must bind each read to
+the operation/content generation, discard in-flight reads before reusing job
+storage, and provide measured time and cache limits. Merely limiting callback
+counts does not limit the time spent in a blocking reader.
 
 ## State transitions and atomicity
 

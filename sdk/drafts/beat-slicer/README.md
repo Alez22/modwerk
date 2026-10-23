@@ -93,6 +93,11 @@ ordinals as well as their records may require refusing some merged grids;
 that policy is proposed for review, not implemented.
 
 Native cycles, device memory, actual audio and hardware are unmeasured.
+The `planner_job` prototype makes preview resumable: it requests one PCM
+frame at a time, can wait without blocking, rejects stale read replies within
+a job and can be cancelled without exposing a partial plan. It copies input
+metadata but cannot detect a live sample change; the future adapter must bind
+it to the actual sample/content generation. It is not connected to the editor.
 [TESTING.md](TESTING.md) separates host results from pending qualification.
 `verify.py` deliberately fails publication. This draft is not in
 `sdk/catalog.json` and changes no released module or catalogue.

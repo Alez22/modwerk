@@ -1,7 +1,8 @@
 # Beat Slicer testing
 
 Current draft: 0.1.1-experimental. Local checks: 23 October 2026.
-Base checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
+Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
+Current development includes upstream main f99681ec170884593079b514da8b2f706d07e7d6.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes
 describe the imported source, not the subsequently repaired planner.
 
@@ -111,6 +112,48 @@ Keep source fixed during builds and use fresh evidence paths. The preliminary
 stock probe run made during a source refinement is excluded; only the rebuilt,
 source-matched final run is recorded. All binaries/raw emulator logs remain
 outside Git. The reports contain only hashes and test summaries.
+
+## Resumable preview prototype
+
+`python3 -B sdk/drafts/beat-slicer/test_job.py` passes **500 comparisons**
+against the synchronous oracle with host AddressSanitizer and UBSan. Both
+full output and PCM read order match, including capacity failures, fractional
+tempos, every spacing, both BPM sources and near-uint32-limit coordinates.
+The same harness checks copied request metadata, cancellation at every
+transition of a boundary search, repeated pending polls, rejected stale read
+replies, and failed/invalid PCM at every read in that search. Incomplete,
+cancelled and failed previews leave output untouched. See `evidence/job-host.json`.
+
+The compiled ColdFire harness passes **100 comparison vectors** and those
+lifecycle checks in synthetic CPU memory, with preserved registers and stack.
+No stock code, scheduler, DSP, firmware input or device participates. The
+resumable planner object is 1,944 bytes of text with no data/BSS; the complete
+harness links without unresolved helpers and passes the shared codegen guard.
+Compiler-reported stack is 44 bytes for begin, 48 (dynamic, bounded) for step,
+16 for its insertion helper, 0 for supply/cancel and 4 for result. These are
+individual compiler reports, not measured hardware stack or latency.
+See `evidence/job-native.json` for final source hashes and exact flags.
+
+To reproduce after the emulator setup above, under the same machine lock:
+
+```sh
+cmake --build /output/build --target beat_slicer_job_probe --parallel 4
+python3 -B /source/sdk/drafts/beat-slicer/job_native.py \
+  --output /output/job-native --executable /output/build/beat_slicer_job_probe
+```
+
+Reconfigure CMake first when adding the new runner to an older build folder.
+Use a fresh output directory. The synchronous oracle stays separate so the
+state-machine implementation is compared with independently structured code.
+The earlier rational/exhaustive host tests still validate that oracle.
+
+`bs_job_step` does one bounded transition, with each marker loop capped at
+64 iterations. It performs no PCM callback or IO; `NEED_FRAME` can remain
+pending until the caller supplies the matching read serial and frame. The
+caller must serialize access and retire in-flight reads before reusing a job.
+The job does not validate live sample/content generations or make a blocking
+decoder safe. Native cache/streaming, scheduling, sample identity and editor
+transactions remain unimplemented. No audible or hardware claim follows.
 
 ## Original cloud results (0.1.0)
 

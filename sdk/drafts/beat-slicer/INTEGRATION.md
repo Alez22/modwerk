@@ -14,6 +14,8 @@ These are remaining tasks, not implemented behavior.
    vectors; the real adapter is still absent.
    Read PCM through bounded background work, not the audio interrupt. Explicitly
    support Flex/Static, mono/stereo and sample encodings; refuse unsupported data.
+   `planner_job.c` supplies a portable resumable scan prototype with no reader
+   callbacks; native scheduling, decoding and content pinning remain absent.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or
