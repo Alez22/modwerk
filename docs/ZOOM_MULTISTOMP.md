@@ -104,12 +104,15 @@ install cycles), written up in the project's
   rewrites them all.
 - So its image must hold every effect that stays on the pedal, Zoom's
   included, and Effect Manager does not read them back from the pedal.
-- The pedal itself can do more (probe on the owner's MS-70CDR 2.10, normal
+- The pedal itself can do more (probes on the owner's MS-70CDR 2.10, normal
   mode, 23 October 2026): it answers the file commands that zoom-zt2 uses on
-  the ZD2 pedals, with its disk usage and a list of all 162 files on it with
-  their sizes. Reading a file back is the next read-only test; writing single
-  files, which would make a per-effect install possible without update mode
-  or stock updaters, is untested and needs the same care as any write.
+  the ZD2 pedals. It reports its disk usage, lists all 162 files with their
+  sizes, and reads a file back: its effect list read this way matches
+  Effect Manager's copy byte for byte. So a full backup over USB is
+  possible, and stock effects can come from the user's own pedal. Writing
+  single files, which would make a per-effect install possible without
+  update mode or stock updaters, is untested and needs the same care as any
+  write.
 - In normal mode, Effect Manager learns which effects are installed by
   writing a temporary patch with several effect ids into the edit buffer and
   reading it back. That works without update mode.
