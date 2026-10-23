@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "machine": "analog-rytm-mkii",
   "moduleId": "filter-hz",
-  "moduleVersion": "1.0.0",
+  "moduleVersion": "1.1.0",
   "firmware": "1.73",
   "capturedAt": "2026-10-14T12:14:37Z",
   "imageSha256": "58dec6c48bcd532e71fcb2ea46229ce9c41cb5337aa89e44efe7e3b294369830",
@@ -16,7 +16,7 @@
     "binary": "dtboot (cargo build --release)",
     "settings": "no card image, JIT on"
   },
-  "conditions": "Headless cold boot; four held NO presses clear the missing-calibration notices; FLTR opens the FILTER page of track BD; encoder 4 (FRQ) is turned down from 127 to 60 and back to 127. Frames are dtboot's firmware-rendered 128x64 screen at 3x, unmodified. The same plan on stock 1.73 differs only inside the FRQ label (x 3-95, y 144-159).",
+  "conditions": "Headless cold boot; four held NO presses clear the missing-calibration notices; FLTR opens the FILTER page of track BD; encoder 4 (FRQ) is turned down from 127 to 60 and back to 127. Frames are dtboot's firmware-rendered 128x64 screen at 3x, unmodified. The same plan on stock 1.73 differs only inside the FRQ label (x 3-95, y 144-159). Filter Hz 1.1.0's OS 1.73 package links to FZ01's main OS (evidence/source-parity.json). On OS 1.74 the same plan in rytm-emu c5732f0 on FZ74 (core-ar2 0.3 release + this module, main 2d8aead1\u2026948d) gives these three frames byte for byte; across its 104 screens it differs from stock 1.74 only in the FRQ label (x 3-96, y 144-158), except turns 60, 70 and 80, mid-turn frames where the two runs had reached different FRQ values.",
   "captures": [
     {
       "path": "media/filter-page.png",

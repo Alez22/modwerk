@@ -90,7 +90,7 @@
       "version": "0.3",
       "path": "sdk/analog-rytm-mkii/core-profile"
     },
-    "toolchain": "m68k-linux-gnu (or m68k-elf) GCC and binutils for ColdFire, and elekloader's builder: core-ar2 0.3 from the owner's exact OS 1.74 .syx (1.74 only), core-ar2 0.1 for the OS 1.73 submission.",
+    "toolchain": "m68k-linux-gnu (or m68k-elf) GCC and binutils for ColdFire, and elekloader's builder: core-ar2 0.3 from the owner's exact OS 1.74 .syx (1.74 only), core-ar2 0.1 for OS 1.73 releases.",
     "budgets": [
       {
         "name": "Shared mod memory",
