@@ -113,6 +113,47 @@ stock probe run made during a source refinement is excluded; only the rebuilt,
 source-matched final run is recorded. All binaries/raw emulator logs remain
 outside Git. The reports contain only hashes and test summaries.
 
+## Isolated stock storage probes
+
+Five groups pass in `stock_probe/storage_probe.cpp`, using the same pinned
+CPU emulator and private original MAIN as the editor probes:
+
+- Stock project-marker writer/parser: all 264 synthetic slots round-trip;
+  complete records, count and unrelated settings are checked. Stream extent,
+  record mapping and checksum coverage are checked independently.
+- Bad-header, bad-checksum and truncated-input behavior: the latter two
+  return errors after changing destination records; no atomic-load claim.
+- Project-marker writer protection refuses before the synthetic write call.
+- Separate sample-settings writer/parser: Flex and Static complete markers
+  round-trip, other slots stay intact, and bad checksums fail after mutation.
+- Six Flex/Static sanitizer fixtures (32/64/1,000 frames): clamping, disabled
+  loops, inactive-record and other-slot isolation, and repeat idempotence.
+
+The file read/write/size APIs are mocks over in-memory bytes. Serializer
+output is not saved. Name/tempo/track-refresh callees are mocked where listed
+in the source. These are stock-instruction observations in synthetic state,
+**not actual Save Project, Save Sample Settings, Undo, card failure recovery,
+physical reboot or playback tests**. Recorder-specific handling, older file
+versions, and full editor/scheduler integration are not covered.
+`evidence/stock-storage.json` binds the passing final runner to its source.
+
+Reproduce with the mounts and machine lock used above:
+
+```sh
+cmake -S /source/sdk/drafts/beat-slicer/stock_probe -B /output/build \
+  -DCMAKE_BUILD_TYPE=Release -DOT_LTO=OFF \
+  -DOCTABAM_ROOT=/upstream -DOT_VENDOR=/output/vendor
+cmake --build /output/build --target beat_slicer_storage_probe --parallel 4
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind storage \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_storage_probe \
+  --output /output/stock-storage.json
+```
+
+The wrapper rejects other MAIN hashes, stale runner source and existing
+report paths. `--kind editor` remains the default for the earlier six probes.
+The first four-group exploratory run is retained privately; only the final
+five-group source-matched run is recorded here.
+
 ## Resumable preview prototype
 
 `python3 -B sdk/drafts/beat-slicer/test_job.py` passes **500 comparisons**

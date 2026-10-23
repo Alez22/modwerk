@@ -118,6 +118,13 @@ stock manage working/saved copies and subsequent persistence. No custom
 pre-edit state intact or roll back under the same boundary. A successful
 commit is reported only after all required publication steps complete.
 
+The isolated stock marker parser has now been observed changing synthetic
+slot records before rejecting a bad checksum or truncated input. Calling it
+with a prepared stream is therefore not an atomic Apply implementation.
+The stock sanitizer also clamps existing starts, ends and loops in the tested
+Flex/Static fixtures. Preflight must establish that retained records would
+remain exact; never run a sanitizer speculatively against live settings.
+
 Undo stores complete before/after records in base-owned memory and checks
 the after-generation before restoring. It must refuse after an intervening
 edit or sample change. Integration with stock Undo/history remains a separate
