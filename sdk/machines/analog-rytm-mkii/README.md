@@ -47,6 +47,8 @@ core_store_set(STORE(my_accent), live_pattern, track, v + 1);
 
 `scope` is `sound` (56 bits a sound), `kit` (64), `global` (40 a slot), `track` (at most 16 bits a pattern track), `pattern` or `project`; `bits` is 1 to 32, and `sym` is a C name no other mod uses. Zero is the default everywhere. The linker places every field from the build's lockfile, as elekloader's `store.ts` does, and appends the lockfile after the image, so the next build keeps each field where it was and older projects keep their data. A field that changes size, or a new field that no longer fits, gives the build a new layout. `core_store_get` and `core_store_set` mask interrupts, so call them from any event. The full rules, which bytes each scope uses and what travels over SysEx and Transfer, are in elekloader's [ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md) ("Mod storage") and the [core-ar2 README](https://github.com/irpina/elekloader/tree/main/mods/core-ar2).
 
+On modwerk.app each configuration keeps the lockfile of its last build. The next build of that configuration starts from it, so adding or removing a module leaves every other module's fields where projects on the unit expect them. Duplicating a configuration copies the lockfile, and the configuration's JSON backup carries it (the field places only, no project data). A configuration that has never been built, or one shared on the forum, starts from a new layout.
+
 ## Memory and budgets
 
 - **Shared mod memory:** 128 KiB of DDR (`0x47BE0000–0x47C00000`) for the core and every mod's code and data. A boot-time fill of the whole area was read back intact on a unit.
