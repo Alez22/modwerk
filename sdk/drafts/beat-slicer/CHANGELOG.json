@@ -6,6 +6,7 @@
       "Development draft: commit a grid without retaining Undo history or requiring a history-discard step before the next grid.",
       "Keep internal failure rollback and refuse stale previews after slice clearing; stock DELETE SLICE and DELETE ALL SLICES remain the intended workflow.",
       "Development tests exercise stock Flex/Static grid choices and confirmed/cancelled deletion; installed controls and hardware behavior remain unverified.",
+      "Documentation: bind commit and stock-clearing test receipts to their exact source; retain historical Undo evidence as research.",
       "Known issue: not installable; native ownership, atomic publication, playback safety, USB and device qualification remain unfinished."
     ]
   },

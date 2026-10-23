@@ -1264,3 +1264,7 @@ unchanged. Complete Flex PCM matches the original WAV after both workflows;
 both private card hashes stay unchanged. No Beat Grid action, native writer
 instrumentation, Static streaming, save/reload, physical audio or persistence
 is qualified by these tests. Raw logs, memory and images remain private.
+
+The six 0.1.18 receipts (`commit18-host/native`, `commit18-stock-host/native`,
+`stock-clearing` and `boot-slices`) bind source commit `36101a8a5da74f6101f9a5dcedcdc441a66e172d`.
+Historical source pins remain unchanged; `audit_evidence.py` verifies the inventory.
