@@ -1813,3 +1813,10 @@ are unchanged. The changed driver and new compiled cost fixture have their own
 source hashes. Synthetic ownership, pinned storage and private fixed-input
 waveform classification remain. Live admission, Static, native publication,
 playback, production base/browser/USB lifecycle and hardware are still unqualified.
+
+The long-source and cost reports bind source
+`91d443832e638f81b657813aa2edb1a5fd88d9a1`. Current-upstream validation passes
+2,529 app tests, 37 SDK tests (one skipped), lint, types, bundle and catalogue /
+import checks in 132.07 seconds. The required origin/main invocation retains
+the inherited CHANGELOG.md history failure. Evidence-only follow-ups use the
+lightweight checks.
