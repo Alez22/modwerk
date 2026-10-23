@@ -21,7 +21,26 @@ Not run on hardware. Everything in this section is ot_emu (`--mkii`), which does
 
 **USB package (private, not committed).** `build.py --octabam apply-scene --name "APPLY SCENE" --stock <1.40C .syx> --upstream <elekloader>`: module 103be957 (0.1.0's id), ABI 7, three hashed sites, 2,064 bytes of code and data, no relocations or hooks, 2,282 bytes, SHA-256 `5b1db5c76dabfd3023c0d2a81d53fac43610fa579142870190f7ca41c89c2ed1`. The strict scans build.py uses for private packages (module_packages, check_stock_free): longest run shared with the stock OS 11 counted bytes (limit 12, the toast texts), no 16-byte run. The first build shared 16 to 36 bytes with stock where the new code stored the same flags in the same order as stock's lock writer; the stores were reordered (same effect, checked by the rerun above). Not yet installed on a unit.
 
-**Not tested:** any hardware run (MKII or MK1, USB package or card), audible output, the USB package build and its stock-free scan, the browser builder's comparison (`module:verify`), MIDI mode, a pattern or Part change inside the chord (the chord is then dropped, by design, untested), trig pages past the first, and track 8 as the master track.
+### On the MKII over USB (23 Oct 2026)
+
+The user's MKII (OS 1.40C), freshly powered on from its flashed main base `a408c505…`, RAM-booted into a development twin of main's base (this branch merged with main c69b1cfe, main's flags plus `--dev`, built against the pinned Elekloader 3b31ef3c; base `8dc7692c…`, `.bin` `3b34b7de…`; stock-free and flash-safety checks passed). The package above (`5b1db5c7…`, the same bytes when rebuilt against the pinned Elekloader) installed with the session's `try` and was accepted (generation 1). Driven by the agent over USB (`scripts/device-send.py`), values read from RAM and screenshots; no audio was listened to. Bank P pattern 16 of the user's project, empty before; Part 1 of bank P, working equal to saved before; current track T3 (STATIC), AMP page.
+
+- Scene locks set by hand: scene 1 (A) AMP ATK 20 and VOL 49; scene 9 (B) VOL 94 and encoder F (XVOL with a scene key held) 127.
+- Grid recording, trigs placed on steps 1 and 5. TRIG 1 + SCENE A: step 1 got exactly 20 and 49 in ATK's and VOL's slots, nothing else; the trigs stayed; toast SCENE A TO TRIGS (screenshot). Pass.
+- Crossfader at 76 (weights read from RAM), TRIG 5 + SCENE A + SCENE B: ATK 16 and VOL 67, the morph model's values; XVOL got no p-lock (the page has no such knob; stock has no p-lock there either). Pass.
+- TRIG 1 + SCENE A again: NOTHING TO LOCK, step 1 unchanged. Pass.
+- TRIG 1 + SCENE A + TRIG 9: scene A became 9 (screen 09+09), no toast, step 1 unchanged. TRIG 1 + SCENE A + knob B: scene A's HOLD lock written (unlocked → 127), step 1 unchanged. Pass.
+- TRIG 1, 5 and 9 held (9 placed first) + SCENE B: each step has B's VOL 94; step 1 kept its ATK 20 from scene A, step 5 its blended ATK 16. Pass.
+- TRIG 13 + SCENE A, the trig released before the scene key: written. With scene A muted (FUNC + SCENE A), TRIG 15 + SCENE A: written. Pass.
+- TRIG 1 + PLAY (stock): step 1's p-locks cleared. Pass.
+- Playing P16 (grid recording off), T3's live AMP lane (`0x80000810 + 72·2`, sampled for 4 s) showed step 5's 16/94, step 9's 94, steps 13 and 15's 20/49 and the Part's own values in turn. The locks reach playback; not listened to.
+- Removal (`remove`, accepted, generation 2): the three sites read stock's bytes again.
+
+Put back: P16 cleared with stock FUNC + PLAY (its trigs and locks are empty again; stock's clear also set the hidden pattern field at `+0x8e50` from 16 to its default 64, as it does under ot_emu; the PATTERN SCALE page still reads 16/16 1x). RELOAD refused (SAVE PART FIRST!: bank P's Part 1 was never saved), so the test's scene locks were removed with SCENE + encoder push and two AMP knobs turned back: Part 1's working copy equals its saved copy again, which never changed. Nothing was saved; the unit stays on the RAM-booted twin until a power cycle returns it to its flashed base and kept modules.
+
+Not run on hardware: SAVE and reload, a power cycle with the locks (both would write the user's project), the MKI, audible output, MIDI mode, trig pages past the first, the card build, and the site's review/Keep/Undo flow (the session's `try`/`remove` were used).
+
+**Not tested (emulator section):** any hardware run (see above for the MKII), audible output, the USB package build and its stock-free scan, the browser builder's comparison (`module:verify`), MIDI mode, a pattern or Part change inside the chord (the chord is then dropped, by design, untested), trig pages past the first, and track 8 as the master track.
 
 
 Emulator only, 15 Oct 2026. The source is commit `ae2a6eed` on branch `claude/apply-scene` (merged with main 86e0dfb8). The image is byte for byte MAIN OS SHA-256 `c4c210ceb0e32703dcfb04b86120e334856fd83279740be54e7ef73b7939af3b`. From a90849c9 the card build links the unit in the DRAM reserve (Play Modes' path), so the site's builder and native octabam agree beside Preview Vol, Mute Modes and the caves; that image (MAIN OS `3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc`, the unit at 0x40a955e0, loaded at boot) passed verify.py 179/179, including the worst case and the emulated power cycle. The USB package is byte-identical to ae2a6eed's. The image is the native build of a local remix holding only APPLY SCENE plus every stock effect on both menus, with `static_stock=True`:
