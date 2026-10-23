@@ -20,6 +20,10 @@ These are remaining tasks, not implemented behavior.
    Validate its preconditions before use; establish Static access separately.
    Stage bounded bytes and prove decoder read extents before using a native
    converter. A raw pointer must not survive a scheduler yield.
+   `pcm_reader.c` now supplies bounded packed-PCM decoding and a 32-frame
+   copied cache, accepts page-shortened replies and checks operation/revision
+   tags. Its provider is still synthetic: native pool ownership, file IO,
+   format discovery, generation coverage and scheduling remain absent.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

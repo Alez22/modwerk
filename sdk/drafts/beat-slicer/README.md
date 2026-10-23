@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.1-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.2-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -105,6 +105,14 @@ frame at a time, can wait without blocking, rejects stale read replies within
 a job and can be cancelled without exposing a partial plan. It copies input
 metadata but cannot detect a live sample change; the future adapter must bind
 it to the actual sample/content generation. It is not connected to the editor.
+The `pcm_reader` staging layer now feeds that job from copied blocks of up to
+32 frames. Its bounded decoder handles packed signed 16/24-bit mono/stereo
+in either byte order without reading padding. Operation/revision tags reject
+old replies and invalidate stale previews, including completed ones. The
+caller must supply truthful revisions and coherent bytes; this is not yet a
+live Flex/Static reader. It passes 4,160 decoder vectors, 40 paged previews
+and lifecycle tests on host and compiled ColdFire, plus 256 exact-buffer
+host sanitizer cases. No native generation tracking or device IO is present.
 [TESTING.md](TESTING.md) separates host results from pending qualification.
 `verify.py` deliberately fails publication. This draft is not in
 `sdk/catalog.json` and changes no released module or catalogue.

@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.1-experimental",
+  "version": "0.1.2-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,12 +98,13 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "18 original/independent host tests, 164 compiled synchronous planner vectors, six isolated editor CPU probes, five synthetic-IO storage groups and five synthetic pool/converter groups pass. Resumable preview adds 500 host and 100 target comparisons plus lifecycle checks. No native reader, full editor, USB, audio or physical persistence qualification.",
+    "summary": "18 original/independent host tests, 164 compiled synchronous planner vectors, six isolated editor CPU probes, five synthetic-IO storage groups and five synthetic pool/converter groups pass. Resumable preview adds 500 host and 100 target comparisons plus lifecycle checks. No native reader, full editor, USB, audio or physical persistence qualification. Bounded PCM staging adds 4,160 decoder vectors, 40 paged previews and lifecycle tests on host/target, plus 256 exact-buffer sanitizer cases; live source access remains unimplemented.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
       "python3 -B sdk/drafts/beat-slicer/test_independent.py",
       "python3 -B sdk/drafts/beat-slicer/test_job.py",
+      "python3 -B sdk/drafts/beat-slicer/test_pcm_reader.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ]
   },

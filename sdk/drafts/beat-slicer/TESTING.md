@@ -1,8 +1,8 @@
 # Beat Slicer testing
 
-Current draft: 0.1.1-experimental. Local checks: 23 October 2026.
+Current draft: 0.1.2-experimental. Local checks: 23 October 2026.
 Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
-Current development includes upstream main f99681ec170884593079b514da8b2f706d07e7d6.
+Current development includes upstream main a3995bca.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes
 describe the imported source, not the subsequently repaired planner.
 
@@ -232,6 +232,63 @@ caller must serialize access and retire in-flight reads before reusing a job.
 The job does not validate live sample/content generations or make a blocking
 decoder safe. Native cache/streaming, scheduling, sample identity and editor
 transactions remain unimplemented. No audible or hardware claim follows.
+
+## Bounded PCM staging layer (0.1.2)
+
+`python3 -B sdk/drafts/beat-slicer/test_pcm_reader.py` passes with host
+AddressSanitizer and UBSan. `evidence/pcm-host.json` binds the source and flags.
+The same C selftest compiles and runs in the pinned CPU emulator through
+`pcm_native.py`; `evidence/pcm-native.json` records the source/object/runner
+hashes, successful freestanding link, shared codegen guard and preserved
+register/stack checks. No stock image is supplied to either test.
+
+- 4,160 decoder vectors: signed extrema and seeded inputs across 16/24-bit,
+  mono/stereo and both byte orders, including unaligned data and truncated
+  input that must leave output untouched.
+- 40 complete preview comparisons against the synchronous planner, with
+  page lengths 1, 9, 17, 25 and 33 frames across all eight formats. The
+  provider overwrites its scratch buffer immediately after each reply.
+- Cancellation and revision invalidation at every transition of a search,
+  including cache hits, pending reads and completed results. Old operation,
+  revision, serial, position and extent replies leave the reader unchanged.
+  Matching failed, null, empty, partial-frame and oversized replies fail
+  without exposing a plan. Reusing storage with a new operation rejects an
+  old reply even when serial/frame/revision match.
+- Source/format refusal, sample-end bounds and near-uint32-limit coordinates.
+- 256 host-only exact-buffer cases: every block length 1–32 in all eight
+  formats, unaligned with the final byte at an ASan allocation boundary.
+  Both the standalone decoder and staged reply path execute; provider
+  storage is freed before the next cache step.
+
+The reader object contains 1,364 bytes of code and no static data/BSS.
+Compiler stack reports are 52 bytes for decode, 32 for begin, 40 for step,
+60 for supply, 4 for cancel and 8 for result. These are per-function reports,
+not whole-call-chain/device measurements. The cache holds 32 stereo int32
+frames (256 bytes) inside caller-owned state; no heap allocation or IO occurs
+in the reader. A reply decodes at most 192 input bytes. These work bounds do
+not establish a UI timing budget.
+
+Reproduce with the pinned image and machine-wide lock described above, the
+source mounted read-only, the existing source-matched `beat_slicer_job_probe`
+runner, and a fresh private output directory:
+
+```sh
+python3 -B /source/sdk/drafts/beat-slicer/pcm_native.py \
+  --output /pcm-output/native --executable /output/build/beat_slicer_job_probe
+```
+
+This portable staging layer does not call a stock pool lookup or filesystem
+service. Native format discovery, coherent Flex ownership, Static streaming,
+recorder refusal, real revision tracking, scheduler integration, editor
+Apply/Undo, USB packages and hardware/audio qualification remain pending.
+Caller-supplied revision numbers cannot prove the sample did not change.
+
+Repository validation on upstream `a3995bca`: the 18 planner host tests and
+500 resumable-preview comparisons pass. `npm run check -- --base origin/main`
+stops at the upstream `play-start` publication requirements (missing UI and
+qualification evidence); `modules:generate` also refuses that module.
+`module:doctor -- beat-slicer` refuses this unlisted draft as expected. None
+of these publication gates has been relaxed or recorded as passing.
 
 ## Original cloud results (0.1.0)
 

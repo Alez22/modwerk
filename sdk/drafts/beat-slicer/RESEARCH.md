@@ -217,10 +217,11 @@ can subscribe. Provisional names below intentionally have no index or address:
 2. A read-only snapshot service supplies opaque sample/content generation,
    complete slice records, trim/loop state, source/format, decoded PCM access
    and the selected tempo. No long-lived raw pointer into a mutable slot.
-3. Preview runs as cancellable, bounded background work. The current planner
-   is synchronous: bounded callback count is not a UI deadline or a safe
-   Static-streaming budget. A measured cache/job adapter must yield without
-   decoding or waiting on storage in any audio interrupt.
+3. Preview runs as cancellable, bounded background work. The synchronous
+   planner remains an oracle; `planner_job` and `pcm_reader` now provide
+   resumable planning and a copied PCM cache. Their provider is synthetic,
+   and bounded work is not a measured UI deadline or Static-streaming budget.
+   Native scheduling must yield without waiting on storage in an audio ISR.
 4. Apply compares the whole snapshot under stock's serialization boundary,
    rejects stale content/markers/trim/tempo or an active conflicting editor,
    then commits once. Preview, Cancel and failed Apply do not dirty or save

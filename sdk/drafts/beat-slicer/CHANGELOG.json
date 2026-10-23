@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted development: add bounded packed signed 16/24-bit mono/stereo decoding in both byte orders. It reads only complete supplied frames, avoiding the stock converter padding-byte requirement; source audio is never changed.",
+      "Feed resumable previews through a copied 32-frame PCM cache, accept shorter replies at page boundaries, reject stale operation/revision/serial/extent replies, and invalidate completed previews when the caller reports a changed revision. Native source identity and coherent live-memory access are still required.",
+      "Validate 4,160 decoder vectors, 40 paged previews and cancellation/failure/storage-reuse checks on host and compiled ColdFire, plus 256 exact-buffer host sanitizer cases. No instrument timing, audio, native pool/Static reader, editor Apply/Undo or USB lifecycle is qualified; this remains non-installable staging."
+    ]
+  },
+  {
     "version": "0.1.1-experimental",
     "date": "2026-10-23",
     "changes": [

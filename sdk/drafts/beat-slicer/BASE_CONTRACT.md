@@ -107,6 +107,18 @@ the operation/content generation, discard in-flight reads before reusing job
 storage, and provide measured time and cache limits. Merely limiting callback
 counts does not limit the time spent in a blocking reader.
 
+The portable `pcm_reader` now wraps that job with a 32-frame decoded cache
+and bounded 16/24-bit decoding. It accepts whole-frame prefixes when a page
+ends early, copies them before returning, and retains no provider pointer.
+Every reply echoes the operation, revision, serial and requested extent.
+Operation IDs must not be reused while old replies can exist. Step/result
+calls revalidate the caller's current revision even after a completed preview;
+the provider must independently pin or revalidate content around its copy.
+These are tested software contracts, not implemented native generation
+tracking. A slot number, timestamp or unchanged length cannot stand in for
+the required revision. Native admission must refuse unsupported or mutable
+sources until it can supply this contract truthfully.
+
 ## State transitions and atomicity
 
 `CAPTURED → SCANNING → READY → APPLYING → APPLIED`
