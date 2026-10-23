@@ -681,3 +681,8 @@ Actual filesystem decoding/loading, native locking/callbacks, full writer
 coverage, Static prefetch, scheduling, Apply/Undo, playback smoothing and exact
 browser/card/USB/hardware qualification remain open. These tests grant no live
 admission or publication capability.
+
+The 0.1.8 reports match source commit `9e10767a26b931bbdeaefa573e7b532860a58047`, now pinned
+by `tests.evidenceRevision`. Earlier reports remain bound to their historical
+source. The stale fork-origin changelog comparison remains a known failure;
+current-upstream readiness validation is required before push.
