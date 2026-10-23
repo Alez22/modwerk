@@ -99,6 +99,19 @@ service. Track the entire mutation/refresh lifetime; do not reuse this replacing
 grid action as a preserving atomic Apply. Actual scheduling/cancellation and
 physical persistence remain unproved by those fixtures.
 
+For emulator memory watches, use the pinned machine implementation's canonical
+address and verify a known store as a positive control. In Octabam `8250be0`,
+1.40C editor busy/dirty writes at `0x46…` were observed by `0x46…` watches;
+substituting `0x86…` observed none. A silent watch is not evidence of no mutation,
+and a generic CLI alias note must not override the actual mapped window.
+
+Retire an editor's selected row before rebuilding bindings for a shorter marker
+table. Beat Slicer's isolated 1.40C refresh probes observe the old selection
+being dereferenced after its row pointer has become null; resetting the selection
+first avoids that path in the tested Flex/Static reductions, including zero
+slices. Recompute selection from the cursor after rebuilding. This is a native
+integration requirement, not an observed stock UI defect or hardware result.
+
 Closing a native menu need not detach its label/callback/selection pointers.
 Beat Slicer's compiled 1.40C menu fixture observes those pointers still retained
 after selection. Keep composed arrays base-owned and refuse reuse until old

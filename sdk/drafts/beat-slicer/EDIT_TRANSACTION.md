@@ -34,7 +34,8 @@ base-owned storage. It retains no candidate/session pointer. Undo requires its
 distinct confirmation ID, unchanged guard revision, owner/source/editor/playback
 identity, chosen tempo, metadata and every expected after-row. An intervening
 tracked edit retires Undo even if it restores identical bytes. Unselected tempo
-changes alone remain allowed. Undo checks playback policy again; it is not a
+changes alone remain allowed. Undo checks playback policy against the complete
+table being restored, including its old end/loop points; it is not a
 bypass for the audio requirement.
 
 A rolled-back Undo keeps history but issues a new confirmation ID. Counter
@@ -50,3 +51,9 @@ callback boundaries, and exercise session reuse, cancellation, confirmation
 replay, exhaustion and quarantine. Those results prove orchestration against
 the authored backend contract. They do not prove stock atomicity, cache/ISR
 exclusion, actual voice refresh, persistence, audible output or physical Undo.
+
+The pinned target layout uses 4,056 bytes per journal. A journal, preview
+session, candidate and guard total 10,092 bytes before any backend/menu state,
+code or stack. Plan a real contiguous allocation for this caller-owned state;
+zero object BSS does not remove that requirement. See TESTING.md for source
+bindings, the full compiled Flex transaction fixture and refresh-order limits.

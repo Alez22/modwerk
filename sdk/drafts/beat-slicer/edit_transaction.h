@@ -13,11 +13,13 @@ enum bs_exchange_reply { BS_EXCHANGE_FAULT = -1, BS_EXCHANGE_UNCHANGED = 0,
 struct bs_transaction_backend {
     /* Same context and lock as the candidate's preview backend. Required even
      * for a quiet-boundary plan: silence alone is not playback qualification.
-     * A null plan requests Undo qualification for the stored old markers.
+     * desired is the complete table being proposed, including Undo's old
+     * endpoints/loops. A null plan requests Undo qualification; it does not
+     * mean the current after-markers are the table being restored.
      * Read-only, bounded; PENDING yields before any write or token retirement.
      */
     enum bs_provider_reply (*policy)(void *, const struct bs_source_snapshot *,
-                                     const struct bs_plan *);
+                                     const struct bs_marker_table *desired, const struct bs_plan *);
     /* Atomic compare/exchange under the supplied ownership boundary. Expected
      * includes all inactive rows. COMMITTED means desired records AND native
      * refresh/publication are complete; UNCHANGED means exact before-state,

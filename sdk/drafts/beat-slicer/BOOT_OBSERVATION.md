@@ -59,3 +59,77 @@ The emulator refused them before execution because its main task was not in
 the required parked state. Those calls provide no lookup evidence. The
 observer uses bounded memory reads and never bypasses that guard. Full stock
 lookup execution remains covered separately by the compiled isolated probes.
+
+## WAV format matrix
+
+`boot_formats.py` starts a separate full stock load for each mono/stereo,
+16/24-bit and 44.1/48 kHz combination. It uses the pinned upstream pure FAT
+builder to replace only an original `AUDIO/PULSE.wav` in the disposable
+53-file project; all other extracted files must remain byte-identical. Each
+case verifies normal pool maps, descriptor geometry, frame/channel count and
+every decoded PCM byte against independent signed width conversion. The
+source card and each repacked card remain unchanged; no write-back is enabled.
+
+In the observed project, all eight cases load 44,100 frames into 16-bit Flex
+pools: mono uses format 2 and 15 pages, stereo format 3 and 29 pages. Original
+24-bit values truncate arithmetically to 16 bits, including the deliberately
+nonzero low bytes. The 44.1 and 48 kHz pairs have identical complete controls,
+settings and PCM. Therefore these fields cannot identify the original file
+rate in these cases; no native playback-rate getter or audible resampling
+behavior is established. This initial matrix does not exercise 24-bit retention or Static streaming;
+the separate authored-project variant below adds retention coverage.
+
+Run with the same private mounts and machine-wide lock, supplying `--emulator`,
+`--main`, `--card`, `--card-sha256`, `--card-tool` (the pinned upstream
+`tools/emu/emu_card.py`), `--card-tool-sha256` and a fresh private `--output`.
+Optional `--case 0` through `--case 7` selects individual cases. The report
+contains only input/source hashes and outcomes; cards, WAVs, raw controls,
+settings, PCM and logs stay private.
+
+### File rate versus the stock playback clock
+
+Elektron's [OS 1.40A manual](https://www.elektron.se/wp-content/uploads/2024/09/Octatrack-MKII-User-Manual_ENG_OS1.40A_210414.pdf)
+(§7.2.2, §8.3.3 and §8.6.5) specifies 44.1 kHz mono/stereo WAV/AIFF at
+16/24 bits, warns that 48 kHz files load at the wrong playback speed, and
+describes optional 24-to-16-bit Flex conversion. The 48 kHz matrix cases are
+compatibility investigations, not newly supported sample rates. The planned
+1.40C adapter must use the stock frame clock for spacing, not assume the input
+WAV header rate survives loading. The manual and unchanged PCM are supporting
+evidence; exact native source binding and physical playback remain unqualified.
+
+## Authored 24-bit-retaining project variant
+
+`boot_formats24.py` changes only `LOAD_24BIT_FLEX=0` to `1` in the private
+project's `.work` and `.strd` text settings, preserving every other byte in
+those files and every other project file. This is an authored test variant,
+not evidence that a native settings dialog or save was exercised. The stock
+project loader then loads four 44.1 kHz WAVs through `boot_formats.py`.
+
+All four retain the complete original PCM: 16-bit mono/stereo use formats 2/3
+and 15/29 pages; 24-bit mono/stereo use formats 0/1 and 22/44 pages. The 24-bit
+low bytes are deliberately nonzero and must match exactly. Original and
+variant cards remain unchanged. Use the same arguments as `boot_formats.py`;
+the wrapper adds the documented settings variant and runs cases 0, 2, 4 and 6.
+This establishes observed load/geometry/PCM behavior only, not live ownership,
+Static IO, actual playback or physical-device qualification.
+
+## Normal writer lifecycle
+
+`boot_writer.py` uses the original card/WAV arguments from `boot_observe.py`
+(without its set/project/metadata options) and a new private output directory.
+It checks the actual editor binding and reverse-menu callback before confirming
+two stock reversals. Full PCM checks use the explicitly observed inclusive
+endpoint convention; a normal exclusive-end reversal does not match this
+fixture. The second operation restores the source exactly. Worker/UI completion
+and unchanged prepared metadata are reported separately from that limitation.
+No raw PCM, extra allocated-frame bytes or native traces leave private storage.
+
+## Static lifecycle observation
+
+`boot_static.py` accepts the same arguments as `boot_writer.py`. It opens the
+Static list through normal quick assignment, loads the original WAV, verifies
+actual editor kind/slot and metadata, then confirms a stock slot clear. It
+checks that the prompt alone leaves controls unchanged, confirmed release
+retires the file handle, and the separate Flex source stays byte-identical.
+Cards and raw observations remain private and unchanged on disk. This is
+load/clear evidence, not a Static PCM reader or concurrent file-ownership proof.

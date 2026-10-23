@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.16-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.17-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -176,3 +176,8 @@ project and original WAV to check actual loading, PCM, editor tempo and marker
 state. It also corrects the proposed stock menu path to AED → AMP → YES.
 These are emulator findings; the Beat Grid action, native ownership, atomic
 Apply/Undo, USB package and physical qualification remain unfinished.
+
+Research receipts retain their original source versions. Run
+`python3 -B sdk/drafts/beat-slicer/audit_evidence.py` to check those Git bindings;
+see TESTING.md for the explicitly unbound early compile diagnostic and the
+limits of software evidence. This audit is not an installation or hardware gate.

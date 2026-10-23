@@ -217,6 +217,12 @@ that another task, a cached alias or an active voice cannot observe half of
 the edit. The stock editor's short masked block is a research lead, not a
 complete transaction API.
 
+Retire a selected row before rebuilding a reduced table's native pointer arrays.
+The isolated 1.40C refresh probe demonstrates null-row dereferences if an old
+selection survives that reduction; resetting selection before rebuilding avoids
+the tested path. Recompute it from the cursor afterwards. This does not establish
+voice publication, complete auxiliary rollback or the live exclusion boundary.
+
 Publish once, refresh native editor/voice state in the proven order, and let
 stock manage working/saved copies and subsequent persistence. No custom
 `.ot`, marker or project serializer is introduced. Failures must leave the
@@ -282,3 +288,22 @@ preserving transaction service. Exclude previews for its whole deferred
 lifetime, including failure/cancellation and final refresh; never substitute
 its notification field for a generation or native Undo. Actual zero-search
 scheduling, cancellation and working/saved-copy behavior remain unproved.
+
+## Clock and storage planning clarification
+
+For the stock Octatrack path, distinguish the frame clock from the original
+file's header rate. The [format investigation](BOOT_OBSERVATION.md#file-rate-versus-the-stock-playback-clock)
+explains the documented 44.1 kHz domain and why a loaded 48 kHz header is not
+a native playback-rate getter. Keep that target-specific binding outside the
+generic planner, and qualify it against the exact native source and device.
+
+The current ColdFire guard/session/candidate/journal state totals 10,092 bytes,
+excluding backend, menu, code and stack. Reserve actual contiguous storage and
+measure the complete call chain before assigning shared-base RAM.
+
+The normal Static load/clear observation exposes a retained file handle that
+stock release retires only after confirmation. That handle is not a reader
+lease. A Static provider must own bounded file access and bind it to card/file
+and slot lifetimes across yields; it cannot borrow Flex allocation maps or
+keep a raw stock handle after unload. The observed release counter does not
+prove coverage of every file writer or concurrent playback path.

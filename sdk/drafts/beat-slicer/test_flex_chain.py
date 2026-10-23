@@ -12,7 +12,7 @@ SOURCES = ('planner.c', 'planner.h', 'planner_job.c', 'planner_job.h',
            'pcm_reader.c', 'pcm_reader.h', 'preview_guard.c', 'preview_guard.h',
            'preview_session.c', 'preview_session.h', 'marker_edit.c', 'marker_edit.h',
            'edit_candidate.c', 'edit_candidate.h', 'flex_copy.c', 'flex_copy.h',
-           'test_flex_fixture.h', 'test_flex_copy.c', 'test_flex_chain.c', 'test_flex_chain.py')
+           'test_flex_fixture.h', 'test_chain_fixture.h', 'test_flex_copy.c', 'test_flex_chain.c', 'test_flex_chain.py')
 DRIVER = r'''
 #include <stdio.h>
 int bs_flex_chain_selftest(void);

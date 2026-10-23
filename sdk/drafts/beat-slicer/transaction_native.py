@@ -37,6 +37,19 @@ def main():
              '-fno-tree-loop-distribute-patterns', '-fno-optimize-sibling-calls',
              '-fno-asynchronous-unwind-tables', '-fno-unwind-tables', '-fno-ident',
              '-fstack-usage', '-Wall', '-Wextra', '-Werror', '-pedantic', *guard.FLAGS]
+    # Target layout, not host-pointer sizes. These arrays only encode sizeof
+    # for nm; they are never linked into the executable or firmware.
+    layout = out / 'layout.c'
+    types = ('bs_preview_guard', 'bs_preview_session', 'bs_edit_candidate', 'bs_edit_transaction')
+    layout.write_text('#include "edit_transaction.h"\n' + ''.join(
+        'char layout_' + name + '[sizeof(struct ' + name + ')];\n' for name in types))
+    layout_obj = out / 'layout.o'
+    run('m68k-elf-gcc', *flags, '-I', str(ROOT), '-c', str(layout), '-o', str(layout_obj))
+    sizes = {parts[3][7:]: int(parts[1], 16)
+             for line in run('m68k-elf-nm', '-S', str(layout_obj)).splitlines()
+             if len(parts := line.split()) == 4 and parts[3].startswith('layout_')}
+    if set(sizes) != set(types):
+        p.error('Target layout symbols missing.')
     objects = []
     for name in ('planner', 'planner_job', 'pcm_reader', 'preview_guard', 'preview_session', 'marker_edit', 'edit_candidate', 'edit_transaction', 'test_edit_transaction'):
         obj = out / (name + '.o')
@@ -66,6 +79,8 @@ def main():
         'compiler': run('m68k-elf-gcc', '--version').splitlines()[0], 'flags': flags,
         'objectSha256': {o.name: sha(o) for o in objects},
         'runnerSha256': sha(a.executable), 'codegenGuard': 'passed', 'freestandingLink': True,
+        'callerOwnedBytes': sizes, 'callerOwnedTotalBytes': sum(sizes.values()),
+        'storageLimit': 'excludes native backend, menu, allocator, stack, code and PCM pool; not a qualified RAM placement',
         'transactionSize': run('m68k-elf-size', str(out / 'edit_transaction.o')).splitlines(),
         'transactionStackUsage': (out / 'edit_transaction.su').read_text().splitlines(),
         'exitCode': r.returncode, 'stdout': r.stdout.splitlines(),

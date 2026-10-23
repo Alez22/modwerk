@@ -101,11 +101,11 @@ static int ready(uint32_t retained) {
         bs_candidate_begin(&f.candidate, &f.session, table) == BS_CANDIDATE_READY;
 }
 static enum bs_provider_reply policy(void *ctx, const struct bs_source_snapshot *source,
-                                    const struct bs_plan *plan) {
+                                    const struct bs_marker_table *desired, const struct bs_plan *plan) {
     struct fixture *p = (struct fixture *)ctx;
-    (void)plan;
     if (!p->held || p->transaction.state != BS_TRANSACTION_ACTIVE ||
-        source->sample_id != p->live.sample_id) p->bad = __LINE__;
+        source->sample_id != p->live.sample_id ||
+        desired != (plan ? &p->transaction.edit.after : &p->transaction.edit.before)) p->bad = __LINE__;
     ++p->policy_calls;
     if (p->policy_invalidate) bs_guard_invalidate(&p->guard);
     if (p->policy_mutate) ++p->table.records[63].start;

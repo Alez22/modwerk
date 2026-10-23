@@ -132,7 +132,7 @@ enum bs_transaction_reply bs_transaction_apply(struct bs_edit_transaction *t,
     } else if (!t->edit.added) result = BS_TRANSACTION_NO_CHANGE;
     else {
         snapshot_copy(&t->snapshot, &s->snapshot);
-        policy = b->policy(t->context, &t->snapshot, &c->plan);
+        policy = b->policy(t->context, &t->snapshot, &t->edit.after, &c->plan);
         if (policy != BS_PROVIDER_READY)
             result = policy == BS_PROVIDER_PENDING ? BS_TRANSACTION_WAIT : BS_TRANSACTION_REJECTED;
         else if (bs_candidate_result_locked(c, confirmed, &t->edit)) {
@@ -159,7 +159,7 @@ enum bs_transaction_reply bs_transaction_undo(struct bs_edit_transaction *t, uin
     t->state = BS_TRANSACTION_ACTIVE;
     result = bs_guard_valid(t->guard, &t->undo) ? inspect(t, 1) : BS_TRANSACTION_STALE;
     if (result == BS_TRANSACTION_OK) {
-        policy = t->backend->policy(t->context, &t->snapshot, 0);
+        policy = t->backend->policy(t->context, &t->snapshot, &t->edit.before, 0);
         if (policy != BS_PROVIDER_READY)
             result = policy == BS_PROVIDER_PENDING ? BS_TRANSACTION_WAIT : BS_TRANSACTION_REJECTED;
         else {

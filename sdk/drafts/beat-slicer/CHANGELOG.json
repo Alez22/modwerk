@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.17-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Development draft: check Undo safety against the complete slice table being restored, including its old end and loop points.",
+      "Development tests now connect Flex previews to Apply/Undo and stock editor refresh; these remain isolated fixtures.",
+      "Development tooling now checks historical source evidence and exercises stock file formats and normal editor-worker completion.",
+      "Known issue: not installable; native ownership, atomic publication, playback safety, USB and device qualification remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.16-experimental",
     "date": "2026-10-23",
     "changes": [

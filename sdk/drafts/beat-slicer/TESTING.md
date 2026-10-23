@@ -1046,7 +1046,7 @@ replacement paths, Static streaming, concurrent ownership, actual module UI,
 Apply/Undo, USB, physical save/reboot behavior or audible playback.
 
 The full-stock observer report binds source commit `ba7c7c99e6b1f815db65e40b6cdb30c9843f4eba`,
-pinned by the current metadata. Its native prototype inputs are unchanged from
+pinned by that report. Its native prototype inputs are unchanged from
 the earlier source-bound target reports.
 
 ## Apply/Undo coordinator (0.1.16)
@@ -1074,4 +1074,131 @@ For ColdFire, use `transaction_native.py` and `candidate_native.py` with the pin
 `beat_slicer_job_probe` and toolchain/machine lock documented above. Binaries and
 raw logs stay private. `evidence/transaction-host.json`, `transaction-native.json`,
 `transaction-candidate-host.json` and `transaction-candidate-native.json` bind
-source commit `c5979beacdfd40b0092aa43f2183df133734b58b`; metadata pins it as evidenceRevision.
+source commit `c5979beacdfd40b0092aa43f2183df133734b58b`; their historical bindings remain unchanged.
+
+## Stock-backed transaction chain and refresh (0.1.17)
+
+The revised playback-policy interface receives the complete desired table for
+both Apply and Undo. Undo can therefore inspect old end/loop points instead
+of accidentally assessing only the current post-Apply snapshot. The generic
+transaction suite still passes host ASan/UBSan and compiled ColdFire execution.
+
+`test_transaction_stock.c` joins the compiled Flex copy, decoder, resumable
+planner, preview, candidate and transaction coordinator to an original fixture
+publisher. It writes synthetic settings, then runs the real 1.40C pointer,
+selection and redraw routines. The target run passes 32 Apply/Undo pairs across
+four packed pool formats, slots 0/127, exact/smooth and empty/retained layouts,
+plus eight publication/rollback cases. All 128 stock refresh sequences execute
+without a NULL read; complete settings and PCM hashes restore exactly. Existing
+copy/preview/staleness regressions run first. Host sanitizers pass the same
+chain with synthetic lookup and without stock refresh.
+
+A separate isolated refresh matrix reproduces 16 stale-row NULL dereferences
+when an authored table reduction leaves the old selection active. Retiring
+selection before rebuilding row bindings avoids them in all 16 corresponding
+cases. Another 32 empty/populated, Flex/Static and cursor-inside/outside cases
+preserve complete settings and select only a containing row. The viewport
+callee is mocked in this hazard probe. This is an integration-order trap, not
+a demonstrated stock UI defect, installed Undo or hardware result.
+
+The corrected coordinator has 2,690 text bytes and no object data/BSS. ColdFire
+`sizeof` measurements reserve 4,056 bytes per transaction journal, 3,096 for a
+preview session, 2,892 for a candidate and 48 for its guard: 10,092 total before
+the native backend, menu storage, code, stack, allocator and PCM pool. These
+caller-owned structures require actual contiguous RAM planning; object BSS=0
+does not mean the service uses no RAM. Local stack figures exclude callees.
+
+The fixture's lock, publication stores, rollback and playback permission are
+synthetic. No native reader/writer exclusion, auxiliary-state rollback, voice
+containment, click-free playback, USB installation or persistence is qualified.
+Reproduce using `test_edit_transaction.py`, `test_transaction_stock.py`,
+`transaction_native.py`, `transaction_stock_native.py` and `stock_probe.py
+--kind refresh`, with the pinned toolchain/emulator and serialized machine lock.
+
+## Full stock format matrix (0.1.17 research)
+
+`boot_formats.py` passes eight normal stock project/file loads: mono/stereo,
+16/24-bit originals and 44.1/48 kHz WAV headers. Every 44,100-frame PCM payload
+matches independent signed width conversion. With this project's current Flex
+setting, all loaded pools are 16-bit (formats 2/3); 24-bit low bytes truncate
+arithmetically. Mono uses 15 pages, stereo 29. All other 52 project files and
+all source/repacked card images remain unchanged.
+
+Within each rate pair, the complete controls, settings and PCM are identical.
+Those fields cannot identify the original file rate in these cases. Actual
+playback clock/resampling, native metadata discovery, Static streaming and
+live ownership remain open. See [BOOT_OBSERVATION.md](BOOT_OBSERVATION.md)
+for exact reproduction and private-artifact handling.
+
+The separate `boot_formats24.py` variant changes only the private project's
+`LOAD_24BIT_FLEX` text setting in working/saved copies. Four further normal
+stock loads retain 16-bit mono/stereo and 24-bit mono/stereo exactly, including
+nonzero 24-bit low bytes. Formats 2/3/0/1 use 15/29/22/44 pages respectively.
+All other project bytes and source/variant card hashes remain unchanged.
+This authored settings variant does not claim a native settings-dialog/save
+test, Static access, playback or hardware qualification.
+
+## Auditing retained evidence
+
+`python3 -B sdk/drafts/beat-slicer/audit_evidence.py` verifies each report's
+recorded source hashes against the explicit Git commit in `evidence-sources.json`.
+The index includes historical revisions; comparing every old report only with
+today's source would erase their meaning. Wrong source pins, missing inventory
+entries and altered diagnostic receipts are refused in negative checks.
+
+`native-import.json` is explicitly excluded: that early object-only diagnostic
+had unresolved runtime helpers and its intermediate `native_probe.py` wrapper
+is absent from Git. Its receipt is retained and hash-bound as a diagnostic,
+not a verified build or source binding. Later freestanding/executed planner
+reports have their own exact committed source. This audit checks provenance;
+it does not rerun binaries or establish native integration or hardware results.
+
+## Full stock reverse writer lifecycle (0.1.17 research)
+
+`boot_writer.py` reproduces two normal EDIT → SELECT ALL → REVERSE SELECTION
+actions after verifying the actual Flex editor kind/slot and selected native
+menu callback. The worker enters reverse, returns success, posts its completion,
+and the real UI consumes it; the subsequent waveform job also completes. The
+UI busy flag changes 1→0 on the UI task, while the dirty store occurs on the
+distinct engine task. A separate pre-edit waveform completion is classified
+explicitly rather than attributed to the reverse.
+
+Complete slot controls stay identical despite changed PCM. Prepared sample
+settings, including all marker records, also stay identical. Thus the full
+scheduled path reinforces the earlier isolated result: slot busy/counter
+fields alone cannot provide PCM generation or whole-writer exclusion.
+
+The initial ordinary-reversal oracle refused the result. SELECT ALL passed
+end argument 44,100 for a 44,100-frame sample, and the observed stock reverse
+included frame 44,100 from the last allocated page. The final test explicitly
+checks that inclusive endpoint model against independently reversed frame
+records, including the one extra allocated frame. A second reverse restores
+every logical PCM frame and that extra frame exactly. This is not a passed
+ordinary exclusive-end reversal test or a confirmed hardware defect. Research
+inspection of the allocated end frame does not authorize a module reader to
+exceed the logical sample extent. Both source/copied cards remain unchanged.
+
+The two earlier trace attempts refused an unclassified pre-edit waveform job;
+they are not passing evidence. The normal-reversal mismatch is retained in
+the documented limitation above. No native Beat Slicer service, concurrent
+reader lock, audible playback, save or hardware behavior is qualified.
+
+## Full stock Static load and clear (0.1.17 research)
+
+`boot_static.py` passes the normal quick-assign/browser load of the original
+16-bit stereo 44.1 kHz WAV into Static slot 0. Real loader/post-load calls run
+in order; the control record reports 44,100 frames, format 3, a present file
+handle and data offset 44. The actual AED binding names Static slot 0, with
+whole-source trim, no slices and 120 BPM.
+
+FUNC+PLAY opens CLEAR SLOT. The complete control record remains unchanged
+while that prompt waits. Confirming YES runs stock release, changes status to
+unavailable, clears frame extent, retires the handle and advances the release
+counter. Complete Flex PCM, controls and settings remain identical after both
+Static load and clear. Source/copied card hashes remain unchanged.
+
+This proves one normal load/editor/clear lifecycle in the pinned emulator.
+It does not read Static PCM through a new adapter, establish a safe file lease,
+cover concurrent playback/card writes, measure streaming latency, or qualify
+hardware/persistence. The earlier attempt refused an incorrect input identity
+before boot; only the completed reproduction is retained as passing evidence.

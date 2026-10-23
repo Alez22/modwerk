@@ -63,9 +63,15 @@ These are remaining tasks, not implemented behavior.
    Host and compiled-target tests cover complete previews and stale/cancel/error
    handling; native callbacks/locking remain absent. Flex replacement-refusal
    probes cover real nested release and allocator behavior with filesystem/header
-   mocks. A full stock-emulator load now verifies one original 16-bit stereo
-   44.1 kHz WAV and its real pool geometry/PCM. Successful replacement, other
-   formats/rates and complete live caller coverage remain open.
+   mocks. Full stock-emulator loads now verify original mono/stereo 16/24-bit
+   files at 44.1/48 kHz and their real pool geometry/PCM. This project's Flex
+   setting converts 24-bit files to 16-bit; an authored project variant also
+   verifies real 24-bit retention and all four loaded pool formats. Original
+   file rate is not recovered from controls/settings. Target clock/source
+   binding, successful live replacement and complete caller coverage remain open.
+   A normal Static browser load/editor/confirmed-clear path now verifies file
+   handle lifetime and Flex isolation in the full stock emulator; it provides
+   no leased Static PCM reader or streaming deadline.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or
@@ -126,6 +132,9 @@ registers the qualified module; the live changelog validator rejects unlisted ID
 
 The portable [transaction coordinator](EDIT_TRANSACTION.md) now exercises Apply
 and Undo confirmation, complete history, failure rollback contracts and source
-quarantine against a synthetic backend. Its backend must provide actual atomic
+quarantine against a synthetic backend. A compiled Flex-to-transaction fixture
+also executes stock row-binding, selection and redraw refresh. It retires the
+old selected row before rebuilding a shorter table; this order avoids the
+isolated stale-row dereference, but supplies no live exclusion. Its backend must provide actual atomic
 publication and complete auxiliary rollback under a verified reader/writer
 boundary; no installed service or native transaction is supplied by this draft.

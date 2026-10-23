@@ -205,3 +205,23 @@ allocation ownership rules have been established.
 
 Do not enable a partially covered provider. These observations refine
 [BASE_CONTRACT.md](BASE_CONTRACT.md); they do not satisfy its admission gate.
+
+## Normal panel-to-worker reverse path (0.1.17)
+
+`boot_writer.py` adds a full stock 1.40C emulator path with real frame/task
+scheduling and both DSPs, using only normal panel actions on a disposable
+project. Two reverse operations enter `0x40095268`, return through `0x4008594c`,
+post through `0x40084110`, and reach the real UI callback `0x40075564`; waveform
+completion `0x40077a5c` follows. Editor busy is set and cleared on the UI task;
+the dirty store occurs on the engine task. The complete slot control record
+remains unchanged even though every logical PCM frame differs after the first
+operation. The second restores the original PCM. This confirms one successful
+UI completion path, not missing/exhausted completion handling or all writers.
+
+The observed whole-selection end argument is inclusive in this routine and
+includes one allocated frame beyond the logical source. The test models and
+checks that explicit endpoint behavior; ordinary frame-count reversal failed
+its independent oracle. Do not borrow this convention for the module's bounded
+reader, or call it a hardware defect from emulator evidence alone. See TESTING.md
+for the classification of separate waveform work, exact metadata scope and
+remaining native ownership/playback limits.

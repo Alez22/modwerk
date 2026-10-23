@@ -67,7 +67,7 @@ def main():
              'pcm_reader.c', 'preview_guard.c', 'preview_session.c', 'marker_edit.c',
              'marker_edit.h', 'edit_candidate.c', 'edit_candidate.h', 'flex_copy.c', 'flex_copy.h', 'flex_lookup.S', 'preview_session.h',
              'preview_guard.h', 'pcm_reader.h',
-             'test_flex_fixture.h', 'test_flex_copy.c', 'test_flex_chain.c', 'flex_chain_native.py', 'stock_probe/flex_native_probe.cpp',
+             'test_flex_fixture.h', 'test_chain_fixture.h', 'test_flex_copy.c', 'test_flex_chain.c', 'flex_chain_native.py', 'stock_probe/flex_native_probe.cpp',
              'stock_probe/CMakeLists.txt')
     report = {
         'scope': 'full compiled Flex preview/candidate chain with real stock lookup/gain: raw-copy regression suite, 32 complete chains, four staleness cases; synthetic ownership/identity/rate/tempo',

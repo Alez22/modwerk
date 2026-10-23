@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.16-experimental",
+  "version": "0.1.17-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Host and compiled ColdFire tests cover planning, bounded decoding, admission, preview sessions, complete marker preservation, preview-bound candidates, Apply/Undo orchestration against a synthetic publication backend, and menu lifetime. Compiled Flex copying and the full preview/candidate chain execute against real stock lookup and gain with synthetic ownership. Isolated stock probes cover editor publication, storage failures, pool behavior and writer/worker/recorder paths. A full stock-emulator project load now verifies one original 44.1 kHz stereo 16-bit sample, its complete marker table and four host previews/preflights while leaving the card unchanged. Reports retain exact source/input hashes and explicit mocks/limits in TESTING.md. No installed Beat Grid action, complete native writer exclusion, live source service, atomic Apply/Undo, card/browser/USB package, audible smoothing or physical persistence qualification exists.",
+    "summary": "Host and compiled ColdFire tests cover planning, bounded decoding, admission, preview/candidate coordination, Apply/Undo orchestration and menu lifetime. The compiled Flex transaction chain runs actual stock lookup and editor refresh with synthetic ownership/publication; full settings and PCM restore after Undo. Isolated probes identify selection-retirement ordering, storage failures and writer/worker/recorder behavior. Full stock project loads verify eight original WAV format/rate combinations in a 16-bit Flex pool and four further loads under an authored 24-bit-retaining project setting; the original file rate is not distinguished by the observed controls/settings. Normal stock reverse and Static load/editor/confirmed-clear paths also run, with the observed reverse endpoint limitation stated separately. Reports retain exact source/input hashes and explicit mocks/limits in TESTING.md. No installed Beat Grid action, complete native writer exclusion, live source service, atomic Apply/Undo, card/browser/USB package, audible smoothing or physical persistence qualification exists.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -113,6 +113,8 @@
       "python3 -B sdk/drafts/beat-slicer/test_flex_chain.py",
       "python3 -B sdk/drafts/beat-slicer/test_editor_menu.py",
       "python3 -B sdk/drafts/beat-slicer/test_edit_transaction.py",
+      "python3 -B sdk/drafts/beat-slicer/test_transaction_stock.py",
+      "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
     "evidenceRevision": "c5979beacdfd40b0092aa43f2183df133734b58b"
