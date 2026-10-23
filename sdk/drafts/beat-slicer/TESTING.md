@@ -686,3 +686,52 @@ The 0.1.8 reports match source commit `9e10767a26b931bbdeaefa573e7b532860a58047`
 by `tests.evidenceRevision`. Earlier reports remain bound to their historical
 source. The stale fork-origin changelog comparison remains a known failure;
 current-upstream readiness validation is required before push.
+
+## Complete marker candidates (0.1.9)
+
+`evidence/marker-host.json` records the pure preflight selftest with host ASan/
+UBSan. `evidence/marker-native.json` records the same selftest compiled with
+pinned GCC 16.2.0, accepted by the shared code-generation guard, linked without
+runtime helpers and executed with preserved registers. The marker object has
+1218 text bytes and no object data/BSS; reported local stack is 0–48 bytes,
+excluding complete caller/return costs and any native publication path.
+
+- All 2,144 combinations of 1–64 proposed slices and 0–N retained prefix records
+  preserve existing starts, ends, loops and ordinals; new endpoints/disabled
+  loops and untouched inactive rows are checked independently.
+- 386 before/after mismatch checks cover each field of every active/inactive
+  record plus the count. In-memory restoration recovers the entire original
+  table, including overwritten inactive rows.
+- Missing/renumbered records, capacity, duplicate/out-of-range starts, invalid
+  ends/loops, overlap, short regions and unsupported extents refuse before any
+  output write. Short samples, signed-range edges and null arguments are covered.
+
+`evidence/stock-markers.json` adds 24 source-bound mixed host/stock fixtures:
+Flex/Static, slots 0/127, 4/64 candidate slices, and empty/half/full retained
+prefixes. The host preflight prepares each table, then real stock sort and
+sanitation execute against synthetic memory. All active/inactive records, count
+and trim/loop remain exact; another slot stays untouched. Tempo/name/track-update
+callees are explicitly mocked. Model restoration writes synthetic memory, not
+stock Undo. Both pinned EMAC/peripheral gates pass.
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_marker_edit.py --output NEW_HOST.json
+```
+
+Inside the existing private source-tools mounts, configure CMake as above and
+freeze source inputs through execution:
+
+```sh
+cmake --build /output/build --target beat_slicer_marker_probe beat_slicer_job_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind markers \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_marker_probe \
+  --output /evidence/NEW_STOCK_MARKERS.json
+python3 -B /source/sdk/drafts/beat-slicer/marker_native.py \
+  --output /evidence/NEW_NATIVE_DIRECTORY --executable /output/build/beat_slicer_job_probe
+```
+
+The conservative preflight policy remains subject to owner review. These results
+do not prove every stock endpoint case, pattern reference playback, editor/voice
+refresh, atomic Apply, stock Undo/history, saved/working-copy publication, audio
+smoothing, USB installation or physical persistence. No live settings are changed.

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.8-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.9-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -88,6 +88,11 @@ snapshots and the staged reader through a serialized backend interface. It handl
 waiting, cancellation and stale results on host and compiled ColdFire. The actual
 stock callbacks and synchronization are still missing. Failed-load probes also
 confirm that replacement errors can already have released the old sample.
+
+The [marker candidate preflight](MARKER_EDIT.md) now preserves complete existing
+records and slice numbers, refuses incompatible additions and retains inactive
+rows for a future exact Undo. It prepares memory snapshots only; native Apply,
+Undo and the playback acceptance gate remain unimplemented.
 
 ## Tests and measurements
 

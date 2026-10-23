@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.9-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted development: prepare complete marker before/after tables without changing live settings. Preserve existing start/end/loop values and ordinals, retain inactive rows for exact restoration, and reject missing or renumbered records, overlaps, short regions and unsupported bounds before writing output. New records use the next start or trim end with looping disabled; this conservative policy still requires owner review.",
+      "Host sanitizers and compiled ColdFire tests pass 2,144 retained-prefix candidates, 386 full-table stale comparisons and refusal/boundary cases. Twenty-four synthetic Flex/Static candidates remain unchanged through real stock sorting/sanitation with explicit tempo/name/track-update mocks. All 64 records survive the in-memory restoration model.",
+      "Candidate preparation and before/after equality are not native Apply/Undo, source identity or synchronization. Full session binding, working/saved-copy publication, playback smoothing, native backend, browser/card/USB lifecycle and physical qualification remain pending; no installable module is released."
+    ]
+  },
+  {
     "version": "0.1.8-experimental",
     "date": "2026-10-23",
     "changes": [

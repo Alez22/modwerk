@@ -22,6 +22,12 @@ ordinals; it deliberately cannot apply every merged grid on a sliced sample.
 The owner must review this restriction before it is represented as supported
 module behavior. Preview can still show why a proposed merge was refused.
 
+The [marker preflight prototype](MARKER_EDIT.md) now enforces that conservative
+policy on complete in-memory tables, preparing before/after snapshots without
+native writes. It retains inactive rows for exact restoration and exposes only
+table equality checks for future history validation. Native session binding,
+atomic publication, playback qualification and actual Undo remain absent.
+
 Beat Slicer submits requested additions, not replacement records. The base
 retains existing records itself, constructs new records with verified stock
 endpoint conventions, and validates minimum lengths and total capacity.

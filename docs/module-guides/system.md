@@ -85,6 +85,12 @@ replacement starts and keep exclusion across nested release until the outer load
 returns. These fixtures mock filesystem/header IO and do not qualify actual file
 loading or persistence.
 
+An exact marker Undo snapshot needs inactive rows too: adding slices overwrites
+previously inactive record slots. Preserve the full table and count, and compare
+the complete expected after-state before restoring it. Beat Slicer's candidate
+tests cover this in memory; such equality still needs source identity, ownership
+and verified native publication/persistence around it.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

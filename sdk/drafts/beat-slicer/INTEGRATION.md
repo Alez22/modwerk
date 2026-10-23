@@ -63,6 +63,11 @@ These are remaining tasks, not implemented behavior.
    also mutation before checksum/short-read failure. Those parsers are not
    atomic transaction services. Stock sanitation can alter existing records;
    preflight must refuse such changes before any live write.
+   `marker_edit.c` now prepares complete before/after tables under a conservative
+   preserve-ordinals policy, retains inactive rows and refuses incompatible plans
+   without output mutation. Its full-table comparisons are tested on host/target;
+   accepted synthetic candidates also survive stock sort/sanitation. These are
+   preparation/history primitives, not native Apply/Undo or qualified playback.
 5. Implement verified short playback attack/release smoothing at the correct
    source boundary, through base events where shared. Test reverse, RATE/PTCH,
    timestretch, retriggers, slice locks, loops, arbitrary jumps, active voices,
