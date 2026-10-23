@@ -263,6 +263,32 @@ How it hit the loader:
 
 Any other code that masks at level 5 or above must stay well under 200 µs.
 
+**Work inside the frame interrupt counts against the same deadline.** POLY8 renders its voices in the frame interrupt.
+On the owner's MKII (23 October 2026, RAM-booted twin of the beta base without `--cached-modules`), a build with its
+voice limit switched off took about 34,000 DTIM3 counts (257 µs) of POLY work in one frame at six voices, and the
+frames stopped for good (stall record "frames stopped"). Bound what a module does per frame in the interrupt and
+measure it with DTCN3 (`0xfc07c00c`, 132 MHz, about 47,900 counts a frame); POLY8 0.3.1 sheds voices above 26,000.
+
+**Uncached module code is slow in the interrupt, and so is its data.** Without `--cached-modules` every instruction
+and every load or store of a module goes to SDRAM. POLY8 0.3.0 cost about 13 points of CPU per voice there and about
+3.5 with cached module code (same day, same twin pair). Running only its tight loops from the cached alias barely
+helped: the buffers' uncached reads dominated. A module can run its own hot path from the cached alias (its address
+minus `0x08000000`) only if all of these hold, as POLY8 0.3.1's `polyphony.s` does:
+- its state that other code also touches stays on uncached addresses: absolute `SYM:l`, never PC-relative from code
+  running cached, or a later write through the uncached alias leaves a stale line;
+- every line it touched through the cached alias is pushed before the interrupt returns (`cpushl %dc` on every way of
+  the line's set, as the base's `modwerk_machine_flush_data`), so no dirty line survives a removal;
+- it invalidates the instruction and branch caches whenever its own address changes (stock's CACR value plus ICINVA,
+  `0xa40ce100`, as `modwerk_machine_invalidate_code`).
+A push costs about 30 counts for a dirty line: caching a buffer that is read many times pays, caching a record touched a
+few times barely does.
+
+**A starved UI task freezes the CPU meter and swallows key releases.** At 100 % CPU the `stats` CPU word stops
+changing, because the UI tick computes it, and panel key-ups queue behind the UI task. Notes whose release would end
+the overload then never end: POLY8 0.3.0 froze the panel for about 33 s at four held voices. Read overload from the
+diagnostics log's `freeze` and `hot` records or the module's own counters, not from the meter, and let a module that
+works in the interrupt notice when the UI stops ticking.
+
 **A switch's masked span grows with the module's stock-code sites.** The loader used to check, write and read back
 every site byte through the uncached alias inside the mask, about 6.5 µs a site: Play Modes (35 sites) held frames
 229 µs, FM Synth (24) 203 µs, Euclid (3) 25 µs (development twins of `99336d35`, 16 October 2026). With both in a set,

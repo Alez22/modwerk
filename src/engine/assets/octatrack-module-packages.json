@@ -173,14 +173,14 @@
       "abi": 8,
       "features": 131,
       "sites": 23,
-      "copies": 6,
+      "copies": 5,
       "fills": 0,
-      "version": "0.3.0-experimental",
+      "version": "0.3.1-experimental",
       "name": "POLY8",
       "module": "9fa85eef",
-      "bytes": 57340,
-      "sha256": "b63c3b44ce3218a5e36077e4f7b192cd3f9eb3a1882647c45b7e7a6e19430212",
-      "path": "octatrack-modules/poly8/0.3.0-experimental.mwrm"
+      "bytes": 59308,
+      "sha256": "dc2ce372af73b93ef9e34a1c05c8ad18269631e0f20ed4f94e461310990466b9",
+      "path": "octatrack-modules/poly8/0.3.1-experimental.mwrm"
     },
     {
       "id": "vector",
