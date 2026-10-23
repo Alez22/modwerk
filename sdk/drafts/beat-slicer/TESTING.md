@@ -1632,3 +1632,8 @@ tests, 37 SDK tests (one skipped), lint, types, build and catalogue/import gates
 The mandatory fork-base invocation still fails on inherited CHANGELOG.md history
 from stale origin/main. Final prose-only follow-ups use the lightweight catalogue,
 licence, import and provenance checks; no hardware or publication claim is added.
+
+The ten `ui25-*`, `ui-text25-*` and `waveform25-stock.json` receipts bind
+source `ebf3634483db5971fc92cfdd2fdae7eb3fd661c3`. They retain raw report content
+and exact input hashes; earlier receipts continue to bind their own historical
+source revisions. No binary rerun is implied by the provenance audit.
