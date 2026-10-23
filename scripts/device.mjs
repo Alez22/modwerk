@@ -464,7 +464,9 @@ if (command === 'serve') {
         const session = await UploadSession.connect(transport, identity.base, { timeoutMs: 10000 })
         const phase = session.status.phase
         console.log(`found ${state(session.status)}`)
-        if (session.adopt()) await session.cancel() // staged by the session that lost its reply
+        // A published candidate (pending, trial, recovery, publishing) is rolled back, a staged one cancelled, as the site's cleanUp does.
+        if (['pending', 'trial', 'recovery', 'publishing'].includes(phase) && session.adopt()) { await stopping(() => session.rollback()); await session.leaveUploadMode() }
+        else if (session.adopt()) await session.cancel() // staged by the session that lost its reply
         else if (phase === 'ready') await session.leaveUploadMode() // a published candidate: the base rolls it back after 10 s of quiet
         console.log(`now ${state(session.status)}`)
       } else if (verb === 'try' || verb === 'remove') {

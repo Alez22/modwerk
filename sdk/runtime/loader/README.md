@@ -302,10 +302,10 @@ torn writes. Exact-build hardware, audio and reboot persistence remain open.
 - Activation needs nothing playing or recording. A bus reset or unplug rolls
   back anything not accepted (the controller's disconnect).
 
-## Cached modules (prototype)
+## Cached modules
 
 A base built with `MODWERK_CACHED_MODULES` (the Octatrack's `build_core.py --cached-modules`,
-off by default; for a development twin to measure) places, relocates and runs modules
+part of its beta base, `npm run octatrack:base -- --beta`) places, relocates and runs modules
 through the pool's own cached alias instead of the uncached one, so a module's loads
 and stores of its own code and data hit the data cache instead of each going to memory.
 Neither the ledger nor a module uses the uncached alias of the pool, so neither alias
