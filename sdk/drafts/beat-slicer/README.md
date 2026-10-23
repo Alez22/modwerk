@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.20-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.21-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -98,7 +98,9 @@ must cover those writers too. No device-testable package is available yet.
 
 The [preview session](PREVIEW_SESSION.md) now connects admission, complete metadata
 snapshots and the staged reader through a serialized backend interface. It handles
-waiting, cancellation and stale results on host and compiled ColdFire. The actual
+waiting, cancellation and stale results on host and compiled ColdFire. Private
+planning and decoding run outside the source lock; a copy reacquires ownership
+and revalidates before touching PCM. The actual
 stock callbacks and synchronization are still missing. Failed-load probes also
 confirm that replacement errors can already have released the old sample.
 

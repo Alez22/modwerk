@@ -1,9 +1,9 @@
 # Beat Slicer testing
 
-Current draft: 0.1.20-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.21-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
-See the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
+See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
 [stock-style commit results](#stock-style-commit-and-clearing-0118).
 
 Historical 0.1.4 record: the prior 0.1.3 evidence source was
@@ -1405,3 +1405,37 @@ locked (zero outside). These are instruction observations of this fixture's
 byte-copy metadata backend, not physical latency or native Flex capture timing.
 The purpose is to verify moving private arithmetic/decoding outside source
 ownership while retaining all capture/copy and stale-result checks.
+
+
+## Private planning outside the source lock (0.1.21)
+
+Planner initialization/transitions and decoding an owned PCM block now happen
+after source ownership is released. Before a new PCM copy, the session reacquires
+and revalidates; it still validates immediately after the copy and before
+returning a result. The API remains single-owner/non-reentrant. READY is not an
+Apply authorization, and postchecks cannot repair an unsafe backend read.
+
+Six host sanitizer suites and seven compiled ColdFire runs pass: session,
+candidate, commit, Flex chain, stock-backed commit/refresh and metadata, plus
+the lock observer. Existing 120 commit/clear cycles, 194 internal rollback
+points and the 300 actual stock refreshes remain passing. Historical Undo
+regressions remain research and do not add a player control.
+
+Nine new interleavings change guard, marker metadata, extent or encoding after
+release, or force reacquisition/pending validation. Changes before a copy cause
+no source read; changes after a copy retire the session before a result can be
+used. Retries preserve the pending request, an unselected tempo change remains
+allowed, output stays untouched on refusal, and lock/unlock counts balance.
+
+The compiled suite observes 4,986 lock sections, longest 7,293 executed
+instructions, with zero reader begin/step/supply calls locked and 4,898 unlocked.
+The prior suite's baseline was 9,808 instructions and 4,747 locked calls; the
+new suite includes the nine additional interleavings. Its metadata backend is
+synthetic and byte-copies a snapshot, so neither maximum is a native Flex timing
+budget. Physical cache/latency and whole-service budget remain unmeasured.
+
+The session component is 2,828 text bytes, zero data/BSS; compiler local stack
+reports range from 0 to 164 bytes, excluding callees and the full call chain.
+No native backend, package, USB or hardware qualification is introduced.
+The baseline receipt is bound to `79cde45170681eb6abda0e249456a78cec416654`;
+new result receipts will bind the source commit after validation.

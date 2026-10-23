@@ -158,6 +158,13 @@ slot also did not assign it to the track until the slot was confirmed. Bind a
 preview to the editor's actual kind/slot, not merely to a successfully loaded
 source. These panel observations still need physical qualification.
 
+Keep arithmetic and decoding of owned PCM copies outside the source critical
+section. Reacquire and revalidate before the next live read; the validation from
+before an unlocked interval is insufficient. Test writers becoming runnable at
+each release, including after a successful copy. Instruction counts from a
+synthetic backend can verify lock scope, but do not establish physical interrupt
+latency or a safe native time budget.
+
 Keep loader ownership and sample ownership separate. The current
 [`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader
 stability while deliberately allowing real-time interrupts. It is not, by

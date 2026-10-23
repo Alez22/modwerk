@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.20-experimental",
+  "version": "0.1.21-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "A compiled whole-command observer now covers isolated stock queue/edit/completion cases. It retires prior work before waiting and invalidates previews before dispatch, including missing completion and failed commands. The reserved-memory full-boot candidate also passes two stock reversals and five edit/waveform command lifetimes, with exact PCM restoration and intact code/canaries. The earlier metadata, commit and stock-clearing evidence retains its exact sources. This remains an unlisted draft: complete writer ownership, installed controls, atomic publication, playback policy, browser/USB packages and hardware qualification are unfinished.",
+    "summary": "Preview initialization, planner transitions and copied-PCM decoding now execute outside the source lock. Nine lock-release interleavings and the host/ColdFire preview, candidate, metadata and commit regressions pass; native instruction observation finds zero planner/decoder calls under the lock. Native stock-worker observation and the reserved-memory full-boot reversal evidence retain their exact sources. Complete writer ownership, installed controls, atomic publication, playback policy, browser/USB packages and physical qualification remain unfinished.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

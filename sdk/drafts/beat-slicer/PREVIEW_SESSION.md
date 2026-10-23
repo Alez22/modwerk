@@ -20,7 +20,13 @@ slots are refused. The backend remains responsible for actual source readiness
 and stable ownership. Unsupported encodings, identities or extents are refused.
 
 The session validates that snapshot before each bounded transition, after each
-copy and before publishing a finished plan. It compares all active marker
+copy and before publishing a finished plan. Initialization, planner transitions
+and decoding copied PCM run outside the source lock, using session-owned data.
+A step needing PCM reacquires the lock and validates again before copying: the
+first validation cannot authorize access after an unlocked interval. A failed
+reacquisition returns WAITING with the request intact. A source change after
+copy release invalidates subsequent step/result access; decoding the already
+owned bytes does not read the changed source. It compares all active marker
 start/end/loop fields, not just starts or the stock slot counter. Only the
 selected tempo value participates in comparison; a guard invalidation still
 retires everything conservatively. A changed guard or metadata snapshot ends
@@ -44,7 +50,10 @@ Host sanitizers and the same selftest compiled for ColdFire cover 32 full
 previews (16/24-bit, mono/stereo, both byte orders, both tempo sources and both
 boundary modes), 22 metadata/guard invalidations, chosen-tempo behavior, lock
 and source waiting, cancellation/restart, mutation during copy, malformed
-replies and unsupported-source cases. See [TESTING.md](TESTING.md).
+replies and unsupported-source cases. Nine added lock-release interleavings
+cover guard/metadata/extent/format changes, blocked reacquisition, pending
+revalidation and an unselected tempo change. Compiled instruction observation
+checks that reader begin/step/supply execute unlocked. See [TESTING.md](TESTING.md).
 
 Missing native writer coverage, shared lock/callback implementation, Static
 streaming, scheduling and hardware timing keep this prototype disabled for live

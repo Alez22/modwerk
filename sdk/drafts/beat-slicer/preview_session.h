@@ -63,8 +63,11 @@ void bs_session_init(struct bs_preview_session *, struct bs_preview_guard *,
  * retains options; step retries. No hook, IO, source write or guard enablement.
  */
 enum bs_session_state bs_session_begin(struct bs_preview_session *, const struct bs_preview_options *);
-/* One bounded transition; WAITING never spins. The backend's duration still
- * needs a real-unit budget. READY is revalidated by step and result as well.
+/* One bounded transition; WAITING never spins. Private planner arithmetic and
+ * decoding run outside the source lock. Capture/copy remain locked, with a new
+ * validation after reacquiring for a copy. No concurrent session calls/reentry.
+ * Backend critical sections still need a real-unit budget. READY is revalidated
+ * by step and result as well.
  */
 enum bs_session_state bs_session_step(struct bs_preview_session *);
 void bs_session_cancel(struct bs_preview_session *);
