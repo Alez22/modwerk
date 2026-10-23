@@ -16,7 +16,7 @@
   "reserveBytes": 10487808,
   "uncachedAlias": 134217728,
   "stageAlignment": 4096,
-  "sourceCommit": "041a5edf8434276e0b5fbbcd1bb4a859fd7fbaf9",
+  "sourceCommit": "b28f5275fa014f66f63d60878bb500f69039dc88",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -46,6 +46,6 @@
     "poly8": "0.3.1-experimental",
     "output-matrix": "0.1.1-experimental",
     "quantize-live-rec-toggle": "0.1.0-experimental",
-    "apply-scene": "0.1.0-experimental"
+    "apply-scene": "0.2.0-experimental"
   }
 }
