@@ -448,11 +448,28 @@ export class OctatrackLink {
     if (!this.canUpdateBase()) throw new Error('The new base can’t write itself over USB, so install it from the card. A power cycle returns the Octatrack to its current base.')
     report('writing', 0)
     const connection = this.connection
-    await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => { await session.activate(); await session.accept() })
+    await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => {
+      await session.activate().catch(async error => {
+        const why = await this.writeRefused(error)
+        // A refusal leaves upload mode; a write that failed its verify stays for another try (flash.c).
+        if (error instanceof UploadDeviceError && error.status.result === 'backend') await session.cancel().catch(() => {})
+        throw why
+      })
+      await session.accept()
+    })
     report('restarting')
     const back = await this.returned(connection, signal)
     if (back !== expected) throw new Error(`After the write the Octatrack came back on base ${back.slice(0, 8)}, not the new one.`)
     report('done')
+  }
+  /** A write the running base refused (flash.c, "backend") or could not verify ("needs-recovery"), in words: the
+   * self-test record names its reason as 100 + flash.h's flash_refusal. */
+  private async writeRefused(error: unknown) {
+    if (!(error instanceof UploadDeviceError) || !['backend', 'needs-recovery'].includes(error.status.result)) return error
+    const refusal = (await this.transport?.selftest(false).catch(() => undefined))?.refusal ?? 0
+    if (refusal === 107) return new Error('The Octatrack wrote the new base but could not verify it. Keep it switched on and try again.', { cause: error })
+    if (refusal > 100 && refusal < 107) return new Error(`The new base refused to write itself (reason ${refusal}), so nothing was written. A power cycle returns the Octatrack to its current base and modules.`, { cause: error })
+    return error
   }
   /** One upload to the idle unit, then `then` on its session: a RAM boot's image, or the container the base writes. */
   private sendBase(base: string, data: Uint8Array, timeoutMs: number, progress: (fraction: number) => void, signal: AbortSignal | undefined, then: (session: LinkSession) => Promise<void>) {

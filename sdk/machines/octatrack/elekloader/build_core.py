@@ -104,6 +104,13 @@ BOOT_RUN_COPY = '''        lea     __run_load, %a0         | where the RAM image
 1:      move.l  (%a0)+, (%a1)+
         subq.l  #1, %d0
         bne.s   1b'''
+# core-ot.s once .run is unpacked and .bss cleared: flash.c's digest of the packed .run, which stock's start then
+# overwrites. d1 is the only register the C call may change that .boot does not save.
+BOOT_FLASH_SEAM = '        move.b  %d0, core_up'
+BOOT_FLASH_SNAPSHOT = BOOT_FLASH_SEAM + '''
+        move.l  %d1, -(%sp)
+        jsr     modwerk_flash_snapshot  | flash.c: the packed .run's digest, for the USB base update
+        move.l  (%sp)+, %d1'''
 
 
 def check_zero_state(elf, moved, layout, mapping, bootstrap):
@@ -1501,6 +1508,9 @@ def main():
     if bootstrap.count(BOOT_RUN_COPY) != 1:
         raise ValueError('Pinned .run copy seam changed; review run_unpack.s before porting.')
     bootstrap = bootstrap.replace(BOOT_RUN_COPY, '        jsr     mw_run_unpack           | .run is stored packed (run_unpack.s)')
+    if bootstrap.count(BOOT_FLASH_SEAM) != 1:
+        raise ValueError('Pinned core_up seam changed; review flash.c\'s boot snapshot before porting.')
+    bootstrap = bootstrap.replace(BOOT_FLASH_SEAM, BOOT_FLASH_SNAPSHOT)
     (source / 'core-ot.s').write_text(bootstrap)
     for p in logger.iterdir():
         if p.suffix in ('.c', '.h') and p.name != 'identity.c':
