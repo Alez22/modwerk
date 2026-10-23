@@ -72,7 +72,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 
 | Step | What it does |
 |---|---|
-| `KEY`, `KEY+KEY`, `KEY*N` | press (holding all but the last); `T1`-`T8`, `TRIG1`-`TRIG16`, `FX1`, `FX2`, `SRC`, `AMP`, `LFO`, `FUNC`, `YES`, `NO`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `PLAY`, `STOP`, `REC`, `CUE`, `PATTERN`, `BANK`, `PROJ`, `PART`, `AED`, `ARR`, `MIDI`, `PUSHA`-`PUSHF` |
+| `KEY`, `KEY+KEY`, `KEY*N` | press (holding all but the last); `T1`-`T8`, `TRIG1`-`TRIG16`, `FX1`, `FX2`, `SRC`, `AMP`, `LFO`, `FUNC`, `YES`, `NO`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `PLAY`, `STOP`, `REC`, `CUE`, `PATTERN`, `BANK`, `PROJ`, `PART`, `AED`, `ARR`, `MIDI`, `SCENEA`, `SCENEB`, `PUSHA`-`PUSHF` |
 | `+KEY`, `-KEY` | hold, let go |
 | `encA+3`, `encLEVEL-2`, `fader128` | encoders A-F, LEVEL, the crossfader |
 | `w300` | wait 300 ms (rarely needed: the steps below wait for their own result) |
