@@ -864,7 +864,7 @@ Synthetic ownership and metadata remain the backend contract, not proof of live
 writer coverage, native atomic Apply/Undo, timing, audio or physical persistence.
 
 The 0.1.12 candidate and session-regression reports match source commit
-`29c1a305a54ec83c4d3876304d8b304287d698a8`, pinned by `tests.evidenceRevision`.
+`29c1a305a54ec83c4d3876304d8b304287d698a8`, pinned by the historical 0.1.12 metadata.
 
 ## Native Flex copy component (0.1.13)
 
@@ -906,3 +906,6 @@ python3 -B /source/sdk/drafts/beat-slicer/flex_native.py \
 Descriptors, ownership and ready state are synthetic. These results do not
 qualify real lock/cache behavior, complete writer coverage, Static streaming,
 metadata getters, editor transactions, USB or physical audio/persistence.
+
+The 0.1.13 reports match source commit `0501a11413d40a0e898bd67936eafa9008dab477`, pinned by
+`tests.evidenceRevision`. Prior evidence retains its historical bindings.

@@ -112,7 +112,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_flex_copy.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
-    "evidenceRevision": "29c1a305a54ec83c4d3876304d8b304287d698a8"
+    "evidenceRevision": "0501a11413d40a0e898bd67936eafa9008dab477"
   },
   "license": {
     "spdx": "MIT",
