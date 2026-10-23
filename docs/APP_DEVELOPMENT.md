@@ -109,7 +109,7 @@ of equal specificity in `styles.css`, including inside its own media query. Lazy
 When changing the palette, inspect rendered pages and keyboard focus at phone,
 tablet and desktop widths, and measure text contrast against the actual surface.
 
-Use Node.js 24:
+Use a current Node.js 24 patch release. Early 24.x releases lack the `DatabaseSync.serialize` method used by the database tests; Node 24.21.0 provides it.
 
 ```sh
 npm install

@@ -466,3 +466,7 @@ Later twins of run 2 (all with the beta flags plus `--dev`, freed memory filled 
 - **Next on the unit:** E-Verb through the site path on the merged base; Analog BD with a prepared project; the cases still open in Part 2 (instances, Part switches with modules, persistence after flashing the new base, case 1.18 FUNC at boot).
 - **Private tooling** for these runs (bridge, session, MCP relay, 20-channel USB recorder, glitch detectors, twin builds) lives outside the repository on the test PC under `~/.cache/modwerk-local/ot/beta-run1/`.
 
+
+## Owner exception for cached beta base, 23 October 2026
+
+The owner explicitly approved merging PR #826’s exact cached beta candidate `0c5934e1bea411fc43143a75ee2a0fcf1c09a71b8c386732ed7526517d3b0846` (PR head `c870e5842100e26e57cdaa29a2c09d1996fa5b76`) before the remaining qualification finishes. This is a release exception, not hardware evidence. Bound Keep/Undo, churn across every USB module, and power-on restore after flashing remain unverified on this candidate. Finding 64’s publishing hang remains open; it also reproduced on the prior uncached base. The reported RAM-boot MKII results above are the available hardware evidence. This exception authorizes no flash, power cycle or project write and does not cover a different base image.
