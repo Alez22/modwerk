@@ -1011,124 +1011,157 @@ pm_enforce_budget:
 	.globl	pm_govern
 	.type	pm_govern, @function
 pm_govern:
-	lea (-32,%sp),%sp
-	move.l -66600948,%d1
-	move.l 36(%sp),%d0
-	sub.l %d0,%d1
-	movem.l #1052,(%sp)
-	move.l win_voices,%a0
-	add.l %d1,pm_gov_total
+	lea (-24,%sp),%sp
+	move.l -66600948,%d0
+	move.l %d3,-(%sp)
+	move.l %d2,-(%sp)
+	sub.l 36(%sp),%d0
+	move.l win_voices,%d1
+	add.l %d0,pm_gov_total
 	tst.l 40(%sp)
 	jeq .L200
-	move.l %d0,%a1
-	sub.l win_start,%a1
-	cmp.l #23949,%a1
+	move.l 36(%sp),%a0
+	sub.l win_start,%a0
+	cmp.l #23949,%a0
 	jls .L227
 .L200:
-	tst.l %a0
+	tst.l %d1
 	jne .L228
 .L202:
-	move.l 40(%sp),%d4
-	move.l %d0,win_start
-	move.l %d1,win_cost
-	move.l %d4,win_voices
+	move.l 36(%sp),%d3
+	move.l 40(%sp),%a0
+	move.l %d0,win_cost
+	move.l %d3,win_start
+	move.l %a0,win_voices
 .L199:
-	movem.l (%sp),#1052
-	lea (32,%sp),%sp
+	move.l (%sp)+,%d2
+	move.l (%sp)+,%d3
+	lea (24,%sp),%sp
 	rts
 .L228:
-	move.l win_cost,%a1
-	cmp.l pm_gov_peak.l,%a1
+	move.l win_cost,%a0
+	cmp.l pm_gov_peak.l,%a0
 	jls .L203
-	move.l %a1,pm_gov_peak
+	move.l %a0,pm_gov_peak
 .L203:
 	moveq #8,%d2
-	cmp.l %a0,%d2
+	cmp.l %d1,%d2
 	jcs .L204
-	lea pm_gov_cost,%a2
-	move.l %a1,(%a2,%a0.l*4)
+	lea pm_gov_cost,%a1
+	move.l %a0,(%a1,%d1.l*4)
 .L204:
-	move.l seen_ticks,%d2
-	cmp.l pm_ui_ticks.l,%d2
+	move.l mean16,%a1
+	move.l %a1,%d3
+	lsr.l #4,%d3
+	add.l %a0,%a1
+	sub.l %d3,%a1
+	move.l seen_ticks,%d3
+	move.l %a1,%d2
+	move.l %a1,20(%sp)
+	move.l %a1,mean16
+	cmp.l pm_ui_ticks.l,%d3
 	jeq .L205
-	lea pm_ui_ticks,%a2
-	move.l (%a2),seen_ticks
+	lea pm_ui_ticks,%a1
 	clr.l starved
-	cmp.l #15800,%a1
+	move.l (%a1),seen_ticks
+	cmp.l #26000,%a0
+	jhi .L206
+	lsr.l #4,%d2
+	move.l %d2,24(%sp)
+	cmp.l #19200,%d2
 	jhi .L206
 .L207:
-	mov3q.l #7,%d3
-	cmp.l pm_voice_cap.l,%d3
+	mov3q.l #7,%d2
+	cmp.l pm_voice_cap.l,%d2
 	jcs .L224
-	cmp.l pm_voice_cap.l,%a0
+	cmp.l pm_voice_cap.l,%d1
 	jcs .L224
-	move.l %a0,%d2
-	move.l %a1,%d4
-	divu.l %d2,%d4
-	lea (%a1,%d4.l),%a0
-	cmp.l #13825,%a0
+	move.l 24(%sp),%d3
+	divu.l %d1,%d3
+	add.l 24(%sp),%d3
+	cmp.l #16800,%d3
 	jhi .L224
-	move.l calm,%a0
-	addq.l #1,%a0
-	move.l %a0,calm
-	cmp.l #255,%a0
+	move.l %a0,%d3
+	divu.l %d1,%d3
+	move.l %d3,%d1
+	add.l %a0,%d1
+	cmp.l #22750,%d1
+	jhi .L224
+	move.l calm,%d1
+	addq.l #1,%d1
+	move.l %d1,calm
+	cmp.l #255,%d1
 	jls .L202
 	addq.l #1,pm_voice_cap
 .L224:
 	clr.l calm
 .L229:
-	move.l %d0,win_start
-	move.l 40(%sp),%d4
-	move.l %d1,win_cost
-	move.l %d4,win_voices
+	move.l %d0,win_cost
+	move.l 36(%sp),%d3
+	move.l %d3,win_start
+	move.l 40(%sp),%a0
+	move.l %a0,win_voices
 	jra .L199
 .L227:
-	add.l %d1,win_cost
-	cmp.l 40(%sp),%a0
+	add.l %d0,win_cost
+	cmp.l 40(%sp),%d1
 	jcc .L199
-	movem.l (%sp),#1052
 	move.l 40(%sp),%d0
+	move.l (%sp)+,%d2
 	move.l %d0,win_voices
-	lea (32,%sp),%sp
+	move.l (%sp)+,%d3
+	lea (24,%sp),%sp
 	rts
 .L205:
 	move.l starved,%d2
-	move.l %d2,24(%sp)
+	move.l %d2,28(%sp)
 	cmp.l #279,%d2
 	jhi .L208
 	addq.l #1,%d2
 	move.l %d2,starved
-	cmp.l #15800,%a1
+	cmp.l #26000,%a0
 	jhi .L209
-	move.l 24(%sp),%d3
-	cmp.l #279,%d3
+	move.l 20(%sp),%d3
+	lsr.l #4,%d3
+	move.l %d3,24(%sp)
+	cmp.l #19200,%d3
+	jhi .L209
+	move.l 28(%sp),%a1
+	cmp.l #279,%a1
 	jne .L207
 .L208:
 	addq.l #1,pm_gov_starved
 	clr.l starved
 .L206:
-	mov3q.l #1,%d2
-	cmp.l %a0,%d2
+	mov3q.l #1,%d3
+	cmp.l %d1,%d3
 	jeq .L224
-	subq.l #1,%a0
-	cmp.l pm_voice_cap.l,%a0
+	move.l %d1,%a1
+	subq.l #1,%a1
+	cmp.l pm_voice_cap.l,%a1
 	jcc .L211
-	move.l %a0,pm_voice_cap
+	move.l %a1,pm_voice_cap
 .L211:
 	clr.l -(%sp)
 	clr.l -(%sp)
+	move.l %d1,16(%sp)
 	move.l %d0,24(%sp)
-	move.l %d1,28(%sp)
+	move.l %a1,20(%sp)
 	addq.l #1,pm_gov_sheds
 	jsr admit
+	move.l 28(%sp),%d2
+	move.l 16(%sp),%d1
 	addq.l #8,%sp
 	clr.l calm
-	move.l 20(%sp),%d1
+	divu.l %d1,%d2
+	move.l 12(%sp),%d1
 	move.l 16(%sp),%d0
+	muls.l %d1,%d2
+	move.l %d2,mean16
 	jra .L229
 .L209:
-	move.l 24(%sp),%d4
-	cmp.l #279,%d4
+	move.l 28(%sp),%d2
+	cmp.l #279,%d2
 	jne .L206
 	addq.l #1,pm_gov_starved
 	clr.l starved
@@ -2238,6 +2271,11 @@ chord_masks:
 	.word	3329
 	.word	3585
 	.data
+	.align	2
+	.type	mean16, @object
+	.size	mean16, 4
+mean16:
+	.zero	4
 	.align	2
 	.type	calm, @object
 	.size	calm, 4
