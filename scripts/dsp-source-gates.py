@@ -41,12 +41,17 @@ def rep_lines(text):
 
 
 def sources(folder):
+    if not folder.is_dir():
+        return []
     return sorted(p for p in folder.rglob('*.asm') if not SKIPPED_PARTS & set(p.relative_to(folder).parts))
 
 
 def catalog_added():
-    catalog = json.loads((ROOT / 'sdk/catalog.json').read_text(encoding='utf-8'))
-    return {item['id']: item.get('addedAt', '') for item in catalog['modules']}
+    path = ROOT / 'sdk/catalog.json'
+    if not path.is_file():
+        return {}
+    catalog = json.loads(path.read_text(encoding='utf-8'))
+    return {item['id']: item.get('addedAt', '') for item in catalog.get('modules', [])}
 
 
 def base_rep_count(base, path):
@@ -101,7 +106,7 @@ def main(argv):
         return 0
     base = argv[argv.index('--base') + 1] if '--base' in argv else None
     errors, warnings, files = [], [], 0
-    for folder in sorted(p for p in MODULES.iterdir() if p.is_dir() and not p.name.startswith('_')):
+    for folder in sorted(p for p in MODULES.iterdir() if p.is_dir() and not p.name.startswith('_')) if MODULES.is_dir() else []:
         found = module_findings(folder.name, added, base)
         errors += found['errors']; warnings += found['warnings']; files += found['files']
     for folder in SHARED:
