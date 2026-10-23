@@ -682,8 +682,8 @@ coverage, Static prefetch, scheduling, Apply/Undo, playback smoothing and exact
 browser/card/USB/hardware qualification remain open. These tests grant no live
 admission or publication capability.
 
-The 0.1.8 reports match source commit `9e10767a26b931bbdeaefa573e7b532860a58047`, now pinned
-by `tests.evidenceRevision`. Earlier reports remain bound to their historical
+The 0.1.8 reports match source commit `9e10767a26b931bbdeaefa573e7b532860a58047`, pinned by
+the historical 0.1.8 metadata. Earlier reports remain bound to their historical
 source. The stale fork-origin changelog comparison remains a known failure;
 current-upstream readiness validation is required before push.
 
@@ -737,7 +737,7 @@ refresh, atomic Apply, stock Undo/history, saved/working-copy publication, audio
 smoothing, USB installation or physical persistence. No live settings are changed.
 
 The 0.1.9 reports match source commit `5f950ab935fcab042175cbb45aad1ec7108d8621`, pinned by
-`tests.evidenceRevision`. Earlier session/load reports keep their original
+the historical 0.1.9 metadata. Earlier session/load reports keep their original
 source identities. The stale fork-origin comparison still rejects inherited
 CHANGELOG history; current-upstream readiness is required before push.
 
@@ -777,3 +777,6 @@ The portable session's compiled-target evidence remains the historical 0.1.8
 report. This mixed host/stock probe does not prove native callbacks, scheduling,
 Static streaming, complete writer coverage, Apply/Undo, USB or physical audio
 and persistence. Source hashes bind the retained report to the exact inputs.
+
+The 0.1.10 report matches source commit `b745c6749e6e2b5b876f1d25d8ead6f2d2818660`, pinned by
+`tests.evidenceRevision`; prior reports retain their historical identities.

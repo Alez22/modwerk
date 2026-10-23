@@ -110,7 +110,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_marker_edit.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
-    "evidenceRevision": "5f950ab935fcab042175cbb45aad1ec7108d8621"
+    "evidenceRevision": "b745c6749e6e2b5b876f1d25d8ead6f2d2818660"
   },
   "license": {
     "spdx": "MIT",
