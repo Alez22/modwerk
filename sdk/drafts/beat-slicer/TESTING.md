@@ -615,3 +615,9 @@ Pickup/overdub, reverse recording, stop finalization, queued follow-up execution
 or physical recording is qualified. Shared-map mutation requires serialization
 even if preview refuses recorder slots. Native reader/provider, Apply/Undo,
 playback smoothing and exact card/browser/USB/device qualification remain open.
+
+The recorder report matches source commit `95a33062f8d34631d963044311012da720511aa2`, pinned by
+`tests.evidenceRevision`. The required check against stale fork `origin/main`
+again rejects inherited upstream CHANGELOG history; current upstream validation
+is required before push. `module:doctor -- beat-slicer` still refuses this
+unlisted draft, and `verify.py` remains an intentional qualification refusal.
