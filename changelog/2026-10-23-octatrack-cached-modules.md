@@ -3,3 +3,5 @@ Octatrack base (beta): installed modules run from the ColdFire's cache again. Th
 Sync to Octatrack (beta): Analog BD 0.1.5 can be synced. On a base with module sets every sync goes as one set, and the site refused any package newer than ABI 9 before sending it ("Something went wrong talking to the Octatrack"); Analog BD 0.1.5 is ABI 10, which the base takes.
 
 Owner-approved beta release exception (23 October 2026): exact base `0c5934e1` may ship with bound Keep/Undo, all-module churn and flashed power-on restore still unverified; finding 64 remains open. See the beta test plan.
+
+Deployment documentation now distinguishes a published frontend from a failed notification-sync step and requires separate inventory and notification verification.
