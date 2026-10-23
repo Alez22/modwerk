@@ -79,6 +79,7 @@ Not written: XVOL and XLV (the crossfader volume locks have no Part knob and sta
 1. On a track playing a loop, hold SCENE A and turn FX1's first knob to the left; hold SCENE B and turn it to the right.
 2. Hold SCENE A and press YES. SCENE A APPLIED appears, and FX1's first knob now shows scene A's value. Put the crossfader in the middle, hold SCENE A and SCENE B and press YES: SCENE BLEND APPLIED, and the knob shows the middle value.
 3. Move the crossfader to either end: the sound still reaches each scene's lock. Press FUNC + CUE to reload the Part and the knob returns to where it was.
+4. Press REC, hold a trig, press SCENE A and let go: SCENE A TO TRIGS, and holding the trig shows scene A's value as its p-lock. Hold the trig and press PLAY to clear it again.
 
 ## Compatibility and limitations
 
@@ -101,7 +102,7 @@ Original code by Nathaniel Pavel (@npp1993), MIT (see [LICENSE](LICENSE)). Stock
 
 ## Screens and audio
 
-Real LCD captures from the headless emulator on a private native build of this source (MAIN OS SHA-256 `3a74ff36…dded0bc`), 15 October 2026. They show the interface, not hardware behaviour or sound.
+Real LCD captures from the headless emulator on a private native build of this source (MAIN OS SHA-256 `c625bbd1…00fc48d`), 23 October 2026. They show the interface, not hardware behaviour or sound.
 
 1. ![FX1 FILTER main page with SCENE A held: XLV shown, and the BASE knob highlighted with its scene lock value 30.](media/ot-scene-a-lock.png)
    Lock a value in a scene the usual way: hold SCENE A and turn a knob. Here FX1's BASE is locked to 30 in scene A; the Part's own value stays 0.
@@ -113,10 +114,11 @@ Real LCD captures from the headless emulator on a private native build of this s
    To keep an in-between sound, move the crossfader, hold SCENE A and SCENE B, and press YES: the sound the crossfader plays now is written into the Part, and SCENE BLEND APPLIED appears. Here the crossfader is in the middle.
 5. ![FX1 FILTER main page with the NOTHING TO APPLY message box over it.](media/ot-nothing-to-apply.png)
    When no value would change, for example SCENE A + YES pressed a second time, the screen says NOTHING TO APPLY and the Part stays as it is.
-
-More screenshots:
-
-- ![FX1 FILTER main page with SCENE B held and the BASE knob highlighted with its scene lock value 110.](media/ot-scene-b-lock.png) The same knob locked to 110 in scene B, for the blend in the next steps.
-- ![FX1 FILTER main page with no scene held; the BASE knob points near the middle of its range.](media/ot-after-blend.png) After the blend at the middle of the crossfader, BASE shows the blended value as the Part's own.
+6. ![FX1 FILTER main page in grid recording with the SCENE A TO TRIGS message box over it.](media/ot-trig-scene-a.png)
+   To put a scene on chosen steps instead: press REC for grid recording, hold a trig, press SCENE A and let go. SCENE A TO TRIGS appears and every value scene A locks becomes a p-lock on that step.
+7. ![FX1 FILTER main page with TRIG 1 held; the BASE knob is highlighted with the p-lock value 30.](media/ot-trig-lock.png)
+   Hold the trig again to see its p-locks: BASE on step 1 is now 30, scene A's value. The scene and the Part are unchanged; hold the trig and press PLAY to clear its p-locks.
+8. ![FX1 FILTER main page in grid recording with the SCENE BLEND TO TRIGS message box over it.](media/ot-trig-blend.png)
+   Hold a trig and press SCENE A and SCENE B to lock what the crossfader plays right now onto that step: SCENE BLEND TO TRIGS. Here the crossfader is in the middle.
 
 There is no audio preview: APPLY SCENE adds no sound of its own.
