@@ -113,7 +113,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_flex_chain.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
-    "evidenceRevision": "0501a11413d40a0e898bd67936eafa9008dab477"
+    "evidenceRevision": "751837214650d8ec6fc3ea648dbd7feccd516bc6"
   },
   "license": {
     "spdx": "MIT",

@@ -908,7 +908,7 @@ qualify real lock/cache behavior, complete writer coverage, Static streaming,
 metadata getters, editor transactions, USB or physical audio/persistence.
 
 The 0.1.13 reports match source commit `0501a11413d40a0e898bd67936eafa9008dab477`, pinned by
-`tests.evidenceRevision`. Prior evidence retains its historical bindings.
+the historical 0.1.13 metadata. Prior evidence retains its historical bindings.
 
 ## Complete compiled Flex preview chain (0.1.14)
 
@@ -949,3 +949,6 @@ freeze source and execute `flex_chain_native.py --main /stock/stock-main.bin
 stack and callee-save checks pass. The generic runner's PASS line reports the
 return status of the complete `bs_flex_chain_selftest` entry, including all cases
 above. No elapsed emulator time is reported as instrument timing.
+
+The 0.1.14 chain reports match source commit `751837214650d8ec6fc3ea648dbd7feccd516bc6`, pinned by
+`tests.evidenceRevision`. Earlier reports keep their historical identities.

@@ -27,7 +27,7 @@
         "filter-hz-1.0-os1.74.elemod": "25055fc7662efd8b1035f7840ccb5c02087ca384ae0801917560c9f5fe16512a",
         "core-ar2-0.3.elemod": "6b97dfb3d65ca7d9d292e4ed61dd845e43b2d4f6dc71e7e7d235f27abc4b3e58"
       },
-      "content": "The released core-ar2 0.3 (elekloader core-ar2-v0.3, with #153) and rytm2_mods v1.2's Filter Hz, linked by Modwerk's linker on stock 1.74. Modwerk's own 1.1.0 package links to the same main OS (source-parity.json).",
+      "content": "The released core-ar2 0.3 (elekloader core-ar2-v0.3, with #153) and rytm2_mods v1.2's Filter Hz, linked by Modwerk's linker on stock 1.74. Modwerk's own 1.2.0 package links to the same main OS (source-parity.json).",
       "flashedWith": "Elektron Transfer; stock 1.74 restored afterwards",
       "results": [
         "Boots to the main screen; sounds play as on stock.",
@@ -76,7 +76,7 @@
       "FRQ popup reads 13.8Hz, 21.1kHz and 19.9kHz at 0, 127 and 126 (R8T2)"
     ]
   },
-  "contextNote": "Main OS hashes are the builds', not read back from the device. FZ74's main OS is the one Modwerk's 1.1.0 build gives on 1.74. C3A4's core predates #153.",
+  "contextNote": "Main OS hashes are the builds', not read back from the device. FZ74's main OS is the one Modwerk's 1.2.0 build gives. C3A4's core predates #153.",
   "modwerkPipelineQualified": false,
   "authorGithub": "Iced-Cream"
 }

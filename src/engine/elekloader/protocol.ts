@@ -22,5 +22,5 @@ export function digiDownloadsEnabled(machine: string): boolean {
 
 // Research machines whose page offers a local core build before any module is published; their builds stay out of
 // download and usage counts.
-export const CORE_BUILD_PREVIEWS: readonly BuilderMachine[] = ['digitakt-ii', 'analog-rytm-mkii']
+export const CORE_BUILD_PREVIEWS: readonly BuilderMachine[] = ['digitakt-ii']
 export function isCoreBuildPreview(machine: string): boolean { return (CORE_BUILD_PREVIEWS as readonly string[]).includes(machine) }
