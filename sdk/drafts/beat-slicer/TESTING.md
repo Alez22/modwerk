@@ -1526,10 +1526,9 @@ the successful runner explicitly clears or creates the required stock layout.
 The configuration fixture exercises 20 BPM/spacing/boundary combinations and
 an option-change restart in each stock menu variant, giving 42 whole plans that
 match the host oracle. READY does not restart; a synthetic invalidation removes
-its result, and BACK returns to configuration before closing. The unsliced
-stock-NO and owner-retirement runs cancel a running preview before another
-query and close the owned popup. The corresponding selected-slice terminal
-cases are being completed separately; their receipts will record actual results.
+its result, and BACK returns to configuration before closing. Stock-NO and
+owner-retirement runs in both stock menu variants cancel a running preview before another query and close the owned popup; all six control/terminal
+scenario runs pass.
 Every completed run preserves full PCM, controls and settings and both cards.
 The dialog shows total count/fade flags, not a qualified playback policy or Apply.
 
@@ -1545,7 +1544,11 @@ The new idle/job boundary passes host ASan/UBSan and compiled ColdFire tests for
 120 lifetimes, closed bootstrap, independent writer ownership, reentry, invalid
 retirement and exhaustion. Its native object is 374 text bytes, no data/BSS;
 compiler local stack reports 0–12 bytes, excluding callees and the full chain.
-Its full-boot hook-only experiment remains separate from those unit results.
+Its separate full-boot hook-only run tracks five reverse/waveform commands,
+protects the actual dirty-store interval and preserves worker/UI completion.
+Admission starts closed until an actual idle boundary; the receive call stays
+unchanged. Both reversals match the previously observed inclusive endpoint
+model, the second restores PCM, and metadata/code/canaries/cards stay intact.
 
 The engine-service full boot uses those existing base-owned hook sites, leaving
 the receive call intact. Twenty initial previews plus four after each of two
@@ -1569,5 +1572,7 @@ tests, SDK tests, lint, typecheck, production build and catalogue/import checks.
 The required `origin/main` invocation still fails on inherited CHANGELOG.md
 history from the stale fork base; no unrelated history or remote ref is rewritten.
 These are development fixtures, with no source service/ABI published and no
-module installed or qualified on hardware. Source-bound receipts follow the
-source commit; earlier evidence retains its exact historical source identity.
+module installed or qualified on hardware. The 23 `menu24-*`, `ui24-*`,
+`slices24-*`, `engine24-*` and `service24-*` receipts bind source `9f4d7e4a7a0262073e6c59333e5ea8eda4026b2b`. Provenance
+audit covers 102 reports and preserves earlier exact historical source identities.
+The one unbound historical failed-link diagnostic remains excluded.
