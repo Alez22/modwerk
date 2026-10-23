@@ -9,6 +9,9 @@ These are remaining tasks, not implemented behavior.
 2. Design an additive base-owned editor event/table, with locally verified
    site, whole-instruction length and guard hash, in a separate owner-reviewed
    SDK change. The module subscribes, never patches a shared site itself.
+   `editor_menu.c` now composes copied stock/contributed labels and owner-checked
+   dispatch with explicit retirement. Native locking, package admission, rendered
+   menus, event assignment and actual detachment/removal remain absent.
 3. Compile planner.c with the pinned ColdFire toolchain and a real adapter.
    The standalone planner now links and executes 164 synthetic CPU-emulator
    vectors; the real adapter is still absent.

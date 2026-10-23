@@ -99,6 +99,15 @@ service. Track the entire mutation/refresh lifetime; do not reuse this replacing
 grid action as a preserving atomic Apply. Actual scheduling/cancellation and
 physical persistence remain unproved by those fixtures.
 
+Closing a native menu need not detach its label/callback/selection pointers.
+Beat Slicer's compiled 1.40C menu fixture observes those pointers still retained
+after selection. Keep composed arrays base-owned and refuse reuse until old
+callbacks are quiescent; validate the owner under the loader's stable lock.
+Verify tail-call argument storage too: the observed stock selection routine
+rewrites its first incoming argument word, so a zero-argument C test call can
+corrupt its caller even when all menu assertions pass. These are isolated
+execution findings, not a proved live detach or loader integration service.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

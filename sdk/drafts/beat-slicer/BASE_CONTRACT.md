@@ -65,6 +65,12 @@ memory is reclaimed. It must return busy while a callback is actually running.
 Loader stack/register scanning alone cannot discover a retained heap/global
 pointer. Test closing, replacing and removing at each callback/job boundary.
 
+The [menu composition prototype](EDITOR_MENU.md) implements copied labels,
+identity-based dispatch, deterministic contribution ordering and explicit
+retire/detach states under a required stable caller lock. It does not supply
+that native lock or prove detachment. Rendering/scrolling with all contributed
+rows, admission, removal hooks and job cancellation still need implementation.
+
 ## Snapshot and job contract
 
 One base-owned operation token identifies the selected sample and the editor

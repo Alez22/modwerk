@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.14-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.15-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -158,3 +158,9 @@ the repository scaffold command; inherited placeholder code was removed.
 
 No real LCD captures or audio qualification recordings exist. Proposed screen
 text is not represented as captured instrument UI.
+
+The [editor-menu composition prototype](EDITOR_MENU.md) now supplies stable
+copied labels, unchanged stock rows and owner/token-checked contributed dispatch.
+It refuses reuse until a trusted adapter proves all old menu references detached.
+Native hook admission, loader synchronization, actual dialog rendering and
+background-job removal remain unimplemented.

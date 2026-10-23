@@ -952,3 +952,52 @@ above. No elapsed emulator time is reported as instrument timing.
 
 The 0.1.14 chain reports match source commit `751837214650d8ec6fc3ea648dbd7feccd516bc6`, pinned by
 `tests.evidenceRevision`. Earlier reports keep their historical identities.
+
+
+## Compiled editor-menu composition (0.1.15)
+
+`editor_menu.c` adds a base-owned composition/lifetime prototype, not an
+installed menu event. `EDITOR_MENU.md` specifies the required native ownership,
+input admission, stable storage and detach contract.
+
+- `test_editor_menu.py` passes ASan/UBSan: 20 composed selections across the
+  six/nine stock-row variants and one to four contributions, copied labels,
+  deterministic ordering, stock callback preservation, stale owner/token
+  refusal, callback failure, retirement/reentry, exhaustion and invalid input.
+- `menu_native.py` compiles the same portable suite plus `test_menu_stock.c`.
+  Eight additional cases execute actual stock variant selection (`0x40072c10`),
+  menu open (`0x4006d94c`), selection (`0x4006d8f4`) and indirect dispatch.
+  Both variants exercise a valid contribution, replaced owner, retired menu
+  and original stock row. Stock labels/callbacks are read privately at runtime,
+  never embedded in repository source or reports.
+- Formatting, UI/drawing/setup and original stock action bodies are explicit
+  mocks. The native fixture uses synthetic owner generations and manually
+  detaches pointers only after synchronous execution stops between cases.
+  It does not prove actual scheduler quiescence or loader removal.
+- The observed close path retains all three pointer globals. Recomposition
+  remains refused until explicit detach acknowledgement. The original
+  zero-argument selection test corrupted the caller's saved D2 because stock
+  rewrites its first argument slot. Reserving that word fixes the fixture;
+  callee-saved registers and return stack now pass, including individual calls.
+- GCC 16.2.0 code-generation and freestanding-link checks pass with no runtime
+  helper dependencies. The menu object is 1,404 text bytes with zero object
+  data/BSS; caller-owned state is additional. Compiler local stack usage is
+  4–76 bytes, excluding nested calls and any native loader/backend work.
+  These are object/local-stack figures, not live memory or timing budgets.
+- Both pinned EMAC and peripheral gates pass. No rendered menu, native stable
+  lock/admission/detach, background cancellation, Apply/Undo, USB or device
+  result is claimed. The four-contribution capacity is a prototype limit;
+  actual full-menu layout/scrolling still needs qualification.
+
+Run the host gate with:
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_editor_menu.py --output /private/path/menu-host.json
+```
+
+Build `beat_slicer_menu_native_probe` using the existing isolated toolchain
+recipe, then run `menu_native.py --main <private-original-MAIN>
+--executable <runner> --output <new-private-directory>`. Reports bind original
+source, private MAIN, runner, compiler flags and object hashes. Binaries and
+stock-derived logs stay private. Retained reports are `evidence/menu-host.json`
+and `evidence/menu-native.json`; their source commit is pinned after validation.
