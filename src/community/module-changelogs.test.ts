@@ -31,6 +31,13 @@ describe('module release notes', () => {
     expect(() => parseModuleChangelogs(fixture(), [{ id: 'other', version: entry.version }])).toThrow('Unknown changelog module')
   })
 
+  it('keeps every release short enough for players to read', () => {
+    const catalog = [{ id: 'euclid', version: entry.version }]
+    expect(() => parseModuleChangelogs(fixture([{ ...entry, changes: Array(5).fill(entry.changes[0]) }]), catalog)).not.toThrow()
+    expect(() => parseModuleChangelogs(fixture([{ ...entry, changes: Array(6).fill(entry.changes[0]) }]), catalog)).toThrow('Keep the release notes for euclid v1.0.0-experimental short')
+    expect(() => parseModuleChangelogs(fixture([{ ...entry, changes: ['x'.repeat(201)] }]), catalog)).toThrow('at most 200 characters')
+  })
+
   it('rejects duplicate versions, impossible dates, empty summaries and invalid references', () => {
     expect(() => parseModuleChangelogs(fixture([entry, entry]))).toThrow('Duplicate changelog version')
     expect(() => parseModuleChangelogs(fixture([{ ...entry, date: '2026-02-30' }]))).toThrow('Invalid changelog date')
