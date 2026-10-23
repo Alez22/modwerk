@@ -32,6 +32,11 @@ until those results and owner review are recorded.
 Use Node 24, the reviewed GNU `m68k-elf` toolchain, a clean Elekloader checkout
 at `vendor/elekloader/kit/kit.json`'s commit (`npm run upstream:tools` keeps one
 in `~/.cache/modwerk-upstream/elekloader`) and your original OT OS 1.40C.
+A kit update changes the hashes of the Elekloader files that the reviewed private declarations name
+(`module-adapters/candidate-recipes.json` for CC Map and Mute Modes, `standalone-recipes.json`): rebuild those
+packages with the new checkout, check they are byte-identical to the published ones and update the hashes in the
+same pull request. CI has no firmware and cannot see it; until then the builds refuse with "does not name the exact
+source inputs" (kit 0.7.0, 22 October 2026).
 Both output directories below must be new and outside every Git checkout:
 
 ```sh
