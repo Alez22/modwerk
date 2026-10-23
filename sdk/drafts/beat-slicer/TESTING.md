@@ -1051,6 +1051,13 @@ the earlier source-bound target reports.
 
 ## Apply/Undo coordinator (0.1.16)
 
+**Workflow clarification:** the following results cover the historical portable
+Undo prototype. The player workflow now explicitly uses stock slice deletion
+after grid creation, with no module Undo/history UI. These reports are retained
+unchanged; they do not establish stock slice clearing or native UI parity.
+The pending comparison matrix is in INTEGRATION.md. Failure rollback remains
+required independently of a user-facing Undo feature.
+
 `edit_transaction.c` passes host ASan/UBSan and compiled ColdFire execution with
 a synthetic publication backend. The same tests exercise 40 confirmation/no-op
 cases, 388 injected publication/refresh rollbacks, 386 full-table stale cases,

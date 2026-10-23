@@ -71,7 +71,7 @@
       "No native slice-editor event/adapter, stock persistence integration or USB package exists yet.",
       "No audio playback or MKII hardware verification; click-free playback is not established.",
       "Planner accepts BPM 30\u2013300 in 1/24 BPM units, signed 24-bit mono/stereo decoded PCM, 8\u2013192 kHz, at most 64 slice starts.",
-      "Sample/project identity, live preview invalidation, sample-file saving and Undo must be implemented by the adapter."
+      "Sample/project identity, live preview invalidation, stock slice clearing/saving and internal failure rollback need native integration; no separate Undo UI is planned."
     ],
     "effectId": null
   },
@@ -130,7 +130,7 @@
     "steps": [
       "Pending native integration: select a Flex or Static audio track and open AED.",
       "Proposed: press AMP for SLICE, then YES for its menu, then select BEAT GRID. Stock menu integration is not verified.",
-      "Choose BPM SOURCE, SPACING and BOUNDARY, preview the marker count and warnings, then explicitly Apply or Cancel. Do not use this proposal as instructions for an existing build."
+      "Choose BPM SOURCE, SPACING and BOUNDARY, preview and confirm through the stock-style slice workflow. Use stock slice clearing afterwards; no separate Undo action. Native controls remain unimplemented."
     ],
     "screenshots": []
   }

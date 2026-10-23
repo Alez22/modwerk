@@ -25,7 +25,15 @@ Proposed dialog, not implemented on the instrument:
 | SPACING | 1, 4, 16, 32 or 64 beats (default 1). |
 | BOUNDARY | SMOOTH (default): quiet-boundary search in both channels within ±2 ms; EXACT: mathematical beat grid. |
 | Preview | Show resulting total, existing/new markers and boundaries needing fades. No sample changes. |
-| Apply / Cancel | Explicit confirmation only. Apply remains unavailable until native integration is qualified. |
+| Confirm / Back | Follow the stock slice-menu interaction. Confirm the prepared grid; backing out before commitment changes nothing. Native integration remains unavailable. |
+
+Beat Grid belongs in the existing slicing workflow. After creating a grid, use
+stock DELETE SLICE or DELETE ALL SLICES to remove markers. No Beat Slicer Undo
+action or separate history dialog is planned. Clearing removes slices; it does
+not restore the layout that preceded the grid. Internal failure rollback remains
+required so an unsuccessful commit leaves the prior state intact. Exact button
+and prompt behavior still needs comparison with stock 1.40C; in particular, NO
+at stock's zero-cross question chooses unaligned slices rather than cancelling.
 
 Existing markers remain exact. In SMOOTH mode, an existing marker within the
 search window already covers that beat. Refuse more than 64 total slice starts
@@ -50,9 +58,10 @@ Planned acceptance workflow, unavailable until native integration:
    proposed action and choose SAMPLE or PROJECT BPM.
 2. Choose 4 BEATS and SMOOTH. Preview markers and fade warnings. Cancel once
    and confirm the original markers are intact.
-3. Apply and audition adjacent/random slices, then exercise confirmed Undo.
-   Repeat, save sample settings through stock, save the disposable project and
-   reload both; compare complete slice metadata.
+3. Confirm and audition adjacent/random slices, then use stock DELETE SLICE
+   and DELETE ALL SLICES. Verify clearing removes markers without changing audio.
+   Create another grid, save sample settings through stock, save the disposable
+   project and reload both; compare complete slice metadata.
 
 ## Compatibility and limitations
 
@@ -61,9 +70,9 @@ or installable packages are included. Compatibility is unproved. See
 [INTEGRATION.md](INTEGRATION.md).
 
 Installing the eventual module must do nothing until Apply. Preserve source
-audio, trim, loop points, existing slice loop/end metadata, other samples and
-project defaults. Sample settings affect every track using that sample; the
-dialog must disclose that scope. The core plans starts only and never writes
+audio, trim, loop points, existing slice loop/end metadata, other sample slots and
+project defaults. Slice settings belong to the edited sample slot and affect
+tracks using that slot; the dialog must disclose that scope. The core plans starts only and never writes
 project or `.ot` files.
 
 **Smooth playback is an acceptance requirement, not a verified result.** Zero
@@ -92,13 +101,15 @@ confirm that replacement errors can already have released the old sample.
 
 The [marker candidate preflight](MARKER_EDIT.md) now preserves complete existing
 records and slice numbers, refuses incompatible additions and retains inactive
-rows for a future exact Undo. It prepares memory snapshots only; native Apply,
-Undo and the playback acceptance gate remain unimplemented.
+rows for exact failure rollback. It prepares memory snapshots only; native
+publication and the playback acceptance gate remain unimplemented.
 
 The [transaction coordinator](EDIT_TRANSACTION.md) now binds confirmation,
-publication results and exact Undo history under one supplied lock. Its tests
+publication results and experimental Undo history under one supplied lock. Its tests
 cover rollback, stale full tables and fault containment. Publication, playback
 policy and quarantine are synthetic callbacks; this does not enable native Apply.
+Its explicit Undo API is retained research, not the planned player workflow;
+the native adapter must not expose it as an additional slicing action.
 
 ## Tests and measurements
 
@@ -175,7 +186,8 @@ The [full stock observation](BOOT_OBSERVATION.md) uses a disposable stock-create
 project and original WAV to check actual loading, PCM, editor tempo and marker
 state. It also corrects the proposed stock menu path to AED → AMP → YES.
 These are emulator findings; the Beat Grid action, native ownership, atomic
-Apply/Undo, USB package and physical qualification remain unfinished.
+publication, stock slice-clearing compatibility, USB package and physical
+qualification remain unfinished.
 
 Research receipts retain their original source versions. Run
 `python3 -B sdk/drafts/beat-slicer/audit_evidence.py` to check those Git bindings;

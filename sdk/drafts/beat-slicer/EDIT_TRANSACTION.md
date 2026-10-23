@@ -5,6 +5,27 @@ publisher, installed service or exported ABI**. The source, ownership, playback,
 exchange and quarantine callbacks are synthetic in its tests. Live enablement
 still requires their separate owner-reviewed implementation and qualification.
 
+## Player workflow decision
+
+Beat Slicer follows the existing slice editor: confirm grid creation and use
+stock DELETE SLICE / DELETE ALL SLICES afterwards. There is no planned
+user-facing Undo action, history-discard prompt or extra confirmation screen.
+The explicit Undo API and tests below describe the retained research prototype,
+not required player behavior or evidence that stock slicing has an Undo service.
+Native integration must keep failed-publication rollback internal and must not
+expose the prototype's history lifecycle as UI. Clearing slices removes them;
+it does not restore an earlier grid. Stock clear/edit operations must invalidate
+any outstanding Beat Grid preview before it can publish stale markers.
+
+The baseline is the stock SLICE workflow in the
+[Elektron MKII OS 1.40A manual, sections 13.2.2 and 13.2.5](https://www.elektron.se/wp-content/uploads/2024/09/Octatrack-MKII-User-Manual_ENG_OS1.40A_210414.pdf).
+It documents individual/all-slice deletion and stock settings saving, not a
+slice-grid Undo action. At the zero-cross prompt, NO accepts an unaligned grid;
+do not map every NO press to cancellation. Confirm exact 1.40C behavior in the
+native acceptance work before assigning the module's prompts and buttons.
+
+## Retained prototype contract
+
 Apply names the exact prepared candidate. The coordinator acquires the preview
 backend's same lock, revalidates the complete candidate, checks the playback
 policy and revalidates again before publishing. A no-op candidate writes nothing

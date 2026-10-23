@@ -74,8 +74,13 @@ These are remaining tasks, not implemented behavior.
    no leased Static PCM reader or streaming deadline.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
-   slice metadata for Undo. Commit once after confirmation; any failure or
+   slice metadata for failure rollback. Commit once after confirmation; any failure or
    cancellation changes nothing. Use stock storage, no custom project format.
+   Follow the existing slicing confirmation and clearing workflow; expose no
+   separate Undo/history UI. Keep stock DELETE SLICE / DELETE ALL SLICES intact
+   and invalidate previews when they run. Their successful result is removal,
+   not restoration of a previous grid. See EDIT_TRANSACTION.md for the retained
+   prototype API and its distinction from the player workflow.
    Isolated stock storage probes now confirm complete marker round-trips, but
    also mutation before checksum/short-read failure. Those parsers are not
    atomic transaction services. Stock sanitation can alter existing records;
@@ -111,7 +116,13 @@ project or shared sample. SOURCE SAMPLE 120 versus PROJECT 90 gives one-beat
 spacing of 22,050 versus 29,400 frames at 44.1 kHz before ±2 ms adjustment.
 
 Exercise every spacing, trim edges, short final slices, sample changes during
-preview, 64/65-marker cases, Cancel, Undo and repeated Apply. Listen to quiet
+preview, 64/65-marker cases, backing out before commitment and repeated creation.
+Compare stock and module slice-menu prompts, individual/all-slice deletion,
+selection refresh and save/reload on both Flex and Static. Clear while a preview
+is pending and require its invalidation. Verify the same file in another slot
+stays independent, and tracks sharing the edited slot see the same markers.
+Check zero-cross NO separately from backing out; no additional Undo action or
+history-discard prompt may appear. Listen to quiet
 and loud material without masking FX and measure discontinuities against an
 agreed acceptance limit. Quiet marker scores alone are not audio evidence.
 

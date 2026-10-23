@@ -303,8 +303,9 @@ can subscribe. Provisional names below intentionally have no index or address:
 4. Apply compares the whole snapshot under stock's serialization boundary,
    rejects stale content/markers/trim/tempo or an active conflicting editor,
    then commits once. Preview, Cancel and failed Apply do not dirty or save
-   anything. Undo retains complete records and refuses to undo across another
-   edit. A later project/sample save uses stock, never a new storage format.
+   anything. Retain complete records for failure rollback; the player removes
+   markers through stock slice-clearing actions, with no separate module Undo.
+   A later project/sample save uses stock, never a new storage format.
 5. Preserve stable slice semantics, not merely starts. Inserting a start into
    a sorted list can renumber existing slices and change slice-lock playback;
    this needs native investigation and an explicit policy before Apply.

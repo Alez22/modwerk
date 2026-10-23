@@ -236,10 +236,12 @@ The stock sanitizer also clamps existing starts, ends and loops in the tested
 Flex/Static fixtures. Preflight must establish that retained records would
 remain exact; never run a sanitizer speculatively against live settings.
 
-Undo stores complete before/after records in base-owned memory and checks
-the after-generation before restoring. It must refuse after an intervening
-edit or sample change. Integration with stock Undo/history remains a separate
-proof; this proposal does not claim that stock has an applicable Undo service.
+Retain complete before-state for internal failure rollback. The player workflow
+uses stock DELETE SLICE / DELETE ALL SLICES after grid creation; it adds no
+module Undo or history-management dialog. Clearing removes markers rather than
+restoring the pre-grid layout. The portable Undo journal is retained research,
+not a required native service. Stock clear/edit operations must retire stale
+previews. Follow stock working/saved-copy and settings-save behavior.
 
 ## Playback contract still needed
 
