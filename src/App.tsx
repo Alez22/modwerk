@@ -454,7 +454,7 @@ export default function App() {
       <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); mainRef.current?.focus() }}>Skip to content</a>
       <aside className="sidebar" aria-label="App sidebar">
         <div className="sidebar-brand">
-          <a className="app-brand" href="#overview"><img src={import.meta.env.BASE_URL + 'modwerk-mark.svg'} width="34" height="34" alt="" /><BrandName session={session} /><small>Custom Firmware</small></a>
+          <a className="app-brand" href="#overview"><img src={import.meta.env.BASE_URL + 'modwerk-mark.svg'} width="34" height="34" alt="" /><BrandName session={session} /><small>Community-built firmware</small></a>
         </div>
         <nav className="sidebar-nav sidebar-home" aria-label="Home"><a href="#overview" className={overviewRoute ? 'active' : ''} aria-current={overviewRoute ? 'page' : undefined}><Icon name="home" /><span>Overview</span><small>{DEVICES.length}</small></a></nav>
         {DEVELOP_HIGHLIGHT && <DevelopCard current={route.startsWith('submit')} />}
