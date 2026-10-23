@@ -19,10 +19,10 @@ describe('module release notes', () => {
     expect(() => parseModuleChangelogs({ schemaVersion: 1, modules: { euclid: [{ ...entry, announce: 'true' }] } })).toThrow('Invalid announcement opt-in')
   })
 
-  it('covers every current catalog release across all three instruments', () => {
+  it('covers every current catalog release across every instrument', () => {
     const notes = parseModuleChangelogs(data, COMMUNITY_MODULES)
     expect(Object.keys(notes).length).toBe(COMMUNITY_MODULES.length)
-    expect(new Set(COMMUNITY_MODULES.map(module => module.machine))).toEqual(new Set(['octatrack', 'digitakt', 'digitone']))
+    expect(new Set(COMMUNITY_MODULES.map(module => module.machine))).toEqual(new Set(['octatrack', 'digitakt', 'digitone', 'analog-rytm-mkii']))
   })
 
   it('rejects an updated catalog version without matching written notes', () => {

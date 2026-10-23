@@ -489,14 +489,14 @@
     "order": 80,
     "name": "Analog Rytm",
     "family": "elektron",
-    "status": "research",
-    "summary": "OS 1.74 rebuilt byte-identical; modified OSes boot on hardware; stock recovers over MIDI DIN; core-ar2 0.3 with mod storage runs on units. OS 1.73 is no longer supported.",
+    "status": "preview",
+    "summary": "OS 1.74 rebuilt byte-identical; modified OSes boot on hardware; stock recovers over MIDI DIN; core-ar2 0.3 with mod storage runs on units. Filter Hz is the first library module.",
     "steps": {
       "format": "done",
       "rebuild": "done",
       "boot": "done",
       "core": "done",
-      "mods": "open"
+      "mods": "done"
     },
     "art": {
       "body": "wide",
