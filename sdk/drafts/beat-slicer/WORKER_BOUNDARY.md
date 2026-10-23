@@ -61,6 +61,22 @@ scratch. The reduced pool and code/canaries are checked. No device or saved
 card is modified. The two-reversal run passes with five tracked edit/waveform commands; see
 TESTING.md for its exact result and limits.
 
+## Existing base ownership
+
+The current base already owns the six-byte idle and job sites at `0x4008484e`
+and `0x4008485e` through `sdk/runtime/logging/stock-guards.json`. Its generated
+shims preserve registers and replay the displaced instructions. Shared source
+ownership should extend these base-owned boundaries after review; a module
+must not claim either site or add its own receive patch. The private receive
+wrapper above is an experiment, not the deployment recipe.
+
+`modwerk_idle_hook` currently services USB/module sets before the logger idle
+hook. Retiring a prior command only at the receive call would keep it excluded
+through that service. A future background reader scheduled there needs an
+explicit ordering decision, and the service's owner/source mutations need
+coverage too. The full-stock observer test runs neither that base chain nor
+USB installation/removal, so it does not establish their compatibility.
+
 ## Still required
 
 The first command already waiting inside an unwrapped receive at installation

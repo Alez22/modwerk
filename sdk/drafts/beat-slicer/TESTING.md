@@ -1393,3 +1393,15 @@ installable module, exported ABI, browser/USB package, complete source ownership
 or hardware qualification follows. The injection/initializer are private test
 operations, and the first command already waiting inside an unwrapped receive
 must not be assumed covered during future native admission.
+
+
+## Session lock accounting baseline (0.1.20)
+
+`session_lock_native.py --expect baseline` runs the existing compiled session
+regression with an instruction observer around its synthetic backend lock.
+The baseline passes 4,404 successful lock sections, a longest section of 9,808
+executed instructions, and 4,747 planner/reader begin/step/supply calls while
+locked (zero outside). These are instruction observations of this fixture's
+byte-copy metadata backend, not physical latency or native Flex capture timing.
+The purpose is to verify moving private arithmetic/decoding outside source
+ownership while retaining all capture/copy and stale-result checks.
