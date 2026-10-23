@@ -186,6 +186,13 @@ reserve instead (`flash.c`). The bootloader depacks NOR from `0x4012`, the secti
 image that does not boot is recovered over DIN MIDI only, so the base writes only a container that depacks to the
 base it is itself running (`sdk/machines/octatrack/elekloader/README.md`, "Updating the base over USB").
 
+**Don't check a running image against its own RAM.** Once stock has started it rewrites bytes inside its
+bootloader copy (`0x400e201e`-`0x400e2108`) and reuses the RAM after the image, where MAIN keeps the packed `.run`
+(161,328 of its 165,076 bytes changed after 20 s on ot_emu, base `d6bfff70`, 23 October 2026). The first base's
+write compared both against the running RAM and refused every container (refusal 105, "Device refused commit:
+backend" on a tester's unit). `flash.c` now compares the copy with stock's digest and the stream with a digest `.boot`
+takes before it returns to stock (`modwerk_flash_snapshot`).
+
 **Not yet seen on a unit (20 October 2026):** the USB write is host-tested against a NOR model and the stock
 routines are read, not run; the first hardware run is the owner's call, with a MIDI interface at hand. Qualify
 the written base after a sustained power-off too, not only the soft restart that follows the write (a tester reported a base stalling at the logo only after minutes
