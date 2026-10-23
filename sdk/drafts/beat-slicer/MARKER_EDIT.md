@@ -2,7 +2,7 @@
 
 `marker_edit.c` prepares a complete before/after marker table from a validated
 preview. It never writes native settings, invokes stock sanitation, saves files
-or applies Undo. The conservative **preserve ordinals or refuse** policy remains
+or performs rollback. The conservative **preserve ordinals or refuse** policy remains
 a proposal for owner review, not released behavior.
 
 All existing records must appear at the same indices in the proposed starts.
@@ -20,10 +20,11 @@ sample will be refused; a preview must explain that restriction.
 
 Validation finishes before the first output write. Failure leaves output
 untouched. On success both snapshots include all 64 records, including inactive
-rows: adding slices can overwrite inactive bytes that an exact Undo must retain.
+rows: adding slices can overwrite inactive bytes that exact failure rollback
+must retain. This does not require a player-facing Undo action.
 Unused rows after the new count are copied unchanged. Before/after equality
 helpers compare the count and every record field, so an intervening inactive-row
-change also refuses a history match.
+change also refuses the expected-table match.
 
 These comparisons alone supply neither source identity nor authorization to publish.
 The [candidate binder](EDIT_CANDIDATE.md) now binds them to an exact portable
@@ -39,4 +40,4 @@ mutation checks, refusals and numeric boundaries. Twenty-four authored Flex/
 Static candidates retain exact active/inactive records through real stock sort
 and sanitation, with unrelated tempo/name/track calls mocked. The restoration
 step writes synthetic memory only. These fixtures do not establish physical
-persistence, pattern playback, native Undo, UI visibility or click-free sound.
+persistence, pattern playback, native commit/rollback, UI visibility or click-free sound.

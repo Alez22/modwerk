@@ -67,7 +67,7 @@ callback retention, stale owners/tokens, retirement, callback failure,
 reentrant removal refusal, token exhaustion and malformed inputs. The native
 fixture executes real stock menu open, selection and indirect callback dispatch
 with UI/drawing/stock action bodies explicitly mocked. No rendered or device UI,
-native lock, live package admission, background job cancellation, Apply/Undo
+native lock, live package admission, background job cancellation, commit/rollback
 or physical persistence is qualified by these tests.
 
 The compiled stock fixture reserves one incoming argument word for selection:

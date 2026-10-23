@@ -2,7 +2,7 @@
 
 `edit_candidate.c` joins complete marker preparation to one ready preview. It
 is a portable base-side prototype, not an installed service, publication API
-or native Undo implementation. It never writes PCM or sample settings.
+or native rollback implementation. It never writes PCM or sample settings.
 
 Begin retires the previous candidate and binds the current session operation.
 Under that session's nonblocking backend lock it revalidates the preview,
@@ -34,6 +34,8 @@ Normal callers continue using `bs_session_result`, which acquires it itself.
 
 Returning a candidate is **not Apply permission**. A future native publication
 service must validate and publish within its own verified ownership boundary,
-refresh all native state atomically, integrate exact Undo and satisfy playback
-qualification. Copying this result and writing it after releasing the lock
-would not establish those guarantees.
+refresh all native state atomically, provide exact internal failure rollback
+and satisfy playback qualification. Successful creation follows the stock
+slice-clearing workflow, with no separate Undo or history-discard UI. Copying
+this result and writing it after releasing the lock would not establish those
+guarantees.

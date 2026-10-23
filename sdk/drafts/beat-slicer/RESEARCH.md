@@ -76,7 +76,7 @@ Both CREATE SLICE GRID rows point to `0x40072cb8`, which opens an eleven-row
 menu after validity checks. The inspected opener span is 116 bytes with
 SHA-256 `bf2a6e0d9fe2a3e4cae51dafc126777b83c726fc4dd7970e7651df2e341adc44`.
 That is an analysis-span identity, **not a proposed patch guard**. Full call
-ABI, every incoming branch, selection lifetime and transaction/Undo behavior
+ABI, every incoming branch, selection lifetime and native commit/rollback behavior
 still need execution traces. No code or stock table is included here.
 
 Six isolated CPU-emulator probes now narrow that uncertainty (not a full
@@ -135,7 +135,7 @@ is written to a real project, sample, card or instrument.
 These results exclude two unsafe integration shortcuts: using a stock parser
 as an atomic transaction, and running stock sanitation speculatively on live
 records. Preflight must reject an edit that would normalize an existing
-record. Whole editor flows, working/saved-copy selection, Undo, native file
+record. Whole editor flows, working/saved-copy selection, internal rollback, native file
 failure recovery and physical reboot remain unproved.
 
 Relevant upstream research (reported evidence, not newly observed hardware):
@@ -355,7 +355,7 @@ records; earlier descriptions of that mocked follow-up as possibly dirty/Undo
 were unresolved guesses, not established history behavior. Deferred grids
 clear count before search completion and publish records later. These are
 observations on synthetic state, not approved native entry points or patch sites.
-See TESTING.md for scope and remaining persistence/Undo limitations.
+See TESTING.md for scope and remaining native publication/persistence limitations.
 
 
 ### Full stock emulator observations
