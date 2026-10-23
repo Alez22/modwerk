@@ -740,3 +740,40 @@ The 0.1.9 reports match source commit `5f950ab935fcab042175cbb45aad1ec7108d8621`
 `tests.evidenceRevision`. Earlier session/load reports keep their original
 source identities. The stale fork-origin comparison still rejects inherited
 CHANGELOG history; current-upstream readiness is required before push.
+
+## Stock pool-backed preview sessions (0.1.10)
+
+`evidence/stock-pool-session.json` records five passing groups with the host
+session/guard/reader calling real emulated stock Flex page lookup, gain and
+release. No stock callees are mocked. Ownership, source identity, sample rate
+and tempos are authored callbacks; this is not a native provider or lock.
+
+- Eight complete 16/24-bit mono/stereo, exact/smooth previews cross fragmented
+  pages and match synchronous reference plans. PCM, controls and complete
+  synthetic metadata remain unchanged.
+- Four actual stock zero-gain edits change PCM without changing the control
+  record. Guard invalidation retires the partial preview before another read.
+- Three completed results refuse changed marker ends, trim loop or synthetic
+  sample generation without writing the caller's output.
+- Actual release retires the old preview and empty-slot admission refuses.
+- Pending copy yields, then a copy-time metadata change discards the block.
+
+Both pinned EMAC/peripheral gates pass. The initial polarity fixture did not
+mutate mono PCM; the final fixture uses the previously covered gain operation.
+This was a fixture correction, not a stock firmware fix.
+
+Inside the existing private mounts, configure CMake as above, freeze inputs,
+then run:
+
+```sh
+cmake --build /output/build --target beat_slicer_pool_session_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind pool-session \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_pool_session_probe \
+  --output /evidence/NEW_POOL_SESSION.json
+```
+
+The portable session's compiled-target evidence remains the historical 0.1.8
+report. This mixed host/stock probe does not prove native callbacks, scheduling,
+Static streaming, complete writer coverage, Apply/Undo, USB or physical audio
+and persistence. Source hashes bind the retained report to the exact inputs.

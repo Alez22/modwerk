@@ -49,3 +49,9 @@ replies and unsupported-source cases. See [TESTING.md](TESTING.md).
 Missing native writer coverage, shared lock/callback implementation, Static
 streaming, scheduling and hardware timing keep this prototype disabled for live
 use. Callback count and byte bounds are not a measured instrument time budget.
+
+The 0.1.10 mixed host/stock probe connects these callbacks to actual emulated
+Flex page lookup, gain and release. Eight plans match the reference while
+keeping PCM/settings unchanged; edits, metadata changes and released slots
+retire previews. Identity, lock, rate and tempo remain synthetic. This tests
+the proposed callback boundary, not an installed or compiled native backend.

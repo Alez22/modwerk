@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.10-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted integration evidence: connect the portable host preview session to real stock Flex page lookup, gain edits and release in synthetic firmware memory. Eight mono/stereo 16/24-bit exact/smooth previews match reference plans while preserving source PCM, controls and metadata.",
+      "Four real stock gain edits invalidate partial previews despite unchanged controls; three metadata/identity changes refuse completed results. Released slots reject new admission, pending copies yield, and copy-time metadata changes discard the block. Five source-bound groups and pinned EMAC/peripheral gates pass.",
+      "Session identity, rate, tempo and exclusive ownership are synthetic fixture callbacks. Native synchronization, complete writer coverage, Static streaming, editor Apply/Undo, playback smoothing and browser/card/USB/hardware qualification remain pending; no installable module is released."
+    ]
+  },
+  {
     "version": "0.1.9-experimental",
     "date": "2026-10-23",
     "changes": [
@@ -22,7 +31,7 @@
     "date": "2026-10-23",
     "changes": [
       "Unlisted integration research: add complete ordinary-recorder stock-CPU fixtures for 16/24-bit stereo page crossings, tracks 1/8, both state banks and lazy shared-pool allocation. Original synthetic silent inputs and the host admission guard exercise 20 calls without mocking callees; portable core behavior is unchanged.",
-      "Observe map/position publication before PCM, with no edit-queue, dirty-array or slot-counter signal. Inactive/empty calls and allocation shortages exercise guard cleanup; a shortage can publish a prepared position without writing this call’s PCM and queue engine/UI follow-up work. Refine the provider contract to require independent source validation, follow-up writer coverage and shared-pool serialization.",
+      "Observe map/position publication before PCM, with no edit-queue, dirty-array or slot-counter signal. Inactive/empty calls and allocation shortages exercise guard cleanup; a shortage can publish a prepared position without writing this call\u2019s PCM and queue engine/UI follow-up work. Refine the provider contract to require independent source validation, follow-up writer coverage and shared-pool serialization.",
       "This remains noninstallable staging. Arming, Pickup/overdub, remaining recorder modes, non-silent mixing, follow-up execution, real ISR/scheduling, native hooks/locks, Flex/Static access, editor Apply/Undo, playback smoothing, USB lifecycle and physical qualification remain pending."
     ]
   },

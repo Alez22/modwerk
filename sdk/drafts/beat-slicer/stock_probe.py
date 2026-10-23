@@ -23,12 +23,12 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'load', 'markers'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'load', 'markers', 'pool-session'), default='editor')
     args = parser.parse_args()
     source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
                                      'reader': 'reader_probe.cpp',
                                      'coherence': 'coherence_probe.cpp',
-                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'load': 'load_probe.cpp', 'markers': 'marker_probe.cpp'}[args.kind]
+                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'load': 'load_probe.cpp', 'markers': 'marker_probe.cpp', 'pool-session': 'pool_session_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
@@ -51,10 +51,18 @@ def main():
         inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
         binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
         expected = hashlib.sha256(binding.encode()).hexdigest()
+    if args.kind == 'pool-session':
+        names = ('pool_session_probe.cpp', '../planner.c', '../planner.h', '../planner_job.c',
+                 '../planner_job.h', '../pcm_reader.c', '../pcm_reader.h', '../preview_guard.c',
+                 '../preview_guard.h', '../preview_session.c', '../preview_session.h')
+        inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
+        binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
+        expected = hashlib.sha256(binding.encode()).hexdigest()
     if 'SOURCE_SHA256: ' + expected not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
-        'scope': ('portable candidate preparation with real stock record sort/sanitation; synthetic memory and explicit tempo/name/track mocks, no native Apply/Undo or device'
+        'scope': ('host preview session with real stock Flex page lookup/edit/release; synthetic ownership/identity/rate/tempo, no scheduler, native hooks or device'
+                  if args.kind == 'pool-session' else 'portable candidate preparation with real stock record sort/sanitation; synthetic memory and explicit tempo/name/track mocks, no native Apply/Undo or device'
                   if args.kind == 'markers' else 'complete stock Flex replacement refusals with synthetic filesystem/header mocks and host guard; real release/allocation, no scheduler or device'
                   if args.kind == 'load' else 'complete stock recorder call with synthetic active state and silent inputs, host admission guard; no mocks, scheduler, ISR or device'
                   if args.kind == 'recorder' else 'isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
