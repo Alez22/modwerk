@@ -735,3 +735,8 @@ The conservative preflight policy remains subject to owner review. These results
 do not prove every stock endpoint case, pattern reference playback, editor/voice
 refresh, atomic Apply, stock Undo/history, saved/working-copy publication, audio
 smoothing, USB installation or physical persistence. No live settings are changed.
+
+The 0.1.9 reports match source commit `5f950ab935fcab042175cbb45aad1ec7108d8621`, pinned by
+`tests.evidenceRevision`. Earlier session/load reports keep their original
+source identities. The stale fork-origin comparison still rejects inherited
+CHANGELOG history; current-upstream readiness is required before push.
