@@ -63,12 +63,17 @@ to what the base's source hash covers (this folder, the logger, upload, loader, 
 sources; their `.c`, `.h`, `.s`, `.asm`, `.py` and `.json` files) changes the base, even a file only `--dev` twins
 compile (`dev.c`) or a test there (`test_recipe.py`). `octatrack-base-sources.json` lists those inputs and their hashes, and a test
 (`octatrack-base.test.ts`, no firmware) fails when one changed or a file joined those folders. Rebuild and
-commit it with the beta base's options (the committed base is the beta base):
+commit it with the beta base's options (the committed base is the beta base). `--beta` names every one of them
+(`BETA` in `scripts/octatrack-base.mjs`: USB MIDI, the twenty-channel USB Audio default and its variants, site
+events, table owners, the resident engines on demand, the controllers, module sets and cached module code), and
+`--write` takes no other:
 
 ```sh
-npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --usb-midi --usb-audio 'USB AUDIO OUT TRACKS MAIN CUE' \
-  --site-events --table-owners --resident-stock-hooks --resident-on-demand --controllers --module-sets --usb-audio-variants --write
+npm run octatrack:base -- --stock /private/OCTATRACK_OS1.40C.bin --beta --write
 ```
+
+Analog BD's trust row hashes its reviewed inputs, `machine-ports.json` among them, so an edit there (any machine's
+entry) also needs this regeneration.
 
 USB Audio is part of the base: its output layout sets the USB descriptors, so each layout is its own base, sent over
 USB like any base update when a module set asks for another layout (`src/engine/elekloader/base-variants.ts`). The
