@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.8-experimental",
+    "date": "2026-10-23",
+    "changes": [
+      "Unlisted development: add a portable preview-session adapter that captures base-owned source/owner/editor identity and complete marker metadata, coordinates bounded PCM copies under supplied synchronization, and revalidates metadata and guard tokens around each copy and before returning a result. Pending, cancellation, restart, malformed replies and unsupported sources refuse safely; no native provider is enabled.",
+      "Host sanitizers and compiled ColdFire selftests pass 32 full-preview comparisons, 22 snapshot invalidations, selected-tempo handling and lifecycle/failure cases. Fourteen stock Flex replacement-refusal fixtures execute real release/allocation with explicit filesystem/header mocks; failed loads can already clear old PCM and relocate surviving maps. Nested release must not reopen preview admission.",
+      "Native lock/callback implementation, complete writer coverage, actual file decoding/streaming, shared-base review, editor Apply/Undo, playback smoothing, browser/card/USB lifecycle and physical qualification remain pending. This version is noninstallable staging."
+    ]
+  },
+  {
     "version": "0.1.7-experimental",
     "date": "2026-10-23",
     "changes": [

@@ -125,6 +125,14 @@ behavior in portable C. It is not an assigned ABI or a native serialization
 mechanism. The shared implementation and all writer/copy boundaries still need
 review before a module can subscribe or a live provider can be enabled.
 
+The [session prototype](PREVIEW_SESSION.md) now coordinates that guard with full
+metadata capture, bounded copies, pending/cancel/restart and result revalidation
+through a supplied lock/backend interface. Its native callbacks do not exist.
+The Flex replacement-refusal trace additionally proves that failed loads may
+already clear old PCM and relocate surviving maps. Outer replacement exclusion
+must span its nested release and every failure path; error return cannot restore
+the older token. Filesystem/header mocks limit that trace to orchestration.
+
 PCM reads copy a bounded block into caller-owned scratch memory. They report
 ready, pending, stale, unsupported or failed; a pending Static read yields
 to the scheduler. No filesystem wait, allocation or sample scan runs in the

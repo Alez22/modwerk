@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.7-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.8-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -82,6 +82,12 @@ The recorder investigation adds 20 synthetic calls covering stereo page crossing
 lazy shared-pool allocation and early exits. Recorder position/map publication can
 precede PCM without an edit-queue, dirty-flag or counter signal; a live provider
 must cover those writers too. No device-testable package is available yet.
+
+The [preview session](PREVIEW_SESSION.md) now connects admission, complete metadata
+snapshots and the staged reader through a serialized backend interface. It handles
+waiting, cancellation and stale results on host and compiled ColdFire. The actual
+stock callbacks and synchronization are still missing. Failed-load probes also
+confirm that replacement errors can already have released the old sample.
 
 ## Tests and measurements
 

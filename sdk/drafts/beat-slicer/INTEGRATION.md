@@ -48,6 +48,13 @@ These are remaining tasks, not implemented behavior.
    shortages. Recorder map/position updates precede PCM without queue/dirty/counter
    signals; shortage cleanup queues more work. Remaining modes/follow-up writers,
    real ISR scheduling and shared-pool serialization still need investigation.
+   `preview_session.c` now connects complete metadata snapshots, guard admission
+   and the staged reader through a nonblocking serialized callback interface.
+   Host and compiled-target tests cover complete previews and stale/cancel/error
+   handling; native callbacks/locking remain absent. Flex replacement-refusal
+   probes cover real nested release and allocator behavior with filesystem/header
+   mocks. Actual sample decoding, successful replacement and live callers remain
+   uncovered.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

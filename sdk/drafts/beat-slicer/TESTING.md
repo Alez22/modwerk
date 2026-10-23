@@ -621,3 +621,63 @@ The recorder report matches source commit `95a33062f8d34631d963044311012da720511
 again rejects inherited upstream CHANGELOG history; current upstream validation
 is required before push. `module:doctor -- beat-slicer` still refuses this
 unlisted draft, and `verify.py` remains an intentional qualification refusal.
+
+## Serialized session and replacement refusal (0.1.8)
+
+`evidence/session-host.json` records Apple clang ASan/UBSan execution of the
+portable session selftest. `evidence/session-native.json` records the same test
+compiled by pinned GCC 16.2.0, accepted by the shared ColdFire code-generation
+guard, linked without runtime helpers and executed with preserved registers.
+The provider object has 2540 text bytes and no object data/BSS. Compiler local
+stack reports range from 0 to 160 bytes, some dynamic but bounded; these exclude
+the complete callback/call chain and do not establish hardware stack or timing.
+
+The selftest covers 32 complete preview comparisons against the synchronous
+planner across 16/24-bit mono/stereo, both byte orders, both boundary modes and
+both tempo sources. Authored 13-frame pages force short replies. Twenty-two
+metadata/guard changes refuse a finished result without changing output; full
+record ends/loops and source/owner/editor generations participate. Unselected
+tempo changes alone are ignored, while selected-tempo changes retire the plan.
+Additional cases cover lock/source pending, pending validation after a copy,
+cancel/restart, writer-active admission, revocation, copy-time mutation,
+malformed replies and unsupported sources. All backend calls occur under the
+synthetic lock, with balanced unlocks. No native backend is installed.
+
+`evidence/stock-load.json` records 14 complete stock Flex loader refusal calls
+using synthetic filesystem/header callbacks. Real release/allocation runs and
+the host guard follows nested entry/return. Twelve failures clear old PCM and
+move a surviving slot's map while preserving its audio/control record. Opened
+handles close; an allocation refusal leaves a proposed nonzero length but no
+owned pages. Invalid pool/slot cases do not mutate. Pinned EMAC/peripheral gates
+pass. The stock CPU version/tool pins are the same as the 0.1.7 recorder run.
+
+Host reproduction:
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_preview_session.py --output NEW_HOST.json
+```
+
+Inside the existing private source-tools mounts, with source frozen from
+configure to execution:
+
+```sh
+cmake --build /output/build --target beat_slicer_load_probe beat_slicer_job_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind load \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_load_probe \
+  --output /evidence/NEW_LOAD.json
+python3 -B /source/sdk/drafts/beat-slicer/session_native.py \
+  --output /evidence/NEW_NATIVE_DIRECTORY --executable /output/build/beat_slicer_job_probe
+```
+
+The first load fixture expected a lowercase extension at open; stock uppercases
+that extension in its working path. A second fixture placed packed decoded-header
+longs at aligned offsets, producing invalid synthetic lengths; moving them to
+the observed packed offsets fixed the fixture. Failed attempts remain private;
+only final source-matched passing evidence is retained. These are fixture fixes,
+not firmware fixes or claims of a stock parser defect.
+
+Actual filesystem decoding/loading, native locking/callbacks, full writer
+coverage, Static prefetch, scheduling, Apply/Undo, playback smoothing and exact
+browser/card/USB/hardware qualification remain open. These tests grant no live
+admission or publication capability.

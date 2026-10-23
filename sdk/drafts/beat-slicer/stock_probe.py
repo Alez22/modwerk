@@ -23,12 +23,12 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'load'), default='editor')
     args = parser.parse_args()
     source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
                                      'reader': 'reader_probe.cpp',
                                      'coherence': 'coherence_probe.cpp',
-                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp'}[args.kind]
+                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'load': 'load_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
@@ -37,10 +37,10 @@ def main():
                             text=True, capture_output=True, timeout=120)
     inputs = [source]
     expected = digest(source)
-    if args.kind in ('coherence', 'worker', 'recorder'):
+    if args.kind in ('coherence', 'worker', 'recorder', 'load'):
         names = ('coherence_probe.cpp', '../planner.c', '../planner.h', '../planner_job.c',
                  '../planner_job.h', '../pcm_reader.c', '../pcm_reader.h')
-        if args.kind in ('worker', 'recorder'):
+        if args.kind in ('worker', 'recorder', 'load'):
             names = (args.kind + '_probe.cpp', '../preview_guard.c', '../preview_guard.h')
         inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
         binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
@@ -48,7 +48,8 @@ def main():
     if 'SOURCE_SHA256: ' + expected not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
-        'scope': ('complete stock recorder call with synthetic active state and silent inputs, host admission guard; no mocks, scheduler, ISR or device'
+        'scope': ('complete stock Flex replacement refusals with synthetic filesystem/header mocks and host guard; real release/allocation, no scheduler or device'
+                  if args.kind == 'load' else 'complete stock recorder call with synthetic active state and silent inputs, host admission guard; no mocks, scheduler, ISR or device'
                   if args.kind == 'recorder' else 'isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
                   if args.kind == 'storage' else
                   'synthetic stock producer, queues, worker and completion posts with host admission guard; display mock, no scheduler/UI consumer/device access'

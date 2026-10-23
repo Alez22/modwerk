@@ -141,6 +141,28 @@ mixing, stop finalization nor scheduler/ISR behavior. Shared allocation means
 excluding only recorder slots from preview does not establish pool ownership
 for Flex readers. All allocator and copy boundaries still need serialization.
 
+## Flex replacement refusals (0.1.8)
+
+`evidence/stock-load.json` exercises the complete loader entry `0x40096548`.
+Directory/open/close and decoded-header callbacks are explicit synthetic mocks;
+string handling, nested release and allocation checks run as stock code. Twelve
+failed replacements cover slots 0/127 and directory, extension, open, header,
+encoding and insufficient-page failures. Two additional cases refuse an
+unavailable pool or slot 136 without mutation.
+
+Every tested replacement failure has already called release, cleared the two
+old PCM pages and advanced the slot counter twice (41 to 43). The survivor's
+allocation offset moves from 2 to 0 while its PCM/control record stays exact.
+Opened synthetic handles close on header/encoding/allocation failure. The
+allocation failure retains proposed length 10000 with error state and zero owned
+pages: a nonzero length is not readiness. No actual file read is qualified.
+
+The host guard spans the whole loader call and tracks nested release separately;
+the inner return cannot admit a preview. Failure retires the older token just
+like success would. Successful replacement, actual WAV decoding/copying,
+recorder load paths, panel/worker post-load refresh and live interleaving still
+need coverage.
+
 ## Consequence for the base service
 
 An epoch increment at a dirty store can retire old previews, but cannot by

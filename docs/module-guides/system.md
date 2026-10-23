@@ -77,6 +77,14 @@ work. A position or routine return therefore does not establish source readiness
 Refusing recorder slots alone does not serialize shared-pool access for Flex.
 These fixtures do not establish the real ISR mask, timing or recording behavior.
 
+Treat failed sample replacement as a possible content change. Beat Slicer's
+synthetic 1.40C Flex-load fixtures release and clear the old PCM before directory,
+file-open, header or allocation errors return; a surviving slot's map can move
+while its audio and control record stay unchanged. Retire the old preview before
+replacement starts and keep exclusion across nested release until the outer load
+returns. These fixtures mock filesystem/header IO and do not qualify actual file
+loading or persistence.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming
