@@ -56,12 +56,11 @@ def catalog_added():
 
 def base_rep_count(base, path):
     """How many `rep` lines the file had at the base commit; None when it did not exist."""
-    try:
-        text = subprocess.run(['git', 'show', f'{base}:{path.relative_to(ROOT).as_posix()}'], cwd=ROOT,
-                              capture_output=True, text=True, check=True).stdout
-    except subprocess.CalledProcessError:
+    run = subprocess.run(['git', 'show', f'{base}:{path.relative_to(ROOT).as_posix()}'], cwd=ROOT,
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8', errors='replace')
+    if run.returncode != 0:
         return None
-    return len(rep_lines(text))
+    return len(rep_lines(run.stdout or ''))
 
 
 def check_folder(folder, rep_refused, base=None):
