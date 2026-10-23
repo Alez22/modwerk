@@ -825,7 +825,7 @@ mask. This remains narrow ABI evidence. Stock Undo, voice-state refresh,
 working/saved-copy publication, project save/reload and reboot remain unproved.
 
 The 0.1.11 report matches source commit `c8780c374760765df6996f2c52a16c40344b6726`, pinned by
-`tests.evidenceRevision`. Prior reports keep their historical source identities.
+the historical 0.1.11 metadata. Prior reports keep their historical source identities.
 
 ## Preview-bound edit candidates (0.1.12)
 
@@ -862,3 +862,6 @@ freeze inputs and run `candidate_native.py` and `session_native.py`, each with a
 new `--output` directory and `--executable /output/build/beat_slicer_job_probe`.
 Synthetic ownership and metadata remain the backend contract, not proof of live
 writer coverage, native atomic Apply/Undo, timing, audio or physical persistence.
+
+The 0.1.12 candidate and session-regression reports match source commit
+`29c1a305a54ec83c4d3876304d8b304287d698a8`, pinned by `tests.evidenceRevision`.
