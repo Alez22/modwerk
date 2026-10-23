@@ -779,7 +779,7 @@ Static streaming, complete writer coverage, Apply/Undo, USB or physical audio
 and persistence. Source hashes bind the retained report to the exact inputs.
 
 The 0.1.10 report matches source commit `b745c6749e6e2b5b876f1d25d8ead6f2d2818660`, pinned by
-`tests.evidenceRevision`; prior reports retain their historical identities.
+the historical 0.1.10 metadata; prior reports retain their historical identities.
 
 ## Stock editor publication (0.1.11)
 
@@ -823,3 +823,6 @@ python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind publication \
 The tested callbacks restore the stack, callee-saved registers and interrupt
 mask. This remains narrow ABI evidence. Stock Undo, voice-state refresh,
 working/saved-copy publication, project save/reload and reboot remain unproved.
+
+The 0.1.11 report matches source commit `c8780c374760765df6996f2c52a16c40344b6726`, pinned by
+`tests.evidenceRevision`. Prior reports keep their historical source identities.
