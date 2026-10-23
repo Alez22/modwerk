@@ -161,7 +161,7 @@ def main():
             g = struct.unpack('>12I', port.peek(guard_at, 48))
             b = struct.unpack('>4I', port.peek(boundary_at, 16))
             assert g[2:4] == (1, 0) and not any(g[4:]) and b[1:] == (0, 1, 0), 'Observer did not retire before queue wait'
-            assert g[0] > 1 and b[0] == guard_at 
+            assert g[0] > 1 and b[0] == guard_at
             for at in range(0, len(data), 4096):
                 assert port.peek(native['textBase']+at, min(4096, len(data)-at)) == data[at:at+4096], 'Original observer code overwritten'
             assert port.peek(reserve.start, 16) == bytes([0xa5])*16

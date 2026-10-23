@@ -178,8 +178,23 @@ do not assume it runs periodically. Coalesce wakes using stable base-owned
 identity, not an opcode exemption that would admit unrelated commands. A pending
 reader must wait for readiness or cancellation instead of immediately waking
 itself forever. Beat Slicer's private 1.40C engine fixture exercises this with
-at most eight transitions per event; that is not a physical-time budget or
-qualification of the production USB/module-set service chain.
+at most eight explicit steps plus optional begin/setup per event; that is not a
+physical-time budget or qualification of the production USB/module-set chain.
+
+Distinguish source writers from editor visualization work before invalidating
+every preview on every engine command. Beat Slicer's pinned 1.40C full boot
+observes recurring waveform commands invalidating a read-only preview under
+that coarse policy. Isolated execution checks the ordinary Flex renderer's
+source-read footprint across four formats and slots 0/127. That does not qualify
+Static/recorder variants or mutable queued-record lifetimes. Never exempt an
+opcode alone; establish its submode, input lifetime and complete write footprint
+before using a narrower classification in a live base.
+
+Prove that instrumentation observes the execution path in use. On the pinned
+`ot_emu` revision `8250be0c`, `Machine::setStepHook` is invoked by `Machine::run`,
+not a probe's direct `Machine::step` loop. Use explicit PC checks or memory
+watches there, and require a positive read/write control before interpreting
+zero counts as evidence of absent accesses.
 
 Keep loader ownership and sample ownership separate. The current
 [`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader

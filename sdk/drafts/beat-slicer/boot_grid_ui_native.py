@@ -197,7 +197,7 @@ def main():
         assert word('bs_boot_queries') == before_queries
         def names():
             address = word_at(0x460e5e2c)
-            count = 5 if word('bs_grid_ui_state') in (1, 2, 3) else 3
+            count = 5 if word('bs_grid_ui_state') in (1, 2, 3) else 4
             return [port.peek(word_at(address+4*i), 32).split(b'\0', 1)[0].decode('ascii') for i in range(count)]
         def select(row, count):
             for _ in range(count+1):
@@ -218,7 +218,7 @@ def main():
                 if state != 3: break
                 if steps % 32 == 0: port.command('run 1')
             assert state == 4, f'preview UI ended {state}'
-            assert names()[2] == 'BACK'
+            assert names()[3] == 'BACK'
             tempo = word('bs_grid_ui_tempo')
             snap = word('bs_grid_ui_snap')
             beats = (1, 4, 16, 32, 64)[word('bs_grid_ui_spacing')]
@@ -232,14 +232,16 @@ def main():
             expected = oracle.preview(request)
             actual = struct.unpack('>131I', port.peek(symbols['bs_boot_plan'], 524))
             assert actual == (expected.count, expected.bpm24, *expected.starts, *expected.needs_fade, expected.end_needs_fade)
-            assert names()[0] == f'PREVIEW: {expected.count} SLICES'
+            hundredths = (expected.bpm24 * 25 + 3) // 6
+            assert names()[0] == f'{expected.count} SLICE{"S" if expected.count != 1 else ""}: {hundredths//100}.{hundredths%100:02d} BPM'
+            assert names()[1] == f'EXISTING: {settings[273]} NEW: {expected.count-settings[273]}'
             expected_fade = 'FADES REQUIRED' if expected.end_needs_fade or any(expected.needs_fade) else 'BOUNDARIES QUIET'
-            assert names()[1] == expected_fade
+            assert names()[2] == expected_fade
             queries = word('bs_boot_queries')
             assert service() == 4 and word('bs_boot_queries') == queries
             item = {'tempoSource': tempo, 'beats': beats, 'snap': snap, 'steps': steps+1,
                     'markerCount': expected.count, 'wholePlanMatchesHost': True,
-                    'summaryCountAndFadeStatusMatch': True, 'readyDoesNotRestart': True}
+                    'summaryTempoCountsAndFadeStatusMatch': True, 'readyDoesNotRestart': True}
             results.append(item)
             return item
         def capture(name):
@@ -259,7 +261,7 @@ def main():
                         request_preview(); finish()
                         if len(results) in (1, 20):
                             capture(f'result-{len(results)}.private.bin')
-                        select(2, 3)
+                        select(3, 4)
                         assert service() == 1
             assert word('bs_grid_ui_previews') == 20
             # An option change retires a running request before its next read.
@@ -277,7 +279,7 @@ def main():
             assert service() == 5 and word('bs_boot_queries') == queries
             assert names()[:2] == ['PREVIEW UNAVAILABLE', 'SOURCE CHANGED']
             capture('stale-preview.private.bin')
-            select(2, 3); assert service() == 1
+            select(3, 4); assert service() == 1
             select(4, 5); assert service() == 0
             terminal = 'explicit-back'
         else:

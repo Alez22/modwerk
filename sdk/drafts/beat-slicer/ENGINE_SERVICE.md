@@ -25,9 +25,10 @@ order still needs review and exact-build qualification.
 
 `test_engine_service.c` makes the engine task the sole mutator of a preview
 session. Main/UI entry points only publish a request or cancellation. The idle
-service first retires the previous command, then performs at most eight session
-transitions. Planning and decoding remain outside the source copy lock. Eight
-transitions are a work-count limit, not a physical CPU-time guarantee.
+service first retires the previous command, then performs at most eight explicit
+session step calls, plus an optional begin call (which includes initial capture
+and planner setup). Planning and decoding remain outside the source copy lock.
+This is a work-count limit, not a physical CPU-time guarantee.
 
 A coalesced immutable message wakes the engine for remaining work, using the
 stock queue rather than a separate clock. Only that exact message address with

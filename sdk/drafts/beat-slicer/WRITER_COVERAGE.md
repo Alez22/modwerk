@@ -1,6 +1,6 @@
 # Live-reader writer coverage
 
-Status: investigation for the shared-base service, **not implemented hooks or
+Status: investigation for the shared-base service, **no installed production hooks or
 complete writer coverage**. Live reading and Apply remain unavailable. These
 addresses identify routines executed from the private, hash-bound original
 1.40C MAIN; they are not exported SDK functions or approved patch sites.
@@ -250,3 +250,35 @@ in this synthetic matrix, consistent with the earlier refresh probe. This is
 not a demonstrated physical fault and the module does not change stock clear.
 Its own publisher must still retire selection before rebuilding shorter tables.
 The separate full-stock `boot_slices.py` passes normal menu/deletion paths.
+
+## Ordinary Flex waveform reads (0.1.25)
+
+The coarse engine observer retired an automatic preview during recurring stock
+waveform work, without a sample edit. The private trace identifies command 16;
+its kind-1 ordinary Flex path reaches `0x4008e3d8`. Static uses another renderer,
+and slots 128–135 reach recorder helpers outside this qualification.
+
+The original `waveform_probe.cpp` executes 48 fresh/cached renderer calls across
+four packed formats, slots 0/127 and three bin widths, crossing page and logical
+end boundaries. All 102 bins per fresh call match an independent extrema/extent
+oracle. The
+fresh path reads PCM; the repeated matching display cache reuses its bins with
+no PCM reads. Stores stay within the observed stack, display, progress and
+cancellation regions. Watches find no source-pool, slot-control, sample-setting,
+map, allocation-count, format or dirty stores. The inherited display mock is
+asserted unused. A complete kind-1 command dispatch returns to the worker loop
+and posts its deferred completion without source writes.
+
+Two further cases cover an unavailable pool and a busy slot. The unavailable
+pool yields zero extrema; the stock renderer still reads the busy slot. That is
+not permission for a preview provider to ignore busy state: its own admission
+and coherent-source checks remain necessary.
+
+The automatic UI fixture narrowly classifies ordinary Flex waveform reads,
+keeping unknown, Static, recorder, fault and reentry cases conservative. This
+is not a production command ABI. Its stopped source and command inputs are
+fixed; stability of mutable queued records is not a proved base-owned lifetime.
+The generic `engine_boundary.c` remains conservative. Full writer coverage,
+cache behavior, source lifetime, shared-base integration and hardware remain
+unqualified. Source-bound reports and actual automatic-UI outcomes are listed
+in TESTING.md.

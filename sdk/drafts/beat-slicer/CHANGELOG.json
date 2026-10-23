@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.25-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Prototype automatic read-only BEAT GRID controls on the existing UI tick; pending sources yield after one service call.",
+      "Show the captured tempo, total/existing/new slice counts and fade warnings in the preview summary.",
+      "Investigate recurring ordinary Flex waveform reads separately from source writers; keep conservative handling for other command types.",
+      "Check waiting cancellation, owner retirement and unchanged main stack; clarify the engine budget as eight explicit steps plus optional begin/setup.",
+      "Known issue: private fixtures and synthetic ownership only; mutable command lifetime, complete admission, removal, Apply, playback, browser/USB and hardware qualification remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.24-experimental",
     "date": "2026-10-24",
     "changes": [

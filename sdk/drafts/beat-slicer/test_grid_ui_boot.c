@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 /* Private emulator-only configuration/preview UI. Fixed storage is never
- * reclaimed; owner/source identities are test-owned. Main service is borrowed
- * by the driver, not installed in the base. No Apply or hardware qualification. */
+ * reclaimed; owner/source identities are test-owned. Its service is driven by a
+ * private runner/tick fixture, not installed in the base. No Apply or hardware
+ * qualification. */
 #include "editor_menu.h"
 #include "preview_session.h"
+#include "ui_text.h"
 extern uint32_t bs_boot_menu_pending, bs_boot_menu_generation;
 extern struct bs_preview_session bs_boot_session;
 extern struct bs_plan bs_boot_plan;
@@ -13,16 +15,17 @@ enum { UI_CLOSED, UI_CONFIG, UI_REQUESTED, UI_SCANNING, UI_READY, UI_REFUSED };
 uint32_t bs_grid_ui_state, bs_grid_ui_epoch, bs_grid_ui_started;
 uint32_t bs_grid_ui_tempo, bs_grid_ui_spacing, bs_grid_ui_snap;
 uint32_t bs_grid_ui_previews, bs_grid_ui_cancelled;
+uint32_t bs_grid_ui_reply;
 static int32_t selection, result_selection;
 static uint32_t running_epoch;
 static const uint32_t spacings[5] = {1, 4, 16, 32, 64};
 static char bpm_label[32], spacing_label[32], boundary_label[32], preview_label[32];
-static char result_label[32], fade_label[32];
+static char result_label[32], counts_label[32], fade_label[32];
 static const char *const labels[5] = {bpm_label, spacing_label, boundary_label, preview_label, "BACK"};
-static const char *const result_labels[3] = {result_label, fade_label, "BACK"};
+static const char *const result_labels[4] = {result_label, counts_label, fade_label, "BACK"};
 static void bpm(void), spacing(void), boundary(void), preview(void), back(void), result_back(void);
 static const bs_menu_callback callbacks[5] = {bpm, spacing, boundary, preview, back};
-static const bs_menu_callback result_callbacks[3] = {result_back, result_back, result_back};
+static const bs_menu_callback result_callbacks[4] = {result_back, result_back, result_back, result_back};
 static uint32_t lock(void) {
     uint32_t saved;
     __asm__ __volatile__("move.w %%sr,%0\n\tmove.w #0x2700,%%sr" : "=d"(saved) :: "memory");
@@ -115,16 +118,25 @@ static void close_owned(void) {
 }
 static void result(int ready) {
     if (ready) {
+        uint32_t existing = bs_boot_session.snapshot.marker_count;
+        if (existing > bs_boot_plan.count ||
+            !bs_ui_plan_label(result_label, sizeof result_label, bs_boot_plan.count, bs_boot_plan.bpm24) ||
+            !bs_ui_counts_label(counts_label, sizeof counts_label, existing, bs_boot_plan.count-existing)) {
+            ready = 0;
+            bs_grid_ui_state = UI_REFUSED;
+        }
+    }
+    if (ready) {
         uint32_t fades = bs_boot_plan.end_needs_fade;
         for (uint32_t i=0; i<bs_boot_plan.count; ++i) fades |= bs_boot_plan.needs_fade[i];
-        number(result_label, "PREVIEW: ", bs_boot_plan.count, " SLICES");
         text(fade_label, fades ? "FADES REQUIRED" : "BOUNDARIES QUIET");
     } else {
         text(result_label, "PREVIEW UNAVAILABLE");
-        text(fade_label, bs_boot_session.state == BS_SESSION_STALE ? "SOURCE CHANGED" : "CHECK SOURCE / BPM");
+        text(counts_label, bs_boot_session.state == BS_SESSION_STALE ? "SOURCE CHANGED" : "CHECK SOURCE / BPM");
+        text(fade_label, "NO CHANGES MADE");
     }
-    result_selection = 2;
-    show(3, 2, &result_selection, result_labels, result_callbacks);
+    result_selection = 3;
+    show(4, 3, &result_selection, result_labels, result_callbacks);
 }
 uint32_t bs_grid_ui_service(void) {
     uint32_t saved = lock(), state, epoch, tempo, beats, snap;
@@ -167,6 +179,7 @@ uint32_t bs_grid_ui_service(void) {
     } else {
         session_state = bs_boot_step();
     }
+    bs_grid_ui_reply = session_state;
     saved = lock();
     if (!live() || bs_grid_ui_epoch != epoch || !root_state() || !visible()) {
         unlock(saved); bs_session_cancel(&bs_boot_session); running_epoch = 0; ++bs_grid_ui_cancelled;

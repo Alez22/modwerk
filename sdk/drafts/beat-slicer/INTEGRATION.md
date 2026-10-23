@@ -1,9 +1,11 @@
 # Native integration requirements
 
-These are remaining tasks, not implemented behavior.
+Release integration remains incomplete. The notes below distinguish private
+experiments from the shared services and qualification still required.
 
-1. Establish the 1.40C slice-menu dispatcher, decoded PCM reader and marker
-   transaction ABI from a locally owned stock OS and real observations. Stock
+1. Turn the observed 1.40C slice-menu dispatcher, decoded PCM reader and marker
+   transaction paths into reviewed shared interfaces. Private execution now
+   covers these research paths; their addresses are not an approved ABI. Stock
    OS stays on the user's computer. There is no slice-editor event in the
    current registry. Never guess firmware addresses or publish stock bytes.
 2. Design an additive base-owned editor event/table, with locally verified
@@ -14,9 +16,10 @@ These are remaining tasks, not implemented behavior.
    select an appended action in both stock menu variants and exercise read-only
    controls. Native locking, package admission, event assignment and actual
    detachment/removal remain absent; test storage stays pinned for the boot.
-3. Compile planner.c with the pinned ColdFire toolchain and a real adapter.
+3. Connect the compiled planner to an admitted production source adapter.
    The standalone planner now links and executes 164 synthetic CPU-emulator
-   vectors; the real adapter is still absent.
+   vectors, and private full boots exercise a compiled Flex adapter. Production
+   admission and an installable module remain absent.
    Read PCM through bounded background work, not the audio interrupt. Explicitly
    support Flex/Static, mono/stereo and sample encodings; refuse unsupported data.
    `planner_job.c` supplies a portable resumable scan prototype with no reader

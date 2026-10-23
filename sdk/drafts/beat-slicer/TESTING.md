@@ -1,6 +1,6 @@
 # Beat Slicer testing
 
-Current draft: 0.1.24-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.25-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -1559,11 +1559,13 @@ polling; a separate readiness notification resumes it. Cancellation before
 consumption makes no new query. An unrelated message with the same no-op opcode
 still advances the guard and invalidates READY without touching result output.
 
-Across that run the service sees 403 idle calls, 2,957 transitions, 394 posted
+Across that run the service sees 403 idle calls, 2,957 explicit steps, 394 posted
 and consumed owned wakes, nine ordinary commands, two cancellations and 29 ready
-results. No idle callback advances more than eight transitions. These counts
-are not cycle or hardware-time measurements. Source/settings stay unchanged by
-previews, the second stock reversal restores PCM, code/canaries survive and both
+results. No idle callback makes more than eight explicit step calls, plus an
+optional begin call with its initial capture/setup. The transition counter
+excludes that begin work; these are not cycle or hardware-time measurements.
+Source/settings stay unchanged by previews, the second stock reversal restores
+PCM, code/canaries survive and both
 cards stay unchanged. The real base USB/logging/module-set chain is not installed;
 its ordering, full ownership, cache, stack and hardware budget remain unqualified.
 
@@ -1576,3 +1578,57 @@ module installed or qualified on hardware. The 23 `menu24-*`, `ui24-*`,
 `slices24-*`, `engine24-*` and `service24-*` receipts bind source `9f4d7e4a7a0262073e6c59333e5ea8eda4026b2b`. Provenance
 audit covers 102 reports and preserves earlier exact historical source identities.
 The one unbound historical failed-link diagnostic remains excluded.
+
+
+## Automatic native preview and result labels (0.1.25)
+
+The private UI fixture uses the existing base-owned UI-tick topology, preserving
+registers and the stock tail call. Normal scheduler execution drives the service;
+the driver never invokes it. Both six-row unsliced and nine-row selected-slice
+layouts pass 20 control combinations plus an option-change restart, giving 42
+whole-plan matches. Completed plans survive an observed further stock waveform
+read, remain stable without restarting, and invalidate on an unknown command.
+
+The six-row controls run observes 1,483 ticks and 3,113 service calls; the nine-row
+run observes 1,341 and 2,292. Neither exceeds eight calls per tick or reenters.
+Pending-source ticks yield after one call. Tick, menu callback and PCM query
+observations identify the same UI task. All borrowed entrypoints have zero
+arguments, and main's stack stays unchanged. These counts do not establish a
+physical latency or the production base's whole-chain stack budget.
+
+The four-row result displays captured BPM, total/existing/new slices, the fade
+warning and BACK. Private LCD review confirms both zero-existing and four-existing
+examples fit the stock popup. Host ASan/UBSan and compiled ColdFire runs check
+12,962 tempo labels and 2,145 count pairs, invalid inputs, output capacity and
+canaries. The formatter links freestanding with 1,226 text bytes and no data/BSS;
+compiler local stack reports 20–64 bytes, excluding callees and the full chain.
+
+A separate stock renderer probe checks 48 fresh/cached ordinary Flex calls over
+four packed formats, slots 0/127 and three bin widths. All 102 extrema/extent
+bins per fresh call match an independent oracle; matching cached calls read no PCM. Source
+write watches remain zero, and the inherited display mock is never reached.
+Unavailable-pool and busy-slot cases and one full worker dispatch also pass.
+The busy flag does not prevent the stock renderer's reads; the preview provider
+still enforces its own busy refusal. The narrowed command classification is
+private to fixed stopped-source inputs. Mutable queued-record stability, Static,
+recorder paths, complete live ownership and hardware remain unqualified.
+
+Build the automatic fixture with `ui_tick_native.py --help`, then run
+`boot_ui_tick.py --help` for each controls/cancel/owner scenario and each menu
+variant. The compiler requires the pinned external core recipe and its hash;
+the runner requires private stock/card identities and explicit injection opt-in.
+Run `test_ui_text.py` on the host and `ui_text_native.py` with the compiled target
+runner. `stock_probe.py --kind waveform` runs the isolated renderer probe. Keep
+stock images, cards, LCD dumps and derived native binaries outside Git.
+
+All six automatic controls/cancel/owner runs pass. Stock NO and owner retirement
+while waiting cancel before another source query and close the owned popup in
+both menu variants. Every completed run preserves full PCM, controls, settings,
+code/canaries, main's stack and both card copies. Storage remains pinned; these
+results do not qualify real package detachment or pointer reclamation.
+
+The 0.1.25 source check against current Modwerk upstream passes all 2,529 app
+tests, 37 SDK tests (one skipped), lint, types, build and catalogue/import gates.
+The mandatory fork-base invocation still fails on inherited CHANGELOG.md history
+from stale origin/main. Final prose-only follow-ups use the lightweight catalogue,
+licence, import and provenance checks; no hardware or publication claim is added.

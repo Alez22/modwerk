@@ -35,8 +35,10 @@ request before another read. Fixed label/callback arrays remain alive throughout
 the run. The callback only changes intent/state; source reads and planning occur
 in the bounded main service, with private planning outside the source lock.
 
-The result shows the total slice count and whether the planner flags a need for
-fades. A quiet-boundary result is not audible qualification. READY results are
+The four-row result shows total slices and the captured BPM, existing/new
+counts, whether the planner flags a need for fades, and BACK. Tempo is displayed
+to the nearest hundredth from its actual 1/24-BPM value; the configuration still
+selects SAMPLE or PROJECT. A quiet-boundary result is not audible qualification. READY results are
 revalidated, and a stale result becomes unavailable. BACK and stock NO cancel;
 owner retirement cancels and closes only this fixture's own popup. None of the
 dialogs offers Apply or writes markers/PCM.
@@ -46,6 +48,40 @@ own label-table identity. Stock close clears the window pointer while retaining
 other table pointers. That observation may retire a read-only job, but it does
 not authorize freeing/reusing any storage. The native UI/loader serialization
 boundary, queued-event retirement and real package removal remain unqualified.
+
+## Automatic UI experiment
+
+`ui_tick_native.py` extends the private fixture with the existing base's UI-tick
+topology, guarded against the exact external core recipe and stock image. Its
+test callback runs before the stock tick tail and preserves the incoming
+register/return stack. This is a private hook experiment, not a module taking
+its own production hook or a released runtime subscription.
+
+`test_ui_tick.c` invokes at most eight UI-service calls per ordinary tick.
+A pending source yields after the first call. No independent clock or busy
+wait is introduced. `boot_ui_tick.py` advances normal execution and panel input,
+rather than invoking the UI service. It compares the observed task identities
+of the tick, menu dispatch and PCM queries. It also uses zero-argument borrowed
+entrypoints and checks main's stack before/after the scenario. These checks do
+not qualify the production base's whole-chain stack or physical latency.
+
+The coarse all-command observer exposed recurring stock waveform work during
+an open editor: it retired previews even though the sample was unchanged.
+The isolated `waveform_probe.cpp` executes the ordinary Flex renderer's fresh
+and cached paths across four packed formats, slots 0/127 and page/end boundaries,
+plus unavailable/busy sources and a complete worker dispatch. It checks source
+write watches, an independent extrema oracle and fixed display/progress writes.
+No inherited display mock is reached in those cases. A slot's busy flag does
+not by itself stop stock waveform reads; the preview provider must still refuse
+a busy source independently.
+
+The automatic UI fixture therefore distinguishes only that ordinary Flex read
+path; Static, recorder, unknown, fault and reentry cases remain conservative.
+This classification is private to the exact stopped-source fixture. Queued
+command-record stability is not yet a base-owned lifetime guarantee, and this
+experiment must not be enabled as a general live source service. Production
+ownership, cache behavior, complete writer coverage and physical qualification
+remain required. TESTING.md records which automatic scenarios actually passed.
 
 ## Reproduce privately
 
@@ -57,12 +93,13 @@ arguments, including explicit private-injection opt-in. `--selected` prepares
 the four-slice/nine-row variant. Keep the source/card, compiled artifacts, LCD
 dumps and logs private. Retained receipts contain hashes and observations only.
 
-Both runners use the actual scheduler/DSP boot and stock drawing/selection,
+The runners use the actual scheduler/DSP boot and stock drawing/selection,
 with no UI mocks. The configured controls run compares all 20 combinations,
 restarts after an option change and invalidates a completed result. Its READY
 invalidation is synthetic guard input; actual stock edit/clear invalidation has
-separate full-boot tests. Native calls still come from the emulator driver;
-there is no installed idle service. Source identities, admission and owner
+separate full-boot tests. The original menu/configuration runners borrow service
+calls from the emulator driver; the automatic UI runner uses the private tick
+fixture above. Neither installs a production base service. Source identities, admission and owner
 generation are test-owned, with partial writer coverage and unqualified full
 interrupt masking. Static reads, atomic publication, playback, source-built
 browser/USB packages and physical persistence remain unfinished.

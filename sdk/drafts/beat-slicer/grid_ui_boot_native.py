@@ -25,7 +25,7 @@ def main():
     spec.loader.exec_module(guard)
     objects = [out / name for name in report['objectSha256']]
     added = []
-    for name in ('test_grid_ui_boot',):
+    for name in ('test_grid_ui_boot', 'ui_text'):
         obj = out / (name + '.o')
         run('m68k-elf-gcc', *report['flags'], '-c', str(ROOT / (name + '.c')), '-o', str(obj))
         added.append(obj)
@@ -45,7 +45,7 @@ def main():
                    'binarySha256': sha(binary), 'symbolsSha256': sha(symbols), 'fixtureEnd': end,
                    'objectSha256': {obj.name: sha(obj) for obj in objects}})
     report['sourceSha256'].update({name: sha(ROOT / name) for name in
-                                  ('grid_ui_boot_native.py', 'test_grid_ui_boot.c')})
+                                  ('grid_ui_boot_native.py', 'test_grid_ui_boot.c', 'ui_text.c', 'ui_text.h')})
     receipt.write_text(json.dumps(report, indent=2) + '\n')
     print('Compiled original configuration/preview fixture; execution remains separate.')
 
