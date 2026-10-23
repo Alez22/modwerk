@@ -79,6 +79,22 @@ not turn an untracked writer into a false successful validation. Until every
 relevant native writer is covered, compare the complete relevant state under
 the same serialization boundary used by Apply.
 
+Do not substitute the stock control-record counter or dirty flag for the
+content generation. Isolated 1.40C execution now proves that rotation and
+polarity edits change PCM while all 44 control bytes, including the counter,
+remain identical; repeated edits keep the dirty flag set. The release path
+increments the counter and skips zero on wrap, but that covers neither these
+in-place writes nor lifetime uniqueness. Comparing the complete control record
+therefore cannot establish content coherence either.
+
+The shared provider must invalidate live previews **before** a relevant writer
+can change PCM, including a writer that later fails, and refuse acquisition
+while a writer is active. Cover in-place edits, slot replacement/release,
+recording and any other discovered writer, plus owner removal and required
+metadata/tempo changes. Do not enable a live provider until that coverage and
+its serialization are proved. The current probes demonstrate missing coverage;
+they do not enumerate every writer or assign hook sites to a new ABI.
+
 PCM reads copy a bounded block into caller-owned scratch memory. They report
 ready, pending, stale, unsupported or failed; a pending Static read yields
 to the scheduler. No filesystem wait, allocation or sample scan runs in the
@@ -97,6 +113,13 @@ page pointer across a yield or assume that an active recorder's current
 length makes its contents stable. Reverse playback does not require a reverse
 preview scan: scanning source coordinates forward avoids imposing unverified
 reverse-reader conventions on this one-shot action.
+
+The tested release routine publishes a temporary allocation-map pair before
+copying the map back. A surviving slot's map offset changes even though its
+control record and audio do not. Use the current maps under a verified guard
+for each bounded copy; a cached map pointer plus an unchanged slot counter
+does not establish ownership. The tests run without task/interrupt interleaving
+and do not prove the guard needed by a live provider.
 
 The synchronous `bs_preview` remains an arithmetic oracle. The portable
 `planner_job` prototype now advances one bounded transition at a time and

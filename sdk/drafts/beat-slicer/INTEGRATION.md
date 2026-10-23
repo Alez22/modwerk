@@ -15,7 +15,7 @@ These are remaining tasks, not implemented behavior.
    Read PCM through bounded background work, not the audio interrupt. Explicitly
    support Flex/Static, mono/stereo and sample encodings; refuse unsupported data.
    `planner_job.c` supplies a portable resumable scan prototype with no reader
-   callbacks; native scheduling, decoding and content pinning remain absent.
+   callbacks; native scheduling and content pinning remain absent.
    The traced pool lookup is Flex/recorder-specific and does not decode PCM.
    Validate its preconditions before use; establish Static access separately.
    Stage bounded bytes and prove decoder read extents before using a native
@@ -24,6 +24,13 @@ These are remaining tasks, not implemented behavior.
    copied cache, accepts page-shortened replies and checks operation/revision
    tags. Its provider is still synthetic: native pool ownership, file IO,
    format discovery, generation coverage and scheduling remain absent.
+   The stock-page-to-host-reader pipeline passes eight synthetic previews.
+   Coherence probes show that stock rotation/polarity edits leave the slot's
+   counter unchanged, with a sticky dirty flag. A base-owned revision must
+   invalidate before each relevant writer; using those stock fields alone
+   would allow stale or mixed-content previews. This writer coverage is not
+   implemented. The probes also exercise temporary allocation-map publication
+   during release; no provider may cache page-map pointers across a yield.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

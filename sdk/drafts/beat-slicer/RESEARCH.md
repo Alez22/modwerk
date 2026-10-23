@@ -204,6 +204,49 @@ preserved upstream document unchanged and treat these observations as narrow
 evidence. Static streaming, the editor's read path, live metadata/content
 pinning, cancellation, scheduler timing and playback smoothing remain open.
 
+## Content coherence and the staged-reader pipeline
+
+`evidence/stock-coherence.json` binds five additional synthetic CPU probe
+groups to the same private 1.40C MAIN and pinned emulator. No callees are
+mocked in these groups. Geometry, slot state and PCM are authored fixtures,
+not captured runtime state. The full scheduler, card, DSP and device do not run.
+
+- `0x40094c94` performs the exercised stereo polarity edits. Twelve calls
+  cover left/right/both channels, 16/24-bit data, a physical page boundary
+  and repeating the edit. Audio changes exactly as expected; all 44 bytes
+  of the slot-control record remain unchanged, including the word at `+20`.
+  The dirty byte is set on the first call and remains set on the second.
+- `0x40094b6c` performs cyclic rotation in eight calls across 16/24-bit,
+  mono/stereo fixtures. A three-frame rotation repeated twice produces the
+  independently expected six-frame rotation, again with unchanged control
+  records and a sticky dirty byte. These fields are not a content epoch.
+- Eight polarity-edit refusal fixtures cover mono input, busy state,
+  unavailable pool, invalid slot and invalid ranges. They preserve the
+  authored audio, control record and dirty byte. These cases do not establish
+  that every stock editor operation is atomic or safe on invalid inputs.
+- Three `0x40096300` release fixtures test counter values 0, 41 and uint32
+  maximum. Release increments that counter, replacing wrapped zero with 1;
+  it clears the released pages and resets the slot state/length. A second
+  slot's audio and control record remain exact while its map offset moves.
+  A write watch observes the temporary page map and restoration of the normal
+  map. This rules out caching a map pointer solely on a slot counter. It does
+  not establish concurrency safety or prove every release caller's context.
+- Eight previews execute the real stock page walker and copy only the
+  returned extent into the **host-compiled** bounded reader. All four packed
+  layouts and both boundary modes match a separate formula-backed synchronous
+  planner, and the preview changes no audio/control/dirty bytes. An ensuing
+  stock rotation leaves the counter unchanged; an explicitly advanced test
+  revision makes `bs_reader_result` refuse the now-stale completed preview.
+  The revision is supplied by the fixture, not by an implemented native
+  change-tracking service. This is a mixed stock-CPU/host pipeline, distinct
+  from the earlier separate ColdFire execution of the portable reader.
+
+All calls restore the tested stack, callee-saved registers and interrupt mask.
+That is narrow ABI evidence with interrupts disabled, not a live critical-section
+proof. The adapter still needs writer coverage and a verified copy/ownership
+guard, as specified in BASE_CONTRACT.md. Metadata equality and a correct
+decoder cannot compensate for untracked content mutation.
+
 ## Proposed base contract, not an implemented ABI
 
 The first shared SDK change should own the sample editor menu and its stock

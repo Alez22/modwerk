@@ -1,6 +1,6 @@
 # Beat Slicer testing
 
-Current draft: 0.1.2-experimental. Local checks: 23 October 2026.
+Current draft: 0.1.3-experimental. Local checks: 23 October 2026.
 Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
 Current development includes upstream main a3995bca.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes
@@ -289,6 +289,54 @@ stops at the upstream `play-start` publication requirements (missing UI and
 qualification evidence); `modules:generate` also refuses that module.
 `module:doctor -- beat-slicer` refuses this unlisted draft as expected. None
 of these publication gates has been relaxed or recorded as passing.
+
+## Stock content-coherence probes (0.1.3)
+
+`stock_probe/coherence_probe.cpp` passes five groups on the pinned CPU emulator
+and hash-bound original MAIN. No callees are mocked. The emulator EMAC and
+peripheral gates pass before the probes. `evidence/stock-coherence.json`
+records the source and executable hashes; earlier reports keep the wrapper
+and CMake hashes of their own runs.
+
+- Twelve stereo polarity edits across two packed widths, three channel modes
+  and a page boundary, including repeated edits. PCM matches exact expected
+  values; the complete control record does not change and dirty stays set.
+- Eight rotations across four mono/stereo 16/24-bit formats. PCM matches the
+  expected cyclic permutation; control records are unchanged and dirty stays set.
+- Eight unsupported/busy/range refusals leave audio and metadata unchanged.
+- Three release/counter-wrap cases verify released-page clearing, temporary
+  allocation-map publication and surviving-slot audio/control isolation.
+- Eight stock-page-to-host-reader previews match the independent planner,
+  preserving source bytes. After a real stock rotation, explicit test revision
+  invalidation refuses the completed preview. Native writer tracking is absent.
+
+Each stock call checks stack, callee-saved registers and restored interrupt
+mask. The fixture has no concurrent tasks or interrupts. All sample geometry
+and PCM are synthetic. The C planner/reader in this mixed probe executes on the
+host; the stock walker and mutation routines execute as ColdFire instructions.
+The separate 0.1.2 target tests remain the portable reader's ColdFire evidence.
+No live sample access, Static streaming, timing, audio or hardware is qualified.
+
+The combined runner embeds a binding of its C++ source plus all linked planner,
+job and reader C/header files. The wrapper rejects a runner bound only to its
+C++ source and produces no report for that mismatch (negative check passed).
+This prevents a changed decoder from being paired with an older executable.
+
+Reproduce with the pinned mounts and machine lock above, reconfiguring CMake
+first, then:
+
+```sh
+cmake --build /output/build --target beat_slicer_coherence_probe --parallel 4
+ctest --test-dir /output/build/emulator -R '^(emac|periph)$' --output-on-failure
+python3 -B /source/sdk/drafts/beat-slicer/stock_probe.py --kind coherence \
+  --main /stock/stock-main.bin --executable /output/build/beat_slicer_coherence_probe \
+  --output /evidence/stock-coherence.json
+```
+
+Only the final five-group run is retained as repository evidence. The initial
+four-group run is private. No portable planner/reader firmware source changed
+in 0.1.3; this version adds integration probes and tightens the documented
+native-provider requirements.
 
 ## Original cloud results (0.1.0)
 

@@ -23,28 +23,38 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage', 'reader'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence'), default='editor')
     args = parser.parse_args()
     source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
-                                     'reader': 'reader_probe.cpp'}[args.kind]
+                                     'reader': 'reader_probe.cpp',
+                                     'coherence': 'coherence_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
         parser.error('Use a new report path; preserve previous evidence.')
     result = subprocess.run([str(args.executable.resolve()), str(args.main.resolve())],
                             text=True, capture_output=True, timeout=120)
-    if 'SOURCE_SHA256: ' + digest(source) not in result.stdout.splitlines():
+    inputs = [source]
+    expected = digest(source)
+    if args.kind == 'coherence':
+        names = ('coherence_probe.cpp', '../planner.c', '../planner.h', '../planner_job.c',
+                 '../planner_job.h', '../pcm_reader.c', '../pcm_reader.h')
+        inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
+        binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
+        expected = hashlib.sha256(binding.encode()).hexdigest()
+    if 'SOURCE_SHA256: ' + expected not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
         'scope': ('isolated stock storage routines with synthetic memory IO and explicit follow-up mocks; no device access'
                   if args.kind == 'storage' else
+                  'isolated stock edits, release and pool-to-host-reader previews; synthetic memory, no mocked callees or device access'
+                  if args.kind == 'coherence' else
                   'isolated stock pool lookup and PCM conversion with synthetic memory and recorder mocks; no device access'
                   if args.kind == 'reader' else
                   'isolated stock CPU routines with explicit UI/task mocks; no device access'),
         'mainSha256': STOCK_MAIN_SHA256,
         'sourceSha256': {str(p.relative_to(ROOT)): digest(p) for p in
-                         (ROOT / 'stock_probe.py', source,
-                          ROOT / 'stock_probe/CMakeLists.txt')},
+                         (ROOT / 'stock_probe.py', *inputs, ROOT / 'stock_probe/CMakeLists.txt')},
         'executableSha256': digest(args.executable),
         'exitCode': result.returncode, 'stdout': result.stdout.splitlines(),
         'stderrLines': len(result.stderr.splitlines()),

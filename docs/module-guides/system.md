@@ -38,6 +38,14 @@ three-byte value. Stage readable padding or use a bounded decoder. The Beat
 Slicer draft's pool/converter probes demonstrate this in synthetic CPU state;
 they do not qualify live streaming or concurrent sample changes.
 
+A stock slot counter is not necessarily a content revision. Beat Slicer's
+isolated 1.40C probes execute rotation and polarity edits that change audio
+without changing the control record; the dirty flag stays set across repeated
+edits. Bind preview invalidation to every relevant writer before mutation,
+not only reload/release counters, length or a dirty flag. Allocation maps can
+also change while another slot's metadata stays identical; reacquire them
+under the verified ownership guard for each bounded read.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.2-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.3-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -113,6 +113,12 @@ caller must supply truthful revisions and coherent bytes; this is not yet a
 live Flex/Static reader. It passes 4,160 decoder vectors, 40 paged previews
 and lifecycle tests on host and compiled ColdFire, plus 256 exact-buffer
 host sanitizer cases. No native generation tracking or device IO is present.
+Five additional synthetic CPU probe groups cover stock edits and pool release.
+Eight previews now feed stock page-lookup results into the host-compiled reader
+and match the independent planner. This still does not establish a live reader:
+stock rotation and polarity edits change PCM without changing the slot counter,
+and the dirty flag stays set across repeated edits. The base must supply real
+edit invalidation and coherent access; neither field alone is a revision token.
 [TESTING.md](TESTING.md) separates host results from pending qualification.
 `verify.py` deliberately fails publication. This draft is not in
 `sdk/catalog.json` and changes no released module or catalogue.
