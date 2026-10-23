@@ -1001,7 +1001,8 @@ recipe, then run `menu_native.py --main <private-original-MAIN>
 source, private MAIN, runner, compiler flags and object hashes. Binaries and
 stock-derived logs stay private. Retained reports are `evidence/menu-host.json`
 and `evidence/menu-native.json`; both bind source commit `de9a5f1f6d2137a01c7db91d5f344dc9517879e3`,
-pinned in the 0.1.15 metadata. Earlier reports retain their historical bindings.
+pinned by the initial 0.1.15 metadata. The later full-stock observation has its
+own source pin below; earlier reports retain their historical bindings.
 
 
 ## Full stock project/file load and host preview (0.1.15 research)
@@ -1043,3 +1044,7 @@ reproduction and fixture preparation. The observer uses a verified 44.1 kHz
 WAV, not a new native sample-rate getter. It does not qualify other encodings,
 replacement paths, Static streaming, concurrent ownership, actual module UI,
 Apply/Undo, USB, physical save/reboot behavior or audible playback.
+
+The full-stock observer report binds source commit `ba7c7c99e6b1f815db65e40b6cdb30c9843f4eba`,
+pinned by the current metadata. Its native prototype inputs are unchanged from
+the earlier source-bound target reports.
