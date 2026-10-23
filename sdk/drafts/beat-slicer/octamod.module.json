@@ -106,7 +106,8 @@
       "python3 -B sdk/drafts/beat-slicer/test_job.py",
       "python3 -B sdk/drafts/beat-slicer/test_pcm_reader.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
-    ]
+    ],
+    "evidenceRevision": "105f96022b23f05eb7e1af160eab8d2e9c5317e1"
   },
   "license": {
     "spdx": "MIT",

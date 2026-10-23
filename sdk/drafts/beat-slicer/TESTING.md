@@ -1,6 +1,8 @@
 # Beat Slicer testing
 
 Current draft: 0.1.3-experimental. Local checks: 23 October 2026.
+The manifest evidence source is `105f96022b23f05eb7e1af160eab8d2e9c5317e1`;
+only this provenance note and manifest/changelog metadata follow that tested commit.
 Initial checkout: 610a934da51b8f8518e6296493da9059b83e9a7e.
 Current development includes upstream main a3995bca.
 The original 0.1.0 cloud record remains in evidence/host.json; its hashes

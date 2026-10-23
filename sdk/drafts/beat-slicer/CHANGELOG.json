@@ -5,7 +5,8 @@
     "changes": [
       "Unlisted integration evidence: add five synthetic stock-CPU probe groups for repeated polarity/rotation edits, invalid-input refusals, slot release and allocation-map lifetime. Stock edits can change PCM without changing the slot counter, and the dirty flag remains set across repeated edits; neither field is a sufficient preview revision.",
       "Connect stock page-lookup results to the host-compiled bounded reader in eight synthetic previews and compare full plans against an independent oracle. Explicit test revision invalidation refuses completed previews after a stock edit. The production planner/reader code is unchanged.",
-      "Tighten the proposed shared-base contract: invalidate before relevant writers and guard each bounded copy against allocation changes. This native writer coverage, live Flex/Static access, editor Apply/Undo, playback smoothing, USB lifecycle and hardware qualification remain unimplemented or unverified; no installable module is published."
+      "Tighten the proposed shared-base contract: invalidate before relevant writers and guard each bounded copy against allocation changes. This native writer coverage, live Flex/Static access, editor Apply/Undo, playback smoothing, USB lifecycle and hardware qualification remain unimplemented or unverified; no installable module is published.",
+      "Validation metadata fix: add the required tests.evidenceRevision pin for the exact tested source commit. This records synthetic evidence provenance and does not grant publication or hardware qualification."
     ]
   },
   {
