@@ -108,6 +108,19 @@ rewrites its first incoming argument word, so a zero-argument C test call can
 corrupt its caller even when all menu assertions pass. These are isolated
 execution findings, not a proved live detach or loader integration service.
 
+Verify editor gestures against the rendered stock page, not a remembered key
+order. In Beat Slicer's pinned 1.40C full-emulator session, AED → AMP selected
+SLICE and plain YES opened its action menu; LFO selected EDIT. Loading a Flex
+slot also did not assign it to the track until the slot was confirmed. Bind a
+preview to the editor's actual kind/slot, not merely to a successfully loaded
+source. These panel observations still need physical qualification.
+
+Keep loader ownership and sample ownership separate. The current
+[`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader
+stability while deliberately allowing real-time interrupts. It is not, by
+itself, proof of exclusion against recorder or PCM writers; establish that
+additional boundary before connecting a live sample reader.
+
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
 storage base-owned and make removal retire every reference before reclaiming

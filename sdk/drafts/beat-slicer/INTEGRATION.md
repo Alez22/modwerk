@@ -63,8 +63,9 @@ These are remaining tasks, not implemented behavior.
    Host and compiled-target tests cover complete previews and stale/cancel/error
    handling; native callbacks/locking remain absent. Flex replacement-refusal
    probes cover real nested release and allocator behavior with filesystem/header
-   mocks. Actual sample decoding, successful replacement and live callers remain
-   uncovered.
+   mocks. A full stock-emulator load now verifies one original 16-bit stereo
+   44.1 kHz WAV and its real pool geometry/PCM. Successful replacement, other
+   formats/rates and complete live caller coverage remain open.
 4. Bind preview to sample identity/content generation, markers, trim and chosen
    BPM. Reject stale Apply, including a changed tempo. Preserve complete stock
    slice metadata for Undo. Commit once after confirmation; any failure or

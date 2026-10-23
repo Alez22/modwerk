@@ -37,9 +37,10 @@ rather than truncate the sample or delete old markers. The current core accepts
 The target is Octatrack MKII OS 1.40C through the Modwerk base and USB bridge.
 MKI operation is a future qualification target.
 
-Proposed access: Flex/Static audio track → AED → LFO (SLICE) → FUNC + YES →
-BEAT GRID. Menu integration and this button path are unverified. No stock
-gesture or screen is claimed by this draft.
+Proposed access: Flex/Static audio track → AED → AMP (SLICE) → YES →
+BEAT GRID. The stock AED → AMP → YES path is observed in the pinned 1.40C
+emulator; Beat Grid integration and physical operation remain unverified.
+No stock gesture or screen is claimed by this draft.
 
 ## Quick tutorial
 
@@ -164,3 +165,9 @@ copied labels, unchanged stock rows and owner/token-checked contributed dispatch
 It refuses reuse until a trusted adapter proves all old menu references detached.
 Native hook admission, loader synchronization, actual dialog rendering and
 background-job removal remain unimplemented.
+
+The [full stock observation](BOOT_OBSERVATION.md) uses a disposable stock-created
+project and original WAV to check actual loading, PCM, editor tempo and marker
+state. It also corrects the proposed stock menu path to AED → AMP → YES.
+These are emulator findings; the Beat Grid action, native ownership, atomic
+Apply/Undo, USB package and physical qualification remain unfinished.

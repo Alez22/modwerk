@@ -41,7 +41,7 @@ out-of-trim refusal is a limitation, not a native preservation implementation.
 
 Add one named action to the SLICE action menu, preserving every stock row and
 callback. The registry owns ordering and rejects duplicate action keys. A
-module claims its action name, not the whole screen or stock FUNC+YES gesture.
+module claims its action name, not the whole screen or stock YES gesture.
 The existing runtime loader does not admit arbitrary contributed tables;
 the shared change must provide reviewed typed admission and removal.
 

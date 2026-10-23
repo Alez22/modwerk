@@ -289,7 +289,7 @@ transaction boundary. It must be separately owner-reviewed before a module
 can subscribe. Provisional names below intentionally have no index or address:
 
 1. A table such as `ot_sample_editor_actions` adds a row without replacing
-   FUNC+YES or claiming the whole SLICE screen. Base code owns native menu
+   YES or claiming the whole SLICE screen. Base code owns native menu
    dispatch, redraw, lifetime and ordering; unrelated rows still call stock.
    Final record/prototype, capacity and guards follow measured callers.
 2. A read-only snapshot service supplies opaque sample/content generation,
@@ -355,3 +355,39 @@ were unresolved guesses, not established history behavior. Deferred grids
 clear count before search completion and publish records later. These are
 observations on synthetic state, not approved native entry points or patch sites.
 See TESTING.md for scope and remaining persistence/Undo limitations.
+
+
+### Full stock emulator observations
+
+The pinned original 1.40C MAIN now runs through project creation, ordinary
+Flex sample loading, editor attributes and zero-aligned stock grid creation
+with both DSP cores and the normal scheduler. The private fixture is an
+original one-second, stereo 16-bit 44.1 kHz WAV; all 176,400 loaded PCM bytes
+match it after byte-order conversion. The normal map owns 29 pages and the
+runtime format descriptor matches 1,536 frames/page and four bytes/frame.
+These observations extend the synthetic descriptor fixtures to one real load;
+they do not establish native source ownership or other formats/rates.
+
+Loading the Flex slot did not assign it to the current track until its slot
+was confirmed. The editor initially still identified an empty Static slot.
+Bind the source to the actual editor kind/slot. The rendered stock tab order
+also corrected the draft: AMP selects SLICE, LFO selects EDIT, and plain YES
+opens the slice-action menu. A PC watch saw the known slice-menu entry once
+for the corrected gesture. No Beat Grid action is installed.
+
+On ATTR, sample tempo changed from 120.00 to 120.25 BPM while project tempo
+stayed 120 BPM. The corresponding observed sample value at settings +276
+changed from 2,880 to 2,886; the project value at `0x80001814` remained 2,880.
+This supports these getters in this one state, not pattern/external-clock
+semantics or an unguarded live read. Four-slice zero-cross alignment reached
+the two continuation entries four times each and the common completion entry
+five times, with four final records. These are observed entry counts, not
+five independent completed edits or a native atomic transaction.
+
+The private project was loaded again through stock and its complete 64-record
+marker-table/count hash and sample tempo remained exact. A subsequent save
+was allowed to finish visibly and produced all 16 saved bank copies and eight
+saved arrangements. An earlier flush had covered only 14 bank copies while
+the UI still showed progress: fsync is not firmware-operation completion.
+See [the full observation workflow](BOOT_OBSERVATION.md) for the automated
+read-only load/PCM/planning check and its explicit qualification limits.

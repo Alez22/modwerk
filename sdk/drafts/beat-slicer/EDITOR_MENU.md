@@ -27,6 +27,17 @@ under this same ownership boundary. Neither a copied owner tuple nor the
 portable state machine pins native module memory. Handlers must return promptly,
 must not wait or reenter, and must leave background work in base-owned tokens.
 
+The existing runtime ledger supplies unique per-boot owner generations and
+refuses exhaustion (`sdk/runtime/loader/loader.c`). A native admission row must
+retain its complete `runtime_owner`; under `modwerk_machine_lock`, resolve the
+menu's id/generation and validate that full record with
+`modwerk_runtime_owner_valid` before resolving an admitted handler offset.
+Matching two integers alone omits the ledger's extent/header/digest checks.
+This describes the required adapter; none is installed by this prototype.
+The loader's stable lock deliberately leaves real-time interrupts running.
+It can protect loader ownership, but cannot by itself exclude recorder/PCM
+writers or serve as the preview backend's coherent-source lock.
+
 Lifecycle:
 
 1. Zero-initialize once; open copies the menu and issues a monotonically unique

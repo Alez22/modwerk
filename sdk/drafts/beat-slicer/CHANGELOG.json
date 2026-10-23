@@ -4,6 +4,7 @@
     "date": "2026-10-23",
     "changes": [
       "Development draft: prepare an additive Beat Grid menu action that preserves stock actions and rejects stale selections.",
+      "Documentation: corrected the proposed slice-menu path to AED, AMP, then YES after a stock emulator check.",
       "Known issue: not installable; native menu ownership, Apply/Undo, USB and device testing are unfinished."
     ]
   },

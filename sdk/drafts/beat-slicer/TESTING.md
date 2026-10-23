@@ -1002,3 +1002,44 @@ source, private MAIN, runner, compiler flags and object hashes. Binaries and
 stock-derived logs stay private. Retained reports are `evidence/menu-host.json`
 and `evidence/menu-native.json`; both bind source commit `de9a5f1f6d2137a01c7db91d5f344dc9517879e3`,
 pinned in the 0.1.15 metadata. Earlier reports retain their historical bindings.
+
+
+## Full stock project/file load and host preview (0.1.15 research)
+
+`boot_observe.py` passes with original stock 1.40C, the pinned headless emulator,
+both DSP cores and normal frame scheduling. A disposable project was created
+through stock, assigned the original one-second stereo 16-bit 44.1 kHz WAV,
+changed to 120.25 BPM sample tempo versus 120 BPM project tempo, and given four
+zero-aligned stock slices. The corrected stock path is AED → AMP → YES; LFO
+opens EDIT. No Beat Grid entry is installed or shown in these private screens.
+
+The initial UI investigation observed the real grid continuations four times
+each and its common completion entry five times. Saving was checked through
+visible completion plus 16 saved bank and eight saved arrangement copies;
+flushing an earlier partial save had not completed that firmware operation.
+The complete marker-table/count hash survived a fresh stock LOAD PROJECT.
+
+The automated observer independently starts another emulator from the exact
+saved card and requires LOAD PROJECT completion. Its paused read snapshot:
+
+- Matches all 176,400 PCM bytes to the original WAV after endian conversion;
+  the native slot contains 44,100 frames in 29 pages with the expected geometry.
+- Matches all 64 marker records and count to their pre-save hash and reads sample
+  tempo 2,886 and project tempo 2,880 in 1/24 BPM units.
+- Runs host-compiled planner and marker preparation for both tempo sources and
+  exact/smooth search. All four retain existing starts. Two candidates refuse
+  ordinal conflicts, one refuses overlap, and the project/smooth candidate
+  preserves the existing four-record layout without adding records. Refusals
+  leave output unchanged; all cases retain fade warnings, so none proves safe
+  native Apply or click-free audio.
+- Rechecks complete settings/PCM and verifies both the source and copied card
+  remain byte-identical. No injected calls, panel edits or write-back occur in
+  this automated observation.
+
+The stock-produced card/project, source WAV, captured memory and raw logs stay
+private. `evidence/boot-observation.json` retains only source/input hashes,
+conditions and outcomes. See [BOOT_OBSERVATION.md](BOOT_OBSERVATION.md) for
+reproduction and fixture preparation. The observer uses a verified 44.1 kHz
+WAV, not a new native sample-rate getter. It does not qualify other encodings,
+replacement paths, Static streaming, concurrent ownership, actual module UI,
+Apply/Undo, USB, physical save/reboot behavior or audible playback.
