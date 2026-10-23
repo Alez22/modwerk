@@ -1,6 +1,6 @@
 # Beat Slicer testing
 
-Current draft: 0.1.21-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.22-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -1439,3 +1439,23 @@ reports range from 0 to 164 bytes, excluding callees and the full call chain.
 No native backend, package, USB or hardware qualification is introduced.
 The baseline receipt is bound to `79cde45170681eb6abda0e249456a78cec416654`;
 the thirteen `*21-host.json` / `*21-native.json` receipts bind `a5254c50e562c0b54c336a173f0e199becd3b536`.
+
+
+## Composed Flex source backend (0.1.22)
+
+`test_flex_source.py` runs the metadata decoder and PCM reader through one
+backend, rather than a test-only capture implementation. Its 32 previews cover
+all four encodings, first/last slots, both tempo choices and snap on/off. The
+plans match the synchronous planner using independently generated sample bytes;
+reads cross non-contiguous pages. Every used PCM byte and all 274 selected
+settings words stay exact; complete 64-record capture preserves inactive entries.
+
+Ten intervening changes to owner/sample/editor/playback identity, selection,
+ready/control bindings, region extent or guard reject the preview before any
+page lookup. Denied ownership retries without spinning; nested acquisition is
+refused; unlocked/stale marker reads leave output untouched. Locks balance.
+`flex_source_native.py` runs the same assertions compiled for ColdFire, using
+real private stock page lookup and its preserved-register checks. Fixture regions,
+identities and ownership remain synthetic. No live admission, address discovery,
+writer completion guarantee, native publication, cache or hardware timing is
+established. Exact source receipts are retained after source validation.

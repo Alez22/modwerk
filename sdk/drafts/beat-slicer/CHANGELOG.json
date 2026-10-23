@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.22-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Compose the Flex metadata decoder and bounded PCM copy behind one caller-supplied source ownership boundary.",
+      "Reject inconsistent memory bindings, changed source lifetimes and recursive ownership; capture complete marker tables without publishing them.",
+      "Development tests cover 32 previews across four formats and tempo choices, ten invalidations and lock refusals on host and ColdFire with stock page lookup.",
+      "Clarify the planner contract: failed writes roll back internally; later player edits use stock slice clearing, with no module Undo action.",
+      "Known issue: synthetic lifetimes and ownership only; live admission, installed controls, publication, playback, USB and hardware qualification remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.21-experimental",
     "date": "2026-10-24",
     "changes": [

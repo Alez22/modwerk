@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.21-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.22-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -210,3 +210,7 @@ Research receipts retain their original source versions. Run
 `python3 -B sdk/drafts/beat-slicer/audit_evidence.py` to check those Git bindings;
 see TESTING.md for the explicitly unbound early compile diagnostic and the
 limits of software evidence. This audit is not an installation or hardware gate.
+
+The composed [Flex source backend](FLEX_SOURCE.md) now joins metadata and bounded
+PCM reads under caller-supplied ownership. It remains a tested building block,
+not a live source service or installable module.

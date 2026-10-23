@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.21-experimental",
+  "version": "0.1.22-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Preview initialization, planner transitions and copied-PCM decoding now execute outside the source lock. Nine lock-release interleavings and the host/ColdFire preview, candidate, metadata and commit regressions pass; native instruction observation finds zero planner/decoder calls under the lock. Native stock-worker observation and the reserved-memory full-boot reversal evidence retain their exact sources. Complete writer ownership, installed controls, atomic publication, playback policy, browser/USB packages and physical qualification remain unfinished.",
+    "summary": "The composed Flex source backend binds the existing metadata decoder and bounded PCM reader to one caller-supplied ownership boundary. Host and compiled ColdFire tests cover 32 previews across four formats and both tempo choices, ten invalidations and refused ownership. This is development integration with synthetic lifetimes, not live admission, installed controls, USB or hardware qualification.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -115,6 +115,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_edit_transaction.py",
       "python3 -B sdk/drafts/beat-slicer/test_transaction_stock.py",
       "python3 -B sdk/drafts/beat-slicer/test_flex_metadata.py",
+      "python3 -B sdk/drafts/beat-slicer/test_flex_source.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
