@@ -92,6 +92,13 @@ Analog Rytm MKII, OS 1.74 + LS09, tested by stigmagit: the loop follows the temp
 - **SYNC mark** only on the SAMPLE page; **box digits** above 999 BPM shown as whole BPM up to 9999.
 - **Thumbnail** in the signal-art style; records and control name (ADJUST) updated.
 
+## Library release (24 October 2026)
+
+The owner approved the first library release of 0.2.0-experimental on 24 October 2026, with this source (`6df71df6…f0bc`) tested in the emulator and earlier builds by ear on a unit.
+
+- **Package:** `scripts/package-elemod-recipe.mjs` exports the source-only recipe as `sdk/imports/packages/loop-sync/loop-sync-0.2.0-experimental-os1.74.elemod`, compiled in Modwerk's pinned toolchain image (`m68k-elf` GCC 16.2.0, binutils 2.47, no network or firmware) with the shared SDK's copy of elekloader's `analog-rytm-mk2/store.h`. `.run` 5,868 bytes, `.bss` 2,188, one site and 32 storage fields, as in LS18. CI's `elemod-source` job compiles it again and requires the committed package to reproduce.
+- **Not run:** this package is compiled by GCC 16.2, not the GCC 12.2 of LS18, so the released code is not byte-identical to the tested build and has not run in the emulator or on a unit. The browser build from a stock OS file and its storage lockfile round trip did not run here (no stock OS file on this computer). Rytm downloads stay off until the owner turns them on.
+
 ## Screenshots
 
 `media/sync-auto.png`, `media/sync-percent.png` and `media/sync-mark.png` come from build LS17 in rytm-emu (all on the SAMPLE page, unchanged by LS18); inputs, image and PNG hashes in `media/capture.json`.
