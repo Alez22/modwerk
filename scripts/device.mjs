@@ -32,9 +32,9 @@
 // Each command is one whole transaction. A trial is rolled back unless --accept
 // is given; Ctrl-C rolls back early. If this process dies mid-trial, unplug USB:
 // the base rolls back any module that was not accepted.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { deflateSync, crc32 } from 'node:zlib'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { createConnection, createServer } from 'node:net'
 import { spawn, spawnSync } from 'node:child_process'
 import { homedir, tmpdir } from 'node:os'
@@ -199,6 +199,25 @@ async function dspmap(seconds) {
     if (seconds) await wait(250)
   } while (Date.now() - t0 < Math.min(seconds, 15) * 1000)
 }
+/** The build `boot DIR` last started, whose symbols.json and proofs.json `profile` reads. */
+const LAST_BOOT = join(homedir(), '.cache/modwerk-octatrack/last-boot')
+/** The base's tick profile (development bases, diag.h modwerk_cost): what each hook of the UI tick costs, in µs a tick over
+ * N seconds (at most 15), and the frame transfer's µs a frame. The build it reads the address from must be the base that
+ * runs: `boot DIR` records DIR, and its proofs name the base. */
+async function profile(seconds) {
+  let dir = ''
+  try { dir = readFileSync(LAST_BOOT, 'utf8').trim() } catch { /* below */ }
+  const symbols = dir && JSON.parse(readFileSync(join(dir, 'symbols.json'), 'utf8'))
+  const base = dir && JSON.parse(readFileSync(join(dir, 'proofs.json'), 'utf8')).configurationHash
+  if (!symbols?.modwerk_cost || base !== identity.base) throw new Error('No symbols for the running base: RAM-boot a development build with `boot DIR` (its symbols.json names modwerk_cost).')
+  const read = async () => { const b = await mem(symbols.modwerk_cost, 112), v = new DataView(b.buffer, b.byteOffset, 112); return Array.from({ length: 28 }, (_, i) => v.getUint32(4 * i)) }
+  const a = await read(); await wait(1000 * Math.min(seconds, 15)); const b = await read()
+  const ticks = (b[15] - a[15]) >>> 0 || 1, frames = (b[11] - a[11]) >>> 0, us = k => (((b[k] - a[k]) >>> 0) / ticks / 132).toFixed(1)
+  const hooks = [[0, 'whole chain'], [1, 'runtime'], [2, 'USB'], [3, 'dsp'], [4, 'loader manager'], [5, 'status'], [6, 'controllers'], [7, 'crash'],
+    [8, 'diagnostics'], [14, 'module UI ticks'], [24, 'MIDI generators']]
+  console.log(`profile over ${ticks} UI ticks, µs a tick: ${hooks.map(([k, name]) => `${name} ${us(k)}`).join(', ')}` +
+    (frames ? `; frame transfer ${(((b[10] - a[10]) >>> 0) / frames / 132).toFixed(1)} µs a frame` : ''))
+}
 /** What the unit shows, as text: each track's effects (their descriptors' names), the current track, transport. */
 async function ui() {
   const track = (await mem(0x80000000, 1))[0], live = await mem(0x80000ec4, 16)
@@ -302,6 +321,7 @@ async function missing() {
  * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
  * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed),
  * dspmap (development bases: each core's code arena drawn, every block named with its slots), dspmap:watch:N (redrawn on change)
+ * profile, profile:N (development bases: each UI tick hook's µs over N seconds, from the symbols of the build `boot` started)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -354,6 +374,7 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       console.log(`buffer blocks in use: 0x${map.buffers.toString(16)}`)
     }
     else if ((m = /^dspmap(?::watch:(\d+))?$/.exec(step))) await dspmap(Number(m[1] ?? 0))
+    else if ((m = /^profile(?::(\d+))?$/.exec(step))) await profile(Number(m[1] ?? 3))
     else if (step === 'compact') { // COMPACT (dev request 25): pack each core's code now (transport stopped); how long it took
       const read = async go => { const b = Buffer.from(await devIn(25, go, 8)); return { step: b.readUInt32BE(0), counts: b.readUInt32BE(4) } }
       if (!(await read(1)).step) throw new Error('Compaction did not start: stop the transport and let the loader finish.')
@@ -648,6 +669,7 @@ if (command === 'serve') {
     console.log(`flashed over USB: base ${expected.slice(0, 16)}… (power cycles boot it now)`)
   }
   if (command === 'boot') {
+    try { mkdirSync(join(homedir(), '.cache/modwerk-octatrack'), { recursive: true }); writeFileSync(LAST_BOOT, resolve(file)) } catch { /* profile then asks */ }
     const image = new Uint8Array(readFileSync(join(file, 'MAIN.raw')))
     const expected = JSON.parse(readFileSync(join(file, 'proofs.json'), 'utf8')).configurationHash
     if (image.length < 4 || new DataView(image.buffer, image.byteOffset).getUint32(0) !== 0x4fefffe4)
