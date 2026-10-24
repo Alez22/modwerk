@@ -115,6 +115,7 @@ const DiagnosticsInvitationGate = lazy(() => import('./components/DiagnosticsInv
 const RemoteSessionGate = lazy(() => import('./components/RemoteSession').then(module => ({ default: module.RemoteSessionGate })))
 const OwnerNoteGate = lazy(() => import('./components/OwnerNote').then(module => ({ default: module.OwnerNoteGate })))
 const OwnerNotePreview = lazy(() => import('./components/OwnerNote').then(module => ({ default: module.OwnerNotePreview })))
+const BetaJoinPrompt = lazy(() => import('./components/BetaJoinPrompt').then(module => ({ default: module.BetaJoinPrompt })))
 const BetaModuleSets = lazy(() => beta().then(module => ({ default: module.BetaModuleSets })))
 const FirmwareFeedbackPreview = import.meta.env.DEV ? lazy(() => import('./components/FirmwareFeedbackPreview')) : () => null
 const firmwareFeedbackPreview = import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'firmware-feedback'
@@ -152,7 +153,7 @@ export default function App() {
   const mobileWorkspace = useMobileWorkspace()
   const presence = useMembersOnline(), online = presence?.online ?? null
   useEffect(()=>trackPageView(route),[route])
-  const { session, developer, catalog } = useCommunity()
+  const { session, loading: sessionLoading, developer, catalog } = useCommunity()
   const betaAccess = hasBetaAccess(session), accessibleModules = availableModules(betaAccess)
   const detailModule = moduleRoute.startsWith('module/') ? accessibleModules.find((module) => module.id === moduleRoute.slice(7)) : undefined
   const pausedModule = MODULES.find(module => isModulePaused(module.id) && !isModuleAvailable(module.id, betaAccess) && (moduleRoute === 'module/' + module.id || moduleRoute === 'community-module/' + module.id))
@@ -492,6 +493,8 @@ export default function App() {
       <PublicAnnouncement next={route} enabled={newsEnabled} />
       {/* The beta note is required: everywhere but the pages it and the diagnostics step link to, and the account (export, deletion). */}
       {remoteSessionSeen && session.user?.verified && <Suspense fallback={null}><RemoteSessionGate key={session.user.id} /></Suspense>}
+      {/* While an administrator keeps the public round open: the beta runs over USB, so only on a computer. */}
+      {session.available && !sessionLoading && !betaAccess && !touchOnly && !mobileWorkspace && !accountRoute && !faqRoute && !['privacy', 'impressum', 'community-rules', 'report-content'].includes(route) && <Suspense fallback={null}><BetaJoinPrompt /></Suspense>}
       {betaAccess && <Suspense fallback={null}><OwnerNoteGate key={session.user!.id} enabled={!accountRoute && !faqRoute && !['privacy', 'impressum', 'community-rules', 'report-content'].includes(route)} /></Suspense>}
       {import.meta.env.DEV && usbPreview === 'beta-note' && <Suspense fallback={null}><OwnerNotePreview /></Suspense>}
       <Suspense fallback={null}>
