@@ -181,8 +181,8 @@ that the operation must preserve, and verify that setup difference explicitly.
 
 Budget the entire protected interval, including metadata validation before and
 after a bounded PCM copy. Include the maximum supported metadata count as
-a distinct workload; a short sample with few markers does not cover that cost. A work-call or byte-count limit is not a lock-time
-measurement. When one backend lock also protects requests/results, separate
+a distinct workload; a short sample with few markers does not cover that cost.
+A work-call or byte-count limit is not a lock-time measurement. When one backend lock also protects requests/results, separate
 those coordination windows from actual source accesses. Pair exact mask/restore
 observations and account for the measurement method; executed instructions do
 not establish physical latency, cache behavior or complete ISR cost.

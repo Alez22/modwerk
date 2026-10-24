@@ -22,6 +22,45 @@ its independent package to that interface, implement qualified Apply/playback,
 and pass the complete browser/USB and physical acceptance flow. Private test
 injection and a standalone runtime object cannot substitute for those steps.
 
+## First USB preview trial
+
+The next device milestone is a read-only Flex preview through the Modwerk base
+and USB. It is not ready yet. This narrower first trial does not remove the
+finished module's Apply/playback, Static, companion and persistence acceptance
+requirements, and private emulator injection is not its delivery mechanism.
+
+Before that trial:
+
+1. Obtain the shared editor/source interface review and implement its native
+   admission and retirement boundaries. Existing writer tickets, typed menu
+   descriptors and fixed-owner tests are prototypes. Complete relevant Flex
+   writer/cache coverage, command ownership and menu/job reference retirement;
+   unsupported source kinds must refuse explicitly. A completed preview must
+   become unusable before a relevant writer or owner transition can change its
+   source or reclaim callbacks.
+2. Build the exact independent module and compatible base from source through
+   the native and browser paths. Record source/package/base identity and the
+   stock-free scan, validate placement and shared ownership with intended
+   companions, and run the documented source/API/MCP preflight checks.
+   Do not substitute a card-only image, a standalone object or pinned emulator
+   callback storage for the USB package lifecycle. Instruction budgets inform
+   this preparation; physical timing remains part of qualification on the unit.
+
+On the MKII, use a disposable project and an authored sample copy. Follow the
+[device-driving workflow](../../../docs/OCTATRACK_DRIVING.md) and exact-build
+review/trial/self-test/Keep or Undo flow. Verify SAMPLE/PROJECT tempo, both stock
+menu layouts, Back/cancel and a fresh preview after normal TRACK + REC1 / Stop
+and AED/SLICE reopening. Confirm old work/output never revives and markers/PCM
+remain unchanged. The first trial must expose no Apply action or Beat Slicer
+Undo/history UI; eventual clearing uses stock DELETE SLICE / DELETE ALL SLICES.
+
+Complete the exact candidate's removal/missing-module behavior and physical
+persistence checks, recording actual results separately from emulator evidence.
+Compare latency and audible behavior on the unit rather than translating
+executed instruction counts into a timing claim. A passing read-only trial
+qualifies only that tested scope; it does not establish native Apply, smooth
+slice playback, all-source support or release readiness.
+
 ## Integration work
 
 1. Turn the observed 1.40C slice-menu dispatcher, decoded PCM reader and marker

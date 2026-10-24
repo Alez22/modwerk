@@ -49,6 +49,10 @@ Proposed access, exercised privately: Flex/Static audio track → AED → AMP
 Static streaming is not implemented. No stock gesture or screen is claimed by
 this unlisted draft, and no Beat Slicer package is installed on the instrument.
 
+The [first USB preview trial gate](INTEGRATION.md#first-usb-preview-trial) lists
+the shared-service and package work still needed before a read-only device test.
+It is separate from the finished-module acceptance below.
+
 ## Planned acceptance tutorial
 
 These steps describe the intended finished module, not currently available
