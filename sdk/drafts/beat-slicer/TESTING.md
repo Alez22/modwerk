@@ -2274,3 +2274,16 @@ manual stop/overdub, USB, native Apply/playback or hardware is qualified.
 Current-upstream full source validation: Check passed in 135.40s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
 
 Two recorder-stop integration reports bind exact source commit `9eccbb0cc5f2a3607f593e4731bd3673d2e2dac7`.
+
+
+### Reporting clarification for 0.1.37
+
+The shared paired-recorder success line now describes only identity, map and
+preservation checks executed in both modes. Native guard/wait checks are named
+separately by the compiled-observer run; the host run names its host observer.
+No assertion or recorder behavior changed. Both modes were rebuilt and rerun
+with 32 single-recorder cases, four paired cases and 16 recording positive
+controls. Earlier reports remain bound to their historical source; the new
+reports retain the corrected output and their own exact source revision.
+
+Current-upstream full source validation: Check passed in 131.44s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.

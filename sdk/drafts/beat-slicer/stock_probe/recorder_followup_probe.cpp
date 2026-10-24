@@ -209,7 +209,7 @@ int main(int argc,char **argv) {
             followup(image,track,format,bank,mode,binary,symbols);++cases;
         }
         for(unsigned format:{1u,3u})for(unsigned bank:{0u,1u})pairedFollowups(image,format,bank,binary,symbols);
-        std::puts("PASS: four paired-recorder FIFO cases; tracks 1/8 keep distinct pending records and map extents; fresh native guard identity per command and final unmasked wait");
+        std::puts("PASS: four paired-recorder FIFO cases; tracks 1/8 keep distinct pending records and map extents; post-stop PCM, controls and allocation state preserved");
         std::printf("PASS: %u recorder follow-ups; 16/24-bit, tracks 1/8, both banks; exhausted/disabled allocation and two length-limited stops; 14601/14600 zero tail-map stores; post-stop PCM/controls/counts/state/free cursors unchanged\n",cases);
         std::puts(argc==4?"PASS: compiled worker observer covers every follow-up map store and retires before unmasked queue wait":"PASS: host observer covers complete follow-up dispatch; startup writes distinguished; original recorder positive controls pass");
     } catch(const std::exception& e){std::fprintf(stderr,"FAIL: %s\n",e.what());return 1;}
