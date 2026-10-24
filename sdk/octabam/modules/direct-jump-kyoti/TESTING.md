@@ -52,8 +52,17 @@ The two bytes that do differ from the reference are left out on purpose: the pre
 
 `python3 -B sdk/runtime/loader/build.py --octabam direct-jump-kyoti --upstream ~/.cache/modwerk-upstream/elekloader --stock <OS 1.40C update file>` builds the published ABI 7 package `public/octatrack-modules/direct-jump-kyoti/0.1.0-experimental.mwrm`, SHA-256 `c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f` (2,350 bytes, module `075d79a3`, named Direct Jump): 2,016 bytes of code and data, no bss, 18 relocations, four stock-code sites (the three detours and the pointer), each named by the SHA-256 of the stock bytes and checked against the original OS. The strict scans of `module_packages.py --stock` pass: the longest run of the package also found in the stock OS has 10 counted bytes (the limit is 12), and `check_stock_free.py` finds no 16-byte run.
 
+The package needs no base change. Direct Jump has no effect id, so it adds no row to `src/engine/assets/chooser-metadata.json` (the configurator gives a module without an effect id the same empty entry by itself), and the published beta base, whose identity hashes that file, stays as it is.
+
 ## Memory
 
 2,016 bytes in the DRAM reserve (code, the two toast strings and 62 bytes of state), three six-byte detours and the four-byte pointer: 2,038 bytes. No DSP memory, no heap, no saved data. The state is the ON/OFF word, a tick counter since START, the landing's parameters and the last Program Change sent.
 
-The package needs no base change. Direct Jump has no effect id, so it adds no row to `src/engine/assets/chooser-metadata.json` (the configurator gives a module without an effect id the same empty entry by itself), and the published beta base, whose identity hashes that file, stays as it is.
+## Performance
+
+`evidence/performance.json` (`npm run perf:audit -- check` passes); everything below is ot_emu (the ColdFire port, MKII panel) on the tested image, not chip timing.
+
+- **Per tick.** PC watches on `dj_land`'s entry and return and on both sides of each stock call, with cues at four phases of the step on a 16-step, a 7-step (Part 2) and a PER TRACK pattern (tracks from 2x to 1/8x). OFF: 18 instructions a tick. ON, idle: about 35. An ordinary landing tick: 2,133 authored (2,344 with the stock calls). The dearest tick, a cue that lands on the tick that arms it: 2,946 authored (3,166 with the stock calls). A static count of the source bounds that path at 5,700 authored instructions. At 16 cycles an instruction: measured 47,136, static 91,200.
+- **Where it runs.** The sequencer tick interrupt, whose ICR reads 3 (level 3) in the port: below the level-5 DSP frame interrupt, which preempts it. Its deadline is the next tick, 8.33 ms at the top tempo of 300 BPM (2,200,000 cycles at 264 MHz); the static bound also fits one 362.8 µs frame.
+- **Load and stress, 62 s, the same input on the original OS and on the module image with Direct Jump ON:** one three-byte message every ms (notes on and off and CCs on channels 1-8) plus a MIDI clock byte every 10 ms (about 250 BPM), A02 edited to 7 steps on Part 2, a cue every second alternating A01 and A02, STOP and PLAY at 7, 22, 37 and 52 s. Longest frame interrupt (entry `0x4000aad4` to epilogue `0x4000d9a6`, over 174,000 frames): 29,434 instructions on the original OS, 29,442 with the module, 167.3 µs both in the port's time (3,990 instructions a sample). Idle: 56.64 % and 56.28 %. Every note, CC and clock message reached its handler on both images; 62 cues made 62 jumps (5 pattern changes on the original OS, where cues wait for the pattern end); no hang.
+- **Unit.** The base's self-test on the owner's MKII with Direct Jump installed: longest frame 372 µs (no comparison run without it).
