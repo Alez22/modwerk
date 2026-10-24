@@ -12,6 +12,8 @@ import { FORUM_CATEGORIES, FORUM_CATEGORY_DESCRIPTIONS, REQUEST_STATUSES, type F
 import { ForumTime } from './ForumTime'
 import { COMMUNITY_MODULES, communityModule, machineModules, nativeModule, moduleIssueHref } from './modules'
 import { configurationDevice } from '../config/workspace'
+import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
+import { assetUrl } from '../hosting'
 import { MemberPrompt } from './MemberPrompt'
 import type { Configuration } from '../config/workspace'
 import { Icon } from '../components/Icon'
@@ -70,7 +72,7 @@ function ForumList({query,profile,machineHint}:{query:URLSearchParams;profile?:s
   const gallery=!profile&&category==='showcase'&&!saved&&!following&&!filtered&&page===0&&<ForumShowcase layout="grid" category="showcase" machine={machine?.id} shareHref={shareHref}/>
   return <>
     {profile&&<BackLink href="#forum">All discussions</BackLink>}
-    <div className="page-heading forum-heading"><div><span className="forum-eyebrow">Connect · Create · Explore</span><h1>{profile?'@'+profile:'Community forum'}</h1><p>{profile?'Public threads by this member.':'A place for the people who make their machines do more.'}</p></div><a className={'button ' + (category==='issues'?'button-quiet module-issue-action':'button-primary')} href={startHref}><Icon name={category==='issues'?'message':'plus'} size={16}/><span className="forum-start-long">{category==='issues'?'Report an issue':'Start a thread'}</span><span className="forum-start-short">{category==='issues'?'Report':'New thread'}</span></a></div>
+    <div className="page-heading forum-heading"><div><span className="forum-eyebrow">Connect · Create · Explore</span><h1>{profile?'@'+profile:'Community forum'}</h1><p>{profile?'Public threads by this member.':'A place for the people who make their machines do more.'}</p></div><div className="forum-heading-actions"><a className={'button ' + (category==='issues'?'button-quiet module-issue-action':'button-primary')} href={startHref}><Icon name={category==='issues'?'message':'plus'} size={16}/><span className="forum-start-long">{category==='issues'?'Report an issue':'Start a thread'}</span><span className="forum-start-short">{category==='issues'?'Report':'New thread'}</span></a><a className="button development-discord-button" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer" aria-label="Join Discord (opens in a new tab)"><img src={assetUrl('auth/discord.svg')} width={20} height={15} alt="" aria-hidden="true"/><span className="forum-start-long">Join Discord</span></a></div></div>
     {profile&&<ForumProfile key={profile} username={profile} onLoad={setMember}/>}
     {home&&session.user?.verified&&<GetStarted machine={machineHint}/>}
     {home&&session.user?.verified&&<SinceVisit onReadAll={()=>setRevision(value=>value+1)}/>}
