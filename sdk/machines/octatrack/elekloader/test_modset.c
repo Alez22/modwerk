@@ -11,6 +11,8 @@ void modwerk_diag_set(void) { ++set_records; } /* diag.c: counted here */
 static uint32_t refused_m, refused_c, refuse_id;
 void modwerk_diag_refused(uint32_t module, uint32_t refusal) { refused_m = module, refused_c = refusal; }
 enum runtime_refusal modwerk_runtime_refusal(void) { return RUNTIME_BUSY; }
+static enum runtime_refusal noted = RUNTIME_MALFORMED; /* what modset.c told the loader a refusal was */
+void modwerk_runtime_refused(enum runtime_refusal why) { noted = why; }
 #include <stdio.h>
 #include <string.h>
 

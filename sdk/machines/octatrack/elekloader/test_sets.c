@@ -41,6 +41,7 @@ int main(void)
     modwerk_modset_candidate(offer,offer_bytes);CHECK(modwerk_modset_check_set(0,0));
     modwerk_modset_accepted();
     CHECK(modwerk_modset_generation==generation+1u && modwerk_modset_count==2 && pending && writes==written);
+    CHECK(!modwerk_modset_check_set(offer,offer_bytes) && noted==RUNTIME_BUSY); /* not on the card yet: the site retries */
     const uint8_t *want[]={package[3],package[4]};uint8_t expected[32],got[32];CHECK(identity(want,sizes,2,expected));
     uint32_t ids_now[2];uint8_t sha_now[64];unsigned count=0;
     for(uint32_t at=HEADER;at<used();++count) {
@@ -50,6 +51,7 @@ int main(void)
     CHECK(runtime_journal_set_digest(ids_now,sha_now,count,got) && !memcmp(got,expected,32));
     /* A torn final write restores the previous complete set at next boot. */
     write_fail=1;modwerk_modset_service();CHECK(pending && modwerk_modset_result==SAVE_FAILED);
+    CHECK(!modwerk_modset_check_set(offer,offer_bytes) && noted==RUNTIME_OK);   /* a failed save: no retry helps */
     write_fail=0;boot();modwerk_modset_service();
     CHECK(installed==2 && ids[0]==11 && ids[1]==22);
     /* A module refused at boot (beta finding 69): a sync from what runs is accepted, and the card keeps both. */

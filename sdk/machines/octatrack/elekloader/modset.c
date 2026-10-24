@@ -105,6 +105,9 @@ int modwerk_modset_check_set(const uint8_t *data,uint32_t length)
     const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
     if(!data) data=candidate,length=candidate_bytes;
     int n=runtime_set_parse(data,length,packages,lengths);
+    /* The reason the site reads after a refusal here, not the loader's last one: BUSY (it retries) while the last
+     * change is on its way to the card, else none. */
+    modwerk_runtime_refused(pending && modwerk_modset_result != SAVE_FAILED ? RUNTIME_BUSY : RUNTIME_OK);
     if(!n || !restored || pending) return 0;
     uint32_t ids[RUNTIME_JOURNAL_ROWS],old_ids[RUNTIME_JOURNAL_ROWS];
     uint8_t sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],old_sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],digest[32];

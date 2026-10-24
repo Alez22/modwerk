@@ -100,6 +100,7 @@ unsigned modwerk_runtime_active(void)
     return n;
 }
 enum runtime_refusal modwerk_runtime_refusal(void) { return refusal; }
+void modwerk_runtime_refused(enum runtime_refusal why) { refusal = why; }
 uint32_t modwerk_runtime_value(void) { return modwerk_runtime_api.value; }
 uint32_t modwerk_runtime_calls(void) { return modwerk_runtime_ticks; }
 
