@@ -1,5 +1,14 @@
 # Verification record
 
+## Quant Live Rec 0.1.1-experimental — 23 October 2026
+
+Quant Live Rec now ships its author's final source byte for byte (Zac-Kyoti/octatrack-kyoti-fw `3ead7f98`): the same gesture and `LIVE REC:` toasts; the flip redraws PERSONALIZE only while that page is open; the flip writes the battery copy before the setting word so the USB package repeats no stock run. The author's name reads Zac Kyoti, and the credits list no Modwerk code change.
+- **Gate (`verify.py`):** 36 of 36 on the native image of this module alone (MAIN OS `3a39f682…`). Executed instructions by the port's PC watch: at most 26 per press; 28 on the longest source path.
+- **Native/browser (`module:verify quantize-live-rec-toggle`):** 146 selections, 70 matching images (24 identical outright, 46 outside the platform writes), 76 matching refusals, 0 mismatches. Its POLY8 chooser-metadata reorder was dropped.
+- **Packages:** compiled in the isolated toolchain image and imported; the USB package (364 bytes, `297f79ef…`) was built alone through `module_packages.build` and is stock-free (the author's earlier store order scores 12 and fails). The Analog BD companion proofs, which do not include this module, were re-exported natively (`--suite analog-bd --static-stock --vendored-sdk`, 4 shards merged in the committed order): all 212 identical, only `moduleSourceTreeSha256` moves.
+- **Hardware:** the author's MKI from the card (MW_QLR011), about five minutes: the gesture, the PERSONALIZE redraw and a power cycle all passed.
+- **Not tested:** this version over USB or on an MKII, grid recording, MIDI tracks, Part and project reload. `test_published_module_packages_rebuild_byte_for_byte` stops on Tape Echo's, Euclid's and Play Modes' standalone recipes, as it does on main (`c8fcb805`).
+
 ## Analog Rytm MKII: Filter Hz in the library — 23 October 2026
 
 Filter Hz 1.2.0 leaves `_submissions` and is the Rytm's first library module, so the machine moves from research to preview with every step done. The configuration page now builds the core with library modules instead of the core alone; downloads stay off (`DIGI_DOWNLOADS_ENABLED`).
