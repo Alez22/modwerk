@@ -39,40 +39,170 @@
       "Audio-track LFOs only; MIDI-track LFOs keep 19 waves",
       "DJQ snaps PTCH to root, fifth and octaves (no scale setting); DJV and DJC move in 1/5-semitone knob steps",
       "Opened without the module, an LFO on WAVE 19-21 plays SAW and the WAVE cell reads past stock's tables (not yet run on hardware)",
-      "First hardware use reported on one MKII over USB; not yet qualified"
+      "Tested on one MKII over USB (install, self-test, power-cycle restore, removal, the three waves); the card build was not flashed"
     ]
   },
   "resources": {
-    "recorded": "ot_emu and the runtime package build, 24 Oct 2026 (see TESTING.md)",
+    "recorded": "24 October 2026; package build, static count of the unit, ot_emu, owner's MKII",
     "storage": {
-      "label": "Storage",
-      "display": "2,668 bytes code and data + 2,784 bytes state (24 LFOs x 116)",
-      "value": 5452,
+      "label": "DRAM code and state",
+      "display": "2,784 B code, labels and tables + 2,784 B state (24 LFOs x 116 B)",
+      "value": 5568,
       "unit": "bytes",
       "method": "static",
-      "conditions": "USB runtime package build (dejavu.mwrm, module ede213c6); the card build links the same unit",
+      "conditions": "One linked unit of 2,784 bytes (code, the three labels and icons, and space for the two grown WAVE tables) and 2,784 bytes of state, 116 for each of the 24 audio-track LFOs; 32 bytes of stock writes. No DSP memory, no saved data.",
       "source": "TESTING.md"
     },
     "processing": {
-      "label": "CPU load",
+      "label": "ColdFire, per LFO frame",
       "display": "0.15-0.17 % of the ColdFire with all 24 LFOs on DJV, DJQ or DJC",
       "value": 0.17,
       "unit": "%",
       "method": "emulator",
-      "conditions": "ot_emu coverage, all 24 audio-track LFOs on one wave, every track trigging every step, TRIG FREE (DJC also ONE); less than the same LFOs on stock RND",
+      "conditions": "ot_emu coverage, all 24 audio-track LFOs on one wave, every track trigging every step, TRIG FREE (DJC also ONE); less than the same LFOs on stock RND. Static bound: at most 950 instructions an LFO in a frame (first use, DJQ), 22,800 for all 24.",
       "source": "TESTING.md"
+    },
+    "impact": {
+      "conditions": "All 24 audio-track LFOs on Deja Vu waves, every track trigging every step; the dearest frame is the first after install, when each LFO sets up its state.",
+      "cpu": {
+        "level": "minimal",
+        "basis": "measured-comparison",
+        "rationale": "0.15-0.17 % of ColdFire time with all 24 LFOs on one Deja Vu wave under ot_emu, less than the same LFOs on stock RND. Between value changes an LFO costs a short check each frame. Static bound: 950 instructions an LFO in its first frame, about 600 afterwards. Time on the unit is not measured.",
+        "source": "TESTING.md"
+      },
+      "dsp": {
+        "level": "minimal",
+        "basis": "source-estimate",
+        "rationale": "No DSP code and no change to the DSP programs: the waves feed the stock LFO engine on the ColdFire.",
+        "source": "manifest.py"
+      },
+      "memory": {
+        "level": "minimal",
+        "basis": "measured-comparison",
+        "rationale": "2,784 bytes of code and tables and 2,784 bytes of state in the DRAM reserve, plus 32 bytes of stock writes; no DSP memory and no saved data.",
+        "source": "TESTING.md"
+      }
     }
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Host gate (verify.py) and 36 host tests; emulator: the five TRIG modes, DJQ root + fifth to 0.2 cents, DJC glides, trig kinds, ~0.15-0.17 % CPU with 24 LFOs. On one MKII over USB: loads and runs; behaviour reported by the developer, not yet measured.",
+    "summary": "On the owner's MKII over USB (24 Oct 2026), the exact package 95079643: installed, kept and self-tested on the flashed beta base, restored after a power cycle, self-tested again, removed. On a RAM-booted development twin: WAVE runs T7, T8, DJV, DJQ, DJC with their labels and icons; the LFO output read from memory held one value with one locked slot, took a new value every step at SPD 0, alternated two values with two locked slots, and DJQ on PTCH gave only root, fifth and octaves; removal put the stock sites back. Host gate (verify.py, 17 checks); emulator: the five TRIG modes, DJQ to 0.2 cents, DJC glides, trig kinds, 0.15-0.17 % CPU with 24 LFOs.",
     "hardwareStatus": "reported",
-    "evidenceRevision": "edceb9ab69bc0561227f2f24421a0cc7f94a1d70",
+    "evidenceRevision": "224d11ddfd6172d3cc458cf4f1a93dea38702d51",
     "gates": [
-      "Worst-case cycles under parameter modulation and maximum load",
-      "Exact memory region and maximum-instance totals",
-      "Owner-reviewed real-hardware evidence with actual coverage and limitations"
-    ]
+      "modules/dejavu/verify.py"
+    ],
+    "documentation": {
+      "tutorial": {
+        "title": "Quick tutorial",
+        "steps": [
+          "On a FLEX track with trigs, hold [FUNC] and press [LFO]; set WAVE to DJV, PMTR to PTCH, MULT to 64X, TRIG to HOLD, DEP to about 30.",
+          "Set SPD to 127: every trig plays its step's note, the same each bar. Add or remove trigs: the others keep their notes. Lower SPD to let notes mutate.",
+          "Switch WAVE to DJQ and set DEP to 60: the line now jumps between root, fifths and octaves. DJC turns it into smooth glides.",
+          "P-lock SPD to 0 on one trig to make that step new every time, or DEP to 0 (with a PTCH lock) to pin it to a fixed note.",
+          "Put SPD 127 on scene A and 0 on scene B: the crossfader becomes a mutation fader. Try TRIG FREE for a melody on every step, ONE for one note per trig."
+        ]
+      },
+      "screenshots": [
+        "media/dejavu_lfo_setup.png",
+        "media/djq_lfo_setup.png",
+        "media/djc_lfo_setup.png"
+      ],
+      "screenshotStyle": "black-and-white"
+    },
+    "qualification": {
+      "moduleVersion": "0.1.0-experimental",
+      "sourceSha256": "dd0d443104c85e5b7f94cdf6a3ac78d2ac33f52848750e66947eb24403e89604",
+      "imageSha256": "95079643d3e11914a9fcea21c3417bd95fe7083333660470147d7e89a1f53260",
+      "cycles": [
+        {
+          "processor": "coldfire",
+          "worstCase": 2850,
+          "maxConfiguration": 22800,
+          "maxInstances": 8,
+          "budget": 95778,
+          "unit": "cycles/event",
+          "method": "static",
+          "conditions": {
+            "parameterExtremes": "DEJA 0 and 127, MULT 1X to 64X, all five TRIG modes, DEP 0 to 127; DJQ's note-reach loops at their longest (DEP below 25 and at 60 and above).",
+            "parameterModulation": "A changed SPD, DEP, MULT or TRIG reaches the handler as the knob value of that frame (p-locks, scenes, the crossfader); DJQ re-snaps when DEP moves. Each costs at most one call of the C, which the bound already counts per LFO and frame.",
+            "modeSwitching": "Switching among DJV, DJQ and DJC keeps the loop; a switch costs one call. PLAY resets the TRIG and ONE positions in the same call.",
+            "maxLoad": "Eight audio tracks with three LFOs each, all on Deja Vu waves, all calling the C in one frame. The LFO engine runs in the frame interrupt; budget one frame, 95,778 cycles at 264 MHz (362.8 us).",
+            "inputConditions": "Static count of the compiled unit (dejavu_core.s): the handler's call path (about 57 instructions), dv_call (343) with its 116-byte set-up loop on first use (345 more), dv_visit (55) and dv_quant (116, its two loops at most two extra passes each). At most 950 a call, 2,850 for one track, 22,800 for 24. Instructions, not cycles: divides, cache and wait states are not modelled. ot_emu measured 0.15-0.17 % on average."
+          },
+          "report": "TESTING.md"
+        }
+      ],
+      "memory": {
+        "regions": [
+          {
+            "name": "ColdFire code, three labels and icons, space for the two grown WAVE tables (one linked unit, DRAM)",
+            "space": "sdram",
+            "words": 2784,
+            "wordBits": 8,
+            "bytes": 2784,
+            "scope": "shared"
+          },
+          {
+            "name": "State of one audio track's three LFOs (3 x 116 bytes, DRAM)",
+            "space": "sdram",
+            "words": 348,
+            "wordBits": 8,
+            "bytes": 348,
+            "scope": "instance"
+          },
+          {
+            "name": "Stock writes: three dispatch slots, the WAVE count, two moveq immediates, three lea operands",
+            "space": "cpu-flash",
+            "words": 32,
+            "wordBits": 8,
+            "bytes": 32,
+            "scope": "shared"
+          }
+        ],
+        "perInstanceBytes": 348,
+        "sharedBytes": 2816,
+        "maxInstances": 8,
+        "totalBytes": 5600,
+        "conditions": "From the linked unit (2,776 bytes of text and 5 of rodata, aligned to 2,784; 2,784 bytes of bss for 24 LFOs) and the stock writes of the USB package. The card build grows the two tables with TableGrow (22 entries each) instead of filling the unit's space. No DSP memory, no heap, no saved data.",
+        "report": "TESTING.md"
+      },
+      "hardware": {
+        "kind": "functional",
+        "status": "reported",
+        "model": "MKII",
+        "testedOn": "2026-10-24",
+        "tester": "repeat98",
+        "sourceRevision": "224d11ddfd6172d3cc458cf4f1a93dea38702d51",
+        "imageSha256": "95079643d3e11914a9fcea21c3417bd95fe7083333660470147d7e89a1f53260",
+        "summary": "The owner's MKII, OS 1.40C, driven over USB by the agent. On the flashed beta base b5fae2ae: package 95079643 installed and kept (generation 1), self-test passed (1/1 intact, longest frame 374 us, card set saved), the owner's power cycle restored it, self-test passed again, removal emptied the set. On a RAM-booted development twin (7889c57a, the beta flags plus --dev), on a test bank whose Part was put back byte for byte afterwards: WAVE stepped T7, T8, DJV, DJQ, DJC with labels and icons drawn and stopped at DJC; track 1 LFO 1's output word held 0x00510000 through two pattern passes with MULT 1X and SPD 127, took a new whole value every step at SPD 0, alternated exactly two values at MULT 2X, and on DJQ (PTCH, DEP 127, MULT 8X) took only -25, 0, 35 and 60 knob steps, repeating each pass; DJC glided; removal restored the three dispatch slots and the WAVE count of 19.",
+        "limitations": [
+          "One unit, driven by the agent; nothing judged by ear.",
+          "Not tested on hardware: the HOLD, TRIG, ONE and HALF modes, p-locks and scenes on SPD or DEP, trig conditions, microtiming, a project with WAVE 19-21 opened without the module, Play Modes beside it.",
+          "USB only: the card build was not flashed. Not tested on an MKI. The site's review, Keep and Undo pages were not used: the device tool installed and removed the package.",
+          "About 20 minutes of use in all."
+        ],
+        "report": "evidence/hardware.md"
+      },
+      "documentation": {
+        "tutorial": {
+          "title": "Quick tutorial",
+          "steps": [
+            "On a FLEX track with trigs, hold [FUNC] and press [LFO]; set WAVE to DJV, PMTR to PTCH, MULT to 64X, TRIG to HOLD, DEP to about 30.",
+            "Set SPD to 127: every trig plays its step's note, the same each bar. Add or remove trigs: the others keep their notes. Lower SPD to let notes mutate.",
+            "Switch WAVE to DJQ and set DEP to 60: the line now jumps between root, fifths and octaves. DJC turns it into smooth glides.",
+            "P-lock SPD to 0 on one trig to make that step new every time, or DEP to 0 (with a PTCH lock) to pin it to a fixed note.",
+            "Put SPD 127 on scene A and 0 on scene B: the crossfader becomes a mutation fader. Try TRIG FREE for a melody on every step, ONE for one note per trig."
+          ]
+        },
+        "screenshots": [
+          "media/dejavu_lfo_setup.png",
+          "media/djq_lfo_setup.png",
+          "media/djc_lfo_setup.png"
+        ],
+        "screenshotStyle": "black-and-white"
+      }
+    }
   },
   "license": {
     "spdx": "MIT",

@@ -1,10 +1,34 @@
-# DEJA VU — testing (draft 0.1.0-experimental, 24 Oct 2026)
+# DEJA VU — testing (0.1.0-experimental, 24 Oct 2026)
 
-Evidence: host tests, ot_emu on own OS 1.40C, and first use on one Octatrack MKII over USB (below).
+Evidence: the owner's MKII over USB with the exact release package (below), the author's first use on their own MKII with earlier sources, host tests and ot_emu on OS 1.40C.
 
-## Hardware (Octatrack MKII, OS 1.40C, flashed Modwerk beta base `cd39c494`)
+## Release package on hardware (owner's MKII, 24 Oct 2026)
 
-Packages loaded over USB with `npm run device -- try … --accept` (Windows, WinUSB bridge). Observed by the agent: every version below loaded, ran its trial and was accepted; the base reported the package's module identity as active and stayed in its normal state. The latest, `dejavu.mwrm` sha256 `1347aca9…` (source `edceb9ab`, identical to the tested `51650ecc` on the developer's branch), is active as set generation 9.
+Package `dejavu/0.1.0-experimental.mwrm`, SHA-256 `95079643d3e11914a9fcea21c3417bd95fe7083333660470147d7e89a1f53260`, from Modwerk commit `224d11dd` (byte-identical from `3bd9cc18`). Both strict stock-free scans pass (no run shared with the stock OS). Full record: [evidence/hardware.md](evidence/hardware.md).
+
+| Check | Result |
+|---|---|
+| Install and Keep on the flashed beta base `b5fae2ae` | accepted, generation 1 |
+| Self-test | passed: 1/1 intact, longest frame 374 µs, card set saved |
+| Owner's power cycle | restored; self-test passed again (1/1, 374 µs) |
+| Removal | accepted, set empty |
+| WAVE list (development twin `7889c57a`) | T7, T8, DJV, DJQ, DJC with labels and icons; stops at DJC |
+| DJV, MULT 1X, SPD 127, playing | output held `0x00510000` through two pattern passes |
+| DJV, MULT 1X, SPD 0 | a new whole value every step |
+| DJV, MULT 2X, SPD 127 | exactly two values, alternating |
+| DJQ on PTCH, DEP 127, MULT 8X | only −25, 0, 35, 60 knob steps (−5, 0, +7, +12 semitones), the same each pass |
+| Removal on the twin | dispatch slots back to stock SAW, WAVE count 19 |
+
+Not tested on hardware: HOLD, TRIG, ONE and HALF; p-locks, scenes and the crossfader on SPD or DEP; trig conditions, one-shots, microtiming; a project with WAVE 19-21 without the module; listening; the card build; an MKI.
+
+## Cost and memory (release package)
+
+- **Static bound (ColdFire), from the compiled unit `dejavu_core.s`:** the handler's call path about 57 instructions, `dv_call` 343 plus 345 for its 116-byte set-up loop on an LFO's first use, `dv_visit` 55, `dv_quant` 116 plus at most two extra passes of each note-reach loop. At most 950 instructions an LFO in one frame (first use, DJQ), about 600 afterwards, 22,800 with all 24 LFOs calling in the same frame. Instructions, not cycles. Between value changes an LFO costs only the handler's check.
+- **Memory:** one linked unit of 2,784 bytes (2,776 of text, 5 of rodata, aligned; it holds the code, the three labels and icons and space for the two grown tables) and 2,784 bytes of state (116 for each of the 24 audio-track LFOs). Stock writes: three dispatch slots (12 bytes), the WAVE count (4), two `moveq` immediates (2 each), three `lea` operands (12): 32 bytes. Card builds grow the two tables with TableGrow instead of filling the unit's space.
+
+## Author's first use (earlier sources)
+
+Octatrack MKII, OS 1.40C, flashed Modwerk beta base `cd39c494`. Packages loaded over USB with `npm run device -- try … --accept` (Windows, WinUSB bridge). Observed by the agent: every version below loaded, ran its trial and was accepted; the base reported the package's module identity as active and stayed in its normal state. The latest, `dejavu.mwrm` sha256 `1347aca9…` (source `edceb9ab`, identical to the tested `51650ecc` on the developer's branch), is active as set generation 9.
 
 Reported by the developer while playing (not measured):
 
