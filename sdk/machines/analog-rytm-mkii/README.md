@@ -38,7 +38,7 @@ Traps found while writing a C mod for OS 1.74 (rytm-emu `3c4c42c`, October 2026)
 
 ## Mod storage (core 0.3)
 
-Declare each field in `build.json`, then read and write it through the core with elekloader's `analog-rytm-mk2/store.h`:
+Declare each field in `build.json`, then read and write it through the core with elekloader's `analog-rytm-mk2/store.h`. Modwerk's source builder finds it in [`include/`](include/analog-rytm-mk2/store.h), copied unchanged from elekloader's `core-ar2-v0.3` tag (`sdk/imports/core-ar2-store-header-769d9aa.json`); elekloader's own builder uses its SDK's copy:
 
 ```json
 "storage": [{ "sym": "my_accent", "scope": "track", "bits": 4 }]
@@ -78,7 +78,7 @@ python -m elekloader.patch --stock Analog-Rytm_MKII_OS1.74.syx \
     --out my-build.syx --version XX01
 ```
 
-Modwerk's linker covers OS 1.74 (`src/engine/elektron/elemod.ts`), mod storage included. On the owner's stock 1.74 file it links core-ar2 0.3 with each of rytm2_mods v1.2's eleven mods, with the storage mods together, with all eleven, and again from a kept lockfile, byte for byte as elekloader kit 0.7.0 does. In the browser, the Rytm's configuration page checks and builds core-ar2 0.3 and the selected library modules from the owner's stock OS 1.74, with elekloader's kit, the core pinned in `sdk/imports/elekloader-core-ar2-v0.3.json` and each module's source-only package pinned in its own record (`sdk/imports/elekloader-filter-hz-2026-10-23.json`). Downloads stay off until the owner turns them on. The browser does not keep a configuration's storage lockfile yet, so it rebuilds a fresh storage layout each time; no library module declares storage, so nothing is lost. A module with storage needs that lockfile before it enters the library. Until then, build firmware with storage mods with elekloader.
+Modwerk's linker covers OS 1.74 (`src/engine/elektron/elemod.ts`), mod storage included. On the owner's stock 1.74 file it links core-ar2 0.3 with each of rytm2_mods v1.2's eleven mods, with the storage mods together, with all eleven, and again from a kept lockfile, byte for byte as elekloader kit 0.7.0 does. In the browser, the Rytm's configuration page checks and builds core-ar2 0.3 and the selected library modules from the owner's stock OS 1.74, with elekloader's kit, the core pinned in `sdk/imports/elekloader-core-ar2-v0.3.json` and each module's source-only package pinned in its own record (`sdk/imports/elekloader-filter-hz-2026-10-23.json`). Downloads stay off until the owner turns them on. Each configuration keeps the storage lockfile of its last build (Mod storage, above), so a module with storage can enter the library.
 
 ## Flash and recover
 
