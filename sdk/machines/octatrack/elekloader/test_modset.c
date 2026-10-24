@@ -99,8 +99,9 @@ int main(void)
     boot(); modwerk_modset_service();
     CHECK(modwerk_modset_result == RESTORED && installed == 1 && ids[0] == 0x3cbedc9cu && entered == 1 && !refused_m);
     /* One refused: the rest installs, and the log names the refused module and the loader's refusal (finding 69). */
-    refuse_id = 0x3cbedc9cu; boot(); modwerk_modset_service();
+    refuse_id = 0x3cbedc9cu; written = writes; boot(); modwerk_modset_service();
     CHECK(modwerk_modset_result == REFUSED && !installed && refused_m == 0x3cbedc9cu && refused_c == RUNTIME_BUSY);
+    CHECK(used() == HEADER && !pending && writes == written); /* set[] names what runs; the card keeps it */
     refuse_id = 0, refused_m = refused_c = 0;
     /* The newer file damaged: the older one, with both modules. */
     card[0][HEADER + 9] ^= 1; boot(); modwerk_modset_service();

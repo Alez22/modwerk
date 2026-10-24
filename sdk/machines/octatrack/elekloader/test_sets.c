@@ -52,6 +52,14 @@ int main(void)
     write_fail=1;modwerk_modset_service();CHECK(pending && modwerk_modset_result==SAVE_FAILED);
     write_fail=0;boot();modwerk_modset_service();
     CHECK(installed==2 && ids[0]==11 && ids[1]==22);
+    /* A module refused at boot (beta finding 69): a sync from what runs is accepted, and the card keeps both. */
+    refuse_id=22;written=writes;boot();modwerk_modset_service();refuse_id=0;
+    CHECK(modwerk_modset_result==REFUSED && installed==1 && modwerk_modset_count==1 && !pending && writes==written);
+    const uint8_t *runs[]={package[0]};
+    memset(offer,0,sizeof offer);memcpy(offer,"MWMS",4);offer[5]=1;offer[7]=1;offer_bytes=80;
+    memcpy(offer+16,modwerk_base_digest,32);CHECK(identity(runs,sizes,1,offer+48));
+    append(4,48);CHECK(modwerk_modset_check_set(offer,offer_bytes));
+    boot();modwerk_modset_service();CHECK(modwerk_modset_result==RESTORED && installed==2);
     if(failures) return 1;
     puts("Whole saved set: exact baseline, no intermediate saves, one Keep generation, torn-write fallback passed.");
     return 0;
