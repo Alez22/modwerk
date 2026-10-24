@@ -1,0 +1,10 @@
+[
+  {
+    "version": "0.2.0-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "First library release, for Analog Rytm MKII OS 1.74 on core-ar2 0.3. Keeps sample loops in time with the project tempo by repitching them: AUTO reads each loop's tempo from its length, SMP locks and scenes included; a percentage correction per sample slot; trailing digital silence left out; the pitch glides on tempo changes.",
+      "Limits: pitch follows tempo, with no time-stretch. This exact build (LS18) is tested in the emulator only; the author tested earlier builds on a unit by ear. Persistence across saves and reboots, external MIDI clock and CPU on a unit are not tested yet."
+    ]
+  }
+]
