@@ -2427,3 +2427,7 @@ This experiment reserves eight audio pages and binds the SDK codegen helper
 and stock engine guards to an exact SDK commit. It does not publish a base,
 module package or reader API, qualify all recorder/Pickup paths, or establish
 physical timing, DMA/cache ownership, USB, audio quality or persistence.
+
+Two composition reports bind source commit `d65c0cf4528d7a2ed316d0fdd14224c196783dee`. Current-upstream validation passed in 137.89 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+Both preparation calls per track return to the stock frame dispatcher at `0x4000d35c`, with observed command words `0x9010` and `0x1010`. The Stop helper returns to `0x40007942` inside the guarded recorder body; its state clear holds the recorder ticket. These are named fixture observations, not a released calling convention.
