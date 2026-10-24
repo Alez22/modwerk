@@ -2528,3 +2528,5 @@ This is fixed synthetic ownership with a borrowed-main producer and one actual
 engine consumer. It supplies no production source API, module menu integration,
 loader retirement, package/browser/USB lifecycle, complete writer/cache coverage,
 audible behavior or device persistence.
+
+Two engine-service reports bind source commit `2217522f3fa20d4224a82c4f7d3aec6ee6afdf9b`. Current-upstream full validation passed in 139.37 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
