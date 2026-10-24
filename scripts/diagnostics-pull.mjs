@@ -51,6 +51,15 @@ const incident = r => `#${r.seq} start ${r.boot} +${Math.floor(r.second / 60)}m$
   (r.kind === 'crash' || r.kind === 'stall' ? '' : `, cpu ${percent(r.cpu)} T1-4 ${percent(r.dsp1to4)} T5-8 ${percent(r.dsp5to8)}, ${r.playing ? 'playing' : 'stopped'} at ${(r.tempo24 / 24).toFixed(1)} BPM, screen 0x${r.screen.toString(16)}` +
     `, keys ${r.keys.filter(k => k !== 255).map(k => k.toString(16)).join(' ') || '-'}, fx ${r.fx.map(f => f.toString(16)).join(' ')}, machines ${r.machines.join(' ')}`)
 
+/** The unit's last incidents, oldest first. A stall found at a start that runs another base than the session before is an
+ * OS upgrade (stock halts the DSPs for it while the loader may have a job open; beta finding 55), not a hang: said so. */
+export function unitLines(incidents) {
+  const all = [...incidents].sort((a, b) => a.boot - b.boot || a.seq - b.seq)
+  const base = new Map(all.filter(r => r.kind === 'base').map(r => [r.boot, r.a]))
+  const upgrade = r => r.kind === 'stall' && base.has(r.boot) && base.has(r.boot - 1) && base.get(r.boot) !== base.get(r.boot - 1)
+  return all.filter(r => r.kind !== 'start').slice(-12).map(r => '  unit: ' + incident(r) + (upgrade(r) ? ' (an OS upgrade: this start runs another base; not a hang)' : ''))
+}
+
 /** The base's saved-set result (modset.c) as a reading's `saved` reports it; 1-6 are what a boot's restore found. */
 const SAVED = ['', 'RESTORED', 'nothing saved', 'skipped (FUNC held)', 'another base’s set', 'damaged', 'refused', 'saved', 'save failed', 'too big']
 
@@ -125,7 +134,7 @@ export function summary({ events, counts }, { base = '', reports = new Map() } =
       ...(member.loads && [...member.loads.values()].some(r => r.frameGap !== undefined) ? [`  longest frame gap ${Math.max(...[...member.loads.values()].map(r => r.frameGap ?? 0))} us (frames are 363, DSPs starve past about 515), longest UI-tick gap ${Math.max(...[...member.loads.values()].map(r => r.tickGap ?? 0))} frames (freeze at 13,781)`] : []),
       ...member.crash ? [`  crash record ${member.crash.count}: vector ${member.crash.vector} pc 0x${member.crash.pc.toString(16)} code ${member.crash.code.map(w => w.toString(16).padStart(8, '0')).join(' ')} uncached ${member.crash.memory.map(w => w.toString(16).padStart(8, '0')).join(' ')}`] : [],
       ...member.stall ? [`  stall record ${member.stall.count}: reason ${member.stall.reason} (1 frames stopped, 2 eDMA refused) at tick ${member.stall.ticks}`] : [],
-      ...[...member.incidents?.values() ?? []].filter(r => r.kind !== 'start').sort((a, b) => a.boot - b.boot || a.seq - b.seq).slice(-12).map(r => '  unit: ' + incident(r)),
+      ...unitLines([...member.incidents?.values() ?? []]),
       '  ' + Object.entries(member.kinds).map(([kind, n]) => kind + ' ' + n).join(', '),
     ]),
     '', 'Self-test peaks are measured only while DSP modules run. Live load comes from the site while connected; the unit\'s log covers the time without it. Screen codes are stock input layers, keys stock key codes.',

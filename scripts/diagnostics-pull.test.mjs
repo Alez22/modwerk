@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { members, pullAll, reportsByMember, summary, when } from './diagnostics-pull.mjs'
+import { members, pullAll, reportsByMember, summary, unitLines, when } from './diagnostics-pull.mjs'
 
 const entry = (n, username = 'tester', data = { event: 'health', phase: 'ready' }) =>
   ({ eventId: 'e' + n, username, createdAt: new Date(Date.UTC(2026, 9, 15, 0, 0, n)).toISOString(), data })
@@ -84,5 +84,12 @@ describe('diagnostics pull', () => {
     expect(text.match(/unit: #9 start 4 \+2m5s freeze 5\.0 s, cpu 95\.0%/g)).toHaveLength(1)
     expect(text).toContain('playing at 120.0 BPM, screen 0x400cbf2c, keys 28 1c, fx 21 0')
     expect(text).toContain('unresponsive ready reason=ui')
+  })
+  it('calls a stall found at a start on another base an OS upgrade, and one on the same base nothing', () => {
+    const at = (seq, boot, kind, a = 0) => ({ seq, boot, second: 0, kind, a, cpu: 0, dsp1to4: 0, dsp5to8: 0, machines: Array(24).fill(0),
+      fx: Array(16).fill(0), keys: Array(16).fill(255), screen: 0, tempo24: 0, playing: false })
+    const lines = unitLines([at(1, 1, 'base', 0xb5fae2ae), at(2, 2, 'base', 0x049efc39), at(3, 2, 'stall', 1), at(4, 3, 'base', 0x049efc39), at(5, 3, 'stall', 1)])
+    expect(lines.filter(l => l.includes('stall'))).toEqual([
+      '  unit: #3 start 2 +0m0s stall reason 1 (an OS upgrade: this start runs another base; not a hang)', '  unit: #5 start 3 +0m0s stall reason 1'])
   })
 })
