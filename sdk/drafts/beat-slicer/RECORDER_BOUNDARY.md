@@ -55,7 +55,7 @@ it does not broadly ignore voice memory or arbitrary idle writes. This is a
 fixture assertion, not a production writer allowlist.
 
 Host sanitizers separately cover all 72 bank/track combinations, eight nested
-scopes with an independent writer, and 13 fault families. The same portable
+scopes with an independent writer, and 14 fault families. The same portable
 self-test executes on ColdFire before the native fixture begins. Neither set
 runs the real scheduler or simultaneous frame interrupt. See [TESTING.md](TESTING.md)
 for exact source-bound results and [WRITER_COVERAGE.md](WRITER_COVERAGE.md) for
@@ -92,3 +92,28 @@ Preparation changes only settings word 271 from 0 to 44,100, with PCM/controls
 unchanged. Recording then preserves the entire prepared source, native code,
 reservation canaries and unsaved card. No source reader, physical interrupt
 latency, cache behavior, USB or device result is established.
+
+## Whole preparation scope (0.1.42)
+
+Preparation now uses the same balanced scope stack and always obtains a writer
+ticket, even before either bank is active. Its entry/epilogue wrappers preserve
+the same 64-byte register/SR frame and replay complete eight-byte spans. The
+stock preparation frame is 48 bytes. Terminal observer faults still let the
+complete stock routine and cleanup return normally. No caller return rewrite
+or separate Stop hook is needed for the observed normal Stop inside the body.
+
+The isolated runner adds 192 original/guarded preparation pairs: tracks 1/8,
+both stereo widths and banks, start/retrigger/no-command, four incoming SR
+patterns and normal/faulted observers. It retains all 896 recorder pairs. Host
+tests add eight preparation scopes with nested recorder activity. Full boots
+cover the former 24-store preparation gap on each track, including both pending
+publications; all five watched state transitions carry the shared recorder or
+preparation ticket. The report's `recorderScopes` includes both scope types;
+separate native entry counters distinguish them.
+
+Saved caller SR records mask level 5 at both preparation and recorder entry and
+return in this emulator fixture. This is actual saved-SR evidence, not an
+inference from the paused task/SP, and not a physical interrupt-latency result.
+The named preallocated ordinary ONE/MAX cases do not qualify Pickup, overdub,
+long dynamic growth, other state values, DMA/cache ownership or every UI writer.
+No production source reader is enabled.

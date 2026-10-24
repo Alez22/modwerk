@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.41-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.42-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -118,8 +118,10 @@ start from an old inactive bank that retains its recorded state. A separate
 [compiled recorder-boundary prototype](RECORDER_BOUNDARY.md) preserves stock
 behavior in paired isolated calls, including terminal observer faults. A later
 full boot composes recorder and engine guards during normal recording and
-cleanup. It observes 24 unguarded preparation stores per track, so complete
-source ownership remains open and the production reader stays disabled.
+cleanup. The latest composition also brackets whole preparation calls and
+covers those previously unguarded stores in the named ordinary-recording
+fixtures. Complete source ownership remains open; the production reader stays
+disabled.
 
 The [copied UI/engine exchange](PREVIEW_ASYNC.md) gives one engine consumer
 ownership of the mutable session. UI callbacks submit tagged intents and read

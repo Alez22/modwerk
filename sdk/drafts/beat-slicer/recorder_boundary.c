@@ -11,20 +11,29 @@ void bs_recorder_boundary_init(struct bs_recorder_boundary *b, struct bs_preview
         b->frames[i].caller_sp = b->frames[i].ticket = 0;
     bs_guard_revoke(g);
 }
-void bs_recorder_enter_locked(struct bs_recorder_boundary *b, uint32_t sp,
-                              uint32_t track, uint32_t selected, uint32_t other) {
+static void enter(struct bs_recorder_boundary *b, uint32_t sp, uint32_t track, int writer) {
     if (!b) return;
     if (!b->guard || b->fault || !sp || (sp & 3u) || track >= 8u ||
-        selected > 2u || other > 2u || b->depth >= BS_RECORDER_DEPTH) { failed(b); return; }
+        b->depth >= BS_RECORDER_DEPTH) { failed(b); return; }
     for (uint32_t i=0; i<b->depth; ++i)
         if (b->frames[i].caller_sp == sp) { failed(b); return; }
     struct bs_recorder_frame *f = &b->frames[b->depth++];
     f->caller_sp = sp;
     f->ticket = 0;
-    if (selected || other == 1u) {
+    if (writer) {
         f->ticket = bs_guard_writer_begin(b->guard);
         if (!f->ticket) failed(b);
     }
+}
+void bs_recorder_enter_locked(struct bs_recorder_boundary *b, uint32_t sp,
+                              uint32_t track, uint32_t selected, uint32_t other) {
+    if (!b) return;
+    if (selected > 2u || other > 2u) { failed(b); return; }
+    enter(b,sp,track,selected || other == 1u);
+}
+void bs_recorder_prepare_locked(struct bs_recorder_boundary *b, uint32_t sp, uint32_t track) {
+    /* Preparation may publish pending state before either bank is active. */
+    enter(b,sp,track,1);
 }
 void bs_recorder_leave_locked(struct bs_recorder_boundary *b, uint32_t sp) {
     if (!b) return;

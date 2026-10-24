@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.42-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Bracket whole recorder preparation calls before pending-state publication, sharing balanced native scopes with the recorder and engine guards.",
+      "Pass 192 paired preparation calls and retain 896 recorder comparisons, including observer faults, caller arguments, SR and every external store.",
+      "Close the observed 24-store preparation gap per track in normal start/retrigger/STOP full boots; preserve prepared Flex source and the unsaved card.",
+      "Observe caller interrupt-mask level 5 for preparation and recorder callbacks; retain exact native instruction and isolated stack measurements.",
+      "Known issue: other recording modes, complete writer/cache ownership, physical timing, USB, Apply/playback and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.41-experimental",
     "date": "2026-10-24",
     "changes": [

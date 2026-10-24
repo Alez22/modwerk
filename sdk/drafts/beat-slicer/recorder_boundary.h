@@ -22,6 +22,8 @@ struct bs_recorder_boundary {
 void bs_recorder_boundary_init(struct bs_recorder_boundary *, struct bs_preview_guard *);
 void bs_recorder_enter_locked(struct bs_recorder_boundary *, uint32_t caller_sp,
                               uint32_t track, uint32_t selected, uint32_t other);
+/* Whole preparation call: always a writer, independent of current bank state. */
+void bs_recorder_prepare_locked(struct bs_recorder_boundary *, uint32_t caller_sp, uint32_t track);
 void bs_recorder_leave_locked(struct bs_recorder_boundary *, uint32_t caller_sp);
 int bs_recorder_quiescent_locked(const struct bs_recorder_boundary *);
 #endif

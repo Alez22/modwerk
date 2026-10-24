@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.41-experimental",
+  "version": "0.1.42-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Compose compiled recorder and engine guards in a reserved-memory full boot with normal start/retrigger/STOP on tracks 1/8. Observed PCM-prefix writes use recorder tickets and map-tail cleanup uses engine tickets, with unchanged prepared Flex source and card. Identify 24 unguarded preparation stores per track; complete source admission, Pickup/overdub, timing, USB and hardware remain unqualified.",
+    "summary": "Bracket complete recorder preparation calls with the shared guard. Pass 192 paired preparation and 896 recorder comparisons, then normal start/retrigger/STOP on tracks 1/8 with no uncovered watched recorder-bank stores. Observe caller mask level 5, preserve stock behavior and prepared Flex data. Complete writer/cache ownership, Pickup/overdub, physical timing, USB and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

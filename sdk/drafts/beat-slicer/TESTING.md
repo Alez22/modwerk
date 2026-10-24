@@ -2431,3 +2431,30 @@ physical timing, DMA/cache ownership, USB, audio quality or persistence.
 Two composition reports bind source commit `d65c0cf4528d7a2ed316d0fdd14224c196783dee`. Current-upstream validation passed in 137.89 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
 
 Both preparation calls per track return to the stock frame dispatcher at `0x4000d35c`, with observed command words `0x9010` and `0x1010`. The Stop helper returns to `0x40007942` inside the guarded recorder body; its state clear holds the recorder ticket. These are named fixture observations, not a released calling convention.
+
+## Complete preparation scope (0.1.42)
+
+Host sanitizers pass 72 bank/track cases, eight preparation scopes with nested
+recorder activity, eight nested scopes with an independent writer and 14 fault
+families. ColdFire pairs 192 original/guarded preparation calls and retains all
+896 recorder comparisons. All D/A registers, SP/SR, caller arguments and ordered
+external writes match at the checked continuations and return, with intact
+stack/private canaries. Preparation publishes the expected pending bank and
+queued cleanup record; no PCM/map write is invented by the fixture.
+
+The native preparation wrapper adds at most 217 executed instructions, with a
+95-instruction maximum observed observer-only masked run. The recorder wrapper,
+including saved-SR diagnostic counters, adds at most 257 (194 idle), with a
+134-instruction maximum masked run. Peak isolated stack is 72/176 bytes for
+stock/guarded preparation and 176/260 for stock/guarded recorder. These are
+fixture instruction/stack observations, not physical latency or whole-ISR cost.
+
+Normal-panel start/retrigger/STOP full boots pass on tracks 1/8 with zero
+uncovered watched recorder-bank stores, 32 PCM-prefix and three map-tail stores
+per track under their corresponding native tickets, and all five state changes
+guarded. Exactly two preparation scopes occur per track. Saved caller mask is
+level 5 at both entry/return for preparation and recorder callbacks. Prepared
+Flex data/settings/controls, code/canaries, receive call and unsaved card remain
+intact. Ordinary preallocated ONE/MAX is the tested mode. No production source
+reader, Pickup/overdub, complete writer/cache ownership, USB or hardware result
+is established.

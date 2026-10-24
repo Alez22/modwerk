@@ -17,11 +17,11 @@ SITES={
 }
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def run(*args):return subprocess.check_output(args,text=True).strip()
-def interior_scan(stock):
+def interior_scan(stock,sites=None):
     # Deliberately conservative encoding/literal leads, not a disassembler or
     # complete control-flow proof. Indirect targets remain a separate review.
     load=0x40000400
-    targets={s['address']+i for s in SITES.values() for i in range(2,s['length'],2)}
+    targets={s['address']+i for s in (SITES if sites is None else sites).values() for i in range(2,s['length'],2)}
     branches=[]
     for i in range(0,len(stock)-6,2):
         word=int.from_bytes(stock[i:i+2],'big');target=None

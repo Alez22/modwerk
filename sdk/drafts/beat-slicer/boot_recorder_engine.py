@@ -33,6 +33,7 @@ def main():
     if out.exists() or out==repo or repo in out.parents:p.error('Use fresh private output outside Git.')
     if digest(a.main)!=STOCK_MAIN_SHA256 or digest(a.card)!=a.card_sha256 or digest(a.arena_tool)!=ARENA_SHA:p.error('Private input identity differs.')
     native=json.loads((a.native/'recorder-engine.json').read_text())
+    preparation_enabled=bool(native.get('preparationEnabled',False))
     binary,symbols_path=a.native/'recorder-engine.bin',a.native/'recorder-engine.symbols'
     if native['textBase']!=0x46019df0 or digest(binary)!=native['binarySha256'] or digest(symbols_path)!=native['symbolsSha256']:p.error('Native fixture identity differs.')
     for name,expected in native['sourceSha256'].items():
@@ -73,8 +74,8 @@ def main():
         assert struct.unpack('>12I',port.peek(g_at,48))[2]==0,'Bootstrap admitted readers'
         original_receive=port.peek(0x40084854,6)
         assert original_receive[:2]==bytes.fromhex('4eb9') and int.from_bytes(original_receive[2:],'big')==0x40000d00
-        for group,prefix in (('hookSites','bs_recorder_'),('engineHookSites','bs_recorder_engine_')):
-            for name,site in native[group].items():
+        for group,prefix in (('hookSites','bs_recorder_'),('engineHookSites','bs_recorder_engine_'),('preparationHookSites','bs_recorder_prepare_')):
+            for name,site in native.get(group,{}).items():
                 import hashlib
                 assert hashlib.sha256(port.peek(site['address'],site['length'])).hexdigest()==site['sha256']
                 patch=bytes.fromhex('4ef9')+symbols[prefix+name+'_entry'].to_bytes(4,'big')
@@ -92,7 +93,15 @@ def main():
             entries=int.from_bytes(port.peek(symbols['bs_recorder_test_entries'],4),'big')
             exits=int.from_bytes(port.peek(symbols['bs_recorder_test_exits'],4),'big')
             assert entries==exits,'Recorder entries/returns differ at quiescence'
-            return {'revision':g[0],'serial':g[1],'entries':entries,'exits':exits,'engineIdleSeen':e[2]}
+            result={'revision':g[0],'serial':g[1],'entries':entries,'exits':exits,'engineIdleSeen':e[2]}
+            for label,prefix in (('recorder','bs_recorder_test_'),('preparation','bs_recorder_prepare_')):
+                if prefix+'enter_masks' in symbols:
+                    masks=[int.from_bytes(port.peek(symbols[prefix+suffix+'_masks'],4),'big') for suffix in ('enter','leave')]
+                    counts=[int.from_bytes(port.peek(symbols[prefix+suffix],4),'big') for suffix in ('entries','exits')]
+                    assert counts[0]==counts[1] and masks[0]==masks[1] and (not counts[0] or masks[0]),'Caller-mask/counter trace differs'
+                    result[label+'ScopesEntered']=counts[0]
+                    result[label+'CallerMaskLevels']=[level for level in range(8) if masks[0]&(1<<level)]
+            return result
         port.command('run 500')
         # The saved project's first editor binding is empty Static. Merely
         # opening AED does not queue a waveform job. Use the previously proved
@@ -149,7 +158,7 @@ def main():
                 'guardedRecorderStateStores':covered_state,'unguardedRecorderStateStores':[{'pc':pc,'bytes':size,'count':count} for (pc,size),count in sorted(uncovered.items())],
                 'stateTransitions':transitions}
         for track in (0,7):
-            initial=capture(track);assert initial['states']==[0,0]
+            before_native=native_state();initial=capture(track);assert initial['states']==[0,0]
             row=0x46c2e9c0+2*(track+2)*14602;first=int.from_bytes(port.peek(row,2),'big')
             count=int.from_bytes(port.peek(0x46c75e88+2*(128+track),2),'big')
             assert 0<first<=pool_count and count==460
@@ -179,7 +188,8 @@ def main():
             assert len(preparation)==2 and [r[9] for r in preparation]==[0x9010,0x1010]
             assert all(r[7]==0x4000d35c and r[10:12]==[0,0xffffffff] for r in preparation)
             assert len(stops)==1 and stops[0][7]==0x40007942 and stops[0][9]>0 and stops[0][10:12]==[0,0]
-            assert [r['recorderGuarded'] for r in coverage['stateTransitions']]==[False,True,False,True,True]
+            assert [r['recorderGuarded'] for r in coverage['stateTransitions']]==([True]*5 if preparation_enabled else [False,True,False,True,True])
+            assert sum(x['count'] for x in coverage['unguardedRecorderStateStores'])==(0 if preparation_enabled else 24)
             port.command('run 500');idle=capture(track);idle_coverage=audit(writes(port),track,pcm,tail)
             assert idle==stopped and not idle_coverage['pcmPrefixStores'] and not idle_coverage['mapTailStores'] and not idle_coverage['recorderScopes']
             assert int.from_bytes(port.peek(row,2),'big')==first and int.from_bytes(port.peek(0x46c75e88+2*(128+track),2),'big')==count
@@ -188,7 +198,9 @@ def main():
             for at in range(0,len(data),4096):assert port.peek(native['textBase']+at,min(4096,len(data)-at))==data[at:at+4096]
             assert port.peek(reserve.start,16)==bytes([0xa5])*16 and port.peek(symbols['_end'],32)==bytes([0xa5])*32
             assert port.peek(0x40084854,6)==original_receive
-            state=native_state();results.append({'track':track+1,'reservedRecorderPages':count,'firstRecorderPage':first,
+            state=native_state()
+            if preparation_enabled:assert state['preparationScopesEntered']-before_native['preparationScopesEntered']==2
+            results.append({'track':track+1,'reservedRecorderPages':count,'firstRecorderPage':first,
                 'initial':initial,'started':started,'advanced':advanced,'retriggered':retriggered,'stopped':stopped,'idle':idle,
                 'callerCounts':dict(callers),'preparationCalls':[{'caller':hex(r[7]),'arguments':r[8:12]} for r in preparation],
                 'stopCalls':[{'caller':hex(r[7]),'arguments':r[8:12]} for r in stops],'coverage':coverage,'idleCoverage':idle_coverage,'nativeState':state,
@@ -203,8 +215,8 @@ def main():
         'nativeReceiptSha256':digest(a.native/'recorder-engine.json'),'nativeBinarySha256':digest(binary),'emulatorSha256':digest(a.emulator),
         'sdkRevision':native['sdkRevision'],'sdkDependencySha256':native['sdkDependencySha256'],'codegenGuardSha256':native['codegenGuardSha256'],
         'arenaToolSha256':ARENA_SHA,'reservedPages':8,'physicalUsablePages':pool_count,'cardSha256':a.card_sha256,'wavSha256':digest(a.wav),
-        'closedBootstrap':closed,'preparationSettingsWordsChanged':changed,'preparedSource':baseline,'initialNative':initial_native,'results':results,'cardUnchanged':True,'receiveCallUnchanged':True,
+        'preparationBoundaryEnabled':preparation_enabled,'closedBootstrap':closed,'preparationSettingsWordsChanged':changed,'preparedSource':baseline,'initialNative':initial_native,'results':results,'cardUnchanged':True,'receiveCallUnchanged':True,
         'exitCode':0,'hardware':'not tested','audio':'not qualified','physicalTiming':'not measured',
-        'nativeSourceAccess':'not implemented; panel/state and complete writer coverage remain open'}
+        'nativeSourceAccess':'not implemented; complete recorder/Pickup, allocator, UI, DMA/cache and physical writer coverage remain open'}
     (out/'recorder-engine-boot.json').write_text(json.dumps(report,indent=2)+'\n')
 if __name__=='__main__':main()

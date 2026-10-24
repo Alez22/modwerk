@@ -402,7 +402,21 @@ entries/returns balance and all scopes retire before the idle checkpoint.
 
 The same chronological trace identifies 24 unguarded preparation stores per
 track, at 12 PCs in the normal preparation routine. Both pending-state
-publications occur before the active recorder scope. These remain an explicit
-qualification gap. The next boundary must cover preparation rather than
-assuming that protecting PCM alone makes a coherent source lease. No production
-reader or complete writer coverage is enabled by this experiment.
+publications occur before the active recorder scope. These were an explicit
+qualification gap in 0.1.41. The later preparation scope below covers them in
+the same named fixture; protecting PCM alone was insufficient. No production
+reader or complete writer coverage is enabled by either experiment.
+
+## Preparation and recorded caller mask (0.1.42)
+
+The full-boot composition now brackets complete preparation calls before pending
+state publication. Both tracks pass with zero uncovered watched recorder-bank
+stores, while retaining PCM/cleanup ticket checks and unchanged source/card
+assertions. Paired complete-routine comparisons preserve the original calls,
+including cleanup after observer faults. Saved SR at entry and return records
+mask level 5 for both preparation and recorder callbacks in this pinned emulator.
+
+This closes the observed preparation gap, not every source-writer family.
+Preallocated ordinary ONE/MAX recording is the tested mode; Pickup, overdub,
+long growth, unknown states, UI writers, allocator/DMA/cache ownership and
+physical latency remain open. A compiled provider is not yet attached here.

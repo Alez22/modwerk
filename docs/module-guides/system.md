@@ -168,9 +168,12 @@ no PCM write does not mean no write at all. A narrow fixture exception is not
 a production writer allowlist, and instruction counts are not physical latency.
 
 Compose writer families in a normal full boot and retain uncovered stores as
-qualification gaps. Beat Slicer's shared recorder/engine fixture covers the
-observed PCM and deferred map cleanup but exposes preparation writes before
-the recorder scope begins. Test the actual bootstrap action too: an empty
+qualification gaps. Beat Slicer's shared recorder/engine fixture exposed
+preparation writes before the recorder scope; whole-call preparation scopes
+cover those observed stores in later ordinary-recording runs. Record saved
+caller SR when establishing interrupt context: a paused task/SP is insufficient.
+The pinned 1.40C emulator records mask level 5 here, not physical latency or
+complete writer coverage. Test the actual bootstrap action too: an empty
 editor may queue no job. Separate intentional setup changes from the source
 that the operation must preserve, and verify that setup difference explicitly.
 

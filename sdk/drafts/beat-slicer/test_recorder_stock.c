@@ -5,6 +5,7 @@
 struct bs_preview_guard bs_recorder_test_guard;
 struct bs_recorder_boundary bs_recorder_test_boundary;
 uint32_t bs_recorder_test_entries, bs_recorder_test_exits;
+uint32_t bs_recorder_test_enter_masks, bs_recorder_test_leave_masks;
 int bs_recorder_selftest(void);
 static uint32_t lock(void) {
     uint32_t saved=0;
@@ -20,6 +21,7 @@ uint32_t bs_recorder_test_init(void) {
     bs_guard_init(&bs_recorder_test_guard);
     bs_recorder_boundary_init(&bs_recorder_test_boundary,&bs_recorder_test_guard);
     bs_recorder_test_entries=bs_recorder_test_exits=0;
+    bs_recorder_test_enter_masks=bs_recorder_test_leave_masks=0;
     /* Synthetic fixture authority only; production coverage is not proved. */
     return !bs_guard_enable(&bs_recorder_test_guard);
 }
@@ -33,6 +35,7 @@ void bs_recorder_test_enter(uint32_t *saved_frame) {
         selected=*(volatile uint8_t *)(uintptr_t)(0x80004f1eu+84u*track+672u*bank);
         other=*(volatile uint8_t *)(uintptr_t)(0x80004f1eu+84u*track+672u*(1u-bank));
     }
+    bs_recorder_test_enter_masks |= 1u << ((*(const uint16_t *)((const uint8_t *)saved_frame+60u)>>8)&7u);
     ++bs_recorder_test_entries;
     bs_recorder_enter_locked(&bs_recorder_test_boundary,sp,track,selected,other);
     unlock(mask);
@@ -40,6 +43,7 @@ void bs_recorder_test_enter(uint32_t *saved_frame) {
 void bs_recorder_test_leave(uint32_t *saved_frame) {
     const uint32_t sp=(uint32_t)(uintptr_t)saved_frame+64u+132u;
     const uint32_t mask=lock();
+    bs_recorder_test_leave_masks |= 1u << ((*(const uint16_t *)((const uint8_t *)saved_frame+60u)>>8)&7u);
     ++bs_recorder_test_exits;
     bs_recorder_leave_locked(&bs_recorder_test_boundary,sp);
     unlock(mask);

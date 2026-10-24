@@ -16,7 +16,7 @@ int bs_recorder_selftest(void);
 int main(void) {
     int line = bs_recorder_selftest();
     if (line) { printf("FAIL line %d\n", line); return 1; }
-    puts("PASS: 72 bank/track states, eight nested scopes, independent writers and 13 terminal faults");
+    puts("PASS: 72 bank/track states, eight preparation scopes, eight nested scopes, independent writers and 14 terminal faults");
     return 0;
 }
 '''

@@ -47,3 +47,5 @@ Document selected, pending and retained recorder banks from normal-panel stock e
 Document paired whole-routine recorder comparisons, continuation SR/CCR preservation and stock cleanup after observer failure. Keep exact idle voice-flag writes in the oracle and distinguish native instruction counts from physical latency; live recorder/engine composition remains unqualified.
 
 Document shared recorder/engine full-boot checks and the remaining preparation-store gap. Require actual bootstrap work and explicit setup-difference checks before source-preservation assertions; no production source admission or hardware qualification is implied.
+
+Document whole-call preparation exclusion and saved caller-SR observations. The private paired/full-boot fixtures close the observed preparation-store gap; other recording modes, complete writer ownership and physical timing remain unqualified.
