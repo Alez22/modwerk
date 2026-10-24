@@ -180,7 +180,8 @@ that the operation must preserve, and verify that setup difference explicitly.
 ### Background work
 
 Budget the entire protected interval, including metadata validation before and
-after a bounded PCM copy. A work-call or byte-count limit is not a lock-time
+after a bounded PCM copy. Include the maximum supported metadata count as
+a distinct workload; a short sample with few markers does not cover that cost. A work-call or byte-count limit is not a lock-time
 measurement. When one backend lock also protects requests/results, separate
 those coordination windows from actual source accesses. Pair exact mask/restore
 observations and account for the measurement method; executed instructions do
@@ -308,6 +309,12 @@ not a fresh hash of mutable live data. The Beat Slicer proposal tests malformed
 records and copied metadata; it does not establish production table admission.
 
 ### Emulator evidence
+
+An emulator can pause inside observer bookkeeping, after an entry diagnostic
+changes but before its scope is published. For a quiescent checkpoint, wait
+within a fixed bound for both empty scopes and balanced entry/return diagnostics;
+do not weaken fault assertions or hide a persistent mismatch. Beat Slicer's
+private 1.40C full-marker fixture reaches this intermediate wrapper state.
 
 Do not infer physical pool capacity from a mutable allocation-map endpoint.
 In the 1.40C full-boot fixture, recorder reservations reduce that endpoint; after

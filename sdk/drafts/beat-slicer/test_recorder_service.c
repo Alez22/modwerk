@@ -71,6 +71,14 @@ uint32_t bs_recorder_preview_begin(void) {
     if(request){++bs_recorder_service_requests;bs_recorder_service_request_id=request;wake();}
     return request;
 }
+/* Dense-table measurement uses a grid wider than the one-second source, so
+ * all 64 stock records remain and no extra start exceeds marker capacity. */
+uint32_t bs_recorder_preview_dense_begin(void) {
+    const struct bs_preview_options options={64,0,BS_SAMPLE_BPM};
+    uint32_t request=bs_async_request(&bs_recorder_service,1,2,&options);
+    if(request){++bs_recorder_service_requests;bs_recorder_service_request_id=request;wake();}
+    return request;
+}
 uint32_t bs_recorder_preview_state(void) {
     return bs_async_state(&bs_recorder_service,1,2,bs_recorder_service_request_id);
 }

@@ -38,3 +38,10 @@ validation, reconciles every interval with lock counters, and checks saved SR.
 See TESTING.md for the exact source-bound workload and measured maxima. A
 bounded copy size or reader-step count alone does not bound metadata validation
 cost; these instruction measurements do not establish physical lock latency.
+
+The full-marker profile creates 64 records through the stock grid menu before
+admission, then checks complete plans with EXACT/64-beat requests and normal
+recording recovery. This measures one maximum metadata-count workload; format,
+allocation geometry, physical timing and cache costs remain separate dimensions.
+Historical evidence stays bound to its original source when report wording or
+scenario flags are corrected.

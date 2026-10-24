@@ -57,3 +57,5 @@ Document the stronger wake-identity regression: foreign and owned records with i
 Document stock recording dismissal in the named private resident-menu emulator fixture: cancel work when stock closes the popup, preserve the playback screen, and require a fresh editor opening after Stop. Both menu layouts and conservative waveform refusal are tested; this is not device evidence.
 
 Document whole protected-interval budgeting: include both metadata validations around PCM copies, distinguish request/result coordination on the same lock, and keep exact executed-instruction observations separate from physical latency. The private profile pairs mask/restore windows without adding native callbacks.
+
+Add maximum metadata count to protected-interval workload planning and explain bounded diagnostic checkpoints across wrapper bookkeeping. The private 64-marker fixture uses stock menu actions before source admission and retains all markers through recording recovery. Correct the recording report WAITING flag while preserving historical reports at their original source revisions.

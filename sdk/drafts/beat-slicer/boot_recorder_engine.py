@@ -25,6 +25,7 @@ ARENA_SHA='23c89015c010ce9d4e6e7957f9325b7da78b7ba75144de10d56cb22149f21e61'
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('emulator','main','card','wav','output','arena-tool','native'):p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--profile-markers',type=int,choices=(64,),help='Create a stock 64-slice grid before the lock profile and use RAW/64-beat preview requests.')
     p.add_argument('--profile-locks',action='store_true',help='Measure exact source-mask instruction intervals in the first engine preview; not hardware latency.')
     p.add_argument('--lifecycle',action='store_true',help='Exercise exact wake identity, WAITING cancellation and fixed-owner retirement.')
     p.add_argument('--service',action='store_true',help='Run previews only through normal engine idle/job scheduling.')
@@ -32,6 +33,7 @@ def main():
     p.add_argument('--card-sha256',required=True)
     p.add_argument('--allow-private-injection',action='store_true',required=True)
     a=p.parse_args()
+    if a.profile_markers:a.profile_locks=True
     if a.lifecycle or a.profile_locks:a.service=True
     if a.service:a.preview=True
     if not __debug__:p.error('Assertions must remain enabled.')
@@ -93,11 +95,23 @@ def main():
                 patch=bytes.fromhex('4ef9')+symbols[prefix+name+'_entry'].to_bytes(4,'big')
                 if site['length']==8:patch+=bytes.fromhex('4e71')
                 assert len(patch)==site['length'];poke(site['address'],patch)
+        checkpoints={'retries':0,'emptyScopeUnbalancedDiagnostics':0,'maxRetries':0}
         def native_state(enabled=True,need_idle=True):
             for _ in range(200):
                 g=struct.unpack('>12I',port.peek(g_at,48));b=struct.unpack('>19I',port.peek(b_at,76));e=struct.unpack('>4I',port.peek(e_at,16))
                 assert b[0]==e[0]==g_at and not b[2] and not e[3] and not g[3],'Native observer fault'
-                if not b[1] and not e[1] and not any(g[4:]):break
+                empty=not b[1] and not e[1] and not any(g[4:])
+                diagnostics={}
+                for label,prefix in (('recorder','bs_recorder_test_'),('preparation','bs_recorder_prepare_')):
+                    if prefix+'enter_masks' in symbols:
+                        masks=[int.from_bytes(port.peek(symbols[prefix+suffix+'_masks'],4),'big') for suffix in ('enter','leave')]
+                        counts=[int.from_bytes(port.peek(symbols[prefix+suffix],4),'big') for suffix in ('entries','exits')]
+                        diagnostics[label]=(masks,counts)
+                balanced=all(c[0]==c[1] and m[0]==m[1] for m,c in diagnostics.values())
+                if empty and balanced:
+                    checkpoints['maxRetries']=max(checkpoints['maxRetries'],_);break
+                checkpoints['retries']+=1
+                if empty and not balanced:checkpoints['emptyScopeUnbalancedDiagnostics']+=1
                 port.command('run 0.1')
             else:raise AssertionError('Native observers did not reach a bounded quiescent checkpoint')
             assert bool(g[2])==enabled and (e[2] or not need_idle)
@@ -108,8 +122,7 @@ def main():
             result={'revision':g[0],'serial':g[1],'entries':entries,'exits':exits,'engineIdleSeen':e[2]}
             for label,prefix in (('recorder','bs_recorder_test_'),('preparation','bs_recorder_prepare_')):
                 if prefix+'enter_masks' in symbols:
-                    masks=[int.from_bytes(port.peek(symbols[prefix+suffix+'_masks'],4),'big') for suffix in ('enter','leave')]
-                    counts=[int.from_bytes(port.peek(symbols[prefix+suffix],4),'big') for suffix in ('entries','exits')]
+                    masks,counts=diagnostics[label]
                     assert counts[0]==counts[1] and masks[0]==masks[1] and (not counts[0] or masks[0]),'Caller-mask/counter trace differs'
                     result[label+'ScopesEntered']=counts[0]
                     result[label+'CallerMaskLevels']=[level for level in range(8) if masks[0]&(1<<level)]
@@ -128,12 +141,29 @@ def main():
             assert int.from_bytes(port.peek(0x46c8d1a0,4),'big')==1
             assert int.from_bytes(port.peek(0x46c8d19c,4),'big')==0
         closed=native_state(False)
+        if a.profile_markers:
+            from boot_slices import choose,menu as stock_menu
+            port.command('key 0x24 8');port.command('run 60')
+            port.command('key 0x24 0');port.command('run 1000')
+            editor_tap(port,'yes');choose(port,'CREATE SLICE GRID')
+            labels=stock_menu(port);assert labels.count('64 SLICES')==1
+            target=labels.index('64 SLICES')
+            for _ in range(len(labels)):
+                selected=int.from_bytes(port.peek(0x460e5e40,4),'big')
+                if selected==target:break
+                editor_tap(port,'down' if selected<target else 'up')
+            assert int.from_bytes(port.peek(0x460e5e40,4),'big')==target
+            editor_tap(port,'yes');editor_tap(port,'no');port.command('run 1500')
+            assert int.from_bytes(port.peek(0x100b14f0+1092,4),'big')==64
         folder=out/'prepared';folder.mkdir();baseline=observe(port,16,2,original,folder)
         assert baseline['pcmSha256']==loaded['pcmSha256'] and baseline['controlsSha256']==loaded['controlsSha256']
         initial_settings=(out/'loaded/settings.private.bin').read_bytes()
         prepared_settings=(out/'prepared/settings.private.bin').read_bytes()
         changed=[i for i in range(274) if initial_settings[4*i:4*i+4]!=prepared_settings[4*i:4*i+4]]
-        assert changed==[271] and int.from_bytes(initial_settings[1084:1088],'big')==0
+        assert int.from_bytes(initial_settings[1084:1088],'big')==0
+        if a.profile_markers:
+            assert 271 in changed and 273 in changed and set(changed)<={271,273,*range(78,270)}
+        else:assert changed==[271]
         assert int.from_bytes(prepared_settings[1084:1088],'big')==44100,'SELECT ALL preparation differs'
         assert call_original(port,symbols['bs_recorder_engine_enable'],wait_ms=1)==0
         initial_native=native_state()
@@ -154,16 +184,17 @@ def main():
                 if row[2] in task_addresses:tasks[task_addresses[row[2]]].add(row[5])
             return rows
 
+        begin_name='bs_recorder_preview_dense_begin' if a.profile_markers else 'bs_recorder_preview_begin'
         def preview():
             settings=struct.unpack('>274I',port.peek(0x100b14f0,1096))
             project=int.from_bytes(port.peek(0x80001814,4),'big')
             request=oracle.request(existing=[settings[78+3*i] for i in range(settings[273])],
                 trim_start=settings[75],trim_end=settings[76],sample_bpm24=settings[69],
-                project_bpm24=project,tempo_source=0,snap=1,beats=1,
+                project_bpm24=project,tempo_source=0,snap=0 if a.profile_markers else 1,beats=64 if a.profile_markers else 1,
                 reader=lambda frame:(original[2*frame]*256,original[2*frame+1]*256))
             expected=oracle.preview(request)
             before=word('bs_boot_queries')
-            request=call('bs_recorder_preview_begin')
+            request=call(begin_name)
             assert request>0 if a.service else request==1
             for steps in range(10000):
                 if a.service:port.command('run 1')
@@ -178,7 +209,7 @@ def main():
             assert word('bs_boot_locks')==word('bs_boot_unlocks')
             count=word('bs_boot_queries')-before;assert count>0
             result={'driverPolls' if a.service else 'steps':steps+1,'queries':count,'markerCount':actual[0],
-                'bpm24':actual[1],'starts':list(actual[2:2+actual[0]]),
+                'bpm24':actual[1],'existingMarkers':settings[273],'snap':0 if a.profile_markers else 1,'beats':64 if a.profile_markers else 1,'starts':list(actual[2:2+actual[0]]),
                 'wholePlanMatchesHostOracle':True,'balancedLocks':True}
             preview_results.append(result);return result
         source_profile=None
@@ -228,6 +259,7 @@ def main():
                     'callerInterruptMasks':sorted(set((w['callerSr']>>8)&7 for w in selected))}
             source_profile={'method':'PC instruction counts before source mask and before exact SR restore; includes both instructions; unchanged native code',
                 'sites':dict(zip(('mask','restore','capture','copy','query'),profile_sites)),
+                'existingMarkers':preview_results[0]['existingMarkers'],'previewSnap':preview_results[0]['snap'],'previewBeats':preview_results[0]['beats'],
                 'windows':len(windows),'pcmQueries':sum(w['queries'] for w in windows),'groups':groups,
                 'maxInstructions':max(w['instructions'] for w in windows),
                 'input':'one-second stereo 16-bit stopped Flex source; full metadata snapshot on source acquisition; async coordination uses the same lock without capture',
@@ -276,7 +308,7 @@ def main():
             for bank in range(2):port.command(f'watchmem {0x80004f1c+84*(track+8*bank):#x} 84')
             if a.preview:
                 if track==0 and not a.service:
-                    assert call('bs_recorder_preview_begin')==1
+                    assert call(begin_name)==1
                     queries=word('bs_boot_queries')
                     for _ in range(200):
                         assert call('bs_recorder_preview_work')==1
@@ -381,7 +413,7 @@ def main():
             # force when the independent writer later retires and wakes engine.
             assert call('bs_recorder_service_block')>0
             before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
-            waiting_request=call('bs_recorder_preview_begin');assert waiting_request>0
+            waiting_request=call(begin_name);assert waiting_request>0
             port.command('run 5');assert call(work_name)==2
             posted=word('bs_recorder_service_posted');assert not word('bs_recorder_service_pending')
             port.command('run 200');assert call(work_name)==2
@@ -399,7 +431,7 @@ def main():
             before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
             assert call('bs_recorder_service_revoke')==0
             port.command('run 5');assert call(work_name)==4 and call(result_name)==0
-            assert call('bs_recorder_preview_begin')==0
+            assert call(begin_name)==0
             port.command('run 200');assert call(work_name)==4 and call(result_name)==0
             assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
             lifecycle={'wakeIdentity':wake_case,'waitingCancellation':waiting_case,
@@ -423,13 +455,13 @@ def main():
         if a.preview:ffi.PlannerTests.tearDownClass()
     assert digest(card)==a.card_sha256 and digest(a.card)==a.card_sha256
     names=('boot_recorder_engine.py','boot_engine_native.py','boot_recorder.py','boot_source_native.py','boot_worker_native.py','boot_writer.py',
-        'boot_formats.py','boot_observe.py','test_planner.py','inspect_stock.py',*native['sourceSha256'].keys())
+        'boot_formats.py','boot_observe.py','boot_slices.py','boot_static.py','test_planner.py','inspect_stock.py',*native['sourceSha256'].keys())
     report={'scope':'Private reserved-memory recorder/engine observer composition under normal recording/retrigger/STOP; real emulator scheduler/DSPs, no source reader or hardware',
         'sourceSha256':{n:digest(ROOT/n) for n in names},'mainSha256':STOCK_MAIN_SHA256,'reservedMainSha256':digest(patched),
         'nativeReceiptSha256':digest(a.native/(native_name+'.json')),'nativeBinarySha256':digest(binary),'emulatorSha256':digest(a.emulator),
         'sdkRevision':native['sdkRevision'],'sdkDependencySha256':native['sdkDependencySha256'],'codegenGuardSha256':native['codegenGuardSha256'],
         'arenaToolSha256':ARENA_SHA,'reservedPages':8,'physicalUsablePages':pool_count,'cardSha256':a.card_sha256,'wavSha256':digest(a.wav),
-        'preparationBoundaryEnabled':preparation_enabled,'closedBootstrap':closed,'preparationSettingsWordsChanged':changed,'preparedSource':baseline,'initialNative':initial_native,'results':results,'cardUnchanged':True,'receiveCallUnchanged':True,
+        'boundedCheckpointObservations':checkpoints,'preparationBoundaryEnabled':preparation_enabled,'closedBootstrap':closed,'preparationSettingsWordsChanged':changed,'preparedSource':baseline,'initialNative':initial_native,'results':results,'cardUnchanged':True,'receiveCallUnchanged':True,
         'exitCode':0,'hardware':'not tested','audio':'not qualified','physicalTiming':'not measured',
         'nativeSourceAccess':'production not implemented; complete recorder/Pickup, allocator, UI, DMA/cache and physical writer coverage remain open'}
     if a.preview:

@@ -687,7 +687,7 @@ def main():
               'srObservation': 'wrappers save/restore SR structurally; interactive PC traces do not include SR',
               'engineStepCounterUnit': 'work calls, not individual private reader transitions',
               'scenario': a.scenario, 'stockRows': stock_count, 'terminal': terminal, 'results': results, 'uiCompletedPreviews': ui_completed,
-              'tickCounters': counters, 'waitingOneServicePerTick': a.scenario != 'conservative',
+              'tickCounters': counters, 'waitingOneServicePerTick': a.scenario in ('controls','cancel','owner'),
               'engineJobs': jobs, 'engineCounters': engine, 'wakeCounters': wakes,
               'privateWaveformReadClassification': a.allow_private_waveform_reads,
               'completedPreviewsSurviveWaveformReads': bool(results) and a.allow_private_waveform_reads,

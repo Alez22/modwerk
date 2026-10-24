@@ -2623,3 +2623,48 @@ oracle comparisons, engine-only PCM lookup and source/card/code preservation.
 No production source admission or USB package is enabled.
 
 The two retained 0.1.47 compile/profile reports bind source `a38ca2601335abe5339e7ff8416700ad26c5c28e`. The full current-upstream source check passed in 133.94 seconds; the inherited stale-fork changelog failure remains recorded separately.
+
+## Full 64-marker source-mask workload (0.1.48)
+
+`boot_recorder_engine.py --profile-markers 64` creates a 64-slice grid through
+normal stock SLICE-menu input before enabling the private reader. Preparation
+may change marker records/count and SELECT ALL's known selection endpoint;
+all other settings and the authored PCM remain unchanged. No marker-memory
+poke or card save supplies the workload.
+
+The bounded checkpoint now waits for both empty writer scopes and balanced
+entry/exit diagnostics. An emulator pause can occur after the entry counter
+increments but before scope publication, or during the matching return. An
+empty scope alone is not a complete diagnostic checkpoint. Observer faults
+still fail immediately; persistent imbalance still fails the 200 × 0.1 ms
+emulated wait bound. This run records 1 such observation
+and a maximum of 1 retry at a checkpoint; the report retains the totals.
+
+A zero-argument native producer requests EXACT boundaries at 64-beat spacing.
+That spacing exceeds the one-second source, retaining all 64 stock starts
+without adding a start beyond capacity. This targets full metadata validation
+and existing-boundary checks, not a worst-case SMOOTH scan. Five complete plans
+match the independent host PCM oracle, retaining all 64 starts through normal
+track 1/8 recording, Stop and editor restoration. Prepared settings/PCM, native
+code/canaries and the unsaved card remain unchanged.
+
+The first preview has 268 balanced mask/restore windows and
+65 PCM lookups. Captured/restored caller interrupt masks
+are zero. The same original-instruction measurement method as 0.1.47 gives:
+
+| Protected work | Windows | Minimum instructions | Maximum instructions |
+| --- | ---: | ---: | ---: |
+| coordination | 135 | 55 | 414 |
+| capture | 68 | 1061 | 2761 |
+| copy | 65 | 4682 | 5055 |
+
+This establishes the observed full-marker cost on the named stereo 16-bit
+fixture. It does not establish all-format or allocation-layout maxima,
+physical lock latency, cycles, cache behavior, ISR stack or production source
+admission. Full metadata count is one dimension of the remaining budget.
+
+The resident UI driver now emits `waitingOneServicePerTick=false` for recording
+scenarios, which exercise dismissal/cancellation rather than WAITING. Existing
+0.1.46 reports remain unchanged at their exact original source. Their legacy
+flag must be interpreted with the qualification above; no old native run is
+relabelled as a new execution.
