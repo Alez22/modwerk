@@ -2460,3 +2460,39 @@ reader, Pickup/overdub, complete writer/cache ownership, USB or hardware result
 is established.
 
 Four preparation/composition reports bind source commit `d6bfe235501e16cc421a8deddd84c6ba3a621535`. Current-upstream full validation passed in 138.07 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+## Preview invalidation during ordinary recording (0.1.43)
+
+The source-built private fixture composes Flex metadata/copy/session code with
+the same recorder, preparation and engine guard. Before recording, the test
+checks that the captured revision is still current. Track 1 interrupts RUNNING
+work after a positive PCM copy; track 8 interrupts a READY plan. Both refuse
+result output and become STALE before another lookup. Stop does not revive the
+old token. T8's normal TRACK+REC selection changes the editor to empty Static
+slot 7; normal T1 selection restores Flex slot 0, and the old token still refuses.
+
+Four complete fresh SAMPLE/SMOOTH/one-beat previews match all 131 plan words
+from the host PCM oracle. Each takes 78 bounded work calls and 12 stock lookups,
+returns five markers at captured BPM24 2,886, and balances source locks. Existing
+markers are included. Source PCM, controls/settings, native code/canaries, the
+stock receive call and unsaved card remain intact. The earlier native ticket,
+state-transition, preparation and idle assertions remain enabled on both tracks.
+
+The binary through BSS occupies 20,880 bytes inside the explicit eight-page
+reservation; this excludes runtime stack and is not an installed module budget.
+All new borrowed-main entries have zero arguments. The pinned emulator's
+`callAsMain` pushes supplied arguments but does not perform the caller's cleanup,
+so repeated argument-bearing calls need a balanced native wrapper. These tests
+use no driver register/PC repair or replay after uncertain execution.
+
+The preparation routine takes two arguments: track and command word. Its stock
+caller removes eight bytes. The older 0.1.41/0.1.42 reports' four-word `arguments`
+field also captured two adjacent caller-frame words; those values are not ABI
+arguments. The new report separates them and stops asserting incidental stack
+contents. Historical source-bound reports remain unchanged.
+
+This is one borrowed-main consumer with fixed synthetic source/owner lifetimes.
+The coarse guard deliberately invalidates previews of an unrelated Flex sample
+when another track records. It is not a production source API or a background
+service, and it does not qualify other recording modes, complete UI/allocator/
+DMA/cache ownership, USB, Apply/playback or physical behavior.

@@ -307,8 +307,13 @@ The pinned full-boot emulator's interactive `call` requires main's idle spin;
 a normal panel `run` may pause elsewhere. Advance normal execution to a verified
 idle boundary before borrowing a call. A retry is safe only for a proved
 pre-entry refusal; never replay a call after an uncertain timeout or CPU stop.
-Do not force PC/registers to manufacture that boundary. Keep such driver behavior
-bound to the tested emulator source and separate from native service scheduling.
+Do not force PC/registers to manufacture that boundary. The pinned `8250be0c`
+`callAsMain` pushes arguments but does not perform caller cleanup; repeated calls
+need a balanced native wrapper, or zero-argument test entries. Keep such driver
+behavior bound to the tested emulator source and separate from native service
+scheduling. Derive native argument counts from the caller and callee, not the
+number of stack words a watch prints: the 1.40C recorder preparation caller
+passes two words and removes eight bytes; later watched words belong to its frame.
 
 A longer source file does not prove a longer preview extent. In the pinned 1.40C
 emulator, replacing a one-second WAV with a 30-second file retained the old trim;

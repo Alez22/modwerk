@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.42-experimental",
+  "version": "0.1.43-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Bracket complete recorder preparation calls with the shared guard. Pass 192 paired preparation and 896 recorder comparisons, then normal start/retrigger/STOP on tracks 1/8 with no uncovered watched recorder-bank stores. Observe caller mask level 5, preserve stock behavior and prepared Flex data. Complete writer/cache ownership, Pickup/overdub, physical timing, USB and hardware remain unqualified.",
+    "summary": "Connect fixed-lifetime Flex previews to the compiled recorder/preparation/engine guard. Normal recording on tracks 1/8 retires RUNNING/READY results before further PCM reads; Stop and restored editor selection do not revive old tokens. Four fresh whole plans match the host PCM oracle with unchanged source/card. Borrowed-main scheduling, fixed ownership and incomplete writer/cache coverage remain private staging; USB and hardware are unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

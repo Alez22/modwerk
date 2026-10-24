@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.43-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Connect the private fixed-lifetime Flex reader to the shared recorder, preparation and engine guard in a reserved-memory full boot.",
+      "Refuse RUNNING and READY previews after normal recording starts, before another PCM copy; Stop and editor restoration cannot revive old tokens.",
+      "Validate four fresh complete plans against the host PCM oracle; preserve original source/settings, code, canaries and the unsaved card.",
+      "Correct the preparation-call probe to distinguish two real arguments from adjacent caller storage; restore the Flex source through normal track selection.",
+      "Known issue: borrowed-main scheduling, fixed ownership, other writers/cache, production API, USB, Apply/playback and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.42-experimental",
     "date": "2026-10-24",
     "changes": [

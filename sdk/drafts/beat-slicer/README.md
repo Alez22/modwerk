@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.42-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.43-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -121,7 +121,11 @@ full boot composes recorder and engine guards during normal recording and
 cleanup. The latest composition also brackets whole preparation calls and
 covers those previously unguarded stores in the named ordinary-recording
 fixtures. Complete source ownership remains open; the production reader stays
-disabled.
+disabled. A later fixed-lifetime read-only fixture connects that shared guard
+to Flex previews: recording invalidates RUNNING/READY work before another PCM
+copy, old tokens stay retired after Stop, and fresh previews match the original
+source. Its consumer still uses borrowed emulator-main calls, not an installed
+service or USB package.
 
 The [copied UI/engine exchange](PREVIEW_ASYNC.md) gives one engine consumer
 ownership of the mutable session. UI callbacks submit tagged intents and read

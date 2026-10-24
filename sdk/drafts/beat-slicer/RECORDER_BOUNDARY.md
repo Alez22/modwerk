@@ -117,3 +117,18 @@ inference from the paused task/SP, and not a physical interrupt-latency result.
 The named preallocated ordinary ONE/MAX cases do not qualify Pickup, overdub,
 long dynamic growth, other state values, DMA/cache ownership or every UI writer.
 No production source reader is enabled.
+
+## Read-only source composition (0.1.43)
+
+`recorder_source_native.py` adds the existing Flex backend and preview session
+to the shared-guard fixture. `boot_recorder_engine.py --preview` tests real
+panel recording against current RUNNING and READY tokens, no further PCM lookup
+after invalidation, and fresh plans after Stop. T8's editor selection is restored
+through T1 before the final preview. Old tokens remain stale across restoration.
+The global revision conservatively retires unrelated-source previews too.
+
+The fixture uses fixed lifetimes and zero-argument borrowed-main calls. It is
+not the production engine service or an installed package. Complete writer,
+owner-transition, cache and physical-time qualification remain required. Its
+preparation-call report now separates two actual arguments from adjacent caller
+storage; prior four-word reports were raw observations, not a four-argument ABI.

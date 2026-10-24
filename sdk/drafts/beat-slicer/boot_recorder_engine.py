@@ -25,6 +25,7 @@ ARENA_SHA='23c89015c010ce9d4e6e7957f9325b7da78b7ba75144de10d56cb22149f21e61'
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('emulator','main','card','wav','output','arena-tool','native'):p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--preview',action='store_true',help='Exercise private fixed-lifetime Flex previews with the shared guard.')
     p.add_argument('--card-sha256',required=True)
     p.add_argument('--allow-private-injection',action='store_true',required=True)
     a=p.parse_args()
@@ -32,9 +33,11 @@ def main():
     out,repo=a.output.resolve(),ROOT.parents[2]
     if out.exists() or out==repo or repo in out.parents:p.error('Use fresh private output outside Git.')
     if digest(a.main)!=STOCK_MAIN_SHA256 or digest(a.card)!=a.card_sha256 or digest(a.arena_tool)!=ARENA_SHA:p.error('Private input identity differs.')
-    native=json.loads((a.native/'recorder-engine.json').read_text())
+    native_name='recorder-source' if a.preview else 'recorder-engine'
+    native=json.loads((a.native/(native_name+'.json')).read_text())
+    if a.preview and not native.get('sourcePreviewEnabled'):p.error('Compile the source fixture first.')
     preparation_enabled=bool(native.get('preparationEnabled',False))
-    binary,symbols_path=a.native/'recorder-engine.bin',a.native/'recorder-engine.symbols'
+    binary,symbols_path=a.native/(native_name+'.bin'),a.native/(native_name+'.symbols')
     if native['textBase']!=0x46019df0 or digest(binary)!=native['binarySha256'] or digest(symbols_path)!=native['symbolsSha256']:p.error('Native fixture identity differs.')
     for name,expected in native['sourceSha256'].items():
         if digest(ROOT/name)!=expected:p.error('Native source differs: '+name)
@@ -59,7 +62,10 @@ def main():
     command=[str(a.emulator.resolve()),'--image',str(patched),'--card',str(card),'--mount',
         '--set','BEATLAB','--project','PROJECT 261023','--load-ms','90000','--dsp','--frame',
         '--ms','3000','--interactive','--main-level','off','--rtc','host','--mkii','--lcd',str(out/'lcd.private.bin')]
-    port=Port(command,out);results=[]
+    port=Port(command,out);results=[];preview_results=[];invalidations=[]
+    if a.preview:
+        import test_planner as ffi
+        ffi.PlannerTests.setUpClass();oracle=ffi.PlannerTests()
     try:
         port.reply(b'ready ',timeout=600);assert port.loaded
         folder=out/'loaded';folder.mkdir();loaded=observe(port,16,2,original,folder)
@@ -125,6 +131,38 @@ def main():
         assert int.from_bytes(prepared_settings[1084:1088],'big')==44100,'SELECT ALL preparation differs'
         assert call_original(port,symbols['bs_recorder_engine_enable'],wait_ms=1)==0
         initial_native=native_state()
+        def call(name):return call_original(port,symbols[name],wait_ms=1)
+        def word(name):return int.from_bytes(port.peek(symbols[name],4),'big')
+        def plan_bytes():return port.peek(symbols['bs_boot_plan'],524)
+        def preview():
+            settings=struct.unpack('>274I',port.peek(0x100b14f0,1096))
+            project=int.from_bytes(port.peek(0x80001814,4),'big')
+            request=oracle.request(existing=[settings[78+3*i] for i in range(settings[273])],
+                trim_start=settings[75],trim_end=settings[76],sample_bpm24=settings[69],
+                project_bpm24=project,tempo_source=0,snap=1,beats=1,
+                reader=lambda frame:(original[2*frame]*256,original[2*frame+1]*256))
+            expected=oracle.preview(request)
+            before=word('bs_boot_queries')
+            assert call('bs_recorder_preview_begin')==1
+            for steps in range(10000):
+                state=call('bs_recorder_preview_work')
+                if state not in (1,2):break
+                if steps%32==0:port.command('run 0.1')
+            assert state==3,f'Fresh preview ended {state}'
+            assert call('bs_boot_result')==1
+            actual=struct.unpack('>131I',plan_bytes())
+            want=(expected.count,expected.bpm24,*expected.starts,*expected.needs_fade,expected.end_needs_fade)
+            assert actual==want,'Whole preview differs from host PCM oracle'
+            assert word('bs_boot_locks')==word('bs_boot_unlocks')
+            count=word('bs_boot_queries')-before;assert count>0
+            result={'steps':steps+1,'queries':count,'markerCount':actual[0],
+                'bpm24':actual[1],'starts':list(actual[2:2+actual[0]]),
+                'wholePlanMatchesHostOracle':True,'balancedLocks':True}
+            preview_results.append(result);return result
+        if a.preview:
+            assert call('bs_boot_init')==0
+            preview()
+
         port.command(f'watchmem {g_at:#x} 48');port.command(f'watchmem {e_at+4:#x} 4')
         port.command(f'watchmem {b_at+16:#x} 4')
         port.command('watch 0x400068e4,0x40005ff0,0x40005e48')
@@ -165,8 +203,31 @@ def main():
             pcm=pool_base+first*6144;tail=row+2*14601
             port.command(f'watchmem {pcm:#x} 64');port.command(f'watchmem {tail:#x} 2')
             for bank in range(2):port.command(f'watchmem {0x80004f1c+84*(track+8*bank):#x} 84')
+            if a.preview:
+                if track==0:
+                    assert call('bs_recorder_preview_begin')==1
+                    queries=word('bs_boot_queries')
+                    for _ in range(200):
+                        assert call('bs_recorder_preview_work')==1
+                        if word('bs_boot_queries')>queries:break
+                    else:raise AssertionError('Running preview never copied a positive PCM block')
+                    assert call('bs_recorder_preview_state')==1
+                else:preview()
+                prior_state=call('bs_recorder_preview_state')
+                assert prior_state==(1 if track==0 else 3)
+                before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
+                before_revision=native_state()['revision']
+                assert call('bs_recorder_preview_revision')==before_revision
+                assert native_state()['revision']==before_revision,'Preview was stale before recording input'
             native_state();hits(port);writes(port)
             record(port,track);port.command('run 200');started=capture(track)
+            if a.preview:
+                assert native_state()['revision']>before_revision
+                assert call('bs_boot_result')==0 and plan_bytes()==before_plan
+                assert call('bs_recorder_preview_work')==5 and word('bs_boot_queries')==before_queries
+                invalidations.append({'track':track+1,'priorState':'RUNNING' if prior_state==1 else 'READY',
+                    'staleBeforeFurtherCopy':True,'resultOutputUntouched':True,'guardRevisionAdvanced':True})
+
             port.command('run 300');advanced=capture(track)
             assert started['states'][started['bank']]==2 and advanced['published']>started['published']>0
             record(port,track);port.command('run 200');retriggered=capture(track)
@@ -186,13 +247,33 @@ def main():
             preparation=[r for r in calls if r[1]==0x40005ff0 and r[8]==track]
             stops=[r for r in calls if r[1]==0x40005e48 and r[8]==track]
             assert len(preparation)==2 and [r[9] for r in preparation]==[0x9010,0x1010]
-            assert all(r[7]==0x4000d35c and r[10:12]==[0,0xffffffff] for r in preparation)
+            assert all(r[7]==0x4000d35c for r in preparation)
+            # The stock caller pushes and pops TWO preparation arguments. The
+            # following watched stack words belong to its own frame, not this ABI.
             assert len(stops)==1 and stops[0][7]==0x40007942 and stops[0][9]>0 and stops[0][10:12]==[0,0]
             assert [r['recorderGuarded'] for r in coverage['stateTransitions']]==([True]*5 if preparation_enabled else [False,True,False,True,True])
             assert sum(x['count'] for x in coverage['unguardedRecorderStateStores'])==(0 if preparation_enabled else 24)
             port.command('run 500');idle=capture(track);idle_coverage=audit(writes(port),track,pcm,tail)
             assert idle==stopped and not idle_coverage['pcmPrefixStores'] and not idle_coverage['mapTailStores'] and not idle_coverage['recorderScopes']
             assert int.from_bytes(port.peek(row,2),'big')==first and int.from_bytes(port.peek(0x46c75e88+2*(128+track),2),'big')==count
+            if a.preview:
+                # Stopping cannot revive a retired token or reveal its old output.
+                assert call('bs_recorder_preview_work')==5 and call('bs_boot_result')==0
+                assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
+                invalidations[-1]['oldTokenStillStaleAfterStop']=True
+                editor=[int.from_bytes(port.peek(address,4),'big') for address in (0x46c8d1a0,0x46c8d19c)]
+                invalidations[-1]['editorAfterStop']=editor
+                if track==7:
+                    # TRACK+REC also selects T8's empty Static editor. Return to
+                    # the original Flex through the panel, never by poking binding.
+                    assert editor[0]==0
+                    editor_tap(port,'track1');port.command('run 500');native_state()
+                    invalidations[-1]['sourceRestoredViaTrack1']=True
+                    assert call('bs_recorder_preview_work')==5 and call('bs_boot_result')==0
+                    assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
+                assert int.from_bytes(port.peek(0x46c8d1a0,4),'big')==1
+                assert int.from_bytes(port.peek(0x46c8d19c,4),'big')==0
+                invalidations[-1]['freshPreviewAfterStop']=preview()
             folder=out/f'after-track-{track+1}';folder.mkdir();after=observe(port,16,2,original,folder)
             assert after['settingsSha256']==baseline['settingsSha256'] and after['controlsSha256']==baseline['controlsSha256']
             for at in range(0,len(data),4096):assert port.peek(native['textBase']+at,min(4096,len(data)-at))==data[at:at+4096]
@@ -202,21 +283,27 @@ def main():
             if preparation_enabled:assert state['preparationScopesEntered']-before_native['preparationScopesEntered']==2
             results.append({'track':track+1,'reservedRecorderPages':count,'firstRecorderPage':first,
                 'initial':initial,'started':started,'advanced':advanced,'retriggered':retriggered,'stopped':stopped,'idle':idle,
-                'callerCounts':dict(callers),'preparationCalls':[{'caller':hex(r[7]),'arguments':r[8:12]} for r in preparation],
+                'callerCounts':dict(callers),'preparationCalls':[{'caller':hex(r[7]),'arguments':r[8:10],'adjacentCallerWords':r[10:12]} for r in preparation],
                 'stopCalls':[{'caller':hex(r[7]),'arguments':r[8:12]} for r in stops],'coverage':coverage,'idleCoverage':idle_coverage,'nativeState':state,
                 'unrelatedFlexPreserved':True,'nativeCodeAndCanariesIntact':True})
             print(f'PASS track {track+1}: native PCM/cleanup tickets; uncovered recorder-state stores {sum(x["count"] for x in coverage["unguardedRecorderStateStores"])}',flush=True)
-    finally:port.close()
+    finally:
+        port.close()
+        if a.preview:ffi.PlannerTests.tearDownClass()
     assert digest(card)==a.card_sha256 and digest(a.card)==a.card_sha256
     names=('boot_recorder_engine.py','boot_engine_native.py','boot_recorder.py','boot_source_native.py','boot_worker_native.py','boot_writer.py',
         'boot_formats.py','boot_observe.py','test_planner.py','inspect_stock.py',*native['sourceSha256'].keys())
     report={'scope':'Private reserved-memory recorder/engine observer composition under normal recording/retrigger/STOP; real emulator scheduler/DSPs, no source reader or hardware',
         'sourceSha256':{n:digest(ROOT/n) for n in names},'mainSha256':STOCK_MAIN_SHA256,'reservedMainSha256':digest(patched),
-        'nativeReceiptSha256':digest(a.native/'recorder-engine.json'),'nativeBinarySha256':digest(binary),'emulatorSha256':digest(a.emulator),
+        'nativeReceiptSha256':digest(a.native/(native_name+'.json')),'nativeBinarySha256':digest(binary),'emulatorSha256':digest(a.emulator),
         'sdkRevision':native['sdkRevision'],'sdkDependencySha256':native['sdkDependencySha256'],'codegenGuardSha256':native['codegenGuardSha256'],
         'arenaToolSha256':ARENA_SHA,'reservedPages':8,'physicalUsablePages':pool_count,'cardSha256':a.card_sha256,'wavSha256':digest(a.wav),
         'preparationBoundaryEnabled':preparation_enabled,'closedBootstrap':closed,'preparationSettingsWordsChanged':changed,'preparedSource':baseline,'initialNative':initial_native,'results':results,'cardUnchanged':True,'receiveCallUnchanged':True,
         'exitCode':0,'hardware':'not tested','audio':'not qualified','physicalTiming':'not measured',
-        'nativeSourceAccess':'not implemented; complete recorder/Pickup, allocator, UI, DMA/cache and physical writer coverage remain open'}
-    (out/'recorder-engine-boot.json').write_text(json.dumps(report,indent=2)+'\n')
+        'nativeSourceAccess':'production not implemented; complete recorder/Pickup, allocator, UI, DMA/cache and physical writer coverage remain open'}
+    if a.preview:
+        report.update({'scope':'Private shared recorder/engine guard with fixed-lifetime read-only Flex preview invalidation and recovery; borrowed-main driver, not installed service or hardware',
+            'sourcePreviewEnabled':True,'previews':preview_results,'invalidations':invalidations,
+            'nativeSourceAccess':'fixed synthetic lifetime and borrowed main consumer; production source admission, owner transitions and scheduling remain unimplemented'})
+    (out/('recorder-source-boot.json' if a.preview else 'recorder-engine-boot.json')).write_text(json.dumps(report,indent=2)+'\n')
 if __name__=='__main__':main()

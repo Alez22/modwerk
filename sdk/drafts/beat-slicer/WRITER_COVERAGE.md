@@ -420,3 +420,14 @@ This closes the observed preparation gap, not every source-writer family.
 Preallocated ordinary ONE/MAX recording is the tested mode; Pickup, overdub,
 long growth, unknown states, UI writers, allocator/DMA/cache ownership and
 physical latency remain open. A compiled provider is not yet attached here.
+
+## Fixed-source preview interruption (0.1.43)
+
+A private Flex session now shares the recorder/preparation/engine guard during
+the normal panel sequence. Current RUNNING/READY tokens retire before another
+PCM lookup; Stop and normal editor restoration do not revive them. Fresh plans
+match the host PCM oracle. The global guard is deliberately conservative across
+unrelated sample/recorder slots. This connects the tested writer families to a
+real copied-read pipeline, but its source/owner identities and borrowed-main
+consumer remain synthetic. Other writers, cache and production scheduling are
+still admission gaps.

@@ -8,7 +8,7 @@ experiments from the shared services and qualification still required.
 | Area | What is established | What still blocks use on the unit |
 | --- | --- | --- |
 | Planner and preservation | Host and ColdFire plans, complete records, conservative ordinal preservation and internal rollback contracts | Native publication and owner review of the preservation restriction |
-| Flex preview | Private stock-loaded sources, four PCM formats, long-source work and copied UI/engine results | Production admission, complete writer coverage and measured physical lock/cache behavior |
+| Flex preview | Private stock-loaded sources, four PCM formats, long-source work, copied UI/engine results and recorder-driven invalidation/recovery | Production admission, complete writer coverage and measured physical lock/cache behavior |
 | Menu workflow | Both stock layouts, repeated openings, stale callback refusal, stock grid/clear transitions and a bounded typed-descriptor prototype | Reviewed base event/table, production package admission and reference retirement |
 | Loader owner | Real-loader host/ColdFire transitions and upload-controller set rollback with owner-backed dispatch | Production transition hooks and complete module-set readiness |
 | Static source | Stock load/clear and handle-lifetime observations | A bounded leased streaming reader |
@@ -106,7 +106,9 @@ injection and a standalone runtime object cannot substitute for those steps.
    preparation scopes cover the 24 previously unguarded stores per track in
    ordinary start/retrigger/STOP fixtures. Pickup/overdub, other writer families,
    complete interrupt/allocator exclusion and production source admission
-   still need investigation.
+   still need investigation. A later fixed-lifetime preview fixture shares these
+   guards and rejects RUNNING/READY work during recording, with fresh complete
+   plans after Stop. Its borrowed-main consumer is not production scheduling.
    Later isolated tests execute queued shortage/length-limit cleanup and cover
    its map-tail stores with the compiled worker observer; this does not prove
    all recorder writers or a production source lease.

@@ -49,3 +49,5 @@ Document paired whole-routine recorder comparisons, continuation SR/CCR preserva
 Document shared recorder/engine full-boot checks and the remaining preparation-store gap. Require actual bootstrap work and explicit setup-difference checks before source-preservation assertions; no production source admission or hardware qualification is implied.
 
 Document whole-call preparation exclusion and saved caller-SR observations. The private paired/full-boot fixtures close the observed preparation-store gap; other recording modes, complete writer ownership and physical timing remain unqualified.
+
+Document the pinned emulator borrowed-call argument cleanup and the distinction between actual native arguments and adjacent watched stack words. The shared-guard Flex preview run checks recording invalidation, normal editor restoration and unchanged source/card; production scheduling remains unqualified.
