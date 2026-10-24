@@ -9,6 +9,7 @@ import { DEFAULT_MODULE_SORT } from '../community/module-statistics'
 import { DEVICES_BY_ID } from './registry'
 import { DIGI_MODS, type DigiMod } from './digi-mods'
 import { EmptyMachine, MachineLibrary } from './MachinePages'
+import { isCoreBuildPreview } from '../engine/elekloader/protocol'
 
 const noop = () => {}
 // The all-machines library is the machine library without a device; a Digi library is the same view with that machine's selection.
@@ -46,13 +47,21 @@ describe('machine switching layout', () => {
   })
 })
 
-describe('Digitakt II and Analog Rytm MKII research previews', () => {
-  it.each(['digitakt-ii', 'analog-rytm-mkii'])('offers a local %s core build preview without presenting it as an approved module catalog', id => {
+describe('Digitakt II research preview', () => {
+  it.each(['digitakt-ii'])('offers a local %s core build preview without presenting it as an approved module catalog', id => {
     const html = renderToStaticMarkup(createElement(EmptyMachine, { device: DEVICES_BY_ID[id] }))
     expect(html).toContain('href="#' + id + '/configuration"')
     expect(html).toContain('Open local build preview')
     expect(DEVICES_BY_ID[id].status).toBe('research')
     expect(DIGI_MODS.some(mod => mod.device === id)).toBe(false)
+  })
+})
+
+describe('Analog Rytm MKII library', () => {
+  it('lists Filter Hz and leaves the core build preview once a module is in the library', () => {
+    expect(DEVICES_BY_ID['analog-rytm-mkii'].status).toBe('preview')
+    expect(isCoreBuildPreview('analog-rytm-mkii')).toBe(false)
+    expect(DIGI_MODS.filter(mod => mod.device === 'analog-rytm-mkii').map(mod => [mod.id, mod.version, mod.releases])).toEqual([['filter-hz', '1.2.0', ['1.74']]])
   })
 })
 
@@ -102,9 +111,10 @@ describe('All machines library parity', () => {
     expect(html).toContain(count('—', 'downloads'))
     expect(html).not.toContain(count('0', 'downloads'))
     expect(html).toContain('Popularity counts are currently unavailable.')
-    expect(html.match(/aria-label="Build firmware for/g)).toHaveLength(3)
+    expect(html.match(/aria-label="Build firmware for/g)).toHaveLength(4)
     expect(html).toContain('href="#digitakt/configuration"')
     expect(html).toContain('href="#digitone/configuration"')
+    expect(html).toContain('href="#analog-rytm-mkii/configuration"')
   })
 
   it('applies type and alphabetical sorting to the Digi groups', () => {
