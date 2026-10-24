@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.35-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Exercise the real upload controller and loader set backend with replacement, removal and an unchanged menu companion.",
+      "Disconnect before publication and after each row, then check complete-set acceptance separately; reject early acceptance.",
+      "Refuse retired menu activations after restoration, require fresh activation, and restore free pool bytes after cleanup.",
+      "Run host sanitizers and cached/uncached ColdFire set paths against exact unchanged SDK inputs.",
+      "Known issue: stopped-state, cache and reference retirement remain modeled; production hooks, USB, native Apply and hardware are unqualified."
+    ]
+  },
+  {
     "version": "0.1.34-experimental",
     "date": "2026-10-24",
     "changes": [

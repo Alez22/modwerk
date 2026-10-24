@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.34-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.35-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -160,3 +160,9 @@ runtime-owner host test includes the repository's unchanged GPL loader fixture;
 its licence and attribution remain in the original files, and the combined test
 binary is not published. No Elektron firmware, extracted routines/tables,
 factory samples, memory dumps or built firmware images are committed.
+
+The isolated loader fixture also executes the real upload controller and whole-set
+backend through replacement/removal, disconnect at every two-row publication
+boundary and complete-set acceptance. An unchanged companion stays usable,
+while retired activations require fresh admission even after restoration. This
+uses explicit test-side retirement, synthetic machine services and no USB IO.

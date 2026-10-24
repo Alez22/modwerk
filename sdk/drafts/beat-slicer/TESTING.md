@@ -2169,3 +2169,35 @@ hooks, live source ownership, Apply/playback, packages and hardware remain open.
 Current-upstream full source validation: Check passed in 136.07s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The unchanged real SDK loader and owner adapter pass host and ColdFire execution with synthetic machine services. Production stock-menu and USB integration remain unqualified.
 
 Three actual-loader integration reports bind exact source commit `c65edade167b9eedff37c40e117b2a4912cbe8b1`.
+
+
+## Whole-set menu-owner transactions (0.1.35)
+
+The isolated real-loader fixture now also executes the unchanged SDK upload
+controller and module-set backend. Six host configurations pass with ASan/UBSan;
+the two set-enabled configurations each run four additional scenarios. Separate
+cached and uncached ColdFire set builds run the same four scenarios with 128
+module positions and a 768 KiB pool. Exact SDK compilation dependencies and the
+code-generation guard remain pinned. Stack and preserved registers return intact.
+
+Each scenario installs three original hook-free packages. A two-row transaction
+replaces the first owner and removes the second, leaving the third unchanged.
+Disconnect is exercised before publication, after the first row and after both
+rows (including return to the running-trial phase); complete-set acceptance is
+checked separately. Acceptance before complete publication is refused. Every
+rollback restores the baseline active identity.
+
+The fixture explicitly retires both changing owners before publication. It
+checks retained-but-unpublished predecessors at each boundary, refuses both old
+menu activations after restoration or acceptance, and keeps the unchanged
+companion callable throughout. Fresh admission is required for a restored or
+kept owner. Final removals reclaim the original free pool bytes and leave no
+active module or set transaction.
+
+This executes actual controller/set-backend code, not USB traffic. Synthetic
+stopped-state, locks, cache aliases/maintenance, empty paused-task reachability
+and DSP services retain the earlier limits. Retirement calls are test-side, not
+installed production hooks. No uploaded module hooks, stock menu, self-test,
+physical disconnect, audio, persistence or browser-built package is qualified.
+
+Current-upstream full source validation: Check passed in 133.23s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The unchanged real SDK loader/upload controller and owner adapter pass host and ColdFire whole-set transitions with synthetic machine services. Production stock-menu and USB integration remain unqualified.

@@ -31,3 +31,5 @@ Extend Beat Slicer evidence verification to external SDK source commits and reco
 Document the full-owner menu adapter boundary: copied action allowlists and complete current-owner checks precede trusted dispatch; coexistence and one-owner removal need separate tests. Typed package admission and native transition hooks remain requirements.
 
 Advance the owner-adapter evidence to actual SDK loader execution on ColdFire with synthetic machine services. Document separate ELF/BSS/stack checks for large isolated CPU fixtures; neither result qualifies native stock-menu or USB behavior.
+
+Document owner-backed menu checks at each whole-set publication boundary, with real upload-controller rollback/acceptance and unchanged-companion checks. Keep synthetic machine/retirement results separate from USB and physical lifecycle qualification.

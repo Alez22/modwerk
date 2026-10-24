@@ -25,6 +25,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--cached',action='store_true')
+    p.add_argument('--sets',action='store_true')
     p.add_argument('--executable', type=Path, required=True)
     a = p.parse_args()
     out, repo = a.output.resolve(), ROOT.parents[2]
@@ -40,12 +41,16 @@ def main():
              '-fno-asynchronous-unwind-tables', '-fno-unwind-tables', '-fno-ident',
              '-fstack-usage', '-Wall', '-Wextra', '-Werror', '-pedantic', *guard.FLAGS, '-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u', '-I', str(repo/'sdk/runtime/upload')]
     if a.cached: flags.append('-DMODWERK_CACHED_MODULES')
+    if a.sets: flags.append('-DMODWERK_RUNTIME_SETS')
     subprocess.run([sys.executable,'-B',str(ROOT/'test_owner_package_vectors.py')],check=True)
     objects = []; dependencies = {}; pinned = json.loads((ROOT/'menu-owner-runtime-sources.json').read_text())
-    for name in ('menu_owner','menu_owner_backend','editor_menu','test_menu_owner_loader_target'):
+    sources=[ROOT/(n+'.c') for n in ('menu_owner','menu_owner_backend','editor_menu','test_menu_owner_loader_target')]
+    if a.sets:sources.append(repo/'sdk/runtime/upload/upload.c')
+    for source in sources:
+        name=source.stem
         obj = out / (name + '.o')
         dep = out/(name+'.d')
-        run('m68k-elf-gcc', *flags, '-MMD','-MF',str(dep), '-c', str(ROOT / (name + '.c')), '-o', str(obj))
+        run('m68k-elf-gcc', *flags, '-MMD','-MF',str(dep), '-c', str(source), '-o', str(obj))
         for word in dep.read_text().replace('\\\n',' ').split(':',1)[1].split():
             path=Path(word).resolve()
             if path.is_relative_to(ROOT): continue
@@ -71,10 +76,11 @@ def main():
                        text=True, capture_output=True, timeout=600)
     if 'SOURCE_SHA256: ' + sha(ROOT / 'stock_probe/job_probe.cpp') not in r.stdout.splitlines():
         p.error('Runner differs from current source; rebuild it.')
-    names = ('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','owner_package_vectors.h','test_owner_package_vectors.py','menu_owner_loader_native.py','menu-owner-runtime-sources.json','stock_probe/job_probe.cpp','stock_probe/CMakeLists.txt')
+    names = ('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','test_menu_owner_set.h','owner_package_vectors.h','test_owner_package_vectors.py','menu_owner_loader_native.py','menu-owner-runtime-sources.json','stock_probe/job_probe.cpp','stock_probe/CMakeLists.txt')
     report = {
         'scope': 'real compiled SDK loader/SHA with full-owner menu adapter, both layouts and two owners; actual ColdFire entry wrappers; synthetic stopped/cache/paused-task/DSP services; no module-code execution, stock menu, USB or hardware integration',
         'sourceSha256': {n: sha(ROOT / n) for n in names},
+        'wholeSetScenarios':4 if a.sets else 0,'wholeSetEnabled':a.sets,
         'runtimeModules':128,'runtimePoolBytes':786432,'cachedModuleBranch':a.cached,'nativeSdkLoader':True,
         'bssStart':bss_start,'bssEnd':bss_start+bss_bytes,
         'codegenGuardSha256':sha(repo/'sdk/runtime/m68k_codegen.py'),

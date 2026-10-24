@@ -42,3 +42,19 @@ replacement/restoration/removal under synthetic machine services. Its cached
 branch uses an identity alias and modeled cache maintenance; it does not test
 physical caches. No fixture executes uploaded module code, drives a stock menu
 through that loader or qualifies USB. Exact results and limits are in TESTING.md.
+
+## Whole-set transition fixture
+
+`test_menu_owner_set.h` runs only in set-enabled real-loader configurations.
+It executes the unchanged upload controller and two-row set backend, replaces
+one owner, removes another and leaves a third untouched. It checks disconnect
+before publication and after each row, plus acceptance of the complete set.
+Premature acceptance is refused. Explicit test-side pre-transition retirement
+prevents the old activations from reviving; a restored or kept owner requires
+a fresh activation. The companion remains usable and all test allocations are
+reclaimed after cleanup.
+
+These are synthetic stopped-machine transactions. No USB command decoder,
+physical disconnect, self-test, stock menu or reboot is exercised. The caller
+still owes actual transition-time retirement, complete-set admission and retained
+reference handling; this fixture does not implement those production hooks.

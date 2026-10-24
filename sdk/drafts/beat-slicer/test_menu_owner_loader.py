@@ -13,7 +13,7 @@ import sys
 import tempfile
 ROOT=Path(__file__).resolve().parent
 REPO=ROOT.parents[2]
-SOURCES=('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','owner_package_vectors.h','test_owner_package_vectors.py','test_menu_owner_loader.py','menu-owner-runtime-sources.json')
+SOURCES=('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','test_menu_owner_set.h','owner_package_vectors.h','test_owner_package_vectors.py','test_menu_owner_loader.py','menu-owner-runtime-sources.json')
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path);a=p.parse_args()
@@ -59,7 +59,7 @@ def main():
             'sdkRevision':pinned['revision'],
             'sdkDependencySha256':dict(sorted(dependencies.items())),
             'compiler':subprocess.check_output([cc,'--version'],text=True).splitlines()[0],
-            'flags':flags,'variants':results,'exitCode':0,'hardware':'not tested','nativeMenu':'not integrated',
+            'wholeSetScenarios':4,'setVariants':2,'flags':flags,'variants':results,'exitCode':0,'hardware':'not tested','nativeMenu':'not integrated',
             'limits':'Production transition-time lease retirement, typed contribution admission, complete module-set readiness and retained-reference reclamation remain absent.'}
     if a.output:a.output.write_text(json.dumps(report,indent=2)+'\n')
     print('PASS: six actual-loader configurations; SDK compilation dependencies matched the exact pinned source manifest')

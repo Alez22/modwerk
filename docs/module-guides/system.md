@@ -297,6 +297,14 @@ and extent; an object-size or binary-length check alone cannot prove separation.
 Beat Slicer's real-loader fixture places the 768 KiB pool in separate synthetic
 RAM. This is a test layout, not an allocation or cache result on the instrument.
 
+When an owner-backed menu participates in a whole-set transaction, test each
+publication boundary with the actual upload controller and set backend. A
+retained old owner is not necessarily published, and restoration must not
+revive an explicitly retired activation. Check an unchanged companion and
+require fresh activation after rollback or acceptance. Synthetic stopped-state
+and explicit test-side retirement do not establish production transition hooks,
+USB disconnect behavior, physical self-test or persistence.
+
 ## Digitakt and Digitone
 
 Settings rows come from the core's `ev_settings` event: add rows with `core_additem(menu, row)` and claim each row (`settings:FAST AUDIO`, for example) in `platform.claims`. Rows are claimed resources, so two mods cannot add the same one ([Digitakt guide](../../sdk/machines/digitakt/README.md)).

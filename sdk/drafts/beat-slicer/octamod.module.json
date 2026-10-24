@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.34-experimental",
+  "version": "0.1.35-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Execute the unchanged real SDK loader and full-owner menu adapter together on the host and ColdFire, including native entry-context wrappers, coexisting owners, replacement/restoration/removal and permanent retirement. Machine services and menu detachment remain synthetic; this is not a production stock-menu, USB, cache, source-ownership or hardware lifecycle. Apply/playback and browser/runtime module packages remain unfinished.",
+    "summary": "Exercise the actual SDK loader, upload controller and owner-backed menu adapter through two-row module-set replacement/removal, disconnect before/after each publication boundary and complete-set acceptance. Verify permanent lease retirement, fresh reactivation and an unchanged companion with host sanitizers and cached/uncached ColdFire execution. Machine services, retirement hooks, stock menus and USB IO remain synthetic or absent; packages, native Apply/playback and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

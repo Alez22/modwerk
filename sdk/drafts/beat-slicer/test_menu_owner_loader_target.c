@@ -11,6 +11,8 @@ void *memcpy(void *to,const void *from,size_t n) {
 void *memset(void *to,int value,size_t n) {
     unsigned char *d=to;for(size_t i=0;i<n;++i)d[i]=(unsigned char)value;return to;
 }
+#else
+#include <string.h>
 #endif
 #include "../../runtime/loader/loader.c"
 #include "../../runtime/upload/sha256.c"
@@ -73,6 +75,7 @@ static int receive(void *context,const struct runtime_owner *owner,uint32_t acti
     ++dispatches;last_module=owner->module;last_action=action;return 1;
 }
 static void trampoline(void) {}
+#include "test_menu_owner_set.h"
 int bs_owner_loader_target_selftest(void) {
     (void)contexts;
     const struct mu_backend *backend=&modwerk_runtime_backend;
@@ -161,6 +164,9 @@ int bs_owner_loader_target_selftest(void) {
     }
 #ifdef __m68k__
     CHECK(contexts);
+#endif
+#ifdef MODWERK_RUNTIME_SETS
+    {int line=owner_set_checks();if(line)return line;}
 #endif
     return 0;
 }
