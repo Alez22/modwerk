@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.36-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.37-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -168,6 +168,7 @@ while retired activations require fresh admission even after restoration. This
 uses explicit test-side retirement, synthetic machine services and no USB IO.
 
 Recorder-stop research now follows the actual queued cleanup command after
-shortages and length-limited stops. The compiled worker observer covers its
+shortages and length-limited stops, including two independently queued recorders.
+The compiled worker observer covers each command’s
 map-tail stores and retires before an unmasked queue wait. These isolated tests
 retain synthetic active state; they do not enable a live source provider.

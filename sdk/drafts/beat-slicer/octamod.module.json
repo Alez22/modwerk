@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.36-experimental",
+  "version": "0.1.37-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Execute 32 real queued recorder-stop follow-ups across both stereo widths, tracks 1/8 and both state banks, covering exhausted/disabled allocation and two length limits. Distinguish startup from dispatch, verify exact map-store extents and preserved post-stop PCM/controls/allocation/state, and execute the compiled worker observer through the next unmasked empty-queue wait. Sixteen original recording positive controls remain. Synthetic active state and isolated CPU execution do not qualify live writer coverage, manual stop/overdub, scheduler/ISR, USB, Apply/playback or hardware.",
+    "summary": "Retain the 32 recorder-stop follow-ups and 16 positive controls, then execute four paired-recorder FIFO scenarios with two real queued stop records. Verify distinct tracks 1/8, correct map extents, post-stop preservation and fresh compiled guard identity per command before the final unmasked queue wait. The two recorder calls are serialized synthetic fixtures, not simultaneous audio ISR or live allocator ownership. Manual stop/overdub, native source admission, USB, Apply/playback and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

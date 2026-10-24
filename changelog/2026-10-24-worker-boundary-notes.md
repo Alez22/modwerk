@@ -37,3 +37,5 @@ Document owner-backed menu checks at each whole-set publication boundary, with r
 Group the accumulated system-module guidance by slice edits, source ownership, background work, menu lifetime and emulator evidence. Preserve every existing qualification statement and reference unchanged.
 
 Document queued recorder-stop cleanup separately from worker startup and the recording operation. Explain zero-to-zero map stores, per-track command identity, native next-receive exclusion and PPC-based write attribution; live ISR/allocator coverage remains unqualified.
+
+Extend recorder cleanup guidance to separate pending per-track records and fresh guard identity per FIFO command. The paired tests retain synthetic serialized calls and do not qualify simultaneous ISR scheduling.

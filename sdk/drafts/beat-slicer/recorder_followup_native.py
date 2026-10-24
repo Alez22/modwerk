@@ -68,9 +68,9 @@ def main():
              'test_worker_stock.c', 'recorder_followup_native.py', 'stock_probe/recorder_followup_probe.cpp',
              'stock_probe/recorder_probe.cpp', 'stock_probe/CMakeLists.txt', 'inspect_stock.py')
     report = {
-        'scope': 'Compiled command observer around real queued recorder-stop follow-ups; 16 silent synthetic-active recorder positive controls and 32 follow-ups; no mocks, scheduler, ISR, UI consumer, manual stop/overdub, native source admission or hardware',
+        'scope': 'Compiled command observer around real queued recorder-stop follow-ups; 16 silent synthetic-active recorder positive controls and 32 single follow-ups plus four paired-recorder FIFO cases; no mocks, scheduler, ISR, UI consumer, manual stop/overdub, native source admission or hardware',
         'mainSha256': STOCK_MAIN_SHA256,
-        'recorderPositiveControls':16,'followupCases':32,
+        'recorderPositiveControls':16,'followupCases':32,'pairedRecorderCases':4,
         'codegenGuardSha256':sha(repo/'sdk/runtime/m68k_codegen.py'),
         'sdkRevision':'c8fcb8054b10366b3a7881ec957a566460aab3d4',
         'sdkDependencySha256':{'sdk/runtime/m68k_codegen.py':sha(repo/'sdk/runtime/m68k_codegen.py')},

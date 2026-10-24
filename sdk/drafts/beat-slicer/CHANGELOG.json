@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.37-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Queue actual stop records for tracks 1 and 8 before worker execution; cover both stereo widths and both recorder state banks.",
+      "Check FIFO identity, each recorder\u2019s map extent and preserved post-stop PCM, controls, allocation and state.",
+      "Require a fresh native guard ticket and revision for the second command, then retire before the final unmasked queue wait.",
+      "Retain the 32 single-recorder follow-ups and 16 recording positive controls in both host-observed and compiled-observer runs.",
+      "Known issue: serialized synthetic calls do not prove simultaneous ISR, live ownership, manual stop/overdub, USB, native Apply or hardware."
+    ]
+  },
+  {
     "version": "0.1.36-experimental",
     "date": "2026-10-24",
     "changes": [

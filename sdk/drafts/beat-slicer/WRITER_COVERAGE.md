@@ -317,3 +317,22 @@ wait; the wait is unmasked. Loop stack/frame and caller mask remain as expected.
 No production hook is installed. Manual stopping, Pickup/overdub, other
 finalization paths, live interleavings, allocator ownership and physical timing
 remain unqualified. These observations do not reopen source admission.
+
+
+## Two pending recorder cleanups (0.1.37)
+
+Four additional scenarios run the complete shortage-stop call for tracks 1 and
+8 before starting the worker, across both stereo widths and state banks. The
+recorders own distinct synthetic pages and enqueue separate per-track command
+records in FIFO order. The first cleanup writes only track 1's unused map tail
+while another command remains queued; the second writes only track 8's tail
+with the queue count zero. Post-stop PCM, full maps, controls, page counts,
+recorder-state banks and free cursors stay byte-identical. Both shortage UI
+notifications remain queued and unconsumed.
+
+The compiled observer supplies a newer ticket and revision to the second
+command and retains each ticket through the corresponding return to the loop.
+Only the final empty receive ends the second ticket before the unmasked wait.
+The 32 single-recorder scenarios and 16 original recording positive controls
+remain in each run. These are two serialized recorder calls with pending work,
+not simultaneous ISR execution or proof of shared-pool scheduling.

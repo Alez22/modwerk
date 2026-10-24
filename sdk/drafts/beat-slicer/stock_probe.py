@@ -71,7 +71,7 @@ def main():
     if 'SOURCE_SHA256: ' + expected not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
-        'scope': ('isolated real recorder shortage/length-limit stops followed by actual queued worker dispatch; synthetic active state/silent input and host guard, 16 positive controls plus 32 follow-ups; no scheduler, ISR, UI consumer, manual-stop/overdub, native admission or hardware'
+        'scope': ('isolated real recorder shortage/length-limit stops followed by actual queued worker dispatch; synthetic active state/silent input and host guard, 16 positive controls, 32 single follow-ups and four paired-recorder FIFO cases; no scheduler, ISR, UI consumer, manual-stop/overdub, native admission or hardware'
                   if args.kind == 'recorder-followup' else 'isolated ordinary Flex waveform reads/cache reuse and worker dispatch with synthetic memory, source write watches and an independent extrema oracle; no Static/recorder rendering, scheduler, UI consumer or hardware'
                   if args.kind == 'waveform' else 'real stock confirmed/cancelled slice deletion with synthetic settings, host guard and formatting/display/viewport/task mocks; no scheduler, native hooks or device'
                   if args.kind == 'clearing' else 'real stock editor binding/selection refresh with synthetic settings and viewport mock; no scheduler, transaction or device'

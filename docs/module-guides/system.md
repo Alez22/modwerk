@@ -146,7 +146,8 @@ the queued command and compare state after recording separately from state
 after cleanup. A zero-to-zero map store is still a writer observation; byte
 equality alone cannot establish exclusion. On the isolated 1.40C recorder-stop
 fixtures, an empty queue preceded stores through the unused map tail. Preserve
-per-track command identity and test actual return/next-receive lifetime; neither
+per-track command identity, exercise separate recorder records queued together,
+and test actual return/next-receive lifetime; neither
 fixture completion nor an unmasked wait establishes live ISR/allocator coverage.
 
 ### Background work

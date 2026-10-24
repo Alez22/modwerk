@@ -2248,3 +2248,27 @@ audio and physical persistence remain unqualified.
 Current-upstream full source validation: Check passed in 135.43s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
 
 Two recorder-stop integration reports bind exact source commit `e3f171d8caa01aeca6438e8205419bfad2dbbfff`.
+
+
+## Two pending recorder stop records (0.1.37)
+
+Both isolated host-observed and compiled-observer runs now retain 32 individual
+stop/follow-up scenarios and 16 recording positive controls, plus four paired
+scenarios: both stereo widths times both state banks. Each paired case stops
+tracks 1 and 8 in two complete recorder calls before running the worker.
+Distinct synthetic owned pages and separate queued per-track records are
+verified. These are serialized calls, not simultaneous audio ISR execution.
+
+FIFO execution writes only the current recorder's unused map tail: 14,601
+stores per command, with one pending command during the first and none during
+the second. The full post-stop PCM/map/control/count/state/free-cursor regions
+remain byte-identical, and both shortage UI notifications stay queued. Loop
+stack/frame and caller mask remain intact.
+
+Every native-observed store requires the current compiled guard ticket. The
+second command must receive a newer ticket and revision; the final empty receive
+retires it before an unmasked event wait. The host observer remains independent.
+No production hook, scheduler, ISR, UI consumer, live allocator ownership,
+manual stop/overdub, USB, native Apply/playback or hardware is qualified.
+
+Current-upstream full source validation: Check passed in 135.40s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
