@@ -399,7 +399,7 @@
       "sha256": "fdba0ffd31b7932ceb1ded3bde9a976b6f148ae96fc73a4efc4fedf6fb692341"
     }
   ],
-  "sourceCommit": "16beea81c2dbd522b9438bcfadff65b4c4448f25",
+  "sourceCommit": "a81eb5b634c2a93ef45de7e49fc103efe95d9843",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -429,6 +429,7 @@
     "poly8": "0.3.1-experimental",
     "output-matrix": "0.1.1-experimental",
     "quantize-live-rec-toggle": "0.1.1-experimental",
-    "apply-scene": "0.2.0-experimental"
+    "apply-scene": "0.2.0-experimental",
+    "direct-jump-kyoti": "0.1.0-experimental"
   }
 }
