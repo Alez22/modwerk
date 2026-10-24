@@ -123,6 +123,8 @@
     "preview36-recorder-followup-native.json": "e3f171d8caa01aeca6438e8205419bfad2dbbfff",
     "preview37-recorder-fifo-host.json": "9eccbb0cc5f2a3607f593e4731bd3673d2e2dac7",
     "preview37-recorder-fifo-native.json": "9eccbb0cc5f2a3607f593e4731bd3673d2e2dac7",
+    "preview37-recorder-fifo-reporting-host.json": "66ec0116a5ea4b7ed6ec83659493366a249edce8",
+    "preview37-recorder-fifo-reporting-native.json": "66ec0116a5ea4b7ed6ec83659493366a249edce8",
     "service24-boot.json": "9f4d7e4a7a0262073e6c59333e5ea8eda4026b2b",
     "service24-compile.json": "9f4d7e4a7a0262073e6c59333e5ea8eda4026b2b",
     "session-host.json": "9e10767a26b931bbdeaefa573e7b532860a58047",

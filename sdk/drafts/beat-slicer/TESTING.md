@@ -2287,3 +2287,5 @@ controls. Earlier reports remain bound to their historical source; the new
 reports retain the corrected output and their own exact source revision.
 
 Current-upstream full source validation: Check passed in 131.44s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
+
+Two recorder-stop integration reports bind exact source commit `66ec0116a5ea4b7ed6ec83659493366a249edce8`.
