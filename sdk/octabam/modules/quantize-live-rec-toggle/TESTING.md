@@ -2,7 +2,7 @@
 
 Recorded 23 October 2026. Version `0.1.1-experimental`.
 
-- Source: Zac-Kyoti/octatrack-kyoti-fw `3ead7f982e9d7a98066d50baa7055a8dcb9bc7ce` (`octabam-modules/quantize-live-rec-toggle/`), the author's final source with the flip's two stores in stock-free order. octabam carries the same module, with the earlier store order, at sambanks/octabam `5c71bc8c` (PR #861).
+- Source: Zac-Kyoti/octatrack-kyoti-fw `8ffec2b60bf0c309d9f3f2bf8384c8c224141be2` (`modwerk-modules/quantize-live-rec-toggle/`, the author's Modwerk copy of this module): his final source with the flip's two stores in stock-free order (= his commit `3ead7f9`). octabam carries the same module, with the earlier store order, at sambanks/octabam `5c71bc8c` (PR #861).
 - Native source SHA-256 of this folder (`moduleNativeSourceSha256`): see `tests.qualification.sourceSha256` in `octamod.module.json`.
 - Tested image: a static native octabam build of this module alone with every stock effect kept (`scripts/export-composition-proofs.py --select quantize-live-rec-toggle:true --image-dir`, in the `modwerk-source-tools` container, from Modwerk commit `3ff9dee1`): MAIN OS SHA-256 `3a39f682b372ad1ad962cc3f327893b51db54273ac5a0690918552298a7b9328`. The gate, the captures, the instruction counts and the hardware report below are all on this image. Wrapped for the card with Elektron's firmware tool, OS VERSION `MW_QLR011`: card file SHA-256 `7289fa69bd0a469a6425979672fc9455b2cd123c4653807e786f90c98bae5ae7`.
 
@@ -24,7 +24,7 @@ The author flashed the card image above on his Octatrack MKI and used it for abo
 
 ## Source identity
 
-`patch_qlrec.s`, `LICENSE` and `upstream/README.md` are the author's files byte for byte (`sdk/imports/quantize-live-rec-toggle-3ead7f9.json` records their Git blobs and SHA-256s). Assembled with `m68k-elf-as -mcpu=5407` and linked at `0x400d7400`, the unit is 196 bytes, SHA-256 `065cafcb0c3896aad746efd0ce9bf022fb6a6d17a7e593bb7f9e889c2861b9e4`, with `qlr_recrel` at 0x84. `manifest.py` names that reference; native octabam links the unit where it floats and compares on every build. In the tested image it floats to `0x400d6b80`.
+`patch_qlrec.s`, `LICENSE` and `upstream/README.md` are the author's files byte for byte (`sdk/imports/quantize-live-rec-toggle-8ffec2b.json` records their Git blobs and SHA-256s). Assembled with `m68k-elf-as -mcpu=5407` and linked at `0x400d7400`, the unit is 196 bytes, SHA-256 `065cafcb0c3896aad746efd0ce9bf022fb6a6d17a7e593bb7f9e889c2861b9e4`, with `qlr_recrel` at 0x84. `manifest.py` names that reference; native octabam links the unit where it floats and compares on every build. In the tested image it floats to `0x400d6b80`.
 
 What differs from 0.1.0's unit (188 bytes, Modwerk's edit of the author's earlier source): the redraw after a flip runs only when PROJECT > SYSTEM > PERSONALIZE is the open menu page (`0x400cbf40` = 12), not on every open PROJECT page, and it is called directly rather than through `%a0`. The flip writes the battery copy before the setting word, as 0.1.0 did: in the other order the two stores and the `jsr` after them are 12 counted bytes of stock's own PERSONALIZE setter (`0x40068ccf`), which the USB package scan refuses. The toast strings are the same.
 

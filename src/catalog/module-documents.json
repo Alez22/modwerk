@@ -7967,8 +7967,8 @@
       "category": "system",
       "source": {
         "repository": "https://github.com/Zac-Kyoti/octatrack-kyoti-fw",
-        "revision": "3ead7f982e9d7a98066d50baa7055a8dcb9bc7ce",
-        "path": "octabam-modules/quantize-live-rec-toggle"
+        "revision": "8ffec2b60bf0c309d9f3f2bf8384c8c224141be2",
+        "path": "modwerk-modules/quantize-live-rec-toggle"
       },
       "access": {
         "location": "Front panel: hold [REC], tap [PLAY]. The setting itself stays in PROJECT > SYSTEM > PERSONALIZE > QUANTIZE LIVE REC.",
