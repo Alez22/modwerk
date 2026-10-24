@@ -2,7 +2,7 @@
 
 ## Current readiness
 
-Basic scope: 0.1.55-experimental, private staging.
+Basic scope: 0.1.56-experimental, private staging.
 
 The owner chose a basic working slicer first. File-backed Flex and Static share
 AED slice commands and record geometry; their settings/control tables differ.

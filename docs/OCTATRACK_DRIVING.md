@@ -48,6 +48,8 @@ frontend MCP use the unit beside the session, start it with `serve --share /tmp/
 stages modules at a time (the MCP's sync, or the session's `try`/`remove`); the session reads and presses keys.
 The session’s `try FILE` accepts immediately. For a temporary trial, use the MCP’s review/self-test/Undo flow or
 the one-shot `npm run device -- try FILE` without `--accept`; do not use session `try` as an automatic Undo test.
+A private module-only trial does not inherit the flashed base's kept module set. To test companions, prepare copies bound to the exact temporary base and review/trial the complete set; a Keep on the twin is not an inventory-recovery step. A host client's own trial timer can also remove the set while its USB keepalive is still healthy. State the timeout and distinguish it from a RAM clear or restart.
+
 After an unplug, a crash restart or a RAM boot, the bridge can hold a dead handle; `pkill -f usb_bridge;
 pkill -f '^node scripts/device.mjs serve'` and the loop starts both again. Anchor the pattern: without `^` it also
 matches any shell whose command line contains it (the loop's, or the one running `pkill`), and kills that.

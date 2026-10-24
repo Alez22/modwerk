@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.55-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.56-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
@@ -16,7 +16,9 @@ now build from source. Host tests exercise the actual controller/grid/service,
 both native metadata paths, confirmation and failed-write rollback. The service
 also executes on the MCF54455 CPU emulator. A private base passes native/browser
 byte parity and normal-boot USB/menu/confirmation emulator tests for both kinds.
-Full lifecycle qualification continues; the candidate has **not run on hardware**. The service is enabled
+The 0.1.55 candidate RAM-boots on the owner's MKII, opens its AED options and
+passes a 12-module self-test. The 0.1.56 correction has not run on hardware; full
+lifecycle qualification continues. The service is enabled
 only by a private `--sample-editor` base build and needs owner review. It is not
 released capability, and the draft remains absent from the public catalogue.
 
@@ -30,9 +32,13 @@ candidate; recorder buffers and slots 128 onward are excluded.
 | --- | --- |
 | Encoder A | SAMPLE or PROJECT BPM; refuse missing/invalid tempo, with no silent fallback. |
 | Encoder B / UP / DOWN | 1, 4, 16, 32 or 64 beats per slice. |
-| YES | Prepare the exact grid and request the base-owned stock confirmation. No markers change when the question opens. |
+| YES | Request the base-owned stock confirmation. A busy source waits for a fresh snapshot; NO or changing a control cancels that request. Markers change only after the stock YES. |
 | NO / BACK | Close the options or decline confirmation without changing markers. |
 | After creation | Use stock DELETE SLICE or DELETE ALL SLICES. No separate slice Undo/history is added. |
+
+In 4/4, choose **16 BEATS** for four bars. The source line also shows the existing slice count (`OLD`).
+
+New boundaries that would leave fewer than the shared writer's minimum 64 frames at the end are omitted; the last valid slice still ends at the original trim end. Existing starts are never silently removed. An entirely shorter source uses its full length as the minimum; a shorter trimmed range is refused explicitly.
 
 The grid starts at trim start. One beat is a quarter note of the chosen BPM;
 track speed and swing do not move offline markers. The core accepts 30–300 BPM

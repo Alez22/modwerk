@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.56-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Omit new end markers with fewer than 64 frames remaining, retaining the original trim and existing slice records.",
+      "Keep a busy YES request pending until a fresh source is ready; NO, changed controls or stale source cancel it.",
+      "Show a specific short-trim message; fix busy status that remained after readiness returned.",
+      "Module-only staging update for the existing private base. File-backed Flex/Static only; recording buffers are excluded.",
+      "Known issue: owner's 22 MB / 122 BPM failure requires an exact corrected-build device retest; audio and persistence remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.55-experimental",
     "date": "2026-10-25",
     "changes": [

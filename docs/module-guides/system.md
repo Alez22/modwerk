@@ -24,6 +24,8 @@ working/saved-copy behavior before enabling Apply. Bind preview to sample,
 content, markers, trim and chosen tempo; a stale or cancelled preview must not
 write. Quiet marker boundaries are not evidence of click-free playback.
 
+A mathematical grid point close to trim end can create a segment shorter than the writer permits even when there are no old slices. Match preview admission to the writer's minimum, omit only invalid new tail points and retain the actual trim end and every existing record. Report a short trim separately from an old-record conflict. A transient busy result can retain an explicit confirmation intent, but revalidate before showing the native question and cancel the intent on Back, parameter changes or stale source.
+
 Match the stock edit workflow before adding recovery controls. Internal failure
 rollback does not imply a user-facing Undo action. Beat Slicer's 1.40C emulator
 observations distinguish cancelling deletion from confirming it, and show that

@@ -15,7 +15,7 @@ int module_enc(int,int);
 static struct mw_sample_editor service;
 static struct mw_sample_capture source;
 static struct runtime_owner owner;
-static unsigned ready=1,held,bad,confirms,cancels,publishes;
+static unsigned ready=1,held,bad,confirms,cancels,publishes,block_confirm;
 static uint32_t lock(void *p){(void)p;if(held)bad=1;held=1;return 7;}
 static void unlock(void *p,uint32_t saved){(void)p;if(!held || saved!=7)bad=1;held=0;}
 static int available(void *p){(void)p;return ready;}
@@ -30,7 +30,11 @@ static unsigned publish(void *p,const struct mw_sample_capture *before,const str
 static unsigned copy(uint32_t token,struct modwerk_sample_view *out)
 {return mw_sample_editor_copy(&service,token,out);}
 static unsigned confirm(uint32_t token,const struct modwerk_sample_grid *grid)
-{++confirms;return mw_sample_editor_confirm(&service,token,grid);}
+{
+    ++confirms;
+    if(block_confirm){ready=0;block_confirm=0;}
+    return mw_sample_editor_confirm(&service,token,grid);
+}
 static void cancel(uint32_t token){++cancels;mw_sample_editor_cancel(&service,token);}
 static const struct mw_sample_backend backend={0,lock,unlock,available,published,capture,publish};
 static const struct modwerk_sample_editor_api api={MODWERK_SAMPLE_EDITOR_ABI,sizeof api,copy,confirm,cancel};
@@ -72,7 +76,13 @@ int main(void)
     ready=0;bs_device_open(token,&api);CHECK(active());
     unsigned previous=confirms;
     CHECK(tap(0x31) && confirms==previous && active() && !publishes);
-    ready=1;CHECK(active());
+    /* YES waits for a genuinely ready source instead of requiring a second
+     * button press at an unknowable gap between display-reader jobs. */
+    ready=1;CHECK(!active() && service.state==MW_SAMPLE_PROMPT);
+    CHECK(confirms==previous+1 && !publishes);
+    mw_sample_editor_answer(&service,token,0);
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);CHECK(active());previous=confirms;
     CHECK(module_enc(1,1) && module_enc(1,-1));
     CHECK(module_enc(0,1) && module_enc(0,-1));
     CHECK(tap(0x31) && confirms==previous+1 && service.state==MW_SAMPLE_PROMPT);
@@ -85,5 +95,76 @@ int main(void)
     CHECK(!module_key(0x30,1) && !active() && cancels==previous+1);
     CHECK(!module_enc(0,1) && !module_key(0x30,0));
     CHECK(!held && !bad && !publishes);
+    /* A job can start between copy and confirm. Only a fresh copy on a later
+     * tick may retry; cancellation, edits and stale source retire that intent. */
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);block_confirm=1;previous=confirms;
+    CHECK(tap(0x31) && active() && confirms==previous+1);
+    ready=1;CHECK(!active() && service.state==MW_SAMPLE_PROMPT && confirms==previous+2);
+    mw_sample_editor_answer(&service,token,0);
+    for(unsigned reason=0;reason<3;++reason) {
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);ready=0;previous=confirms;
+        CHECK(tap(0x31) && active() && confirms==previous);
+        if(reason==0)CHECK(tap(0x32));
+        if(reason==1)CHECK(module_enc(1,1));
+        if(reason==2)++source.controls[5];
+        ready=1;
+        if(reason==1) {
+            CHECK(active() && service.state==MW_SAMPLE_OPEN);
+            CHECK(module_enc(1,-1) && tap(0x32));
+        } else CHECK(!active() && service.state==MW_SAMPLE_CLOSED);
+        CHECK(confirms==previous && !publishes);
+    }
+    /* Independent rational values at 122 BPM, four beats per boundary.
+     * The 49th mathematical start is 4,164,197: a tiny file tail must not
+     * create a new stock-invalid slice or masquerade as an old-slice clash. */
+    for(unsigned kind=0;kind<2;++kind)for(uint32_t tail=1;tail<=64;tail+=(tail==1?62:1)) {
+        source.view.kind=kind;source.view.count=0;
+        source.view.sample_bpm24=2928;
+        source.view.frames=source.view.trim_end=4164197u+tail;
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);
+        if(kind==0 && tail==1)CHECK(module_enc(1,1));
+        CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+        uint32_t n=tail<64?48:49;
+        CHECK(source.view.count==n && source.view.records[1].start==86754u);
+        CHECK(source.view.records[n-1u].end==4164197u+tail);
+        if(tail<64)CHECK(source.view.records[n-1u].start==4077443u);
+    }
+    /* A rejected 65th start near the end must not hide a valid 64-slice grid. */
+    source.view.count=0;source.view.frames=source.view.trim_end=5552264u;
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
+    CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+    CHECK(source.view.count==64 && source.view.records[63].end==5552264u);
+    /* Four bars is sixteen quarter-note beats: the same 49-point tail case. */
+    source.view.count=0;source.view.frames=source.view.trim_end=16656797u;
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);CHECK(module_enc(1,1));
+    CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
+    CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+    CHECK(source.view.count==48 && source.view.records[1].start==347016u);
+    CHECK(source.view.records[47].start==16309770u && source.view.records[47].end==16656797u);
+    /* Existing short-tail markers are never silently removed. */
+    source.view.count=1;source.view.records[0].start=source.view.trim_end-1u;
+    source.view.records[0].end=source.view.trim_end;
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);previous=confirms;
+    CHECK(tap(0x31) && active() && service.state==MW_SAMPLE_OPEN && confirms==previous);
+    CHECK(tap(0x32));
+    source.view.count=0;source.view.frames=100;source.view.trim_start=90;source.view.trim_end=100;
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);previous=confirms;
+    CHECK(tap(0x31) && active() && confirms==previous && tap(0x32));
+    for(uint32_t frames=1;frames<=32;frames+=31) {
+        source.view.count=0;source.view.frames=source.view.trim_end=frames;source.view.trim_start=0;
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+        CHECK(source.view.count==1 && source.view.records[0].start==0 && source.view.records[0].end==frames);
+    }
+    CHECK(!held && !bad);
     puts("PASS: actual package controller/grid, frame bounds and shared confirmation for Flex/Static");return 0;
 }

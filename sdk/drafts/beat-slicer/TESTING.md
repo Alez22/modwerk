@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.55-experimental. Development checks: 23–25 October 2026 (Taipei).
+Current draft: 0.1.56-experimental. Development checks: 23–25 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -2918,7 +2918,8 @@ No rejected package was sent to a physical unit.
 The current service test also executes as MCF54455 code with preserved ABI
 registers. Private native empty-row and controller-bound bases link with the
 new service enabled; their stock seams and flash-preservation checks pass.
-No device has run this candidate. The exact private base passes native/browser
+The initial software checkpoint preceded its hardware trial recorded below.
+The exact private base passes native/browser
 byte parity. Full-menu/USB emulator results are below; companion qualification,
 physical timing, audio and persistence remain pending.
 The new service is a private `--sample-editor` base opt-in, not part of the
@@ -2975,3 +2976,52 @@ stock AED menu, verifies its original label-table pointer and absence of the
 contributed action. Cached binding counts are historical storage, not the
 displayed menu; the earlier count-based assertion was a driver error. This
 result still does not qualify physical removal, audio or persistence.
+
+## First MKII trials and long-grid correction (0.1.56 staging)
+
+The owner authorized private base `52c291c2…` with 0.1.55 package `c58883ddef1d…`.
+Actual USB RAM boot succeeded on the MKII. The owner confirmed that the AED
+Beat Slicer options appeared. A combined trial of the original 11 module IDs plus
+Beat Slicer passed the physical self-test: 12 live/intact modules, seven DSP
+modules run, failed mask zero, CPU peak 718 per mille, DSP peaks 638/578 per
+mille and maximum frame gap 51,333 DTCN3 counts. This measures that self-test
+only; it does not qualify worst-case FM/Poly voices, audio or persistence.
+The earlier one-controller-only test reported CPU zero, which is not a usable
+headroom measurement. Temporary trials did not Keep, flash or save projects.
+
+A first client attempt called the frontend's public inventory read while its own
+trial held the link and got a host-busy error; actual Undo restored the empty
+temporary-base inventory. It was a client error, not a passed slicing test.
+A later 15-minute timer also completed an observed successful Undo. The owner's
+recorder-setting/RAM-clear report does not establish that firmware was erased.
+After clarification, the complete 12-module temporary set was loaded together.
+The Sidechain package byte-matches the exact candidate's privately encoded
+controller and its bound trust row; other companion payload hashes match their
+source-built published packages. No foreign kept-set file was intentionally written.
+
+The owner then reported no AED contribution for recorder buffers, and an
+approximately 22 MB file refusing with OLD SLICES CONFLICT or busy, despite
+stock DELETE ALL SLICES and stopped playback/recording. Reported tempo is
+SAMPLE 122 BPM, four bars and a displayed count of 49. Recorder buffers remain
+explicitly excluded from this file-backed draft. The exact long-file hardware
+cause is not yet confirmed and the report remains open.
+
+The controller/service host regression reproduces a concrete empty-source
+refusal: a 49th mathematical point at 122 BPM leaves only ten frames at trim
+end, and the writer returns PRESERVATION although the old count is zero. The
+old controller fails; 0.1.56 omits that new point while preserving the original
+trim end. Cases cover four-beat and sixteen-beat grids, final gaps 1/63/64, a
+65th tiny-tail point hiding a valid 64-slice grid, protected old tail markers,
+short trims and complete tiny sources. Separate regressions exercise automatic
+busy recovery, a job starting between copy/confirm, and NO, knob or stale-source
+cancellation without publication. The generic rational-grid engine is unchanged.
+
+A 24-bit stereo long-wave fixture loaded 4,164,207 frames through a normal
+emulator boot, but its initial USB HELLO did not complete. That failed harness
+attempt did not install or exercise Beat Slicer and is not evidence of a fix.
+The new 4,008-byte module (`31c65f383807…`) compiles for MCF54455, passes both
+unchanged strict stock-free scans and all five target-enabled slicer tests.
+It uses the same proposed base API, with no base firmware update. Full native
+menu reruns and an exact corrected-build physical retest remain pending.
+
+The current upstream-base repository check passes (2,570 app tests and the SDK check; 37 SDK tests, one skipped). The literal `origin/main` comparison still fails only on the inherited stale-fork CHANGELOG.md policy check. No native base rebuild is needed for this module-only correction.

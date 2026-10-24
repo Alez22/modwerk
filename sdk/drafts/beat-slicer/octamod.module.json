@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.55-experimental",
+  "version": "0.1.56-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -88,7 +88,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Actual controller/grid, shared service and adapter pass host sanitizer regressions, with MCF54455 service execution and target package alignment checks. The private base passes native/browser parity; combined Flex/Static emulator tests pass real USB installation, native confirmation and stock clearing followed by USB Undo. Hardware remains untested for this candidate; historical 0.1.53 physical evidence belongs to the fixed-input probe.",
+    "summary": "The private base and 0.1.55 controller load on the owner's MKII, open the AED options and pass a 12-module self-test. Its long-file conflict/busy report remains a hardware regression to recheck. The 0.1.56 controller omits stock-invalid new tail boundaries and queues confirmation until a fresh source is ready; host and target-package regressions pass; native menu and exact long-file hardware retests remain pending. Recording buffers, physical marker results, audio and persistence remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B -m unittest discover -s sdk/tests -p test_sample_editor.py -v",

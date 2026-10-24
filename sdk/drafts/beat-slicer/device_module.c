@@ -17,27 +17,55 @@ static struct bs_grid_plan plan;
 static struct modwerk_sample_grid proposal;
 static const uint32_t spacings[5]={1,4,16,32,64};
 static uint32_t token,active,tempo_source,spacing,reply,geometry,dirty,captured;
+static uint32_t pending_confirm;
 static uint32_t consumed[2];
+enum { DEVICE_SHORT_TRIM=16,DEVICE_OLD_CONFLICT };
+#define STOCK_MIN_SLICE_FRAMES 64u
 
 static void close_editor(void)
 {
     if(active && editor)editor->cancel(token);
-    active=0;token=0;editor=0;
+    active=0;token=0;editor=0;pending_confirm=0;
 }
-static void refresh(void)
+static unsigned refresh(void)
 {
     static uint32_t starts[BS_MAX_SLICES];
-    if(!active || !editor)return;
+    if(!active || !editor)return 0;
     unsigned current=editor->copy(token,&view);
-    if(current==MODWERK_SAMPLE_BUSY)return;
-    if(current!=MODWERK_SAMPLE_OK){close_editor();return;}
+    if(current==MODWERK_SAMPLE_BUSY){reply=MODWERK_SAMPLE_BUSY;return 0;}
+    if(current!=MODWERK_SAMPLE_OK){close_editor();return 0;}
     captured=1;
-    if(!dirty)return;
-    if(view.count>BS_MAX_SLICES){geometry=BS_INVALID;dirty=0;return;}
+    if(reply==MODWERK_SAMPLE_BUSY)reply=MODWERK_SAMPLE_OK;
+    if(!dirty)return 1;
+    dirty=0;
+    if(view.count>BS_MAX_SLICES){geometry=BS_INVALID;return 1;}
+    uint32_t minimum=view.frames<STOCK_MIN_SLICE_FRAMES?view.frames:STOCK_MIN_SLICE_FRAMES;
+    if(!minimum || view.trim_start>=view.trim_end || view.trim_end-view.trim_start<minimum) {
+        geometry=DEVICE_SHORT_TRIM;return 1;
+    }
+    /* Omit only NEW grid starts that cannot form a stock-sized final slice.
+     * The writer still uses the original trim end: no sample is cropped.
+     * Never remove an existing start or change its ordinal to make it fit. */
+    uint32_t grid_end=view.trim_end-(minimum-1u);
+    if(view.count && view.records[view.count-1u].start>=grid_end) {
+        geometry=DEVICE_OLD_CONFLICT;return 1;
+    }
     for(uint32_t i=0;i<view.count;++i)starts[i]=view.records[i].start;
-    struct bs_grid_request request={view.frame_rate,view.trim_start,view.trim_end,
+    struct bs_grid_request request={view.frame_rate,view.trim_start,grid_end,
         view.sample_bpm24,view.project_bpm24,spacings[spacing],tempo_source,view.count,starts};
-    geometry=bs_grid_preview(&request,&plan);dirty=0;
+    geometry=bs_grid_preview(&request,&plan);return 1;
+}
+static void confirm_when_ready(void)
+{
+    if(!active || !captured || dirty || geometry!=BS_OK){pending_confirm=0;return;}
+    proposal.count=plan.count;
+    for(uint32_t i=0;i<BS_MAX_SLICES;++i)proposal.starts[i]=plan.starts[i];
+    reply=editor->confirm(token,&proposal);
+    pending_confirm=reply==MODWERK_SAMPLE_BUSY;
+    if(reply==MODWERK_SAMPLE_CONFIRMING) {
+        /* The base owns the copied plan and the remaining stock question. */
+        active=0;token=0;editor=0;
+    }
 }
 void bs_device_open(uint32_t opened,const struct modwerk_sample_editor_api *api)
 {
@@ -56,8 +84,9 @@ const struct modwerk_sample_action bs_sample_action={
 };
 void module_tick(struct modwerk_runtime_api *api)
 {
-    if(active)refresh();
-    api->value=0x42530000u | (active?0x100u:0u) | geometry;
+    if(active && refresh() && pending_confirm)confirm_when_ready();
+    api->value=0x42530000u | (active?0x100u:0u) | (pending_confirm?0x200u:0u) |
+        (reply<<10) | geometry;
 }
 static int cycle(int current,int delta,int count)
 {
@@ -69,6 +98,7 @@ static int cycle(int current,int delta,int count)
 int module_enc(int encoder,int delta)
 {
     if(!active)return 0;
+    pending_confirm=0;
     if(encoder==0)tempo_source=(uint32_t)cycle((int)tempo_source,delta,2);
     else if(encoder==1)spacing=(uint32_t)cycle((int)spacing,delta,5);
     else {close_editor();return 0;}
@@ -92,16 +122,8 @@ int module_key(int code,int pressed)
     consumed[bank]|=mask;
     if(code==NO){close_editor();return 1;}
     if(code==UP || code==DOWN)return module_enc(1,code==UP?1:-1);
-    refresh();
-    if(!active || !captured || dirty || geometry!=BS_OK)return 1;
-    proposal.count=plan.count;
-    for(uint32_t i=0;i<BS_MAX_SLICES;++i)proposal.starts[i]=plan.starts[i];
-    reply=editor->confirm(token,&proposal);
-    if(reply==MODWERK_SAMPLE_CONFIRMING) {
-        /* Do not cancel: the base now owns the pending stock confirmation.
-         * The token cannot be reused by this module after leaving the modal. */
-        active=0;token=0;editor=0;
-    }
+    pending_confirm=1;
+    if(refresh())confirm_when_ready();
     return 1;
 }
 static void text(char *out,const char *in)
@@ -120,7 +142,7 @@ void module_draw(unsigned char *frame)
     char line[32],*at;
     for(uint32_t i=0;i<1024;++i)frame[i]=0;
     bs_device_text(frame,1,"BEAT SLICER");
-    if(!captured) {
+    if(!captured || dirty) {
         bs_device_text(frame,22,"WAITING FOR SOURCE");
         bs_device_text(frame,55,"NO BACK");return;
     }
@@ -134,12 +156,14 @@ void module_draw(unsigned char *frame)
     bs_device_text(frame,12,line);
     at=append(line,"B SPACING ");at=number(at,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
     bs_device_text(frame,22,line);
-    at=append(line,view.kind==MODWERK_SAMPLE_FLEX?"FLEX SLOT ":"STATIC SLOT ");number(at,view.slot+1u);
+    at=append(line,view.kind==MODWERK_SAMPLE_FLEX?"FLEX SLOT ":"STATIC SLOT ");
+    at=number(at,view.slot+1u);at=append(at," OLD ");number(at,view.count);
     bs_device_text(frame,32,line);
-    if(reply==MODWERK_SAMPLE_PRESERVATION)text(line,"OLD SLICES CONFLICT");
+    if(reply==MODWERK_SAMPLE_PRESERVATION || geometry==DEVICE_OLD_CONFLICT)text(line,"OLD SLICES CONFLICT");
+    else if(geometry==DEVICE_SHORT_TRIM)text(line,"TRIM TOO SHORT");
     else if(geometry==BS_TOO_MANY)text(line,"MORE THAN 64 SLICES");
     else if(geometry!=BS_OK)text(line,"CHECK BPM OR TRIM");
-    else if(reply==MODWERK_SAMPLE_BUSY)text(line,"SOURCE BUSY - RETRY");
+    else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAITING FOR SOURCE");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"EDIT REFUSED");
     else {at=number(line,plan.count);append(at,plan.count==1?" SLICE":" SLICES");}
     bs_device_text(frame,43,line);
