@@ -33,3 +33,5 @@ Document the full-owner menu adapter boundary: copied action allowlists and comp
 Advance the owner-adapter evidence to actual SDK loader execution on ColdFire with synthetic machine services. Document separate ELF/BSS/stack checks for large isolated CPU fixtures; neither result qualifies native stock-menu or USB behavior.
 
 Document owner-backed menu checks at each whole-set publication boundary, with real upload-controller rollback/acceptance and unchanged-companion checks. Keep synthetic machine/retirement results separate from USB and physical lifecycle qualification.
+
+Group the accumulated system-module guidance by slice edits, source ownership, background work, menu lifetime and emulator evidence. Preserve every existing qualification statement and reference unchanged.

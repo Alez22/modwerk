@@ -15,6 +15,8 @@ Read [the module guides index](README.md) first.
 - [ ] **No effect slot and no new knob** unless the feature genuinely needs one. The README says so.
 - [ ] **Timing-related settings** follow [sequencing.md](sequencing.md).
 
+### Slice edits and persistence
+
 For a one-shot sample editor, preserving marker starts is only part of preserving
 the sample: retain complete slice end/loop records and establish whether adding
 a sorted marker renumbers slice locks. Resolve stock minimum-length and
@@ -45,6 +47,29 @@ rules. Establish the exact behavior with synthetic fixtures; reject a proposed
 edit that would alter preserved records rather than silently sanitizing them.
 See the Beat Slicer draft's [storage probes](../../sdk/drafts/beat-slicer/TESTING.md#isolated-stock-storage-probes);
 these are emulator observations, not physical save/reload qualification.
+
+An exact internal failure-rollback snapshot needs inactive rows too: adding slices overwrites
+previously inactive record slots. Preserve the full table and count, and compare
+the complete expected after-state before restoring it. Beat Slicer's candidate
+tests cover this in memory; such equality still needs source identity, ownership
+and verified native publication/persistence around it.
+
+A stock editor action may mutate settings before its asynchronous search or
+completion callback returns. Beat Slicer's synthetic 1.40C grid fixtures clear
+the marker count before deferred zero searches and publish records later,
+followed by pointer/selection refresh. Its redraw notification is not an Undo
+service. Track the entire mutation/refresh lifetime; do not reuse this replacing
+grid action as a preserving atomic Apply. Actual scheduling/cancellation and
+physical persistence remain unproved by those fixtures.
+
+Retire an editor's selected row before rebuilding bindings for a shorter marker
+table. Beat Slicer's isolated 1.40C refresh probes observe the old selection
+being dereferenced after its row pointer has become null; resetting the selection
+first avoids that path in the tested Flex/Static reductions, including zero
+slices. Recompute selection from the cursor after rebuilding. This is a native
+integration requirement, not an observed stock UI defect or hardware result.
+
+### Source ownership
 
 A stock sample-pool lookup is not necessarily a decoded reader or a safe
 service for both Flex and Static. Verify readiness, sample kind, page bounds
@@ -78,20 +103,6 @@ notification, and capture owned operation identity; a queued pointer can refer
 to a reused command record. Full panel/scheduler/cancellation behavior remains
 unproved by those fixtures.
 
-When adding a worker observer at runtime, account for the command already
-waiting inside the old receive call. A changed call site does not wrap that
-in-flight receive. Start admission closed and establish quiescence before
-opening it; keep queue waiting outside the observer lock. Beat Slicer's 1.40C
-reserved-memory emulator experiment checks a compiled whole-command observer,
-not complete writer coverage or physical lock timing.
-
-Do not infer physical pool capacity from a mutable allocation-map endpoint.
-In the 1.40C full-boot fixture, recorder reservations reduce that endpoint; after
-three explicit arena pages are removed, 14,599 physical usable pages coexist
-with a 10,919 map endpoint. Verify the build's actual reservation geometry and
-current map bounds separately. Never inject test code into apparently unused
-stock heap/globals or delay memory; use a real arena reservation.
-
 Track nested writers independently: the 1.40C crop path calls rotation, and
 its inner return must not reopen a preview before the crop finishes. A refused
 crop can also advance the slot counter before range validation. Beat Slicer's
@@ -115,48 +126,29 @@ replacement starts and keep exclusion across nested release until the outer load
 returns. These fixtures mock filesystem/header IO and do not qualify actual file
 loading or persistence.
 
-An exact internal failure-rollback snapshot needs inactive rows too: adding slices overwrites
-previously inactive record slots. Preserve the full table and count, and compare
-the complete expected after-state before restoring it. Beat Slicer's candidate
-tests cover this in memory; such equality still needs source identity, ownership
-and verified native publication/persistence around it.
+Distinguish source writers from editor visualization work before invalidating
+every preview on every engine command. Beat Slicer's pinned 1.40C full boot
+observes recurring waveform commands invalidating a read-only preview under
+that coarse policy. Isolated execution checks the ordinary Flex renderer's
+source-read footprint across four formats and slots 0/127. That does not qualify
+Static/recorder variants or mutable queued-record lifetimes. Never exempt an
+opcode alone; establish its submode, input lifetime and complete write footprint
+before using a narrower classification in a live base.
 
-A stock editor action may mutate settings before its asynchronous search or
-completion callback returns. Beat Slicer's synthetic 1.40C grid fixtures clear
-the marker count before deferred zero searches and publish records later,
-followed by pointer/selection refresh. Its redraw notification is not an Undo
-service. Track the entire mutation/refresh lifetime; do not reuse this replacing
-grid action as a preserving atomic Apply. Actual scheduling/cancellation and
-physical persistence remain unproved by those fixtures.
+Keep loader ownership and sample ownership separate. The current
+[`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader
+stability while deliberately allowing real-time interrupts. It is not, by
+itself, proof of exclusion against recorder or PCM writers; establish that
+additional boundary before connecting a live sample reader.
 
-For emulator memory watches, use the pinned machine implementation's canonical
-address and verify a known store as a positive control. In Octabam `8250be0`,
-1.40C editor busy/dirty writes at `0x46…` were observed by `0x46…` watches;
-substituting `0x86…` observed none. A silent watch is not evidence of no mutation,
-and a generic CLI alias note must not override the actual mapped window.
+### Background work
 
-Retire an editor's selected row before rebuilding bindings for a shorter marker
-table. Beat Slicer's isolated 1.40C refresh probes observe the old selection
-being dereferenced after its row pointer has become null; resetting the selection
-first avoids that path in the tested Flex/Static reductions, including zero
-slices. Recompute selection from the cursor after rebuilding. This is a native
-integration requirement, not an observed stock UI defect or hardware result.
-
-Closing a native menu need not detach its label/callback/selection pointers.
-Beat Slicer's compiled 1.40C menu fixture observes those pointers still retained
-after selection. Keep composed arrays base-owned and refuse reuse until old
-callbacks are quiescent; validate the owner under the loader's stable lock.
-Verify tail-call argument storage too: the observed stock selection routine
-rewrites its first incoming argument word, so a zero-argument C test call can
-corrupt its caller even when all menu assertions pass. These are isolated
-execution findings, not a proved live detach or loader integration service.
-
-Verify editor gestures against the rendered stock page, not a remembered key
-order. In Beat Slicer's pinned 1.40C full-emulator session, AED → AMP selected
-SLICE and plain YES opened its action menu; LFO selected EDIT. Loading a Flex
-slot also did not assign it to the track until the slot was confirmed. Bind a
-preview to the editor's actual kind/slot, not merely to a successfully loaded
-source. These panel observations still need physical qualification.
+When adding a worker observer at runtime, account for the command already
+waiting inside the old receive call. A changed call site does not wrap that
+in-flight receive. Start admission closed and establish quiescence before
+opening it; keep queue waiting outside the observer lock. Beat Slicer's 1.40C
+reserved-memory emulator experiment checks a compiled whole-command observer,
+not complete writer coverage or physical lock timing.
 
 Keep arithmetic and decoding of owned PCM copies outside the source critical
 section. Reacquire and revalidate before the next live read; the validation from
@@ -164,23 +156,6 @@ before an unlocked interval is insufficient. Test writers becoming runnable at
 each release, including after a successful copy. Instruction counts from a
 synthetic backend can verify lock scope, but do not establish physical interrupt
 latency or a safe native time budget.
-
-The pinned full-boot emulator's interactive `call` requires main's idle spin;
-a normal panel `run` may pause elsewhere. Advance normal execution to a verified
-idle boundary before borrowing a call. A retry is safe only for a proved
-pre-entry refusal; never replay a call after an uncertain timeout or CPU stop.
-Do not force PC/registers to manufacture that boundary. Keep such driver behavior
-bound to the tested emulator source and separate from native service scheduling.
-
-A longer source file does not prove a longer preview extent. In the pinned 1.40C
-emulator, replacing a one-second WAV with a 30-second file retained the old trim;
-EDIT SELECT ALL changed the edit selection, not that trim. Verify the actual
-trim and tempo after normal sample preparation. Measure both total service work
-and the longest callback when optimizing bounded background work; fewer calls
-alone can hide a longer interruption. Whole-machine request windows include
-stock/UI/scheduler work and must not be labeled isolated module cost or hardware
-time. Bounded idle retries may advance normal execution only after a verified
-pre-entry refusal; all uncertain execution remains terminal.
 
 Use the base-owned engine boundaries for background work, retiring the previous
 writer before a reader runs. An idle callback may need an explicit queue wake;
@@ -204,26 +179,14 @@ a service releases its final lock, after its local return-state value was chosen
 Beat Slicer's host/ColdFire exchange tests inject those late-publication cases;
 this is not proof of a native loader lifetime, writer coverage or physical budget.
 
-Distinguish source writers from editor visualization work before invalidating
-every preview on every engine command. Beat Slicer's pinned 1.40C full boot
-observes recurring waveform commands invalidating a read-only preview under
-that coarse policy. Isolated execution checks the ordinary Flex renderer's
-source-read footprint across four formats and slots 0/127. That does not qualify
-Static/recorder variants or mutable queued-record lifetimes. Never exempt an
-opcode alone; establish its submode, input lifetime and complete write footprint
-before using a narrower classification in a live base.
+### Menus and loader lifetime
 
-Prove that instrumentation observes the execution path in use. On the pinned
-`ot_emu` revision `8250be0c`, `Machine::setStepHook` is invoked by `Machine::run`,
-not a probe's direct `Machine::step` loop. Use explicit PC checks or memory
-watches there, and require a positive read/write control before interpreting
-zero counts as evidence of absent accesses.
-
-Keep loader ownership and sample ownership separate. The current
-[`modwerk_machine_lock`](../../sdk/runtime/loader/loader.h) preserves loader
-stability while deliberately allowing real-time interrupts. It is not, by
-itself, proof of exclusion against recorder or PCM writers; establish that
-additional boundary before connecting a live sample reader.
+Verify editor gestures against the rendered stock page, not a remembered key
+order. In Beat Slicer's pinned 1.40C full-emulator session, AED → AMP selected
+SLICE and plain YES opened its action menu; LFO selected EDIT. Loading a Flex
+slot also did not assign it to the track until the slot was confirmed. Bind a
+preview to the editor's actual kind/slot, not merely to a successfully loaded
+source. These panel observations still need physical qualification.
 
 Establish menu-pointer lifetime before adding a row: stock menus can retain
 label, callback and selection storage after their opener returns. Keep that
@@ -233,6 +196,15 @@ An appended action must also leave the native remembered selection valid for a
 later stock-only menu. Test both selected-slice and unsliced variants and prepare
 their marker state explicitly. A closed window may be used to cancel a preview,
 but is not evidence that retained table pointers can be reclaimed.
+
+Closing a native menu need not detach its label/callback/selection pointers.
+Beat Slicer's compiled 1.40C menu fixture observes those pointers still retained
+after selection. Keep composed arrays base-owned and refuse reuse until old
+callbacks are quiescent; validate the owner under the loader's stable lock.
+Verify tail-call argument storage too: the observed stock selection routine
+rewrites its first incoming argument word, so a zero-argument C test call can
+corrupt its caller even when all menu assertions pass. These are isolated
+execution findings, not a proved live detach or loader integration service.
 
 A retained no-argument callback must not adopt a newer opening's global token.
 Bind authority to the actual selection path before native close, validate it at
@@ -262,13 +234,6 @@ and must not revive an old activation. Beat Slicer's owner fixture checks this
 against the real loader with synthetic host/ColdFire machine services; no native
 registry hook is installed.
 
-When testing a captured tempo source, change the instrument through its ordinary
-panel path and verify the displayed value, runtime value and unchanged sample
-attributes separately. Beat Slicer's pinned 1.40C stock fixture measures TEMPO /
-LEVEL adjustment at 90, 137 and 120 BPM; a private native preview run compares
-90 BPM PROJECT results with the sample's distinct BPM. These stopped-source
-observations do not establish external sync, pattern tempo or changes in flight.
-
 When a menu stores a short module/generation identity, resolve it through an
 admitted full-owner activation and an explicit action allowlist before dispatch.
 Copy registration records into base-owned storage; do not retain a caller's
@@ -277,6 +242,51 @@ share an action ID, so qualify coexistence and one-owner removal independently.
 Beat Slicer's proposed backend tests this with real-loader host and ColdFire
 execution under synthetic machine services; typed package admission and native
 transition hooks are still not installed.
+
+### Emulator evidence
+
+Do not infer physical pool capacity from a mutable allocation-map endpoint.
+In the 1.40C full-boot fixture, recorder reservations reduce that endpoint; after
+three explicit arena pages are removed, 14,599 physical usable pages coexist
+with a 10,919 map endpoint. Verify the build's actual reservation geometry and
+current map bounds separately. Never inject test code into apparently unused
+stock heap/globals or delay memory; use a real arena reservation.
+
+For emulator memory watches, use the pinned machine implementation's canonical
+address and verify a known store as a positive control. In Octabam `8250be0`,
+1.40C editor busy/dirty writes at `0x46…` were observed by `0x46…` watches;
+substituting `0x86…` observed none. A silent watch is not evidence of no mutation,
+and a generic CLI alias note must not override the actual mapped window.
+
+The pinned full-boot emulator's interactive `call` requires main's idle spin;
+a normal panel `run` may pause elsewhere. Advance normal execution to a verified
+idle boundary before borrowing a call. A retry is safe only for a proved
+pre-entry refusal; never replay a call after an uncertain timeout or CPU stop.
+Do not force PC/registers to manufacture that boundary. Keep such driver behavior
+bound to the tested emulator source and separate from native service scheduling.
+
+A longer source file does not prove a longer preview extent. In the pinned 1.40C
+emulator, replacing a one-second WAV with a 30-second file retained the old trim;
+EDIT SELECT ALL changed the edit selection, not that trim. Verify the actual
+trim and tempo after normal sample preparation. Measure both total service work
+and the longest callback when optimizing bounded background work; fewer calls
+alone can hide a longer interruption. Whole-machine request windows include
+stock/UI/scheduler work and must not be labeled isolated module cost or hardware
+time. Bounded idle retries may advance normal execution only after a verified
+pre-entry refusal; all uncertain execution remains terminal.
+
+Prove that instrumentation observes the execution path in use. On the pinned
+`ot_emu` revision `8250be0c`, `Machine::setStepHook` is invoked by `Machine::run`,
+not a probe's direct `Machine::step` loop. Use explicit PC checks or memory
+watches there, and require a positive read/write control before interpreting
+zero counts as evidence of absent accesses.
+
+When testing a captured tempo source, change the instrument through its ordinary
+panel path and verify the displayed value, runtime value and unchanged sample
+attributes separately. Beat Slicer's pinned 1.40C stock fixture measures TEMPO /
+LEVEL adjustment at 90, 137 and 120 BPM; a private native preview run compares
+90 BPM PROJECT results with the sample's distinct BPM. These stopped-source
+observations do not establish external sync, pattern tempo or changes in flight.
 
 ## Integrate
 
