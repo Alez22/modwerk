@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.45-experimental",
+  "version": "0.1.46-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Exercise the private engine service with two identical wake payloads from distinct pointers while an owned wake is pending; only its exact record is consumed. Blocked WAITING work does not self-poll, cancellation survives unblocking, and fixed-owner retirement refuses new requests without further PCM reads. Seven full plans, recording guards and preservation checks pass. Native loader reclamation, production source/UI/USB integration and hardware remain unqualified.",
+    "summary": "Combine immutable resident menus and UI/engine preview scheduling with recorder/preparation exclusion. Both stock layouts preserve normal recording dismissal, cancel without further PCM reads, remain closed after Stop and recover through a fresh normal editor opening. A separate run without private waveform classification retires the preview. No production API, package or hardware qualification.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

@@ -155,3 +155,14 @@ It records the actual job pointer, ownership decision and pending flag under
 the same native lock. The test never frees callback or queued-record storage;
 it is not production loader reclamation. Unknown/ordinary messages remain
 writers even when their payload matches the service wake.
+
+## Resident UI composition (0.1.46)
+
+`recorder_resident_native.py` and `boot_resident_native.py --scenario recording`
+combine the three native observers with immutable resident menus and copied
+UI/engine intents. In the named private 1.40C MKII emulator fixture, TRACK + REC1
+closes the popup and returns to playback. Cancellation follows that stock
+transition; Stop cannot resurrect it. Fresh work requires a new normal editor
+opening. Both menu layouts and the conservative waveform-refusal case are
+recorded separately. Fixed menu storage and private positive-run waveform
+classification remain research limits, not production owner admission.

@@ -33,7 +33,7 @@ def main():
         p.add_argument('--' + name, type=Path, required=True)
     p.add_argument('--card-sha256', required=True)
     p.add_argument('--expected-frames', type=int, choices=(44100,1323000), default=44100)
-    p.add_argument('--scenario', choices=('controls', 'cancel', 'owner', 'conservative'), default='controls')
+    p.add_argument('--scenario', choices=('controls', 'cancel', 'owner', 'conservative', 'recording'), default='controls')
     p.add_argument('--selected', action='store_true')
     p.add_argument('--project-bpm',type=int,choices=range(30,301))
     p.add_argument('--allow-private-waveform-reads', action='store_true', help='Fixed-input private classification only; mutable queued-record lifetime is not qualified')
@@ -54,6 +54,7 @@ def main():
     if digest(a.arena_tool) != ARENA_SHA:
         p.error('Arena helper differs from reviewed upstream source.')
     native = json.loads((a.native / 'source-boot.json').read_text())
+    if a.scenario=='recording' and not native.get('recorderComposition'):p.error('Compile the recorder/resident composition first.')
     assert digest(repo / 'sdk/runtime/logging/stock-guards.json') == native['hookGuardSha256']
     binary, symbols_path = a.native / 'source-boot.bin', a.native / 'source-boot.symbols'
     if native['textBase'] != 0x46019df0 or digest(binary) != native['binarySha256'] or digest(symbols_path) != native['symbolsSha256']:
@@ -125,14 +126,29 @@ def main():
             site = native['hookSites'][name]
             import hashlib
             assert hashlib.sha256(port.peek(site['address'], 6)).hexdigest() == site['sha256']
-            poke(site['address'], bytes.fromhex('4ef9') + symbols['bs_engine_' + name + '_entry'].to_bytes(4, 'big'))
+            poke(site['address'], bytes.fromhex('4ef9') + symbols[('bs_recorder_engine_' if native.get('recorderComposition') else 'bs_engine_') + name + '_entry'].to_bytes(4, 'big'))
+        if native.get('recorderComposition'):
+            for group,prefix in (('recorderHookSites','bs_recorder_'),('preparationHookSites','bs_recorder_prepare_')):
+                for name,site in native[group].items():
+                    assert hashlib.sha256(port.peek(site['address'],site['length'])).hexdigest()==site['sha256']
+                    patch=bytes.fromhex('4ef9')+symbols[prefix+name+'_entry'].to_bytes(4,'big')+bytes.fromhex('4e71')
+                    assert len(patch)==site['length'];poke(site['address'],patch)
         guard_at, boundary_at = symbols['bs_worker_test_guard'], symbols['bs_engine_test_boundary']
         assert struct.unpack('>12I', port.peek(guard_at, 48))[2] == 0, 'Bootstrap admitted readers'
         port.command(f'watchmem {guard_at:#x} 48')
         port.command(f'watchmem {boundary_at+4:#x} 12')
         def native_state():
-            g = struct.unpack('>12I', port.peek(guard_at, 48))
-            b = struct.unpack('>4I', port.peek(boundary_at, 16))
+            for _ in range(200):
+                g = struct.unpack('>12I', port.peek(guard_at, 48))
+                b = struct.unpack('>4I', port.peek(boundary_at, 16))
+                if native.get('recorderComposition'):
+                    recorder=struct.unpack('>19I',port.peek(symbols['bs_recorder_test_boundary'],76))
+                    assert recorder[0]==guard_at and not recorder[2]
+                    if recorder[1] or b[1] or any(g[4:]):port.command('run 0.1');continue
+                    assert not any(recorder[3:])
+                    assert int.from_bytes(port.peek(symbols['bs_recorder_test_entries'],4),'big')==int.from_bytes(port.peek(symbols['bs_recorder_test_exits'],4),'big')
+                break
+            else:raise AssertionError('Native observers did not become quiescent')
             assert g[2:4] == (1, 0) and not any(g[4:]) and b[1:] == (0, 1, 0), 'Observer did not retire before queue wait'
             assert g[0] > 1 and b[0] == guard_at
             for at in range(0, len(data), 4096):
@@ -280,9 +296,24 @@ def main():
                      symbols['bs_boot_menu_calls']: 'callback', symbols['bs_async_engine_calls']: 'engine'}
         for address in addresses: port.command(f'watchmem {address:#x} 4')
         writes(port)
+        recording_trace=None
         def collect_tasks():
             for row in writes(port):
                 if row[2] in addresses: tasks[addresses[row[2]]].add(row[5])
+                if recording_trace is not None:
+                    _,pc,address,value,size,_=row
+                    if guard_at+16<=address<guard_at+48:
+                        assert size==4 and (address-guard_at)%4==0
+                        recording_trace['tickets'][(address-guard_at-16)//4]=value
+                    if address==symbols['bs_recorder_test_boundary']+16:recording_trace['recorderTicket']=value
+                    if address==boundary_at+4:recording_trace['engineTicket']=value
+                    if recording_trace['pcm']<=address<recording_trace['pcm']+64:
+                        assert recording_trace['recorderTicket'] and recording_trace['recorderTicket'] in recording_trace['tickets']
+                        recording_trace['pcmPrefixStores']+=1
+                    if address==recording_trace['tail']:
+                        assert size==2 and value==0 and pc==0x40095afc
+                        assert recording_trace['engineTicket'] and recording_trace['engineTicket'] in recording_trace['tickets']
+                        recording_trace['mapTailStores']+=1
         stock_count = 9 if a.selected else 6
         stock_labels = 0x400cebc8 if a.selected else 0x400ceb8c
         stock_callbacks = MENUS[stock_labels][1]
@@ -463,6 +494,59 @@ def main():
             select(3, 4); assert service() == 1
             select(4, 5); assert service() == 0
             terminal = 'explicit-back'
+        elif a.scenario == 'recording':
+            from boot_recorder import snapshot
+            request_preview();finish();native_state();collect_tasks()
+            queries=word('bs_boot_queries');revision=word_at(guard_at)
+            assert word('bs_grid_ui_state')==4
+            before_preparation=word('bs_recorder_prepare_entries')
+            before_cancelled=word('bs_grid_ui_cancelled');before_epoch=word('bs_grid_ui_epoch')
+            initial=snapshot(port,0);assert initial['states']==[0,0]
+            row=0x46c2e9c0+2*2*14602;page=int.from_bytes(port.peek(row,2),'big')
+            assert 0<page<=pool_count
+            recording_trace={'tickets':[0]*8,'recorderTicket':0,'engineTicket':0,
+                'pcm':pool_base+page*6144,'tail':row+2*14601,'pcmPrefixStores':0,'mapTailStores':0}
+            port.command(f"watchmem {recording_trace['pcm']:#x} 64")
+            port.command(f"watchmem {recording_trace['tail']:#x} 2")
+            port.command(f"watchmem {symbols['bs_recorder_test_boundary']+16:#x} 4")
+            # Ordinary simultaneous TRACK+REC1 chord; no forced native state.
+            port.command('key 0x22 1');port.command('key 0x25 8');port.command('run 60')
+            port.command('key 0x25 0');port.command('key 0x22 0');port.command('run 200')
+            started=snapshot(port,0)
+            assert started['states'][started['bank']]==2 and started['published']>0
+            assert word('bs_recorder_prepare_entries')==before_preparation+1
+            assert word_at(guard_at)>revision
+            assert service()==0 and word('bs_boot_queries')==queries
+            assert word('bs_grid_ui_cancelled')==before_cancelled+1 and not word('bs_async_ui_request')
+            assert not word_at(0x460e5e30),'Stock TRACK+REC dismissal was reopened'
+            capture('recording-dismissed.private.bin')
+            port.command('key 0x24 128');port.command('run 60')
+            port.command('key 0x24 0');port.command('run 500')
+            stopped=snapshot(port,0);assert stopped['states'][stopped['bank']]==0 and stopped['queueCounts']==[0,0]
+            native_state();collect_tasks()
+            assert not any(recording_trace['tickets']) and not recording_trace['recorderTicket'] and not recording_trace['engineTicket']
+            assert recording_trace['pcmPrefixStores']>0 and recording_trace['mapTailStores']>0
+            assert service()==0 and word('bs_boot_queries')==queries
+            assert word('bs_async_engine_state')==4 and not word('bs_async_ui_request')
+            recording_result={'initial':initial,'started':started,'stopped':stopped,
+                'readyRetiredWithoutFurtherPcmRead':True,'stockDismissalPreserved':True,
+                'cancelledRequestDoesNotReviveAfterStop':True,
+                'pcmPrefixStores':recording_trace['pcmPrefixStores'],'mapTailStores':recording_trace['mapTailStores'],
+                'ownNativeTicketsCoverWatchedWrites':True}
+            recording_trace=None
+            # Stock TRACK+REC returns to the main playback page. Re-enter AED
+            # and SLICE through their normal controls before reopening the menu.
+            tap(port,'aed')
+            port.command('key 0x24 8');port.command('run 60')
+            port.command('key 0x24 0');port.command('run 200')
+            tap(port,'yes');check_reopening()
+            reject_late('after-recording-resident-root')
+            select(stock_count,stock_count+1)
+            assert service()==1 and word('bs_grid_ui_epoch')>before_epoch
+            request_preview();finish();capture('recording-fresh.private.bin')
+            select(3,4);assert service()==1
+            select(4,5);assert service()==0
+            terminal='stock-recording-dismissal-stop-reopen-fresh-preview'
         elif a.scenario == 'conservative':
             measurement_start = counters()
             ordinary = word('bs_ui_ordinary_jobs')
@@ -562,7 +646,7 @@ def main():
         assert len(tasks['tick']) == 1 and tasks['tick'] == tasks['callback']
         assert len(tasks['engine']) == 1 and not (tasks['engine'] & tasks['tick'])
         assert tasks['query'] <= tasks['engine']
-        if a.scenario in ('controls','conservative'): assert tasks['query'] == tasks['engine']
+        if a.scenario in ('controls','conservative','recording'): assert tasks['query'] == tasks['engine']
         assert word('bs_ui_tick_max_steps') == 1
         assert word('bs_async_engine_max_steps') <= 1 and not word('bs_ui_tick_reentry')
         assert port.peek(0x40084854, 6) == original_call
@@ -583,7 +667,7 @@ def main():
         ffi.PlannerTests.tearDownClass()
     assert digest(card) == a.card_sha256 and digest(a.card) == a.card_sha256
     report = {'scope': 'private copied UI intents/results with engine-owned previews; existing tick/engine hooks, actual stock menus and synthetic source/owner admission',
-              'sourceSha256': {n: digest(ROOT / n) for n in ('boot_resident_native.py', 'stock_tempo.py', 'boot_source_native.py', 'boot_worker_native.py', 'boot_slices.py', 'boot_writer.py', 'boot_static.py', 'boot_formats.py', 'boot_observe.py', 'inspect_stock.py', 'test_planner.py', *native['sourceSha256'].keys())},
+              'sourceSha256': {n: digest(ROOT / n) for n in ('boot_resident_native.py', 'stock_tempo.py', 'boot_source_native.py', 'boot_worker_native.py', 'boot_slices.py', 'boot_writer.py', 'boot_static.py', 'boot_formats.py', 'boot_observe.py', 'inspect_stock.py', 'test_planner.py','boot_recorder.py', *native['sourceSha256'].keys())},
               'mainSha256': STOCK_MAIN_SHA256, 'reservedMainSha256': digest(patched_main),
               'nativeReceiptSha256': digest(a.native / 'source-boot.json'), 'nativeBinarySha256': digest(binary),
               'arenaToolSha256': ARENA_SHA, 'reservedPages': 8, 'nativeAddress': native['textBase'],
@@ -614,6 +698,10 @@ def main():
               'audio': 'not qualified', 'menuLifetime': 'repeated fixed-owner openings with immutable tables pinned forever and non-resetting UI epochs; retired owner falls back to stock; loader removal/reclamation unqualified',
               'nativeOwnership': 'test-owned identities and full masking, fixed stopped-source command inputs and partial coverage; mutable queued-record lifetimes and live source admission unqualified',
               'scheduling': 'private UI task copies intents/results once per tick; separate engine task owns all source queries and at most one work call with at most eight private reader transitions and one live PCM copy, plus optional begin/setup and result validation. Immutable wakes coalesce; no driver service calls or independent clock. Production base chain and hardware time unqualified'}
+    if native.get('recorderComposition'):
+        report.update({'recorderComposition':True,'sdkRevision':native['sdkRevision'],
+            'sdkDependencySha256':native['sdkDependencySha256'],'codegenGuardSha256':native['codegenGuardSha256']})
+    if a.scenario=='recording':report['recording']=recording_result
     (out / 'async-ui-boot.json').write_text(json.dumps(report, indent=2) + '\n')
 
 

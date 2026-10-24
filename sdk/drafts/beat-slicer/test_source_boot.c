@@ -10,7 +10,11 @@ static struct bs_flex_binding pcm;
 static struct bs_source_lifetime lifetime;
 static struct bs_flex_source source;
 struct bs_preview_session bs_boot_session;
+/* The resident async UI has its own copied result. Omit this unused direct
+ * result path only in that private composition; direct preview fixtures keep it. */
+#ifndef BS_BOOT_NO_DIRECT_RESULT
 struct bs_plan bs_boot_plan;
+#endif
 uint32_t bs_boot_queries, bs_boot_locks, bs_boot_unlocks;
 static uint32_t saved_sr;
 static int lock(void *context) {
@@ -65,4 +69,6 @@ uint32_t bs_boot_begin(uint32_t tempo, uint32_t snap, uint32_t beats) {
     return bs_session_begin(&bs_boot_session, &options);
 }
 uint32_t bs_boot_step(void) { return bs_session_step(&bs_boot_session); }
+#ifndef BS_BOOT_NO_DIRECT_RESULT
 uint32_t bs_boot_result(void) { return (uint32_t)bs_session_result(&bs_boot_session, &bs_boot_plan); }
+#endif

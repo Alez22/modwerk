@@ -179,6 +179,12 @@ that the operation must preserve, and verify that setup difference explicitly.
 
 ### Background work
 
+Cancellation must follow the stock screen transition. In Beat Slicer's private
+1.40C MKII resident-menu emulator fixture, TRACK + REC1 closes the dialog and
+returns to playback. Keep it closed through Stop; require a fresh editor
+opening for new work. Do not force a stale-state dialog over the stock page.
+This observation is emulator evidence, not a hardware behavior claim.
+
 Test wake identity with a foreign record queued before an owned record while
 that owned wake is pending. Identical payload bytes and a pending flag do not
 establish ownership. Preserve the actual queue order in the evidence; separately

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.45-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.46-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -197,3 +197,10 @@ runtime-owner host test includes the repository's unchanged GPL loader fixture;
 its licence and attribution remain in the original files, and the combined test
 binary is not published. No Elektron firmware, extracted routines/tables,
 factory samples, memory dumps or built firmware images are committed.
+
+The combined private resident-menu fixture now follows stock TRACK + REC1
+screen dismissal in both slice-menu layouts. It cancels the preview before
+another PCM read, remains closed through Stop and recovers after a normal
+AED → SLICE → Beat Grid opening. Positive UI runs retain the explicitly private
+waveform-read classification; a separate conservative run refuses stale output.
+This is emulator integration, not an installable module or physical result.

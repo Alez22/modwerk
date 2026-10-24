@@ -53,3 +53,5 @@ Document whole-call preparation exclusion and saved caller-SR observations. The 
 Document the pinned emulator borrowed-call argument cleanup and the distinction between actual native arguments and adjacent watched stack words. The shared-guard Flex preview run checks recording invalidation, normal editor restoration and unchanged source/card; production scheduling remains unqualified.
 
 Document the stronger wake-identity regression: foreign and owned records with identical payloads queued together while ownership is pending. Native fixed-storage checks also cover nonpolling WAITING cancellation and owner retirement, without implying loader reclamation or USB qualification.
+
+Document stock recording dismissal in the named private resident-menu emulator fixture: cancel work when stock closes the popup, preserve the playback screen, and require a fresh editor opening after Stop. Both menu layouts and conservative waveform refusal are tested; this is not device evidence.

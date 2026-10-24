@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.46-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Compose the private resident menu and UI/engine preview with shared recorder and preparation exclusion in both stock slice-menu layouts.",
+      "Preserve stock recording dismissal: cancel the preview without another PCM read, stay closed after Stop and accept a fresh editor opening.",
+      "Keep ordinary waveform work conservative when private read classification is disabled; stale output remains unavailable.",
+      "Fit the combined fixture in its existing eight-page reservation by omitting its unused direct-result copy; normal fixtures remain unchanged.",
+      "Known issue: immutable menu storage, private waveform classification and incomplete writer/cache coverage do not qualify a production USB module or device use."
+    ]
+  },
+  {
     "version": "0.1.45-experimental",
     "date": "2026-10-24",
     "changes": [

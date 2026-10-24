@@ -9,7 +9,7 @@ experiments from the shared services and qualification still required.
 | --- | --- | --- |
 | Planner and preservation | Host and ColdFire plans, complete records, conservative ordinal preservation and internal rollback contracts | Native publication and owner review of the preservation restriction |
 | Flex preview | Private stock-loaded sources, four PCM formats, long-source work, copied UI/engine results and recorder-driven invalidation/recovery | Production admission, complete writer coverage and measured physical lock/cache behavior |
-| Menu workflow | Both stock layouts, repeated openings, stale callback refusal, stock grid/clear transitions and a bounded typed-descriptor prototype | Reviewed base event/table, production package admission and reference retirement |
+| Menu workflow | Both stock layouts, repeated openings, recorder-driven dismissal/cancellation, stale callback refusal, stock grid/clear transitions and a bounded typed-descriptor prototype | Reviewed base event/table, production package admission and reference retirement |
 | Loader owner | Real-loader host/ColdFire transitions and upload-controller set rollback with owner-backed dispatch | Production transition hooks and complete module-set readiness |
 | Static source | Stock load/clear and handle-lifetime observations | A bounded leased streaming reader |
 | Apply and playback | Portable transaction and isolated stock refresh fixtures | Atomic native commit/rollback and qualified audible boundary behavior |

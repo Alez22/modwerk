@@ -2557,3 +2557,37 @@ Fixed lifetimes, complete writer/cache ownership, production API/UI/USB lifecycl
 physical latency, audio and device persistence remain unqualified.
 
 Two lifecycle reports bind source commit `2eb5b64406fb6368459bd8c4d7dd0cb56b3ab0d9`. Current-upstream full validation passed in 138.34 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+## Resident menus with recorder exclusion (0.1.46)
+
+`recorder_resident_native.py` links the existing immutable menu/selection/UI
+fixtures with the complete preparation and recorder scopes. Engine hooks use
+the same SR-preserving 64-byte entry frame and extract the original queued
+record from saved A2. All three observers share one guard. No production event,
+source lease or module package is assigned by this test.
+
+Both six- and nine-row layouts complete an oracle preview, then use the normal
+TRACK + REC1 chord. Stock closes the popup and returns to the playback page;
+the preview cancels without another PCM read. Stop does not revive the request
+or reopen the popup. Normal AED/SLICE navigation and a fresh Beat Grid opening
+complete another whole-plan oracle comparison. Watched recorder PCM-prefix
+stores and deferred map-tail stores carry their respective native writer
+tickets. The prepared source/settings, code, reservation canaries and unsaved
+card stay unchanged. Existing one-use selection, late-callback refusal,
+stock-grid popup/cancel, task identity and main-stack assertions remain enabled.
+The recording scenario does not exercise WAITING; its legacy report field
+`waitingOneServicePerTick` must not be read as evidence that WAITING was reached.
+Per-tick and per-engine work maxima are reported separately.
+
+Positive UI runs use the older explicitly private fixed-input waveform-read
+classification. They do not establish mutable queued-record lifetime. A
+separate run with that exception disabled treats waveform work as a writer,
+shows PREVIEW UNAVAILABLE / SOURCE CHANGED and performs no further PCM reads.
+
+The combined fixture occupies 49,000 bytes through BSS, leaving 104 bytes after
+the 32-byte trailing canary in the same eight-page reservation. This excludes
+stack. Its async-only build omits the unused direct-result buffer/function;
+normal direct-source and async intermediate objects were byte-identical to
+those before the optional macro. This tight private fixture is not a production
+memory or compatibility budget. Complete writer/cache ownership, replaceable
+menu lifetime, physical timing, audio, Apply and source-built USB remain open.
