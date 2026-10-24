@@ -188,8 +188,11 @@ do not assume it runs periodically. Coalesce wakes using stable base-owned
 identity, not an opcode exemption that would admit unrelated commands. A pending
 reader must wait for readiness or cancellation instead of immediately waking
 itself forever. Beat Slicer's private 1.40C engine fixture exercises this with
-at most eight explicit steps plus optional begin/setup per event; that is not a
-physical-time budget or qualification of the production USB/module-set chain.
+one bounded work call per event: at most eight private reader transitions and
+one PCM copy, plus optional begin/setup and publication. Revalidation precedes
+each live copy. Earlier fixtures used eight single-transition steps; name the
+counter unit when comparing them. Neither is a physical-time budget or
+qualification of the production USB/module-set chain.
 
 Keep one background owner for a mutable preview session. UI callbacks publish
 copied, sequence-tagged intents and consume copied results; they must not inspect

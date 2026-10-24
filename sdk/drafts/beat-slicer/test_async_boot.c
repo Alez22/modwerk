@@ -67,7 +67,7 @@ void bs_async_engine_idle(void) {
     bs_engine_test_idle();
     if(!bs_async_initialized)return;
     ++bs_async_engine_calls;
-    bs_async_engine_state=bs_async_service(&bs_async_fixture,8);
+    bs_async_engine_state=bs_async_service(&bs_async_fixture,1);
     bs_async_engine_steps+=bs_async_fixture.last_steps;
     bs_async_engine_begins+=bs_async_fixture.last_begin;
     if(bs_async_fixture.last_steps>bs_async_engine_max_steps)bs_async_engine_max_steps=bs_async_fixture.last_steps;

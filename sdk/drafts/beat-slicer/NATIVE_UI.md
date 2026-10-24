@@ -90,8 +90,9 @@ separate engine consumer. `test_async_ui.c` submits options and cancellation
 through `preview_async.c`, then reads a request-tagged copied result. It never
 steps, cancels or reads the engine's session/reader directly. The tick performs
 one UI service call. Source capture, PCM queries and preview work belong to the
-engine task, with at most eight explicit steps plus optional begin/setup and
-result validation/publication per callback.
+engine task, with at most one work call per callback: up to eight private reader
+transitions and one PCM copy, plus optional begin/setup and result
+validation/publication. The copy reacquires and revalidates source ownership.
 
 Leaving a result also cancels its outstanding request, even though the UI is no
 longer RUNNING. Waiting cancellation, owner retirement and option replacement

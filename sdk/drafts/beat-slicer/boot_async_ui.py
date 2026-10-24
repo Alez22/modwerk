@@ -284,7 +284,7 @@ def main():
             return {'machineInstructions': int(fields['instructions']), 'emulatedMs': float(fields['ms']),
                     **{name: word(symbol) for name,symbol in (
                         ('sourceQueries','bs_boot_queries'),('sourceLocks','bs_boot_locks'),
-                        ('engineCalls','bs_async_engine_calls'),('engineSteps','bs_async_engine_steps'),
+                        ('engineCalls','bs_async_engine_calls'),('engineWorkCalls','bs_async_engine_steps'),
                         ('engineBegins','bs_async_engine_begins'),('postedWakes','bs_async_posted'),
                         ('consumedWakes','bs_async_consumed'))}}
         def request_preview():
@@ -435,7 +435,7 @@ def main():
         assert tasks['query'] <= tasks['engine']
         if a.scenario in ('controls','conservative'): assert tasks['query'] == tasks['engine']
         assert word('bs_ui_tick_max_steps') == 1
-        assert word('bs_async_engine_max_steps') <= 8 and not word('bs_ui_tick_reentry')
+        assert word('bs_async_engine_max_steps') <= 1 and not word('bs_ui_tick_reentry')
         assert port.peek(0x40084854, 6) == original_call
         assert call('bs_ui_main_sp') == main_sp, 'Driver calls changed main stack'
         assert not a.allow_private_waveform_reads or word('bs_ui_readonly_jobs') > 0
@@ -462,6 +462,8 @@ def main():
               'borrowedCallPreEntryWaitMs': wait_ms, 'borrowedCallMaximumAttempts': 200,
               'longSourcePreparation': 'normal stock slot clear/browser reload before preview admission' if a.expected_frames != 44100 else 'retained saved source',
               'measurementScope': 'Request selection, panel holds/releases and polling through first observed READY; whole-machine executed instructions and emulated elapsed time include stock work, UI and scheduler. Not isolated module cost, cycles, audible headroom or hardware time.',
+              'engineWorkBudget': 1, 'privateStepsPerWork': 8,
+              'engineStepCounterUnit': 'work calls, not individual private reader transitions',
               'scenario': a.scenario, 'stockRows': stock_count, 'terminal': terminal, 'results': results, 'uiCompletedPreviews': ui_completed,
               'tickCounters': counters, 'waitingOneServicePerTick': a.scenario != 'conservative',
               'engineJobs': jobs, 'engineCounters': engine, 'wakeCounters': wakes,
@@ -473,7 +475,7 @@ def main():
               'sourceAndSettingsUnchanged': True, 'noApplyAction': True, 'cardUnchanged': True, 'exitCode': 0, 'hardware': 'not tested',
               'audio': 'not qualified', 'menuLifetime': 'one admitted menu per boot; arrays pinned forever, subsequent opens stock-only; native detach/removal unqualified',
               'nativeOwnership': 'test-owned identities and full masking, fixed stopped-source command inputs and partial coverage; mutable queued-record lifetimes and live source admission unqualified',
-              'scheduling': 'private UI task copies intents/results once per tick; separate engine task owns all source queries and at most eight explicit steps plus optional begin/setup and result validation. Immutable wakes coalesce; no driver service calls or independent clock. Production base chain and hardware time unqualified'}
+              'scheduling': 'private UI task copies intents/results once per tick; separate engine task owns all source queries and at most one work call with at most eight private reader transitions and one live PCM copy, plus optional begin/setup and result validation. Immutable wakes coalesce; no driver service calls or independent clock. Production base chain and hardware time unqualified'}
     (out / 'async-ui-boot.json').write_text(json.dumps(report, indent=2) + '\n')
 
 

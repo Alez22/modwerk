@@ -19,8 +19,12 @@ The backend proxy rechecks the active/desired sequence under ownership before
 both capture and copy, closing the gap between unlocked planning and reacquiring
 for a live read. Complete source writer coverage remains independently required.
 
-The single engine consumer performs at most eight explicit steps per invocation,
-plus optional begin/setup and result validation/publication. A pending begin
+The single engine consumer accepts a budget of one to eight work calls per
+invocation, plus optional begin/setup and result validation/publication. Each
+work call performs at most eight private reader transitions and at most one live
+PCM copy, with revalidation before that copy. The current native fixture uses
+one work call per callback, selected by measuring both total work and the longest
+callback. `last_steps` counts work calls, not private reader transitions. A pending begin
 returns without an immediate retry. WAITING needs an external readiness or intent
 event; this component does not post messages or implement its own clock. Native
 integration must preserve the existing engine event order and coalesce wakes

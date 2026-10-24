@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.29-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Batch bounded private reader work between validations, stopping at the first live-read request and revalidating before any PCM copy.",
+      "Keep the original one-step API and restrict the private engine fixture to one batch of at most eight private transitions and one copy per callback, plus setup/publication.",
+      "Check complete plan equality, metadata changes and cancellation at unlocked and late-publication boundaries with host sanitizers and compiled ColdFire tests.",
+      "Measured synthetic previews use fewer total service instructions and a lower worst callback at the selected budget; native run outcomes are recorded separately.",
+      "Known issue: physical timing, live source admission, removal, Apply/playback and production browser/USB lifecycle remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.28-experimental",
     "date": "2026-10-24",
     "changes": [

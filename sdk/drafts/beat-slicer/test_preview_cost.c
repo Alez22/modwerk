@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: MIT */
 /* Original synthetic cost fixture. No stock layout, scheduler, cache or timing. */
 #include "preview_async.h"
+#ifndef BS_COST_BUDGET
+#define BS_COST_BUDGET 2
+#endif
+#if BS_COST_BUDGET < 1 || BS_COST_BUDGET > 8
+#error Invalid benchmark service budget
+#endif
 #define CHECK(x) do { if (!(x)) return __LINE__; } while (0)
 uint32_t bs_cost_input[4]; /* frames, snap, beats, tempo source */
 uint32_t bs_cost_output[8]; /* engine calls/steps/begins, captures/copies/locks, markers, state */
@@ -79,10 +85,10 @@ int bs_cost_run(void) {
     uint32_t request=bs_async_request(&p->async,1,2,&options);CHECK(request);
     uint32_t state=BS_SESSION_RUNNING;
     for(uint32_t i=0;i<100000 && state==BS_SESSION_RUNNING;++i){
-        state=bs_async_service(&p->async,8);
+        state=bs_async_service(&p->async,BS_COST_BUDGET);
         ++bs_cost_output[0];bs_cost_output[1]+=p->async.last_steps;
         bs_cost_output[2]+=p->async.last_begin;
-        CHECK(p->async.last_steps<=8);
+        CHECK(p->async.last_steps<=BS_COST_BUDGET);
     }
     CHECK(state==BS_SESSION_READY);
     struct bs_async_result actual;

@@ -1820,3 +1820,94 @@ The long-source and cost reports bind source
 import checks in 132.07 seconds. The required origin/main invocation retains
 the inherited CHANGELOG.md history failure. Evidence-only follow-ups use the
 lightweight checks.
+
+
+## Bounded private work batches (0.1.29)
+
+`bs_session_work` batches only session-owned reader transitions and stops at its
+first live-read request. A new acquisition and metadata/guard check precede the
+single permitted PCM copy, followed by another validation and unlocked decoding.
+The original `bs_session_step` remains a budget-one wrapper. The async exchange
+uses eight private transitions per work call; its native fixture selects one
+work call per engine callback, plus optional begin/setup and publication.
+
+Host ASan/UBSan and compiled ColdFire tests pass 192 complete plans and 132
+metadata invalidations across private budgets 1, 2, 4, 8, 16 and 32. Extra cases
+check at most one copy/three captures/two source-lock sections per work call,
+warm owned-cache transitions, writers becoming runnable at unlock, pending
+capture, refused lock acquisition, unchanged invalid-budget state and identical
+plans/copy counts with fewer captures. These are serialized models. The session
+object adds no storage; its compiled code is 2,918 bytes with no global data/BSS.
+Its largest local compiler stack estimate is 164 bytes, excluding callees and
+the full chain.
+
+The copied exchange still passes 32 complete plans and 72 modeled interleavings.
+Batching can complete before a later injection target, so the tests also drive
+normal READY revalidation events to reach those targets. Assertions check the
+accepted request's published state/result, cancellation with no later copy, and
+the independent wake after late replacement; they do not mistake a previously
+selected local return value for the current copied UI state.
+
+All sixteen synthetic cost cases retain complete planner equality and exactly
+the baseline's PCM-copy, marker and private-reader counts. No planner/decoder
+entry is observed under source ownership. The selected callback budget is one:
+
+| 30-second, one-beat case | Baseline service instructions | Batched service instructions | Baseline maximum call | Batched maximum call |
+| --- | ---: | ---: | ---: | ---: |
+| Sample smooth, 120.25 BPM | 22,924,183 | 9,591,985 | 19,160 | 10,663 |
+| Project smooth, 120 BPM | 22,540,198 | 9,430,825 | 19,437 | 10,631 |
+| Sample exact, 120.25 BPM | 704,194 | 566,113 | 19,145 | 15,209 |
+
+Across all sixteen cases the maximum callback falls from 19,437 to 15,209
+executed instructions. Sample-smooth source captures fall from 33,439 to 5,171;
+423 copies and all 33,015 private reader calls remain. The selected budget uses
+4,323 service calls, so fewer service calls are not the claimed improvement.
+Locked instructions fall from 13,900,774 to 2,837,223; the maximum locked section
+is 1,968 versus 1,969. This synthetic scalar-only metadata provider excludes
+stock capture cost and cache behavior. These are instructions, not cycles,
+physical latency, audible headroom or native timing qualification.
+
+Final source-bound probes also record budgets two and eight for the tradeoff.
+Budget two reduces the long smooth total to 9,239,745 instructions, but its worst
+callback across the matrix grows to 25,889. Budget eight lowers that smooth total
+to 8,975,522 with a 65,469-instruction smooth callback. Neither is the selected
+native default. Reproduce the accepted cost run with `preview_cost_native.py
+--budget 1`; the report records the budget and private-transition unit explicitly.
+
+The new combined native image has 23,528 text bytes and 10,212 BSS bytes, including
+the retained manual reference session; it fits the same eight-page reservation.
+The async state remains 4,244 bytes. Execution outcomes below remain separate
+from compile success and from hardware qualification.
+
+
+The optimized 30-second full boot passes all 21 oracle plans, preserving PCM,
+settings, cards, code/reservation canaries, receive call and main stack. Its
+sample-smooth one-beat request window records 58,355,127 whole-machine
+instructions and 520.282 emulated ms, versus the baseline's 115,158,006 and
+840.282. Source queries stay 444; source-lock acquisitions fall from 43,254 to
+14,082. The corresponding project request records 32,329,686 instructions and
+280.067 emulated ms, versus 87,275,438 and 580.264, with 417 source queries in
+both runs. These windows include panel/polling/UI/stock/scheduler work and do
+not establish isolated module cost or physical timing.
+
+The long run has 1,321 UI calls, 11,733 engine callbacks, 11,694 bounded work
+calls, 22 begins and 11,712 posted/consumed owned wakes. At most one work call
+occurs per callback; the work-call counter is not comparable to the baseline's
+individual-step counter without naming that change. The LCD still shows the
+correct 64-slice, 128-BPM preview and fade warning. No Apply is exercised.
+
+Current-upstream source validation passes 2,529 app tests, 37 SDK tests (one
+skipped), lint, types, bundle and catalogue/import checks in 140.31 seconds.
+The required origin/main invocation retains the inherited CHANGELOG.md history
+failure. Documentation/evidence follow-ups use the lightweight checks.
+
+
+The optimized short-source matrix passes both six-row and nine-row stock menus:
+42 complete oracle previews, cancellation while waiting and owner retirement
+while waiting. Across all six runs, 2,942 UI calls, 591 engine callbacks,
+486 bounded work calls, 48 begins and 541 posted/consumed wakes
+complete with no pending wake. Source queries stay in the separate engine task;
+UI/selection task identity, code/arena canaries, receive call and main stack stay
+intact. PCM, complete settings and cards remain unchanged. The retained private
+waveform classification, synthetic owner/source admission and pinned storage
+remain limitations; no Apply, loader removal or hardware behavior is qualified.

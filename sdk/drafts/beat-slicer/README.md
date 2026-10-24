@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.28-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.29-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -234,3 +234,9 @@ The long-source preview fixture also exercises a full 30-second trim and the
 64-slice limit. Compiled cost probes distinguish total service instructions,
 maximum callback instructions and source-lock sections. See TESTING.md for the
 baseline; none of these measurements establishes physical latency or headroom.
+
+The engine exchange now batches up to eight private reader transitions after one
+validation, stopping at the first live-read request. It revalidates before that
+copy. The private native fixture uses one such work call per engine callback,
+plus optional begin/setup and publication; the original one-step API is retained.
+The selected budget reduces the synthetic worst callback as well as total work.

@@ -2,6 +2,7 @@
 #ifndef BEAT_SLICER_PREVIEW_ASYNC_H
 #define BEAT_SLICER_PREVIEW_ASYNC_H
 #include "preview_session.h"
+#define BS_ASYNC_PRIVATE_STEPS 8u
 /* Proposed fixed-storage UI/engine exchange. It does not install a base service,
  * pin native source memory, authorize Apply or prove loader retirement.
  * One engine consumer owns the session. All other callers use only this API,
@@ -38,8 +39,10 @@ uint32_t bs_async_cancel(struct bs_preview_async *, uint32_t owner, uint32_t gen
 /* Permanently stop this owner. Success invalidates publication and gates reads;
  * it does not free storage or establish callback/queue retirement. */
 int bs_async_revoke(struct bs_preview_async *, uint32_t owner, uint32_t generation);
-/* Engine only. At most budget explicit steps (1..8), plus optional begin/setup
- * and result validation/publication. WAITING does not spin. Scheduler wake and
+/* Engine only. At most budget work calls (1..8), each with at most
+ * BS_ASYNC_PRIVATE_STEPS private reader transitions and one live copy, plus
+ * optional begin/setup and result validation/publication. last_steps counts
+ * work calls, not individual reader transitions. WAITING does not spin. Wake and
  * readiness policy remain external; do not self-wake an unavailable source. */
 uint32_t bs_async_service(struct bs_preview_async *, uint32_t budget);
 /* UI only. Read copied state for the exact request; a superseded request is

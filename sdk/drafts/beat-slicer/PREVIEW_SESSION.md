@@ -19,7 +19,7 @@ active marker records. Flex/Static slots are admitted by shape only; recorder
 slots are refused. The backend remains responsible for actual source readiness
 and stable ownership. Unsupported encodings, identities or extents are refused.
 
-The session validates that snapshot before each bounded transition, after each
+The session validates that snapshot before each bounded work call, after each
 copy and before publishing a finished plan. Initialization, planner transitions
 and decoding copied PCM run outside the source lock, using session-owned data.
 A step needing PCM reacquires the lock and validates again before copying: the
@@ -64,3 +64,13 @@ Flex page lookup, gain and release. Eight plans match the reference while
 keeping PCM/settings unchanged; edits, metadata changes and released slots
 retire previews. Identity, lock, rate and tempo remain synthetic. This tests
 the proposed callback boundary, not an installed or compiled native backend.
+
+
+`bs_session_work` accepts a private-transition budget of 1–32. It captures and
+validates once, releases source ownership and performs at most that many owned
+reader transitions. The first live-read request ends the batch: reacquire,
+revalidate, copy at most one block, validate again, release and decode. It never
+batches live reads under a stale validation. `bs_session_step` remains exactly a
+one-transition wrapper. Invalid budgets return failure without changing the
+session. Ready and pending behavior retain the same result-validation contract.
+Counters must identify work calls separately from private reader transitions.

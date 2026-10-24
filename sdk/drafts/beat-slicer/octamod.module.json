@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.28-experimental",
+  "version": "0.1.29-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "A 30-second stock-loaded Flex source passes 21 complete native preview plans through copied UI/engine requests. Synthetic compiled probes separate total service, maximum callback and locked instruction counts across 16 cases. Borrowed calls use bounded verified pre-entry waiting. These are private emulator measurements; live admission, removal, Apply/playback, browser/USB packages and hardware remain unqualified.",
+    "summary": "Batch only owned private reader transitions between source validations; stop at the first live-read request and revalidate before copying. Host/ColdFire cover 192 batch plans, 132 metadata invalidations and 72 exchange interleavings. Sixteen synthetic cost cases preserve complete plans and PCM-copy counts while reducing total work and the worst callback. Exact native execution outcomes are recorded in TESTING.md. Live admission, removal, Apply/playback, browser/USB packages and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -119,6 +119,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_boot_source.py",
       "python3 -B sdk/drafts/beat-slicer/test_engine_boundary.py",
       "python3 -B sdk/drafts/beat-slicer/test_ui_text.py",
+      "python3 -B sdk/drafts/beat-slicer/test_preview_batch.py",
       "python3 -B sdk/drafts/beat-slicer/test_preview_async.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"

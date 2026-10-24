@@ -61,7 +61,10 @@ and source-bound receipts for actual run outcomes.
 The separate `preview_async.c` prototype replaces the paused driver's mailbox
 with ownership-protected copied UI intents and results. `test_async_boot.c`
 services it from the engine while `test_async_tick.c` calls the UI adapter once
-per ordinary tick. UI code never owns the session or reader. The proxy checks
+per ordinary tick. The asynchronous fixture uses one work call per engine
+callback, at most eight private reader transitions and one live copy, plus
+optional begin/setup and result validation. This differs from the older manual
+service's eight one-transition steps. UI code never owns the session or reader. The proxy checks
 accepted cancellation/replacement again before capture and PCM copy, including
 after unlocked private work. Every accepted intent must independently wake the
 engine, including one accepted after a service selected its local return state.

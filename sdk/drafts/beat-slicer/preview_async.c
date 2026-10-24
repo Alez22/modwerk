@@ -119,7 +119,7 @@ uint32_t bs_async_service(struct bs_preview_async *a, uint32_t budget) {
         a->last_begin = starting;
         state = starting ? bs_session_begin(&a->session, &options) : a->session.state;
         while (count < budget && state == BS_SESSION_RUNNING) {
-            state = bs_session_step(&a->session); ++count; ++a->last_steps;
+            state = bs_session_work(&a->session, BS_ASYNC_PRIVATE_STEPS); ++count; ++a->last_steps;
             if (state == BS_SESSION_WAITING) break;
         }
         if (state == BS_SESSION_READY) {

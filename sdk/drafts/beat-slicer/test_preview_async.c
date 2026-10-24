@@ -111,18 +111,35 @@ static int interleavings(void) {
         CHECK(!setup());struct bs_preview_options options={1,1,0};
         uint32_t old=bs_async_request(&f.async,7,8,&options);CHECK(old);
         f.action=action;f.at_unlock=f.unlocks+at;
-        uint32_t state=finish();CHECK(f.injected && f.accepted && !f.bad && !f.locked);
+        uint32_t state=finish();
+        /* Batching may finish before a later target unlock. Ordinary engine
+         * events still revalidate READY, so exercise that boundary too. */
+        for(uint32_t event=0;event<14 && !f.injected;++event)
+            state=bs_async_service(&f.async,8);
+        CHECK(f.injected && f.accepted && !f.bad && !f.locked);
         if(action==1 || action==3){
-            CHECK(state==BS_SESSION_CANCELLED && f.copies==f.queries_at_accept);
+            /* A shorter batch can reach final publication at this unlock.
+             * The accepted intent supersedes that already-chosen local return. */
+            CHECK(state==BS_SESSION_CANCELLED || (state==BS_SESSION_READY && f.async.published_state==BS_SESSION_CANCELLED));
+            CHECK(f.copies==f.queries_at_accept && !f.async.published_request);
+            CHECK(bs_async_state(&f.async,7,8,action==1?f.accepted:old)==BS_SESSION_CANCELLED);
+            struct bs_async_result out;out.request=UINT32_MAX;
+            CHECK(!bs_async_result(&f.async,7,8,old,&out) && out.request==UINT32_MAX);
             CHECK(bs_async_service(&f.async,8)==BS_SESSION_CANCELLED && f.copies==f.queries_at_accept);
         }
         if(action==2){
-            CHECK(state==BS_SESSION_READY);
+            CHECK(state==BS_SESSION_READY || state==BS_SESSION_RUNNING);
             struct bs_async_result out;
             CHECK(!bs_async_result(&f.async,7,8,old,&out));
+            /* A replacement at final unlock requires its independent wake. */
+            CHECK(finish()==BS_SESSION_READY);
             CHECK(bs_async_result(&f.async,7,8,f.accepted,&out) && out.plan.bpm24==2160);
         }
-        if(action>=4)CHECK(state==BS_SESSION_READY);
+        if(action==4)CHECK(state==BS_SESSION_READY);
+        if(action==5){
+            CHECK(state==BS_SESSION_READY || state==BS_SESSION_WAITING);
+            CHECK(finish()==BS_SESSION_READY);
+        }
         CHECK(f.locks==f.unlocks);
     }
     return 0;

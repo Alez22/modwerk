@@ -116,10 +116,11 @@ static enum bs_session_state copy_locked(struct bs_preview_session *s, uint32_t 
     if (reply != BS_PROVIDER_READY || *bytes > BS_SESSION_BYTES) return finish(s, BS_SESSION_FAILED);
     return BS_SESSION_RUNNING;
 }
-enum bs_session_state bs_session_step(struct bs_preview_session *s) {
+enum bs_session_state bs_session_work(struct bs_preview_session *s, uint32_t private_steps) {
     enum bs_session_state state;
     enum bs_reader_state reader;
     uint32_t bytes = 0, starting;
+    if (!s || !private_steps || private_steps > BS_SESSION_WORK_MAX) return BS_SESSION_FAILED;
     if (s->state != BS_SESSION_RUNNING && s->state != BS_SESSION_READY)
         return (enum bs_session_state)s->state;
     if (!s->guard || !s->backend || !s->backend->try_lock || !s->backend->unlock ||
@@ -130,7 +131,12 @@ enum bs_session_state bs_session_step(struct bs_preview_session *s) {
     s->backend->unlock(s->context);
     if (state != BS_SESSION_RUNNING) return state;
     if (starting) return start_reader(s);
-    reader = bs_reader_step(&s->reader, s->token.revision);
+    /* Only session-owned state is touched by this bounded batch. Stop at the
+     * first live-read request; reacquisition below validates before any copy.
+     * A cancellation may leave bounded private work to finish, never a read. */
+    reader = BS_READER_RUNNING;
+    for (uint32_t i = 0; i < private_steps && reader == BS_READER_RUNNING; ++i)
+        reader = bs_reader_step(&s->reader, s->token.revision);
     if (reader == BS_READER_DONE) { s->state = BS_SESSION_READY; return BS_SESSION_READY; }
     if (reader == BS_READER_RUNNING) return BS_SESSION_RUNNING;
     if (reader != BS_READER_NEED_BLOCK) return finish(s, BS_SESSION_FAILED);
@@ -144,6 +150,9 @@ enum bs_session_state bs_session_step(struct bs_preview_session *s) {
     if (!bs_reader_supply(&s->reader, &s->reader.pending, s->packed, bytes, 0) ||
         s->reader.job.state == BS_JOB_FAILED) return finish(s, BS_SESSION_FAILED);
     return BS_SESSION_RUNNING;
+}
+enum bs_session_state bs_session_step(struct bs_preview_session *s) {
+    return bs_session_work(s, 1);
 }
 enum bs_session_state bs_session_begin(struct bs_preview_session *s, const struct bs_preview_options *options) {
     (void)finish(s, BS_SESSION_CANCELLED);

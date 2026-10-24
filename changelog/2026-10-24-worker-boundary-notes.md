@@ -13,3 +13,5 @@ Clarify the engine budget as eight explicit steps plus optional begin/setup. Doc
 Document single-consumer preview ownership, copied request/result sequences, cancellation checked again before live reads, and the need to wake for an intent arriving after a service chooses its return state. Host sanitizer and ColdFire tests cover 32 plans and 72 modeled interleavings, including late cancellation/replacement; native loader lifetime and physical timing remain unqualified.
 
 Document checking the actual trim/tempo after changing a source, distinguishing whole-machine request windows from isolated service cost, and bounding verified pre-entry readiness waits. A 30-second full boot and sixteen compiled synthetic cost cases provide emulator evidence only.
+
+Clarify work-call versus private-transition budgets when batching owned planning. The selected Beat Slicer fixture permits one live copy per callback with fresh validation; sixteen synthetic comparisons reduce both total work and the maximum callback, without claiming physical timing.
