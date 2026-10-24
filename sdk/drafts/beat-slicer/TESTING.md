@@ -2621,3 +2621,5 @@ physical interrupt latency, cache/ISR costs or a worst-case metadata workload.
 The complete fixed-lifetime recording/recovery run still passes five whole-plan
 oracle comparisons, engine-only PCM lookup and source/card/code preservation.
 No production source admission or USB package is enabled.
+
+The two retained 0.1.47 compile/profile reports bind source `a38ca2601335abe5339e7ff8416700ad26c5c28e`. The full current-upstream source check passed in 133.94 seconds; the inherited stale-fork changelog failure remains recorded separately.
