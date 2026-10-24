@@ -71,3 +71,5 @@ Clarify that the long-lived device session accepts `try FILE` immediately, where
 Record the actual MKII vector-3 failure from an MCF5475-targeted private probe and the SDK MCF54455 target requirement. Scale-eight indexed addressing can pass the emulator and fail on the unit; preserve original failure evidence and distinguish restart recovery from trial Undo. The corrected candidate remains untested on hardware.
 
 Record both private USB attempts separately: the corrected SDK-target probe avoids the observed restart, but its physical self-test fails the ColdFire CPU limit. Verify exact original module inventory and active/base identities after recovery; retain no hardware-pass claim.
+
+The exact corrected private probe subsequently passes physical self-test and planner diagnostic on an owner-selected empty pattern, with verified Undo and original module-set restoration. Preserve the earlier failed playing-pattern result separately; live sample integration remains pending.

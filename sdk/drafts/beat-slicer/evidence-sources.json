@@ -227,6 +227,7 @@
     "usb52-host.json": "1d19d3b8d29dd48d7b92744eb01d2d488934d24d",
     "usb52-native.json": "1d19d3b8d29dd48d7b92744eb01d2d488934d24d",
     "usb53-addressing.json": "b670fa7506c824d73eee741e3bdca2c51b2bd4aa",
+    "usb53-hardware-empty-pattern.json": "b670fa7506c824d73eee741e3bdca2c51b2bd4aa",
     "usb53-hardware-failed.json": "b670fa7506c824d73eee741e3bdca2c51b2bd4aa",
     "usb53-native.json": "b670fa7506c824d73eee741e3bdca2c51b2bd4aa",
     "waveform25-stock.json": "ebf3634483db5971fc92cfdd2fdae7eb3fd661c3",

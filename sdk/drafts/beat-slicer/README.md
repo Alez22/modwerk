@@ -9,7 +9,9 @@ project BPM. It is a one-shot sample-editor operation, with no effect slot or
 independent sequencer clock. A private full-boot Octatrack emulator fixture now
 exercises the stock-menu entry, controls and read-only previews. This is **not
 an installable module**: production source admission, editor/loader lifecycle,
-Apply/playback and browser/USB integration remain unfinished.
+Apply/playback and browser/USB integration remain unfinished. A separate private USB
+probe now passes fixed-input planner execution, physical self-test and verified
+Undo on the owner’s MKII; see [the exact scope](USB_TEST.md).
 
 The grid starts at sample trim start. One beat is a quarter note of the chosen
 BPM; track speed and swing do not move offline sample markers. Project BPM is
