@@ -2591,3 +2591,5 @@ normal direct-source and async intermediate objects were byte-identical to
 those before the optional macro. This tight private fixture is not a production
 memory or compatibility budget. Complete writer/cache ownership, replaceable
 menu lifetime, physical timing, audio, Apply and source-built USB remain open.
+
+The four retained 0.1.46 compile/UI reports bind source `95bf7deacbcfc96533c60e849fbafd54b6248552`. The full current-upstream source check passed in 140.49 seconds; the inherited stale-fork changelog failure remains recorded separately.
