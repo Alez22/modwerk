@@ -2120,3 +2120,5 @@ readiness or USB transitions. Production pre-transition hooks, source admission,
 Apply/playback and physical qualification remain unfinished.
 
 Current-upstream full source validation: Check passed in 137.32s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The composed owner adapter passes actual-loader host checks and a separate synthetic ColdFire link/execution fixture. Real native registry and USB integration remain unqualified.
+
+Two full-owner menu adapter reports bind exact source commit `9b2dcbb9f77d01a40c42e1afb58c46476be3024f`.
