@@ -95,7 +95,8 @@ full record and its exact live position, then the registry/module-set readiness
 contract. A fixed-lifetime activation must stay retired if the old image is
 restored later. Explicit pre-transition retirement is required because a query
 can miss an entire replace/restore interval. [The owner helper](MENU_OWNER.md)
-checks these rules with actual-loader host execution, not native USB integration.
+checks these rules with actual-loader host and ColdFire execution under synthetic
+machine services, not native USB integration.
 
 ## Snapshot and job contract
 

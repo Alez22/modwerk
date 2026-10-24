@@ -259,7 +259,8 @@ before resolving an admitted menu handler; retain separate registry/module-set
 readiness gates. Retire the activation before replacement/removal, even if an
 Undo later restores the same image. Polling alone can miss that whole interval
 and must not revive an old activation. Beat Slicer's owner fixture checks this
-against the real loader with synthetic host glue; no native hook is installed.
+against the real loader with synthetic host/ColdFire machine services; no native
+registry hook is installed.
 
 When testing a captured tempo source, change the instrument through its ordinary
 panel path and verify the displayed value, runtime value and unchanged sample
@@ -273,8 +274,8 @@ admitted full-owner activation and an explicit action allowlist before dispatch.
 Copy registration records into base-owned storage; do not retain a caller's
 temporary array or an unchecked module function pointer. Different modules may
 share an action ID, so qualify coexistence and one-owner removal independently.
-Beat Slicer's proposed backend tests this with real-loader host transitions and
-separate synthetic ColdFire execution; typed package admission and native
+Beat Slicer's proposed backend tests this with real-loader host and ColdFire
+execution under synthetic machine services; typed package admission and native
 transition hooks are still not installed.
 
 ## Integrate
@@ -288,6 +289,13 @@ inspect unresolved symbols (`m68k-elf-nm -u`) before claiming native readiness.
 Host compilation can hide compiler-generated multiply/divide and memory helpers;
 an object file alone does not prove that a module links. Use the shared
 `sdk/runtime/m68k_codegen.py` flags and object guard too.
+
+For an isolated CPU fixture that links a complete loader, check ELF static-data
+and BSS extents against the runner's code and stack regions. The flat loaded
+binary can omit a large zero-initialized pool. Record the actual section address
+and extent; an object-size or binary-length check alone cannot prove separation.
+Beat Slicer's real-loader fixture places the 768 KiB pool in separate synthetic
+RAM. This is a test layout, not an allocation or cache result on the instrument.
 
 ## Digitakt and Digitone
 

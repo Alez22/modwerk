@@ -43,6 +43,9 @@ A separate stock-free ColdFire fixture links and executes the helper against
 explicit synthetic loader answers at every one of the 128 publication positions.
 It checks complete native-sized record copies, caller-record destruction and
 permanent retirement, including restoration. Stack/register and storage canaries
-are checked. Real loader transitions remain covered by the separate host suite;
-combining those results does not prove the real loader running on ColdFire or a
-production menu/USB lifecycle.
+are checked. Those synthetic-target results are separate from the newer
+`menu_owner_loader_native.py` fixture, which links and executes the unchanged real
+SDK loader/SHA alongside the adapter. It covers two owners and both menu models
+with the 128-position/768 KiB configuration in cached and uncached branches.
+Machine services remain synthetic, no uploaded module code runs, and neither
+fixture qualifies a production stock-menu/USB lifecycle.

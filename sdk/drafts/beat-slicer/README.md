@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.33-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.34-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -128,14 +128,15 @@ request identities. Retiring the fixed owner withdraws the contribution, but
 its tables remain pinned; replacement and memory reclamation are not implemented.
 
 The [runtime-owner helper](MENU_OWNER.md) distinguishes current publication from
-intact images retained for staging or rollback. Tests use the actual loader with
-synthetic host machine glue. Production transition-time retirement and typed
+intact images retained for staging or rollback. Tests use the actual loader on the host and as compiled ColdFire code with
+synthetic machine services. Production transition-time retirement and typed
 contribution admission remain separate work.
 
 The [full-owner menu backend](MENU_OWNER_BACKEND.md) now connects those leases
 to the compositor through copied action allowlists and a trusted base dispatcher.
-Its host tests cover coexisting owners and actual loader transitions; separate
-ColdFire execution uses synthetic loader answers. It does not admit packages,
+Its host tests cover coexisting owners and actual loader transitions. Newer
+ColdFire execution links the actual SDK loader; machine services and menu
+models remain synthetic. It does not admit packages,
 resolve module entry points or install native transition hooks.
 
 [Stock observations](BOOT_OBSERVATION.md) also cover normal slicing, clearing,

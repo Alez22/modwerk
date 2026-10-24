@@ -2122,3 +2122,48 @@ Apply/playback and physical qualification remain unfinished.
 Current-upstream full source validation: Check passed in 137.32s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The composed owner adapter passes actual-loader host checks and a separate synthetic ColdFire link/execution fixture. Real native registry and USB integration remain unqualified.
 
 Two full-owner menu adapter reports bind exact source commit `9b2dcbb9f77d01a40c42e1afb58c46476be3024f`.
+
+
+## Real SDK loader on ColdFire (0.1.34)
+
+The new fixture links the unchanged runtime loader and SHA implementation with
+the full-owner menu backend and compositor. Six ASan/UBSan host configurations
+pass both menu layouts and two coexisting owners. Two separate stock-free
+ColdFire binaries pass the same fixture with 128 module positions and a 786,432
+byte pool, in uncached and cached loader branches. The actual target backend
+entry wrappers execute; synthetic paused-task callbacks check that their context
+and captured SP are present. Stack and preserved registers return intact.
+
+The scenarios refuse staged owners, dispatch the correct sorted action through a
+complete live owner, reject duplicate dispatch, retire replaced owners while
+their images remain retained, and refuse revival after restoration. A newly
+admitted activation can dispatch; explicit pre-transition retirement covers a
+replace/restore interval with no intervening query. Removing one owner leaves
+the companion's identical action ID usable. Removal and reclamation restore the
+original active-module count and free pool bytes for each layout.
+
+Four original ABI 10 package identities and their controller digests match
+independent Python hashlib vectors on both host and ColdFire. Each layout also
+refuses eight altered full-owner fields, including both digests. The generated
+expected-digest header is verified against its generator before compilation.
+No package bytes or stock data are stored in that header.
+
+All SDK compilation dependencies and the recorded code-generation guard match
+exact commit pins. The target links without unresolved helpers. Original bounded
+byte-copy/clear helpers satisfy compiler-generated memory operations only inside
+this fixture; no production loader source was changed. Its BSS starts at
+`0x47400000` and spans 812,048 bytes in separate synthetic
+RAM, away from the runner's code and stack. This includes the test's loader pool,
+ledger and state; it is not Beat Slicer's installed resource cost.
+
+Machine stopped-state, locks/masks, task reachability, cache maintenance/aliases
+and DSP services are synthetic. In particular, the cached branch uses an identity
+alias and does not qualify real caches. The machine reports no consumers in
+uploaded memory; that is not an Octatrack reference-retirement implementation.
+Menu detachment is acknowledged only in a model with no stock references. The
+authored packages have no executable hooks and uploaded module code never runs.
+No stock firmware, menu scheduling, USB traffic, module-set trial/Keep/Undo,
+physical timing or audio is exercised. Production typed admission, transition
+hooks, live source ownership, Apply/playback, packages and hardware remain open.
+
+Current-upstream full source validation: Check passed in 136.07s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The unchanged real SDK loader and owner adapter pass host and ColdFire execution with synthetic machine services. Production stock-menu and USB integration remain unqualified.

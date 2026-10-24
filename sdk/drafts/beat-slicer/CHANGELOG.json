@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.34-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Run the real SDK loader and full-owner menu adapter together as compiled ColdFire code, including the loader\u2019s native entry wrappers.",
+      "Check both stock-sized menu models and two coexisting owners through staging, publication, replacement, restoration, removal and permanent retirement.",
+      "Exercise cached and uncached loader branches with 128 positions and the 768 KiB pool; reclaim test allocations after each scenario.",
+      "Match four package/controller digest vectors computed independently, refuse altered owner fields, and pin the exact SDK inputs.",
+      "Known issue: machine services, cache behavior and menu detachment remain modeled; production USB, Apply/playback and hardware are unqualified."
+    ]
+  },
+  {
     "version": "0.1.33-experimental",
     "date": "2026-10-24",
     "changes": [

@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.33-experimental",
+  "version": "0.1.34-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Connect the menu compositor to admitted fixed-lifetime runtime-owner leases and copied action allowlists. Actual-loader host checks and separate synthetic ColdFire execution cover full-owner dispatch, coexistence, replacement/restoration/removal and permanent retirement. Typed package admission, production transition hooks, native source ownership, Apply/playback and browser/USB/hardware qualification remain absent.",
+    "summary": "Execute the unchanged real SDK loader and full-owner menu adapter together on the host and ColdFire, including native entry-context wrappers, coexisting owners, replacement/restoration/removal and permanent retirement. Machine services and menu detachment remain synthetic; this is not a production stock-menu, USB, cache, source-ownership or hardware lifecycle. Apply/playback and browser/runtime module packages remain unfinished.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -126,6 +126,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner.py",
       "python3 -B sdk/drafts/beat-slicer/test_audit_evidence.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_backend.py",
+      "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

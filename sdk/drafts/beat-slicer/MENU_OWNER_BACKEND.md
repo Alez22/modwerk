@@ -36,5 +36,9 @@ then composes and dispatches menu actions while checking full owner identity.
 Its immediate detachment acknowledgement is valid only for that host model,
 which has no stock menu references. A separate stock-free ColdFire fixture
 executes the compiled helper, backend and compositor with synthetic loader
-answers. Neither test executes uploaded module code or qualifies a native
-menu/USB lifecycle. Exact results and limits are recorded in TESTING.md.
+answers. A newer target fixture links the unchanged real SDK loader/SHA and
+exercises its ColdFire entry wrappers, full-owner dispatch, coexistence and
+replacement/restoration/removal under synthetic machine services. Its cached
+branch uses an identity alias and modeled cache maintenance; it does not test
+physical caches. No fixture executes uploaded module code, drives a stock menu
+through that loader or qualifies USB. Exact results and limits are in TESTING.md.
