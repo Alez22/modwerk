@@ -1,12 +1,22 @@
 [
   {
+    "version": "0.1.53-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Fix the private USB probe build to use the SDK MCF54455 target instead of the emulator-oriented MCF5475 override.",
+      "Reject scale-eight and word-sized indexed operands that MCF54455 reports as address errors; reject the exact failed 0.1.52 package before USB access.",
+      "Preserve the physical failure and post-restart baseline verification separately from host/CPU preparation evidence.",
+      "Known issue: the corrected candidate has not been retested on hardware. Live sample preview, Apply and release qualification remain pending."
+    ]
+  },
+  {
     "version": "0.1.52-experimental",
     "date": "2026-10-24",
     "changes": [
       "Prepare a private USB planner probe on the existing tick/draw hooks, with fixed inputs and an on-screen PASS/FAIL result; no instrument sample access.",
       "Build and test the exact 2,280-byte package through real loader/CPU install, Undo and reinstall; scan saved package bytes and preserve display bounds.",
       "Provide a read-only review and explicit temporary trial client using the standard frontend validator, actual self-test and automatic Undo, with no Keep.",
-      "Known issue: hardware is not yet tested. This diagnostic package does not supply live Flex preview, Apply, production source handles or release qualification."
+      "Hardware failure: the 0.1.52 probe restarted the MKII with vector 3 in text drawing. Original base and 11-module inventory were verified after restart; no self-test or Undo pass."
     ]
   },
   {

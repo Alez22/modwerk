@@ -2815,3 +2815,36 @@ Preparation results do not qualify USB, display, audio or persistence. The first
 read-only MCP attempt found a disconnected unit; physical results are recorded
 only after an actual authorized trial. Live Flex preview, production handles,
 Apply and finished module delivery remain separate work.
+
+## Physical failure and CPU-target correction (0.1.52 / 0.1.53)
+
+The authorized 0.1.52 private package on the owner's MKII, Modwerk base
+`cd39c494b63beae086271f8790f7e704f46fe0a617a8eb1c341c9a925f917e4e`,
+lost USB during trial. The owner observed a restart. The bounded USB diagnostic
+log records crash count 1, vector 3 at `0x40d52f64`. Its cached/uncached code
+matches; that position uniquely maps to image offset `0x84` in this exact
+package, a scale-eight indexed LEA in `text`. No firmware bytes or raw crash
+record are retained in Git.
+
+The builder incorrectly replaced the SDK's `-mcpu=54455` with `-mcpu=5475`.
+[NXP's MCF54455 reference manual, section 3.3.4.2](https://www.nxp.com/docs/en/reference-manual/MCF54455RM.pdf)
+specifies an address error for scale-eight or word-sized indexed addressing.
+The emulator accepted the compiled instruction; this did not establish target
+ISA compatibility. The SDK target produces a different address calculation.
+The 0.1.53 builder retains SDK flags and rejects these forbidden index modes;
+the trial client also rejects the exact failed package hash.
+
+Read-only recovery checks verified the original base, active identity and exact
+11-module inventory after the restart, with the probe absent. This is restart
+recovery, not successful trial Undo. No passed physical self-test, display result,
+Keep or persistence is claimed. The failed artifact remains private and marked
+REJECTED. No further package has been sent; corrected-candidate hardware results
+remain pending a fresh explicit trial authorization.
+
+The corrected 0.1.53 preparation produces a 2,288-byte package with SHA-256
+`3f62f662f5eca55a8b6bc48301810feb5d5d9b17fc05d41ad3b380a97b3c5d35`.
+The native compiler regression rebuilds the same probe for both targets: the
+new addressing guard rejects the MCF5475 object and accepts the SDK MCF54455
+object. The corrected exact package passes real-loader CPU install/Undo/reinstall
+and the complete stock-free scan. These remain offline results, not a hardware
+fix verification.

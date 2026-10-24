@@ -10,6 +10,13 @@ def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def load(name,path):
     spec=importlib.util.spec_from_file_location(name,path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
+def check_addressing(objects):
+    """Reject index modes that raise address errors on MCF54455 (RM 3.3.4.2)."""
+    for obj in objects:
+        assembly=subprocess.check_output(['m68k-elf-objdump','-d',str(obj)],text=True)
+        bad=[line for line in assembly.splitlines() if re.search(r'%[ad][0-7]:w|:[wl]:8',line)]
+        if bad:raise RuntimeError('MCF54455-incompatible indexed addressing in '+obj.name)
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True);p.add_argument('--sdk-revision',required=True);p.add_argument('--runner',type=Path);p.add_argument('--stock-main',type=Path);p.add_argument('--version',required=True);a=p.parse_args()
     if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+-experimental',a.version):p.error('Use the explicit experimental version.')
@@ -18,7 +25,8 @@ def main():
     if out.exists() or out==REPO or REPO in out.parents:p.error('Use a fresh private directory outside Git.')
     out.mkdir(parents=True)
     build=load('probe_runtime_builder',REPO/'sdk/runtime/loader/build.py');guard=load('probe_codegen',REPO/'sdk/runtime/m68k_codegen.py')
-    flags=[f for f in build.CFLAGS if not f.startswith('-mcpu=')]+['-mcpu=5475',*guard.FLAGS]
+    flags=[*build.CFLAGS,*guard.FLAGS]
+    if '-mcpu=54455' not in flags:p.error('Use the reviewed Octatrack SDK MCF54455 target.')
     objects=[];dependencies={}
     for name in ('usb_probe','planner'):
         obj=out/(name+'.o');dep=out/(name+'.d')
@@ -26,7 +34,7 @@ def main():
         for word in dep.read_text().replace('\\\n',' ').split(':',1)[1].split():
             path=Path(word).resolve()
             if not path.is_relative_to(ROOT):dependencies[path.relative_to(REPO).as_posix()]=digest(path)
-    guard.check(objects)
+    guard.check(objects);check_addressing(objects)
     image,symbols,bss,relocations=build.link_units(objects,'m68k-elf-',0,out)
     hooks=[symbols.get(name,build.NONE) for name in build.HANDLERS]
     assert hooks[0]!=build.NONE and hooks[1]!=build.NONE and hooks[2:]==[build.NONE,build.NONE]
@@ -40,7 +48,7 @@ def main():
       'compiler':subprocess.check_output(['m68k-elf-gcc','--version'],text=True).splitlines()[0],'flags':flags,
       'packageSha256':digest(package),'packageBytes':len(data),'imageBytes':len(image),'bssBytes':bss,'relocations':len(relocations),
       'moduleId':format(build.module_id('beat-slicer-usb-probe'),'08x'),'hooks':hooks,'sites':0,'copies':0,'fills':0,'dsp':False,
-      'objectSha256':{p.name:digest(p) for p in objects},'codegenGuard':'passed','hardware':'not tested','qualification':False}
+      'objectSha256':{p.name:digest(p) for p in objects},'codegenGuard':'passed','addressingGuard':'MCF54455 index modes passed','hardware':'not tested','qualification':False}
     if a.runner:
         private=out/'package.private.c'
         private.write_text('#include <stdint.h>\nconst uint8_t bs_probe_package[]={'+','.join(str(b) for b in data)+'};\nconst uint32_t bs_probe_package_bytes='+str(len(data))+';\n')
@@ -56,7 +64,7 @@ def main():
                 if path==private:continue
                 if path.is_relative_to(ROOT):own_sources[path.relative_to(ROOT).as_posix()]=digest(path)
                 else:dependencies[path.relative_to(REPO).as_posix()]=digest(path)
-        guard.check(runtime_objects)
+        guard.check(runtime_objects);check_addressing(runtime_objects)
         elf=out/'loader-test.elf';binary=out/'loader-test.bin'
         subprocess.run(['m68k-elf-ld','--no-undefined','--gc-sections','-e','bs_usb_probe_target_selftest','-Ttext=0x47040000','-Tbss=0x47400000',*map(str,runtime_objects),'-o',str(elf)],check=True)
         subprocess.run(['m68k-elf-objcopy','-O','binary',str(elf),str(binary)],check=True)

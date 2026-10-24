@@ -21,7 +21,7 @@ const {values}=parseArgs({options:{'build-dir':{type:'string'},socket:{type:'str
 assert(values['build-dir']&&values.socket&&values.review,'Use --build-dir DIR --socket SOCKET --review FILE; add --trial only after review.')
 const folder=resolve(values['build-dir']),receipt=JSON.parse(await readFile(join(folder,'usb-probe-build.json')))
 const bytes=new Uint8Array(await readFile(join(folder,'beat-slicer-usb-probe.mwrm')))
-assert.equal(hash(bytes),receipt.packageSha256);assert.equal(receipt.moduleId,'c2a61413')
+assert.equal(hash(bytes),receipt.packageSha256);assert.notEqual(receipt.packageSha256,'f5432b875899a2262ddb17af3c34120bac58b52ec4f58a6d858687564fcb8328','Rejected: this wrong-target candidate restarted the MKII.');assert.equal(receipt.moduleId,'c2a61413')
 assert.equal(receipt.runtimeExitCode,0);assert.equal(receipt.stockFreeScan?.passed,true)
 for(const [name,digest] of Object.entries(receipt.sourceSha256))assert.equal(hash(await readFile(join(ROOT,name))),digest,'Source changed: '+name)
 for(const [name,digest] of Object.entries(receipt.sdkDependencySha256))assert.equal(hash(await readFile(join(REPO,name))),digest,'SDK changed: '+name)

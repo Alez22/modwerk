@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.52-experimental",
+  "version": "0.1.53-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Prepare a small private USB smoke-test package using existing tick/draw hooks. Fixed SAMPLE/PROJECT planner inputs, injected failure paths, bounded drawing and actual loader/CPU install/Undo/reinstall pass. The standard frontend validates the package and prepares removal Undo. This is a diagnostic first device step; live source/editor/USB module integration remains unqualified.",
+    "summary": "The 0.1.52 private USB probe failed physically: an MCF5475 override emitted scale-eight indexed LEA, and the MKII restarted with vector 3 at that instruction. Original base/11-module inventory were verified after restart; no physical self-test or Undo pass. Use SDK MCF54455 flags, reject forbidden index modes and block the failed package. Corrected candidate requires a new hardware trial.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

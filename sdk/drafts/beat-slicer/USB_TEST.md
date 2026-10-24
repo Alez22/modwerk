@@ -1,5 +1,11 @@
 # First device test: private USB planner probe
 
+The first 0.1.52 attempt failed on the MKII: a wrong CPU target emitted
+scale-eight indexed addressing and caused vector 3 in text drawing. The unit
+restarted; its original base and exact 11-module inventory were verified.
+That package is rejected. The corrected SDK-target candidate is not hardware
+qualified until a new explicitly authorized trial succeeds.
+
 This is the small first hardware step. It runs the existing planner on fixed,
 generated silence using SAMPLE 120 BPM and PROJECT 60 BPM, retaining one marker.
 It displays PLANNER PASS and reports diagnostic value `0x42534f4b`. It does not
@@ -18,7 +24,7 @@ Use the pinned m68k toolchain and build outside Git:
 ```sh
 python3 -B sdk/drafts/beat-slicer/build_usb_probe.py \
   --output /PRIVATE/probe --sdk-revision SDK_GIT_COMMIT \
-  --version 0.1.52-experimental \
+  --version 0.1.53-experimental \
   --runner /PRIVATE/build/beat_slicer_job_probe \
   --stock-main /PRIVATE/stock-main.bin
 ```
