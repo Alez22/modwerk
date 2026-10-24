@@ -25,17 +25,20 @@ ARENA_SHA='23c89015c010ce9d4e6e7957f9325b7da78b7ba75144de10d56cb22149f21e61'
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('emulator','main','card','wav','output','arena-tool','native'):p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--service',action='store_true',help='Run previews only through normal engine idle/job scheduling.')
     p.add_argument('--preview',action='store_true',help='Exercise private fixed-lifetime Flex previews with the shared guard.')
     p.add_argument('--card-sha256',required=True)
     p.add_argument('--allow-private-injection',action='store_true',required=True)
     a=p.parse_args()
+    if a.service:a.preview=True
     if not __debug__:p.error('Assertions must remain enabled.')
     out,repo=a.output.resolve(),ROOT.parents[2]
     if out.exists() or out==repo or repo in out.parents:p.error('Use fresh private output outside Git.')
     if digest(a.main)!=STOCK_MAIN_SHA256 or digest(a.card)!=a.card_sha256 or digest(a.arena_tool)!=ARENA_SHA:p.error('Private input identity differs.')
-    native_name='recorder-source' if a.preview else 'recorder-engine'
+    native_name='recorder-service' if a.service else ('recorder-source' if a.preview else 'recorder-engine')
     native=json.loads((a.native/(native_name+'.json')).read_text())
     if a.preview and not native.get('sourcePreviewEnabled'):p.error('Compile the source fixture first.')
+    if a.service and not native.get('enginePreviewService'):p.error('Compile the engine service fixture first.')
     preparation_enabled=bool(native.get('preparationEnabled',False))
     binary,symbols_path=a.native/(native_name+'.bin'),a.native/(native_name+'.symbols')
     if native['textBase']!=0x46019df0 or digest(binary)!=native['binarySha256'] or digest(symbols_path)!=native['symbolsSha256']:p.error('Native fixture identity differs.')
@@ -133,7 +136,21 @@ def main():
         initial_native=native_state()
         def call(name):return call_original(port,symbols[name],wait_ms=1)
         def word(name):return int.from_bytes(port.peek(symbols[name],4),'big')
-        def plan_bytes():return port.peek(symbols['bs_boot_plan'],524)
+        def plan_bytes():return port.peek(symbols['bs_recorder_service_result_copy']+8 if a.service else symbols['bs_boot_plan'],524)
+        result_name='bs_recorder_service_result' if a.service else 'bs_boot_result'
+        work_name='bs_recorder_preview_state' if a.service else 'bs_recorder_preview_work'
+        tasks={name:set() for name in ('query','engine','producer')}
+        task_addresses={}
+        if a.service:
+            task_addresses={symbols['bs_boot_queries']:'query',symbols['bs_recorder_service_calls']:'engine',
+                symbols['bs_recorder_service_requests']:'producer'}
+            for address in task_addresses:port.command(f'watchmem {address:#x} 4')
+        def take_writes():
+            rows=writes(port)
+            for row in rows:
+                if row[2] in task_addresses:tasks[task_addresses[row[2]]].add(row[5])
+            return rows
+
         def preview():
             settings=struct.unpack('>274I',port.peek(0x100b14f0,1096))
             project=int.from_bytes(port.peek(0x80001814,4),'big')
@@ -143,24 +160,26 @@ def main():
                 reader=lambda frame:(original[2*frame]*256,original[2*frame+1]*256))
             expected=oracle.preview(request)
             before=word('bs_boot_queries')
-            assert call('bs_recorder_preview_begin')==1
+            request=call('bs_recorder_preview_begin')
+            assert request>0 if a.service else request==1
             for steps in range(10000):
-                state=call('bs_recorder_preview_work')
+                if a.service:port.command('run 1')
+                state=call(work_name)
                 if state not in (1,2):break
-                if steps%32==0:port.command('run 0.1')
+                if not a.service and steps%32==0:port.command('run 0.1')
             assert state==3,f'Fresh preview ended {state}'
-            assert call('bs_boot_result')==1
+            assert call(result_name)==1
             actual=struct.unpack('>131I',plan_bytes())
             want=(expected.count,expected.bpm24,*expected.starts,*expected.needs_fade,expected.end_needs_fade)
             assert actual==want,'Whole preview differs from host PCM oracle'
             assert word('bs_boot_locks')==word('bs_boot_unlocks')
             count=word('bs_boot_queries')-before;assert count>0
-            result={'steps':steps+1,'queries':count,'markerCount':actual[0],
+            result={'driverPolls' if a.service else 'steps':steps+1,'queries':count,'markerCount':actual[0],
                 'bpm24':actual[1],'starts':list(actual[2:2+actual[0]]),
                 'wholePlanMatchesHostOracle':True,'balancedLocks':True}
             preview_results.append(result);return result
         if a.preview:
-            assert call('bs_boot_init')==0
+            assert call('bs_recorder_service_init' if a.service else 'bs_boot_init')==0
             preview()
 
         port.command(f'watchmem {g_at:#x} 48');port.command(f'watchmem {e_at+4:#x} 4')
@@ -204,7 +223,7 @@ def main():
             port.command(f'watchmem {pcm:#x} 64');port.command(f'watchmem {tail:#x} 2')
             for bank in range(2):port.command(f'watchmem {0x80004f1c+84*(track+8*bank):#x} 84')
             if a.preview:
-                if track==0:
+                if track==0 and not a.service:
                     assert call('bs_recorder_preview_begin')==1
                     queries=word('bs_boot_queries')
                     for _ in range(200):
@@ -214,17 +233,17 @@ def main():
                     assert call('bs_recorder_preview_state')==1
                 else:preview()
                 prior_state=call('bs_recorder_preview_state')
-                assert prior_state==(1 if track==0 else 3)
+                assert prior_state==(1 if track==0 and not a.service else 3)
                 before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
                 before_revision=native_state()['revision']
                 assert call('bs_recorder_preview_revision')==before_revision
                 assert native_state()['revision']==before_revision,'Preview was stale before recording input'
-            native_state();hits(port);writes(port)
+            native_state();hits(port);take_writes()
             record(port,track);port.command('run 200');started=capture(track)
             if a.preview:
                 assert native_state()['revision']>before_revision
-                assert call('bs_boot_result')==0 and plan_bytes()==before_plan
-                assert call('bs_recorder_preview_work')==5 and word('bs_boot_queries')==before_queries
+                assert call(result_name)==0 and plan_bytes()==before_plan
+                assert call(work_name)==5 and word('bs_boot_queries')==before_queries
                 invalidations.append({'track':track+1,'priorState':'RUNNING' if prior_state==1 else 'READY',
                     'staleBeforeFurtherCopy':True,'resultOutputUntouched':True,'guardRevisionAdvanced':True})
 
@@ -238,7 +257,7 @@ def main():
             assert stopped['bank']==retriggered['bank'] and stopped['states'][stopped['bank']]==0
             assert stopped['states'][1-stopped['bank']]==2 and stopped['positions'][stopped['bank']]==0
             assert stopped['published']>=before_stop['published'] and stopped['queueCounts']==[0,0]
-            calls,stores=hits(port),writes(port);coverage=audit(stores,track,pcm,tail)
+            calls,stores=hits(port),take_writes();coverage=audit(stores,track,pcm,tail)
             assert coverage['pcmPrefixStores'] and coverage['mapTailStores'] and coverage['recorderScopes'] and coverage['engineScopes']
             assert [(r['bank'],r['value'],r['bytes']) for r in coverage['stateTransitions']]==[(1,1,4),(1,2,1),(0,1,4),(0,2,1),(0,0,1)]
             recorder=[r for r in calls if r[1]==0x400068e4 and r[8]==track]
@@ -253,23 +272,21 @@ def main():
             assert len(stops)==1 and stops[0][7]==0x40007942 and stops[0][9]>0 and stops[0][10:12]==[0,0]
             assert [r['recorderGuarded'] for r in coverage['stateTransitions']]==([True]*5 if preparation_enabled else [False,True,False,True,True])
             assert sum(x['count'] for x in coverage['unguardedRecorderStateStores'])==(0 if preparation_enabled else 24)
-            port.command('run 500');idle=capture(track);idle_coverage=audit(writes(port),track,pcm,tail)
+            port.command('run 500');idle=capture(track);idle_coverage=audit(take_writes(),track,pcm,tail)
             assert idle==stopped and not idle_coverage['pcmPrefixStores'] and not idle_coverage['mapTailStores'] and not idle_coverage['recorderScopes']
             assert int.from_bytes(port.peek(row,2),'big')==first and int.from_bytes(port.peek(0x46c75e88+2*(128+track),2),'big')==count
             if a.preview:
                 # Stopping cannot revive a retired token or reveal its old output.
-                assert call('bs_recorder_preview_work')==5 and call('bs_boot_result')==0
+                assert call(work_name)==5 and call(result_name)==0
                 assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
                 invalidations[-1]['oldTokenStillStaleAfterStop']=True
                 editor=[int.from_bytes(port.peek(address,4),'big') for address in (0x46c8d1a0,0x46c8d19c)]
                 invalidations[-1]['editorAfterStop']=editor
                 if track==7:
-                    # TRACK+REC also selects T8's empty Static editor. Return to
-                    # the original Flex through the panel, never by poking binding.
                     assert editor[0]==0
                     editor_tap(port,'track1');port.command('run 500');native_state()
                     invalidations[-1]['sourceRestoredViaTrack1']=True
-                    assert call('bs_recorder_preview_work')==5 and call('bs_boot_result')==0
+                    assert call(work_name)==5 and call(result_name)==0
                     assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
                 assert int.from_bytes(port.peek(0x46c8d1a0,4),'big')==1
                 assert int.from_bytes(port.peek(0x46c8d19c,4),'big')==0
@@ -287,6 +304,15 @@ def main():
                 'stopCalls':[{'caller':hex(r[7]),'arguments':r[8:12]} for r in stops],'coverage':coverage,'idleCoverage':idle_coverage,'nativeState':state,
                 'unrelatedFlexPreserved':True,'nativeCodeAndCanariesIntact':True})
             print(f'PASS track {track+1}: native PCM/cleanup tickets; uncovered recorder-state stores {sum(x["count"] for x in coverage["unguardedRecorderStateStores"])}',flush=True)
+        if a.service:
+            take_writes()
+            assert len(tasks['engine'])==len(tasks['producer'])==1 and tasks['engine'].isdisjoint(tasks['producer'])
+            assert tasks['query']==tasks['engine'],'Live source lookup escaped the engine task'
+            assert word('bs_recorder_service_max_steps')==1
+            assert word('bs_recorder_service_pending')==0
+            assert word('bs_recorder_service_posted')==word('bs_recorder_service_consumed')
+            service_counts={name:word('bs_recorder_service_'+name) for name in
+                ('calls','requests','steps','begins','max_steps','posted','consumed','pending')}
     finally:
         port.close()
         if a.preview:ffi.PlannerTests.tearDownClass()
@@ -305,5 +331,11 @@ def main():
         report.update({'scope':'Private shared recorder/engine guard with fixed-lifetime read-only Flex preview invalidation and recovery; borrowed-main driver, not installed service or hardware',
             'sourcePreviewEnabled':True,'previews':preview_results,'invalidations':invalidations,
             'nativeSourceAccess':'fixed synthetic lifetime and borrowed main consumer; production source admission, owner transitions and scheduling remain unimplemented'})
-    (out/('recorder-source-boot.json' if a.preview else 'recorder-engine-boot.json')).write_text(json.dumps(report,indent=2)+'\n')
+    if a.service:
+        report.update({'scope':'Private fixed-lifetime previews run by the stock engine scheduler with recorder/preparation/ordinary-job exclusion; no driver service calls or hardware',
+            'enginePreviewService':True,'engineServiceCounts':service_counts,
+            'taskIdentities':{name:sorted(values) for name,values in tasks.items()},
+            'scheduling':'borrowed-main request/result producer, one engine consumer, exact coalesced immutable wake; ordinary jobs remain writers',
+            'nativeSourceAccess':'fixed synthetic lifetime; production owner/source admission, UI integration, DMA/cache and physical timing remain open'})
+    (out/('recorder-service-boot.json' if a.service else ('recorder-source-boot.json' if a.preview else 'recorder-engine-boot.json'))).write_text(json.dumps(report,indent=2)+'\n')
 if __name__=='__main__':main()

@@ -132,3 +132,16 @@ not the production engine service or an installed package. Complete writer,
 owner-transition, cache and physical-time qualification remain required. Its
 preparation-call report now separates two actual arguments from adjacent caller
 storage; prior four-word reports were raw observations, not a four-argument ABI.
+
+## Engine service composition (0.1.44)
+
+`recorder_service_native.py` replaces the borrowed-main session consumer with
+the copied `preview_async` exchange and one stock-engine consumer.
+`boot_recorder_engine.py --service` requires engine-only PCM lookup task
+identity, exact whole plans, recording invalidation/recovery and balanced wakes.
+The producer issues only zero-argument request/result calls. The recorder and
+preparation wrappers still share the same guard; the original receive remains
+stock. Only an exact pending immutable service wake avoids writer treatment;
+ordinary commands, including waveforms, remain conservative. Fixed ownership,
+production API/UI integration, full writer/cache coverage and hardware remain
+separate requirements.

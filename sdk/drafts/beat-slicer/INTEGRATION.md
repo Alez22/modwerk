@@ -108,7 +108,9 @@ injection and a standalone runtime object cannot substitute for those steps.
    complete interrupt/allocator exclusion and production source admission
    still need investigation. A later fixed-lifetime preview fixture shares these
    guards and rejects RUNNING/READY work during recording, with fresh complete
-   plans after Stop. Its borrowed-main consumer is not production scheduling.
+   plans after Stop. A subsequent composition runs those previews on the stock
+   engine task with copied requests/results and exact coalesced wakes; its fixed
+   owner and borrowed-main producer are not production API/UI integration.
    Later isolated tests execute queued shortage/length-limit cleanup and cover
    its map-tail stores with the compiled worker observer; this does not prove
    all recorder writers or a production source lease.

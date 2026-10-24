@@ -2498,3 +2498,33 @@ service, and it does not qualify other recording modes, complete UI/allocator/
 DMA/cache ownership, USB, Apply/playback or physical behavior.
 
 Two source-composition reports bind source commit `fee30608d51c0c41d454197133e5392a8347af8d`. Current-upstream full validation passed in 140.30 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+## Engine-owned shared-guard previews (0.1.44)
+
+The private composition now advances previews only from the stock engine
+idle/job topology. The borrowed-main API copies requests and results; the driver
+never calls the service or a session step. Memory-watch task identities place
+all source lookups on the engine task, distinct from the producer. Five complete
+131-word plans match the host PCM oracle, with 12 lookups each. READY results
+retire on normal track 1/8 recording; Stop and normal editor restoration do not
+revive them, and fresh requests recover.
+
+The observed totals are 402 engine callbacks, 390 bounded work calls, five
+begins and 390 posted/consumed wakes, with none pending at completion. Maximum
+work calls per callback is one; each work call allows eight private reader
+transitions and at most one PCM copy, plus optional begin/setup and publication.
+Each finished plan was visible at the first driver poll after a 1 ms emulator
+run; that polling interval is not a measured physical completion time.
+
+Only the exact immutable owned wake with an outstanding pending flag bypasses
+writer classification. All ordinary jobs remain conservative, including stock
+waveform jobs. The source fixture does not enable the older private waveform
+exception. Prepared PCM/settings/controls, recorder ticket assertions, code,
+reservation canaries, original queue receive and the unsaved card remain intact.
+Code through BSS occupies 36,848 bytes of the eight-page private reservation;
+runtime stack and physical callback/interrupt latency are unqualified.
+
+This is fixed synthetic ownership with a borrowed-main producer and one actual
+engine consumer. It supplies no production source API, module menu integration,
+loader retirement, package/browser/USB lifecycle, complete writer/cache coverage,
+audible behavior or device persistence.

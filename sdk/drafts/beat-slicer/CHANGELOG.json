@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.44-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Run the private shared-guard preview consumer from the stock engine idle/job topology, with copied request and result access from the producer.",
+      "Bound each callback to one work call and at most eight private transitions plus one PCM copy; coalesce exact immutable wakes and do not self-poll WAITING.",
+      "Validate five complete plans and recording invalidation/recovery; watched PCM lookups occur only on the engine task, separate from the producer.",
+      "Keep every ordinary engine command conservative, preserve the original receive call, source/settings, native code/canaries and unsaved card.",
+      "Known issue: fixed ownership, complete writer/cache coverage, production source/UI/USB integration, Apply/playback and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.43-experimental",
     "date": "2026-10-24",
     "changes": [

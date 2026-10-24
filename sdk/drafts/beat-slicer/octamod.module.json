@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.43-experimental",
+  "version": "0.1.44-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Connect fixed-lifetime Flex previews to the compiled recorder/preparation/engine guard. Normal recording on tracks 1/8 retires RUNNING/READY results before further PCM reads; Stop and restored editor selection do not revive old tokens. Four fresh whole plans match the host PCM oracle with unchanged source/card. Borrowed-main scheduling, fixed ownership and incomplete writer/cache coverage remain private staging; USB and hardware are unqualified.",
+    "summary": "Run shared-guard Flex previews only through normal stock engine scheduling. Five whole plans match the host PCM oracle; watched source lookups occur exclusively on the engine task, separate from the request producer. Recording retires results and fresh post-Stop previews recover. Bound work to one batch per callback and exact coalesced wakes. Fixed lifetimes, full writer/cache ownership, UI/USB integration and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
