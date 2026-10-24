@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.50-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Add a proposed outgoing-activation retirement adapter for the existing loader metadata SWITCH callback; preparation and unchanged companions keep their activations.",
+      "Exercise replacement then restoration without an intervening lease query, removal and a refused switch; affected old menu actions cannot revive.",
+      "Check partial-set disconnect rollback and Keep through the real loader/upload controller in host and native cached/uncached fixtures.",
+      "Known issue: refused switches conservatively retire affected activations; reopening needs a fresh activation. Production board hooks, source retirement and USB remain unimplemented."
+    ]
+  },
+  {
     "version": "0.1.49-experimental",
     "date": "2026-10-24",
     "changes": [

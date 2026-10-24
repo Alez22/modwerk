@@ -34,4 +34,16 @@ int bs_menu_owner_backend_bind_locked(struct bs_menu_owner_backend *,uint32_t,
  * Production typed admission, module-set readiness and transition hooks remain
  * requirements of the caller, not capabilities supplied by this prototype. */
 const bs_menu_backend *bs_menu_owner_backend_get_locked(struct bs_menu_owner_backend *);
+/* Proposed composition point for the EXISTING loader metadata callback.
+ * Call under its stable lock for every relevant registry, before SWITCH can
+ * change publication. PREPARE is read-only. Retires only outgoing activation
+ * leases, including before an attempted switch which later fails. Restoration
+ * needs new activations; it never revives these leases. Same-image switches
+ * leave activations intact. Return is a runtime_refusal; caller must preserve
+ * all other metadata/DSP admission and reference checks.
+ * This does not install a board hook, detach native menu references, revoke
+ * source-reader lifetimes or authorize reclaiming callbacks/storage. */
+int bs_menu_owner_backend_transition_locked(struct bs_menu_owner_backend *,
+    const struct runtime_dsp *from,const struct runtime_dsp *to,
+    enum runtime_metadata_operation);
 #endif

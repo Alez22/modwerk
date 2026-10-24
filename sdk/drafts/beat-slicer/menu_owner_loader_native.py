@@ -28,7 +28,9 @@ def main():
     p.add_argument('--sets',action='store_true')
     p.add_argument('--package',action='store_true',help='Also test proposed typed menu admission and original uploaded callback.')
     p.add_argument('--executable', type=Path, required=True)
+    p.add_argument('--transition',action='store_true')
     a = p.parse_args()
+    if a.transition and a.package:p.error('Choose one fixture.')
     out, repo = a.output.resolve(), ROOT.parents[2]
     if out == repo or repo in out.parents:
         p.error('Keep binaries outside the repository.')
@@ -47,7 +49,7 @@ def main():
     if a.package:subprocess.run([sys.executable,'-B',str(ROOT/'test_menu_package_vectors.py')],check=True)
     objects = []; dependencies = {}; pinned = json.loads((ROOT/'menu-owner-runtime-sources.json').read_text())
     names=['menu_owner','menu_owner_backend','editor_menu',
-           'test_menu_package_target' if a.package else 'test_menu_owner_loader_target']
+           'test_menu_transition_target' if a.transition else ('test_menu_package_target' if a.package else 'test_menu_owner_loader_target')]
     if a.package:names.append('menu_package')
     sources=[ROOT/(n+'.c') for n in names]
     if a.sets:sources.append(repo/'sdk/runtime/upload/upload.c')
@@ -65,7 +67,7 @@ def main():
         objects.append(obj)
     guard.check(objects)
     elf, binary = out / 'menu-owner-loader-target.elf', out / 'menu-owner-loader-target.bin'
-    entry_name='bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest'
+    entry_name='bs_menu_transition_target_selftest' if a.transition else ('bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest')
     run('m68k-elf-ld', '--no-undefined', '-e', entry_name, '-Ttext=0x47040000', '-Tbss=0x47400000',
         *map(str, objects), '-o', str(elf))
     if run('m68k-elf-nm', '-u', str(elf)):
@@ -84,7 +86,9 @@ def main():
         p.error('Runner differs from current source; rebuild it.')
     names = ('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','test_menu_owner_set.h','owner_package_vectors.h','test_owner_package_vectors.py','menu_owner_loader_native.py','menu-owner-runtime-sources.json','stock_probe/job_probe.cpp','stock_probe/CMakeLists.txt')
     if a.package:names+=('menu_package.c','menu_package.h','test_menu_package_target.c','menu_package_vectors.h','test_menu_package_vectors.py')
+    if a.transition:names+=('test_menu_transition_target.c','test_menu_transition_set.h')
     report = {
+        'transitionCallbackPrototype':a.transition,'transitionRefusalsPerScenario':9 if a.transition else 0,'transitionSingleScenarios':4 if a.transition else 0,'transitionSetScenarios':4 if a.transition and a.sets else 0,
         'scope': 'real compiled SDK loader/SHA with full-owner menu adapter, both layouts and two owners; actual ColdFire entry wrappers; synthetic stopped/cache/paused-task/DSP services; '+('original return-42 uploaded callback executes; ' if a.package else 'no module-code execution; ')+'no stock menu, USB or hardware integration',
         'typedMenuProposal':a.package,'malformedDescriptorsPerLayout':30 if a.package else 0,
         'descriptorOwnerMismatchesPerLayout':8 if a.package else 0,'validDescriptorBoundaryCasesPerLayout':4 if a.package else 0,
@@ -111,6 +115,9 @@ def main():
     if a.package:
         report['typedAdmissionSize']=run('m68k-elf-size',str(out/'menu_package.o')).splitlines()
         report['typedAdmissionStackUsage']=(out/'menu_package.su').read_text().splitlines()
+    if a.transition:
+        report['scope']='Actual compiled loader metadata callback and outgoing menu activation retirement; synthetic machine services, both layouts, refusal after retirement and restoration without an intervening lease query. No stock menu, uploaded callback, USB or hardware execution in these new scenarios.'
+        report['limits']='Production board registration, native menu reference retirement and source lifetime cancellation remain unimplemented. Refused switches conservatively retire affected activations.'
     (out / 'menu-owner-loader-target.json').write_text(json.dumps(report, indent=2) + '\n')
     print(r.stdout, end='')
     if r.returncode:

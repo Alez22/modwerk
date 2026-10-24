@@ -2689,3 +2689,49 @@ The combined resident fixture occupies 49,068 bytes through BSS, leaving 36 byte
 The resident driver now uses the same bounded empty-scope plus balanced counter/mask checkpoint as the service driver. Faults still fail immediately, and persistent diagnostic imbalance still fails the fixed wait bound. This observer correction grants no native retirement or source admission. Production ownership, mutable queued-command stability, cache behavior, USB delivery, audio and physical persistence remain unqualified.
 
 The eight optimized 0.1.49 reports bind source `2c3d4cf9a1049d3699d8f3a9e652d325781c4f72`; the matched common-workload baseline binds unchanged source `8efd17400916b23203d53c99e80593e84bd96b63`. The full current-upstream source check passed in 137.15 seconds; the inherited stale-fork changelog failure remains recorded separately.
+
+## Retirement from the existing loader callback (0.1.50)
+
+`test_menu_owner_loader.py --transition` composes the proposed
+`bs_menu_owner_backend_transition_locked` with the unchanged real loader's
+`modwerk_machine_metadata_admit` callback. The fixture preserves ordinary-only
+metadata admission and asserts the stable lock, unmasked admission phase and
+outgoing owner's publication while the callback runs. This is an isolated
+machine adapter, not registration in the production Octatrack board.
+
+PREPARE leaves activations intact. SWITCH retires only the exact outgoing
+owner's bound leases before publication can change. The adapter validates all
+registry entries before mutation and uses full ledger checks; short
+module/generation matching alone is insufficient. Duplicate actions sharing
+one lease retire that lease together. A same-image transition does nothing.
+
+Four single-module scenarios cover both stock row counts and successful or
+refused publication. Replacement and restoration occur without an intervening
+menu/lease query. The old action stays retired, the companion still dispatches,
+and a fresh activation can dispatch the restored owner. A later admission
+refusal leaves the old image published but its previous activation retired:
+this conservative cancellation is intentional, and requires a fresh activation.
+Removal retires the fresh lease before reclamation. Each scenario also checks
+nine malformed-input refusals and unchanged activation state for preparation
+and same-image operations.
+
+Four whole-set scenarios disconnect before any publication, after one row or
+a complete trial, or Keep the complete set. Actual upload/loader callbacks
+retire only owners whose rows transition; unchanged rows and the third
+companion retain authority. Rollback cannot revive the affected activations,
+even without an intermediate dispatch/lease lookup. Allocation returns to its
+initial value after cleanup. The older loader/menu/typed-independent-vector
+checks remain in the exercised compilation path.
+
+Host ASan/UBSan passes six loader configurations, including two with set support.
+The exact source also compiles and runs on the pinned ColdFire CPU runner with
+set support in both cached and uncached branches. Native entry wrappers,
+freestanding linking, code-generation checks and exact SDK dependency hashes
+pass. Machine stop/cache/paused-task/DSP services remain synthetic; these new
+scenarios do not execute the stock menu or uploaded callback code and do not
+qualify physical cache, timing, USB or reference reclamation.
+
+This callback prototype revokes menu authority only. Native registry wiring,
+source-reader cancellation, complete-set readiness and retained menu/job storage
+retirement remain separate requirements. The production shared loader and its
+machine adapter are unchanged; no editor event/table ABI is assigned.

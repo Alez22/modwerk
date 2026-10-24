@@ -287,9 +287,13 @@ publication. Under the stable loader lock, also match the exact published owner
 before resolving an admitted menu handler; retain separate registry/module-set
 readiness gates. Retire the activation before replacement/removal, even if an
 Undo later restores the same image. Polling alone can miss that whole interval
-and must not revive an old activation. Beat Slicer's owner fixture checks this
-against the real loader with synthetic host/ColdFire machine services; no native
-registry hook is installed.
+and must not revive an old activation. Compose retirement into the existing
+loader metadata SWITCH callback before publication changes; PREPARE must not
+retire live actions. A later refused switch may conservatively retire an
+activation, so restoration/reopening needs a fresh one. Preserve all other
+admission checks. Beat Slicer's isolated real-loader host/ColdFire fixture tests
+this callback ordering and partial-set rollback; production board registration,
+source cancellation and native reference retirement remain separate.
 
 When a menu stores a short module/generation identity, resolve it through an
 admitted full-owner activation and an explicit action allowlist before dispatch.

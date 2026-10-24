@@ -61,3 +61,5 @@ Document whole protected-interval budgeting: include both metadata validations a
 Add maximum metadata count to protected-interval workload planning and explain bounded diagnostic checkpoints across wrapper bookkeeping. The private 64-marker fixture uses stock menu actions before source admission and retains all markers through recording recovery. Correct the recording report WAITING flag while preserving historical reports at their original source revisions.
 
 Clarify Beat Slicer's first USB preview trial: shared admission/retirement and exact source-built package preparation come first; the physical read-only workflow, removal and persistence results remain separate from finished Apply/playback and release acceptance. The draft remains unlisted and not installable.
+
+Explain activation retirement at the existing loader metadata SWITCH callback, the read-only PREPARE boundary and conservative cancellation after a later refusal. The isolated real-loader host/ColdFire fixtures cover callback ordering and partial-set rollback; production board/source/reference integration remains pending.

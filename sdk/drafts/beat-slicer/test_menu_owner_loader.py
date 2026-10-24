@@ -18,7 +18,9 @@ def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path)
     p.add_argument('--package',action='store_true',help='Also test proposed typed menu contribution admission.')
+    p.add_argument('--transition',action='store_true',help='Exercise outgoing activation retirement from the real metadata callback.')
     a=p.parse_args()
+    if a.transition and a.package:p.error('Choose one fixture.')
     if a.output and a.output.exists():p.error('Use a new report path.')
     subprocess.run([sys.executable,'-B',str(ROOT/'test_owner_package_vectors.py')],check=True)
     if a.package:subprocess.run([sys.executable,'-B',str(ROOT/'test_menu_package_vectors.py')],check=True)
@@ -31,10 +33,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix='beat-slicer-owner-') as temp:
         work=Path(temp)
         driver=work/'main.c'
-        entry='bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest'
+        entry='bs_menu_transition_target_selftest' if a.transition else ('bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest')
         driver.write_text('#include <stdio.h>\nint '+entry+'(void);\nint main(void){int line='+entry+'();if(line){printf("FAIL line %d\\n",line);return 1;}puts("PASS: real loader and owner-backed menu; two owners, both layouts, replacement/restoration/removal, permanent retirement and restored allocation");return 0;}\n')
         for index,defines in enumerate(variants):
-            sources=[ROOT/('test_menu_package_target.c' if a.package else 'test_menu_owner_loader_target.c'),ROOT/'menu_owner.c',ROOT/'menu_owner_backend.c',ROOT/'editor_menu.c']
+            sources=[ROOT/('test_menu_transition_target.c' if a.transition else ('test_menu_package_target.c' if a.package else 'test_menu_owner_loader_target.c')),ROOT/'menu_owner.c',ROOT/'menu_owner_backend.c',ROOT/'editor_menu.c']
             if a.package:sources.append(ROOT/'menu_package.c')
             if '-DMODWERK_RUNTIME_SETS' in defines:sources.append(REPO/'sdk/runtime/upload/upload.c')
             objects=[]
@@ -60,7 +62,8 @@ def main():
             if result.returncode:raise RuntimeError('Owner-backed menu checks failed for '+repr(defines))
             results.append({'defines':list(defines),'exitCode':result.returncode,'stdout':result.stdout.splitlines()})
     names=SOURCES+ (('menu_package.c','menu_package.h','test_menu_package_target.c','menu_package_vectors.h','test_menu_package_vectors.py') if a.package else ())
-    report={'scope':'actual runtime loader with synthetic host machine glue; actual loader and full-owner menu fixture; both layouts and coexisting owners; synthetic machine services and no uploaded module execution; no native dispatcher, module execution or USB',
+    if a.transition:names+=('test_menu_transition_target.c','test_menu_transition_set.h')
+    report={'transitionCallbackPrototype':a.transition,'transitionRefusalsPerScenario':9 if a.transition else 0,'transitionSingleScenarios':4 if a.transition else 0,'transitionSetScenarios':4 if a.transition else 0,'scope':'actual runtime loader with synthetic host machine glue; actual loader and full-owner menu fixture; both layouts and coexisting owners; synthetic machine services and no uploaded module execution; no native dispatcher, module execution or USB',
             'sourceSha256':{n:sha(ROOT/n) for n in names},'independentPackageVectors':4,'ownerFieldMismatchesPerLayout':8,
             'typedMenuProposal':a.package,'malformedDescriptorsPerLayout':30 if a.package else 0,
             'descriptorOwnerMismatchesPerLayout':8 if a.package else 0,'validDescriptorBoundaryCasesPerLayout':4 if a.package else 0,
@@ -69,6 +72,11 @@ def main():
             'compiler':subprocess.check_output([cc,'--version'],text=True).splitlines()[0],
             'wholeSetScenarios':4,'setVariants':2,'flags':flags,'variants':results,'exitCode':0,'hardware':'not tested','nativeMenu':'not integrated',
             'limits':'Production transition-time lease retirement, typed contribution admission, complete module-set readiness and retained-reference reclamation remain absent.'}
+    if a.transition:
+        report['scope']='Actual loader metadata callback retires outgoing menu activations before publication changes; synthetic host machine services, both menu layouts, failure after retirement and restoration without an intervening lease query.'
+        report['transitionSetVariants']=2
+        report['limits']='Production board registration, native menu reference retirement, source lifetime cancellation and USB remain unimplemented. Refused switches conservatively retire affected activations.'
     if a.output:a.output.write_text(json.dumps(report,indent=2)+'\n')
+    if a.transition:print('PASS: callback retirement, nine input refusals per single scenario, four single scenarios per configuration and four set rollback/Keep scenarios per set configuration')
     print('PASS: six actual-loader configurations; SDK compilation dependencies matched the exact pinned source manifest')
 if __name__=='__main__':main()

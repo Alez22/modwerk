@@ -44,3 +44,29 @@ int bs_menu_owner_backend_bind_locked(struct bs_menu_owner_backend *b,uint32_t c
 const bs_menu_backend *bs_menu_owner_backend_get_locked(struct bs_menu_owner_backend *b) {
     return b && b->bound?&b->backend:0;
 }
+
+int bs_menu_owner_backend_transition_locked(struct bs_menu_owner_backend *b,
+    const struct runtime_dsp *from,const struct runtime_dsp *to,
+    enum runtime_metadata_operation operation) {
+    struct runtime_owner outgoing;
+    if(!b || !b->bound || !b->count || b->count>BS_MENU_ACTIONS || !from || !to ||
+       (operation!=RUNTIME_METADATA_PREPARE && operation!=RUNTIME_METADATA_SWITCH))return RUNTIME_MALFORMED;
+    if(operation==RUNTIME_METADATA_PREPARE || !from->image || from->image==to->image)return RUNTIME_OK;
+    if(!modwerk_runtime_owner_snapshot(from->image,&outgoing) ||
+       !bs_menu_owner_published_locked(&outgoing))return RUNTIME_BUSY;
+    /* Validate the admitted registry before any retirement. Full ledger checks
+     * make module/generation matching sufficient; neither is trusted alone. */
+    for(uint32_t i=0;i<b->count;++i) {
+        const struct bs_menu_owner_lease *lease=b->actions[i].lease;
+        if(!lease || !b->actions[i].action ||
+           (lease->state!=BS_MENU_OWNER_LIVE && lease->state!=BS_MENU_OWNER_RETIRED))return RUNTIME_MALFORMED;
+        if(lease->owner.module==outgoing.module && lease->owner.generation==outgoing.generation &&
+           !bs_menu_owner_published_locked(&lease->owner))return RUNTIME_BUSY;
+    }
+    for(uint32_t i=0;i<b->count;++i) {
+        struct bs_menu_owner_lease *lease=b->actions[i].lease;
+        if(lease->owner.module==outgoing.module && lease->owner.generation==outgoing.generation)
+            bs_menu_owner_retire_locked(lease);
+    }
+    return RUNTIME_OK;
+}
