@@ -17,3 +17,5 @@ Document checking the actual trim/tempo after changing a source, distinguishing 
 Clarify work-call versus private-transition budgets when batching owned planning. The selected Beat Slicer fixture permits one live copy per callback with fresh validation; sixteen synthetic comparisons reduce both total work and the maximum callback, without claiming physical timing.
 
 Document selection-bound callback authority and the pinned 1.40C dispatcher caller-argument trap. Portable context tests and separate actual-stock ABI comparisons keep lifecycle and hardware qualification limits explicit.
+
+Distinguish repeated fixed-owner openings with immutable resident tables from native detachment and USB reclamation. Record stock-layout transitions and owner withdrawal as separate qualification cases.

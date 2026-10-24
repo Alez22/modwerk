@@ -82,6 +82,13 @@ both stock menu variants and cancels read-only previews. Its fixed storage stays
 pinned forever. The native loader lock, admission, actual detachment and removal
 hooks remain unimplemented; dismissal is not permission to reclaim pointers.
 
+The [resident-menu experiment](RESIDENT_MENU.md) keeps two immutable layouts
+for one fixed owner generation and can reopen after native dismissal/dispatch
+return. It never rewrites a retained table or claims it is detached. Owner
+retirement withdraws the action but leaves storage pinned. A production registry
+must additionally handle replacement, changed contributions, actual owner
+records and reclamation; this experiment deliberately does not provide them.
+
 ## Snapshot and job contract
 
 One base-owned operation token identifies the selected sample and the editor

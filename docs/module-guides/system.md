@@ -243,6 +243,15 @@ an extra nested call frame would change that ABI effect. Compare original and
 wrapped register, SR, stack and argument behavior separately from full-popup
 execution. These checks do not authorize reclaiming retained references.
 
+Immutable resident tables can support repeated fixed-owner openings without
+claiming native detachment: keep every retained label/callback/action alive,
+require completed dismissal and dispatch return, and issue fresh exact selection
+authority. Keep distinct layouts independently stable and test transitions caused
+by normal stock edits. This strategy does not supply owner replacement, changing
+contributions or USB reclamation; retiring an owner must withdraw its action
+without freeing retained storage. Beat Slicer's private 1.40C fixture is limited
+to that fixed-owner lifetime.
+
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots of the menu path, with exact button sequences.

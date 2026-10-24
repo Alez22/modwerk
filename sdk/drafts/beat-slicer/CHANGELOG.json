@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.31-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Reopen the private Beat Grid dialog after BACK or NO using fixed-owner immutable menu tables and fresh selection authority.",
+      "Preserve options and advance UI/request identities across openings; refuse stale callbacks, nested activity, retired owners and exhausted serials.",
+      "Keep the two stock SLICE menu layouts independently resident, preserve original stock callbacks and withdraw an open contribution when its owner retires.",
+      "Exercise stock grid creation and clearing between previews; these operations still use the existing stock confirmation and marker behavior.",
+      "Known issue: fixed-owner pinned storage does not provide USB replacement or reclamation; live admission, Apply/playback and hardware qualification remain unfinished."
+    ]
+  },
+  {
     "version": "0.1.30-experimental",
     "date": "2026-10-24",
     "changes": [

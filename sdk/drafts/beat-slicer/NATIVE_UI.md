@@ -140,3 +140,11 @@ stock's caller-visible first-argument overwrite. Separate ABI and full-popup
 execution results are in TESTING.md. Arrays remain pinned and the contribution
 is still one-shot; no production loader retirement or nested-menu support is
 claimed. See [selection authority](SELECTION_CONTEXT.md).
+
+
+The separate `resident_boot_native.py` / `boot_resident_native.py` variant uses
+immutable resident layouts for repeated openings. `boot_resident_lifecycle.py`
+changes markers only through stock's normal grid/clear confirmations while
+alternating the two menu layouts in one process. The guarded one-shot fixture
+remains reproducible; neither fixture implements dynamic loader reclamation.
+See [the fixed-owner lifetime contract](RESIDENT_MENU.md).

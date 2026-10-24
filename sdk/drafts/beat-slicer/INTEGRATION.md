@@ -15,7 +15,8 @@ experiments from the shared services and qualification still required.
    dispatch with explicit retirement. Private full-boot fixtures now render and
    select an appended action in both stock menu variants and exercise read-only
    controls. A guarded variant captures/arms/consumes each selection and preserves
-   native dispatch ABI effects; it still keeps one-shot storage pinned.
+   native dispatch ABI effects. A separate fixed-owner variant reopens immutable
+   layouts and keeps all storage pinned; replacement/reclamation remain absent.
    Native locking, package admission, event assignment and actual
    detachment/removal remain absent; test storage stays pinned for the boot.
 3. Connect the compiled planner to an admitted production source adapter.

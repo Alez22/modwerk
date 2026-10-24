@@ -46,3 +46,9 @@ fixture still permits one contributed menu opening per boot, keeps arrays/code
 alive indefinitely, and never claims package removal or memory reclamation.
 Reopening must establish native reference lifetime and a safe persistent-table
 contract; the context alone does not justify calling `bs_menu_detached_locked`.
+
+
+The separate [resident-menu variant](RESIDENT_MENU.md) avoids rewriting tables
+by keeping one immutable layout per stock shape for the whole fixed-owner
+lifetime. It permits later openings only after completed native dismissal and
+dispatch return. It never calls mutable-menu detachment or claims reclamation.

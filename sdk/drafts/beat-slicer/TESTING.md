@@ -1968,3 +1968,53 @@ Across the two runs: 152 stock selection dispatches, 2,634 UI calls, 574 engine 
 Current-upstream full source validation: Check passed in 136.49s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The new CMake probe target also builds and passes the separate 48-case ABI comparison.
 
 Six selection-context reports bind exact source commit `604af6bbcf7a1feaea14d40c846a2ce7acce9ccb`.
+
+
+## Immutable fixed-owner openings (0.1.31)
+
+Host ASan/UBSan and compiled ColdFire tests pass 200 context-authorized actions
+across 100 openings of each layout. Labels, callback slots, action records and
+backend remain byte-identical. Stale armed contexts, wrong tasks, stock rows,
+busy native/context state, reentrant retirement, changed owner/layout and serial
+exhaustion are refused. These are serialized adapter models, not loader leases.
+The resident helper has 634 text bytes and no global data/BSS; its largest local
+stack estimate is 40 bytes excluding callees and the complete chain.
+
+The native fixture keeps two independently pinned 648-byte layouts. Every
+contributed selection goes through the exact context guard; original stock rows
+retain the unowned stock callback path. The owner check remains synthetic.
+Its combined image has 27,152 text bytes, 0 data bytes and 10,980 BSS bytes, fitting the same eight-page reservation. The CMake-built ABI probe separately passes 48 paired dispatcher cases and four nested refusals against this exact image.
+
+Both native control runs pass 27 oracle previews each: the complete 21-case
+workflow followed by six fresh openings. Ten root openings per run include an
+extra NO dismissal, ordinary stock grid chooser and outstanding-popup owner
+retirement. Each layout's serial advances from 1 through 10 without rewriting
+its tables. Options persist, UI epochs advance and late calls cannot change
+current authority. Each run refuses 100 direct callbacks. Retiring the owner
+closes its outstanding root popup; later openings are stock-only.
+
+Separate runs cover NO cancellation while waiting, owner retirement while
+waiting and conservative waveform invalidation in both layouts. All eight runs
+preserve PCM, full settings and cards, plus code/reservation canaries, receive
+call, main stack and separate UI/engine task ownership. Every posted wake is
+consumed; no callback exceeds one bounded work call.
+
+The conservative runs record 0 driver-observed oracle comparisons and 2 UI completions; those are distinct observations.
+
+Two additional native boots alternate between six-row and nine-row layouts in
+the same process. Each performs six stock marker transitions and seven fresh
+Beat Grid previews. Stock grid creation uses its normal four-slice chooser and
+NO-for-unaligned decision. Cancelled clear leaves every setting intact; confirmed
+clear changes the count while preserving inactive records. Both resident layouts
+remain byte-identical across transitions. Preview changes no setting; only the
+explicit stock operations change expected marker fields. PCM, source controls,
+non-marker attributes and all Static-slot settings stay unchanged. Cards are
+not saved. This is stock grid/clear behavior alongside the contribution, not
+Beat Slicer Apply or persistence qualification.
+
+Fixed-owner reopening does not support changed contributions, new package
+owners, native reference reclamation or USB replacement/removal. Production
+registry transitions, live source admission, Apply/playback and physical
+qualification remain open.
+
+Current-upstream full source validation: Check passed in 139.33s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The exact native fixture passes the separate CMake-built 48-case ABI comparison.

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.30-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.31-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -246,3 +246,9 @@ the actual stock selection path. Direct, stale and duplicate calls do not adopt
 a newer dialog's authority. Private native wrappers preserve the stock stack
 and caller-visible effects; this is still pinned one-shot storage, not a
 production loader lease or permission to reclaim menu references.
+
+The [immutable resident-menu variant](RESIDENT_MENU.md) supports repeated private
+openings with unchanged tables, preserved options and fresh selection/request
+authority. The fixed owner can retire to stock-only operation, but cannot be
+replaced or reclaimed. This advances native UI research without claiming the
+production USB/module-set lifecycle.

@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.30-experimental",
+  "version": "0.1.31-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Bind each contributed selection to its captured task, table, row, callback, owner and epoch. Capture before stock closes, arm at the exact callback tail and consume once; refuse direct/late/nested calls. Portable and actual-stock ABI probes are recorded separately from full native UI results. Pinned one-shot storage remains; loader retirement, live source admission, Apply/playback, browser/USB and hardware remain unqualified.",
+    "summary": "Reopen fixed-owner native menus using immutable pinned layouts and exact selection-context authority. Portable tests cover 200 actions, stale contexts, native-busy refusal, owner/layout changes and exhaustion. Full native control, repeated-opening and stock marker/layout-transition results are recorded separately. This does not implement loader replacement/reclamation, live source admission, Apply/playback, source-built browser/USB packages or hardware qualification.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -122,6 +122,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_preview_batch.py",
       "python3 -B sdk/drafts/beat-slicer/test_preview_async.py",
       "python3 -B sdk/drafts/beat-slicer/test_selection_context.py",
+      "python3 -B sdk/drafts/beat-slicer/test_resident.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
