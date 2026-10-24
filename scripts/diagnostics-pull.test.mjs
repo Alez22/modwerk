@@ -85,6 +85,14 @@ describe('diagnostics pull', () => {
     expect(text).toContain('playing at 120.0 BPM, screen 0x400cbf2c, keys 28 1c, fx 21 0')
     expect(text).toContain('unresponsive ready reason=ui')
   })
+  it('names what a refused restore dropped', () => {
+    const mods = ids => ids.map(id => ({ id, catalogVersion: '0.1.0' }))
+    const events = [entry(1, 'tester', { event: 'connected', phase: 'ready' }),
+      entry(2, 'tester', { event: 'health', phase: 'ready', reading: { saved: 7, savedCount: 3, live: 3 }, modules: mods(['miniverb', 'ring-sc', 'poly8']) }),
+      entry(3, 'tester', { event: 'connected', phase: 'ready' }),
+      entry(4, 'tester', { event: 'health', phase: 'ready', reading: { saved: 6, savedCount: 2, live: 2 }, modules: mods(['miniverb', 'poly8']) })]
+    expect(summary({ events, counts: [] })).toContain('refused (missing ring-sc)')
+  })
   it('calls a stall found at a start on another base an OS upgrade, and one on the same base nothing', () => {
     const at = (seq, boot, kind, a = 0) => ({ seq, boot, second: 0, kind, a, cpu: 0, dsp1to4: 0, dsp5to8: 0, machines: Array(24).fill(0),
       fx: Array(16).fill(0), keys: Array(16).fill(255), screen: 0, tempo24: 0, playing: false })
