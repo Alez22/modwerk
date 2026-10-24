@@ -100,8 +100,10 @@ injection and a standalone runtime object cannot substitute for those steps.
    shortages. Recorder map/position updates precede PCM without queue/dirty/counter
    signals; shortage cleanup queues more work. Normal panel start/retrigger/STOP
    now runs through the stock frame caller in a full boot, distinguishing pending
-   and retained inactive banks. Pickup/overdub, complete interrupt/allocator
-   exclusion and native guard integration still need investigation.
+   and retained inactive banks. A private compiled entry/return observer now
+   passes paired isolated stock comparisons, including faulted bookkeeping.
+   Pickup/overdub, full-boot composition, complete interrupt/allocator exclusion
+   and production source admission still need investigation.
    Later isolated tests execute queued shortage/length-limit cleanup and cover
    its map-tail stores with the compiled worker observer; this does not prove
    all recorder writers or a production source lease.

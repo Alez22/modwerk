@@ -2367,3 +2367,31 @@ unqualified. The typed-menu and earlier recorder evidence remains historical
 and source-bound; no prior report is relabeled as the new test.
 
 Two recorder-bank reports bind source commit `034701491d876f54ccfda11ed6164771485073dd`. Current-upstream full validation passed in 141.28 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+## Compiled recorder entry/return boundary (0.1.40)
+
+The private prototype described in [RECORDER_BOUNDARY.md](RECORDER_BOUNDARY.md)
+passes 72 host sanitizer bank/track cases, nested independent writers and 13
+terminal fault families. The portable self-test also runs on the native target.
+The actual-stock runner passes 896 original/compiled-guard pairs across tracks
+1/8, both stereo widths and banks, 14 bank/allocation scenarios, four incoming
+SR patterns and both normal and faulted observers. All data/address registers,
+SP/SR at both continuations and return, caller arguments and ordered external
+stores match. Native guard tickets cover source mutations; two exact idle
+voice-flag clears remain in the full write comparison without invalidating
+previews. Private and lower-stack canaries remain intact.
+
+The observer adds at most 231 executed instructions in these cases, 168 on
+inactive/retained-bank calls. The largest observed observer-only masked run is
+113 executed instructions for callers below level 7. These are instruction
+counts, not cycles, physical interrupt latency or acceptable audio headroom.
+The portable boundary object is 554 text bytes with no static data/BSS; its
+reported local stack is 24 bytes for enter and 32 for leave. The wrapper,
+fixture storage and complete stock call chain are additional costs.
+
+The full-boot panel report from 0.1.39 remains a separate uninstrumented run.
+This milestone does not compose recorder and engine lifetimes in a live boot,
+install production hooks, admit a live source, or qualify Pickup/overdub,
+cache/interrupt timing, USB, playback or hardware. Replay bytes and binaries
+remain private; the conservative interior-target scan is not a complete
+control-flow or indirect-target proof.

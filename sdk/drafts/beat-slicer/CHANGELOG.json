@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.40-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Prototype recorder entry/return scopes with paired caller identity, bank classification, independent writer tickets and terminal fault refusal.",
+      "Run 896 original/guarded ColdFire comparisons, preserving registers, SR, caller arguments, external writes and stock cleanup after observer faults.",
+      "Distinguish two exact idle voice-flag clears from source writes; retain both in the full stock-write comparison.",
+      "Bound private placement, replay identities, stack canaries and observer instruction counts; no production hook or source service is enabled.",
+      "Known issue: full-boot composition, Pickup/overdub, interrupt/cache timing, complete writer coverage, USB and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.39-experimental",
     "date": "2026-10-24",
     "changes": [

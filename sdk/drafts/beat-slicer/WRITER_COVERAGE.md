@@ -376,3 +376,18 @@ Only the final empty receive ends the second ticket before the unmasked wait.
 The 32 single-recorder scenarios and 16 original recording positive controls
 remain in each run. These are two serialized recorder calls with pending work,
 not simultaneous ISR execution or proof of shared-pool scheduling.
+
+## Compiled recorder lifetime (0.1.40)
+
+The private [recorder-boundary prototype](RECORDER_BOUNDARY.md) now brackets the
+complete ordinary-recorder entry and common return with compiled ticket
+bookkeeping. Paired original/guarded calls preserve register/SR state at both
+continuations and final return, caller arguments and every external store,
+including cleanup when the observer is terminally faulted. Inactive/retained
+calls avoid invalidation but still clear two exact stock voice flags; these
+remain in the paired oracle rather than being mistaken for PCM/source writes.
+
+This extends isolated execution evidence only. It does not connect the guard
+to a source reader or cover panel arming, stop/worker cleanup, Pickup/overdub,
+DMA, cache aliases or concurrent interrupts. The normal-panel full boot and
+compiled worker guard remain separate experiments until explicitly composed.

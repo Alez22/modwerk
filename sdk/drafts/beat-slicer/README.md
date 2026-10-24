@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.39-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.40-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -114,8 +114,10 @@ see [writer coverage](WRITER_COVERAGE.md).
 
 Recorder research now includes ordinary panel start/retrigger/STOP in a stock
 full boot, plus isolated pending-bank transitions. It distinguishes a pending
-start from an old inactive bank that retains its recorded state. These traces
-refine source ownership requirements; they do not install a recorder guard.
+start from an old inactive bank that retains its recorded state. A separate
+[compiled recorder-boundary prototype](RECORDER_BOUNDARY.md) preserves stock
+behavior in paired isolated calls, including terminal observer faults. The
+normal-panel trace does not run that guard; combined live ownership remains open.
 
 The [copied UI/engine exchange](PREVIEW_ASYNC.md) gives one engine consumer
 ownership of the mutable session. UI callbacks submit tagged intents and read

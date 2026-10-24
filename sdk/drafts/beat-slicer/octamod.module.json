@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.39-experimental",
+  "version": "0.1.40-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Trace ordinary stock panel start, retrigger and STOP on tracks 1/8 with both DSPs and scheduler, preserving the unrelated Flex source and card. Distinguish four-byte pending-state publication from active and retained inactive banks, and exercise 48 synthetic two-bank cases plus 16 delayed follow-up calls across both stereo widths. Native recorder guards, complete source ownership, USB, Apply/playback and hardware remain unqualified.",
+    "summary": "Exercise a private compiled recorder entry/return guard in 896 paired stock calls across bank states, stereo formats, tracks 1/8, four SR patterns and terminal observer faults. Compare all data/address registers, SP/SR at both continuations and return, caller arguments and external writes. Full-boot composition, complete source ownership, production hooks, USB, Apply/playback and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -128,6 +128,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_backend.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --package",
+      "python3 -B sdk/drafts/beat-slicer/test_recorder_boundary.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

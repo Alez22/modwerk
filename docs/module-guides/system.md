@@ -159,6 +159,14 @@ ownership rule. Capture overlapping stores too: the observed pending byte is
 published by a four-byte write beginning two bytes earlier. These are emulator
 observations, not a qualified native recorder/source boundary.
 
+Compare a native writer wrapper against the unmodified whole routine, including
+both continuation states, caller arguments, status flags and ordered external
+stores. Preserve SR/CCR when displaced instructions do not reset them. Keep
+stock cleanup running after observer failure. Beat Slicer's isolated 1.40C
+recorder comparison retains two idle voice-flag clears in its write oracle;
+no PCM write does not mean no write at all. A narrow fixture exception is not
+a production writer allowlist, and instruction counts are not physical latency.
+
 ### Background work
 
 When adding a worker observer at runtime, account for the command already

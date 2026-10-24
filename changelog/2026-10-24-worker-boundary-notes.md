@@ -43,3 +43,5 @@ Extend recorder cleanup guidance to separate pending per-track records and fresh
 Document bounded typed menu-descriptor copies and the distinction between loader lifetime, reconstruction identity and coherent mutable metadata. The draft decoder is exercised against the real loader; production table admission and hardware integration remain pending.
 
 Document selected, pending and retained recorder banks from normal-panel stock emulator traces and isolated delayed-start calls. Explain why state-byte observations must include overlapping larger stores. Native recorder exclusion and physical timing remain unqualified.
+
+Document paired whole-routine recorder comparisons, continuation SR/CCR preservation and stock cleanup after observer failure. Keep exact idle voice-flag writes in the oracle and distinguish native instruction counts from physical latency; live recorder/engine composition remains unqualified.
