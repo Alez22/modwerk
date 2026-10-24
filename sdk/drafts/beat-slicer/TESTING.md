@@ -2668,3 +2668,5 @@ scenarios, which exercise dismissal/cancellation rather than WAITING. Existing
 0.1.46 reports remain unchanged at their exact original source. Their legacy
 flag must be interpreted with the qualification above; no old native run is
 relabelled as a new execution.
+
+The two retained 0.1.48 compile/profile reports bind source `8efd17400916b23203d53c99e80593e84bd96b63`. The full current-upstream source check passed in 140.04 seconds; the inherited stale-fork changelog failure remains recorded separately.
