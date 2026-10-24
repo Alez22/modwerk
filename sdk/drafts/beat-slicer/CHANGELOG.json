@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.32-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Distinguish an intact retained runtime image from the exact currently published owner before admitting a menu action.",
+      "Keep fixed-lifetime menu leases retired after owner replacement, removal or explicit retirement, even if the same old image is later restored.",
+      "Exercise retained/restored owners with actual-loader host tests and verify complete owner copies and permanent retirement with synthetic ColdFire execution.",
+      "Verify normal stock tempo changes and 27 previews at 90 BPM; pin external SDK evidence to exact commits and reject mismatched source identities.",
+      "Known issue: production transition hooks and typed menu admission remain absent; native USB lifecycle, Apply/playback and hardware are unqualified."
+    ]
+  },
+  {
     "version": "0.1.31-experimental",
     "date": "2026-10-24",
     "changes": [

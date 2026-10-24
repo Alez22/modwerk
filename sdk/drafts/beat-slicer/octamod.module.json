@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.31-experimental",
+  "version": "0.1.32-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -83,7 +83,7 @@
       "value": null,
       "unit": "unknown",
       "method": "unmeasured",
-      "conditions": "No measurements exist yet. Add exact conditions and source evidence when available.",
+      "conditions": "Private fixture sizes are recorded in TESTING.md; installed module/base allocation and the complete stack budget remain unqualified.",
       "source": "TESTING.md"
     },
     "processing": {
@@ -92,13 +92,13 @@
       "value": null,
       "unit": "unknown",
       "method": "unmeasured",
-      "conditions": "No measurements exist yet. Add exact conditions and source evidence when available.",
+      "conditions": "Private instruction and emulated-time measurements are recorded in TESTING.md; installed CPU/DSP cost, physical timing and audible headroom remain unmeasured.",
       "source": "TESTING.md"
     }
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Reopen fixed-owner native menus using immutable pinned layouts and exact selection-context authority. Portable tests cover 200 actions, stale contexts, native-busy refusal, owner/layout changes and exhaustion. Full native control, repeated-opening and stock marker/layout-transition results are recorded separately. This does not implement loader replacement/reclamation, live source admission, Apply/playback, source-built browser/USB packages or hardware qualification.",
+    "summary": "Check full runtime owner identity and its exact current published position before admitting menu authority. Fixed-lifetime leases retire permanently on observed absence or explicit transition retirement, including later restoration of the same old image. Actual-loader host results are separate from native menu/USB qualification. Production registry transition hooks, live source admission, Apply/playback, browser/USB packages and hardware remain unfinished.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -123,6 +123,8 @@
       "python3 -B sdk/drafts/beat-slicer/test_preview_async.py",
       "python3 -B sdk/drafts/beat-slicer/test_selection_context.py",
       "python3 -B sdk/drafts/beat-slicer/test_resident.py",
+      "python3 -B sdk/drafts/beat-slicer/test_menu_owner.py",
+      "python3 -B sdk/drafts/beat-slicer/test_audit_evidence.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

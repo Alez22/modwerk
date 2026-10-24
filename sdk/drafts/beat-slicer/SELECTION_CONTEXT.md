@@ -41,8 +41,8 @@ production adapter. Ordinary stock selections use the original callback path.
 The context applies to the BEAT GRID action and configuration/result callbacks.
 Callbacks only publish UI intent; the engine retains ownership of the preview.
 
-Ending a context retires its authority, not every native reference. The current
-fixture still permits one contributed menu opening per boot, keeps arrays/code
+Ending a context retires its authority, not every native reference. The selection-only
+fixture (`boot_selection_native.py`) permits one contributed menu opening per boot, keeps arrays/code
 alive indefinitely, and never claims package removal or memory reclamation.
 Reopening must establish native reference lifetime and a safe persistent-table
 contract; the context alone does not justify calling `bs_menu_detached_locked`.

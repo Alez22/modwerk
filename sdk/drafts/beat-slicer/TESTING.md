@@ -1,5 +1,10 @@
 # Beat Slicer testing
 
+For the current completion boundary, see [integration readiness](INTEGRATION.md#current-readiness).
+The versioned sections below retain historical research evidence; old Undo
+experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
+an independent installation lifecycle requirement.
+
 Current draft: 0.1.25-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
@@ -2020,3 +2025,58 @@ qualification remain open.
 Current-upstream full source validation: Check passed in 139.33s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The exact native fixture passes the separate CMake-built 48-case ABI comparison.
 
 Fourteen resident-menu reports bind exact source commit `02ad4c874e2f9af84bf25877ce27b72ae515a6cc`.
+
+
+## Published owner and normal project tempo (0.1.32)
+
+The menu-owner helper checks the complete real loader record and its exact
+current published extent under the caller's stable loader lock. Six host
+ASan/UBSan configurations cover ordinary/cached images, the 128-module Octatrack
+pool, and module sets. Each runs the unchanged upstream loader suite plus staged,
+live, rollback-retained, replaced, restored and removed owners; eight full-record
+field mismatches are refused. Observed absence or explicit pre-transition
+retirement is permanent for that activation, including a restored old image.
+Every transitive SDK compilation input matches the committed dependency manifest.
+The retained-evidence audit also resolves each declared SDK dependency against
+its exact Git commit, including the code-generation guard where recorded. Seven
+focused host regressions reject missing pairs, malformed identities/paths,
+changed source/guard hashes and a module-relative/repository-path cache collision.
+Synthetic machine glue remains; uploaded module code does not execute.
+
+The proposed helper compiles with the freestanding ColdFire toolchain and shared
+code-generation guard: 308 text bytes, 0 data bytes,
+0 BSS bytes. Its only unresolved imports are the expected loader
+owner-validity and published-position queries. This is compile-only evidence;
+no complete native loader link, execution or registry transition hook is claimed.
+
+A separate stock-free ColdFire binary links and executes this exact helper with
+explicit synthetic loader answers. It exercises all 128 publication positions,
+complete owner-field/digest copies, destruction of the original caller record,
+intact-but-unpublished refusal and permanent retirement after invalidation,
+replacement or explicit retirement. Guard canaries, stack and preserved registers
+survive. This validates the compiled helper, not real native loader execution,
+menu dispatch, USB or physical timing.
+
+A separate unmodified stock boot changes project tempo through TEMPO and the
+LEVEL encoder: 120 → 90 → 137 → 120 BPM. Each measured detent is one BPM, bounded
+turns are checked against the runtime word, and NO leaves the accepted tempo
+unchanged. Retained open-popup LCD captures were rendered and inspected: 90.0, 137.0 and
+120.0 BPM with PRJ selected. Complete
+PCM, sample controls/settings and the unsaved card stay unchanged. No direct
+tempo stores or borrowed native calls set these values.
+
+A further native resident-menu boot starts at a normally selected 90 BPM and
+passes 27 whole-plan oracle comparisons across SAMPLE/PROJECT, all spacings and
+both boundary modes, followed by repeated openings. PROJECT results use 2160
+in 1/24-BPM units; SAMPLE results retain the sample's distinct tempo. Preview
+never alters project tempo, PCM or sample settings. The same ten opening serials,
+stale callback refusals, ordinary stock grid path and owner retirement checks
+remain active. This adds a distinct captured project tempo; it does not prove
+live clock changes, external sync or pattern-tempo modes.
+
+Production typed contribution admission, pre-transition lease retirement,
+module-set readiness, native reference reclamation, source ownership,
+Apply/playback and source-built browser/USB packages remain unfinished.
+Hardware, audible headroom and physical reboot persistence are not tested.
+
+Current-upstream full source validation: Check passed in 134.43s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The owner helper has separate compile-only and synthetic ColdFire execution evidence; real native loader execution is unqualified. The tempo driver reuses the unchanged linked resident fixture.

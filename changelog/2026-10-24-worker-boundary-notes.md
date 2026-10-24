@@ -19,3 +19,11 @@ Clarify work-call versus private-transition budgets when batching owned planning
 Document selection-bound callback authority and the pinned 1.40C dispatcher caller-argument trap. Portable context tests and separate actual-stock ABI comparisons keep lifecycle and hardware qualification limits explicit.
 
 Distinguish repeated fixed-owner openings with immutable resident tables from native detachment and USB reclamation. Record stock-layout transitions and owner withdrawal as separate qualification cases.
+
+Correct menu-owner admission guidance: intact ledger retention is not current publication. Check the exact live owner and retire menu activation before transitions so rollback restoration cannot revive stale authority; test against the real loader with synthetic host glue.
+
+Record the normal-panel tempo validation method and its limits: displayed/runtime tempo and unchanged sample attributes are separate checks; stopped-source previews do not qualify external sync or live tempo changes.
+
+Clarify internal failure rollback versus retained Undo research, and add a current integration-readiness table separating private evidence from production and hardware work.
+
+Extend Beat Slicer evidence verification to external SDK source commits and recorded code-generation guards, with seven regression tests for malformed or mismatched provenance.

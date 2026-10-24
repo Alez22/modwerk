@@ -17,6 +17,7 @@ import wave
 from boot_observe import Port, digest
 from boot_formats import observe
 from inspect_stock import STOCK_MAIN_SHA256
+from stock_tempo import set_project_tempo, runtime_tempo
 
 ROOT = Path(__file__).resolve().parent
 from boot_worker_native import tap, allocated_end_frame, ARENA_SHA, writes
@@ -34,6 +35,7 @@ def main():
     p.add_argument('--expected-frames', type=int, choices=(44100,1323000), default=44100)
     p.add_argument('--scenario', choices=('controls', 'cancel', 'owner', 'conservative'), default='controls')
     p.add_argument('--selected', action='store_true')
+    p.add_argument('--project-bpm',type=int,choices=range(30,301))
     p.add_argument('--allow-private-waveform-reads', action='store_true', help='Fixed-input private classification only; mutable queued-record lifetime is not qualified')
     p.add_argument('--allow-private-injection', action='store_true', required=True)
     a = p.parse_args()
@@ -94,6 +96,8 @@ def main():
     try:
         port.reply(b'ready ', timeout=600)
         assert port.loaded, 'LOAD PROJECT did not finish'
+        tempo_change = set_project_tempo(port,a.project_bpm) if a.project_bpm is not None else None
+        prepared_project_bpm24 = runtime_tempo(port)
         before = out / 'before'; before.mkdir()
         baseline = observe(port, 16, 2, original, before)
         initial_settings = struct.unpack('>274I', port.peek(0x100b14f0, 1096))
@@ -564,6 +568,7 @@ def main():
         assert port.peek(0x40084854, 6) == original_call
         assert call('bs_ui_main_sp') == main_sp, 'Driver calls changed main stack'
         assert not a.allow_private_waveform_reads or word('bs_ui_readonly_jobs') > 0
+        assert runtime_tempo(port) == prepared_project_bpm24, 'Preview changed project tempo'
         counters = {name: word('bs_ui_tick_' + name) for name in ('calls', 'steps', 'max_steps', 'reentry')}
         jobs = {name: word('bs_ui_' + name + '_jobs') for name in ('readonly', 'ordinary')}
         ui_completed = word('bs_grid_ui_previews')
@@ -578,12 +583,13 @@ def main():
         ffi.PlannerTests.tearDownClass()
     assert digest(card) == a.card_sha256 and digest(a.card) == a.card_sha256
     report = {'scope': 'private copied UI intents/results with engine-owned previews; existing tick/engine hooks, actual stock menus and synthetic source/owner admission',
-              'sourceSha256': {n: digest(ROOT / n) for n in ('boot_resident_native.py', 'boot_source_native.py', 'boot_worker_native.py', 'boot_slices.py', 'boot_writer.py', 'boot_static.py', 'boot_formats.py', 'boot_observe.py', 'inspect_stock.py', 'test_planner.py', *native['sourceSha256'].keys())},
+              'sourceSha256': {n: digest(ROOT / n) for n in ('boot_resident_native.py', 'stock_tempo.py', 'boot_source_native.py', 'boot_worker_native.py', 'boot_slices.py', 'boot_writer.py', 'boot_static.py', 'boot_formats.py', 'boot_observe.py', 'inspect_stock.py', 'test_planner.py', *native['sourceSha256'].keys())},
               'mainSha256': STOCK_MAIN_SHA256, 'reservedMainSha256': digest(patched_main),
               'nativeReceiptSha256': digest(a.native / 'source-boot.json'), 'nativeBinarySha256': digest(binary),
               'arenaToolSha256': ARENA_SHA, 'reservedPages': 8, 'nativeAddress': native['textBase'],
               'emulatorSha256': digest(a.emulator), 'cardSha256': a.card_sha256, 'wavSha256': digest(a.wav),
-              'expectedFrames': a.expected_frames,
+              'expectedFrames': a.expected_frames, 'normalProjectTempoChange': tempo_change,
+              'preparedProjectBpm24': prepared_project_bpm24, 'projectTempoUnchangedByPreview': True,
               'initialTrim': list(initial_settings[75:78]), 'preparedTrim': list(prepared_settings[75:78]),
               'initialSampleBpm24': initial_settings[69], 'preparedSampleBpm24': prepared_settings[69],
               'borrowedCallPreEntryWaitMs': wait_ms, 'borrowedCallMaximumAttempts': 200,

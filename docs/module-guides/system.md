@@ -115,7 +115,7 @@ replacement starts and keep exclusion across nested release until the outer load
 returns. These fixtures mock filesystem/header IO and do not qualify actual file
 loading or persistence.
 
-An exact marker Undo snapshot needs inactive rows too: adding slices overwrites
+An exact internal failure-rollback snapshot needs inactive rows too: adding slices overwrites
 previously inactive record slots. Preserve the full table and count, and compare
 the complete expected after-state before restoring it. Beat Slicer's candidate
 tests cover this in memory; such equality still needs source identity, ownership
@@ -251,6 +251,22 @@ by normal stock edits. This strategy does not supply owner replacement, changing
 contributions or USB reclamation; retiring an owner must withdraw its action
 without freeing retained storage. Beat Slicer's private 1.40C fixture is limited
 to that fixed-owner lifetime.
+
+The runtime owner ledger includes staged candidates and retained rollback
+predecessors. `modwerk_runtime_owner_valid` proves intact retention, not current
+publication. Under the stable loader lock, also match the exact published owner
+before resolving an admitted menu handler; retain separate registry/module-set
+readiness gates. Retire the activation before replacement/removal, even if an
+Undo later restores the same image. Polling alone can miss that whole interval
+and must not revive an old activation. Beat Slicer's owner fixture checks this
+against the real loader with synthetic host glue; no native hook is installed.
+
+When testing a captured tempo source, change the instrument through its ordinary
+panel path and verify the displayed value, runtime value and unchanged sample
+attributes separately. Beat Slicer's pinned 1.40C stock fixture measures TEMPO /
+LEVEL adjustment at 90, 137 and 120 BPM; a private native preview run compares
+90 BPM PROJECT results with the sample's distinct BPM. These stopped-source
+observations do not establish external sync, pattern tempo or changes in flight.
 
 ## Integrate
 

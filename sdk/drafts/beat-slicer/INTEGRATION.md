@@ -3,6 +3,27 @@
 Release integration remains incomplete. The notes below distinguish private
 experiments from the shared services and qualification still required.
 
+## Current readiness
+
+| Area | What is established | What still blocks use on the unit |
+| --- | --- | --- |
+| Planner and preservation | Host and ColdFire plans, complete records, conservative ordinal preservation and internal rollback contracts | Native publication and owner review of the preservation restriction |
+| Flex preview | Private stock-loaded sources, four PCM formats, long-source work and copied UI/engine results | Production admission, complete writer coverage and measured physical lock/cache behavior |
+| Menu workflow | Both stock layouts, repeated openings, stale callback refusal and stock grid/clear transitions | Reviewed base event/table, typed package admission and reference retirement |
+| Loader owner | Real-loader host transitions and separate compiled-helper execution | Production transition hooks and complete module-set readiness |
+| Static source | Stock load/clear and handle-lifetime observations | A bounded leased streaming reader |
+| Apply and playback | Portable transaction and isolated stock refresh fixtures | Atomic native commit/rollback and qualified audible boundary behavior |
+| Distribution | Source-bound private reports; publication deliberately refused | Source-built card/browser/USB packages, scans and companion matrix |
+| Hardware | Read-only MKII base/inventory preflight | Exact-candidate trial, self-test, Keep/Undo, removal, audio and physical persistence |
+
+The next production dependency is the reviewed shared editor/source interface,
+including writer exclusion and lifetime retirement. The module must then bind
+its independent package to that interface, implement qualified Apply/playback,
+and pass the complete browser/USB and physical acceptance flow. Private test
+injection and a standalone runtime object cannot substitute for those steps.
+
+## Integration work
+
 1. Turn the observed 1.40C slice-menu dispatcher, decoded PCM reader and marker
    transaction paths into reviewed shared interfaces. Private execution now
    covers these research paths; their addresses are not an approved ABI. Stock
@@ -171,9 +192,10 @@ Draft release notes live in CHANGELOG.json. Move them to
 `src/community/module-changelogs/beat-slicer.json` in the same change that
 registers the qualified module; the live changelog validator rejects unlisted IDs.
 
-The portable [transaction coordinator](EDIT_TRANSACTION.md) now exercises Apply
-and Undo confirmation, complete history, failure rollback contracts and source
-quarantine against a synthetic backend. A compiled Flex-to-transaction fixture
+The portable [transaction coordinator](EDIT_TRANSACTION.md) exercises the
+planned no-history commit and internal failure rollback against a synthetic
+backend. Its older explicit Undo/history cases remain research regressions;
+they are not additional controls or release requirements. A compiled Flex-to-transaction fixture
 also executes stock row-binding, selection and redraw refresh. It retires the
 old selected row before rebuilding a shorter table; this order avoids the
 isolated stale-row dereference, but supplies no live exclusion. Its backend must provide actual atomic

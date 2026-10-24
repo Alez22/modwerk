@@ -1,254 +1,155 @@
 # Beat Slicer
 
-Version: `0.1.31-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.32-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
-Plans slice starts at beat intervals derived from sample BPM or project BPM.
-Category: **system**, because this is a one-shot sample editor operation with
-no effect slot or ongoing sequencer clock. The portable C core is implemented
-and host-tested. This is **not an installable Octatrack module**: editor,
-playback, storage and USB integration are pending.
+Beat Slicer plans slice starts at beat intervals derived from sample BPM or
+project BPM. It is a one-shot sample-editor operation, with no effect slot or
+independent sequencer clock. A private full-boot Octatrack emulator fixture now
+exercises the stock-menu entry, controls and read-only previews. This is **not
+an installable module**: production source admission, editor/loader lifecycle,
+Apply/playback and browser/USB integration remain unfinished.
 
 The grid starts at sample trim start. One beat is a quarter note of the chosen
 BPM; track speed and swing do not move offline sample markers. Project BPM is
-captured for the operation, not followed live. Later tempo changes must never
-automatically rewrite slices.
+captured for the operation. Later tempo changes must never rewrite slices
+automatically. The current core accepts 30–300 BPM in 1/24-BPM units.
 
 ## Controls
 
-Planned controls; a private emulator fixture now exercises the read-only dialog.
-They are not installed on the instrument:
+The private native fixture exercises these read-only controls:
 
 | Control | Values and behavior |
 | --- | --- |
-| BPM SOURCE | SAMPLE (default): sample ATTR BPM; PROJECT: project BPM. Show the actual value; refuse missing/invalid BPM. |
-| SPACING | 1, 4, 16, 32 or 64 beats (default 1). |
-| BOUNDARY | SMOOTH (default): quiet-boundary search in both channels within ±2 ms; EXACT: mathematical beat grid. |
-| Preview | Show resulting total, existing/new markers and boundaries needing fades. No sample changes. |
-| Confirm / Back | Follow the stock slice-menu interaction. Confirm the prepared grid; backing out before commitment changes nothing. Native integration remains unavailable. |
+| BPM SOURCE | SAMPLE (default): sample ATTR BPM; PROJECT: captured runtime project tempo. Refuse missing or invalid BPM. External-clock and pattern-tempo behavior remain unqualified. |
+| SPACING | 1, 4, 16, 32 or 64 beats; default 1. |
+| BOUNDARY | SMOOTH (default): search both stereo channels within ±2 ms for a quiet boundary; EXACT: mathematical beat grid. Neither guarantees click-free playback. |
+| Preview | Show captured tempo, total/existing/new markers and fade warnings. No sample changes. |
+| BACK / NO | Leave the private preview without changing markers. Reopening preserves options and issues fresh request/selection identities. |
 
-Beat Grid belongs in the existing slicing workflow. After creating a grid, use
-stock DELETE SLICE or DELETE ALL SLICES to remove markers. No Beat Slicer Undo
-action or separate history dialog is planned. Clearing removes slices; it does
-not restore the layout that preceded the grid. Internal failure rollback remains
-required so an unsuccessful commit leaves the prior state intact. Exact button
-and prompt behavior still needs comparison with stock 1.40C; in particular, NO
-at stock's zero-cross question chooses unaligned slices rather than cancelling.
+Confirm/Apply remains planned and unavailable. It must follow the stock slicing
+workflow, committing the exact prepared candidate once. Afterwards, use stock
+DELETE SLICE or DELETE ALL SLICES. No Beat Slicer Undo action or separate history
+dialog is planned. Clearing removes markers; it does not restore a previous
+layout. Internal rollback remains necessary for failed publication.
 
-Existing markers remain exact. In SMOOTH mode, an existing marker within the
-search window already covers that beat. Refuse more than 64 total slice starts
-rather than truncate the sample or delete old markers. The current core accepts
-30–300 BPM in 1/24 BPM units.
+At stock's grid zero-cross question, NO accepts unaligned slices rather than
+cancelling. The normal stock workflow and the resident contribution are tested
+separately and together in private emulator boots; physical comparison remains
+open.
 
 ## Usage
 
-The target is Octatrack MKII OS 1.40C through the Modwerk base and USB bridge.
-MKI operation is a future qualification target.
+Target: Octatrack MKII OS 1.40C through the Modwerk base and USB bridge. MKI is a
+future qualification target.
 
-Proposed access: Flex/Static audio track → AED → AMP (SLICE) → YES →
-BEAT GRID. The stock AED → AMP → YES path is observed in the pinned 1.40C
-emulator. The [private native UI fixture](NATIVE_UI.md) now adds BEAT GRID
-and read-only previews there; released integration and physical operation remain unverified.
-No stock gesture or screen is claimed by this draft.
+Proposed access, exercised privately: Flex/Static audio track → AED → AMP
+(SLICE) → YES → BEAT GRID. The current native source fixture reads Flex;
+Static streaming is not implemented. No stock gesture or screen is claimed by
+this unlisted draft, and no Beat Slicer package is installed on the instrument.
 
-## Quick tutorial
+## Planned acceptance tutorial
 
-Planned acceptance workflow, unavailable until native integration:
+These steps describe the intended finished module, not currently available
+firmware behavior:
 
-1. In a disposable project, load a copy of a known-tempo sample. Open the
-   proposed action and choose SAMPLE or PROJECT BPM.
-2. Choose 4 BEATS and SMOOTH. Preview markers and fade warnings. Cancel once
-   and confirm the original markers are intact.
-3. Confirm and audition adjacent/random slices, then use stock DELETE SLICE
-   and DELETE ALL SLICES. Verify clearing removes markers without changing audio.
-   Create another grid, save sample settings through stock, save the disposable
-   project and reload both; compare complete slice metadata.
+1. In a disposable project, load a copy of a known-tempo sample. Open Beat Grid
+   and choose SAMPLE or PROJECT BPM, then 4 BEATS and SMOOTH.
+2. Preview marker counts and fade warnings. Back out once and verify the original
+   markers remain intact. Reopen and preview again.
+3. Once native Apply and playback policy are qualified, confirm the exact plan
+   and audition adjacent/random slices. Use stock DELETE SLICE and DELETE ALL
+   SLICES; verify that clearing changes markers without changing audio.
+4. Create another grid, save sample settings through stock, save the disposable
+   project and reload both. Compare complete slice records and qualify a physical
+   reboot on the exact installed build.
 
-## Compatibility and limitations
+## Preservation and compatibility
 
-No production hooks, base changes, runtime subscriptions or installable
-packages are included. Private fixtures bind observed stock sites to the exact
-stock hash; those addresses are not an exported ABI. Compatibility is unproved. See
-[INTEGRATION.md](INTEGRATION.md).
+Existing start, end and loop records, including their ordinals, must survive
+unchanged. The portable candidate builder uses a conservative **preserve
+ordinals or refuse** policy because stock sorts records by start: adding an
+earlier marker can renumber a pattern's slice locks. That restriction still
+requires owner review before release. Refuse more than 64 total starts rather
+than truncating the sample or deleting old markers.
 
-Installing the eventual module must do nothing until Apply. Preserve source
-audio, trim, loop points, existing slice loop/end metadata, other sample slots and
-project defaults. Slice settings belong to the edited sample slot and affect
-tracks using that slot; the dialog must disclose that scope. The core plans starts only and never writes
-project or `.ot` files.
+Installing the eventual module must not alter a sample. Preserve audio, trim,
+loop points, other slots and project defaults. Slice settings belong to the
+sample slot and affect tracks using that slot; the finished dialog must disclose
+that scope. The planner never writes project or `.ot` files.
 
-**Smooth playback is an acceptance requirement, not a verified result.** Zero
-crossings alone cannot prevent clicks in stereo, DC-offset audio, retriggers
-or abrupt endings. The core checks both frames bordering each start in both
-channels and the last trim frame against a -60 dBFS peak threshold. It flags
-unsafe boundaries but does not render or fade playback. Even a quiet boundary
-is not a click-free guarantee. The adapter must provide verified playback
-fades or refuse unsafe Apply; never overwrite source audio or global AMP
-settings to conceal clicks.
+**Smooth playback remains an acceptance requirement.** Quiet boundaries cannot
+prevent every click in stereo, DC-offset material, retriggers or abrupt endings.
+The planner checks both sides of each start and the final trim frame against a
+−60 dBFS peak threshold and flags boundaries needing fades. It does not implement
+playback fades. Until a verified native playback policy exists, unsafe Apply
+must be refused. Do not fade source audio destructively or change AMP defaults
+to conceal clicks.
 
-The [preview admission prototype](PREVIEW_GUARD.md) now gives the proposed
-base provider unique operation IDs and writer-lifetime tracking. It invalidates
-old previews and refuses new ones during tracked edits, including nested edits.
-Production instrumentation and serialized live memory access remain unimplemented.
-The [whole-command observer](WORKER_BOUNDARY.md) now runs as compiled ColdFire
-in private stock-worker fixtures, retaining exclusion through optional completion
-and retiring it before the next queue wait. The [engine service experiment](ENGINE_SERVICE.md)
-adapts this to the base-owned idle/job hooks and queued bounded preview work.
-Neither is an admitted production source service. The [copied preview exchange](PREVIEW_ASYNC.md)
-separates UI intent/result access from the engine-owned session and gates old
-requests before another source read. Its portable host/ColdFire tests pass;
-combined native UI/engine emulator results are recorded separately in TESTING.md.
-The recorder investigation adds 20 synthetic calls covering stereo page crossings,
-lazy shared-pool allocation and early exits. Recorder position/map publication can
-precede PCM without an edit-queue, dirty-flag or counter signal; a live provider
-must cover those writers too. No device-testable package is available yet.
+No production hook, event number, loader registry or installable package is
+added by these prototypes. Private stock sites are bound to an exact local
+firmware hash; they are not an exported ABI. Common-companion placement,
+installation orders, full module-set lifecycle and physical headroom remain
+unqualified. See [integration requirements](INTEGRATION.md).
 
-The [preview session](PREVIEW_SESSION.md) now connects admission, complete metadata
-snapshots and the staged reader through a serialized backend interface. It handles
-waiting, cancellation and stale results on host and compiled ColdFire. Private
-planning and decoding run outside the source lock; a copy reacquires ownership
-and revalidates before touching PCM. The actual
-live source ownership and native synchronization are still missing. Failed-load probes also
-confirm that replacement errors can already have released the old sample.
+## Current implementation and evidence
 
-The [marker candidate preflight](MARKER_EDIT.md) now preserves complete existing
-records and slice numbers, refuses incompatible additions and retains inactive
-rows for exact failure rollback. It prepares memory snapshots only; native
-publication and the playback acceptance gate remain unimplemented.
+The portable planner, staged PCM reader, preview guard/session, marker
+candidate and transaction coordinator have host and compiled ColdFire tests.
+The transaction's failed-write rollback remains internal; its older explicit
+Undo API is retained research, not the planned player workflow.
 
-The [transaction coordinator](EDIT_TRANSACTION.md) now offers a commit path that
-binds confirmation and publication under one supplied lock and retains no Undo
-history. Repeated creation needs no history-discard step. Internal failure
-rollback, stale-clear refusal and fault containment are tested. Publication,
-playback policy and quarantine remain synthetic callbacks; native Apply is disabled.
-Its explicit Undo API is retained research, not the planned player workflow;
-the native adapter must not expose it as an additional slicing action.
+The [Flex source backend](FLEX_SOURCE.md) composes complete metadata capture and
+bounded copied PCM reads. [Full-boot source tests](BOOT_SOURCE.md) exercise real
+stock-loaded PCM and invalidation by normal edits. Ownership and admission remain
+fixture-controlled. Stock counters and dirty flags do not cover every writer;
+see [writer coverage](WRITER_COVERAGE.md).
 
-The [Flex metadata component](FLEX_METADATA.md) now decodes bounded settings
-and control regions into preview snapshots and complete marker tables. It
-checks source selection, readiness and format, preserves inactive records and
-keeps sample/project tempo independent. Its native bindings and lifetime/lock
-provider remain unimplemented; this does not enable live preview access.
+The [copied UI/engine exchange](PREVIEW_ASYNC.md) gives one engine consumer
+ownership of the mutable session. UI callbacks submit tagged intents and read
+copied results. The private native budget is one work call per engine callback:
+up to eight owned reader transitions and one revalidated live copy, plus optional
+setup/publication. Long-source and synthetic cost probes measure total work and
+the longest callback separately. Instructions and emulated elapsed time are not
+hardware cycles, physical latency or audible-headroom measurements.
 
-Normal stock Flex/Static menu tests now cover alignment choices, backing out,
-confirmed/cancelled individual and all-slice deletion, and clearing an empty
-table. Separate compiled previews now expire across those stock operations.
-The [native UI fixture](NATIVE_UI.md) contributes BEAT GRID and exercises all
-read-only controls, cancellation and result summaries. Native removal,
-publication and playback remain unimplemented.
+[Native UI fixtures](NATIVE_UI.md) cover both stock menu layouts, all control
+combinations, waiting cancellation and owner retirement. The
+[selection-context guard](SELECTION_CONTEXT.md) binds each callback to the actual
+captured task/table/row/callback/owner/epoch. Separate original-versus-wrapped
+stock-dispatch probes check registers, SR, stack and caller-visible effects.
 
-## Tests and measurements
+The [resident-menu variant](RESIDENT_MENU.md) supports repeated openings using
+two immutable, pinned layouts. A separate 90 BPM run verifies captured project tempo against the unchanged
+sample tempo. Normal stock grid creation/clearing can change
+between those layouts in one session. It preserves options and advances UI and
+request identities. Retiring the fixed owner withdraws the contribution, but
+its tables remain pinned; replacement and memory reclamation are not implemented.
 
-Run `python3 -B sdk/drafts/beat-slicer/test_planner.py` from the root. Fourteen
-host tests pass, including 250 independent rational grid cases. Integer
-arithmetic, no heap and no independent clock.
+The [runtime-owner helper](MENU_OWNER.md) distinguishes current publication from
+intact images retained for staging or rollback. Tests use the actual loader with
+synthetic host machine glue. Production transition-time retirement and typed
+contribution admission remain separate work.
 
-The local independent audit adds 2,000 randomized grid/marker cases, 200
-exhaustive stereo-search cases, threshold/refusal checks and arithmetic
-extremes (`test_independent.py`). The pinned ColdFire object compiles without
-unresolved runtime helpers and passes the shared code-generation guard. It
-also executes 164 synthetic cases in the CPU emulator. Six isolated stock
-routine probes cover menu lifetime and complete slice record sorting; UI
-callees are mocked, so this is not whole-editor qualification.
-See [RESEARCH.md](RESEARCH.md) and the proposed [base contract](BASE_CONTRACT.md)
-for shared-event, preservation and smoothing work. Preserving old slice
-ordinals as well as their records can require refusing some merged grids.
-The portable preflight implements that conservative policy; native admission
-and owner review of the restriction remain pending.
+[Stock observations](BOOT_OBSERVATION.md) also cover normal slicing, clearing,
+sample-settings saving and project reloads on disposable fixtures. A fresh
+emulator process does not prove physical reboot persistence. Exact results,
+source revisions, counters and remaining limits are in [TESTING.md](TESTING.md).
 
-Native cycles, device memory, actual audio and hardware are unmeasured.
-Five additional stock storage probe groups pass with synthetic memory IO,
-including complete marker round-trips and failures that change memory before
-returning an error. They do not qualify real stock save/reload or Undo.
-Five pool/converter probe groups also pass: Flex page boundaries, recorder
-length selection with mocks, and signed PCM conversion with measured read
-extents. The 24-bit converter reads one padding byte in its scalar tail.
-These probes do not implement a reader or qualify Static streaming.
-The `planner_job` prototype makes preview resumable: it requests one PCM
-frame at a time, can wait without blocking, rejects stale read replies within
-a job and can be cancelled without exposing a partial plan. It copies input
-metadata but cannot detect a live sample change; the future adapter must bind
-it to the actual sample/content generation. It is not connected to the editor.
-The `pcm_reader` staging layer now feeds that job from copied blocks of up to
-32 frames. Its bounded decoder handles packed signed 16/24-bit mono/stereo
-in either byte order without reading padding. Operation/revision tags reject
-old replies and invalidate stale previews, including completed ones. The
-caller must supply truthful revisions and coherent bytes; this is not yet a
-live Flex/Static reader. It passes 4,160 decoder vectors, 40 paged previews
-and lifecycle tests on host and compiled ColdFire, plus 256 exact-buffer
-host sanitizer cases. No native generation tracking or device IO is present.
-Five additional synthetic CPU probe groups cover stock edits and pool release.
-Eight previews now feed stock page-lookup results into the host-compiled reader
-and match the independent planner. This still does not establish a live reader:
-stock rotation and polarity edits change PCM without changing the slot counter,
-and the dirty flag stays set across repeated edits. The base must supply real
-edit invalidation and coherent access; neither field alone is a revision token.
-Expanded store/instruction probes cover eight edit families and cross-slot
-copy/mix. Busy fields stay unchanged, and interrupts are unmasked between PCM
-writes: the live provider must exclude reads for the whole edit, not just
-individual stores. A dirty notification alone cannot protect a newly started
-preview. [WRITER_COVERAGE.md](WRITER_COVERAGE.md) lists tested and missing paths.
-[TESTING.md](TESTING.md) separates host results from pending qualification.
-`verify.py` deliberately fails publication. This draft is not in
-`sdk/catalog.json` and changes no released module or catalogue.
+Run `python3 -B sdk/drafts/beat-slicer/audit_evidence.py` to verify retained report
+source bindings. It neither reruns binaries nor qualifies hardware. `verify.py`
+deliberately refuses publication; the draft is absent from `sdk/catalog.json`
+and changes no released download.
 
-## Authorship and licences
+## Screens, audio and authorship
 
-Original MIT core and synthetic tests by twwwy and contributors. No Elektron
-firmware, extracted routines/tables, factory samples or dumps. Generated with
-the repository scaffold command; inherited placeholder code was removed.
+Private emulator LCD dumps verify the exercised native layouts; they are not
+physical-unit captures or published module media. No audio or hardware
+qualification is claimed.
 
-## Screens and audio
-
-No real LCD captures or audio qualification recordings exist. Proposed screen
-text is not represented as captured instrument UI.
-
-The [editor-menu composition prototype](EDITOR_MENU.md) now supplies stable
-copied labels, unchanged stock rows and owner/token-checked contributed dispatch.
-It refuses reuse until a trusted adapter proves all old menu references detached.
-Native hook admission, loader synchronization, actual dialog rendering and
-background-job removal remain unimplemented.
-
-The [full stock observation](BOOT_OBSERVATION.md) uses a disposable stock-created
-project and original WAV to check actual loading, PCM, editor tempo and marker
-state. It also corrects the proposed stock menu path to AED → AMP → YES.
-These are emulator findings; the Beat Grid action, native ownership, atomic
-publication, stock slice-clearing compatibility, USB package and physical
-qualification remain unfinished.
-
-Research receipts retain their original source versions. Run
-`python3 -B sdk/drafts/beat-slicer/audit_evidence.py` to check those Git bindings;
-see TESTING.md for the explicitly unbound early compile diagnostic and the
-limits of software evidence. This audit is not an installation or hardware gate.
-
-The composed [Flex source backend](FLEX_SOURCE.md) now joins metadata and bounded
-PCM reads under caller-supplied ownership. It remains a tested building block,
-not a live source service or installable module.
-
-The compiled backend now passes [full-boot preview tests](BOOT_SOURCE.md) against
-stock-loaded PCM, including invalidation by ordinary stock edits. This uses a
-private fixture with test-owned identities, not an installed editor/USB service.
-
-The long-source preview fixture also exercises a full 30-second trim and the
-64-slice limit. Compiled cost probes distinguish total service instructions,
-maximum callback instructions and source-lock sections. See TESTING.md for the
-baseline; none of these measurements establishes physical latency or headroom.
-
-The engine exchange now batches up to eight private reader transitions after one
-validation, stopping at the first live-read request. It revalidates before that
-copy. The private native fixture uses one such work call per engine callback,
-plus optional begin/setup and publication; the original one-step API is retained.
-The selected budget reduces the synthetic worst callback as well as total work.
-
-The [selection-context prototype](SELECTION_CONTEXT.md) now binds callbacks to
-the actual stock selection path. Direct, stale and duplicate calls do not adopt
-a newer dialog's authority. Private native wrappers preserve the stock stack
-and caller-visible effects; this is still pinned one-shot storage, not a
-production loader lease or permission to reclaim menu references.
-
-The [immutable resident-menu variant](RESIDENT_MENU.md) supports repeated private
-openings with unchanged tables, preserved options and fresh selection/request
-authority. The fixed owner can retire to stock-only operation, but cannot be
-replaced or reclaimed. This advances native UI research without claiming the
-production USB/module-set lifecycle.
+Original MIT core, helpers and test extensions by twwwy and contributors. The
+runtime-owner host test includes the repository's unchanged GPL loader fixture;
+its licence and attribution remain in the original files, and the combined test
+binary is not published. No Elektron firmware, extracted routines/tables,
+factory samples, memory dumps or built firmware images are committed.

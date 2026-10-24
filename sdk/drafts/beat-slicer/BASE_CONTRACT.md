@@ -25,7 +25,7 @@ module behavior. Preview can still show why a proposed merge was refused.
 The [marker preflight prototype](MARKER_EDIT.md) now enforces that conservative
 policy on complete in-memory tables, preparing before/after snapshots without
 native writes. It retains inactive rows for exact restoration and exposes only
-table equality checks for future history validation. The [candidate binder](EDIT_CANDIDATE.md) now connects these tables to an exact
+table equality checks for internal rollback and retained history research. The [candidate binder](EDIT_CANDIDATE.md) now connects these tables to an exact
 portable preview and unique operation ID. The [transaction coordinator](EDIT_TRANSACTION.md) now manages exact confirmation,
 post-state checks against an atomic backend contract. Its commit entry point
 retains no user history; the older Undo API remains research. Native callbacks,
@@ -88,6 +88,14 @@ return. It never rewrites a retained table or claims it is detached. Owner
 retirement withdraws the action but leaves storage pinned. A production registry
 must additionally handle replacement, changed contributions, actual owner
 records and reclamation; this experiment deliberately does not provide them.
+
+Owner admission must distinguish ledger retention from current publication.
+The real loader keeps intact candidate and rollback-owner records; validate the
+full record and its exact live position, then the registry/module-set readiness
+contract. A fixed-lifetime activation must stay retired if the old image is
+restored later. Explicit pre-transition retirement is required because a query
+can miss an entire replace/restore interval. [The owner helper](MENU_OWNER.md)
+checks these rules with actual-loader host execution, not native USB integration.
 
 ## Snapshot and job contract
 
@@ -292,7 +300,7 @@ loss of module-only smoothing must be clearly described and tested.
 The isolated CPU probes cover menu retention/dispatch, settings lookup,
 complete-record sorting and insertion renumbering using synthetic state.
 They do not boot a project, run the scheduler concurrently, render audio,
-save sample settings or demonstrate Undo. UI callees are mocked explicitly.
+save sample settings or demonstrate a native commit/rollback. UI callees are mocked explicitly.
 
 Still required: full editor traces through the actual panel path; all incoming
 branches and overwritten instructions for a candidate base site; callback
