@@ -1,4 +1,4 @@
-"""DEJA VU -- audio-track LFO waveforms with a looping random memory (draft).
+"""DEJA VU -- audio-track LFO waveforms with a looping random memory.
 
 WAVE 19 DJV (stepped), 20 DJQ (snapped to whole knob steps), 21 DJC (glides):
 one loop of remembered values per LFO; SPD sets how often a slot is replayed,
@@ -72,9 +72,9 @@ MODULE = Module(
     name="dejavu",
     key="DEJAVU",
     kind=Kind.CF_PATCH,
-    doc="DEJA VU (draft): audio-track LFO waves DJV, DJQ and DJC, a loop of random values that replay or renew by chance.",
+    doc="DEJA VU: audio-track LFO waves DJV, DJQ and DJC, a loop of random values that replay or renew by chance.",
     category=Category.TRACK, author="jankolkmeier", author_url="https://github.com/jankolkmeier",
-    proof=Proof.CHECK, proof_note="draft; emulator, and first use on one MKII over USB (reported)",
+    proof=Proof.CHECK, proof_note="emulator, and use on one MKII over USB (reported)",
     linked=(UNIT,),
     symbol_refs=(
         SymbolRef(DISPATCH_SLOT19, 0x400038BC, "unit", "dv_wave",

@@ -196,7 +196,7 @@ and a `SymbolRef` on every stock reference to the table. One stock copy
 spans at most 32 bytes (`SITE_BYTES` in `loader.h`), so split a longer table
 into chunks with their own symbols. A builder without `StockCopy` in its
 schema can still take the same growth as `TableGrow`
-(`sdk/drafts/dejavu/manifest.py` declares both).
+(`sdk/octabam/modules/dejavu/manifest.py` declares both).
 
 **The strict stock-free scan can match original data.** Small, regular data
 such as a sparse icon bitmap or a full-cell mask can equal stock bytes over
