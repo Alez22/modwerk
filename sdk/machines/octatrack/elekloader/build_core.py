@@ -943,9 +943,10 @@ TRANSITION_EDITS = {
          'void dl_residency_nudge(void);\n'
          'void dl_selection_cancel(uint32_t token) {\n'
          '    if(token==queued_token) { queued_token=0; if(trim_stage>=2u && trimmed_for==token) dl_residency_nudge(); }\n'),
-        # A pick made while a request waits (for a retirement or the packing) takes its place, as a manual one.
+        # A pick made while a retirement runs takes the waiting request's place as a manual one: it kept an automatic
+        # request's kind, and an automatic one commits before the stock setter publishes the pick.
         ('    if(phase) { bytes(queued_ids,s->target,16); queued_token=token; return DL_SELECT_WAIT; }\n',
-         '    if(phase || queued_token) { bytes(queued_ids,s->target,16); queued_token=token; queued_auto=0; return DL_SELECT_WAIT; }\n'),
+         '    if(phase) { bytes(queued_ids,s->target,16); queued_token=token; queued_auto=0; return DL_SELECT_WAIT; }\n'),
         ('    reinit();\n    if(phase) return;\n', '    reinit();\n    if(phase || queued_token) return;\n'),
     ),
 }
