@@ -187,8 +187,14 @@ static const uint8_t no_target[16] = {255, 255, 255, 255, 255, 255, 255, 255, 25
 unsigned modwerk_dsp_slot_floors(const uint8_t ids[16], uint32_t least[16])
 {
     uint32_t was[16];
-    floors(no_target, was), floors(ids, least);
-    for (unsigned c = 0; c < 2u; ++c) {
+    unsigned raised = 0;
+    floors(no_target, was); /* the Parts once: the target only adds its own stock effects */
+    for (unsigned i = 0; i < 16u; ++i) {
+        unsigned p = ids[i];
+        uint32_t x = p < MODWERK_FX_IDS && !owner[p] ? dl_catalog[p].cycles : 0u;
+        least[i] = x > was[i] ? x : was[i], raised |= least[i] > was[i];
+    }
+    for (unsigned c = 0; raised && c < 2u; ++c) {
         uint32_t voices = modwerk_dsp_source_charge(c), after = bank_booking(least, c) + voices;
         if (after > (c ? MODWERK_DSP_ALLOWANCE1 : MODWERK_DSP_ALLOWANCE0) && after > bank_booking(was, c) + voices) return 1u + c;
     }
