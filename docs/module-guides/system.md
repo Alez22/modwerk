@@ -252,6 +252,14 @@ Beat Slicer's proposed backend tests this with real-loader host and ColdFire
 execution under synthetic machine services; typed package admission and native
 transition hooks are still not installed.
 
+Validate and publish the same bounded copy of a contributed descriptor. Keep
+labels and action metadata in base-owned storage, and resolve entry offsets
+only inside the exact owner's initialized image. The loader lock pins that
+image but may leave real-time module writers running; descriptor coherence
+needs its own verified boundary. An owner digest is reconstruction identity,
+not a fresh hash of mutable live data. The Beat Slicer proposal tests malformed
+records and copied metadata; it does not establish production table admission.
+
 ### Emulator evidence
 
 Do not infer physical pool capacity from a mutable allocation-map endpoint.

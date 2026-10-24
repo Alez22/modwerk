@@ -47,6 +47,12 @@ module claims its action name, not the whole screen or stock YES gesture.
 The existing runtime loader does not admit arbitrary contributed tables;
 the shared change must provide reviewed typed admission and removal.
 
+The [typed contribution prototype](MENU_PACKAGE.md) now bounds and copies a
+proposed descriptor from an exact published owner's initialized image. It
+resolves only the admitted action through the full owner lease. This is not
+loader preflight or an assigned table ABI; coherent metadata capture, native
+transition hooks and full-set readiness remain requirements.
+
 The stock menu keeps its label, callback and selection-output pointers after
 the open routine returns. They therefore cannot point to temporary stack
 arrays or a module that may be removed while the menu is open. The base owns

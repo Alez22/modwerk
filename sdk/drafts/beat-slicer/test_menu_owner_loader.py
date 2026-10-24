@@ -16,9 +16,12 @@ REPO=ROOT.parents[2]
 SOURCES=('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','test_menu_owner_set.h','owner_package_vectors.h','test_owner_package_vectors.py','test_menu_owner_loader.py','menu-owner-runtime-sources.json')
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path)
+    p.add_argument('--package',action='store_true',help='Also test proposed typed menu contribution admission.')
+    a=p.parse_args()
     if a.output and a.output.exists():p.error('Use a new report path.')
     subprocess.run([sys.executable,'-B',str(ROOT/'test_owner_package_vectors.py')],check=True)
+    if a.package:subprocess.run([sys.executable,'-B',str(ROOT/'test_menu_package_vectors.py')],check=True)
     pinned=json.loads((ROOT/'menu-owner-runtime-sources.json').read_text())
     cc=os.environ.get('CC','cc');results=[];dependencies={}
     octatrack=('-DRUNTIME_MODULES=128u','-DRUNTIME_POOL_BYTES=786432u')
@@ -28,9 +31,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix='beat-slicer-owner-') as temp:
         work=Path(temp)
         driver=work/'main.c'
-        driver.write_text('#include <stdio.h>\nint bs_owner_loader_target_selftest(void);\nint main(void){int line=bs_owner_loader_target_selftest();if(line){printf("FAIL line %d\\n",line);return 1;}puts("PASS: real loader and owner-backed menu; two owners, both layouts, replacement/restoration/removal, permanent retirement and restored allocation");return 0;}\n')
+        entry='bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest'
+        driver.write_text('#include <stdio.h>\nint '+entry+'(void);\nint main(void){int line='+entry+'();if(line){printf("FAIL line %d\\n",line);return 1;}puts("PASS: real loader and owner-backed menu; two owners, both layouts, replacement/restoration/removal, permanent retirement and restored allocation");return 0;}\n')
         for index,defines in enumerate(variants):
-            sources=[ROOT/'test_menu_owner_loader_target.c',ROOT/'menu_owner.c',ROOT/'menu_owner_backend.c',ROOT/'editor_menu.c']
+            sources=[ROOT/('test_menu_package_target.c' if a.package else 'test_menu_owner_loader_target.c'),ROOT/'menu_owner.c',ROOT/'menu_owner_backend.c',ROOT/'editor_menu.c']
+            if a.package:sources.append(ROOT/'menu_package.c')
             if '-DMODWERK_RUNTIME_SETS' in defines:sources.append(REPO/'sdk/runtime/upload/upload.c')
             objects=[]
             for at,source in enumerate(sources):
@@ -54,8 +59,11 @@ def main():
             print(result.stdout,end='');print(result.stderr,end='')
             if result.returncode:raise RuntimeError('Owner-backed menu checks failed for '+repr(defines))
             results.append({'defines':list(defines),'exitCode':result.returncode,'stdout':result.stdout.splitlines()})
+    names=SOURCES+ (('menu_package.c','menu_package.h','test_menu_package_target.c','menu_package_vectors.h','test_menu_package_vectors.py') if a.package else ())
     report={'scope':'actual runtime loader with synthetic host machine glue; actual loader and full-owner menu fixture; both layouts and coexisting owners; synthetic machine services and no uploaded module execution; no native dispatcher, module execution or USB',
-            'sourceSha256':{n:sha(ROOT/n) for n in SOURCES},'independentPackageVectors':4,'ownerFieldMismatchesPerLayout':8,
+            'sourceSha256':{n:sha(ROOT/n) for n in names},'independentPackageVectors':4,'ownerFieldMismatchesPerLayout':8,
+            'typedMenuProposal':a.package,'malformedDescriptorsPerLayout':30 if a.package else 0,
+            'descriptorOwnerMismatchesPerLayout':8 if a.package else 0,'validDescriptorBoundaryCasesPerLayout':4 if a.package else 0,
             'sdkRevision':pinned['revision'],
             'sdkDependencySha256':dict(sorted(dependencies.items())),
             'compiler':subprocess.check_output([cc,'--version'],text=True).splitlines()[0],

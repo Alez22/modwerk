@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.37-experimental",
+  "version": "0.1.38-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Retain the 32 recorder-stop follow-ups and 16 positive controls, then execute four paired-recorder FIFO scenarios with two real queued stop records. Verify distinct tracks 1/8, correct map extents, post-stop preservation and fresh compiled guard identity per command before the final unmasked queue wait. The two recorder calls are serialized synthetic fixtures, not simultaneous audio ISR or live allocator ownership. Manual stop/overdub, native source admission, USB, Apply/playback and hardware remain unqualified.",
+    "summary": "Test a proposed typed menu descriptor against the real loader: initialized-image bounds, copied labels, exact owners, malformed records, stale activation and replacement/restore. Host sanitizers and ColdFire use synthetic machine services. Production table admission, coherent metadata capture, complete-set readiness, source ownership, USB, Apply/playback and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -127,6 +127,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_audit_evidence.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_backend.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py",
+      "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --package",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

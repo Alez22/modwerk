@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.38-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Add a proposed typed menu descriptor with initialized-image bounds, bounded copied labels and exact published-owner admission.",
+      "Resolve only the admitted action; refuse malformed records, forged owners and retired activations after replacement or restore.",
+      "Exercise host and ColdFire paths with the real loader, an independent package digest and an original uploaded test callback.",
+      "Keep the proposal unregistered: no new base event, production loader admission or installable package is published.",
+      "Known issue: coherent native metadata capture, transition hooks, source ownership, USB, Apply/playback and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.37-experimental",
     "date": "2026-10-24",
     "changes": [

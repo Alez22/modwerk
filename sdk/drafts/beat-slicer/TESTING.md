@@ -2289,3 +2289,37 @@ reports retain the corrected output and their own exact source revision.
 Current-upstream full source validation: Check passed in 131.44s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
 
 Two recorder-stop integration reports bind exact source commit `66ec0116a5ea4b7ed6ec83659493366a249edce8`.
+
+## Typed menu contribution proposal (0.1.38)
+
+The new `menu_package.c` decoder validates one copied 64-byte descriptor from
+an exact currently published loader owner. It bounds initialized-image access,
+entry alignment and descriptor overlap; refuses unknown schema/size/reserved
+fields and malformed labels; and freezes admitted metadata in base-owned
+storage. Neither its proposed record layout nor its table/event is released.
+
+The actual-loader host suite passes six configurations with address/undefined
+sanitizers: default and cached branches, default and 128-position/768 KiB pools,
+and two whole-set variants. Each configuration retains the earlier two-owner,
+both-layout and loader rollback checks. New cases run both six-row and nine-row
+menu models, with 30 malformed descriptors, eight forged owner fields and four
+legal entry/label boundary cases per layout. Failure output preservation,
+staged-owner refusal, one-time binding, copied-label lifetime, wrong-action
+refusal, replacement/restore retirement and final allocation recovery pass.
+
+Native executions use the real unchanged SDK loader/SHA and upload controller,
+128 positions and a 768 KiB pool, with whole-set support in both cached and
+uncached branches. A four-byte original return-42 callback is reconstructed in
+the module pool, resolved through the admitted binding and actually called
+through the owner-backed menu model, once per layout. The host run only models
+that dispatch. An independent hashlib oracle checks the new package/controller
+identity before mutation tests, alongside the four retained owner-test vectors.
+The fixture preserves the loader-populated image preamble when resetting data.
+
+This is stock-free isolated CPU execution, not the stock popup, USB transport or
+Beat Slicer planner running in an installed package. Machine locks, cache flush,
+stopped state, paused-task reachability and DSP services are synthetic. Metadata
+is stable during the bounded copy by fixture construction; the native boundary
+that would exclude real-time module writers is not implemented. Full-set
+readiness, production typed admission, pre-transition retirement hooks, retained
+native references, source ownership, Apply/playback and hardware remain open.

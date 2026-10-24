@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.37-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.38-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -94,6 +94,12 @@ installation orders, full module-set lifecycle and physical headroom remain
 unqualified. See [integration requirements](INTEGRATION.md).
 
 ## Current implementation and evidence
+
+The [typed menu contribution prototype](MENU_PACKAGE.md) checks a bounded
+package descriptor against its exact published loader owner and copies the
+accepted label/action into base-owned storage. It supplies a tested component
+for the shared editor proposal; production table admission and USB integration
+remain pending.
 
 The portable planner, staged PCM reader, preview guard/session, marker
 candidate and transaction coordinator have host and compiled ColdFire tests.
