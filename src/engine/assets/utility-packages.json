@@ -3,7 +3,7 @@
   "kind": "authored-utility-packages",
   "stockRead": false,
   "revision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
-  "sourceCommit": "b28f5275fa014f66f63d60878bb500f69039dc88",
+  "sourceCommit": "7c9af7ce0539d401b8d39f8d34399f6db99eb871",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -26,7 +26,7 @@
     "previewvol": "0.1.2-experimental",
     "cc-map": "0.1.2-experimental",
     "sidechain-compressor": "0.1.2-experimental",
-    "vector": "0.2.4-experimental",
+    "vector": "0.3.0-experimental",
     "playmodes": "0.2.0-experimental",
     "mute-modes": "0.2.1-experimental",
     "recorder-loop-fix": "0.1.0-experimental",
