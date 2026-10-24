@@ -34,6 +34,8 @@ export function openFailure(agent = typeof navigator === 'undefined' ? '' : navi
 const KEEPALIVE_MS = 1000
 /** Asked while playing, the base presses STOP itself and answers `unsafe` that once; ask again until it has stopped. */
 const STOP_RETRY_MS = 200
+/** How often a unit another window or app holds is tried again, so it connects once they let go. */
+const BUSY_RETRY_MS = 3000
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // lib.dom has no WebUSB types; only what the link calls.
@@ -75,6 +77,8 @@ export interface LinkState {
   /** The trial passed the stress test. */
   readonly tested?: boolean
   readonly notice?: { tone: 'success' | 'error'; text: string }
+  /** A base update over USB is running (updateBase), through its restarts: the cable must stay in. */
+  readonly baseUpdate?: BaseUpdateStep
 }
 
 const REFUSED: Partial<Record<UploadResultName, string>> = {
@@ -156,6 +160,7 @@ export class OctatrackLink {
   private session?: LinkSession
   private abort?: AbortController
   private keepalive?: ReturnType<typeof setInterval>
+  private baseStep?: BaseUpdateStep
   private users = 0
   /** Bumped when the unit goes away or the last view leaves: a reply or queued job from before must not change the link. */
   private connection = 0
@@ -178,7 +183,8 @@ export class OctatrackLink {
     const reading: LinkDiagnostic = {event,phase:status,...(identity ? {base:identity.base} : {}),...(active ? {active} : {}),...fields}
     for (const listener of this.diagnosticListeners) { try { listener(reading) } catch { /* Diagnostics never affect USB work. */ } }
   }
-  private set(state: LinkState) { this.state = state; for (const listener of this.listeners) listener() }
+  // Every state carries the base update's step, so the restarts in between (idle, then ready again) keep showing it.
+  private set(state: LinkState) { this.state = { ...state, baseUpdate: this.baseStep }; for (const listener of this.listeners) listener() }
   private setFor(connection: number, state: LinkState) { if (connection === this.connection) this.set(state) }
   private live(connection: number) { if (connection !== this.connection) throw new DOMException('The Octatrack connection changed.', 'AbortError') }
   private ready(notice?: LinkState['notice'], active = this.state.active) { this.set({ status: 'ready', identity: this.state.identity, active, notice }) }
@@ -289,6 +295,7 @@ export class OctatrackLink {
       return true
     } catch {
       this.setFor(connection, { status: 'busy', identity: this.state.identity })
+      setTimeout(() => { if (connection === this.connection && this.state.status === 'busy') void this.retry() }, BUSY_RETRY_MS)
       return false
     }
   }
@@ -431,6 +438,15 @@ export class OctatrackLink {
    * the capability, and it is the new one.
    */
   async updateBase(bin: Uint8Array, expected: string, report: (step: BaseUpdateStep, fraction?: number) => void = () => {}, signal?: AbortSignal) {
+    try {
+      await this.writeBase(bin, expected, (step, fraction) => {
+        const shown = step === 'done' ? undefined : step
+        if (shown !== this.baseStep) { this.baseStep = shown; this.set(this.state) }
+        report(step, fraction)
+      }, signal)
+    } finally { if (this.baseStep) { this.baseStep = undefined; this.set(this.state) } }
+  }
+  private async writeBase(bin: Uint8Array, expected: string, report: (step: BaseUpdateStep, fraction?: number) => void, signal?: AbortSignal) {
     const file = formats.parse(bin, OCTATRACK) as ElekFile, container = file.container, image = file.section(3)
     if (this.state.status !== 'ready' || !this.state.identity?.canSubmit) throw new Error('Connect the Octatrack first.')
     let current = this.state.identity.base
@@ -478,7 +494,7 @@ export class OctatrackLink {
     return this.serial(async () => {
       this.live(connection)
       if (!this.transport || this.state.status !== 'ready') throw new Error('The Octatrack isn’t idle (' + this.state.status + ').')
-      if (!await this.claim()) throw new Error('Another tab or app holds the Octatrack.')
+      if (!await this.claim()) throw new Error('Another browser window or app is using the Octatrack.')
       try {
         const session = await this.connectSession(this.transport, base, { timeoutMs })
         this.live(connection)

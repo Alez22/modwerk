@@ -139,7 +139,7 @@ export function BaseInstallDialog({ link, launch = false, layout, firmwareReady,
       <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }}/>
       {firmwareReady ? <><p className="base-file-ready"><Icon name="check" size={18}/>Your OS 1.40C file is ready.</p>{!usb && <RiskAcceptance checked={accepted} onChange={setAccepted}/>}</> : <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get the original OS file? <Icon name="arrow" size={14}/></a>}
       {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}
-      {usb && 'step' in usb && <p className="base-install-note" role="status">{USB_STEPS[usb.step]}{usb.fraction !== undefined && usb.fraction < 1 ? ` (${Math.round(100 * usb.fraction)} %)` : ''}{usb.step === 'done' ? '' : '…'}</p>}
+      {usb && 'step' in usb && <p className="base-install-note" role="status">{updating && <span className="status-dot is-updating" />}{USB_STEPS[usb.step]}{usb.fraction !== undefined && usb.fraction < 1 ? ` (${Math.round(100 * usb.fraction)} %)` : ''}{usb.step === 'done' ? '' : '…'}</p>}
       {usb && 'error' in usb && <p className="file-error" role="alert">{usb.error} {state.status === 'ready' ? 'You can try again, or update from the card.' : 'Once it is connected again you can try again, or update from the card.'}</p>}
     </>}
     {stage === 'download' && !overUsb && <>
