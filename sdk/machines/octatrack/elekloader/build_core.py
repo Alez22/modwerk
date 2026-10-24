@@ -904,6 +904,7 @@ TRANSITION_EDITS = {
          '__attribute__((weak)) int modwerk_dsp_pack(void) { return 0; }\n'
          '__attribute__((weak)) int modwerk_dsp_packing(void) { return 0; }\n'
          'volatile uint32_t dl_packs; /* diagnostics */\n'
+         'void dl_residency_nudge(void);\n'
          'static int pack_room(void) {\n'
          '    if(!modwerk_dsp_pack()) return 0;\n'
          '    bytes(queued_ids,desired,16); queued_token=current; queued_auto=automatic;\n'
@@ -925,6 +926,10 @@ TRANSITION_EDITS = {
          '            unsigned stage=current==trimmed_for ? trim_stage : 0u; /* what this request already got */\n'
          '            if((stage<1u && make_room(0)) || (stage<2u && make_room(1)) || (stage<3u && pack_room())) return;\n'
          '        }\n'
+         '        /* A pick refused after its slot\'s old code was unloaded: the slot ran the dry stub under the old effect\'s\n'
+         '         * name until the next change (owner\'s MKII, 24 October 2026); the observer loads it back now. Not for an\n'
+         '         * automatic request: the observer would ask for that same set again. */\n'
+         '        if(r<0 && !automatic && current==trimmed_for && trim_stage>=2u) dl_residency_nudge();\n'
          '        if(r<0) {\n            report(r==DL_ALLOC_MEMORY || r==DL_ALLOC_TRANSITION ? DL_SELECT_MEMORY :'),
         # A request a retirement put behind it is not the transaction in flight: its answer is WAIT, never the
         # retirement's own result word (which reads READY once that commits).

@@ -1716,6 +1716,20 @@ int main(int argc, char **argv)
         /* Packed, the next pick needs no packing. */
         ids[5] = 6;
         assert(test_select(ids, pack_pump) == 1 && packs == 1 && test_live(0, 6) >= 0);
+    } else if (mode == 63) {
+        /* A pick refused after its slot's old code was unloaded for it (no packer): the observer is nudged to load that
+         * code back, since the slot runs the stub under the old effect's name. */
+        test_fx(11, 600);
+        memset(test_parts, 0, sizeof test_parts);
+        test_parts[0][4] = 5; test_parts[0][5] = 6; test_parts[0][6] = 7; test_parts[0][7] = 8;
+        uint8_t ids[16];
+        memcpy(ids, test_parts[0], 16);
+        assert(test_select(ids, pump) == 1);
+        test_set_observed_valid(1);
+        unsigned unloads = test_unloads();
+        ids[5] = 11;
+        assert(test_select(ids, pump) == DL_SELECT_MEMORY && test_unloads() == unloads + 1 && test_idle());
+        assert(test_live(0, 6) < 0 && test_live(0, 11) < 0 && !test_observed_valid());
     } else assert(0);
     return 0;
 }
@@ -1826,7 +1840,7 @@ def build(work):
 
 @unittest.skipUnless(shutil.which('cc'), 'host C compiler unavailable')
 class ResidentEnginesBoard(unittest.TestCase):
-    MODES = 63
+    MODES = 64
 
     def test_place_switch_run_disable_unswitch_free_and_their_refusals(self):
         with tempfile.TemporaryDirectory() as temp:
