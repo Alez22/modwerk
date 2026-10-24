@@ -213,6 +213,9 @@ describe('sending a module', () => {
     unit.refusal = 7 // a track plays the effect it would replace
     await link.update('PREVIEW VOL', one)
     expect(link.getState().notice?.text).toMatch(/A track is playing this module’s effect/)
+    unit.refusal = 10 // RUNTIME_FEATURE: the key bus cannot come up this boot
+    await link.update('PREVIEW VOL', one)
+    expect(link.getState().notice?.text).toMatch(/can’t start the key bus this module needs until it restarts/)
     unit.refusal = 1 // malformed: the plain text
     await link.update('PREVIEW VOL', one)
     expect(link.getState().notice?.text).toBe('The Octatrack can’t run this module file.')
@@ -573,6 +576,15 @@ describe('updating the base over USB', () => {
     await expect(old.updateBase(bin, expected, step => steps2.push(step))).rejects.toThrow('install it from the card')
     expect(dedupe(steps2)).toEqual(['staging', 'starting', 'started']) // the trial ran; nothing was written
     expect(older.flashed).toBe(FAKE_BASE); expect(older.base).toBe(expected)
+  })
+  it('says why the new base refused to write itself, and leaves upload mode', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    unit.writeRefusal = 5 // flash.h FLASH_PROTECTED: every write was refused this way before the boot snapshot
+    await expect(link.updateBase(bin, expected, step => steps.push(step))).rejects.toThrow(
+      'The new base refused to write itself (reason 105), so nothing was written. A power cycle returns the Octatrack to its current base and modules.')
+    expect(dedupe(steps)).toEqual(['staging', 'starting', 'started', 'writing'])
+    expect(unit.flashed).toBe(FAKE_BASE); expect(unit.base).toBe(expected)
+    await vi.waitFor(() => expect(link.getState().status).toBe('ready'))
   })
 })
 

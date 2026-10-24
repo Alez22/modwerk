@@ -6,13 +6,14 @@ unit (zero_state.unit last, as ever); a default base never sees them, so its sou
 runtime is resident-runtime/resident_engines.c; docs/OCTATRACK_RESIDENT_ENGINES_ON_DEMAND.md is the design.
 
 - `data_c(bundles)`: every on-demand engine unit per core (resident_dsp.engine_unit) as C data, and a per-core
-  relocation buffer sized to the largest. Authored module code only, a private build input like the permanent
-  block; never stock bytes, never committed.
+  relocation buffer sized to the largest, or to the largest engine a package may bring where a packaged feature
+  (resident_dsp.PACKAGED: its engine is its controller's package's) runs. Authored module code only, a private build
+  input like the permanent block; never stock bytes, never committed.
 - `manager(text)`: the engines' region at the top of each core's arena (the FX allocator's capacity is lowered
   to the lowest engine), the claim's dry run (what runs, plus as much of the bank's Parts as fits; the rest is
   retired first in a trim), and the evacuation that moves live FX code out of the region first (a transaction of
   its own, phase 10).
-- `transport(text)`: the owned transport's validator accepts PLACE (op 10, word 7 = 1).
+- `transport(text)`: the owned transport's validator accepts PLACE (op 10, word 7 the engine's words).
 - `status(text)`, `dsp(text)`: the STATUS page, the box after a pick and the host's ARENA word use the lowered
   arena; `dsp` also tells the evacuation when code may move (`modwerk_dsp_moves_idle`).
 """
@@ -20,6 +21,8 @@ import hashlib
 
 CORES = ('A', 'B')
 FEATURES = (1, 2, 4, 8)  # resident_dsp.FEATURES: Sidechain, Output Matrix, Analog BD, the key bus
+PACKAGED = 4             # resident_dsp.PACKAGED: Analog BD's engine is its package's
+PACKAGED_WORDS = 2048    # resident_engines.h MW_ENGINE_PACKAGED_WORDS
 
 
 def _change(text, old, new, what):
@@ -36,13 +39,13 @@ def data_c(bundles):
     for core, tag in enumerate(CORES):
         bundle = bundles[tag]
         engines = bundle.get('engines') or {}
-        if bundle.get('onDemand', 0) != sum(engines) or set(engines) - set(FEATURES):
+        if bundle.get('onDemand', 0) & ~PACKAGED != sum(engines) or set(engines) - set(FEATURES) or PACKAGED in engines:
             raise ValueError('Payload %s: on-demand engines and their mask disagree' % tag)
-        row, most = [], 1
+        row, most = [], PACKAGED_WORDS if bundle.get('onDemand', 0) & PACKAGED else 1
         for feature in FEATURES:
             unit = engines.get(feature)
             if unit is None:
-                row.append('{0, 0, 0u, 0u}')
+                row.append('{0, 0, 0u, 0u, 0u, 0u}')
                 continue
             words, relocations = unit['words'], unit['relocations']
             if unit['tag'] != tag or unit['feature'] != feature or not 0 < len(words) < 0x2000 or \
@@ -56,12 +59,11 @@ def data_c(bundles):
             if len(unit.get('proofs', ())) < 2:
                 raise ValueError('Payload %s: on-demand engine %d carries no relocation proofs' % (tag, feature))
             name = '%d_%d' % (core, feature)
-            data = b''.join(w.to_bytes(3, 'big') for w in words)
-            lines.append('static const uint8_t mw_engine_words_%s[%d] = {%s};' % (name, len(data), ','.join(map(str, data))))
+            lines.append('static const uint32_t mw_engine_words_%s[%d] = {%s};' % (name, len(words), ','.join('%du' % w for w in words)))
             if relocations:
                 lines.append('static const uint16_t mw_engine_relocations_%s[%d] = {%s};' % (
                     name, len(relocations), ','.join('%du' % r for r in relocations)))
-            row.append('{mw_engine_words_%s, %s, %du, %du}' % (
+            row.append('{mw_engine_words_%s, %s, %du, %du, 0u, 0u}' % (
                 name, 'mw_engine_relocations_' + name if relocations else '0', len(words), len(relocations)))
             most = max(most, len(words))
         rows.append('{' + ', '.join(row) + '}')
@@ -341,10 +343,11 @@ def manager(text):
 def transport(text):
     """The generated transfer.c, after resident_driver.transport."""
     return _change(text, '    if(op==10u && (id&~(c ? 13u:15u) || init&~(c ? 13u:15u) || proc)) return 0;',
-                   '    if(op==10u && (proc>1u || (!proc && (id&~(c ? 13u:15u) || init&~(c ? 13u:15u))))) return 0;\n'
-                   '    /* PLACE (word 7 = 1): one on-demand feature this core carries; offset 0 unplaces, else a table\n'
-                   '     * offset inside the arena (the receiver bounds the engine\'s end by its permanent block). */\n'
-                   '    if(op==10u && proc==1u && ((id!=1u && id!=2u && id!=4u && id!=8u) || id&~(c ? 13u:15u) ||\n'
+                   '    if(op==10u && (proc>=0x2000u || (!proc && (id&~(c ? 13u:15u) || init&~(c ? 13u:15u))))) return 0;\n'
+                   '    /* PLACE (word 7 the engine\'s words, 1..0x1fff): one on-demand feature this core carries; offset 0\n'
+                   '     * unplaces, else a table offset inside the arena (the receiver bounds the engine\'s end by its\n'
+                   '     * permanent block). */\n'
+                   '    if(op==10u && proc && ((id!=1u && id!=2u && id!=4u && id!=8u) || id&~(c ? 13u:15u) ||\n'
                    '       (init && (init<DL_CODE_START || init>=dl_pool_words[c])))) return 0;', 'transport PLACE')
 
 

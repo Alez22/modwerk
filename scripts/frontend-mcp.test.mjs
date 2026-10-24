@@ -73,7 +73,7 @@ describe('frontend MCP protocol and isolated site workflows', () => {
     // Every published package alone, every pair and all together, on the published base with site events (every subset
     // of 19 would be 2^19 sets; preparing one only preflights each package).
     const { identity: base } = JSON.parse(await readFile(new URL('../sdk/machines/octatrack/base-binding.json', import.meta.url), 'utf8'))
-    const capabilities = { abi: 8, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 }
+    const capabilities = { abi: 10, features: 7 | 128 | 512, maxSites: 128, maxCopies: 128 } // ABI 10: Analog BD's engine
     const sets = [...usb.map(id => [id]), ...usb.flatMap((a, i) => usb.slice(i + 1).map(b => [a, b])), usb]
     for (const moduleIds of sets) {
       const prepared = await service.call('site_selection', { moduleIds, usb: true, capabilities, base })
@@ -84,6 +84,12 @@ describe('frontend MCP protocol and isolated site workflows', () => {
     await expect(service.call('site_selection', { moduleIds: ['sidechain-compressor'], usb: true, capabilities })).rejects.toThrow('latest Modwerk base')
     const cardOnly = catalogue.modules.find(module => module.machine === 'octatrack' && !module.usb)
     if (cardOnly) await expect(service.call('site_selection', { moduleIds: [cardOnly.id], usb: true })).rejects.toThrow('USB')
+    // A module whose package needs a base DSP feature (the key bus) is USB-only: card firmware has no base.
+    expect((await service.call('site_selection', { moduleIds: ['everb'] })).card).toBe('')
+    for (const module of catalogue.modules.filter(module => module.machine === 'octatrack' && module.card === false))
+      expect((await service.call('site_selection', { moduleIds: [module.id] })).card).toMatch('over USB')
+    // Without the beta interface there is no USB sync, so the public catalogue offers no USB-only module.
+    expect((await service.call('site_catalogue', { machine: 'octatrack' })).modules.filter(module => module.card === false)).toEqual([])
   })
   it('round trips sets through frontend validation without including private firmware', async () => {
     const created = await service.call('set_save', { name: 'MCP test', moduleIds: ['miniverb'] })

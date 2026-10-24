@@ -22,6 +22,13 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
 - Keep each command short: a few steps, a time limit, its output read at once. A long run goes in the
   background and logs every step, and you look at the log.
 - Never power-cycle on your own; ask the owner. Never flash.
+- A Keep on a RAM-booted base overwrites the owner's kept modules. The kept set lives in two card files,
+  `/MODWERK0.SET` and `/MODWERK1.SET`, written alternately and stamped with the writing base's identity
+  (`modset.c`); a base loads neither file another base wrote. Two Keeps on a twin (a `try`, then a `remove`)
+  replace both, and after the power cycle the flashed base starts with no modules (23 October 2026, MKII, flashed
+  `a408c505`, twin `8dc7692c`). Before a twin, note the flashed set (`inventory`) and where its packages are; base-bound
+  ones (Analog BD, Output Matrix) must be the copies bound to that base, from the commit that built it. Afterwards,
+  power-cycle and `try` each again.
 - After a crash restart, or finding the unit on the flashed base with no power cycle you know of, ask for a power
   cycle before the next RAM boot: one such boot hung at the logo (12 October 2026,
   [traps](OCTATRACK_HARDWARE_TRAPS.md#dsp-loader-dynamic-dsp-code)).
@@ -72,7 +79,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 
 | Step | What it does |
 |---|---|
-| `KEY`, `KEY+KEY`, `KEY*N` | press (holding all but the last); `T1`-`T8`, `TRIG1`-`TRIG16`, `FX1`, `FX2`, `SRC`, `AMP`, `LFO`, `FUNC`, `YES`, `NO`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `PLAY`, `STOP`, `REC`, `CUE`, `PATTERN`, `BANK`, `PAGE`, `PROJ`, `PART`, `AED`, `ARR`, `MIDI`, `PUSHA`-`PUSHF` (`FUNC+PAGE`: PATTERN SCALE, where LEVEL sets the length) |
+| `KEY`, `KEY+KEY`, `KEY*N` | press (holding all but the last); `T1`-`T8`, `TRIG1`-`TRIG16`, `FX1`, `FX2`, `SRC`, `AMP`, `LFO`, `FUNC`, `YES`, `NO`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `PLAY`, `STOP`, `REC`, `CUE`, `PATTERN`, `BANK`, `PAGE`, `PROJ`, `PART`, `AED`, `ARR`, `MIDI`, `SCENEA`, `SCENEB`, `PUSHA`-`PUSHF` (`FUNC+PAGE`: PATTERN SCALE, where LEVEL sets the length) |
 | `+KEY`, `-KEY` | hold, let go |
 | `encA+3`, `encLEVEL-2`, `fader128` | encoders A-F, LEVEL, the crossfader. Some setup values take several detents a step: MIDI NOTE SETUP's CHAN, BANK and PROG did not move on `encA+3`, and `encA+20` moved CHAN by 6 (21 October 2026) |
 | `w300` | wait 300 ms (rarely needed: the steps below wait for their own result) |
@@ -118,7 +125,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | What | Where |
 |---|---|
 | current track, Part | byte `0x80000000`, byte `0x80000003` |
-| what each track runs (FX1 T1-8, then FX2) | 16 bytes at `0x80000ec4`; a Part's effects reach it at each track's next trig while playing, not at a stopped pattern change. A track without trigs keeps the last bank's effect (16 October 2026, twin of `38a0bde1`: B01's DELAY never reached trigless tracks that ran DARK REV), so test a pick's admission on tracks with trigs or in a blank project |
+| what each track runs (FX1 T1-8, then FX2) | 16 bytes at `0x80000ec4`; a Part's effects reach it at each track's next trig while playing, not at a stopped pattern change. A track without trigs keeps the last bank's effect (16 October 2026, twin of `38a0bde1`: B01's DELAY never reached trigless tracks that ran DARK REV), so test a pick's admission on tracks with trigs or in a blank project. A trigless track keeps the last bank's machine too: from bank A (Analog BD on T1) to bank B, T1 kept rendering Analog BD and asking for its lease (22 October 2026, twin `df19fdca`); a RELOAD of bank B's Part, then bank C, cleared it |
 | current bank | `0x46c82456` holds its base: `0x400e21e0 + bank * 0x9b340` |
 | a working Part's effects | 16 bytes at bank base `+ 0x8ed80 + part * 6322` (the whole Part is 6,322 bytes) |
 | the saved copy | bank base `+ 0x9504a + part * 6322` |

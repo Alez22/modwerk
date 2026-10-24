@@ -4,9 +4,9 @@
  * the same four sites itself (midi_generators.s); every private name here carries mg_ so it can share the module's
  * translation unit. MIDI NOTE SETUP lists OFF and the generators in its empty left half (UP/DOWN, YES); double-tap
  * TRACK in MIDI mode, which stock ignores, opens it. A track running a generator keeps 'M' and its id in the arp step
- * mask, which stock's validator never reads and only ARP SETUP edits, and shows the generator's pages on its ARP page
- * (FUNC+AMP, which would open ARP SETUP: the second). NOTE SETUP's two unused slots looked free but its encoders D and F
- * edit them unseen. UI task only. Stock addresses: OS 1.40C (octabam docs/firmware/MIDI_TRACKS.md, PARAM_PAGES.md). */
+ * mask, which stock's validator never reads and only ARP SETUP edits, and shows the generator's pages on the MIDI pages
+ * it takes (always the ARP page, whose note bytes hold its settings; FUNC+AMP, which would open ARP SETUP, turns that
+ * page to its second). NOTE SETUP's two unused slots looked free but its encoders D and F edit them unseen. UI task only. Stock addresses: OS 1.40C (octabam docs/firmware/MIDI_TRACKS.md, PARAM_PAGES.md). */
 #include <stdint.h>
 #include "modwerk_events.h"
 #ifndef MW_HOST /* test_midi_generators.c maps these onto a model of the unit's memory */
@@ -20,7 +20,8 @@
 #define MG_TRACK 0x100b14ccu
 #define MG_CUR_PART 0x100b14cfu
 #define MG_MIDI_MODE 0x80000012u
-#define MG_PAGE 0x460d1684u       /* the page; a MIDI track's ARP page is 2 */
+#define MG_PAGE 0x460d1684u       /* the page: on a MIDI track 0 NOTE (SRC), 1 LFO, 2 ARP (AMP), 3 CTRL1 (FX1), 4 CTRL2 (FX2) */
+#define MG_ARP 2u
 #define MG_NOTE_SETUP 0x400bc6c0u /* MIDI NOTE SETUP's window: 0 while closed */
 #define MG_NOTE_LAYER 0x400bc6a4u /* its input layer; its first word links the layer pushed after it */
 #define MG_LAYERS 0x460d165cu
@@ -139,7 +140,7 @@ static void mg_choose(const MgGen *const *g, unsigned n, unsigned t, unsigned ro
 }
 
 /* Input layers, pushed and taken off on the UI tick (VECTOR's st_ui_tick idiom): the list's while MIDI NOTE SETUP is
- * open, the page's on a generator's ARP page. A key a layer does not use goes on to the handler stock had resolved
+ * open, the page's on a generator's page. A key a layer does not use goes on to the handler stock had resolved
  * for it before the layer, as does the release of every press the layer did not take. */
 extern uint32_t mg_list_layer[], mg_page_layer[];
 static uint32_t *mg_active;
@@ -147,25 +148,27 @@ static uint32_t mg_saved[4][3];
 static unsigned mg_mine, mg_second, mg_shown, mg_cursor, mg_opened;
 static const uint8_t mg_keys[4] = {0x33, 0x20, 0x31, 0x32}; /* UP, DOWN, YES, NO */
 
-/* The ARP page of a generator's track while no trig, scene or popup is held, as VECTOR's audio page: a held trig
- * shows stock's page, so its locks stay stock's. */
-static const MgGen *mg_arp_view(const MgGen *const *g, unsigned n, uint32_t part, unsigned track)
+/* A page a generator takes on its track while no trig, scene or popup is held, as VECTOR's audio page: a held trig
+ * shows stock's page, so its locks stay stock's. The ARP page is always its own: the note bytes there are its settings. */
+static const MgGen *mg_page_view(const MgGen *const *g, unsigned n, uint32_t part, unsigned track)
 {
     const MgGen *who;
-    if (U32(MG_PAGE) != 2u || U32(0x460d173au) || U32(0x460d1694u)) return 0;
+    uint32_t page = U32(MG_PAGE);
+    if (page > 4u || U32(0x460d173au) || U32(0x460d1694u)) return 0;
     mg_running(g, n, part, track, &who);
-    return who;
+    return who && ((who->pages | 1u << MG_ARP) >> page & 1u) ? who : 0;
 }
-static const MgGen *mg_view(const MgGen *const *g, unsigned n) { return mg_midi() ? mg_arp_view(g, n, mg_part(), U8(MG_TRACK)) : 0; }
+static const MgGen *mg_view(const MgGen *const *g, unsigned n) { return mg_midi() ? mg_page_view(g, n, mg_part(), U8(MG_TRACK)) : 0; }
 static void mg_redraw(void) { MG_CALL(void (*)(int), 0x4004d948u)(-1); U32(MG_DIRTY_SCREEN) = 1; }
 uint32_t mg_page(uint32_t stock);
 uint32_t mg_page(uint32_t stock)
 {
     const MgGen *g[MG_ROWS - 1u], *who; unsigned n = mg_generators(g);
     /* Only with its layer on: without it the knobs would edit stock's ARP values under the generator's labels. */
-    return mg_active == mg_page_layer && (who = mg_view(g, n)) && who->page ? who->page(stock, mg_second) : stock;
+    return mg_active == mg_page_layer && (who = mg_view(g, n)) && who->page ? who->page(stock, U32(MG_PAGE), mg_second) : stock;
 }
-/* FUNC+AMP, or a double-tap on AMP, on a generator's track turns its page instead of opening ARP SETUP. */
+/* FUNC+AMP, or a double-tap on AMP, on a generator's track turns its ARP page instead of opening ARP SETUP, which
+ * would edit the generator's settings as arp notes. */
 unsigned mg_arp_setup(void);
 unsigned mg_arp_setup(void)
 {
@@ -235,7 +238,7 @@ void mg_key(unsigned code, unsigned edge)
         }
     }
     if (edge == 1 && mg_active == mg_page_layer && (who = mg_view(g, n))) {
-        if (code == 0x31 && who->yes) { mg_mine |= bit; who->yes(); mg_redraw(); return; }
+        if (code == 0x31 && who->yes) { mg_mine |= bit; who->yes(U32(MG_PAGE)); mg_redraw(); return; }
         if (code == 0x32 && mg_second) { mg_mine |= bit; mg_second = 0; mg_redraw(); return; }
     }
     mg_forward(code, edge);
@@ -245,7 +248,7 @@ void mg_knob(unsigned index, int delta)
 {
     const MgGen *g[MG_ROWS - 1u], *who; unsigned n = mg_generators(g);
     if (index < 6 && mg_active == mg_page_layer && (who = mg_view(g, n)) && who->knob) {
-        MG_STAMP(26); who->knob(index, delta, mg_second); MG_STAMP(27);
+        MG_STAMP(26); who->knob(U32(MG_PAGE), index, delta, mg_second); MG_STAMP(27);
         mg_redraw();
     }
 }
@@ -275,8 +278,8 @@ void mg_tick(void)
     unsigned list = midi && U32(MG_NOTE_SETUP);
     if (!list) mg_opened = 0;
     else if (!mg_opened) { mg_opened = 1; mg_cursor = mg_running(g, n, part, track, &who); mg_note_setup_draw(); }
-    who = midi ? mg_arp_view(g, n, part, track) : 0;
-    if (track != mg_shown || !who) mg_second = 0;
+    who = midi ? mg_page_view(g, n, part, track) : 0;
+    if (track != mg_shown || !who || U32(MG_PAGE) != MG_ARP) mg_second = 0;
     mg_shown = track;
     uint32_t *want = list ? mg_list_layer : who ? mg_page_layer : 0;
     if (mg_active == want && (!mg_active || !mg_active[0])) return;

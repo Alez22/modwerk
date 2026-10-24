@@ -17,11 +17,11 @@ A module's category is the `category` field of its manifest (`octamod.module.jso
 
 ## The workflow, in order
 
-1. Read the category guide, then [octabam's trap list](../../sdk/octabam/AGENTS.md) before any DSP or ColdFire code.
+1. Read the category guide, then [octabam's trap list](../../sdk/octabam/AGENTS.md) and its later [register](../../sdk/octabam/docs/TRAPS.md) before any DSP or ColdFire code.
 2. Follow [Add or port a module](../ADD_A_MODULE.md) for the folder, the manifest, the packages and the comparison with native octabam.
 3. Walk the guide's checklists: **Behave like the instrument** and **Integrate**, and for an effect **Sound quality** (aliasing, clipping, DC, idle behaviour). Tick an item only when you did it.
 4. Measure the [performance](#performance) and write `evidence/performance.json`: worst-case cycles, a benchmark against stock and a stress run. `npm run perf:audit -- check <that file>` must pass.
-5. Run `npm run module:doctor -- <id>` until every line is green. It reads the repository only: no firmware runs, and module code runs only as manifest declarations (for the cross-compatibility line). For a module listed from 7 October 2026 it also refuses a missing or failing performance record.
+5. Run `npm run module:doctor -- <id>` until every line is green. It reads the repository only: no firmware runs, and module code runs only as manifest declarations (for the cross-compatibility line). Its `dsp sources` line, and `npm run modules:check`, refuse a DSP source with a label that is a prefix of another label, and a `rep` in a module listed from 23 October 2026 (`scripts/dsp-source-gates.py`, octabam's two gates). For a module listed from 7 October 2026 it also refuses a missing or failing performance record.
 6. Run `npm run check`, and `npm run module:verify -- <id> --os <your 1.40C update>` for an Octatrack module.
 7. If you learned something the next developer needs and no guide says, write it into the guide that fits, as its own docs-only pull request ([Share what you learn](../DEVELOPER_WORKFLOW.md#share-what-you-learn)).
 
@@ -134,6 +134,14 @@ Propose an event or a table when the gate says two behaviour hooks meet, or when
 1. Open a pull request that adds one entry at the end of `sdk/machines/octatrack/events.json`, then run `python3 -B sdk/machines/octatrack/events.py --write` to regenerate the base's dispatch, the headers, EVENTS.md and the site's hook list. An event needs its name (`ev_` and what happens), its kind, its stock site (address, length in whole instructions and a SHA-256 guard), or none for a raised event, when it runs, its C prototype and its order rule. A table needs an `ot_` name, its record size and C declaration, its room and the sites its reader owns. Addresses, lengths and hashes only: no stock bytes.
 2. Say which modules patch that site today. Until they subscribe, list each such pair in `compatibility.json` as `pending-migration`, with the event and `until`.
 3. The owner reviews the entry. Every later module subscribes or contributes instead of patching.
+
+### Propose an event on the Digitakt, Digitone or Digitakt II
+
+On the elemod machines the core owns the shared sites, and the core is pinned from an upstream release: elekloader's core (interface 2.1) for the Digitakt and Digitone, and toonst's digitakt2-perform core 1.0 for the Digitakt II ([sdk/imports/elekloader-digitakt2-perform-v1.0.json](../../sdk/imports/elekloader-digitakt2-perform-v1.0.json)). Its contract is `sdk/<machine>/core/interface.json` (`sdk/digitakt-ii/core-profile/interface.json` for the Digitakt II), and `modules:check` refuses a mod that uses anything else. So a mod that needs a stock site the core does not expose (an LFO or voice path, the render, a page the OS builds, state another mod could want) does not patch it: propose the event, and the mod ships once the core carries it.
+
+1. Write the proposal as one pull request against the core's interface file, before the module. For each event: its name (`ev_` and what happens), the stock site (OS release, address, length in whole instructions and a SHA-256 guard; addresses, lengths and hashes only, no stock bytes), when it runs and in which context (UI tick, key, sequencer, render), its C prototype, what a nonzero result means and its order rule. For shared state: a named table with its record size, room and reader. Add at the end: hook indices are an ABI, and a released one is never renumbered.
+2. Say which mods patch that site or hold that state privately today, and what each would subscribe to instead. On the Digitakt mk1 the SRC machines share the SRC page, render and LFO destination sites, so a proposal there covers them together.
+3. The owner reviews the proposal and takes it to the core's upstream. When the new core is released, Modwerk pins it with `npm run elekloader:update`, updates the interface file and records the import under `sdk/imports/`. The module pull request follows, subscribing in `build.json`, and it builds and runs on its own: a mod that shares another mod's state or code is refused ([no module depends on another](#cross-compatibility)).
 
 ### Flag every incompatibility
 

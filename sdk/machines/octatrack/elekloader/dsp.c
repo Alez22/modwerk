@@ -37,6 +37,7 @@ static uint32_t chip_cycles(const struct runtime_dsp *d) { return charged(d->cyc
 #define SOURCE_ENGINES 8u
 uint32_t dl_slot_cycles(unsigned slot); /* manager.c (build_core.py): a slot's committed or pending charge */
 static uint32_t source_voice[8], source_owner[8];
+static volatile uint8_t source_frozen; /* the self-test runs: no voice is charged anew until it ends (beta finding 63) */
 static struct { uint32_t module, cycles; } source_engine[2][SOURCE_ENGINES];
 static unsigned source_core(unsigned track) { return track < 4u ? 1u : 0u; } /* the allocator's core_of: tracks 1-4 on core 1 */
 static uint32_t slot_charge(unsigned core) /* each of the core's eight slots at least the stock reserve */
@@ -59,6 +60,8 @@ uint32_t modwerk_dsp_source_charge(unsigned core)
 int modwerk_dsp_source_claim(unsigned track, uint32_t module, uint32_t voice, uint32_t engine, uint8_t kind)
 {
     if (track >= 8u || !module || !kind || kind > RUNTIME_HARDWARE || voice > 0xffffu || engine > 0xffffu) return RUNTIME_MALFORMED;
+    /* Its emptied cores would let a voice in that leaves the Part's own effects no room to come back: wait for its end. */
+    if (source_frozen && source_owner[track] != module) return RUNTIME_BUSY;
     unsigned c = source_core(track), at = SOURCE_ENGINES;
     for (unsigned e = 0; e < SOURCE_ENGINES; ++e) if (source_engine[c][e].module == module) at = e; /* its engine */
     for (unsigned e = 0; at == SOURCE_ENGINES && e < SOURCE_ENGINES; ++e) if (!source_engine[c][e].module) at = e;
@@ -127,6 +130,7 @@ fx_set modwerk_fxmap_used(void);
 uint32_t modwerk_fxmap_generation(void);
 void modwerk_fxmap_assign(unsigned id, uint32_t module, unsigned layout, const char *name);
 void modwerk_fxmap_name(unsigned id, char *out);
+int modwerk_fxmap_loading(void);
 extern volatile uint32_t modwerk_fxmap_read, modwerk_fxmap_written;
 extern volatile uint32_t modwerk_modset_generation, modwerk_modset_count, modwerk_modset_result; /* modset.c */
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots); /* fxpage.c */
@@ -168,12 +172,24 @@ static int choose(uint32_t module, unsigned preferred, int pinned)
     for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) if (free_for(k, module, used)) return (int)k;
     return -1;
 }
+/* An Undo of a module a track runs (beta finding 66): before its change that track ran the null stub, dry, under the
+ * same handle, as a project naming a module that is not installed does. So a restore makes such a slot dry again
+ * first: NONE written into its live id, as the manager parks one (manager.c reinit). Stock gives the track its Part's
+ * id back at its next trig, which with the module gone is the stub. Any other removal still waits for the track. */
+static void park(unsigned id)
+{
+    volatile uint8_t *live = (volatile uint8_t *)(uintptr_t)LIVE_FX;
+    for (unsigned i = 0; i < 16; ++i) if (live[i] == id) live[i] = 0;
+}
 int modwerk_machine_dsp_admit(const struct runtime_dsp *from, struct runtime_dsp *to)
 {
     /* An effect a track runs, or one a transaction may hold between prepare and retirement, stays.
      * A new one may register at any time: no transaction names an effect nobody has picked. */
     int had = from->count ? handle_of(from->module) : -1;
-    if (from->count && had >= 0 && in_use((unsigned)had)) return RUNTIME_IN_USE; /* the host says why: pick another effect */
+    if (from->count && had >= 0 && in_use((unsigned)had)) {
+        if (!modwerk_runtime_restoring()) return RUNTIME_IN_USE; /* the host says why: pick another effect */
+        park((unsigned)had);
+    }
     if (from->count && (!dl_publication_idle() || rebinding)) return RUNTIME_BUSY;
     if (!to->count) return RUNTIME_OK;
     if (rebinding) return RUNTIME_BUSY;
@@ -405,11 +421,12 @@ int modwerk_machine_journal_committed(const struct runtime_journal_view *r,int r
 static struct { struct dl_package package; struct code code[2]; uint32_t module, page_bytes, cycles, generation; uint8_t *page; uint16_t layout; char name[16]; uint8_t pinned, from, measured, digest[MU_DIGEST_BYTES]; } moving[MODWERK_FX_IDS];
 static unsigned moving_count;
 static uint32_t mapped; /* the map generation the handles follow */
-static void rebind_tick(void)
+static int rebind_tick(void) /* 1: the handles follow the map's current generation */
 {
     if (!rebinding) {
         uint32_t generation = modwerk_fxmap_generation();
-        if (generation == mapped || !dl_publication_idle()) return;
+        if (generation == mapped) return 1;
+        if (!dl_publication_idle()) return 0;
         mapped = generation;
         fx_set used = modwerk_fxmap_used();
         moving_count = 0;
@@ -431,9 +448,10 @@ static void rebind_tick(void)
             release(k);
         }
         if (moving_count) rebinding = 1, nudge = 1;
-        return;
+        return !moving_count;
     }
-    if (++rebinding < 4u || !dl_publication_idle()) return; /* the manager has retired what let go */
+    if (++rebinding < 4u || !dl_publication_idle()) return 0; /* the manager has retired what let go */
+    int fresh = modwerk_fxmap_generation() == mapped; /* else a newer map came meanwhile: the next tick follows it */
     for (unsigned i = 0; i < moving_count; ++i) {
         int id = choose(moving[i].module, moving[i].pinned ? moving[i].from : MODWERK_FX_IDS, moving[i].pinned); /* pinned: its own or none */
         if (id < 0) continue;
@@ -447,8 +465,9 @@ static void rebind_tick(void)
         list((unsigned)id, moving[i].page, moving[i].page_bytes);
         if (modwerk_fxmap_handle(moving[i].module) != id) modwerk_fxmap_assign((unsigned)id, moving[i].module, moving[i].layout, moving[i].name);
     }
-    mapped = modwerk_fxmap_generation();
+    if (fresh) mapped = modwerk_fxmap_generation();
     rebinding = 0, nudge = 1;
+    return fresh;
 }
 /* The module effects the current bank names: what each track runs, and its four Parts, working and saved.
  * Other banks stay on the card. A bit per effect id, for an update to warn before removing one. */
@@ -460,6 +479,13 @@ fx_set modwerk_dsp_used(void)
     for (unsigned part = 0; bank && part < 8; ++part)
         for (unsigned i = 0; i < 16; ++i) used = fx_with(used, PART(bank, part)[i]);
     return fx_and(used, modwerk_fx_modules);
+}
+/* The same for one FX id, stock or module: an engine's controller is used while this holds (controller_board.c). */
+int modwerk_dsp_bank_names(unsigned id)
+{
+    uintptr_t bank = BANK; int named = in_use(id);
+    for (unsigned k = 0; bank && !named && k < 8u * 16u; ++k) named = PART(bank, k >> 4)[k & 15u] == id;
+    return named;
 }
 
 /* MODULE LOAD (status.c): each installed module effect, by handle: its name, an instance's chip cycles a sample
@@ -511,10 +537,7 @@ int modwerk_dsp_pick(unsigned slot, unsigned track, unsigned row)
     return 1;
 }
 /* A track naming a module effect that is not installed runs stock's null stub, dry,
- * its stored parameters untouched; the unit says so once per change. */
-#ifndef MODWERK_HOST
-static fx_set missing_shown;
-#endif
+ * its stored parameters untouched; the unit says so when such a track is selected. */
 volatile uint32_t modwerk_dsp_missing; /* times the unit said so, for diagnostics */
 fx_set modwerk_dsp_dry(void)
 {
@@ -524,6 +547,33 @@ fx_set modwerk_dsp_dry(void)
         if (fx_in(modwerk_fx_modules, fx) && dl_catalog[fx].resident) dry = fx_with(dry, fx);
     }
     return dry;
+}
+/* Each tick (modwerk_dsp_tick), after the rebind's step (`following`: rebind_tick's answer): whether to say "MISSING
+ * <NAME>" (into `text`, 24 bytes; 1) for the track just selected (`track`, 8 and up on the MIDI side); the project's
+ * whole list is status.c's page. Only while the handles follow the map of the project that is loaded: during a load
+ * the tracks can run its handles before its end applies its map (fxmap.c), and a rebind takes a module off a handle
+ * before it gets its own, so until then a handle can run dry for a moment under the last project's name for it (MKII,
+ * 21 October 2026: "MISSING SPECTRUM", Spectrum's catalogue handle, for a project whose map gave that handle to
+ * RINGMOD SC, installed). A selection meanwhile waits and is checked once that is over. A load holds it at most
+ * LOAD_HOLD ticks (about a minute), in case one never ends. */
+#define LOAD_HOLD 3600u
+static unsigned last_track = 0xffu, load_held;
+int modwerk_dsp_missing_tick(int following, unsigned track, char *text)
+{
+    if (!modwerk_fxmap_loading()) load_held = 0;
+    else if (load_held < LOAD_HOLD) ++load_held, following = 0;
+    if (!following || track == last_track) return 0;
+    last_track = track;
+    fx_set say = {{0}};
+    if (track < 8u) say = fx_and(modwerk_dsp_dry(), fx_with(fx_with(say, LIVE_FX[track]), LIVE_FX[8u + track]));
+    if (!fx_any(say)) return 0;
+    unsigned k = 0;
+    while (!fx_in(say, k)) ++k;
+    for (unsigned i = 0; i < 8u; ++i) text[i] = "MISSING "[i];
+    modwerk_fxmap_name(k, text + 8);
+    for (char *c = text + 8; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* the popup sizes capitals only */
+    if (!text[8]) for (unsigned i = 0; i < 15u; ++i) text[i] = "MODULE MISSING"[i];
+    return 1;
 }
 /* MISSING (ep0.c, status.c): the modules the project names, in any bank, that no installed module answers for:
  * "MWM" and a count, then per handle 24 bytes: the handle, 0, the layout (big-endian), the module id
@@ -841,11 +891,23 @@ static uint32_t code_sum(unsigned c, unsigned p, unsigned from, unsigned n, unsi
     }
     return sum & 0xffffffu;
 }
+/* controller_board.c: a live package requires a base feature that cannot come up this boot (the key bus with a DSP
+ * core's state lost). A self-test fails with it (SELFTEST_FEATURE), so a trial is not kept with a module that can only
+ * pass its audio, and the record's refusal says so (RUNTIME_FEATURE) while it holds and the loader has no refusal of its
+ * own to report: the site explains a rejected sync and retries RUNTIME_BUSY from that field, so the loader's own
+ * refusal always comes first. 0 on a base without the board. */
+#ifndef MODWERK_HOST_SELFTEST
+__attribute__((weak)) int modwerk_controller_keybus_lost(void) { return 0; }
+#else
+int modwerk_controller_keybus_lost(void);
+#endif
 void modwerk_selftest_refresh(void)
 {
     modwerk_selftest.saved = modwerk_modset_result, modwerk_selftest.saved_count = modwerk_modset_count;
     modwerk_selftest.live = modwerk_runtime_active();
-    { extern volatile uint32_t modwerk_flash_refusal; modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal : modwerk_runtime_refusal(); } /* flash.h: a refused or failed base write, apart from the loader's */
+    { extern volatile uint32_t modwerk_flash_refusal; uint32_t loader = modwerk_runtime_refusal();
+      modwerk_selftest.refusal = modwerk_flash_refusal ? 100u + modwerk_flash_refusal : /* flash.h: a refused or failed base write, apart from the loader's */
+          loader ? loader : modwerk_controller_keybus_lost() ? (uint32_t)RUNTIME_FEATURE : (uint32_t)RUNTIME_OK; }
 }
 enum { PLACE, WAIT, HOLD, CODE, CLEAR, EMPTY, RESET };
 /* st_live: what each slot ran before the test; st_base: the batch's background, that with a core the batch emptied
@@ -907,7 +969,8 @@ static void finish(void)
     for (unsigned i = 0; i < 16u; ++i) if (LIVE_SET[i] != st_live[i]) t->failed |= SELFTEST_NOT_BACK;
     t->gap = dl_frame_gap;
     if (dl_frame_gap > SELFTEST_FRAME_LIMIT) t->failed |= SELFTEST_LATE;
-    t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED;
+    if (modwerk_controller_keybus_lost()) t->failed |= SELFTEST_FEATURE;
+    t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED, source_frozen = 0;
 }
 /* Playing: the live set and the lanes as the Part has them now, then the checks. */
 static void started(volatile struct selftest *t)
@@ -937,7 +1000,7 @@ int modwerk_selftest_start(void)
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
     st_counted = counted(), st_ticks = st_step = st_back = 0, st_played = 0;
     modwerk_status_fast = 1;
-    t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING; /* the tick presses PLAY */
+    t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING, source_frozen = 1; /* the tick presses PLAY */
     return 1;
 }
 void modwerk_selftest_abort(void)
@@ -1275,23 +1338,10 @@ void modwerk_dsp_tick(void)
     }
     if ((dl_phase || dl_c1_phase) && EDMA_ES >> 31 && !(EDMA_ES >> 8 & 0xfu)) recover(2); /* eDMA refused our transfer: at once */
     else if (modwerk_dsp_stalled(dl_frames, dl_phase || !dl_job_status(0) || !dl_job_status(1))) recover(1);
-    rebind_tick();
-    fx_set dry = rebinding ? missing_shown : modwerk_dsp_dry(), say = {{0}};
-    missing_shown = dry;
-    /* Said whenever a track running a missing module is selected; the project's whole list is status.c's page. */
-    static unsigned last_track = 0xffu;
-    unsigned track = *(volatile uint8_t *)0x80000000u; /* the current track; 8 and up on the MIDI side */
-    if (track != last_track) {
-        last_track = track;
-        if (track < 8u) say = fx_and(dry, fx_with(fx_with(say, LIVE_FX[track]), LIVE_FX[8u + track]));
-    }
-    if (fx_any(say)) { /* the project's map names what is missing */
-        static char text[24] = "MISSING ";
-        unsigned k = 0;
-        while (!fx_in(say, k)) ++k;
-        modwerk_fxmap_name(k, text + 8);
-        for (char *c = text + 8; *c; ++c) if (*c >= 'a' && *c <= 'z') *c = (char)(*c - 32); /* the popup sizes capitals only */
-        ((void (*)(const char *, unsigned))0x4005a2b8u)(text[8] ? text : "MODULE MISSING", 0xa0);
+    int following = rebind_tick();
+    static char text[24];
+    if (modwerk_dsp_missing_tick(following, *(volatile uint8_t *)0x80000000u, text)) { /* the current track */
+        ((void (*)(const char *, unsigned))0x4005a2b8u)(text, 0xa0);
         modwerk_dsp_missing = modwerk_dsp_missing + 1;
     }
     if (nudge) { nudge = 0; dl_residency_nudge(); }

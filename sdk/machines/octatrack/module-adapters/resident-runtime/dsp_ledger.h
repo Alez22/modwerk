@@ -10,6 +10,8 @@
 #define MW_DSP_ANALOG_BD 4u
 #define MW_DSP_KEYBUS 8u
 #define MW_DSP_FEATURES 15u  /* every feature bit */
+/* Features whose engine and initial words come from their controller's package (ABI 10), never from the base. */
+#define MW_DSP_PACKAGED 4u
 #define MW_DSP_KEYBUS_EXECUTED 41u  /* its tap: executed instructions a sample for a core's four tracks, counted statically; charged at 7/4 until timed on a unit */
 /* What a held feature holds too. */
 #define MW_DSP_IMPLIED(f) ((f) | ((f) & 1u ? 8u : 0u))
@@ -38,5 +40,18 @@ static const struct mw_dsp_region mw_dsp_regions[] = {
     {8u, 1u, 2u, 0, 0x800u, 0x200u}, /* keybus */
 };
 #define MW_DSP_REGIONS (sizeof mw_dsp_regions / sizeof mw_dsp_regions[0])
+
+/* The sites, by index (a package's hook entry names one): its feature, and per core its stock P continuation
+ * after the hooked code when it has an exit (0: none, or no such payload). */
+struct mw_dsp_site { uint8_t feature, pad; uint16_t exit[2]; };
+static const struct mw_dsp_site mw_dsp_sites[] = {
+    {8u, 0, {0x0u, 0x0u}}, /* 0 dsp_fx1_dispatch */
+    {1u, 0, {0x0u, 0x0u}}, /* 1 dsp_compressor_proc */
+    {1u, 0, {0x0u, 0x0u}}, /* 2 dsp_track_commit */
+    {2u, 0, {0x0u, 0x0u}}, /* 3 dsp_core0_mixdown */
+    {2u, 0, {0x0u, 0x0u}}, /* 4 dsp_core0_phones */
+    {4u, 0, {0x426u, 0x221u}}, /* 5 dsp_track_source */
+};
+#define MW_DSP_SITES (sizeof mw_dsp_sites / sizeof mw_dsp_sites[0])
 
 #endif
