@@ -2082,3 +2082,41 @@ Hardware, audible headroom and physical reboot persistence are not tested.
 Current-upstream full source validation: Check passed in 134.43s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The owner helper has separate compile-only and synthetic ColdFire execution evidence; real native loader execution is unqualified. The tempo driver reuses the unchanged linked resident fixture.
 
 Five owner/tempo reports bind exact source commit `f4334909b812547282acdcc2cee50b61795b9e13`.
+
+
+## Full-owner menu dispatch adapter (0.1.33)
+
+The proposed backend connects the compositor's short module/generation identity
+to an admitted full runtime-owner lease. It copies an explicit action allowlist,
+refuses ambiguous/duplicate registration, and revalidates current publication
+before forwarding to a trusted base dispatcher. It neither parses uploaded
+metadata nor resolves a raw module-pool function pointer.
+
+Six actual-loader host ASan/UBSan configurations pass the upstream loader suite
+and adapter extension. Two coexisting modules share an action ID; sorted menu
+selection reaches the correct complete owner. Changing the caller's binding
+array cannot alter registered actions. Unknown identities/actions and malformed
+bindings are refused without registry mutation. Callback refusal is propagated;
+a second dispatch of the same menu opening is stale. Replacement retires the
+old activation even while its image stays intact for rollback. Restoration does
+not revive it, and explicit pre-transition retirement also covers a missed
+replace/restore interval. Removing one owner preserves its companion action;
+removing the companion refuses that action too. Original loader active count
+and free space are restored. Uploaded module code never executes.
+
+The separate stock-free ColdFire binary links and executes the helper, adapter
+and compositor. Both six-row and nine-row models cover copied bindings, sorted
+dispatch, callback refusal and permanently stale authority after replacement and
+restoration. The included owner-copy fixture also covers all 128 publication
+positions. Code-generation checks, stack and preserved-register checks pass.
+The adapter object has 786 text bytes, 0 data bytes and
+0 BSS bytes; local stack estimates are retained in its report and
+do not establish the complete production call-chain budget.
+
+Host and target fixtures acknowledge detachment only in their synthetic menu
+models, which have no stock-retained pointers. They do not demonstrate native
+reclamation, uploaded-code execution, typed package admission, module-set
+readiness or USB transitions. Production pre-transition hooks, source admission,
+Apply/playback and physical qualification remain unfinished.
+
+Current-upstream full source validation: Check passed in 137.32s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The composed owner adapter passes actual-loader host checks and a separate synthetic ColdFire link/execution fixture. Real native registry and USB integration remain unqualified.

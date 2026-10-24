@@ -27,3 +27,5 @@ Record the normal-panel tempo validation method and its limits: displayed/runtim
 Clarify internal failure rollback versus retained Undo research, and add a current integration-readiness table separating private evidence from production and hardware work.
 
 Extend Beat Slicer evidence verification to external SDK source commits and recorded code-generation guards, with seven regression tests for malformed or mismatched provenance.
+
+Document the full-owner menu adapter boundary: copied action allowlists and complete current-owner checks precede trusted dispatch; coexistence and one-owner removal need separate tests. Typed package admission and native transition hooks remain requirements.

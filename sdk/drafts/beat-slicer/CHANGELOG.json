@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.33-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Connect the prototype menu dispatcher to complete, currently published runtime-owner leases before forwarding an admitted action.",
+      "Copy each owner\u2019s allowed action IDs into fixed base-owned storage; reject duplicate or ambiguous bindings and retain permanent retirement.",
+      "Check two coexisting owners with the same action ID; replacement or removal of one must not authorize stale actions or disable its companion.",
+      "Exercise composition and dispatch with the real loader on the host and separately with compiled ColdFire code and synthetic loader answers.",
+      "Known issue: typed package admission and production lifecycle hooks remain absent; native USB integration, Apply/playback and hardware are unqualified."
+    ]
+  },
+  {
     "version": "0.1.32-experimental",
     "date": "2026-10-24",
     "changes": [

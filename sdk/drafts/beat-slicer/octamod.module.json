@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.32-experimental",
+  "version": "0.1.33-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Check full runtime owner identity and its exact current published position before admitting menu authority. Fixed-lifetime leases retire permanently on observed absence or explicit transition retirement, including later restoration of the same old image. Actual-loader host results are separate from native menu/USB qualification. Production registry transition hooks, live source admission, Apply/playback, browser/USB packages and hardware remain unfinished.",
+    "summary": "Connect the menu compositor to admitted fixed-lifetime runtime-owner leases and copied action allowlists. Actual-loader host checks and separate synthetic ColdFire execution cover full-owner dispatch, coexistence, replacement/restoration/removal and permanent retirement. Typed package admission, production transition hooks, native source ownership, Apply/playback and browser/USB/hardware qualification remain absent.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -125,6 +125,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_resident.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner.py",
       "python3 -B sdk/drafts/beat-slicer/test_audit_evidence.py",
+      "python3 -B sdk/drafts/beat-slicer/test_menu_owner_backend.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

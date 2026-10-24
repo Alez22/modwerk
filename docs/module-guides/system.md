@@ -268,6 +268,15 @@ LEVEL adjustment at 90, 137 and 120 BPM; a private native preview run compares
 90 BPM PROJECT results with the sample's distinct BPM. These stopped-source
 observations do not establish external sync, pattern tempo or changes in flight.
 
+When a menu stores a short module/generation identity, resolve it through an
+admitted full-owner activation and an explicit action allowlist before dispatch.
+Copy registration records into base-owned storage; do not retain a caller's
+temporary array or an unchecked module function pointer. Different modules may
+share an action ID, so qualify coexistence and one-owner removal independently.
+Beat Slicer's proposed backend tests this with real-loader host transitions and
+separate synthetic ColdFire execution; typed package admission and native
+transition hooks are still not installed.
+
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots of the menu path, with exact button sequences.

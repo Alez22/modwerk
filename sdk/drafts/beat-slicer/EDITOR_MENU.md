@@ -82,3 +82,10 @@ its tail-dispatch overwrites that slot with the chosen callback. Calling it as
 menu assertions passed. The corrected fixture passes callee-saved register and
 stack checks, including each observed stock menu call. This is a test-call ABI
 constraint, not a newly assigned native hook signature.
+
+
+The proposed [full-owner backend](MENU_OWNER_BACKEND.md) connects short menu
+identities to admitted full runtime-owner leases. It copies allowed action IDs,
+checks current publication at dispatch, and forwards only to trusted base code.
+This supplies an adapter between prototypes, not typed package registration,
+native callback retirement or an installed USB service.
