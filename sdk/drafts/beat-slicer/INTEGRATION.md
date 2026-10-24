@@ -102,10 +102,11 @@ injection and a standalone runtime object cannot substitute for those steps.
    now runs through the stock frame caller in a full boot, distinguishing pending
    and retained inactive banks. A private compiled entry/return observer now
    passes paired isolated stock comparisons, including faulted bookkeeping.
-   Full-boot composition now covers observed PCM and map-tail stores, while
-   identifying 24 unguarded preparation stores per track. Preparation coverage,
-   Pickup/overdub, complete interrupt/allocator exclusion and production source
-   admission still need investigation.
+   Full-boot composition covers observed PCM and map-tail stores. Later complete
+   preparation scopes cover the 24 previously unguarded stores per track in
+   ordinary start/retrigger/STOP fixtures. Pickup/overdub, other writer families,
+   complete interrupt/allocator exclusion and production source admission
+   still need investigation.
    Later isolated tests execute queued shortage/length-limit cleanup and cover
    its map-tail stores with the compiled worker observer; this does not prove
    all recorder writers or a production source lease.
