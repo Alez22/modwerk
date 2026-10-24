@@ -7,9 +7,16 @@ Recorded 24 October 2026. Version `0.1.0-experimental`.
 - Original MAIN OS 1.40C: SHA-256 `164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e`.
 - Emulator: octabam's `ot_emu` from the `npm run upstream:tools` checkout, SHA-256 `bdbe962c14fc3560fb3196b01566646b80a74fd451883873a77290b4973dbbf1`. It does not run a real unit's timing.
 
+## Hardware (owner's MKII, 24 October 2026)
+
+The USB package `c277d24f…` on the owner's Octatrack MKII, driven over USB by the agent; the owner did the power cycle. Full record: [evidence/hardware.md](evidence/hardware.md).
+
+- **Flashed beta base `b5fae2ae`:** installed and kept as a tester's sync does it; self-test passed (1/1 intact, longest frame 372 µs, card set saved); after the owner's power cycle the kept set came back with Direct Jump and the self-test passed again; removal emptied the set.
+- **RAM-booted development twin `7889c57a`** (the beta flags plus `--dev`, built from this branch), two trials, each rolled back: the sites held the unit's `jsr`/`jmp` and the [PTN]-layer slot `dj_toggle`; [PTN] + [YES] toggled with the toasts and the chooser stayed shut; with the toggle on, A16 (64 steps) jumped to A02 (16 steps) and back on the next step, the master position following the unit's tick count since START modulo the playing pattern's length within one tick of read lag (A16 came back at step 48, not at its start); three landings fell on step boundaries 8 to 12 ticks after the last reading taken before the key gesture; three cues in one gesture landed the last; with the toggle off a cue waited for the playing pattern's end, as on stock; each rollback left the four sites stock.
+
 ## Not tested
 
-- The arranger and pattern chains (Direct Jump stands aside while either runs, by its source), an MKI panel, external MIDI gear (Program Change and the absent MIDI START were checked in the emulator only), START SILENT and trig conditions on a jump (the author's emulator checks), audio.
+- On hardware: a jump into another Part, START SILENT, trig conditions, PER TRACK scales, external MIDI gear (Program Change, the absent MIDI START), the arranger and chains, a cancelled cue (USB key presses arrive about a step apart), listening, the card build, an MKI, and the site's own review/Keep/Undo pages.
 - Beside Play Modes, MIDI Scenes, Mute Modes and Analog BD as a running combination (the gate and `modules:compat` find no shared bytes).
 
 ## Source identity
@@ -28,12 +35,12 @@ The four stock guards (`0x400a1f72`, `0x400a221c`, `0x40043418`, six bytes each,
 DJ_IMAGE=<MAIN OS> DJ_STOCK=<original MAIN OS> OT_EMU=<path to ot_emu> python3 modules/direct-jump-kyoti/verify.py
 ```
 
-Result on the tested image: **all 30 checks passed** (about nine minutes).
+Result on the tested image: **all 32 checks passed** (about nine minutes).
 
 1. The image: the original OS matches the three guards and the [PTN]-layer YES slot is NULL; the source links to the manifest's reference; the landing and MIDI START sites hold a `jsr` and the [PTN] release a `jmp` onto the unit's symbols; the slot names `dj_toggle`; after boot the unit in DRAM is this source linked at its address.
 2. The toggle (MKII panel, empty card): OFF after boot; [YES] alone leaves it OFF; [PTN] + [YES] turns it ON and opens the toast; releasing [PTN] closes the toast and leaves the chooser shut (stock's [PTN] mode byte stays 0); again OFF, and ON. The original OS under the same keys opens no toast and opens the chooser.
 3. OFF is stock: PLAY, then A02 cued at master step 7. Both images land at the end of A01, and the module image runs through the same 260 distinct sequencer states as the original OS (per track: step, previous step, ticks in step, armed, countdown, reload and scale; the master step, tick and scale, the first-fire and hold masks and the metronome counters; the author's reference-lock vector).
-4. ON: A01 playing from START, A02 cued at clock tick 41 (master step 7, its last tick). The reference run plays A02 from START on the same image. Each case checks that the reference really plays the edited pattern, that the jump lands inside its window, and that from the tick after the landing to tick 300 every tick's state vector equals the reference's:
+4. ON: A01 playing from START, A02 cued at clock tick 41 (master step 7, its last tick). The reference run plays A02 from START on the same image. A02 is edited in RAM; each case first checks that the reference run really plays the edit (its master and track step counts), then that the jump lands inside its window, and that from the tick after the landing to tick 300 every tick's state vector equals the reference's:
    - A02 16 steps (as A01): landed at tick 42, the next step; 258 ticks equal. With MIDI transport send on, the landing reached stock's MIDI START gate (`dj_nofa` ran) and the START send after it did not run.
    - A02 7 steps (NORMAL) on Part 2: landed at tick 42; 258 ticks equal; the active Part is 2 afterwards.
    - A02 in PER TRACK mode, master 16 steps at 1x, T1 16 steps 1x, T2 7 steps 2x, T3 5 steps 3/4x, T4 3 steps 1/2x, MIDI T1 5 steps 3/2x: landed at tick 48, the first tick at which every track is at a step boundary (the common step of these scales is 24 ticks); 252 ticks equal.
@@ -43,8 +50,10 @@ The two bytes that do differ from the reference are left out on purpose: the pre
 
 ## The USB package
 
-`python3 -B sdk/runtime/loader/build.py --octabam direct-jump-kyoti --upstream ~/.cache/modwerk-upstream/elekloader --stock <OS 1.40C update file>` builds an ABI 7 package: 2,016 bytes of code and data, no bss, 18 relocations, four stock-code sites (the three detours and the pointer), each named by the SHA-256 of the stock bytes and checked against the original OS. The strict scans of `module_packages.py --stock` pass: the longest run of the package also found in the stock OS has 10 counted bytes (the limit is 12), and `check_stock_free.py` finds no 16-byte run.
+`python3 -B sdk/runtime/loader/build.py --octabam direct-jump-kyoti --upstream ~/.cache/modwerk-upstream/elekloader --stock <OS 1.40C update file>` builds the published ABI 7 package `public/octatrack-modules/direct-jump-kyoti/0.1.0-experimental.mwrm`, SHA-256 `c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f` (2,350 bytes, module `075d79a3`, named Direct Jump): 2,016 bytes of code and data, no bss, 18 relocations, four stock-code sites (the three detours and the pointer), each named by the SHA-256 of the stock bytes and checked against the original OS. The strict scans of `module_packages.py --stock` pass: the longest run of the package also found in the stock OS has 10 counted bytes (the limit is 12), and `check_stock_free.py` finds no 16-byte run.
 
 ## Memory
 
 2,016 bytes in the DRAM reserve (code, the two toast strings and 62 bytes of state), three six-byte detours and the four-byte pointer: 2,038 bytes. No DSP memory, no heap, no saved data. The state is the ON/OFF word, a tick counter since START, the landing's parameters and the last Program Change sent.
+
+The package needs no base change. Direct Jump has no effect id, so it adds no row to `src/engine/assets/chooser-metadata.json` (the configurator gives a module without an effect id the same empty entry by itself), and the published beta base, whose identity hashes that file, stays as it is.

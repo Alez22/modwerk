@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "module": "direct-jump-kyoti",
+  "version": "0.1.0-experimental",
+  "kind": "coldfire",
+  "cycles": {
+    "unit": "cycles/event",
+    "static": null,
+    "measured": 37504,
+    "budget": 95778,
+    "method": "PENDING"
+  },
+  "load": {
+    "frameUs": 362.8,
+    "stockLongestUs": null,
+    "moduleLongestUs": null,
+    "stockIdlePercent": null,
+    "moduleIdlePercent": null,
+    "method": "PENDING"
+  },
+  "stress": {
+    "floodMessagesPerSecond": null,
+    "clockBpm": null,
+    "seconds": null,
+    "stuckNotes": null,
+    "hangs": null,
+    "dropped": null,
+    "droppedExplanation": "PENDING"
+  }
+}

@@ -100,12 +100,33 @@
     },
     "processing": {
       "label": "ColdFire, per sequencer tick",
-      "display": "see TESTING.md",
-      "value": null,
-      "unit": "unknown",
+      "display": "18 instructions a tick while OFF, about 35 while ON; up to 2,344 on a landing tick",
+      "value": 2344,
+      "unit": "instructions/event",
       "method": "emulator",
-      "conditions": "Runs on every sequencer clock tick (it counts ticks since START even when OFF); more work on the tick that arms a jump and on the landing tick.",
+      "conditions": "Executed instructions of the tick hook under ot_emu (entry to return), including the stock routines a landing calls (Program Change, three kernel posts, the trig-condition reset). The tick runs at interrupt level 3, below the DSP frame interrupt. Not chip timing.",
       "source": "TESTING.md"
+    },
+    "impact": {
+      "conditions": "A jump to a pattern on another Part while playing: the landing tick, the dearest event. Between jumps, a short counter on every sequencer tick.",
+      "cpu": {
+        "level": "minimal",
+        "basis": "measured-comparison",
+        "rationale": "18 executed instructions a sequencer tick while OFF and about 35 while ON; the tick that arms a jump runs up to 961 and the landing tick up to 2,344, stock routines included (ot_emu). The tick interrupt runs at level 3, below the level-5 DSP frame interrupt, so it cannot hold that interrupt off. Time on the unit is not measured.",
+        "source": "TESTING.md"
+      },
+      "dsp": {
+        "level": "minimal",
+        "basis": "source-estimate",
+        "rationale": "No DSP code and no change to the DSP programs.",
+        "source": "manifest.py"
+      },
+      "memory": {
+        "level": "minimal",
+        "basis": "measured-comparison",
+        "rationale": "2,016 bytes of ColdFire code and state in the DRAM reserve (62 bytes of state) and 22 bytes of stock writes; no DSP memory and no saved data.",
+        "source": "TESTING.md"
+      }
     }
   },
   "tests": {
@@ -134,13 +155,13 @@
     },
     "qualification": {
       "moduleVersion": "0.1.0-experimental",
-      "sourceSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceSha256": "3126bf86b1377d90bb214044857bd09914a8d12aac508c707118941aae34086e",
       "imageSha256": "c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f",
       "cycles": [
         {
           "processor": "coldfire",
-          "worstCase": 0,
-          "maxConfiguration": 0,
+          "worstCase": 37504,
+          "maxConfiguration": 37504,
           "maxInstances": 1,
           "budget": 95778,
           "unit": "cycles/event",

@@ -19,6 +19,8 @@ There is no menu row, page or knob, and nothing is saved: the setting lives in t
 
 ## Usage
 
+Direct Jump changes only when a cued pattern takes over. Cue patterns the stock way, with [PTN] and a trig key; the toggle decides whether the cue waits for the end of the playing pattern (OFF, stock) or lands on the next step (ON).
+
 ### Quick tutorial: jump between patterns on the next step
 
 1. Hold [PTN] and press [YES]: DIRECT JUMP ON appears. Release [PTN]; the pattern chooser stays shut.
