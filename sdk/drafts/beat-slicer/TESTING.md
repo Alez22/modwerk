@@ -2735,3 +2735,5 @@ This callback prototype revokes menu authority only. Native registry wiring,
 source-reader cancellation, complete-set readiness and retained menu/job storage
 retirement remain separate requirements. The production shared loader and its
 machine adapter are unchanged; no editor event/table ABI is assigned.
+
+The three retained 0.1.50 callback-retirement reports bind source `878fda00b94917ba5100fff2d5bd5dd31e6079eb`. The full current-upstream source check passed in 136.81 seconds; the inherited stale-fork changelog failure remains recorded separately.
