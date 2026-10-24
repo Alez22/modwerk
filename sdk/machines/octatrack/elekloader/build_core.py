@@ -1213,8 +1213,10 @@ def fill_table_owners(document, owners, stock_at):
     validated against its exact published package (table_declarations.validate) and the records go into the base's
     fixed table-owner storage before the image is built, so the base admits those packages and no other. Returns the
     storage bytes and the files read."""
-    spec = importlib.util.spec_from_file_location('base_table_declarations',
-                                                  APP / 'sdk/machines/octatrack/module-adapters/table_declarations.py')
+    adapters = str(APP / 'sdk/machines/octatrack/module-adapters')
+    if adapters not in sys.path:  # table_declarations imports machine_layout beside it
+        sys.path.insert(0, adapters)
+    spec = importlib.util.spec_from_file_location('base_table_declarations', adapters + '/table_declarations.py')
     declarations = importlib.util.module_from_spec(spec); spec.loader.exec_module(declarations)
     doc = json.loads(owners.read_text())
     if doc.get('schema') != 1 or not isinstance(doc.get('owners'), list) or not doc['owners']:
@@ -1571,7 +1573,8 @@ def main():
                 APP / 'sdk/machines/octatrack/module-adapters/usb-audio-profiles/profiles.py')
             usb_profiles = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_profiles)
     for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'flash.c', 'flash.h', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
-            ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s') if args.site_events else ()):
+            ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s', 'midi_generators.c',
+             'midi_generators.s') if args.site_events else ()):
         shutil.copyfile(HERE / name, source / name)
     if args.dev and args.resident_on_demand:  # dev MEM reaches the engines' diagnostics (resident_engines.dev)
         sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
@@ -1619,7 +1622,7 @@ def main():
                 edits += (('void dl_ui(void) {\n    dl_selection_tick();\n    dl_residency_tick();\n',
                            'void dl_ui(void) {\n    void modwerk_cost_stamp(unsigned);\n    modwerk_cost_stamp(4);\n    dl_selection_tick(); modwerk_cost_stamp(16);\n    dl_residency_tick(); modwerk_cost_stamp(17);\n'),
                           ('unsigned dl_frame(void) {\n',
-                           'extern volatile uint32_t modwerk_cost[24];\nstatic unsigned dl_frame_body(void);\n'
+                           'extern volatile uint32_t modwerk_cost[28];\nstatic unsigned dl_frame_body(void);\n'
                            'unsigned dl_frame(void) {\n    uint32_t t0=*(volatile uint32_t *)0xfc07c00cu; unsigned r=dl_frame_body();\n'
                            '    modwerk_cost[10]+=*(volatile uint32_t *)0xfc07c00cu-t0; ++modwerk_cost[11]; return r;\n}\n'
                            'static unsigned dl_frame_body(void) {\n'),)
@@ -1961,7 +1964,7 @@ modwerk_retained_end:
         recipe['cflags'].append('-DMODWERK_RESIDENT_ON_DEMAND')
     if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/EVENTS.md)
         recipe['cflags'].append('-DMODWERK_RUNTIME_EVENTS')
-        recipe['sources'] += ['runtime_events.s', 'machine_registry.s']
+        recipe['sources'] += ['runtime_events.s', 'machine_registry.s', 'midi_generators.s']
         for addr, n, guard, label in EVENTS.base_sites():
             stock = image[addr - device.main_load:addr - device.main_load + n]
             if sha(stock) != guard:
