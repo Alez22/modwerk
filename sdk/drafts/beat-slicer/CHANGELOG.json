@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.45-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Exercise exact wake identity with identical foreign and owned records queued together; a pending flag or opcode alone cannot consume the owned wake.",
+      "Keep a blocked preview WAITING without self-polling; cancel it before unblocking and verify that old work and output never revive.",
+      "Retire the fixed owner, refuse new requests and preserve the last copied output without further source reads or callback-storage reclamation.",
+      "Retain recording and source-preservation checks; seven full oracle plans run only on the engine with balanced wakes and bounded callbacks.",
+      "Known issue: fixed-owner tests do not qualify loader removal, complete writer/cache ownership, production source/UI/USB integration or hardware."
+    ]
+  },
+  {
     "version": "0.1.44-experimental",
     "date": "2026-10-24",
     "changes": [

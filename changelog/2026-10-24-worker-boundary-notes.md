@@ -51,3 +51,5 @@ Document shared recorder/engine full-boot checks and the remaining preparation-s
 Document whole-call preparation exclusion and saved caller-SR observations. The private paired/full-boot fixtures close the observed preparation-store gap; other recording modes, complete writer ownership and physical timing remain unqualified.
 
 Document the pinned emulator borrowed-call argument cleanup and the distinction between actual native arguments and adjacent watched stack words. The shared-guard Flex preview run checks recording invalidation, normal editor restoration and unchanged source/card; production scheduling remains unqualified.
+
+Document the stronger wake-identity regression: foreign and owned records with identical payloads queued together while ownership is pending. Native fixed-storage checks also cover nonpolling WAITING cancellation and owner retirement, without implying loader reclamation or USB qualification.

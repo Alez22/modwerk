@@ -25,11 +25,13 @@ ARENA_SHA='23c89015c010ce9d4e6e7957f9325b7da78b7ba75144de10d56cb22149f21e61'
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('emulator','main','card','wav','output','arena-tool','native'):p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--lifecycle',action='store_true',help='Exercise exact wake identity, WAITING cancellation and fixed-owner retirement.')
     p.add_argument('--service',action='store_true',help='Run previews only through normal engine idle/job scheduling.')
     p.add_argument('--preview',action='store_true',help='Exercise private fixed-lifetime Flex previews with the shared guard.')
     p.add_argument('--card-sha256',required=True)
     p.add_argument('--allow-private-injection',action='store_true',required=True)
     a=p.parse_args()
+    if a.lifecycle:a.service=True
     if a.service:a.preview=True
     if not __debug__:p.error('Assertions must remain enabled.')
     out,repo=a.output.resolve(),ROOT.parents[2]
@@ -304,6 +306,59 @@ def main():
                 'stopCalls':[{'caller':hex(r[7]),'arguments':r[8:12]} for r in stops],'coverage':coverage,'idleCoverage':idle_coverage,'nativeState':state,
                 'unrelatedFlexPreserved':True,'nativeCodeAndCanariesIntact':True})
             print(f'PASS track {track+1}: native PCM/cleanup tickets; uncovered recorder-state stores {sum(x["count"] for x in coverage["unguardedRecorderStateStores"])}',flush=True)
+        if a.lifecycle:
+            # Two identical payloads from distinct immutable records. Queue the
+            # foreign record FIRST while an owned wake is outstanding, so a
+            # blanket opcode/pending exemption cannot accidentally pass.
+            wake_at,foreign_at=symbols['wake_message'],symbols['foreign_message']
+            assert wake_at!=foreign_at and port.peek(wake_at,4)==port.peek(foreign_at,4)==bytes([255,0,0,0])
+            before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
+            before_revision=native_state()['revision']
+            assert call('bs_recorder_service_wake_audit_begin')==0
+            assert call('bs_recorder_service_foreign_then_own')==0
+            port.command('run 5')
+            count=call('bs_recorder_service_wake_audit_end')
+            assert count==2,'Unexpected extra work in the exact two-record wake test'
+            rows=[list(struct.unpack('>3I',port.peek(symbols['bs_recorder_wake_audit']+12*i,12))) for i in range(count)]
+            assert rows==[[foreign_at,0,1],[wake_at,1,1]],'Wake ownership was inferred from opcode or pending alone'
+            assert native_state()['revision']>before_revision
+            assert call(work_name)==5 and call(result_name)==0
+            assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
+            wake_case={'identicalPayloadsDistinctPointers':True,'decisions':rows,
+                'foreignInvalidatedReady':True,'noFurtherPcmRead':True,'oldOutputUnchanged':True}
+            preview()
+            # An unavailable source does not self-poll. Cancellation stays in
+            # force when the independent writer later retires and wakes engine.
+            assert call('bs_recorder_service_block')>0
+            before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
+            waiting_request=call('bs_recorder_preview_begin');assert waiting_request>0
+            port.command('run 5');assert call(work_name)==2
+            posted=word('bs_recorder_service_posted');assert not word('bs_recorder_service_pending')
+            port.command('run 200');assert call(work_name)==2
+            assert word('bs_recorder_service_posted')==posted and word('bs_boot_queries')==before_queries
+            cancelled=call('bs_recorder_service_cancel');assert cancelled>waiting_request
+            port.command('run 5');assert call(work_name)==4 and call(result_name)==0
+            assert call('bs_recorder_service_unblock')==0
+            port.command('run 200');assert call(work_name)==4 and call(result_name)==0
+            assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
+            native_state()
+            waiting_case={'waitingRequest':waiting_request,'cancelRequest':cancelled,
+                'noSelfWakeDuring200msEmulatedWait':True,'noPcmReadWhileBlocked':True,
+                'unblockDoesNotReviveCancelledWork':True,'oldOutputUnchanged':True}
+            preview()
+            before_queries,before_plan=word('bs_boot_queries'),plan_bytes()
+            assert call('bs_recorder_service_revoke')==0
+            port.command('run 5');assert call(work_name)==4 and call(result_name)==0
+            assert call('bs_recorder_preview_begin')==0
+            port.command('run 200');assert call(work_name)==4 and call(result_name)==0
+            assert word('bs_boot_queries')==before_queries and plan_bytes()==before_plan
+            lifecycle={'wakeIdentity':wake_case,'waitingCancellation':waiting_case,
+                'ownerRetirement':{'newRequestRefused':True,'noFurtherPcmRead':True,'oldOutputUnchanged':True}}
+            folder=out/'after-lifecycle';folder.mkdir();after=observe(port,16,2,original,folder)
+            assert after['settingsSha256']==baseline['settingsSha256'] and after['controlsSha256']==baseline['controlsSha256']
+            for at in range(0,len(data),4096):assert port.peek(native['textBase']+at,min(4096,len(data)-at))==data[at:at+4096]
+            assert port.peek(reserve.start,16)==bytes([0xa5])*16 and port.peek(symbols['_end'],32)==bytes([0xa5])*32
+            native_state();print('PASS exact wake identity, nonpolling WAITING cancellation and fixed-owner retirement',flush=True)
         if a.service:
             take_writes()
             assert len(tasks['engine'])==len(tasks['producer'])==1 and tasks['engine'].isdisjoint(tasks['producer'])
@@ -337,5 +392,6 @@ def main():
             'taskIdentities':{name:sorted(values) for name,values in tasks.items()},
             'scheduling':'borrowed-main request/result producer, one engine consumer, exact coalesced immutable wake; ordinary jobs remain writers',
             'nativeSourceAccess':'fixed synthetic lifetime; production owner/source admission, UI integration, DMA/cache and physical timing remain open'})
+    if a.lifecycle:report['serviceLifecycle']=lifecycle
     (out/('recorder-service-boot.json' if a.service else ('recorder-source-boot.json' if a.preview else 'recorder-engine-boot.json'))).write_text(json.dumps(report,indent=2)+'\n')
 if __name__=='__main__':main()

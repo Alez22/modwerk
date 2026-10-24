@@ -145,3 +145,13 @@ stock. Only an exact pending immutable service wake avoids writer treatment;
 ordinary commands, including waveforms, remain conservative. Fixed ownership,
 production API/UI integration, full writer/cache coverage and hardware remain
 separate requirements.
+
+## Service lifecycle probes (0.1.45)
+
+`boot_recorder_engine.py --lifecycle` additionally exercises a foreign queued
+record while an owned wake is pending, WAITING without self-posted polling,
+cancellation before writer retirement, and permanent fixed-owner revocation.
+It records the actual job pointer, ownership decision and pending flag under
+the same native lock. The test never frees callback or queued-record storage;
+it is not production loader reclamation. Unknown/ordinary messages remain
+writers even when their payload matches the service wake.

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.44-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.45-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -127,6 +127,9 @@ copy, old tokens stay retired after Stop, and fresh previews match the original
 source. The latest composition runs its single consumer on the stock engine
 task, with copied requests/results from a borrowed-main producer. It remains a
 private fixed-lifetime service, not a production source API or USB package.
+Native lifecycle checks distinguish identical foreign/owned wake payloads,
+keep WAITING cancellation in force after unblocking, and refuse new work after
+fixed-owner retirement.
 
 The [copied UI/engine exchange](PREVIEW_ASYNC.md) gives one engine consumer
 ownership of the mutable session. UI callbacks submit tagged intents and read

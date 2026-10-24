@@ -179,6 +179,13 @@ that the operation must preserve, and verify that setup difference explicitly.
 
 ### Background work
 
+Test wake identity with a foreign record queued before an owned record while
+that owned wake is pending. Identical payload bytes and a pending flag do not
+establish ownership. Preserve the actual queue order in the evidence; separately
+check that WAITING does not self-poll and that cancellation survives readiness
+returning. Beat Slicer's private engine fixture exercises those cases with
+fixed storage, not native loader reclamation or USB disconnect qualification.
+
 When adding a worker observer at runtime, account for the command already
 waiting inside the old receive call. A changed call site does not wrap that
 in-flight receive. Start admission closed and establish quiescence before

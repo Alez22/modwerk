@@ -2530,3 +2530,28 @@ loader retirement, package/browser/USB lifecycle, complete writer/cache coverage
 audible behavior or device persistence.
 
 Two engine-service reports bind source commit `2217522f3fa20d4224a82c4f7d3aec6ee6afdf9b`. Current-upstream full validation passed in 139.37 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+## Native engine-service cancellation and retirement (0.1.45)
+
+The full boot queues two distinct immutable records with identical four-byte
+payloads, foreign first, while the owned wake is pending. An in-lock diagnostic
+captures exactly two job decisions: foreign/ordinary with pending=1, then
+owned/consumed with pending=1. The foreign command advances the writer revision
+and retires READY without another PCM read or modifying the last copied output.
+This tests actual queue order and pending identity, not only opcode equality.
+
+An independent synthetic writer then blocks acquisition. The requested preview
+stays WAITING for 200 emulated milliseconds without additional self-posted wakes
+or PCM reads. Cancellation receives a fresh sequence; retiring that writer and
+waking the engine does not revive cancelled work. A new request succeeds. After
+fixed-owner revocation, result copying and new requests refuse, with no further
+PCM reads or output changes over another 200 emulated milliseconds. No callback
+storage is freed, and this is not a loader-removal or USB-disconnect test.
+
+Seven complete plans match the host PCM oracle. The final totals are 564 engine
+callbacks, 546 bounded work calls, eight begins (including blocked acquisition),
+551 posted/consumed owned wakes and none pending. Watched lookups remain solely
+on the engine task. Normal track 1/8 recording guards, prepared source/settings,
+code/canaries, original receive call and unsaved card checks remain enabled.
+Fixed lifetimes, complete writer/cache ownership, production API/UI/USB lifecycle,
+physical latency, audio and device persistence remain unqualified.
