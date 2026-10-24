@@ -312,8 +312,14 @@ static int owner_intact(unsigned i)
 int modwerk_runtime_owner_snapshot(const uint8_t *image,struct runtime_owner *out)
 {
     if (!image || !out) return 0;
-    for (unsigned i = 0; i < owners; ++i) if (owned[i]->dsp.image == image && owner_intact(i)) {
-        *out = owner_identity[i]; return 1;
+    /* Each owner record, in the base's own RAM, names where its image starts (owner_intact proves the header agrees):
+     * the header in the pool, read uncached, is read for that one owner only, not for every owner on every call (the
+     * controller board asks once per module and tick: 0.8 ms a tick with 26 modules, 24 October 2026). */
+    for (unsigned i = 0; i < owners; ++i) {
+        const struct runtime_owner *o = &owner_identity[i];
+        if (o->owned_extent + o->image_offset == (uintptr_t)image && owned[i]->dsp.image == image && owner_intact(i)) {
+            *out = *o; return 1;
+        }
     }
     return 0;
 }

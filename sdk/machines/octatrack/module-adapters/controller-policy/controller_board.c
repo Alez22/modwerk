@@ -192,8 +192,8 @@ static const struct runtime_module *module_of(const struct mw_controller_binding
     for (unsigned i = 0; i < RUNTIME_MODULES; ++i) {
         const struct runtime_module *m = modwerk_runtime_module(i);
         struct runtime_owner o; uintptr_t canonical;
-        if (m && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && o.generation == b->generation &&
-            o.module == b->identity.module && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
+        if (m && m->id == b->identity.module && modwerk_runtime_owner_snapshot(m->dsp.image, &o) == 1 && /* id first: one read */
+            o.generation == b->generation && o.module == b->identity.module && modwerk_runtime_owner_canonical(&o, &canonical) == 1 &&
             canonical == b->canonical_extent) return m;
     }
     return 0;
