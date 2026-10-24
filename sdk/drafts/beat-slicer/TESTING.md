@@ -2246,3 +2246,5 @@ not an admitted base service. Source-built USB packages, native Apply/playback,
 audio and physical persistence remain unqualified.
 
 Current-upstream full source validation: Check passed in 135.43s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
+
+Two recorder-stop integration reports bind exact source commit `e3f171d8caa01aeca6438e8205419bfad2dbbfff`.
