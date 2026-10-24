@@ -11,6 +11,8 @@ volatile uint32_t modwerk_flash_refusal; /* flash.c, not linked here */
 #include <string.h>
 const struct fx_legacy modwerk_fx_legacy[] = {{0x873d83ccu, 27, "E-Verb"}};
 int modwerk_fxpage_build(unsigned id, uint8_t *recipe, uint32_t bytes, unsigned slots) { (void)id; (void)recipe; (void)bytes; (void)slots; return 1; }
+static int restoring; /* loader.c's: 1 while a restore switches */
+int modwerk_runtime_restoring(void) { return restoring; }
 void modwerk_fxpage_drop(unsigned id) { (void)id; }
 /* Legacy tests have no production owner/journal authority. */
 int modwerk_runtime_owner_snapshot(const uint8_t *p,struct runtime_owner *o) { (void)p;(void)o;return 0; }
@@ -169,6 +171,8 @@ static int full_or_40(const struct runtime_dsp *none, struct runtime_dsp t) /* a
     return MODWERK_FX_IDS > 32u ? r == RUNTIME_OK && t.id == 40 : r == RUNTIME_FULL;
 }
 #define FULL_OR_40(t) full_or_40(&none, (t))
+/* One tick of the MISSING popup, as modwerk_dsp_tick makes it: the rebind's step, then the popup. */
+static int popup(unsigned track, char *text) { return modwerk_dsp_missing_tick(rebind_tick(), track, text); }
 int main(void)
 {
     for (unsigned k = 32; k < MODWERK_FX_IDS; ++k) dl_catalog[k] = (struct dl_package)STOCK; /* identity.c's stubs */
@@ -216,6 +220,10 @@ int main(void)
     /* A track running it, or the manager mid-transaction, keeps it: removal and replacement wait. */
     modwerk_test_live_fx[13] = 26;
     CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_IN_USE && modwerk_machine_dsp_admit(&fx, &fx) == RUNTIME_IN_USE);
+    /* An Undo puts it back as it was (beta finding 66): the track goes dry (NONE) and the removal is admitted. */
+    modwerk_test_live_fx[5] = 26, restoring = 1;
+    CHECK(modwerk_machine_dsp_admit(&fx, &none) == RUNTIME_OK && !modwerk_test_live_fx[13] && !modwerk_test_live_fx[5]);
+    restoring = 0, modwerk_test_live_fx[5] = 4, modwerk_test_live_fx[13] = 26;
     /* MODULE LOAD (status.c): the one module, unfloored 7/4 of its claim, an estimate, on T6 FX2 (core 0). */
     struct modwerk_module_load loads[MODWERK_FX_IDS];
     CHECK(modwerk_dsp_module_loads(loads) == 1 && loads[0].id == 26 && loads[0].cycles == (244 * 7 + 3) / 4 &&
@@ -248,8 +256,14 @@ int main(void)
     bank[0x9504a + 1 * 6322 + 0] = 27;                  /* Part 2's saved copy, FX1 on T1 */
     bank[0x8ed80 + 5] = 21;                             /* SPRING REV: stock, not a module */
     CHECK(modwerk_dsp_used().w[0] == (1u << 26 | 1u << 27));
+    /* One id, stock or module: what an engine's use reads (stock COMPRESSOR, 24, for Sidechain). */
+    CHECK(modwerk_dsp_bank_names(21) && modwerk_dsp_bank_names(26) && modwerk_dsp_bank_names(27) && !modwerk_dsp_bank_names(24));
+    bank[0x9504a + 2 * 6322 + 15] = 24;                 /* Part 3's saved copy, FX2 on T8 */
+    CHECK(modwerk_dsp_bank_names(24));
+    bank[0x9504a + 2 * 6322 + 15] = 0;
     modwerk_test_live_fx[2] = 4; bank[0x8ed80 + 3 * 6322 + 9] = 0;
     CHECK(modwerk_dsp_used().w[0] == 1u << 27);
+    CHECK(!modwerk_dsp_bank_names(26) && !modwerk_dsp_bank_names(24));
     /* What runs dry: an uninstalled module's effect only; a stock effect loads its package. */
     modwerk_test_live_fx[3] = 27; modwerk_test_live_fx[9] = 21;
     CHECK(modwerk_dsp_dry().w[0] == 1u << 27);
@@ -338,9 +352,74 @@ int main(void)
     third.id = 27; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL);   /* 27 is held */
     third.module = 0x873d83ccu; third.id = 26; CHECK(modwerk_machine_dsp_admit(&none, &third) == RUNTIME_FULL); /* the map has it at 27 */
     third.pinned = 0;
+    { /* The MISSING popup names what the loaded project's map names (MKII, 21 October 2026: "MISSING SPECTRUM" when a
+       * project came back whose map gave Spectrum's catalogue handle to RINGMOD SC, which was installed). */
+        char text[24];
+        for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) release(k);
+        memset(modwerk_test_live_fx, 0, sizeof modwerk_test_live_fx);
+        struct runtime_dsp ring = fx;
+        ring.module = 0x4b, ring.id = 27, ring.pinned = 0;
+        strcpy(ring.name, "Ring SC");
+        /* Project A: Ring SC at 27, E-Verb's catalogue handle, on T4 FX1 and T5 FX2; Mod G, not installed, at 26. */
+        modwerk_fxmap_begin(1);
+        modwerk_fxmap_line("#MODWERK_FX=27:0000004b:1:Ring SC", 0); modwerk_fxmap_line("#MODWERK_FX=26:00000047:2:Mod G", 0);
+        modwerk_fxmap_loaded(0);
+        CHECK(modwerk_machine_dsp_admit(&none, &ring) == RUNTIME_OK && ring.id == 27);
+        modwerk_machine_dsp_switch(&none, &ring);
+        modwerk_test_live_fx[3] = 27, modwerk_test_live_fx[8 + 4] = 27;
+        for (unsigned i = 0; i < 8u; ++i) CHECK(!popup(0, text));
+        CHECK(owner[27] == 0x4b && !rebinding);
+        /* Project B, without lines: the catalogue's map (E-Verb at 27) while RAM still names 27 (bytes the load has not
+         * replaced yet), so Ring SC moves to 26. B's own tracks run no module. */
+        modwerk_fxmap_begin(1); modwerk_fxmap_loaded(0);
+        for (unsigned i = 0; i < 8u; ++i) CHECK(!popup(0, text));
+        memset(modwerk_test_live_fx, 0, sizeof modwerk_test_live_fx);
+        modwerk_fxmap_name(27, text);
+        CHECK(owner[26] == 0x4b && !owner[27] && !rebinding && modwerk_fxmap_handle(0x4b) == 26 && !strcmp(text, "E-Verb"));
+        /* A again. Its Parts are applied, and T4 selected, before the load's end applies its map: 27 runs dry for a
+         * moment while the map still names E-Verb there. E-Verb is not what is missing. */
+        modwerk_fxmap_begin(1);
+        modwerk_fxmap_line("#MODWERK_FX=27:0000004b:1:Ring SC", 0); modwerk_fxmap_line("#MODWERK_FX=26:00000047:2:Mod G", 0);
+        modwerk_test_live_fx[3] = 27, modwerk_test_live_fx[8 + 4] = 27, modwerk_test_live_fx[1] = 26;
+        CHECK(!popup(3, text));
+        modwerk_fxmap_loaded(0);
+        for (unsigned i = 0; i < 8u; ++i) CHECK(!popup(3, text)); /* nor during the rebind */
+        CHECK(owner[27] == 0x4b && !owner[26] && !rebinding && !fx_in(modwerk_dsp_dry(), 27) && fx_in(modwerk_dsp_dry(), 26));
+        /* What is missing is still said, by the map's name: T2 runs Mod G. */
+        CHECK(popup(1, text) && !strcmp(text, "MISSING MOD G"));
+        CHECK(!popup(1, text)); /* once per selection */
+        /* A track selected during a load is said once the load is over. */
+        CHECK(!popup(0, text));
+        modwerk_fxmap_begin(1);
+        modwerk_fxmap_line("#MODWERK_FX=27:0000004b:1:Ring SC", 0); modwerk_fxmap_line("#MODWERK_FX=26:00000047:2:Mod G", 0);
+        CHECK(!popup(1, text));
+        modwerk_fxmap_loaded(0);
+        CHECK(popup(1, text) && !strcmp(text, "MISSING MOD G"));
+        /* A map sealed while the manager is busy (an install): the selection waits until the handles follow it. */
+        CHECK(!popup(0, text));
+        idle = 0; modwerk_fxmap_assign(27, 0x4b, 1, "Ring SC");
+        CHECK(!popup(1, text) && !popup(1, text));
+        idle = 1;
+        CHECK(popup(1, text) && !strcmp(text, "MISSING MOD G"));
+        /* A load that never reaches its end holds the popup for LOAD_HOLD ticks only. */
+        CHECK(!popup(0, text));
+        modwerk_fxmap_begin(0); /* the first pass, and no end */
+        for (unsigned i = 0; i < LOAD_HOLD; ++i) CHECK(!popup(1, text));
+        CHECK(popup(1, text) && !strcmp(text, "MISSING MOD G"));
+        modwerk_fxmap_loaded(-1);
+        CHECK(!modwerk_fxmap_loading());
+        /* A newer map arriving during a rebind: the rebind's end does not count as following it; the next tick does. */
+        modwerk_test_live_fx[1] = 0;
+        modwerk_fxmap_begin(1); modwerk_fxmap_loaded(0);                  /* B: Ring SC lets go of 27 */
+        CHECK(!rebind_tick() && rebinding && !owner[27]);
+        modwerk_fxmap_begin(1); modwerk_fxmap_line("#MODWERK_FX=27:0000004b:1:Ring SC", 0); modwerk_fxmap_loaded(0); /* A */
+        CHECK(!rebind_tick() && !rebind_tick() && !rebind_tick() && !rebinding && owner[27] == 0x4b); /* placed by A's map */
+        CHECK(rebind_tick() && owner[27] == 0x4b);
+        memset(modwerk_test_live_fx, 0, sizeof modwerk_test_live_fx);
+    }
     planner();
     sources();
     if (failures) { fprintf(stderr, "%u DSP glue checks failed\n", failures); return 1; }
-    puts("Octatrack DSP glue: admission (ids, arena, instance block, cycles, effects in use), the catalog, the effects a bank names, the stall watchdog, the project handle map and rebinding passed.");
+    puts("Octatrack DSP glue: admission (ids, arena, instance block, cycles, effects in use), the catalog, the effects a bank names, the stall watchdog, the project handle map, rebinding and the MISSING popup passed.");
     return 0;
 }

@@ -186,6 +186,13 @@ reserve instead (`flash.c`). The bootloader depacks NOR from `0x4012`, the secti
 image that does not boot is recovered over DIN MIDI only, so the base writes only a container that depacks to the
 base it is itself running (`sdk/machines/octatrack/elekloader/README.md`, "Updating the base over USB").
 
+**Don't check a running image against its own RAM.** Once stock has started it rewrites bytes inside its
+bootloader copy (`0x400e201e`-`0x400e2108`) and reuses the RAM after the image, where MAIN keeps the packed `.run`
+(161,328 of its 165,076 bytes changed after 20 s on ot_emu, base `d6bfff70`, 23 October 2026). The first base's
+write compared both against the running RAM and refused every container (refusal 105, "Device refused commit:
+backend" on a tester's unit). `flash.c` now compares the copy with stock's digest and the stream with a digest `.boot`
+takes before it returns to stock (`modwerk_flash_snapshot`).
+
 **Not yet seen on a unit (20 October 2026):** the USB write is host-tested against a NOR model and the stock
 routines are read, not run; the first hardware run is the owner's call, with a MIDI interface at hand. Qualify
 the written base after a sustained power-off too, not only the soft restart that follows the write (a tester reported a base stalling at the logo only after minutes
@@ -262,6 +269,32 @@ How it hit the loader:
 - **The result.** 20 Euclid and 20 E-Verb install/remove cycles while playing, no stall.
 
 Any other code that masks at level 5 or above must stay well under 200 µs.
+
+**Work inside the frame interrupt counts against the same deadline.** POLY8 renders its voices in the frame interrupt.
+On the owner's MKII (23 October 2026, RAM-booted twin of the beta base without `--cached-modules`), a build with its
+voice limit switched off took about 34,000 DTIM3 counts (257 µs) of POLY work in one frame at six voices, and the
+frames stopped for good (stall record "frames stopped"). Bound what a module does per frame in the interrupt and
+measure it with DTCN3 (`0xfc07c00c`, 132 MHz, about 47,900 counts a frame); POLY8 0.3.1 sheds voices above 26,000.
+
+**Uncached module code is slow in the interrupt, and so is its data.** Without `--cached-modules` every instruction
+and every load or store of a module goes to SDRAM. POLY8 0.3.0 cost about 13 points of CPU per voice there and about
+3.5 with cached module code (same day, same twin pair). Running only its tight loops from the cached alias barely
+helped: the buffers' uncached reads dominated. A module can run its own hot path from the cached alias (its address
+minus `0x08000000`) only if all of these hold, as POLY8 0.3.1's `polyphony.s` does:
+- its state that other code also touches stays on uncached addresses: absolute `SYM:l`, never PC-relative from code
+  running cached, or a later write through the uncached alias leaves a stale line;
+- every line it touched through the cached alias is pushed before the interrupt returns (`cpushl %dc` on every way of
+  the line's set, as the base's `modwerk_machine_flush_data`), so no dirty line survives a removal;
+- it invalidates the instruction and branch caches whenever its own address changes (stock's CACR value plus ICINVA,
+  `0xa40ce100`, as `modwerk_machine_invalidate_code`).
+A push costs about 30 counts for a dirty line: caching a buffer that is read many times pays, caching a record touched a
+few times barely does.
+
+**A starved UI task freezes the CPU meter and swallows key releases.** At 100 % CPU the `stats` CPU word stops
+changing, because the UI tick computes it, and panel key-ups queue behind the UI task. Notes whose release would end
+the overload then never end: POLY8 0.3.0 froze the panel for about 33 s at four held voices. Read overload from the
+diagnostics log's `freeze` and `hot` records or the module's own counters, not from the meter, and let a module that
+works in the interrupt notice when the UI stops ticking.
 
 **A switch's masked span grows with the module's stock-code sites.** The loader used to check, write and read back
 every site byte through the uncached alias inside the mask, about 6.5 µs a site: Play Modes (35 sites) held frames
@@ -419,9 +452,10 @@ arena starts. Moved with the base, the walk runs past the banks, reads off
 the end of RAM and the unit freezes on PURGE SAMPLES. Reported from a
 tester's MKII, 16 October 2026, and reproduced on the ColdFire emulator.
 Anything that moves the arena base leaves that operand (`0x400254fa`)
-stock. Elekloader's core-ot does from 0.3.1; check every other list of
-arena writes, such as `src/engine/assets/platform-writes.json` and
-`sdk/octabam/tools/remix/arena.py`, the same way.
+stock. Elekloader's core-ot does from 0.3.1, and the card builder
+(`sdk/octabam/tools/remix/arena.py`, `src/engine/assets/platform-writes.json`)
+from 22 October 2026, after card builds froze on PURGE SAMPLES (#707); check
+any new list of arena writes the same way.
 
 **`movem.l …,(%sp)` writes over the caller's frame.** `(%sp)` is plain
 indirect (mode 2): it stores at sp and leaves sp where it was, so a
@@ -568,6 +602,21 @@ of ours that is open costs
 its drawing on every composition: MISSING MODULES 818 µs (4.9 %), the STATUS page about 1 ms. No stock-OS baseline
 exists yet: the meter's 41 % idle is stock's own tasks.
 
+**A controller's write lease is not free** (owner's MKII, 22 October 2026, profiling twins of the package-carried-engines
+branch, uncached module code). Analog BD on one track cost the ColdFire about 20 points, stopped or playing, against a
+FLEX track. Timed around the machine renderer (5,600 calls a second: two a frame) and inside the lease: a call cost
+8,108 DTIM3 counts, 93 % of it the lease's Begin and End, two thirds of that `modwerk_runtime_owner_held`, whose owner
+check reads the module's header (identity and package digest) through the uncached alias on every Begin and End,
+about 0.6 µs a read. Analog BD's own code was about 600 counts. With one lease a frame (the frame's first renderer
+call writes no control record and takes the stock silent source) and no second digest in that check: 2,375 counts a
+call, the module about 10 points. Cached module code (`--cached-modules`) saved about a quarter of the original cost
+on its own. So: take a lease only where a call writes, at most once a frame, and keep the owner check's reads few.
+
+**Core 1's load meter counts at X:$2840** (`dsp_receiver.asm`, `c1wait`) on every USB base: every pass of core 1's
+wait for core 0 adds one there, and each frame takes and clears it. Analog BD's X region starts there, and its 909
+kept PITCH 0's step in that word until 0.1.6 (a wrong, jittery pitch on tracks 1-4 at PITCH 0 over USB). Keep module
+state off X:$2840 on core 1.
+
 *The profile* (development bases only): `modwerk_cost[24]` (diag.h) accumulates DTIM3 counts between stamps at
 each hook's entry and some exits; read it over `mem` twice some seconds apart and divide by 132 for µs (`modwerk_cost[15]`
 counts ticks, `[13]` compositions, `[11]` frames, `[19]` fx map checks). A tester base has none of it.
@@ -617,6 +666,17 @@ resumes to fix the count. Seen only on the ColdFire emulator, as a gate hang
 measured. When a hang follows card writes, ask what an interrupt handler
 reads while the producer is mid-update before chasing parsers, names or
 card latency.
+
+## Octabam's register
+
+Octabam moved its trap register out of `AGENTS.md` into `docs/contributing/TRAPS.md` on 14 October 2026 and kept adding to it. Both are vendored unchanged, pinned at the revision in `sdk/imports/octabam-infrastructure-5c71bc8c.json`: [sdk/octabam/AGENTS.md](../sdk/octabam/AGENTS.md) (the register to 30 September 2026) and [sdk/octabam/docs/TRAPS.md](../sdk/octabam/docs/TRAPS.md) (the register to 23 October 2026, with anchors). Of the entries added since the snapshot, these reach Modwerk's base, loader, DSP sources and emulator work; the ones about `brclr`, descriptor names, label prefixes and `rep` are already above or in the effects guide.
+
+- **A zero CS1 with a valid settings tail boots stock's settings as zeros** ([trap-cs1-zero](../sdk/octabam/docs/TRAPS.md#trap-cs1-zero)). A base variant that reads run-time settings from the CS1 early block must treat an all-zero block as "no settings", not as every setting off.
+- **Same-named labels across DRAM units resolve by nm table order** ([TRAPS.md](../sdk/octabam/docs/TRAPS.md), "Same-named labels across DRAM units"). Two linked units with a local label of the same name bind a reference to whichever the symbol table lists first; octabam now resolves symbols per unit. Keep labels unique across the units one runtime links.
+- **`moveml %sp@` is the mode-2 form: it stores at sp and leaves sp unchanged** (same file). A ColdFire save sequence that means to push must use the predecrement form; the port runs the wrong one happily.
+- **A completion interrupt in the first-sector card write window polls DRQ on a count the producer has not updated yet** (same file). Card writes from an interrupt context race the PIO sector loop; octabam's ATA WRITE GUARD keeps the first sector and its pointer update atomic. Anything Modwerk writes to the card from a hook must hold the mask the same way.
+- **The emulator's bench socket is non-blocking and dropped the rest of a large reply on EAGAIN** (same file; fixed in the vendored `usb.cpp`). A bench client that read a truncated reply was seeing this, not a firmware fault.
+- **A persistent slot that init does not clear holds whatever the effect before ours left in the block** ([TRAPS.md](../sdk/octabam/docs/TRAPS.md), "A persistent slot"). Init zeroes every slot the sample loop reads before it writes; `dsp_host -dirty` and the vendored `-pword` option (a knob word with its LFO companion bits 8-15 set) reproduce both of these locally.
 
 ## The emulator and the tools
 

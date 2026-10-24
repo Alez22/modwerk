@@ -2907,11 +2907,11 @@
       "id": "lofi2",
       "key": "LOFI2",
       "name": "LOFI2",
-      "version": "0.1.0-experimental",
+      "version": "0.1.1-experimental",
       "category": "effects",
       "source": {
         "repository": "https://github.com/sambanks/octabam",
-        "revision": "8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5",
+        "revision": "7795adf0dff8c650968ff53ab5ab47babaf00ffe",
         "path": "modules/lofi2"
       },
       "access": {
@@ -2934,7 +2934,7 @@
         "github": "bryantysinger",
         "name": "Bryan T",
         "credits": [
-          "Bryan T (bryantysinger): LOFI2's design, DSP56300 code, tables, declaration, render gate and hardware testing, contributed to octabam (pull requests 657 and 704, MIT).",
+          "Bryan T (bryantysinger): LOFI2's design, DSP56300 code, tables, declaration, render gate and hardware testing, contributed to octabam (pull requests 657, 704 and 843, MIT).",
           "octabam: Sam Banks; SDK, schema and harness (MIT). LOFI2's stereo shifter uses the allpass coefficients of octabam's BodeShift and its ring carrier follows octabam's WarpFold.",
           "Modwerk contributors: source import, effect ID/placement/letter adaptation, verifier image adaptation, documentation, captures and SVG thumbnail."
         ]
@@ -2976,7 +2976,7 @@
           "name": "FDBK",
           "default": 0,
           "count": 128,
-          "doc": "One knob, renamed by MODE. In DOWN and UP it is FDBK, the shifter's feedback (a ladder at f, f+d, f+2d), capped at 0.45. In RING the panel shows GAIN: make-up on the ring product, 0 dB at 0, +6 dB at 64, +11.9 dB at 127.",
+          "doc": "One knob, renamed by MODE. In DOWN and UP it is FDBK, the shifter's feedback (a ladder at f, f+d, f+2d), capped at 0.40 (0.45 before 0.1.1, where the top of FDBK could sustain itself). In RING the panel shows GAIN: make-up on the ring product, 0 dB at 0, +6 dB at 64, +11.9 dB at 127.",
           "labels": null
         },
         {
@@ -3038,17 +3038,17 @@
         ],
         "uiClaims": [],
         "limitations": [
-          "Hardware evidence for this source (octabam 8250be0c) is one functional report over USB on an MKII, 20 October 2026, about 15 minutes beside five other modules: every mode, the fixed SHIFT by ear, two instances on one core and a third refused (DSP FULL); the base's self-test failed on ColdFire CPU (98.8 %, cause not confirmed). Reloads, a power cycle, BRR and LPF individually ran only with the previous source (21f6de90: card image with five SHIFT instances, and USB package 7ee9277f), which differs in sixteen DSP coefficient words. Eight instances and scenes are untested on a unit. Bryan T's own MKII reports are for his octabam builds of the same DSP source.",
+          "0.1.1 (octabam 7795adf0, the feedback cap; one DSP data word differs from 0.1.0) ran once over USB on an MKII, 22 October 2026: one instance on FX2 on a RAM-booted development twin of the beta base, beside RINGMOD SC 0.2; the issue 825 setting died away and the tester reported the other functions passing, by ear. No reload, power cycle, second instance or FX1 with 0.1.1. Hardware evidence for 0.1.0 (octabam 8250be0c) is one functional report over USB on an MKII, 20 October 2026, about 15 minutes beside five other modules: every mode, the fixed SHIFT by ear, two instances on one core and a third refused (DSP FULL); the base's self-test failed on ColdFire CPU (98.8 %, cause not confirmed). Reloads, a power cycle, BRR and LPF individually ran only with the source before it (21f6de90: card image with five SHIFT instances, and USB package 7ee9277f), which differs from 0.1.1 in seventeen DSP data words (sixteen coefficients and the cap). Eight instances and scenes are untested on a unit. Bryan T's own MKII reports are for his octabam builds.",
           "Large: 838 program words and a 516-word table on each DSP core, 1,354 contiguous words. With stock DSP code built in it needs two adjacent stock reverbs given up (PLATE REV + SPRING REV, or SPRING REV + DARK REV); one reverb is not enough.",
-          "SHIFT executes 430 instructions/sample at worst in dsp_host (static 416 cycles), about 1.4x SPRING REV's worst case and dearer than every stock effect; RING is 274. The author ran eight instances at once, four per core, in UP, DOWN and RING on his MKII with this source in his own build.",
-          "Over USB the Modwerk base loads LOFI2 on demand into FX1 or FX2. It declares 637 cycles a sample (timed on an MKII with the previous package, whose instructions are the same), so two instances fit on one DSP core when its other slots are free and a third is refused (DSP FULL).",
+          "SHIFT executes 430 instructions/sample at worst in dsp_host (static 416 cycles), about 1.4x SPRING REV's worst case and dearer than every stock effect; RING is 274. The author ran eight instances at once, four per core, in UP, DOWN and RING on his MKII in his own build (build 12, the 21f6de90 instructions), and eight in SHIFT DOWN with FX1 empty in build 16 (this source).",
+          "Over USB the Modwerk base loads LOFI2 on demand into FX1 or FX2. It declares 637 cycles a sample (timed on an MKII with package 7ee9277f of 21f6de90, whose instructions are the same; only data words differ), so two instances fit on one DSP core when its other slots are free and a third is refused (DSP FULL).",
           "In DOWN and UP, once sound has passed through, the output settles at about -83 to -94 dBFS instead of silence and stays there (dsp_host render; the upstream module does the same). RING and the reduction stages return to silence.",
           "Native octabam refuses LOFI2 together with Analog BD: it is not on Analog BD's reviewed DSP companion list. A scratch-only probe with the list widened placed both only with all three reverbs, LO-FI, DJ EQ and CHORUS given up and LOFI2's table moved to X memory; that layout is unreviewed and untested.",
-          "In a card build only the FX2 chooser was built and captured, and FX1 in a card image was not run on a unit. Over USB the base loads it into FX1 as well; FX1 ran on an MKII with the previous source's USB package (7ee9277f), not yet with this source.",
+          "In a card build only the FX2 chooser was built and captured, and FX1 in a card image was not run on a unit. Over USB the base loads it into FX1 as well; FX1 ran on an MKII with 21f6de90's USB package (7ee9277f), not with 0.1.0's or 0.1.1's.",
           "Effect ID 0x09, placement priority 19 and layout letter F are Modwerk's; they were checked free against the modules in this tree. A project saved with octabam's LOFI2 (ID 0x1f) selects TAPEHEAD's ID here.",
+          "Four LOFI2 in SHIFT on one DSP core with an effect on FX1 can lock the unit: on the author's MKII, four in SHIFT on T5-T8 with FILTER on FX1 of T5-T8 locked it, on upstream main as well (0.1.0 is affected too; https://github.com/sambanks/octabam/issues/850, open, no guard yet). Eight in SHIFT DOWN with FX1 empty ran. Over USB the base admits at most two per core (637 declared cycles); a card build has no such guard, and the count at which it starts with FX1 in use is not known yet.",
           "No single-knob bypass: a passthrough is MIX 0, SRR 0, BRR 0 and LPF 127, the defaults.",
-          "A parameter lock holds until the track's next trig, as it does for every stock parameter on this OS.",
-          "Not released until the owner approves the first release."
+          "A parameter lock holds until the track's next trig, as it does for every stock parameter on this OS."
         ]
       },
       "resources": {
@@ -3095,11 +3095,11 @@
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "Ported unchanged in DSP from octabam 8250be0c: the author's optimised LOFI2 (pull request 704) with his SHIFT fix 153063d8 (Hilbert coefficients squared). A private native build on Modwerk's ID 0x09 passed all 70 checks of the author's render gate (the unwanted SHIFT sideband -45.7 to -56.2 dB at 1-15 kHz; SRR and BRR against stock LO-FI rendered from the tester's own OS 1.40C), plus dirty-state, init-register, menu, replaces, label and mode-name gates. Against the previous source (21f6de90) only 16 DSP coefficient data words differ. Static cost 416 cycles/sample; dsp_host benchmark 430 instructions/sample in SHIFT against LO-FI's 290 and SPRING REV's 314; a 32 s eight-instance stress run under memory guards had no hang and no clobber, and perf:audit passes with a justification. fx:audit is clean at the defaults and with the shelf in; in SHIFT a residue of -83 to -94 dBFS stays after the input stops, and at FDBK 124-127 with RNGE HIGH and FREQ about 60-76 the feedback sustains itself near full scale (dsp_host; the previous coefficients did the same at RNGE LOW, FREQ 127); on the MKII, UP at FREQ 64 HIGH with FDBK 127 kept a tone sounding after the input ended and FDBK 120 let it die away. Packages compile. On 20 October 2026 the USB package 4f794ebc ran on the contributor's MKII on flashed beta base 6650236a beside five other modules: install and Keep, every mode, FREQ, MIX, GAIN and SRR, the fixed SHIFT by ear, two instances on one core and a third refused; the base's self-test failed on CPU (98.8 % peak with six modules on an uncached base). The previous source's card-image and USB runs (13 and 15 October) are kept as history (evidence/hardware.md). Not tested on this source: BRR and LPF individually, the feedback case beyond UP at FREQ 64, reloads, a power cycle, eight instances and scenes.",
+        "summary": "0.1.1: ported unchanged in DSP from octabam 7795adf0, the author's pull request 843 for octabam issue 825: SHIFT's feedback cap 0.45 to 0.40, one DSP data word. A private native build passes all 73 checks of the author's render gate, including his three new ones: at FDBK 127, RNGE HIGH, DOWN FREQ 64 and 72 and UP FREQ 72, the tail after a burst settles at -69.2, -71.7 and -84.5 dBFS (0.1.0's source sustains about -4 dBFS there and fails exactly those three). Static count 416, the dsp_host benchmark and the stress run repeat 0.1.0's figures; the USB package differs from 0.1.0's in three bytes. On 22 October 2026 0.1.1's USB package a2ab2732 ran on the contributor's MKII (RAM-booted development twin 53ddaf60 of the beta base, one instance on FX2 beside RINGMOD SC 0.2): the issue 825 setting (DOWN, RNGE HIGH, FREQ 64, MIX 127, FDBK 127) died away, and the tester reported LOFI2's other functions passing; by ear, no reload or power cycle. The author reports the same on his MKII in his own octabam build. Everything below is 0.1.0's record (octabam 8250be0c): the author's optimised LOFI2 (pull request 704) with his SHIFT fix 153063d8 (Hilbert coefficients squared). A private native build on Modwerk's ID 0x09 passed all 70 checks of the author's render gate (the unwanted SHIFT sideband -45.7 to -56.2 dB at 1-15 kHz; SRR and BRR against stock LO-FI rendered from the tester's own OS 1.40C), plus dirty-state, init-register, menu, replaces, label and mode-name gates. Against the previous source (21f6de90) only 16 DSP coefficient data words differ. Static cost 416 cycles/sample; dsp_host benchmark 430 instructions/sample in SHIFT against LO-FI's 290 and SPRING REV's 314; a 32 s eight-instance stress run under memory guards had no hang and no clobber, and perf:audit passes with a justification. fx:audit is clean at the defaults and with the shelf in; in SHIFT a residue of -83 to -94 dBFS stays after the input stops, and at FDBK 124-127 with RNGE HIGH and FREQ about 60-76 the feedback sustains itself near full scale (dsp_host; the previous coefficients did the same at RNGE LOW, FREQ 127); on the MKII, UP at FREQ 64 HIGH with FDBK 127 kept a tone sounding after the input ended and FDBK 120 let it die away. Packages compile. On 20 October 2026 the USB package 4f794ebc ran on the contributor's MKII on flashed beta base 6650236a beside five other modules: install and Keep, every mode, FREQ, MIX, GAIN and SRR, the fixed SHIFT by ear, two instances on one core and a third refused; the base's self-test failed on CPU (98.8 % peak with six modules on an uncached base). The previous source's card-image and USB runs (13 and 15 October) are kept as history (evidence/hardware.md). Not tested on this source: BRR and LPF individually, the feedback case beyond UP at FREQ 64, reloads, a power cycle, eight instances and scenes.",
         "hardwareStatus": "reported",
-        "evidenceRevision": "8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5",
+        "evidenceRevision": "7795adf0dff8c650968ff53ab5ab47babaf00ffe",
         "gates": [
-          "verify_lofi2.py: 70 dsp_host checks on payload A, including the SHIFT sidebands at 1, 3, 5, 10 and 15 kHz and SRR and BRR against stock LO-FI rendered from the tester's own image",
+          "verify_lofi2.py: 73 dsp_host checks on payload A, including the SHIFT sidebands at 1, 3, 5, 10 and 15 kHz, the FDBK 127 tail settling (octabam issue 825) and SRR and BRR against stock LO-FI rendered from the tester's own image",
           "verify_dirtystate, verify_initregs, verify_menu, verify_replaces, verify_labels, verify_modenames on the lofi2 test remix (static stock)",
           "evidence/performance.json: perf:audit (static count, stock benchmark under matched cases, 32 s stress)",
           "fx:audit at four settings; the SHIFT idle residue and the feedback scan measured separately",
@@ -3125,9 +3125,9 @@
             ],
             "screenshotStyle": "black-and-white"
           },
-          "moduleVersion": "0.1.0-experimental",
-          "sourceSha256": "d87e5affa2aa7f4428b4b7067c41bf4c7165ffdb8dfdf2cd51c0ad95758a494d",
-          "imageSha256": "69d28e954674f18e5e3fb80c0e0ab7083755e89615bd41a7753b93f4221cc329",
+          "moduleVersion": "0.1.1-experimental",
+          "sourceSha256": "68e9013f9717c861f3306627c06a7c330694b8c595c30a6ad167f9c72b4f13cf",
+          "imageSha256": "712666cb0f464ed324c77aca2d7210643fdc41c18e640797030f9a90878013bd",
           "cycles": [
             {
               "processor": "dsp",
@@ -3139,9 +3139,9 @@
               "method": "static",
               "conditions": {
                 "parameterExtremes": "tools/build/cycle_count.py prices the dearest path of the per-sample loop, SHIFT, at 416 cycles/sample; RING is cheaper. perf.py bench ran the manifest's dearest settings (every continuous knob at its costly end, LPF in band) in SHIFT UP, SHIFT DOWN and RING, the defaults, and the fixed and moving patterns: worst 430.06 executed instructions/sample.",
-                "parameterModulation": "The moving pattern changes every active slot at every 16-sample block; the stress run adds three LFOs per track and a new value on every slot each sixteenth. LFOs, parameter locks, MIDI CC and scenes all arrive as the same knob words. A parameter lock was tried on a unit with the previous source (the same instructions); scenes were not confirmed on a unit.",
-                "modeSwitching": "The stress run redraws MODE and RNGE every sixteenth, so RING, DOWN and UP switch under load with the 5 ms duck; a trig split at every position 1-15 is in the benchmark (worst at 1). Re-selection runs init once. MODE was switched by hand on a unit with this source and the previous one; Part changes were not measured.",
-                "maxLoad": "Four instances per core on FX2 of all eight tracks, behind DJ EQ (the dearest stock effect) on every FX1: 4 x 416 = 1,664 of 3,120 usable static cycles per core. dsp_host stress, 32 s, -guard -dirty: no hang, no clobber. Five SHIFT instances ran at once on a unit with the previous source; two on one core with this source. Streaming, USB and MIDI load are not in the model.",
+                "parameterModulation": "The moving pattern changes every active slot at every 16-sample block; the stress run adds three LFOs per track and a new value on every slot each sixteenth. LFOs, parameter locks, MIDI CC and scenes all arrive as the same knob words. A parameter lock was tried on a unit with 21f6de90 (the same instructions); scenes were not confirmed on a unit.",
+                "modeSwitching": "The stress run redraws MODE and RNGE every sixteenth, so RING, DOWN and UP switch under load with the 5 ms duck; a trig split at every position 1-15 is in the benchmark (worst at 1). Re-selection runs init once. MODE was switched by hand on a unit with 0.1.0's source (8250be0c) and with 21f6de90; with 0.1.1's the tester reported the functions passing without per-mode detail; Part changes were not measured.",
+                "maxLoad": "Four instances per core on FX2 of all eight tracks, behind DJ EQ (the dearest stock effect) on every FX1: 4 x 416 = 1,664 of 3,120 usable static cycles per core. dsp_host stress, 32 s, -guard -dirty: no hang, no clobber. Five SHIFT instances ran at once on a unit with 21f6de90; two on one core with 0.1.0's source (8250be0c); one with 0.1.1's. Hardware contradicts this load with FX1 occupied: the author's MKII locked with four SHIFT instances on T5-T8 and FILTER on FX1 of T5-T8, on upstream main as well (octabam issue 850, open; 4 x 416 + 4 x 192 = 2,432 static cycles, inside the model's budget). Streaming, USB and MIDI load are not in the model.",
                 "inputConditions": "Stress stems: drums with full-scale clicks, a full-level chord, noise bursts and silence, a 20 Hz-20 kHz sweep, a full-scale square, impulses, DC steps and plucks. The sample loop's only signal-dependent branch is SRR's re-latch; the count takes the dearer arm."
               },
               "report": "TESTING.md"
@@ -3201,16 +3201,17 @@
             "kind": "functional",
             "status": "reported",
             "model": "MKII",
-            "testedOn": "2026-10-20",
+            "testedOn": "2026-10-22",
             "tester": "npp1993",
-            "sourceRevision": "8250be0c23ca0a0a953cb7e5721e3bdb98dadfe5",
-            "imageSha256": "69d28e954674f18e5e3fb80c0e0ab7083755e89615bd41a7753b93f4221cc329",
-            "summary": "Over USB on an Octatrack MKII, OS 1.40C, flashed beta base 6650236a (main's base, MAIN 69d28e95..., uncached module code), about 15 minutes, installation driven over USB by a coordinating session: the USB package 4f794ebc... replaced the kept 7ee9277f... (trial, then Keep), beside Output Matrix, Analog BD, Apply Scene, Quantize Live Rec and one private module. With the track's scene locks off (they had held FREQ, MIX, GAIN and SRR at first: the tester's setup, not the module): RING with RNGE LOW a tremolo, DOWN and UP an audible shift, the MODE sweep, FREQ, MIX, GAIN and SRR all act; the fixed SHIFT by ear (UP, RNGE HIGH, FREQ about 30, MIX 127, bright material): one shifted copy, the mirror image not prominent; two instances on T1 and T2 FX2 ran and a third on T1 FX1 was refused DSP FULL. The self-sustaining SHIFT feedback found in dsp_host was reproduced: UP, RNGE HIGH, FREQ 64, MIX 127, FDBK 127, SRR 0, BRR 0, LPF 127, a short sound then silence kept a tone sounding after the input ended; FDBK 120 let it die away (level not measured). Swapping back to 7ee9277f and again to 4f794ebc was accepted both times; removal while a track used it was refused (loader refusal 7). The base's self-test with the six modules failed on CPU: 'the CPU over 90 % (LOFI2)', peak CPU 98.8 %, T1-4 26.7 %, T5-8 43.2 %, longest frame 391 us; modules 6/6 intact, DSP effects together 2/2 ran; the tester noticed no lag or sluggishness during the session (an impression, not a measurement) (evidence/hardware.md).",
+            "sourceRevision": "7795adf0dff8c650968ff53ab5ab47babaf00ffe",
+            "imageSha256": "712666cb0f464ed324c77aca2d7210643fdc41c18e640797030f9a90878013bd",
+            "summary": "Over USB on the contributor's Octatrack MKII, OS 1.40C, RAM-booted into a development twin of the beta base (identity 53ddaf60f435aedf…, MAIN.raw 712666cb…; main 4d4f731d plus two unmerged base fixes, the KEY step and key-bus admission, neither on LOFI2's path), installation driven over USB by a coordinating session, the tester listening. The USB package a2ab2732… (0.1.1) was accepted at generation 2 beside RINGMOD SC 0.2 and ran on FX2 of one track while it played. The issue 825 repro (SHIFT DOWN, RNGE HIGH, FREQ 64, MIX 127, FDBK 127: input played, then stopped): the tail died away, no feedback runaway. The tester checked LOFI2's other functions on the same build and reported that all pass, with no per-mode detail. LOFI2 was then removed over USB (accepted, generation 3). By ear; no level was measured (evidence/hardware.md).",
             "limitations": [
-              "The self-test failed on ColdFire CPU (98.8 % peak) with six modules installed on an uncached base. That six or seven modules on an uncached base reach 80-100 % is noted on main for other sets; that this is the cause here is not confirmed, and LOFI2 alone was not self-tested.",
-              "BRR and LPF individually, the self-sustaining feedback in DOWN, at other FREQ values or with its level measured, Part and project reload, a power cycle, FX1 on a card image, eight instances, scenes and the crossfader were not run on this source. They carry over from the previous source's runs only by argument (only 16 DSP coefficient words differ), not by observation.",
-              "The fixed sideband judged by ear only; no A/B against the previous build, recording or measurement on the unit.",
-              "One MKII, about 15 minutes; the tester is the contributor of the port, not an independent reviewer."
+              "One instance on one track; which track was not recorded. Two or more instances, FX1, the other DSP core and the full module set were not run with 0.1.1.",
+              "By ear only. The issue 825 setting was checked in DOWN at FREQ 64; FREQ 72 and UP were not reported separately, and the tail's level was not measured on the unit.",
+              "\"All other functions pass\" is the tester's summary; no per-mode or per-knob results were recorded.",
+              "A RAM-booted development twin with two unmerged base fixes, not a flashed release base; Part and project reload, a power cycle and persistence were not run with 0.1.1 (a RAM boot cannot show reboot persistence). Those ran only with source 21f6de90.",
+              "One MKII; the tester is the contributor of the port, not an independent reviewer."
             ],
             "report": "evidence/hardware.md"
           }
@@ -3234,8 +3235,8 @@
             "page": "FX2 SETUP",
             "shows": "location-and-controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+            "moduleVersion": "0.1.1-experimental",
+            "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
             "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
           }
         },
@@ -3251,8 +3252,8 @@
             "page": "FX2 main",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+            "moduleVersion": "0.1.1-experimental",
+            "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
             "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
           }
         },
@@ -3268,8 +3269,8 @@
             "page": "FX2 main, RING",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+            "moduleVersion": "0.1.1-experimental",
+            "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
             "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
           }
         },
@@ -3285,8 +3286,8 @@
             "page": "FX2 SETUP, MODE = UP",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+            "moduleVersion": "0.1.1-experimental",
+            "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
             "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
           }
         },
@@ -3302,9 +3303,393 @@
             "page": "FX2 main, MODE = UP",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3d63406d3254e161b1fc52c9acfbfc14af6130b2c9314a554030e0ac060678e2",
+            "moduleVersion": "0.1.1-experimental",
+            "imageSha256": "cd0f7d5a8c090bd3a46017e63224dc25f798c899571174e8079abee829c31559",
             "setup": "Headless ot_emu; MKII panel; stopped transport; empty scratch card; private native build of the upstream lofi2 test remix (LOFI2 beside twelve stock effects, PLATE REV and SPRING REV given up); 128×64 LCD at integer scale 6."
+          }
+        }
+      ]
+    },
+    {
+      "schemaVersion": 2,
+      "id": "ring-sc",
+      "key": "RING_SC",
+      "name": "Ringmod SC",
+      "version": "0.2.0-experimental",
+      "category": "effects",
+      "access": {
+        "location": "FUNC + FX1 or FUNC + FX2 SETUP on an audio track: the effect chooser (LEVEL selects, YES assigns).",
+        "steps": [
+          "Put a kick on T1 and a sustained sound on T2, and select T2.",
+          "Hold FUNC and press FX1, turn LEVEL to RINGMOD SC and press YES, then press FX1 for the main page.",
+          "Turn encoder A until KEY reads T1; T2 dips with each kick.",
+          "For RING, hold FUNC and press FX1, set MODE to RING and press FX1: ATK, HOLD and REL read SLEW, S&H and RECT; turn S&H and RECT to 0 for the plain ring modulator.",
+          "Turn KEY back to OFF, or DPTH to 0, to hear the track untouched; choose NONE in SETUP to remove the effect."
+        ],
+        "screenshots": [
+          "media/ot-setup-chooser.png",
+          "media/ot-main-duck.png",
+          "media/ot-main-key-t1.png",
+          "media/ot-setup-ring.png",
+          "media/ot-main-ring.png"
+        ]
+      },
+      "author": {
+        "github": "npp1993",
+        "name": "Nathaniel Pavel",
+        "credits": [
+          "Nathaniel Pavel",
+          "Zac-Kyoti: Sidechain Compressor's key tap and bus layout, which the Modwerk base's key bus that this module reads is made of"
+        ]
+      },
+      "nativeManifest": "manifest.py",
+      "presentation": {
+        "label": "RINGMOD SC",
+        "family": "Dynamics",
+        "summary": "Ring mod sidechain: another track's level ducks this one, or its waveform ring-modulates, steps, rectifies or tremolos it.",
+        "overview": "Put it on the track to be ducked and choose the KEY track. In DUCK the gain follows the key's peak, holding through the kick's zero crossings and recovering as it decays; in RING the key multiplies the audio, and S&H, RECT and SLEW shape that carrier. The key comes from the Modwerk base's key bus over USB, so it needs no other module and runs beside Sidechain Compressor.",
+        "highlights": [
+          "DUCK: gain = 1 - DPTH x follow(peak of |key| over 13-26 ms): no buzz at the kick's zero crossings",
+          "A fixed 4x key boost brings a full-scale key track at the default AMP VOL to full (measured under the emulator)",
+          "RING: a ring modulator whose carrier is any of T1-T8",
+          "RING's S&H steps the carrier, RECT rectifies it (frequency doubled), SLEW turns it into the key's level (tremolo)",
+          "KEY is the first knob of the main page, so it can be locked and modulated",
+          "Reads the base's key bus (USB): no tap of its own, so it runs beside Sidechain Compressor",
+          "DPTH 0, KEY OFF or no key bus returns the input bit for bit"
+        ],
+        "usage": [
+          "Select RINGMOD SC on FX1 or FX2 of the track to duck and turn KEY (encoder A) to the kick's track; DPTH sets how deep.",
+          "Raise REL for a slower recovery and ATK to soften the onset; turn KLPF to about 30-50 so only the kick's body drives the duck.",
+          "MODE on the SETUP page switches to RING, where the key track multiplies the audio: turn S&H and RECT to 0 for the plain ring modulator, then raise S&H for steps, RECT for a rectified, frequency-doubled carrier and SLEW for a tremolo that follows the key."
+        ]
+      },
+      "controls": [
+        {
+          "name": "KEY",
+          "default": 0,
+          "count": 9,
+          "doc": "The track whose audio drives the gain; OFF = untouched.",
+          "labels": [
+            "OFF",
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5",
+            "T6",
+            "T7",
+            "T8"
+          ]
+        },
+        {
+          "name": "DPTH",
+          "default": 127,
+          "count": 128,
+          "doc": "How far the key moves the gain; 0 = untouched, 127 = full.",
+          "labels": null
+        },
+        {
+          "name": "KLPF",
+          "default": 127,
+          "count": 128,
+          "doc": "Low-pass on the key: 14 Hz at 0, an octave every 14 steps (about 100 Hz at 40), open at 127.",
+          "labels": null
+        },
+        {
+          "name": "ATK",
+          "default": 0,
+          "count": 128,
+          "doc": "DUCK: how slowly the gain falls; 0 is at once, then about 0.7 ms at 1 to 1.3 s at 127, doubling every 11.6 steps. RING (SLEW): 0 rings with the key itself; above 0 the key's level, smoothed over the same times, drives the gain (a tremolo that follows the key).",
+          "labels": null
+        },
+        {
+          "name": "HOLD",
+          "default": 34,
+          "count": 128,
+          "doc": "DUCK: how long the duck holds after each peak of the key, one to two windows of 32 + 16v samples (13 ms at 34, 0.7 ms at 0, 47 ms at 127). RING (S&H): a new key every 16v samples, held between (0 every sample, 0.36 ms at 1, 12 ms at 34, 46 ms at 127).",
+          "labels": null
+        },
+        {
+          "name": "REL",
+          "default": 45,
+          "count": 128,
+          "doc": "DUCK: how slowly the gain recovers once the key's peak drops, on ATK's scale (45 about 9 ms, 64 about 31 ms, 96 about 210 ms). RING (RECT): blends the key toward its rectified |key|; 0 is the key, 127 fully rectified (frequency doubled, never negative: an AM-like modulation).",
+          "labels": null
+        },
+        {
+          "name": "MODE",
+          "default": 0,
+          "count": 2,
+          "doc": "DUCK: the key's level pulls the gain down. RING: the key multiplies the audio. ATK, HOLD and REL read SLEW, S&H and RECT in RING.",
+          "labels": [
+            "DUCK",
+            "RING"
+          ]
+        }
+      ],
+      "compatibility": {
+        "firmware": "1.40C",
+        "effectId": 6,
+        "location": "FX1 / FX2",
+        "conflicts": [
+          "analog-bassdrum"
+        ],
+        "uiClaims": [],
+        "limitations": [
+          "Needs the Modwerk base's key bus, which only the USB base has (loader ABI 9, `requires keybus`), so it is USB-only: the configurator refuses card firmware with it (the site's rule for a package that requires a base feature). A card image built with it anyway has no key bus, and there the effect keeps its depth at 0 and passes the audio untouched.",
+          "While RINGMOD SC is installed the base's tap copies every track's audio on every block, on both cores, and its price (41 executed instructions a sample a core, charged at 7/4) counts toward RINGMOD SC, even with no instance on a track. That figure is counted from the tap's source; the chip cost is not measured.",
+          "The key is taken before the key track's own effects.",
+          "The key is exact when its track is dispatched before this one on the same DSP core (T1-T4, T5-T8), 16 samples late when after, and 32 samples late across the cores (the key bus's latency, measured on an MKII for Sidechain Compressor; not yet with this module).",
+          "A MODE or KEY change fades the effect out, clears the key's state and fades back in over about 1 ms, so a KEY parameter lock shorter than that is not heard.",
+          "Installing or reinstalling Sidechain Compressor while RINGMOD SC is live re-zeroes the key bus once: up to about a block of silent key (by design of the base, not measured with this module).",
+          "On a base from before the module select step fix (on main's beta base since 22 October 2026), KEY may move one track per detent on the first visit to the main page after choosing the effect, until the page is entered again. With the fix, on the MKII development twin on 22 October 2026, it stepped cleanly from the first visit.",
+          "Declared conflict with Analog BD: carried over from the card builder's rule (Analog BD admits only the effects on its companion list, and this one is not on it). Over USB no resource clash is known; it is declared for every build until the owner decides otherwise, so the configurator never offers both.",
+          "DUCK buzzes at its very shortest settings: with ATK, HOLD and REL all near 0 the gain follows each cycle of the key, an audio-rate amplitude modulation (heard on an MKII with 0.1.0, as expected). Keep HOLD above half a cycle of the key for a clean duck.",
+          "A slow SLEW stops a little short of the key's level (each sample's rise is truncated to the word; up to about 1.4% of full scale at 127, as the review measured on the build before) and a very quiet key never raises it from 0; an LFO on S&H turns S&H 0 into a hold of 1 to 15 samples.",
+          "On an MKII (22 October 2026, over USB, a development twin of the beta base) DUCK, RING and its three knobs (SLEW turned through 0), two instances, Part and project reload and every install and removal order beside Sidechain Compressor were checked. Parameter locks and LFOs, scenes and the crossfader, eight instances a core and a power cycle are not tested on a unit."
+        ]
+      },
+      "resources": {
+        "recorded": "21 Oct 2026 (0.2.0), static and dsp_host",
+        "storage": {
+          "label": "DSP program",
+          "display": "351 words P per core, 22 words X per instance, no buffer",
+          "value": 351,
+          "unit": "words",
+          "method": "static",
+          "conditions": "Assembled with dsp_asm: 351 words, both payloads (one source). State is 22 words of the instance's existing r7 block. The key bus is the base's (Y $800-$9FF on each core and $202 words at the end of each core's half of the shared window); the package declares reads of them as its DSP claims and writes nothing outside its state. A 9-value KEY formatter, a MODE formatter with its renames and the shared wide dial are ColdFire data in its page recipe.",
+          "source": "TESTING.md"
+        },
+        "processing": {
+          "label": "DSP estimate",
+          "display": "63 instructions/sample",
+          "value": 63,
+          "unit": "instructions/sample",
+          "method": "static",
+          "conditions": "tools/build/cycle_count.py: 63 cycles/sample in each mode loop (DUCK 63 as 0.1.0, RING 63 with S&H, RECT and SLEW). Measured with modules/ring-sc/perf.py (benchmark_stock_dsp.py's method, a private native image with the key bus's seed marks): at most 80.56 executed instructions/sample per instance with trig splits (67.69 unsplit), COMPRESSOR 72.06. The base's key bus tap, charged to the module while it is installed, adds 41 executed instructions a sample per core whatever is on the tracks (counted from its source, charged at 7/4). Not hardware cycles.",
+          "source": "TESTING.md"
+        },
+        "impact": {
+          "conditions": "One active instance at its dearest settings (DUCK; RING with every carrier stage on is cheaper). The base's key bus tap is a per-core cost while the module is installed. Emulator and static figures; no hardware timing.",
+          "cpu": {
+            "level": "minimal",
+            "basis": "source-estimate",
+            "rationale": "A page recipe (two label formatters and the RING renames); no ColdFire code of its own.",
+            "source": "TESTING.md"
+          },
+          "dsp": {
+            "level": "low",
+            "basis": "source-estimate",
+            "rationale": "At most 80.56 executed instructions/sample per instance with trig splits in perf.py's bench (DUCK, 67.69 unsplit; RING 79.19 / 67.00), against 72.06 for stock COMPRESSOR and 314.19 for SPRING REV in the same host. The base's key bus tap adds 41 executed instructions a sample per core while the module is installed (counted from its source).",
+            "source": "TESTING.md"
+          },
+          "memory": {
+            "level": "low",
+            "basis": "source-estimate",
+            "rationale": "351 words of DSP program per core and 22 words of state in each instance's existing block; the key bus's memory is the base's.",
+            "source": "TESTING.md"
+          }
+        }
+      },
+      "tests": {
+        "report": "TESTING.md",
+        "summary": "The assembled module matches a reference model within 1.8e-07 of full scale in both modes (the key's low-pass, RECT and SLEW's level in exact integers), passes the input bit for bit when the key bus is not live, and equals 0.1.0 sample for sample in DUCK and in RING with S&H, RECT and SLEW at 0; SLEW crosses 0 without a click and S&H turned down cuts its hold short. On 22 October 2026 its USB package 2ba32a49 ran on the author's MKII on a RAM-booted development twin of the beta base: DUCK, plain RING, RECT, SLEW through 0 and S&H by ear, two instances on both cores and slots, Part and project reload, every install and removal order beside Sidechain Compressor, and the base's self-test passed. Not run on a unit: parameter locks and LFOs, scenes, eight instances a core, a power cycle.",
+        "hardwareStatus": "reported",
+        "evidenceRevision": "60d3ac179ff293ceac9604c802574da47f6fba36",
+        "gates": [
+          "verify.py: bit-exact passthrough (KEY OFF, DPTH 0, no key bus), DUCK and RING against the model over 576 settings, ATK, a steady and a decaying key, both key paths, trig splits, the mode fade, the memory guard, knob steps, and RING's carrier: S&H's hold, SLEW's level, RECT's rectification, SLEW across 0 once and every eight blocks without a click, S&H 127 to 0 taking a new key at once",
+          "compare02 (dsp_host) against 0.1.0: DUCK and RING with S&H, RECT and SLEW at 0 identical over 864 + 36 settings, the key paths, splits, mode switches and sweeps (TESTING.md)",
+          "tools/stress.py: eight instances with every knob moving for 30 s under dsp_host -guard -dirty",
+          "perf.py: bench against stock COMPRESSOR, SPRING REV, DARK REV and DJ EQ, and sixteen instances under -guard -guard-shared -dirty with LFOs, random slots and trig splits (evidence/performance.json)",
+          "tools/build/cycle_count.py: 63 cycles/sample in each mode loop",
+          "npm run module:verify -- ring-sc: the native comparison of every chooser selection (TESTING.md)"
+        ],
+        "qualification": {
+          "documentation": {
+            "tutorial": {
+              "title": "Quick tutorial",
+              "steps": [
+                "Put a kick on T1 and a sustained bass on T2. Select T2, hold FUNC and press FX1, turn LEVEL to RINGMOD SC and press YES, then press FX1.",
+                "Turn encoder A until KEY reads T1. The bass dips with every kick and comes back as the kick decays; DPTH (encoder B) sets how deep.",
+                "Raise REL (encoder F) for a slower recovery, HOLD (encoder E) for a longer pump and ATK (encoder D) to soften the onset. Turn KLPF (encoder C) down to about 30-50 so only the kick's body drives the duck, not its click or other sounds on the key track.",
+                "Turn KEY back to OFF, or DPTH to 0, to hear the bass untouched.",
+                "For RING, hold FUNC and press FX1, set MODE to RING and press FX1 again. Turn S&H (encoder E) and RECT (encoder F) to 0: the bass is ring-modulated by the kick. Raise S&H for a stepped, sample-and-hold carrier, RECT for a rectified, frequency-doubled carrier, and SLEW (encoder D) to about 40-60 for a tremolo that follows the kick's level. Choose NONE in SETUP to remove the effect."
+              ]
+            },
+            "screenshots": [
+              "media/ot-setup-chooser.png",
+              "media/ot-main-duck.png",
+              "media/ot-main-key-t1.png",
+              "media/ot-setup-ring.png",
+              "media/ot-main-ring.png"
+            ],
+            "screenshotStyle": "black-and-white"
+          },
+          "moduleVersion": "0.2.0-experimental",
+          "sourceSha256": "ed5235cb47d34f8efbabd9cd9a41ad3f8eb2994d34c6261de1d590892a54120e",
+          "imageSha256": "712666cb0f464ed324c77aca2d7210643fdc41c18e640797030f9a90878013bd",
+          "cycles": [
+            {
+              "processor": "dsp",
+              "worstCase": 63,
+              "maxConfiguration": 576,
+              "maxInstances": 8,
+              "budget": 3120,
+              "unit": "cycles/sample",
+              "method": "static",
+              "conditions": {
+                "parameterExtremes": "tools/build/cycle_count.py prices both straight-line mode loops at 63 cycles/sample with the key's bsr (DUCK as 0.1.0; RING with S&H, RECT, SLEW's crossfade and every ramp). perf.py bench ran the manifest's dearest settings in DUCK and RING with a trig split at every position, the defaults and the moving pattern: worst 80.56 executed instructions/sample (DUCK, split at 1), RING 79.19.",
+                "parameterModulation": "The moving pattern changes every active slot every block; perf.py stress adds three LFOs a track (DPTH, KLPF, REL/RECT) and a new random value on every slot each sixteenth, KEY and MODE included. The render gate turns SLEW across 0 once and every eight blocks against the model. On the MKII SLEW was turned through 0 by hand; parameter locks and LFOs were not tried on a unit.",
+                "modeSwitching": "A MODE or KEY change fades the depth to 0, adopts the change with the key's state cleared and ramps back (render gate 8); the stress run switches MODE and KEY every sixteenth under load, and the benchmark has a trig split at every position 1-15. MODE was switched by hand on the MKII, with Part and project reloads.",
+                "maxLoad": "Eight instances a core (FX1 and FX2 of four tracks): 8 x 63 = 504, plus the base's key bus tap, charged at 72 a core while RINGMOD SC is installed: 576 of 3,120 usable static cycles a core. perf.py stress, sixteen instances for 32 s under -guard -guard-shared -dirty: no hang, no clobber, per-core peaks 638.1 and 636.8 executed instructions/sample. Two instances ran on the MKII (self-test passed); eight a core were not run on a unit.",
+                "inputConditions": "Stress stems: drums with full-scale clicks, a full-level chord, noise bursts and silence, a sweep, a full-scale square, impulses and DC steps on the audio, eight different keys. Both mode loops are straight-line: no signal-dependent branch."
+              },
+              "report": "TESTING.md"
+            }
+          ],
+          "memory": {
+            "regions": [
+              {
+                "name": "Program: 351 P words on each DSP core (one source for both)",
+                "space": "dsp-p",
+                "words": 702,
+                "wordBits": 24,
+                "bytes": 2106,
+                "scope": "shared"
+              },
+              {
+                "name": "FX page recipe the base keeps (descriptor patches, KEY and MODE formatters, the RING renames)",
+                "space": "sdram",
+                "words": 868,
+                "wordBits": 8,
+                "bytes": 868,
+                "scope": "shared"
+              },
+              {
+                "name": "State: 22 X words of the instance's existing r7 block",
+                "space": "dsp-x",
+                "words": 22,
+                "wordBits": 24,
+                "bytes": 66,
+                "scope": "instance"
+              }
+            ],
+            "perInstanceBytes": 66,
+            "sharedBytes": 2974,
+            "maxInstances": 16,
+            "totalBytes": 4030,
+            "conditions": "From the USB package (2,416 bytes: 351 DSP words with four relocations, the 868-byte page recipe as sdk/runtime/loader/build.py lays it out, its claims and header) and the source's r7 block ($00-$15, zeroed by init). Sixteen instances are FX1 and FX2 of all eight tracks. No Y memory, no delay buffer, heap or ColdFire code of its own. The key bus's memory (Y $800-$9FF on each core and the last $202 words of each core's half of the shared window) is the base's, as are its tap and engine.",
+            "report": "TESTING.md"
+          },
+          "hardware": {
+            "kind": "functional",
+            "status": "reported",
+            "model": "MKII",
+            "testedOn": "2026-10-22",
+            "tester": "npp1993",
+            "sourceRevision": "60d3ac179ff293ceac9604c802574da47f6fba36",
+            "imageSha256": "712666cb0f464ed324c77aca2d7210643fdc41c18e640797030f9a90878013bd",
+            "summary": "Over USB on an Octatrack MKII, OS 1.40C, RAM-booted development twin 53ddaf60 of main's beta base with the module select step and key bus reader admission fixes (MAIN 712666cb..., never flashed); package 2ba32a49. By ear with a kick on T1 as KEY: DUCK, plain RING, RECT swept, SLEW through 0 turned quickly and slowly without a click, S&H 127 to 0 stopping at once; the names follow MODE; KEY steps cleanly on the first visit. Two instances (T4 FX1 DUCK, T5 FX2 RING) on both cores and slots, independent. Part SAVE/RELOAD and project save/load restore them with the bus live. Over USB: install alone and beside Sidechain Compressor share one bus; every removal order returns the bus and arena; removal in use refused (loader refusal 7). The base's self-test passed with Sidechain (CPU 52.8 %, T1-4 27.7 %, T5-8 37.5 %, longest frame 401 us) and with two instances (CPU 66.7 %, T1-4 21.8 %, T5-8 39.5 %, 384 us) (evidence/hardware.md).",
+            "limitations": [
+              "Parameter locks and LFOs (a lock or LFO on SLEW through 0 included), scenes and the crossfader, the stale-seed install while playing, the window and buffer reads and the missing-module message were not run on a unit for any 0.2.0 build.",
+              "The key latency (T4 0, T2 16, T5 32 samples) is carried from the 21 October key bus re-check, not re-measured through this module.",
+              "A power cycle cannot be tested on a RAM-booted twin; not tested. The flashed main base was not used for this source.",
+              "The twin carries two base fixes that were still in review; eight instances a core and MKI were not run.",
+              "One MKII, one session, by the module's author; by ear, nothing on the unit recorded or measured."
+            ],
+            "report": "evidence/hardware.md"
+          }
+        }
+      },
+      "license": {
+        "spdx": "MIT",
+        "file": "LICENSE",
+        "declaration": "Original code, tests and documentation by Nathaniel Pavel (@npp1993), MIT. It reads the Modwerk base's key bus, which is Sidechain Compressor's tap and bus layout (Zac-Kyoti, MIT) made a base feature; none of that code is in this module."
+      },
+      "media": [
+        {
+          "path": "media/ot-setup-chooser.png",
+          "captureType": "emulator",
+          "caption": "Hold FUNC and press FX1 on the track you want ducked, turn LEVEL to RINGMOD SC and press YES. This page holds MODE; leave it on DUCK to start.",
+          "alt": "FX1 SETUP with RINGMOD SC highlighted in the effect list and MODE reading DUCK.",
+          "credit": "Nathaniel Pavel",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "FX1 SETUP",
+            "shows": "location",
+            "firmware": "1.40C",
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
+            "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
+          }
+        },
+        {
+          "path": "media/ot-main-duck.png",
+          "captureType": "emulator",
+          "caption": "Press FX1 for the main page. KEY is off, so the track passes untouched until you choose a key track.",
+          "alt": "The RINGMOD SC main page with six knobs: KEY, DPTH and KLPF over ATK, HOLD and REL.",
+          "credit": "Nathaniel Pavel",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "FX1 main",
+            "shows": "controls",
+            "firmware": "1.40C",
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
+            "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
+          }
+        },
+        {
+          "path": "media/ot-main-key-t1.png",
+          "captureType": "emulator",
+          "caption": "Turn encoder A until KEY reads the kick's track, here T1. The track dips with each kick; DPTH (encoder B) sets how deep.",
+          "alt": "The main page with KEY reading T1.",
+          "credit": "Nathaniel Pavel",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "FX1 main",
+            "shows": "controls",
+            "firmware": "1.40C",
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
+            "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
+          }
+        },
+        {
+          "path": "media/ot-setup-ring.png",
+          "captureType": "emulator",
+          "caption": "MODE on the SETUP page reads like a stock select: its name stays MODE and the value, DUCK or RING, shows below it. Here it has been turned to RING.",
+          "alt": "FX1 SETUP with RINGMOD SC chosen and the MODE knob reading RING below its name.",
+          "credit": "Nathaniel Pavel",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "FX1 SETUP",
+            "shows": "controls",
+            "firmware": "1.40C",
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
+            "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
+          }
+        },
+        {
+          "path": "media/ot-main-ring.png",
+          "captureType": "emulator",
+          "caption": "Hold FUNC and press FX1, set MODE to RING and press FX1 again: the key track multiplies the audio. ATK, HOLD and REL become SLEW, S&H and RECT; at 0 they leave the plain ring modulator.",
+          "alt": "The main page in RING mode: KEY, DPTH and KLPF over SLEW, S&H and RECT.",
+          "credit": "Nathaniel Pavel",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "FX1 main",
+            "shows": "controls",
+            "firmware": "1.40C",
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "491f0ff0b933b52f3b9dc4f4c8118ff8f6788763bc36c596545026545a6bd596",
+            "setup": "Headless ot_emu (MKII panel) on 1.40C, a private card image carrying RINGMOD SC 0.2.0-experimental (local remix x_rmsc02: RINGMOD SC alone on the FX1 chooser, stock effects loaded on demand, RINGSC20); stopped transport; actual LCD pixels. A card image has no key bus, so these show the pages, not the effect."
           }
         }
       ]
@@ -6918,7 +7303,7 @@
       "id": "poly8",
       "key": "POLY8",
       "name": "POLY8",
-      "version": "0.3.0-experimental",
+      "version": "0.3.1-experimental",
       "category": "machines",
       "source": {
         "repository": "https://github.com/repeat98/octamad",
@@ -6959,7 +7344,7 @@
         "overview": "One POLY8 per Part, eight sample voices and fixed headroom. Combine with Repitch, Mute Modes, Scale Quantizer, Analog BD, VECTOR and FM Synth, subject to native memory limits. Physical timing and reboot qualification remain incomplete.",
         "highlights": [
           "One POLY8 per Part; refusal modal closes with NO or automatically after 120 native UI ticks.",
-          "Eight shared voices; release tails yield before held notes.",
+          "Up to eight shared voices; release tails yield before held notes, and a voice limit keeps POLY8 under 40 % of the CPU so the panel never freezes.",
           "Independent ATK/HOLD/REL, with no per-note DSP or heap allocation.",
           "Ten panel octave positions and dedicated-route MIDI notes 0–127.",
           "PTCH tunes the chord; double-TRACK opens FLEX samples.",
@@ -7007,6 +7392,7 @@
         ],
         "limitations": [
           "Experimental release: physical CPU deadlines, recording, reboot persistence and broader stock workflows remain unqualified.",
+          "Voices are limited by CPU time: POLY8 plays fewer voices when its rendering would take more than 40 % of the CPU on average, about 197 us of one audio frame, or starve the panel. On the current beta base (module code uncached) that is about three voices with one POLY8 track; on a base with cached module code seven to eight.",
           "Only one newly assigned POLY8 machine per Part; older multi-POLY8 Parts must be reduced to one before use. Fixed headroom makes a single note 18.06 dB quieter than 0.2.1.",
           "TSTR is OFF while POLY8 is active.",
           "FLEX only; STATIC requires independent streaming-cache support.",
@@ -7036,7 +7422,7 @@
           "value": null,
           "unit": "cycles/frame",
           "method": "unmeasured",
-          "conditions": "Native emulator instruction counts are not hardware cycles. Pitch-weighted eight-voice physical deadlines need qualification.",
+          "conditions": "Native emulator instruction counts are not hardware cycles. On the owner's MKII (RAM-booted development twins of the beta base, 23 Oct 2026) one to four voices took 8.7/25/34/41 % of the CPU uncached; the voice limit holds the average under 40 % and each frame under about 197 us. Chip worst-case cycles remain unmeasured.",
           "source": "TESTING.md"
         },
         "impact": {
@@ -7063,7 +7449,7 @@
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "The 0.2.7 sequencer release correction passes three native ColdFire/DSP cases, sanitizer ownership/recording regressions and the native dirty-RAM selection-flow/UI gate. The owner approved this exact experimental source with current hardware, chip worst-case timing and complete memory qualification waived. Physical MKI confirmation remains pending; earlier T09/T10 MKII reports are historical evidence.",
+        "summary": "0.3.1 adds a self-timed voice limit and runs the render through cached memory. On the owner's MKII (RAM-booted development twins of the current beta base, cached and uncached module code): eight held keys, chords over the playing sequencer and 40 rapid presses never froze the panel or stopped the frames; the published 0.3.0 froze the same unit at three to four voices and, with the limit off, six voices stopped the frames. Recordings from PLAY match 0.3.0 to the recorder floor on both bases. Host tests cover the limit (pool-test.c); verify-addressing.py proves the cached render reads POLY8 data only through the uncached alias. Not run: the card build on a unit, Part/project reload and power cycles with this version, MKI; chip worst-case cycles and complete memory bounds stay waived for this exact version.",
         "hardwareStatus": "untested",
         "evidenceRevision": "9e853271be169d242bdf00b79147707e86ee12cb",
         "gates": [
@@ -7866,14 +8252,15 @@
       "id": "apply-scene",
       "key": "APPLY SCENE",
       "name": "Apply Scene",
-      "version": "0.1.0-experimental",
+      "version": "0.2.0-experimental",
       "category": "scenes",
       "access": {
-        "location": "Any audio-track page, with SCENE A, SCENE B or both held.",
+        "location": "Any audio-track page, with SCENE A, SCENE B or both held; for p-locks, grid recording with trigs held.",
         "steps": [
           "Lock parameters in SCENE A and SCENE B as usual (hold the scene key and turn knobs).",
           "Hold SCENE A (or SCENE B) and press YES: that scene's values become the Part's own.",
           "Or move the crossfader to the blend you want, hold SCENE A and SCENE B, and press YES: SCENE BLEND APPLIED.",
+          "For p-locks: press REC (grid recording), hold trigs, press SCENE A, SCENE B or both, and let go: SCENE A TO TRIGS, SCENE B TO TRIGS or SCENE BLEND TO TRIGS.",
           "Save the Part to keep the result, or RELOAD PART (FUNC + CUE) to undo."
         ],
         "screenshots": [
@@ -7881,7 +8268,10 @@
           "media/ot-scene-a-applied.png",
           "media/ot-after-a.png",
           "media/ot-blend-applied.png",
-          "media/ot-nothing-to-apply.png"
+          "media/ot-nothing-to-apply.png",
+          "media/ot-trig-scene-a.png",
+          "media/ot-trig-lock.png",
+          "media/ot-trig-blend.png"
         ]
       },
       "author": {
@@ -7895,19 +8285,21 @@
       "presentation": {
         "label": "Apply Scene",
         "family": "Scenes",
-        "summary": "Hold SCENE A or SCENE B and press YES: that scene's locked values become the active Part's own. Hold both and press YES to keep the crossfader's current blend.",
-        "overview": "Keep a scene, or keep a blend. SCENE A + YES writes every value scene A locks into the active Part, as if you had turned each knob there yourself; SCENE B + YES does the same for scene B. Hold both scene keys and press YES to write the sound the crossfader plays right now instead. The scenes, the crossfader and the saved Part stay as they were, so the scenes keep morphing from the new base and RELOAD PART takes you back to the last saved Part.",
+        "summary": "Hold SCENE A or SCENE B and press YES: that scene's locked values become the active Part's own. Hold both and press YES to keep the crossfader's current blend. In grid recording, hold trigs and press a scene key (or both) to write the same values as p-locks on those steps.",
+        "overview": "Keep a scene, or keep a blend. SCENE A + YES writes every value scene A locks into the active Part, as if you had turned each knob there yourself; SCENE B + YES does the same for scene B. Hold both scene keys and press YES to write the sound the crossfader plays right now instead. The scenes, the crossfader and the saved Part stay as they were, so the scenes keep morphing from the new base and RELOAD PART takes you back to the last saved Part. In grid recording the same gesture works on steps: hold trigs, press SCENE A, SCENE B or both, and let go; the values become p-locks on the held steps of the active track.",
         "highlights": [
           "Covers every scene-lockable page on all eight audio tracks: SRC (the assigned machine), LFO speed and depth, AMP, FX1 and FX2.",
           "One scene: its locked values, wherever the crossfader is and even when that scene is muted.",
           "The blend: the value stock's scene morph plays at the current crossfader position, rounded to the nearest knob step; a muted scene counts as not locked, exactly as stock morphs it.",
+          "On trigs: hold trigs in grid recording and press a scene key, or both: the scene's values, or the blend at the current fader position, become p-locks on those steps.",
           "Nothing new is stored: the result is ordinary Part data that saves, loads and survives a power cycle like a hand-turned knob.",
           "Pressing it when nothing would change shows NOTHING TO APPLY."
         ],
         "usage": [
           "Lock some parameters in SCENE A and SCENE B. Hold SCENE A (or SCENE B) and press YES to make that scene's values the Part's own: SCENE A APPLIED (or SCENE B APPLIED).",
           "To keep an in-between sound, move the crossfader, hold SCENE A and SCENE B, and press YES: SCENE BLEND APPLIED.",
-          "Save the Part to keep it, or press FUNC + CUE (RELOAD PART) to go back to the last saved Part."
+          "Save the Part to keep it, or press FUNC + CUE (RELOAD PART) to go back to the last saved Part.",
+          "To put a scene on particular steps: in grid recording hold the trigs, press SCENE A (or SCENE B, or both for the blend) and let go: SCENE A TO TRIGS. Hold a trig and press PLAY to clear its p-locks."
         ]
       },
       "controls": [],
@@ -7919,28 +8311,33 @@
         "uiClaims": [
           "key:SCENEA+YES",
           "key:SCENEB+YES",
-          "key:SCENEA+SCENEB+YES"
+          "key:SCENEA+SCENEB+YES",
+          "key:TRIG+SCENEA",
+          "key:TRIG+SCENEB",
+          "key:TRIG+SCENEA+SCENEB"
         ],
         "limitations": [
           "YES with SCENE A, SCENE B or both held no longer shows ARM ALL; YES alone still does.",
+          "In grid recording, SCENE A or SCENE B pressed with trigs held writes p-locks when the last scene key is released. A trig pressed or a knob turned inside that gesture keeps its stock meaning (scene select, scene lock) and then nothing is written.",
           "The crossfader stays where it is and the scenes keep their locks: a parameter locked in both scenes keeps its sound, while one locked in only one scene can change (after a one-scene apply it plays that lock at every fader position; after the blend stock blends that lock with the new base).",
           "XVOL and XLV (the crossfader volume locks) have no Part knob and stay scene locks.",
           "Trig locks and LFO modulation are not written into the Part; the result is the sound on steps without a trig lock.",
+          "On trigs: only the active track and the held steps of the trig page shown. There is no undo beyond stock's hold trig + PLAY, which clears all of that step's p-locks.",
           "With MASTER TRACK on, track 8's SRC and AMP scene locks are not applied: stock has no knob there.",
           "Not in MIDI mode, and not on MIDI tracks (stock has no scene locks there).",
           "Undo is stock RELOAD PART, which also discards any other unsaved edits since the last Part save.",
-          "Tested on one MKII over USB on the beta base, by watching values (no audio check); the card build was not run on hardware for this version."
+          "Tested on one MKII over USB: the Part apply with 0.1.0 (values watched, no audio check); TRIG + SCENE with 0.2.0, including playback by ear, a project save and a power cycle. Not tested on the MKI; the card build was not run on hardware."
         ]
       },
       "resources": {
         "recorded": "ot_emu and one MKII, 15 Oct 2026",
         "storage": {
           "label": "Storage",
-          "display": "636 bytes of ColdFire code in the image's free run; no DSP code, no saved data",
-          "value": 636,
+          "display": "2,062 bytes of ColdFire code and state in the DRAM reserve; no DSP code, no saved data",
+          "value": 2062,
           "unit": "bytes",
           "method": "static",
-          "conditions": "Linked unit size reported by the native build of the apply-scene-stock remix.",
+          "conditions": "Assembled unit size (m68k-elf-size) of the 0.2.0 source; 636 bytes in 0.1.0.",
           "source": "TESTING.md"
         },
         "processing": {
@@ -7969,16 +8366,16 @@
           "memory": {
             "level": "minimal",
             "basis": "measured-comparison",
-            "rationale": "636 bytes of ColdFire code and data, one byte of it state; no DSP memory and no saved data of its own.",
+            "rationale": "2,062 bytes of ColdFire code and state (101 bytes of it state: the YES press and the TRIG + SCENE chord); no DSP memory and no saved data of its own.",
             "source": "TESTING.md"
           }
         }
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "On one MKII over USB on the beta base: SCENE A, SCENE B and the blend apply, NOTHING TO APPLY, Keep, Undo, removal and a power cycle with the module kept (user-reported, values watched, no audio check). Under ot_emu (verify.py, 179 checks): one-scene applies equal that scene's locks and the blend equals stock's morph model at five fader positions, with scene mutes, both key orders and every scene byte locked; the saved Part, scenes and fader stay untouched; RELOAD PART, Part and project save and reload and an emulated power cycle keep it.",
+        "summary": "On one MKII over USB: 0.1.0's SCENE + YES modes, NOTHING TO APPLY, Keep, Undo, removal and a power cycle (user-reported, 15 Oct); 0.2.0's TRIG + SCENE driven by the agent on a development twin (one scene, the blend at the morph model's values, repeat, stock gestures inside the chord, three trigs, muted scene, stock clear, playback lane, removal) and run by the user on the flashed base (playback by ear, project save, power cycle). Under ot_emu (verify.py, 264 checks): the Part apply as in 0.1.0, and TRIG + SCENE's locks equal the model on every held step with nothing else in the pattern moved, through project save, reload and an emulated power cycle.",
         "hardwareStatus": "reported",
-        "evidenceRevision": "ae2a6eedc456076cbee1a886952a399623b4e88a",
+        "evidenceRevision": "2ebc3f726961c125a79cc7ef19225076e361f02c",
         "gates": [],
         "qualification": {
           "documentation": {
@@ -7987,7 +8384,8 @@
               "steps": [
                 "On a track playing a loop, hold SCENE A and turn FX1's first knob to the left; hold SCENE B and turn it to the right.",
                 "Hold SCENE A and press YES. SCENE A APPLIED appears, and FX1's first knob now shows scene A's value. Put the crossfader in the middle, hold SCENE A and SCENE B and press YES: SCENE BLEND APPLIED, and the knob shows the middle value.",
-                "Move the crossfader to either end: the sound still reaches each scene's lock. Press FUNC + CUE to reload the Part and the knob returns to where it was."
+                "Move the crossfader to either end: the sound still reaches each scene's lock. Press FUNC + CUE to reload the Part and the knob returns to where it was.",
+                "Press REC, hold a trig, press SCENE A and let go: SCENE A TO TRIGS, and holding the trig shows scene A's value as its p-lock. Hold the trig and press PLAY to clear it again."
               ]
             },
             "screenshots": [
@@ -7995,13 +8393,16 @@
               "media/ot-scene-a-applied.png",
               "media/ot-after-a.png",
               "media/ot-blend-applied.png",
-              "media/ot-nothing-to-apply.png"
+              "media/ot-nothing-to-apply.png",
+              "media/ot-trig-scene-a.png",
+              "media/ot-trig-lock.png",
+              "media/ot-trig-blend.png"
             ],
             "screenshotStyle": "black-and-white"
           },
-          "moduleVersion": "0.1.0-experimental",
-          "sourceSha256": "37051fcea2b241e80d78c3ae8aed63414da53f9a8adcbcac29ad9546c5b7efce",
-          "imageSha256": "c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163",
+          "moduleVersion": "0.2.0-experimental",
+          "sourceSha256": "d837cd5f07c278d4e7bbc7b0a14fe96197a9f9928fef1fff03ad229b3a8cc0f2",
+          "imageSha256": "5b1db5c76dabfd3023c0d2a81d53fac43610fa579142870190f7ca41c89c2ed1",
           "cycles": [
             {
               "processor": "coldfire",
@@ -8012,9 +8413,9 @@
               "unit": "cycles/event",
               "method": "emulator",
               "conditions": {
-                "parameterExtremes": "Every scene-lockable byte of all eight tracks locked in both selected scenes, scene A at each slot's minimum and scene B at its maximum, so every enabled slot changes: 201 writes for the blend at fader 64 (8,268,075 instructions, frame engine off), 125 for SCENE A and 172 for SCENE B; with the frame engine on and T8's FX2 page locked too, 231 writes and 11,083,553 instructions, interrupts in that window included.",
+                "parameterExtremes": "SCENE + YES: every scene-lockable byte of all eight tracks locked in both selected scenes (A at each slot's minimum, B at its maximum): 201 writes for the blend at fader 64, 8,268,814 instructions on 0.2.0's image (frame engine off); 231 writes and 11,083,553 with the frame engine on (0.1.0's image, the same code path). TRIG + SCENE: all 16 trigs held and every slot locked in both scenes, 98,681 at most (SCENE A).",
                 "parameterModulation": "Not applicable: one apply per press, outside the audio frame. The written values are Part bytes that the stock morph, LFOs and trig locks read as usual.",
-                "modeSwitching": "All three modes (SCENE A, SCENE B, both keys), both key orders, one key released from both, scene mutes, and a repeat apply that changes nothing (113,287 instructions).",
+                "modeSwitching": "All three modes (SCENE A, SCENE B, both keys), both key orders, one key released from both, scene mutes, and a repeat apply that changes nothing (113,287 instructions). TRIG + SCENE: one scene, the blend, both key orders, the trig released first, a repeat, and stock's gestures inside the chord.",
                 "maxLoad": "The worst event is the blend with every enabled slot changing. Executed ColdFire instructions under ot_emu from the YES press to the toast; one instance. Budget: 100 ms of ColdFire time at 266 MHz, a responsiveness target for a key press, not a measured limit.",
                 "inputConditions": "Independent of audio and MIDI; runs in the UI task once per press. Executed instructions, not cycles: cache and wait states are not modelled, and time on the unit is not measured."
               },
@@ -8024,38 +8425,37 @@
           "memory": {
             "regions": [
               {
-                "name": "ColdFire code and data (one linked unit, 1 byte of state)",
+                "name": "ColdFire code and data (one linked unit, 101 bytes of state)",
                 "space": "sdram",
-                "words": 636,
+                "words": 2064,
                 "wordBits": 8,
-                "bytes": 636,
+                "bytes": 2064,
                 "scope": "shared"
               }
             ],
             "perInstanceBytes": 0,
-            "sharedBytes": 636,
+            "sharedBytes": 2064,
             "maxInstances": 1,
-            "totalBytes": 636,
-            "conditions": "The linked unit as the native build reports it (apply_scene 636 B) and the USB package carries it (636 bytes of code and data, no bss). No DSP memory, no saved data, no DRAM region of its own.",
+            "totalBytes": 2064,
+            "conditions": "The unit as the USB package carries it (2,064 bytes of code and data, no bss; the assembler reports 2,062). No DSP memory, no saved data, no DRAM region of its own.",
             "report": "TESTING.md"
           },
           "hardware": {
             "kind": "functional",
             "status": "reported",
             "model": "MKII",
-            "testedOn": "2026-10-15",
+            "testedOn": "2026-10-23",
             "tester": "npp1993",
-            "sourceRevision": "ae2a6eedc456076cbee1a886952a399623b4e88a",
-            "imageSha256": "c63e2868e39669a3b22f0077923f9d542a521f73a75f5844fe62646d1382d163",
-            "summary": "On the contributor's Octatrack MKII (OS 1.40C) the USB package of this source (SHA-256 above) was loaded on the Modwerk beta base with the device tool: a trial without Keep rolled back, Keep installed it, and removal restored stock (SCENE + YES then arms tracks again). With it installed, SCENE A + YES and SCENE B + YES wrote the locked values, the blend wrote the in-between values, values could be edited afterwards, XVOL and XLV stayed scene locks, and NOTHING TO APPLY appeared for a repeat apply, a scene with no locks and the blend with both scenes muted. After an apply, Part save and project save, a power cycle kept the module installed, the applied values in the Part and the scenes as they were.",
+            "sourceRevision": "2ebc3f726961c125a79cc7ef19225076e361f02c",
+            "imageSha256": "5b1db5c76dabfd3023c0d2a81d53fac43610fa579142870190f7ca41c89c2ed1",
+            "summary": "On the contributor's Octatrack MKII (OS 1.40C) the USB package of this source (SHA-256 above) was installed with the device tool. On a RAM-booted development twin of main's base the agent drove TRIG + SCENE over USB and read the pattern back: one scene wrote exactly its locks, the blend wrote the morph model's values (XVOL, which has no p-lock, skipped), a repeat showed NOTHING TO LOCK, a trig or knob inside the gesture kept its stock meaning and wrote no p-lock, three trigs at once, the trig released first and a muted scene all wrote, TRIG + PLAY cleared, the live lane took the locks while playing, and removal restored the three sites. Then on the flashed base, beside the user's seven other modules, the user tested by hand: one scene and the blend onto trigs, playback by ear, a project save and a power cycle kept the p-locks, stock gestures inside the chord, TRIG + PLAY.",
             "limitations": [
-              "Run on the package of ae2a6eed (SHA-256 above). The current source differs from it only in manifest.py (the card build links the unit in the DRAM reserve); its USB package has the same code, and the published one differs only in its 16-byte display name (Apply Scene).",
-              "Values were watched on the screen; audio was not checked, and no recording or timing was made.",
-              "One unit, one short session, by the contributor rather than an independent reviewer.",
-              "USB only: the card build of this source was not flashed (the earlier card image OMXATS30 carried the previous behaviour).",
-              "APPLY SCENE alone on the beta base: no other Modwerk module was installed beside it on the unit.",
-              "Pattern change, Part change, arranger and sequencer ACT commit around an apply were not tested.",
-              "How long an apply takes on the unit is not measured; no click or freeze was noticed."
+              "One unit, by the contributor and the agent, not an independent reviewer; the MKI was not tested.",
+              "USB only: the card build of this source was not flashed.",
+              "Nothing timed: how long a TRIG + SCENE or SCENE + YES takes on the unit is not measured; no click or freeze was noticed.",
+              "The site's review, Keep and Undo flow was not used: the device tool's try and remove installed and removed it.",
+              "MIDI mode, trig pages past the first, pattern and Part changes inside the chord, the arranger and sequencer ACT commit were not tested.",
+              "SCENE + YES (unchanged in 0.2.0) was tested on hardware with 0.1.0's package only."
             ],
             "report": "evidence/hardware.md"
           }
@@ -8079,9 +8479,9 @@
             "page": "FX1 main, SCENE A held",
             "shows": "location-and-controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -8096,9 +8496,9 @@
             "page": "FX1 main, SCENE A held",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -8113,9 +8513,9 @@
             "page": "FX1 main",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -8130,9 +8530,9 @@
             "page": "FX1 main, SCENE A and SCENE B held",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
@@ -8147,43 +8547,60 @@
             "page": "FX1 main, SCENE A held",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
-          "path": "media/ot-scene-b-lock.png",
+          "path": "media/ot-trig-scene-a.png",
           "captureType": "emulator",
-          "caption": "The same knob locked to 110 in scene B, for the blend in the next steps.",
-          "alt": "FX1 FILTER main page with SCENE B held and the BASE knob highlighted with its scene lock value 110.",
+          "caption": "To put a scene on chosen steps instead: press REC for grid recording, hold a trig, press SCENE A and let go. SCENE A TO TRIGS appears and every value scene A locks becomes a p-lock on that step.",
+          "alt": "FX1 FILTER main page in grid recording with the SCENE A TO TRIGS message box over it.",
           "credit": "Modwerk contributors (headless capture)",
           "license": "LicenseRef-OT-UI-Documentation",
           "source": "original",
           "otUi": {
-            "page": "FX1 main, SCENE B held",
-            "shows": "controls",
+            "page": "FX1 main, grid recording, TRIG 1 held",
+            "shows": "location-and-controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         },
         {
-          "path": "media/ot-after-blend.png",
+          "path": "media/ot-trig-lock.png",
           "captureType": "emulator",
-          "caption": "After the blend at the middle of the crossfader, BASE shows the blended value as the Part's own.",
-          "alt": "FX1 FILTER main page with no scene held; the BASE knob points near the middle of its range.",
+          "caption": "Hold the trig again to see its p-locks: BASE on step 1 is now 30, scene A's value. The scene and the Part are unchanged; hold the trig and press PLAY to clear its p-locks.",
+          "alt": "FX1 FILTER main page with TRIG 1 held; the BASE knob is highlighted with the p-lock value 30.",
           "credit": "Modwerk contributors (headless capture)",
           "license": "LicenseRef-OT-UI-Documentation",
           "source": "original",
           "otUi": {
-            "page": "FX1 main",
+            "page": "FX1 main, grid recording, TRIG 1 held",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.0-experimental",
-            "imageSha256": "3a74ff3635ce172ec3ef5949d188ebb297b0e8d969ca2b5d060b76420dded0bc",
-            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE at a90849c9 alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
+          }
+        },
+        {
+          "path": "media/ot-trig-blend.png",
+          "captureType": "emulator",
+          "caption": "Hold a trig and press SCENE A and SCENE B to lock what the crossfader plays right now onto that step: SCENE BLEND TO TRIGS. Here the crossfader is in the middle.",
+          "alt": "FX1 FILTER main page in grid recording with the SCENE BLEND TO TRIGS message box over it.",
+          "credit": "Modwerk contributors (headless capture)",
+          "license": "LicenseRef-OT-UI-Documentation",
+          "source": "original",
+          "otUi": {
+            "page": "FX1 main, grid recording, TRIG 5 held",
+            "shows": "controls",
+            "firmware": "1.40C",
+            "moduleVersion": "0.2.0-experimental",
+            "imageSha256": "c625bbd1ec4faff6a98bb054abad1522042a09dc68262b3629991af7c00fc48d",
+            "setup": "Headless ot_emu; MKII panel; stopped transport; card staged from octabam's TMPL project; private native build of APPLY SCENE 0.2.0 (commit 2ebc3f72) alone beside every stock effect (static stock); 128×64 LCD at integer scale 6."
           }
         }
       ]

@@ -12,6 +12,7 @@ import { StateChip } from './ModuleGrid'
 import { ModulePreview } from './ModulePreview'
 import { Icon } from './Icon'
 import type { PrepareUpdate, StressTest } from './OctatrackUpdate'
+import './link-hero.css'
 import './octatrack-link.css'
 
 const STEPS = ['Sync', 'Self-test', 'Try it']

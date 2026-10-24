@@ -22,6 +22,7 @@
   "quantizer",
   "recorder-loop-fix",
   "repitch",
+  "ring-sc",
   "sidechain-compressor",
   "spectrum",
   "synth",

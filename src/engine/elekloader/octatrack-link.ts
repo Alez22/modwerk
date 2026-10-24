@@ -13,6 +13,7 @@ import type { ElekFile } from '../../../vendor/elekloader/kit/src/elek.ts'
 import { OCTATRACK } from '../../../vendor/elekloader/kit/src/devices.ts'
 import type { OctatrackDiagnostic, DiagnosticReading } from '../../community/octatrack-diagnostics-contract'
 import { encodeModuleSet } from './set-package.ts'
+import { diagnosticErrorKind } from '../../community/site-diagnostic-events'
 
 export type LinkDiagnostic = Omit<OctatrackDiagnostic, 'id' | 'modules'>
 /** Numeric status fields only; exclude the device's free-text culprit name. */
@@ -93,6 +94,7 @@ const REJECTED: Partial<Record<number, string>> = {
   6: 'This module needs more DSP time than an effect slot has.',
   7: 'A track is playing this module’s effect, so the Octatrack can’t change it now. Pick another effect on that track, then try again.',
   9: 'This version of the module changes a part of the Octatrack that the base now shares between modules. Install its newer version.',
+  10: 'The Octatrack can’t start the key bus this module needs until it restarts. Turn it off and on, then sync again.',
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
@@ -447,11 +449,28 @@ export class OctatrackLink {
     if (!this.canUpdateBase()) throw new Error('The new base can’t write itself over USB, so install it from the card. A power cycle returns the Octatrack to its current base.')
     report('writing', 0)
     const connection = this.connection
-    await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => { await session.activate(); await session.accept() })
+    await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => {
+      await session.activate().catch(async error => {
+        const why = await this.writeRefused(error)
+        // A refusal leaves upload mode; a write that failed its verify stays for another try (flash.c).
+        if (error instanceof UploadDeviceError && error.status.result === 'backend') await session.cancel().catch(() => {})
+        throw why
+      })
+      await session.accept()
+    })
     report('restarting')
     const back = await this.returned(connection, signal)
     if (back !== expected) throw new Error(`After the write the Octatrack came back on base ${back.slice(0, 8)}, not the new one.`)
     report('done')
+  }
+  /** A write the running base refused (flash.c, "backend") or could not verify ("needs-recovery"), in words: the
+   * self-test record names its reason as 100 + flash.h's flash_refusal. */
+  private async writeRefused(error: unknown) {
+    if (!(error instanceof UploadDeviceError) || !['backend', 'needs-recovery'].includes(error.status.result)) return error
+    const refusal = (await this.transport?.selftest(false).catch(() => undefined))?.refusal ?? 0
+    if (refusal === 107) return new Error('The Octatrack wrote the new base but could not verify it. Keep it switched on and try again.', { cause: error })
+    if (refusal > 100 && refusal < 107) return new Error(`The new base refused to write itself (reason ${refusal}), so nothing was written. A power cycle returns the Octatrack to its current base and modules.`, { cause: error })
+    return error
   }
   /** One upload to the idle unit, then `then` on its session: a RAM boot's image, or the container the base writes. */
   private sendBase(base: string, data: Uint8Array, timeoutMs: number, progress: (fraction: number) => void, signal: AbortSignal | undefined, then: (session: LinkSession) => Promise<void>) {
@@ -534,7 +553,9 @@ export class OctatrackLink {
     const why = error instanceof UploadDeviceError && ['rejected', 'backend'].includes(error.status.result) ?
       (await this.transport?.selftest(false).catch(() => undefined))?.refusal : undefined
     if (connection !== this.connection) return
-    this.diagnostic('sync_failed', {error: error instanceof UploadDeviceError ? 'device' : error instanceof StressTestFailure ? 'selftest' : error instanceof UploadUnconfirmedError ? 'transport' : error instanceof StaleLoadError ? 'stale' : error instanceof DOMException && error.name === 'AbortError' ? 'cancelled' : 'unknown', ...(error instanceof UploadDeviceError && error.status.result !== 'progress' ? {result:error.status.result} : {}), ...(why !== undefined ? {refusal:why} : {})})
+    const label = error instanceof UploadDeviceError ? 'device' : error instanceof StressTestFailure ? 'selftest' : error instanceof UploadUnconfirmedError ? 'transport' : error instanceof StaleLoadError ? 'stale' : error instanceof DOMException && error.name === 'AbortError' ? 'cancelled' : 'unknown'
+    // An unclassified failure names its error type (never the message), so the diagnostics can tell a bug from a refusal.
+    this.diagnostic('sync_failed', {error: label, ...(label === 'unknown' ? {kind: diagnosticErrorKind(error)} : {}), ...(error instanceof UploadDeviceError && error.status.result !== 'progress' ? {result:error.status.result} : {}), ...(why !== undefined ? {refusal:why} : {})})
     this.session = undefined
     await this.release()
     // An untrusted connection that could not be read again leaves the running set unknown.
