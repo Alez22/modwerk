@@ -2884,3 +2884,5 @@ These are generated-input engine tests, not a physical Flex snapshot, a live
 reader or new USB package. Production settings capture and its writer/menu/owner
 boundaries still require shared-base implementation and owner review. The earlier
 0.1.53 physical result is preserved at its exact source; 0.1.54 is not hardware-qualified.
+
+The retained `grid54-host-native.json` binds source `f0a5bca9f5aa74374862820246723ae0ca27af9c`; source checks against current Modwerk main passed before that commit (136.36 seconds). Native and sanitizer results remain generated-input evidence, not a live base binding.
