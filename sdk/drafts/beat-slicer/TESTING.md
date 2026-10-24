@@ -2323,3 +2323,7 @@ is stable during the bounded copy by fixture construction; the native boundary
 that would exclude real-time module writers is not implemented. Full-set
 readiness, production typed admission, pre-transition retirement hooks, retained
 native references, source ownership, Apply/playback and hardware remain open.
+
+Three typed-contribution reports bind source commit `0411151155c2364a63e1d16beba2253ea961969a`. Current-upstream full validation passed in 143.06 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+The compiled decoder object contains 872 text bytes and no static data/BSS. GCC reports 136 bytes of bounded local stack for binding, 12 for view and 8 for entry resolution. These are per-function figures, not complete call-chain storage or physical latency qualification.
