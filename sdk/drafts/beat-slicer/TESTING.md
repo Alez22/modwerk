@@ -2555,3 +2555,5 @@ on the engine task. Normal track 1/8 recording guards, prepared source/settings,
 code/canaries, original receive call and unsaved card checks remain enabled.
 Fixed lifetimes, complete writer/cache ownership, production API/UI/USB lifecycle,
 physical latency, audio and device persistence remain unqualified.
+
+Two lifecycle reports bind source commit `2eb5b64406fb6368459bd8c4d7dd0cb56b3ab0d9`. Current-upstream full validation passed in 138.34 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
