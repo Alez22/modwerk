@@ -1320,6 +1320,18 @@ static void compact_tick(void)
     if (modwerk_dsp_compact_step)
         modwerk_dsp_compact_counts = holes() ? 0xffffffffu : *(volatile uint32_t *)0xfc07c00cu - compact_at, modwerk_dsp_compact_step = 0;
 }
+/* manager.c's last way to place a pick that fits a core packed but not beside its live code (build_core.py
+ * TRANSITION_EDITS, beta finding 35): pack now, the request waiting. 0 when packing cannot run (the self-test, a
+ * host session) or no core has a hole; the wait ends after five seconds whatever the moves have done. */
+static uint32_t pack_at;
+int modwerk_dsp_pack(void)
+{
+    if (modwerk_selftest.state == SELFTEST_RUNNING || modwerk_upload_busy() || !holes()) return 0;
+    (void)modwerk_dsp_compact(); /* already packing: the request waits for that one */
+    pack_at = modwerk_runtime_ticks;
+    return 1;
+}
+int modwerk_dsp_packing(void) { return modwerk_dsp_compact_step && modwerk_runtime_ticks - pack_at < 300u; }
 #endif
 /* The compaction planner (dsp.c's move_one; host-tested by test_dsp.c): k placed blocks sorted by address (where each
  * starts, its words, its alignment, 0 as 1) in an arena of cap words. A copy needs one free run as big as its block,
