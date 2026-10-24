@@ -1,0 +1,50 @@
+# Direct Jump: tests and measurements
+
+Recorded 24 October 2026. Version `0.1.0-experimental`.
+
+- Source: sambanks/octabam `b725fb1a20e77bea37930be4f934a13ba53abc23` (`modules/direct-jump-kyoti/`), which pins the author's repository Zac-Kyoti/octatrack-kyoti-fw at `329b801cf90f32cbca97c6699a908908968e4df6` (`octabam-modules/direct-jump-kyoti/`). Modwerk source commit `6116a6a4d127ee0bac0ec835a474984be8b2c73e`.
+- Tested image: a static native octabam build of this module alone with every stock effect kept (`scripts/export-composition-proofs.py --vendored-sdk --static-stock --modules direct-jump-kyoti --select direct-jump-kyoti:true --image-dir`, run from a private copy of this checkout's `sdk/octabam` with the original MAIN OS): MAIN OS SHA-256 `9af03715a100eeb80c564312e1d6c3d5666ba287a79f03555f19195285a07172`. The unit lands in the DRAM reserve at `0x40a955e0`.
+- Original MAIN OS 1.40C: SHA-256 `164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e`.
+- Emulator: octabam's `ot_emu` from the `npm run upstream:tools` checkout, SHA-256 `bdbe962c14fc3560fb3196b01566646b80a74fd451883873a77290b4973dbbf1`. It does not run a real unit's timing.
+
+## Not tested
+
+- The arranger and pattern chains (Direct Jump stands aside while either runs, by its source), an MKI panel, external MIDI gear (Program Change and the absent MIDI START were checked in the emulator only), START SILENT and trig conditions on a jump (the author's emulator checks), audio.
+- Beside Play Modes, MIDI Scenes, Mute Modes and Analog BD as a running combination (the gate and `modules:compat` find no shared bytes).
+
+## Source identity
+
+`upstream/README.md` and `LICENSE` are the author's files byte for byte (`sdk/imports/direct-jump-kyoti-b725fb1.json` records their Git blobs and SHA-256s). `patch_directjump_v7.s` is his file with one change, marked MODWERK: the landing's three kernel posts (`{0x15, bank}`, `{0x14, part}`, `{0x11, pattern}`) go through one added helper, `dj_post`, which reaches the kernel's post routine through `%a1`, and the second purge table's two addresses are loaded in the other order. The calls, their arguments and their order are unchanged. Without it, four runs of the USB package (up to 24 bytes) repeat stock's own posting and cancellation code and the strict stock-free scan refuses it.
+
+Assembled with `m68k-elf-as -mcpu=5407` or `-mcpu=54455` (identical) and linked at `0x400d6d38`, the unit is 2,016 bytes, SHA-256 `2965bf7d4866fc6818040f6128cd0a2ece62305b534882d97e2379a40a249684`; `manifest.py` names that reference, and native octabam re-links the unit there and compares on every build. With the change taken back, the same source links to the author's 2,026 bytes, `a0f480909d91b7fac0fb77d08dd8b5e2199fc14731d4bb427be71478e296bf9e`, his manifest's oracle (checked locally, 24 October 2026).
+
+The four stock guards (`0x400a1f72`, `0x400a221c`, `0x40043418`, six bytes each, and the four NULL bytes at `0x400bf0c0`) are the SHA-256 of the author's declared expectations and match the original MAIN OS.
+
+## The gate
+
+`verify.py`, run from a private copy of this checkout's `sdk/octabam` with the tested image, the original MAIN OS and the ColdFire port:
+
+```sh
+DJ_IMAGE=<MAIN OS> DJ_STOCK=<original MAIN OS> OT_EMU=<path to ot_emu> python3 modules/direct-jump-kyoti/verify.py
+```
+
+Result on the tested image: **all 30 checks passed** (about nine minutes).
+
+1. The image: the original OS matches the three guards and the [PTN]-layer YES slot is NULL; the source links to the manifest's reference; the landing and MIDI START sites hold a `jsr` and the [PTN] release a `jmp` onto the unit's symbols; the slot names `dj_toggle`; after boot the unit in DRAM is this source linked at its address.
+2. The toggle (MKII panel, empty card): OFF after boot; [YES] alone leaves it OFF; [PTN] + [YES] turns it ON and opens the toast; releasing [PTN] closes the toast and leaves the chooser shut (stock's [PTN] mode byte stays 0); again OFF, and ON. The original OS under the same keys opens no toast and opens the chooser.
+3. OFF is stock: PLAY, then A02 cued at master step 7. Both images land at the end of A01, and the module image runs through the same 260 distinct sequencer states as the original OS (per track: step, previous step, ticks in step, armed, countdown, reload and scale; the master step, tick and scale, the first-fire and hold masks and the metronome counters; the author's reference-lock vector).
+4. ON: A01 playing from START, A02 cued at clock tick 41 (master step 7, its last tick). The reference run plays A02 from START on the same image. Each case checks that the reference really plays the edited pattern, that the jump lands inside its window, and that from the tick after the landing to tick 300 every tick's state vector equals the reference's:
+   - A02 16 steps (as A01): landed at tick 42, the next step; 258 ticks equal. With MIDI transport send on, the landing reached stock's MIDI START gate (`dj_nofa` ran) and the START send after it did not run.
+   - A02 7 steps (NORMAL) on Part 2: landed at tick 42; 258 ticks equal; the active Part is 2 afterwards.
+   - A02 in PER TRACK mode, master 16 steps at 1x, T1 16 steps 1x, T2 7 steps 2x, T3 5 steps 3/4x, T4 3 steps 1/2x, MIDI T1 5 steps 3/2x: landed at tick 48, the first tick at which every track is at a step boundary (the common step of these scales is 24 ticks); 252 ticks equal.
+5. A power cycle of the port: the battery RAM of a run left ON, booted again, comes up OFF.
+
+The two bytes that do differ from the reference are left out on purpose: the previous-pattern byte (`0x800065c1`; A01 here, nothing in the reference) and the landing snapshot word stock rewrites at its next wrap (`0x8000663a`). Neither is in the author's vector.
+
+## The USB package
+
+`python3 -B sdk/runtime/loader/build.py --octabam direct-jump-kyoti --upstream ~/.cache/modwerk-upstream/elekloader --stock <OS 1.40C update file>` builds an ABI 7 package: 2,016 bytes of code and data, no bss, 18 relocations, four stock-code sites (the three detours and the pointer), each named by the SHA-256 of the stock bytes and checked against the original OS. The strict scans of `module_packages.py --stock` pass: the longest run of the package also found in the stock OS has 10 counted bytes (the limit is 12), and `check_stock_free.py` finds no 16-byte run.
+
+## Memory
+
+2,016 bytes in the DRAM reserve (code, the two toast strings and 62 bytes of state), three six-byte detours and the four-byte pointer: 2,038 bytes. No DSP memory, no heap, no saved data. The state is the ON/OFF word, a tick counter since START, the landing's parameters and the last Program Change sent.
