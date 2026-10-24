@@ -73,3 +73,5 @@ Record the actual MKII vector-3 failure from an MCF5475-targeted private probe a
 Record both private USB attempts separately: the corrected SDK-target probe avoids the observed restart, but its physical self-test fails the ColdFire CPU limit. Verify exact original module inventory and active/base identities after recovery; retain no hardware-pass claim.
 
 The exact corrected private probe subsequently passes physical self-test and planner diagnostic on an owner-selected empty pattern, with verified Undo and original module-set restoration. Preserve the earlier failed playing-pattern result separately; live sample integration remains pending.
+
+Separate exact slice-grid geometry from PCM boundary analysis. Generated-input host sanitizer and MCF54455 tests verify rational deadlines and retained starts; geometry results carry no fade-safety authority. Document coherent copied settings as the smaller proposed read-only base interface, still requiring native implementation and owner review before a live Flex trial.

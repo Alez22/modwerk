@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.53-experimental",
+  "version": "0.1.54-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "The 0.1.52 private USB probe failed physically: an MCF5475 override emitted scale-eight indexed LEA, and the MKII restarted with vector 3 at that instruction. Original base/11-module inventory were verified after restart; no physical self-test or Undo pass. Use SDK MCF54455 flags, reject forbidden index modes and block the failed package. Corrected candidate requires a new hardware trial.",
+    "summary": "The separate exact-grid helper plans from copied settings without PCM and reports no amplitude/fade safety. Host sanitizers and SDK-target ColdFire tests compare 193 independent rational-oracle vectors and exact audio-planner results. It has no live base binding. The historical 0.1.53 fixed-input USB probe passed physical self-test, planner diagnostic and Undo on an empty pattern; that hardware result does not qualify this newer source or live Flex preview.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

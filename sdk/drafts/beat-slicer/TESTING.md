@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.25-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.54-experimental. Development checks: 23–24 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -2856,3 +2856,31 @@ Owner clarification after the 0.1.53 trial: a pattern was already running and pe
 A separately authorized repeat of the exact 0.1.53 package on the owner-selected empty pattern passed: self-test state 2, failed 0, CPU peak 724 per mille, frame-gap count 51644, planner diagnostic 0x42534f4b. The client waited five seconds and verified Undo against the complete raw baseline inventory and active identity. `usb53-hardware-empty-pattern.json` binds module source `b670fa7506c824d73eee741e3bdca2c51b2bd4aa` and records frontend revision `4519794c92891c1ccc6c84c46bee938f838a85da`. The first CPU failure remains preserved. Visible display confirmation, live Flex sources, Apply, audible behavior and persistence remain separate qualification gaps.
 
 The owner was not looking at the unit during the successful trial; no rendered-display result is claimed and no extra device run was made for that alone.
+
+## Geometry-only exact grid (0.1.54)
+
+`grid_preview.c` accepts copied scalar settings and retained starts. It has no
+PCM callback or source pointer. `bs_grid_plan` is a distinct informational result,
+without amplitude/fade flags; unknown boundaries are never represented as quiet.
+No new Apply path or source permission is introduced.
+
+The 193-vector independent Python big-integer oracle covers fractional tempo,
+all spacings, both tempo sources, high trim offsets, duplicate/retained starts,
+64-slice capacity and invalid inputs. The generated C fixture checks complete
+outputs and unchanged failure outputs with canaries. Successful plans also match
+the existing exact audio planner on a genuine generated-silence test input.
+Host ASAN/UBSAN and compiled MCF54455 execution both pass. The native objects pass
+the code-generation and forbidden-index guards; no runtime helper remains unresolved.
+
+Run in the pinned source-tools image with outputs outside Git:
+
+```sh
+python3 -B sdk/drafts/beat-slicer/test_grid_preview.py \
+  --output /PRIVATE/grid-test --sdk-revision SDK_COMMIT \
+  --runner /PRIVATE/build/beat_slicer_job_probe
+```
+
+These are generated-input engine tests, not a physical Flex snapshot, a live
+reader or new USB package. Production settings capture and its writer/menu/owner
+boundaries still require shared-base implementation and owner review. The earlier
+0.1.53 physical result is preserved at its exact source; 0.1.54 is not hardware-qualified.

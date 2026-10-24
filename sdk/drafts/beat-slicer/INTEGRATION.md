@@ -14,7 +14,7 @@ experiments from the shared services and qualification still required.
 | Static source | Stock load/clear and handle-lifetime observations | A bounded leased streaming reader |
 | Apply and playback | Portable transaction and isolated stock refresh fixtures | Atomic native commit/rollback and qualified audible boundary behavior |
 | Distribution | Source-bound private reports; publication deliberately refused | Source-built card/browser/USB packages, scans and companion matrix |
-| Hardware | Read-only MKII base/inventory preflight | Exact-candidate trial, self-test, Keep/Undo, removal, audio and physical persistence |
+| Hardware | Exact 0.1.53 fixed-input USB probe: physical self-test, planner PASS and verified Undo on MKII/base cd39c494 | Live Flex preview, visible display, Keep/removal, audio and physical persistence |
 
 The next production dependency is the reviewed shared editor/source interface,
 including writer exclusion and lifetime retirement. The module must then bind
@@ -28,6 +28,14 @@ Start with the [private planner probe](USB_TEST.md): existing tick/draw hooks,
 fixed inputs, physical self-test and Undo. It needs no new base/editor interface
 and does not access instrument samples. This narrower test advances device
 execution without claiming live Flex preview or relaxing the gates below.
+
+## Reduced read-only preview preparation
+
+The geometry-only helper now calculates an exact grid without reading PCM or
+claiming quiet boundaries. A copied-settings Flex preview can be the first live
+milestone; see the [narrower shared-base proposal](BASE_CONTRACT.md#smaller-first-live-milestone-copied-settings-only).
+Its coherent settings service and native menu/owner boundary remain unimplemented
+and require owner review before use. No direct memory-reading module is substituted.
 
 ## First USB preview trial
 

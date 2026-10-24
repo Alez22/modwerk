@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.53-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.54-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -17,6 +17,11 @@ The grid starts at sample trim start. One beat is a quarter note of the chosen
 BPM; track speed and swing do not move offline sample markers. Project BPM is
 captured for the operation. Later tempo changes must never rewrite slices
 automatically. The current core accepts 30–300 BPM in 1/24-BPM units.
+
+The new [geometry-only helper](grid_preview.h) prepares an exact grid from copied
+settings with no PCM reads. Boundary amplitude and fade safety remain unknown.
+This is preparation for a smaller read-only live preview, not a live source
+service or installable module.
 
 ## Controls
 

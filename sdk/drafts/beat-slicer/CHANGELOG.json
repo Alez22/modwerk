@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.54-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Add a separate exact-grid preview from copied settings, with no PCM reader, snap search or fade-safety claim.",
+      "Keep geometry results distinct from audio-qualified plans; preserve retained starts and refuse invalid tempo, trim or slice overflow without changing output.",
+      "Check independent rational deadlines and parity with the exact audio planner on host sanitizers and the SDK MCF54455 target.",
+      "Known issue: no production copied-settings service or live Flex device preview. The earlier private USB probe result remains bound to 0.1.53 source."
+    ]
+  },
+  {
     "version": "0.1.53-experimental",
     "date": "2026-10-24",
     "changes": [

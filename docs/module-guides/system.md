@@ -71,6 +71,12 @@ integration requirement, not an observed stock UI defect or hardware result.
 
 ### Source ownership
 
+A geometry-only preview can avoid PCM access, but it still needs a coherent copy
+of settings under the reviewed metadata-writer boundary. Give it a distinct
+informational result: absent amplitude analysis means unknown boundary safety,
+not zero-valued fade warnings. Do not feed a fake silent reader to a live planner
+or let an informational grid authorize Apply.
+
 A stock sample-pool lookup is not necessarily a decoded reader or a safe
 service for both Flex and Static. Verify readiness, sample kind, page bounds
 and pointer lifetime before using it. Measure decoder reads as well as writes:

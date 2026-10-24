@@ -5,6 +5,30 @@ No event number, base feature bit, address guard or package admission is assigne
 The implementation belongs in a separate shared-base change before Beat Slicer
 can use it. This draft contains portable core/admission prototypes and stock probes.
 
+## Smaller first live milestone: copied settings only
+
+Proposed for owner review; no new event, feature bit or service is assigned.
+The first read-only live preview can omit PCM entirely: the base copies the
+selected Flex sample's rate, trim, both tempo values and active marker starts;
+the module computes only exact rational grid positions with `bs_grid_preview`.
+SMOOTH and amplitude/fade warnings remain unavailable. Its distinct
+`bs_grid_plan` is informational and cannot enter the existing candidate/Apply
+API. Missing audio analysis must be displayed as unchecked, never as quiet PCM.
+
+The production boundary still belongs to the base. Admit only the exact selected
+Flex source under a reviewed settings-writer boundary, return copied values,
+and keep no raw source pointer across a yield. Metadata-changing edits, queued
+work, recorder transitions, source/project changes and module removal must retire
+or refuse the display before its source changes. Masking, queue emptiness and
+an unchanged slot counter are insufficient. This narrower path omits PCM/map
+ownership because it reads neither; it does not waive coherent settings capture.
+
+Review the exact base service/export and independent browser/USB package before
+a device trial. Use a disposable project/sample, no Apply or save actions, then
+actual self-test and Undo. Keep the successful fixed-input probe separate from
+live-source, rendered-display, PCM, audio and persistence evidence. The new
+geometry helper and generated-input tests are preparation, not that service.
+
 ## Preservation rule
 
 The service operates on complete records, not an array of start positions.

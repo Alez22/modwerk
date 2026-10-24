@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import sharp from 'sharp'
 import { MODULES } from '../src/catalog/modules.ts'
-import { digiModulePageHtml, modulePageHtml, modulePages, moduleThumbnail, notFoundPageHtml } from './module-pages.ts'
+import { digiModulePageHtml, digiModuleThumbnail, modulePageHtml, modulePages, moduleThumbnail, notFoundPageHtml } from './module-pages.ts'
 import { DIGI_MODS, digiModuleDocument } from '../src/devices/digi-mods.ts'
 import { DEVICES_BY_ID } from '../src/devices/registry.ts'
 
@@ -90,6 +90,13 @@ it.each(MODULES)('renders a usable JPEG of $name from the library thumbnail', as
   expect(image.length).toBeGreaterThan(10000)
   const statistics = await sharp(image).stats()
   expect(statistics.channels.some(channel => channel.stdev > 10)).toBe(true)
+})
+
+it.each(DIGI_MODS)('renders a usable JPEG of $device $title from its saved thumbnail', async mod => {
+  const image = await digiModuleThumbnail(mod)
+  expect(await sharp(image).metadata()).toMatchObject({ format: 'jpeg', width: 1200, height: 630 })
+  expect(image.length).toBeGreaterThan(10000)
+  expect((await sharp(image).stats()).channels.some(channel => channel.stdev > 10)).toBe(true)
 })
 
 it('uses different module artwork and responds to thumbnail palette changes', async () => {
