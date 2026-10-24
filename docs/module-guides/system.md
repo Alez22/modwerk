@@ -167,6 +167,13 @@ recorder comparison retains two idle voice-flag clears in its write oracle;
 no PCM write does not mean no write at all. A narrow fixture exception is not
 a production writer allowlist, and instruction counts are not physical latency.
 
+Compose writer families in a normal full boot and retain uncovered stores as
+qualification gaps. Beat Slicer's shared recorder/engine fixture covers the
+observed PCM and deferred map cleanup but exposes preparation writes before
+the recorder scope begins. Test the actual bootstrap action too: an empty
+editor may queue no job. Separate intentional setup changes from the source
+that the operation must preserve, and verify that setup difference explicitly.
+
 ### Background work
 
 When adding a worker observer at runtime, account for the command already

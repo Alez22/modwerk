@@ -60,3 +60,35 @@ self-test executes on ColdFire before the native fixture begins. Neither set
 runs the real scheduler or simultaneous frame interrupt. See [TESTING.md](TESTING.md)
 for exact source-bound results and [WRITER_COVERAGE.md](WRITER_COVERAGE.md) for
 remaining ownership work.
+
+## Full-boot composition (0.1.41)
+
+`recorder_engine_native.py` composes the same recorder observer with the existing
+base-owned engine idle/job topology and one shared guard. Both native wrappers
+preserve registers/SR; the queue receive call remains stock. The SDK codegen
+helper and engine-site guards have exact revision/hash bindings. Eight audio
+pages are explicitly reserved with the pinned arena helper; no unreserved RAM
+or production base service is used.
+
+`boot_recorder_engine.py` drives normal start, retrigger and STOP on tracks 1/8
+with the scheduler and both DSPs. The observed 32 PCM-prefix stores per track
+hold that recorder's native ticket. Three map-tail zero stores per track hold
+an engine ticket across the actual command. These span both starts and stop;
+they are not all attributed to the final Stop. The selected state clears under
+the recorder ticket while an old bank retains state 2. After Stop, a 500 ms
+interval has no observed PCM/map stores or recorder writer scopes.
+
+The experiment deliberately records the remaining gap: each track's two starts
+perform 24 recorder-bank preparation stores without any ticket, including the
+two pending-state publications at `0x40006274`. Full-byte bank watches identify
+12 store PCs, each executed twice. These are not discarded or counted as
+covered because PCM and deferred cleanup pass. Preparation and other writer
+families must be covered before production source admission.
+
+Admission starts closed. The saved project's empty Static editor does not post
+a waveform job merely when opened; the fixture uses its previously verified
+normal-panel Flex assignment/SELECT ALL path to observe a real job/idle pair.
+Preparation changes only settings word 271 from 0 to 44,100, with PCM/controls
+unchanged. Recording then preserves the entire prepared source, native code,
+reservation canaries and unsaved card. No source reader, physical interrupt
+latency, cache behavior, USB or device result is established.

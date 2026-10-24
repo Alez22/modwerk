@@ -45,3 +45,5 @@ Document bounded typed menu-descriptor copies and the distinction between loader
 Document selected, pending and retained recorder banks from normal-panel stock emulator traces and isolated delayed-start calls. Explain why state-byte observations must include overlapping larger stores. Native recorder exclusion and physical timing remain unqualified.
 
 Document paired whole-routine recorder comparisons, continuation SR/CCR preservation and stock cleanup after observer failure. Keep exact idle voice-flag writes in the oracle and distinguish native instruction counts from physical latency; live recorder/engine composition remains unqualified.
+
+Document shared recorder/engine full-boot checks and the remaining preparation-store gap. Require actual bootstrap work and explicit setup-difference checks before source-preservation assertions; no production source admission or hardware qualification is implied.

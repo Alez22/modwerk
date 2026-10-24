@@ -2397,3 +2397,33 @@ remain private; the conservative interior-target scan is not a complete
 control-flow or indirect-target proof.
 
 Two recorder-boundary reports bind source commit `a3cd85dabb842e5f23199df31c7602281d06bbc7`. Peak observed stack below the original caller SP is 176 bytes for stock and 260 bytes for the guarded isolated calls, not a complete ISR/task stack budget. Current-upstream validation passed in 142.59 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
+
+## Shared recorder/engine guard in a full boot (0.1.41)
+
+The private source-built composition uses one guard for recorder execution and
+the existing base-owned engine idle/job sites. The original queue receive call
+is unchanged. Normal panel start/retrigger/STOP passes on tracks 1 and 8, with
+32 watched PCM-prefix stores per track under the recorder's own ticket and
+three map-tail stores under the engine's own ticket. Native entry/return counts
+balance at quiescent checkpoints. The old inactive bank remains 2; a 500 ms idle
+interval has no watched PCM/map stores or recorder scopes. Prepared Flex PCM,
+all controls/settings, allocation counts, code/canaries and the card remain
+intact. Both DSPs and the real emulator scheduler run.
+
+Twenty-four preparation stores per track remain unguarded: 12 actual store PCs
+executed on both starts, including the longword pending-state publications.
+The corresponding active and Stop state transitions hold recorder tickets.
+These are positive gap observations, not a complete source-exclusion pass.
+The production reader remains disabled. The native fixture has explicit
+synthetic enablement only after a real engine job/idle pair and no live scopes.
+
+The initial empty Static binding queues no waveform job on AED opening. The
+fixture's known Flex assignment/SELECT ALL preparation obtains a real engine
+boundary and changes exactly settings word 271 from 0 to 44,100; PCM and
+controls remain equal. The full prepared settings are then preserved during
+recording. Merely observing empty queues or faking an idle flag is not accepted.
+
+This experiment reserves eight audio pages and binds the SDK codegen helper
+and stock engine guards to an exact SDK commit. It does not publish a base,
+module package or reader API, qualify all recorder/Pickup paths, or establish
+physical timing, DMA/cache ownership, USB, audio quality or persistence.

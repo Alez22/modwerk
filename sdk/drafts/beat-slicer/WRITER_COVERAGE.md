@@ -391,3 +391,18 @@ This extends isolated execution evidence only. It does not connect the guard
 to a source reader or cover panel arming, stop/worker cleanup, Pickup/overdub,
 DMA, cache aliases or concurrent interrupts. The normal-panel full boot and
 compiled worker guard remain separate experiments until explicitly composed.
+
+## Full-boot recorder/engine composition (0.1.41)
+
+The compiled recorder and engine observers now share a guard in a private
+reserved-memory full boot. Normal starts/retriggers and STOP on tracks 1/8
+place each observed PCM-prefix write under the recorder ticket and each map-tail
+cleanup store under the engine ticket. The original receive call is retained,
+entries/returns balance and all scopes retire before the idle checkpoint.
+
+The same chronological trace identifies 24 unguarded preparation stores per
+track, at 12 PCs in the normal preparation routine. Both pending-state
+publications occur before the active recorder scope. These remain an explicit
+qualification gap. The next boundary must cover preparation rather than
+assuming that protecting PCM alone makes a coherent source lease. No production
+reader or complete writer coverage is enabled by this experiment.

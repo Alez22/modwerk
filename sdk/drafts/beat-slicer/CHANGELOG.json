@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.41-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Compose compiled recorder and engine observers with one guard in a reserved-memory full boot; preserve the original queue receive call.",
+      "Check normal start, retrigger and STOP on tracks 1/8: observed PCM writes hold recorder tickets and map-tail cleanup holds engine tickets.",
+      "Identify 24 unguarded preparation stores per track; do not enable a production source reader or present partial coverage as qualification.",
+      "Require real job/idle bootstrap, distinguish SELECT ALL preparation from recording, and preserve prepared Flex data, native code and the card.",
+      "Known issue: preparation, Pickup/overdub, complete writer/cache ownership, physical timing, USB, Apply/playback and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.40-experimental",
     "date": "2026-10-24",
     "changes": [
