@@ -24,7 +24,7 @@ working/saved-copy behavior before enabling Apply. Bind preview to sample,
 content, markers, trim and chosen tempo; a stale or cancelled preview must not
 write. Quiet marker boundaries are not evidence of click-free playback.
 
-A mathematical grid point close to trim end can create a segment shorter than the writer permits even when there are no old slices. Match preview admission to the writer's minimum, omit only invalid new tail points and retain the actual trim end and every existing record. Report a short trim separately from an old-record conflict. A transient busy result can retain an explicit confirmation intent, but revalidate before showing the native question and cancel the intent on Back, parameter changes or stale source.
+A mathematical grid point close to trim end can create a segment shorter than the writer permits even when there are no old slices. Match preview admission to the writer's minimum, omit only invalid new tail points and retain the actual trim end. Preserve existing records in a preservation workflow; replacing them requires an explicit replacement warning and confirmation. Report a short trim separately from an old-record conflict. A transient busy result can retain an explicit confirmation intent, but revalidate before showing the native question and cancel the intent on Back, parameter changes or stale source.
 
 Match the stock edit workflow before adding recovery controls. Internal failure
 rollback does not imply a user-facing Undo action. Beat Slicer's 1.40C emulator
@@ -262,6 +262,13 @@ Beat Slicer's host/ColdFire exchange tests inject those late-publication cases;
 this is not proof of a native loader lifetime, writer coverage or physical budget.
 
 ### Menus and loader lifetime
+
+Keep a native confirmed answer pending when source readiness is temporarily busy;
+revalidate source and owner before any write, and consume it before publication.
+Cancel that pending answer on Back or another stock gesture. Busy is not evidence
+of a changed sample. If a workflow replaces an existing table, use an explicit
+replacement warning and test NO against the complete old table as well as YES
+with fewer new entries. Preserve older preservation-only API callers.
 
 Verify editor gestures against the rendered stock page, not a remembered key
 order. In Beat Slicer's pinned 1.40C full-emulator session, AED → AMP selected

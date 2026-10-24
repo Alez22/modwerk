@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.56-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.57-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
@@ -17,8 +17,10 @@ both native metadata paths, confirmation and failed-write rollback. The service
 also executes on the MCF54455 CPU emulator. A private base passes native/browser
 byte parity and normal-boot USB/menu/confirmation emulator tests for both kinds.
 The 0.1.55 candidate RAM-boots on the owner's MKII, opens its AED options and
-passes a 12-module self-test. The 0.1.56 correction has not run on hardware; full
-lifecycle qualification continues. The service is enabled
+passes a 12-module self-test. The 0.1.56 trial also passed that self-test; the owner
+reported initial successful slicing followed by failures after repeated clearing
+and step changes. The 0.1.57 correction has not run on hardware; full lifecycle
+qualification continues. The service is enabled
 only by a private `--sample-editor` base build and needs owner review. It is not
 released capability, and the draft remains absent from the public catalogue.
 
@@ -36,19 +38,19 @@ candidate; recorder buffers and slots 128 onward are excluded.
 | NO / BACK | Close the options or decline confirmation without changing markers. |
 | After creation | Use stock DELETE SLICE or DELETE ALL SLICES. No separate slice Undo/history is added. |
 
-In 4/4, choose **16 BEATS** for four bars. The source line also shows the existing slice count (`OLD`).
+In 4/4, choose **16 BEATS** for four bars. The status line warns `REPLACE n SLICES` when a table already exists.
 
-New boundaries that would leave fewer than the shared writer's minimum 64 frames at the end are omitted; the last valid slice still ends at the original trim end. Existing starts are never silently removed. An entirely shorter source uses its full length as the minimum; a shorter trimmed range is refused explicitly.
+New boundaries that would leave fewer than the shared writer's minimum 64 frames at the end are omitted; the last valid slice still ends at the original trim end. Existing starts change only after the explicit replacement confirmation. An entirely shorter source uses its full length as the minimum; a shorter trimmed range is refused explicitly.
 
 The grid starts at trim start. One beat is a quarter note of the chosen BPM;
 track speed and swing do not move offline markers. The core accepts 30–300 BPM
 in 1/24-BPM units. Later tempo changes never rewrite slices automatically.
 
-Existing complete start/end/loop records and their ordinals must survive or the
-edit refuses. This conservative restriction prevents a sorted insertion from
-renumbering slice locks and still needs owner review. Clear existing slices with
-the stock menu when a replacement layout is wanted. Refuse more than 64 starts
-instead of truncating the grid. Settings affect every track using that sample
+With existing slices, YES opens **REPLACE SLICES?** using the stock question
+style. A second YES replaces the active table with the chosen grid; NO leaves
+all old records unchanged. Without slices the question is **CREATE SLICES?**.
+Replacement can change slice numbers used by locks on any track sharing the
+sample. Refuse more than 64 starts instead of truncating the grid. Settings affect every track using that sample
 slot. Installing the module itself must change no sample.
 
 The base copies source metadata and owns source/loader retirement, confirmation,
@@ -56,6 +58,12 @@ atomic publication and verified failure rollback. The package receives no sample
 or PCM pointer and contains no native sample-writing code. NO cancels our create
 question; stock's existing zero-cross question retains its own meaning (NO there
 accepts an unaligned stock grid).
+
+If the source is busy after the stock YES, the base waits and revalidates before
+applying once. NO or another stock gesture cancels that wait; an actual source
+or owner change still refuses the edit. The optional replacement extension
+requires a revised private base; older preservation-only callers retain their
+existing API behavior.
 
 No project or sample-settings save is implicit. Saving/reloading through the
 stock workflow, physical reboot persistence, removal, companions and audible

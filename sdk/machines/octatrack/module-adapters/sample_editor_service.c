@@ -132,49 +132,54 @@ unsigned mw_sample_editor_copy(struct mw_sample_editor *e,uint32_t token,struct 
     else if(token==e->serial && why!=MODWERK_SAMPLE_BUSY)e->state=MW_SAMPLE_CLOSED;
     b->unlock(b->context,saved);return why;
 }
-static unsigned prepare(struct mw_sample_editor *e,const struct modwerk_sample_grid *g)
+static unsigned prepare(struct mw_sample_editor *e,const struct modwerk_sample_grid *g,unsigned replacing)
 {
     const struct modwerk_sample_view *v=&e->before.view;
     uint32_t minimum=v->frames<64u?v->frames:64u;
     if(!g || !g->count || g->count>MODWERK_SAMPLE_EDITOR_SLICES)return MODWERK_SAMPLE_INVALID;
-    if(g->count<v->count)return MODWERK_SAMPLE_PRESERVATION;
+    uint32_t retained=replacing?0:v->count;
+    if(g->count<retained)return MODWERK_SAMPLE_PRESERVATION;
     for(uint32_t i=0;i<g->count;++i)
         if(g->starts[i]<v->trim_start || g->starts[i]>=v->trim_end ||
            (i && g->starts[i-1]>=g->starts[i]))return MODWERK_SAMPLE_INVALID;
-    for(uint32_t i=0;i<v->count;++i) {
+    for(uint32_t i=0;i<retained;++i) {
         const struct modwerk_slice_record *r=&v->records[i];
         if(g->starts[i]!=r->start || r->end<=r->start || r->end>v->trim_end ||
            r->end-r->start<minimum || (i && v->records[i-1].end>r->start) ||
            (r->loop!=UINT32_MAX && (r->loop<r->start || r->loop>r->end-minimum)))
             return MODWERK_SAMPLE_PRESERVATION;
     }
-    for(uint32_t i=v->count;i<g->count;++i) {
+    for(uint32_t i=retained;i<g->count;++i) {
         uint32_t end=i+1u<g->count?g->starts[i+1u]:v->trim_end;
-        if(end-g->starts[i]<minimum || (i==v->count && i && v->records[i-1].end>g->starts[i]))
+        if(end-g->starts[i]<minimum || (i==retained && i && v->records[i-1].end>g->starts[i]))
             return MODWERK_SAMPLE_PRESERVATION;
     }
     /* Preserve every inactive row too, except the exact newly occupied rows.
      * Every refusal above precedes any write to the pending edit. */
     e->edit.count=g->count;records_copy(e->edit.records,v->records);
-    for(uint32_t i=v->count;i<g->count;++i) {
+    for(uint32_t i=retained;i<g->count;++i) {
         e->edit.records[i].start=g->starts[i];
         e->edit.records[i].end=i+1u<g->count?g->starts[i+1u]:v->trim_end;
         e->edit.records[i].loop=UINT32_MAX;
     }
     return MODWERK_SAMPLE_OK;
 }
-unsigned mw_sample_editor_confirm(struct mw_sample_editor *e,uint32_t token,const struct modwerk_sample_grid *g)
+static unsigned confirm(struct mw_sample_editor *e,uint32_t token,const struct modwerk_sample_grid *g,unsigned replacing)
 {
     if(!binding(e) || !g)return MODWERK_SAMPLE_INVALID;
     const struct mw_sample_backend *b=e->backend;uint32_t saved=b->lock(b->context);
     unsigned why=current(e,token);
     if(why==MODWERK_SAMPLE_OK && e->state!=MW_SAMPLE_OPEN)why=MODWERK_SAMPLE_BUSY;
     if(why==MODWERK_SAMPLE_OK) {
-        why=prepare(e,g);
-        if(why==MODWERK_SAMPLE_OK){e->state=MW_SAMPLE_PROMPT;why=MODWERK_SAMPLE_CONFIRMING;}
+        why=prepare(e,g,replacing);
+        if(why==MODWERK_SAMPLE_OK){e->replacing=replacing;e->state=MW_SAMPLE_PROMPT;why=MODWERK_SAMPLE_CONFIRMING;}
     } else if(token==e->serial && why!=MODWERK_SAMPLE_BUSY)e->state=MW_SAMPLE_CLOSED;
     b->unlock(b->context,saved);return why;
 }
+unsigned mw_sample_editor_confirm(struct mw_sample_editor *e,uint32_t token,const struct modwerk_sample_grid *g)
+{return confirm(e,token,g,0);}
+unsigned mw_sample_editor_replace(struct mw_sample_editor *e,uint32_t token,const struct modwerk_sample_grid *g)
+{return confirm(e,token,g,1);}
 unsigned mw_sample_editor_answer(struct mw_sample_editor *e,uint32_t token,unsigned yes)
 {
     if(!binding(e))return MODWERK_SAMPLE_UNSUPPORTED;
@@ -182,6 +187,9 @@ unsigned mw_sample_editor_answer(struct mw_sample_editor *e,uint32_t token,unsig
     unsigned why=MODWERK_SAMPLE_STALE;
     if(token && token==e->serial && e->state==MW_SAMPLE_PROMPT) {
         why=yes?current(e,token):MODWERK_SAMPLE_NO_CHANGE;
+        /* No write has begun. A transient reader/job must not consume YES or
+         * masquerade as source mutation. Recheck the entire capture later. */
+        if(why==MODWERK_SAMPLE_BUSY){b->unlock(b->context,saved);return why;}
         /* Consume before calling the publisher. No duplicate YES/reentrant
          * prompt, uncertain retry or later owner restoration can apply twice. */
         e->state=MW_SAMPLE_CLOSED;

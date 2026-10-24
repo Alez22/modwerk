@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.57-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Replace existing slices only after the native REPLACE SLICES? warning; NO leaves the old table intact.",
+      "Keep stock YES pending through temporary source work, revalidating before one publication; Back or another gesture cancels.",
+      "Use an outlined options window, inverted title and short labels/banners that fit the display.",
+      "Requires the revised private sample-editor base extension. File-backed Flex/Static only; recording buffers remain unsupported.",
+      "Known issue: repeated-edit robustness, exact hardware behavior, audio and persistence require qualification of this build."
+    ]
+  },
+  {
     "version": "0.1.56-experimental",
     "date": "2026-10-25",
     "changes": [

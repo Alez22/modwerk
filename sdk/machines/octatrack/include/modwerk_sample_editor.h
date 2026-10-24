@@ -44,6 +44,10 @@ struct modwerk_sample_editor_api {
      * No project/sample save is implicit, and no slice Undo is supplied. */
     unsigned (*confirm)(uint32_t token, const struct modwerk_sample_grid *);
     void (*cancel)(uint32_t token);
+    /* Optional size-checked extension. Replace the active slice table, after
+     * the base warns REPLACE SLICES? when the captured count is nonzero.
+     * Older callers keep the preservation-only confirm() above. */
+    unsigned (*replace)(uint32_t token, const struct modwerk_sample_grid *);
 };
 /* One typed contribution to the proposed base-owned action table. The record
  * is 64 bytes and four-byte aligned on ColdFire; label is inline, printable,

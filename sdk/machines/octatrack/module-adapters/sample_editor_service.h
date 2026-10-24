@@ -34,7 +34,7 @@ struct mw_sample_backend {
 enum mw_sample_state { MW_SAMPLE_CLOSED, MW_SAMPLE_OPEN, MW_SAMPLE_PROMPT };
 struct mw_sample_editor {
     const struct mw_sample_backend *backend;
-    uint32_t initialized, revision, serial, opened_revision, state, poisoned;
+    uint32_t initialized, revision, serial, opened_revision, state, poisoned, replacing;
     struct runtime_owner owner;
     struct mw_sample_capture before, observed;
     struct mw_sample_edit edit;
@@ -45,9 +45,11 @@ int mw_sample_editor_init(struct mw_sample_editor *, const struct mw_sample_back
 unsigned mw_sample_editor_begin(struct mw_sample_editor *, const struct runtime_owner *, uint32_t *token);
 unsigned mw_sample_editor_copy(struct mw_sample_editor *, uint32_t token, struct modwerk_sample_view *);
 unsigned mw_sample_editor_confirm(struct mw_sample_editor *, uint32_t token, const struct modwerk_sample_grid *);
+unsigned mw_sample_editor_replace(struct mw_sample_editor *, uint32_t token, const struct modwerk_sample_grid *);
 /* Invoked only by the base's verified stock confirmation dispatch, with the
  * token captured when THAT prompt was shown. Revalidate source/owner on YES.
- * NO just cancels. A token is consumed before publication and never retried. */
+ * NO just cancels. BUSY retains the prompt for a later revalidated attempt;
+ * consume before publication, so a write can never be retried. */
 unsigned mw_sample_editor_answer(struct mw_sample_editor *, uint32_t token, unsigned yes);
 void mw_sample_editor_cancel(struct mw_sample_editor *, uint32_t token);
 /* Caller already holds the verified source/loader lock. All relevant native

@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.56-experimental. Development checks: 23–25 October 2026 (Taipei).
+Current draft: 0.1.57-experimental. Development checks: 23–25 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -3021,7 +3021,100 @@ emulator boot, but its initial USB HELLO did not complete. That failed harness
 attempt did not install or exercise Beat Slicer and is not evidence of a fix.
 The new 4,008-byte module (`31c65f383807…`) compiles for MCF54455, passes both
 unchanged strict stock-free scans and all five target-enabled slicer tests.
-It uses the same proposed base API, with no base firmware update. Full native
-menu reruns and an exact corrected-build physical retest remain pending.
+It uses the same proposed base API, with no base firmware update. A normal-boot
+emulator rerun with this exact package passed file-backed Flex and Static
+preview/NO with unchanged metadata, native YES with exact records (three Flex,
+two Static), unchanged attributes/inactive records, stock clearing, USB Undo
+and restoration of the stock menu. These are small authored fixtures, not the
+owner's long file. The exact corrected-build physical retest remains pending.
 
 The current upstream-base repository check passes (2,570 app tests and the SDK check; 37 SDK tests, one skipped). The literal `origin/main` comparison still fails only on the inherited stale-fork CHANGELOG.md policy check. No native base rebuild is needed for this module-only correction.
+
+The combined 0.1.55 hardware trial's 60-minute Undo did not restore a known
+active identity: read-only status showed recovery, generation 7, active unknown
+on base `52c291c2…`. A fresh standard recovery client adopted transaction 4
+and retried rollback for three seconds; every reply remained needs-recovery.
+No corrected package was installed. The owner was asked to power-cycle before
+continuing; recovery and the exact long-file test remain unverified. Earlier
+successful single-module Undos do not qualify this combined-set removal.
+
+After the owner-confirmed power cycle, the flashed base `cd39c494…` returned
+in normal phase with all original 11 module IDs present. The same private
+base `52c291c2…` was RAM-booted again and the owner-approved 0.1.56 package
+`31c65f383807…` plus those companions passed an actual physical self-test:
+12 live/intact modules, seven DSP modules run, failed mask zero, CPU peak
+718 per mille, DSP peaks 772/578 per mille, frame gap 51,323 DTCN3 counts.
+The corrected set entered a fresh 60-minute trial without Keep, flash or save.
+The owner's long-file panel result and this set's final Undo remain pending.
+
+## Repeated edits and explicit replacement (0.1.57 staging)
+
+On the exact 0.1.56/base `52c291c2…` trial, the owner reported the combination
+worked initially, then failed after repeated stock clearing and different beat
+steps. WAITING FOR SOURCE was followed by CREATE SLICES? and a clipped banner
+consistent with the base's SAMPLE CHANGED - NOT APPLIED message. The exact
+reply at that physical failure was not captured; the service does, however,
+consume a confirmed YES on transient BUSY and mislabel it as source mutation.
+
+0.1.57 keeps the stock confirmation pending across BUSY and rechecks complete
+source metadata, owner and revision before any publication. NO or another stock
+gesture cancels the wait. A genuine source change still refuses. The proposed
+ABI 1 interface gains a size-checked optional replacement entry; old callers'
+confirm entry remains preservation-only. Replacement generates a fresh grid,
+warns REPLACE SLICES? for nonempty tables, and writes only after native YES.
+Inactive rows outside the new count remain unchanged and are not active slices.
+The new options frame uses an outline, inverse title and bounded short labels.
+Host/target, rendered UI and physical results are recorded separately below;
+this source has not yet run on hardware.
+
+The 0.1.56 trial disconnected at 20:41:57 UTC on 24 October (before its
+60-minute timer). The client recorded idle/disconnected and did not verify
+Undo. A later read-only bridge request reported the unit away. No cause of
+the disconnect, automatic removal or physical reboot result is inferred.
+
+The 0.1.57 actual controller/service regressions pass 100 repeated cycles over
+both kinds and all five steps, alternating stock-clear-equivalent empty counts
+and nonempty replacements, with BUSY after stock YES, readiness return,
+cancellation and duplicate-answer refusal. Service tests retain genuine source,
+revision and owner refusal while busy. Actual board tests cover nonempty-to-smaller
+replacement, complete-table NO/BUSY preservation, pointer bounds and selected-row
+retirement on YES, at Flex/Static slots 0 and 127. All five tests pass with the
+ColdFire compiler enabled. These are generated metadata fixtures, not hardware.
+
+The 4,372-byte package is `544125c5f1538d12283ae872192d49b1016184dc66f4e966aa5ad34ec3da2bfe`,
+module ID `c8d078f2`, ABI 8 with 33 hook words. Both unchanged strict stock-free
+scans pass. Private base `aba69ad57d71621d48e1b3be690d4d61136b04b201eda8b3ec35ef2c14921098`
+passes native/browser byte parity (BIN SHA-256
+`10c062cb290abe1392efc25a72dcb580eefae1238f22b2b31aaa1a095c94e014`),
+stock-free, guarded stock-site and bootloader-preservation checks. It has not
+run on the physical unit. Default beta generation remains sample-editor-off;
+all seven USB layouts pass native/browser parity and stock-free checks.
+
+The normal-boot emulator run with the above 4,372-byte prototype completed:
+actual USB installation; Flex preview/NO unchanged and exact native YES with
+three records; Static preview/NO unchanged and exact native YES with two;
+then repeated replacement at 4, 16, 32, 64 and 1 beats on each kind. Each
+replacement first exercised native NO against the complete old table, then
+YES against the rational oracle. Stock clearing, actual USB Undo and restoration
+of the displayed stock-only menu also passed. This is emulator evidence only.
+The retained driver exposes this run with `--repeat`; neither the unit nor
+emulator memory was written by the harness.
+
+Frame review found the maximum-count replacement label would exceed the
+20-character content width. The final controller changes only the literal
+OLD SLICES to SLICES, making REPLACE 64 SLICES fit. It is 4,360 bytes, SHA-256
+`11127a1f184b78c0b402a81b9e23a7b41216d0aafd2ceb35280418757303c9d0`.
+The final build passes both strict stock-free scans and all five target-enabled
+tests, now also including 40 repeated long-source cycles across Flex/Static:
+48, 24 and 12 slices at 122 BPM, and refusal of both over-64 grids, with clears,
+replacement and BUSY after confirmed YES. The full-menu emulator receipt stays
+bound to prototype `544125…`; it is not relabeled as this final image. All final
+longest labels were checked against the 20-character width. Exact final-package
+physical installation, rendered display and repeated-edit results remain pending.
+
+The integrated upstream-main check passes in 140.41 seconds: 2,570 app tests
+in 325 files, lint/type/build and the SDK check (37 tests, one skipped). All
+25 current published USB packages rebuild identically with stock-free checks;
+Play Modes retains the declared older release and issue #764 gap. The literal
+stale-fork origin/main check still fails on inherited CHANGELOG.md changes.
+The unlisted draft remains unavailable to module:doctor until release integration.

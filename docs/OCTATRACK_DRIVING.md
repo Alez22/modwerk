@@ -29,6 +29,8 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
   `a408c505`, twin `8dc7692c`). Before a twin, note the flashed set (`inventory`) and where its packages are; base-bound
   ones (Analog BD, Output Matrix) must be the copies bound to that base, from the commit that built it. Afterwards,
   power-cycle and `try` each again.
+- Verify an Undo's active identity and inventory after the reply; a ready host UI alone is insufficient. On a contributor's MKII (25 October 2026, private base `52c291c2…`), a 12-module timed Undo left recovery/active unknown and standard
+  rollback retries still returned needs-recovery. Stop installing and ask the owner to power-cycle when recovery cannot finish.
 - After a crash restart, or finding the unit on the flashed base with no power cycle you know of, ask for a power
   cycle before the next RAM boot: one such boot hung at the logo (12 October 2026,
   [traps](OCTATRACK_HARDWARE_TRAPS.md#dsp-loader-dynamic-dsp-code)).
@@ -98,6 +100,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | `screen` | the screen as block characters (thousands of tokens; avoid) |
 | `crash` | the last crash record (vector, PC, registers); `crashtest` makes one |
 | `selftest` | PROJ > MODWERK > SELF TEST over USB: start it (transport stopped), wait, print the verdict, the modules that ran and the CPU and core peaks |
+| `selftest:trace` | the same, printing each half second's phase, progress, the CPU the test recorded and the meter's latest window beside it: what a CPU or core peak came from |
 | `stall` | the last DSP stall record: why, the loader's whole report, each core's last packet header, the live FX ids, as they stood when the stall was seen (it survives the power cycle); `stalltest` writes one now |
 | `guard`, `guard:MILLE` | the frame guard since the last read: the frame interrupt's longest frame, latest start and share of the CPU, the machine renders it skipped and on which tracks, and its share; `guard:MILLE` sets the share (per mille of a frame, `guard:65535` turns it off) |
 | `try FILE`, `remove FILE` | install or remove a module package, accepted at once |
@@ -130,7 +133,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | What | Where |
 |---|---|
 | current track, Part | byte `0x80000000`, byte `0x80000003` |
-| what each track runs (FX1 T1-8, then FX2) | 16 bytes at `0x80000ec4`; a Part's effects reach it at each track's next trig while playing, not at a stopped pattern change. A track without trigs keeps the last bank's effect (16 October 2026, twin of `38a0bde1`: B01's DELAY never reached trigless tracks that ran DARK REV), so test a pick's admission on tracks with trigs or in a blank project. A trigless track keeps the last bank's machine too: from bank A (Analog BD on T1) to bank B, T1 kept rendering Analog BD and asking for its lease (22 October 2026, twin `df19fdca`); a RELOAD of bank B's Part, then bank C, cleared it |
+| what each track runs (FX1 T1-8, then FX2) | 16 bytes at `0x80000ec4`; a Part's effects reach it at each track's next trig while playing, not at a stopped pattern change. A track without trigs keeps the last bank's effect (16 October 2026, twin of `38a0bde1`: B01's DELAY never reached trigless tracks that ran DARK REV), so test a pick's admission on tracks with trigs or in a blank project. A trigless track keeps the last bank's machine too: from bank A (Analog BD on T1) to bank B, T1 kept rendering Analog BD and asking for its lease (22 October 2026, twin `df19fdca`); a RELOAD of bank B's Part, then bank C, cleared it. On 24 October 2026 (twin of `f14e7fa3`, stopped) a RELOAD did not: switching to another Part and back (`part2 part1`) applied the Part's effects, and `pick:` of the effect the Part already names leaves the live slot as it is (it times out) |
 | current bank | `0x46c82456` holds its base: `0x400e21e0 + bank * 0x9b340` |
 | a working Part's effects | 16 bytes at bank base `+ 0x8ed80 + part * 6322` (the whole Part is 6,322 bytes) |
 | the saved copy | bank base `+ 0x9504a + part * 6322` |

@@ -143,6 +143,37 @@ uint32_t mw_sample_editor_service_test(void)
     reset(1,0,1);source.view.records[0].start=1000;
     CHECK(mw_sample_editor_begin(&editor,&owner,&token)==MODWERK_SAMPLE_OK);
     CHECK(mw_sample_editor_confirm(&editor,token,&grid)==MODWERK_SAMPLE_PRESERVATION && !publishes);
+    /* An accepted YES waits for transient work without consuming the prompt.
+     * Every later attempt revalidates, including mutations while busy. */
+    for(unsigned change=0;change<4;++change) {
+        reset(1,0,0);CHECK(mw_sample_editor_begin(&editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_confirm(&editor,token,&grid)==MODWERK_SAMPLE_CONFIRMING);
+        ready=0;CHECK(mw_sample_editor_answer(&editor,token,1)==MODWERK_SAMPLE_BUSY);
+        CHECK(editor.state==MW_SAMPLE_PROMPT && !publishes);
+        if(change==1)++source.view.records[63].loop;
+        if(change==2)mw_sample_editor_changed_locked(&editor);
+        if(change==3)owner_live=0;
+        ready=1;
+        CHECK(mw_sample_editor_answer(&editor,token,1)==(change?MODWERK_SAMPLE_STALE:MODWERK_SAMPLE_APPLIED));
+        CHECK(publishes==(change?0u:1u));
+    }
+    for(unsigned kind=0;kind<2;++kind) {
+        reset(kind,127,4);bytes(&before,&source,sizeof before);
+        grid.count=2;grid.starts[0]=0;grid.starts[1]=44100;
+        CHECK(mw_sample_editor_begin(&editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_confirm(&editor,token,&grid)==MODWERK_SAMPLE_PRESERVATION);
+        CHECK(mw_sample_editor_replace(&editor,token,&grid)==MODWERK_SAMPLE_CONFIRMING && editor.replacing);
+        CHECK(!publishes && equal(&before,&source,sizeof source));
+        CHECK(mw_sample_editor_answer(&editor,token,0)==MODWERK_SAMPLE_NO_CHANGE);
+        CHECK(equal(&before,&source,sizeof source));
+        CHECK(mw_sample_editor_begin(&editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_replace(&editor,token,&grid)==MODWERK_SAMPLE_CONFIRMING);
+        CHECK(mw_sample_editor_answer(&editor,token,1)==MODWERK_SAMPLE_APPLIED && publishes==1);
+        CHECK(source.view.count==2 && source.view.records[0].end==44100 && source.view.records[1].start==44100);
+        CHECK(source.view.records[1].end==88200 && source.view.records[1].loop==UINT32_MAX);
+        for(unsigned i=2;i<64;++i)CHECK(equal(&source.view.records[i],&before.view.records[i],12));
+    }
+    grid.count=4;for(unsigned i=0;i<4;++i)grid.starts[i]=22050*i;
     /* A failed publisher may report verified no-change; anything else poisons. */
     for(uint32_t fault=0;fault<2;++fault) {
         reset(1,0,0);bytes(&before,&source,sizeof before);

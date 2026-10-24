@@ -22,6 +22,7 @@ import argparse
 parser=argparse.ArgumentParser(description=__doc__)
 for name in ('emulator','base-dir','package','card','output'):
     parser.add_argument('--'+name,type=Path,required=True)
+parser.add_argument('--repeat',action='store_true',help='Repeat replacement/NO/YES with all five spacings before stock clearing.')
 parser.add_argument('--set',default='BEATLAB')
 parser.add_argument('--project',default='PROJECT 261023')
 args=parser.parse_args()
@@ -142,7 +143,7 @@ try:
         starts=[]
         for n in range(65):
             frame=settings[75]+int(n*interval+Fraction(1,2))
-            if frame>=settings[76]:break
+            if frame+min(64,word((0x46c90a78,0x46c922c4)[kind]+16))>settings[76]:break
             starts.append(frame)
         assert 0<len(starts)<=64
         expected=[(start,starts[i+1] if i+1<len(starts) else settings[76],0xffffffff) for i,start in enumerate(starts)]
@@ -178,6 +179,34 @@ try:
         assert [struct.unpack('>3I',after[312+12*i:324+12*i]) for i in range(len(expected))]==expected
         assert after[312+12*len(expected):1080]==before[312+12*len(expected):1080],'inactive records changed'
         results.append({'kind':kind,'unchangedPreviewAndNO':True,'nativeYesCount':len(expected),'sampleBpm24':settings[69],'exactRecords':True})
+        if args.repeat:
+            for step in (4,16,32,64,1):
+                old=port.peek(at,1096)
+                tap(port,'yes');choose('BEAT SLICER');port.command('run 200')
+                assert state()==1,'reopen after apply failed'
+                tap(port,'up');port.command('run 200')
+                (out/f'replace-options-{kind}-{step}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
+                tap(port,'yes');port.command('run 200');assert state()==2
+                assert word(syms['mw_sample_editor']+28)==1,'replacement warning not selected'
+                tap(port,'no');port.command('run 200')
+                assert state()==0 and port.peek(at,1096)==old,'replacement NO changed the table'
+                tap(port,'yes');choose('BEAT SLICER');port.command('run 200')
+                assert state()==1
+                tap(port,'yes');port.command('run 200');assert state()==2
+                tap(port,'yes');port.command('run 1000')
+                replacement=[]
+                for n in range(65):
+                    start=settings[75]+int(n*interval*step+Fraction(1,2))
+                    if start+64>settings[76]:break
+                    replacement.append(start)
+                table=port.peek(at,1096)
+                assert state()==0 and word(at+1092)==len(replacement),'repeated replacement failed'
+                assert table[:312]==old[:312] and table[1080:1092]==old[1080:1092]
+                for i,start in enumerate(replacement):
+                    end=replacement[i+1] if i+1<len(replacement) else settings[76]
+                    assert struct.unpack('>3I',table[312+12*i:324+12*i])==(start,end,0xffffffff)
+                print('REPLACED',kind,step,len(replacement),flush=True)
+            results[-1]['repeatedReplacementSteps']=[4,16,32,64,1]
         stock_clear(kind);assert word(at+1092)==0
     exercise(1)
     tap(port,'no');tap(port,'track1');tap(port,'track1')

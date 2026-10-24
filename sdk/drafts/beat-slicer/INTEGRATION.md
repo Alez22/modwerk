@@ -2,7 +2,7 @@
 
 ## Current readiness
 
-Basic scope: 0.1.56-experimental, private staging.
+Basic scope: 0.1.57-experimental, private staging.
 
 The owner chose a basic working slicer first. File-backed Flex and Static share
 AED slice commands and record geometry; their settings/control tables differ.
@@ -16,7 +16,16 @@ table. The private base owns native menus, source capture, confirmation and atom
 marker publication; the package contains no stock addresses or writer. The
 service requires stopped playback/recording and file-backed slots 0–127. Default
 bases refuse this contribution. `--sample-editor` is a private staging opt-in,
-not released beta support or an approved shared ABI.
+not released beta support or an approved shared ABI. `module:doctor -- beat-slicer`
+currently reports no registered module because the draft is deliberately unlisted;
+it is a release-integration gate, not a passed check.
+
+The current replacement extension needs a revised private base. Existing slice
+tables are replaced only after the stock REPLACE SLICES? warning; old API callers
+retain preservation-only behavior. A confirmed YES waits across temporary busy
+work and revalidates before one write; NO or another stock gesture cancels it.
+The owner reported initial 0.1.56 success followed by repeated-edit failures.
+Exact 0.1.57 device qualification remains pending.
 
 Established software checks: actual controller/grid/service host sanitizers,
 full-identity retirement and one-use confirmation, actual adapter failure/rollback

@@ -19,7 +19,7 @@ static const uint32_t spacings[5]={1,4,16,32,64};
 static uint32_t token,active,tempo_source,spacing,reply,geometry,dirty,captured;
 static uint32_t pending_confirm;
 static uint32_t consumed[2];
-enum { DEVICE_SHORT_TRIM=16,DEVICE_OLD_CONFLICT };
+enum { DEVICE_SHORT_TRIM=16 };
 #define STOCK_MIN_SLICE_FRAMES 64u
 
 static void close_editor(void)
@@ -29,7 +29,6 @@ static void close_editor(void)
 }
 static unsigned refresh(void)
 {
-    static uint32_t starts[BS_MAX_SLICES];
     if(!active || !editor)return 0;
     unsigned current=editor->copy(token,&view);
     if(current==MODWERK_SAMPLE_BUSY){reply=MODWERK_SAMPLE_BUSY;return 0;}
@@ -43,16 +42,11 @@ static unsigned refresh(void)
     if(!minimum || view.trim_start>=view.trim_end || view.trim_end-view.trim_start<minimum) {
         geometry=DEVICE_SHORT_TRIM;return 1;
     }
-    /* Omit only NEW grid starts that cannot form a stock-sized final slice.
-     * The writer still uses the original trim end: no sample is cropped.
-     * Never remove an existing start or change its ordinal to make it fit. */
+    /* A replacement is a fresh grid. The base retains the old table until
+     * explicit stock confirmation and independently validates this proposal. */
     uint32_t grid_end=view.trim_end-(minimum-1u);
-    if(view.count && view.records[view.count-1u].start>=grid_end) {
-        geometry=DEVICE_OLD_CONFLICT;return 1;
-    }
-    for(uint32_t i=0;i<view.count;++i)starts[i]=view.records[i].start;
     struct bs_grid_request request={view.frame_rate,view.trim_start,grid_end,
-        view.sample_bpm24,view.project_bpm24,spacings[spacing],tempo_source,view.count,starts};
+        view.sample_bpm24,view.project_bpm24,spacings[spacing],tempo_source,0,0};
     geometry=bs_grid_preview(&request,&plan);return 1;
 }
 static void confirm_when_ready(void)
@@ -60,7 +54,7 @@ static void confirm_when_ready(void)
     if(!active || !captured || dirty || geometry!=BS_OK){pending_confirm=0;return;}
     proposal.count=plan.count;
     for(uint32_t i=0;i<BS_MAX_SLICES;++i)proposal.starts[i]=plan.starts[i];
-    reply=editor->confirm(token,&proposal);
+    reply=editor->replace(token,&proposal);
     pending_confirm=reply==MODWERK_SAMPLE_BUSY;
     if(reply==MODWERK_SAMPLE_CONFIRMING) {
         /* The base owns the copied plan and the remaining stock question. */
@@ -71,7 +65,7 @@ void bs_device_open(uint32_t opened,const struct modwerk_sample_editor_api *api)
 {
     close_editor();
     if(!opened || !api || api->abi!=MODWERK_SAMPLE_EDITOR_ABI || api->bytes<sizeof *api ||
-       !api->copy || !api->confirm || !api->cancel)return;
+       !api->copy || !api->confirm || !api->cancel || !api->replace)return;
     editor=api;token=opened;active=1;dirty=1;captured=0;
     geometry=BS_INVALID;reply=MODWERK_SAMPLE_OK;
     refresh();
@@ -141,31 +135,33 @@ void module_draw(unsigned char *frame)
     if(!active || !frame)return;
     char line[32],*at;
     for(uint32_t i=0;i<1024;++i)frame[i]=0;
-    bs_device_text(frame,1,"BEAT SLICER");
+    bs_device_box(frame,0,0,128,64);
+    bs_device_text_at(frame,30,2,"BEAT SLICER");
+    bs_device_invert(frame,1,1,126,10);
     if(!captured || dirty) {
-        bs_device_text(frame,22,"WAITING FOR SOURCE");
-        bs_device_text(frame,55,"NO BACK");return;
+        bs_device_text(frame,26,"WAITING FOR SOURCE");
+        bs_device_text(frame,55,"NO:BACK");return;
     }
-    at=append(line,tempo_source?"A PROJECT ":"A SAMPLE ");
+    at=append(line,tempo_source?"A BPM:PROJECT ":"A BPM:SAMPLE ");
     uint32_t bpm=tempo_source?view.project_bpm24:view.sample_bpm24;
     if(bpm>=720 && bpm<=7200) {
         at=number(at,bpm/24u);*at++='.';
         uint32_t fraction=(bpm%24u*100u+12u)/24u;
         *at++=(char)('0'+fraction/10u);*at++=(char)('0'+fraction%10u);*at=0;
-    } else text(at,"NO BPM");
-    bs_device_text(frame,12,line);
-    at=append(line,"B SPACING ");at=number(at,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
-    bs_device_text(frame,22,line);
-    at=append(line,view.kind==MODWERK_SAMPLE_FLEX?"FLEX SLOT ":"STATIC SLOT ");
-    at=number(at,view.slot+1u);at=append(at," OLD ");number(at,view.count);
-    bs_device_text(frame,32,line);
-    if(reply==MODWERK_SAMPLE_PRESERVATION || geometry==DEVICE_OLD_CONFLICT)text(line,"OLD SLICES CONFLICT");
-    else if(geometry==DEVICE_SHORT_TRIM)text(line,"TRIM TOO SHORT");
-    else if(geometry==BS_TOO_MANY)text(line,"MORE THAN 64 SLICES");
-    else if(geometry!=BS_OK)text(line,"CHECK BPM OR TRIM");
+    } else text(at,"NONE");
+    bs_device_text(frame,15,line);
+    at=append(line,"B STEP:");at=number(at,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
+    bs_device_text(frame,25,line);
+    at=append(line,"SLICES:");at=number(at,plan.count);
+    at=append(at,view.kind==MODWERK_SAMPLE_FLEX?" FLEX ":" STATIC ");number(at,view.slot+1u);
+    bs_device_text(frame,35,line);
+    if(geometry==DEVICE_SHORT_TRIM)text(line,"TRIM TOO SHORT");
+    else if(geometry==BS_TOO_MANY)text(line,"OVER 64 SLICES");
+    else if(geometry!=BS_OK)text(line,"CHECK BPM / TRIM");
     else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAITING FOR SOURCE");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"EDIT REFUSED");
-    else {at=number(line,plan.count);append(at,plan.count==1?" SLICE":" SLICES");}
-    bs_device_text(frame,43,line);
-    bs_device_text(frame,55,"YES CREATE NO BACK");
+    else if(view.count){at=append(line,"REPLACE ");at=number(at,view.count);append(at," SLICES");}
+    else text(line,"NEW SLICE GRID");
+    bs_device_text(frame,45,line);
+    bs_device_text(frame,55,"YES:OK      NO:BACK");
 }

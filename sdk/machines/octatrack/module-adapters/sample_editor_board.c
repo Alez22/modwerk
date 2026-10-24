@@ -154,8 +154,14 @@ static void api_cancel(uint32_t token)
     mw_sample_editor_cancel(&mw_sample_editor,token);
     modwerk_machine_unlock(saved);
 }
+static unsigned api_replace(uint32_t token,const struct modwerk_sample_grid *grid)
+{
+    uint32_t saved=modwerk_machine_lock();
+    unsigned why=buffer(grid,sizeof *grid,0)?mw_sample_editor_replace(&mw_sample_editor,token,grid):MODWERK_SAMPLE_INVALID;
+    modwerk_machine_unlock(saved);return why;
+}
 const struct modwerk_sample_editor_api mw_sample_editor_api={
-    MODWERK_SAMPLE_EDITOR_ABI,sizeof(struct modwerk_sample_editor_api),api_copy,api_confirm,api_cancel
+    MODWERK_SAMPLE_EDITOR_ABI,sizeof(struct modwerk_sample_editor_api),api_copy,api_confirm,api_cancel,api_replace
 };
 void mw_sample_owner_changing(const struct runtime_dsp *from)
 {

@@ -14,7 +14,7 @@ struct binding {struct runtime_owner owner;struct mw_sample_action_view action;u
 static struct binding bindings[ACTIONS],pending;
 static uint32_t binding_count,stock_count,serial,root_task,root_kind,root_slot;
 static uint32_t pending_at,pending_kind,pending_slot,pending_generation;
-static uint32_t question_token,question_active,yes_down;
+static uint32_t question_token,question_active,question_pending,yes_down;
 static uint32_t initial;
 static int32_t *remembered;
 static char text[ROWS][32];
@@ -160,16 +160,29 @@ void mw_sample_menu_retire_locked(const struct runtime_dsp *from)
 static void answer(uint32_t yes)
 {
     if(!question_active)return;
-    uint32_t token=question_token;question_active=0;question_token=0;
+    uint32_t token=question_token;
     unsigned why=mw_sample_editor_answer(&mw_sample_editor,token,yes!=0);
+    if(why==MODWERK_SAMPLE_BUSY) {
+        if(!question_pending)say("WAITING FOR SOURCE");
+        question_pending=1;return;
+    }
+    question_active=question_pending=question_token=0;
     if(why==MODWERK_SAMPLE_APPLIED)mw_sample_refresh_ui();
-    else if(yes && why!=MODWERK_SAMPLE_NO_CHANGE)say("SAMPLE CHANGED - NOT APPLIED");
+    else if(yes && why!=MODWERK_SAMPLE_NO_CHANGE)say("SOURCE CHANGED");
 }
 int mw_sample_ui_key(int code,int pressed)
-{if(code==YES)yes_down=pressed!=0;return 0;}
+{
+    if(code==YES)yes_down=pressed!=0;
+    if(question_pending && pressed && code!=YES) {
+        answer(0); /* cancel before passing another stock gesture */
+        if(code==0x32)return 1;
+    }
+    return 0;
+}
 void mw_sample_ui_tick(void)
 {
     mw_sample_editor_bootstrap();
+    if(question_pending)answer(1);
     if(pending.live && !select_active && !question_active && !read32(0x460e5e30u)) {
         uint32_t saved=modwerk_machine_lock(),token=0;
         uint32_t control=(pending_kind?0x46c922c4u:0x46c90a78u)+44u*pending_slot;
@@ -189,7 +202,7 @@ void mw_sample_ui_tick(void)
             modwerk_machine_unlock(saved);return;
         }
         modwerk_machine_unlock(saved);
-        say(why==MODWERK_SAMPLE_BUSY?"STOP PLAYBACK AND RECORDING":"SAMPLE EDIT NOT AVAILABLE");
+        say(why==MODWERK_SAMPLE_BUSY?"STOP PLAY / RECORD":"EDIT NOT AVAILABLE");
     }
     if(mw_sample_editor.state==MW_SAMPLE_PROMPT && !question_active && !yes_down &&
        !select_active && !read32(0x460e5e30u)) {
@@ -197,6 +210,8 @@ void mw_sample_ui_tick(void)
          * native question primitive stock slice deletion uses. Its retained
          * string/callback are base-owned. No Apply occurs merely by showing it. */
         question_token=mw_sample_editor.serial;question_active=1;
-        ((void (*)(const char *,void (*)(uint32_t)))0x400581c4u)("CREATE SLICES?",answer);
+        const char *prompt=mw_sample_editor.replacing && mw_sample_editor.before.view.count?
+            "REPLACE SLICES?":"CREATE SLICES?";
+        ((void (*)(const char *,void (*)(uint32_t)))0x400581c4u)(prompt,answer);
     }
 }

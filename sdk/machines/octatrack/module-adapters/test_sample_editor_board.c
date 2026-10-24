@@ -101,6 +101,34 @@ int main(void)
         }
         CHECK(!masked && !locked && !bad);
     }
+    /* Replacement uses the real board API buffer checks and writer. NO and
+     * transient busy preserve a complete nonempty table; YES may reduce it. */
+    for(unsigned kind=0;kind<2;++kind)for(unsigned slot=0;slot<128;slot+=127) {
+        uint32_t settings=setup(kind,slot),before[192];
+        put(settings+1092,4);
+        for(unsigned i=0;i<4;++i) {
+            put(settings+312+12*i,22050*i);put(settings+316+12*i,22050*(i+1));
+            put(settings+320+12*i,UINT32_MAX);
+        }
+        for(unsigned i=0;i<192;++i)before[i]=get(settings+312+4*i);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        grid->count=2;grid->starts[0]=0;grid->starts[1]=44100;
+        CHECK(mw_sample_editor_api.replace(token,(void *)extent)==MODWERK_SAMPLE_INVALID);
+        CHECK(mw_sample_editor_api.confirm(token,grid)==MODWERK_SAMPLE_PRESERVATION);
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING && !writes);
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,0)==MODWERK_SAMPLE_NO_CHANGE);
+        CHECK(get(settings+1092)==4 && !writes);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        transport=0;CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_BUSY);
+        CHECK(get(settings+1092)==4 && !writes);
+        for(unsigned i=0;i<192;++i)CHECK(before[i]==get(settings+312+4*i));
+        transport=1;CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_APPLIED);
+        CHECK(get(settings+1092)==2 && get(settings+316)==44100 && get(settings+324)==44100);
+        CHECK(get(settings+328)==88200 && get(0x400ceb3c)==UINT32_MAX);
+        for(unsigned i=6;i<192;++i)CHECK(before[i]==get(settings+312+4*i));
+        CHECK(!masked && !locked && !bad);
+    }
     /* Readiness is the conjunction of real service gates; no writes on any
      * refused opening. Only the base's exact immutable EP0 wake is exempt. */
     for(unsigned gate=0;gate<8;++gate) {

@@ -18,9 +18,9 @@ static const unsigned char digits[10][7]={
  {14,16,16,30,17,17,14},{31,1,2,4,8,8,8},{14,17,17,14,17,17,14},
  {14,17,17,15,1,1,14}
 };
-void bs_device_text(unsigned char *frame,uint32_t y,const char *s){
+void bs_device_text_at(unsigned char *frame,uint32_t x,uint32_t y,const char *s){
  if(!frame || !s || y>57)return;
- for(uint32_t x=4;*s && x+5<=128;x+=6,++s){
+ for(;*s && x+5<=124;x+=6,++s){
   const unsigned char *glyph=0;
   if(*s>='A' && *s<='Z')glyph=letters[(unsigned)*s-'A'];
   if(*s>='0' && *s<='9')glyph=digits[(unsigned)*s-'0'];
@@ -29,8 +29,29 @@ void bs_device_text(unsigned char *frame,uint32_t y,const char *s){
    if(*s==':' && (row==2 || row==5))bits=4;
    if(*s=='.' && row==6)bits=4;
    if(*s=='-' && row==3)bits=14;
+   if(*s=='/')bits=1u<<(row*4u/6u);
    for(uint32_t column=0;column<5;++column)if(bits&(16u>>column))
     frame[(x+column)*8u+7u-(y+row)/8u]|=(unsigned char)(1u<<((y+row)%8u));
   }
  }
+}
+
+void bs_device_text(unsigned char *frame,uint32_t y,const char *s)
+{bs_device_text_at(frame,4,y,s);}
+static void pixel(unsigned char *frame,uint32_t x,uint32_t y,unsigned invert)
+{
+ if(x>=128 || y>=64)return;
+ unsigned char *p=&frame[x*8u+7u-y/8u],bit=(unsigned char)(1u<<(y%8u));
+ if(invert)*p^=bit;else *p|=bit;
+}
+void bs_device_box(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_t h)
+{
+ if(!frame || !w || !h || x>=128 || y>=64 || w>128-x || h>64-y)return;
+ for(uint32_t i=x;i<x+w;++i){pixel(frame,i,y,0);pixel(frame,i,y+h-1,0);}
+ for(uint32_t i=y;i<y+h;++i){pixel(frame,x,i,0);pixel(frame,x+w-1,i,0);}
+}
+void bs_device_invert(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_t h)
+{
+ if(!frame || x>=128 || y>=64 || w>128-x || h>64-y)return;
+ for(uint32_t i=x;i<x+w;++i)for(uint32_t j=y;j<y+h;++j)pixel(frame,i,j,1);
 }

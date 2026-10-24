@@ -33,11 +33,11 @@ static unsigned confirm(uint32_t token,const struct modwerk_sample_grid *grid)
 {
     ++confirms;
     if(block_confirm){ready=0;block_confirm=0;}
-    return mw_sample_editor_confirm(&service,token,grid);
+    return mw_sample_editor_replace(&service,token,grid);
 }
 static void cancel(uint32_t token){++cancels;mw_sample_editor_cancel(&service,token);}
 static const struct mw_sample_backend backend={0,lock,unlock,available,published,capture,publish};
-static const struct modwerk_sample_editor_api api={MODWERK_SAMPLE_EDITOR_ABI,sizeof api,copy,confirm,cancel};
+static const struct modwerk_sample_editor_api api={MODWERK_SAMPLE_EDITOR_ABI,sizeof api,copy,confirm,cancel,confirm};
 static int active(void)
 {struct modwerk_runtime_api runtime={0};module_tick(&runtime);return !!(runtime.value&0x100);}
 static int tap(int code)
@@ -147,13 +147,14 @@ int main(void)
     CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
     CHECK(source.view.count==48 && source.view.records[1].start==347016u);
     CHECK(source.view.records[47].start==16309770u && source.view.records[47].end==16656797u);
-    /* Existing short-tail markers are never silently removed. */
+    /* Existing short-tail markers may be replaced only after stock YES. */
     source.view.count=1;source.view.records[0].start=source.view.trim_end-1u;
     source.view.records[0].end=source.view.trim_end;
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);previous=confirms;
-    CHECK(tap(0x31) && active() && service.state==MW_SAMPLE_OPEN && confirms==previous);
-    CHECK(tap(0x32));
+    CHECK(tap(0x31) && !active() && service.state==MW_SAMPLE_PROMPT && confirms==previous+1);
+    CHECK(mw_sample_editor_answer(&service,token,0)==MODWERK_SAMPLE_NO_CHANGE);
+    CHECK(source.view.count==1 && source.view.records[0].start==source.view.trim_end-1u);
     source.view.count=0;source.view.frames=100;source.view.trim_start=90;source.view.trim_end=100;
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);previous=confirms;
@@ -164,6 +165,51 @@ int main(void)
         bs_device_open(token,&api);CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
         CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
         CHECK(source.view.count==1 && source.view.records[0].start==0 && source.view.records[0].end==frames);
+    }
+    /* Repeat clearing/replacement at every supported step on both source
+     * kinds. Inject busy AFTER stock confirmation, then release or cancel. */
+    for(unsigned kind=0;kind<2;++kind)for(unsigned run=0;run<50;++run) {
+        source.view.kind=kind;source.view.frames=source.view.trim_end=88200;
+        source.view.trim_start=0;source.view.sample_bpm24=2880;
+        if(run%2==0)source.view.count=0; /* stock DELETE ALL SLICES */
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);CHECK(active());CHECK(module_enc(1,1));
+        unsigned before_count=source.view.count,before_writes=publishes;
+        CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT && service.replacing);
+        ready=0;
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_BUSY);
+        CHECK(service.state==MW_SAMPLE_PROMPT && publishes==before_writes && source.view.count==before_count);
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_BUSY);
+        ready=1;
+        if(run%3==0) {
+            CHECK(mw_sample_editor_answer(&service,token,0)==MODWERK_SAMPLE_NO_CHANGE);
+            CHECK(publishes==before_writes && source.view.count==before_count);
+        } else {
+            CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+            CHECK(source.view.count>=1 && source.view.count<=4 && publishes==before_writes+1);
+        }
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_STALE);
+    }
+    /* Long 122-BPM material: change 48 -> 24 -> 12 slices, then refuse
+     * the two grids exceeding 64. Repeat after stock clearing and replacement. */
+    for(unsigned kind=0;kind<2;++kind)for(unsigned run=0;run<20;++run) {
+        source.view.kind=kind;
+        source.view.frames=source.view.trim_end=16656797u;
+        source.view.sample_bpm24=2928;
+        if(run%2==0)source.view.count=0;
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);CHECK(module_enc(1,(run || kind)?1:0));
+        unsigned before_writes=publishes;
+        CHECK(tap(0x31));
+        if(run%5<3) {
+            CHECK(service.state==MW_SAMPLE_PROMPT && !active());
+            ready=0;CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_BUSY);
+            ready=1;CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+            CHECK(source.view.count==(48u>>(run%5)) && publishes==before_writes+1);
+        } else {
+            CHECK(active() && service.state==MW_SAMPLE_OPEN && publishes==before_writes);
+            CHECK(tap(0x32));
+        }
     }
     CHECK(!held && !bad);
     puts("PASS: actual package controller/grid, frame bounds and shared confirmation for Flex/Static");return 0;
