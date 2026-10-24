@@ -1,5 +1,12 @@
 # Verification record
 
+## Mod-storage lockfile per configuration — 23 October 2026
+
+A machine configuration now keeps the mod-storage lockfile its last build returned, and the next build passes it back to the kit (`store` in the bridge's `build` call; `buildWithLock` in `src/engine/elekloader/machine-build.ts`), so a rebuild keeps every storage field in place. Before this, each build started from a new layout. This only matters for a core that keeps mod storage (core-ar2 on the Analog Rytm MKII); every other core returns no lockfile, so nothing is saved for it. The kit is unchanged: its client's `build` has no `store` argument, so Modwerk sends the same call through the client's `call`.
+- **Where it lives:** `storageLock` on the saved configuration (IndexedDB), saved for the configuration the build started from, even if another one is open by the time it finishes. A build that returns the same lockfile writes nothing. The JSON backup carries it as `storage`; an import checks it with the kit's `checkLock` for that machine and refuses the backup if the kit would refuse the lockfile.
+- **Tests:** `useDigiBuild.test.ts` (the lockfile given to the build, saved only when it changes, nothing for a failed build or a core without storage), `digi-selection.test.ts` (backup round trip and refusals) and `workspace.test.ts` (saved shape).
+- **Not tested:** no browser build from a stock OS file ran here, so the round trip through the real worker (build, save, rebuild from the saved lockfile) is covered only by the kit's own `store` handling, in the vendored kit 0.7.0. No library module declares storage yet, so no saved configuration holds a lockfile until Euclid Accents or Velocity Humanise enter the library.
+
 ## Analog Rytm MKII: Filter Hz in the library — 23 October 2026
 
 Filter Hz 1.2.0 leaves `_submissions` and is the Rytm's first library module, so the machine moves from research to preview with every step done. The configuration page now builds the core with library modules instead of the core alone; downloads stay off (`DIGI_DOWNLOADS_ENABLED`).
