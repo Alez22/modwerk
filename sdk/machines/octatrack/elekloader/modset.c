@@ -32,6 +32,7 @@
 #define SET_BYTES (RUNTIME_POOL_BYTES + 0x1000u) /* the pool's worth of packages, and the header */
 extern const uint8_t modwerk_base_digest[32];
 void modwerk_diag_set(void); /* diag.c: the installed set, into the unit's log */
+void modwerk_diag_refused(uint32_t module, uint32_t refusal); /* diag.c: ... and the restore's first refused package */
 extern const struct mu_backend modwerk_runtime_backend;
 struct file_object { uint32_t word[6]; };
 #ifdef MODWERK_HOST
@@ -279,14 +280,19 @@ static void restore(void)
     slot = wb && (!wa || gb > ga) ? 1u : 0u; /* the newer one; the next save goes to the other */
     if (!slot && (int)load(0) != a) { modwerk_modset_result = DAMAGED; return; }
     const struct mu_backend *b6 = &modwerk_runtime_backend;
-    uint32_t n = used(), count = 0, installed = 0;
+    uint32_t n = used(), count = 0, installed = 0, refused = 0, refusal = 0;
     if (!b6->enter(b6->user)) { modwerk_modset_result = REFUSED; return; }
     for (uint32_t at = HEADER; at < n; ++count) {
         uint32_t length = be32(set + at + 4);
         if (b6->prepare(b6->user, set + at + 8, length) && b6->publish(b6->user) == MU_APPLIED && b6->retire(b6->user)) ++installed;
-        else (void)b6->discard(b6->user);
+        else {
+            /* The first one the log names: later installs overwrite the loader's refusal (beta finding 69). */
+            if (!refused) refused = module_of(set + at + 8, length), refusal = (uint32_t)modwerk_runtime_refusal();
+            (void)b6->discard(b6->user);
+        }
         at += 8u + ((length + 3u) & ~3u);
     }
+    if (refused) modwerk_diag_refused(refused, refusal);
     (void)b6->leave(b6->user);
     modwerk_modset_generation = be32(set + 8), modwerk_modset_count = installed;
     modwerk_modset_result = installed == count ? RESTORED : REFUSED;
