@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: MIT
  * Host check of the MIDI generator registry (midi_generators.c) over a synthetic model of the unit's memory: nothing
  * changes without a generator; the list in MIDI NOTE SETUP chooses, stores 'M' and the id in the arp step mask and
- * resets the arpeggiator; the ARP page and FUNC+AMP dispatch to the generator; an unknown id reads as stock; the MODE
- * guard after a generator returns; OFF restores stock's defaults. No stock byte is used. */
+ * resets the arpeggiator; the pages it takes (here NOTE, and ARP always) and FUNC+AMP dispatch to it with their page,
+ * the others stay stock's; an unknown id reads as stock; the MODE guard after a generator returns; OFF restores stock's
+ * defaults. No stock byte is used. */
 #define MW_HOST
 #include <stdint.h>
 #include <stdio.h>
@@ -79,12 +80,12 @@ static uintptr_t volatile *const host_rows[RUNTIME_SITE_EVENTS] = {[MODWERK_OT_M
 #undef modwerk_runtime_event_row
 
 /* One synthetic generator. */
-static unsigned on_track = 99, on_state = 9, knob_index, knob_second, yeses; static int knob_delta;
+static unsigned on_track = 99, on_state = 9, knob_page, knob_index, knob_second, yeses, yes_page; static int knob_delta;
 static void g_assign(unsigned t, unsigned on) { on_track = t; on_state = on; }
-static uint32_t g_page(uint32_t stock, unsigned second) { return stock + 0x100u + second; }
-static void g_knob(unsigned i, int d, unsigned second) { knob_index = i; knob_delta = d; knob_second = second; }
-static void g_yes(void) { ++yeses; }
-static const struct modwerk_midi_generator gen = {MODWERK_MIDI_GENERATOR_ABI, "VEC", 'V', g_assign, g_page, g_knob, g_yes, 0};
+static uint32_t g_page(uint32_t stock, unsigned page, unsigned second) { return stock + 0x100u * (page + 1u) + second; }
+static void g_knob(unsigned page, unsigned i, int d, unsigned second) { knob_page = page; knob_index = i; knob_delta = d; knob_second = second; }
+static void g_yes(unsigned page) { ++yeses; yes_page = page; }
+static const struct modwerk_midi_generator gen = {MODWERK_MIDI_GENERATOR_ABI, "VEC", 'V', 1u, g_assign, g_page, g_knob, g_yes, 0};
 
 #define PART 0x40100000u + 0x8ed80u   /* bank 0x40100000, Part 0 */
 #define T 2u
@@ -123,14 +124,24 @@ int main(void)
     CHECK(U8(PART + 0x3e2u + 32u * T + 12u) == 0x40 && U8(PART + 0x3e2u + 32u * T + 14u) == 0 && U8(PART + 0x4e2u + 36u * T + 14u) == 7);
 
     /* The ARP page: its layer, its pages, FUNC+AMP's second, NO back, the knobs and YES. */
-    put_u32(0x400bc6c0u, 0); mg_tick(); CHECK(pushed == 0 && pops == 1);
+    put_u32(0x460d1684u, 1); put_u32(0x400bc6c0u, 0); mg_tick(); CHECK(pushed == 0 && pops == 1);
     put_u32(0x460d1684u, 2); mg_tick(); CHECK(pushed == mg_page_layer);
-    CHECK(mg_page(0x1000u) == 0x1100u);
-    CHECK(mg_arp_setup() == 1 && mg_page(0x1000u) == 0x1101u);
-    key(0x32); CHECK(mg_page(0x1000u) == 0x1100u);
-    mg_knob(3, 2); CHECK(knob_index == 3 && knob_delta == 2 && knob_second == 0);
-    key(0x31); CHECK(yeses == 1 && yes_stock == 1);
+    CHECK(mg_page(0x1000u) == 0x1300u);
+    CHECK(mg_arp_setup() == 1 && mg_page(0x1000u) == 0x1301u);
+    key(0x32); CHECK(mg_page(0x1000u) == 0x1300u);
+    mg_knob(3, 2); CHECK(knob_page == 2 && knob_index == 3 && knob_delta == 2 && knob_second == 0);
+    key(0x31); CHECK(yeses == 1 && yes_page == 2 && yes_stock == 1);
     put_u32(0x460d173au, 1); CHECK(mg_page(0x1000u) == 0x1000u); put_u32(0x460d173au, 0); /* a held trig: stock's page */
+
+    /* NOTE, which it takes: its page and knobs; leaving the ARP page drops its second page. LFO, which it does not:
+     * stock's, the layer off, the knobs and YES stock's. */
+    CHECK(mg_arp_setup() == 1);
+    put_u32(0x460d1684u, 0); mg_tick(); CHECK(pushed == mg_page_layer && mg_page(0x1000u) == 0x1100u);
+    mg_knob(5, -1); CHECK(knob_page == 0 && knob_index == 5 && knob_delta == -1 && knob_second == 0);
+    put_u32(0x460d1684u, 2); mg_tick(); CHECK(mg_page(0x1000u) == 0x1300u);
+    put_u32(0x460d1684u, 1); mg_tick(); CHECK(pushed == 0 && mg_page(0x1000u) == 0x1000u);
+    knob_index = 9; mg_knob(1, 1); CHECK(knob_index == 9);
+    key(0x31); CHECK(yeses == 1 && yes_stock == 2);
 
     /* An id with no generator reads as stock. */
     U8(PART + 0x1823u + 2u * 5u) = 'Q'; U8(PART + 0x1822u + 2u * 5u) = 'M';
