@@ -419,46 +419,51 @@ unsigned mw_row_has_pool(unsigned row)
     const Machine *m[ROWS - 5u]; unsigned n = machines(m);
     return row >= 5 && row < 5 + n && m[row - 5]->flags & MODWERK_MACHINE_POOL;
 }
-/* The frame guard. The frame interrupt (0x4000aad0) renders each track's source in turn, T1 to T8, then builds the
- * DSP's frame; run on past the next frame and the DSP's audio stops for good, until a power cycle
+/* The frame guard. The frame interrupt (0x4000aad0) takes the DSP's frame word at its entry, renders each track's
+ * source (each track about twice a frame), then builds the DSP's frame. One long frame only delays the next entry;
+ * when they keep running long the delay grows past a ring half and the DSP's audio stops for good, until a power cycle
  * (OCTATRACK_HARDWARE_TRAPS.md, work inside the frame interrupt). Its entry stamps mw_frame_t0 and its exit calls
- * mw_frame_exit (machine_registry.s). Each track a machine renders is timed, and so is the work after it up to the
- * exit; before the next render the guard predicts the exit from those. Past mw_frame_limit the track renders stock's
- * silent source this frame instead: a dropout on that track, never a dead unit. Tracks only stock renders, and
- * priced machines' (their voice is the DSP's), always render. A skipped track comes back when the frame has room for
+ * mw_frame_exit (machine_registry.s), which carries how late the next frame starts. Each render of a machine's track
+ * is timed, and so is the work after it up to the exit; before the next frame's same render the guard predicts when
+ * the frame will end, counted from the time it was due. Past mw_frame_limit (a quarter frame late) the track renders
+ * stock's silent source this time instead: a dropout on that track, never a dead unit. Tracks only stock renders, and
+ * priced machines' (their voice is the DSP's), always render. A skipped render comes back when the frame has room for
  * its last cost, or, every PROBE frames, when it would end at most SLACK past the limit: its cost is measured again. */
 #ifndef DTCN3
 #define DTCN3 (*(volatile uint32_t *)0xfc07c00cu) /* the frame timer: 132 MHz, free-running */
 #endif
 #define FRAME 47891u /* 16 samples at 44.1 kHz, in DTCN3 counts */
-typedef int Render(unsigned track, unsigned ping, unsigned start, unsigned end);
-volatile uint32_t mw_frame_t0, mw_frame_limit = FRAME / 5u * 4u; /* the limit: development bases may poke it */
-volatile uint32_t mw_frame_max, mw_frame_sheds, mw_frame_shed_tracks; /* the longest frame interrupt; the skips */
 #define SLACK (FRAME / 10u)
-#define PROBE 1024u /* frames, about 0.37 s */
-static uint32_t cost[8], after[8], end_at[8], timed;
-static uint16_t skipped[8];
+#define PROBE 1024u  /* frames, about 0.37 s */
+typedef int Render(unsigned track, unsigned ping, unsigned start, unsigned end);
+volatile uint32_t mw_frame_t0, mw_frame_limit = FRAME + FRAME / 4u; /* development bases may change the limit */
+volatile uint32_t mw_frame_max, mw_frame_late_max, mw_frame_sheds, mw_frame_shed_tracks; /* for diagnostics */
+static uint32_t late, cost[16], after[16], end_at[16], timed; /* [track], then a track's second render [8 + track] */
+static uint16_t skipped[16];
 void mw_frame_exit(void)
 {
-    uint32_t now = DTCN3, d = now - mw_frame_t0;
+    uint32_t now = DTCN3, d = now - mw_frame_t0, due = d + late; /* from the time this frame was due */
     if (d > mw_frame_max) mw_frame_max = d;
-    for (unsigned t = 0; t < 8u; ++t) if (timed >> t & 1u) after[t] = now - end_at[t];
+    late = due > FRAME ? due - FRAME : 0;
+    if (late > mw_frame_late_max) mw_frame_late_max = late;
+    for (unsigned k = 0; k < 16u; ++k) if (timed >> k & 1u) after[k] = now - end_at[k];
     timed = 0;
 }
 static int guarded(Render *f, unsigned track, unsigned ping, unsigned start, unsigned end)
 {
     if (track >= 8u) return f(track, ping, start, end);
-    uint32_t at = DTCN3, ends = at - mw_frame_t0 + cost[track] + after[track]; int r;
-    if (ends > mw_frame_limit && (ends > mw_frame_limit + SLACK || ++skipped[track] < PROBE)) {
+    unsigned k = track + 8u * (timed >> track & 1u);
+    uint32_t at = DTCN3, ends = late + (at - mw_frame_t0) + cost[k] + after[k]; int r;
+    if (ends > mw_frame_limit && (ends > mw_frame_limit + SLACK || ++skipped[k] < PROBE)) {
         mw_frame_sheds = mw_frame_sheds + 1u, mw_frame_shed_tracks |= 1u << track;
         r = STOCK(Render *, 0x400047f0u)(track, ping, start, end);
     } else {
-        skipped[track] = 0;
+        skipped[k] = 0;
         r = f(track, ping, start, end);
-        uint32_t c = DTCN3 - at, k = cost[track] - (cost[track] >> 3);
-        cost[track] = c > k ? c : k; /* a rise at once, a fall by an eighth a frame */
+        uint32_t c = DTCN3 - at, fall = cost[k] - (cost[k] >> 3);
+        cost[k] = c > fall ? c : fall; /* a rise at once, a fall by an eighth a frame */
     }
-    end_at[track] = DTCN3, timed |= 1u << track;
+    end_at[k] = DTCN3, timed |= 1u << k;
     return r;
 }
 /* The FLEX renderer, in the audio render: no mask. The row is read once, a word at a time; a module that left

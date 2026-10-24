@@ -191,16 +191,17 @@ uint32_t modwerk_dev_request(const uint8_t *s, const uint8_t **reply, uint8_t *o
         *reply = out;
         return 8;
     }
-    if (s[1] == 29 && want == 16u) { /* GUARD: the frame guard (machine_registry.c); wValue the limit in per mille (0 keeps it):
-                                        * the longest frame interrupt since the last read, the skips, their tracks, the limit */
-        extern volatile uint32_t mw_frame_max, mw_frame_sheds, mw_frame_shed_tracks, mw_frame_limit;
+    if (s[1] == 29 && want == 20u) { /* GUARD: the frame guard (machine_registry.c); wValue the limit in per mille of a frame
+                                        * (0 keeps it): the longest frame interrupt and the latest start since the last read,
+                                        * the skips, their tracks, the limit */
+        extern volatile uint32_t mw_frame_max, mw_frame_late_max, mw_frame_sheds, mw_frame_shed_tracks, mw_frame_limit;
         unsigned mille = s[2] | (unsigned)s[3] << 8;
-        if (mille) mw_frame_limit = 47891u * (mille < 1000u ? mille : 1000u) / 1000u;
-        uint32_t v[4] = {mw_frame_max, mw_frame_sheds, mw_frame_shed_tracks, mw_frame_limit};
-        mw_frame_max = 0;
-        for (unsigned i = 0; i < 16u; ++i) out[i] = (uint8_t)(v[i / 4u] >> (24 - 8 * (i % 4u)));
+        if (mille) mw_frame_limit = 47891u / 100u * mille / 10u;
+        uint32_t v[5] = {mw_frame_max, mw_frame_late_max, mw_frame_sheds, mw_frame_shed_tracks, mw_frame_limit};
+        mw_frame_max = mw_frame_late_max = 0;
+        for (unsigned i = 0; i < 20u; ++i) out[i] = (uint8_t)(v[i / 4u] >> (24 - 8 * (i % 4u)));
         *reply = out;
-        return 16;
+        return 20;
     }
     if (s[1] == 23 && want == 4 && !s[2] && !s[3]) { /* GAP: the longest time between two frames since the last read, DTCN3 counts */
         extern volatile uint32_t dl_frame_gap;

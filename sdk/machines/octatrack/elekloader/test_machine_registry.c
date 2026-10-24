@@ -133,6 +133,12 @@ static void rows(const void *const *m, unsigned n, const void *const *s, unsigne
 }
 static Part *part0(void) { return AT(0x46000000u + PART_OFF); }
 static const Part *slot(unsigned t) { return part0() + 0x22 + t; }
+/* The guard as at boot (machine_registry.c's statics: this file includes it). */
+static void fresh(void)
+{
+    late = timed = 0; mw_frame_max = mw_frame_late_max = 0;
+    for (unsigned k = 0; k < 16u; ++k) cost[k] = after[k] = end_at[k] = 0, skipped[k] = 0;
+}
 /* One frame interrupt: its entry, `pre` counts of stock work, the track's render, `tail` counts more, its exit. */
 static int frame(unsigned track, uint32_t pre, uint32_t tail)
 {
@@ -293,32 +299,55 @@ int main(void)
     CHECK(part0()[0x22 + 3] == 1);
     rows(0, 0, 0, 0);
 
-    /* The frame guard (limit 38,312 counts, slack 4,789): F's render on track 3 runs while the frame it predicts from
-     * the last frame's times ends in time, and renders stock's silent source while it would not. */
+    /* The frame guard (a frame 47,891 counts, the limit 59,863: a quarter frame late, the slack 4,789). F's render on
+     * track 3 runs while the frame it predicts from the last frame's times ends in time, counted from when the frame was
+     * due, and renders stock's silent source while it would not. */
     const void *f_only[] = {&F};
     rows(f_only, 1, 0, 0);
     CHECK(mw_assign(part0(), 3, 5) == 1);
-    int s0 = silent_renders; f_cost = 10000;
-    CHECK(frame(3, 10000, 10000) > 100 && silent_renders == s0 && mw_frame_max == 30000 && !mw_frame_sheds);
-    f_cost = 25000; /* predicted 30,000: it runs, and ends at 45,000 */
-    CHECK(frame(3, 10000, 10000) > 100 && mw_frame_max == 45000 && !mw_frame_sheds);
-    /* Predicted 45,000, past the slack: skipped every frame, never probed. */
+    fresh(); int s0 = silent_renders; f_cost = 10000;
+    CHECK(frame(3, 10000, 10000) > 100 && silent_renders == s0 && mw_frame_max == 30000 && !mw_frame_late_max && !mw_frame_sheds);
+    /* One long frame runs (its cost was 10,000) and leaves the next one 17,109 late; then predicted past the limit and
+     * the slack, it is skipped, and the next frame starts on time again. */
+    f_cost = 45000;
+    CHECK(frame(3, 10000, 10000) > 100 && mw_frame_max == 65000 && mw_frame_late_max == 17109 && !mw_frame_sheds);
+    CHECK(frame(3, 10000, 10000) == -9 && mw_frame_sheds == 1u && mw_frame_shed_tracks == 1u << 3);
     int skipped_all = 1;
-    for (unsigned i = 0; i < 3000u; ++i) skipped_all &= frame(3, 10000, 10000) == -9;
-    CHECK(skipped_all && mw_frame_sheds == 3000u && mw_frame_shed_tracks == 1u << 3 && silent_renders == s0 + 3000);
-    CHECK(frame(3, 2000, 10000) > 100);   /* room for its cost (37,000): back at once */
-    /* Predicted 41,000, within the slack: a probe every 1,024 frames measures it again; a lighter F stays back. */
-    unsigned ran = 0, first = 0;
-    for (unsigned i = 0; i < 2048u; ++i) if (frame(3, 6000, 10000) > 100 && !ran++) first = i;
-    CHECK(ran == 2u && first == 1023u);
+    for (unsigned i = 0; i < 3000u; ++i) skipped_all &= frame(3, 10000, 10000) == -9; /* 65,000 predicted: past the slack */
+    CHECK(skipped_all && mw_frame_sheds == 3001u && silent_renders == s0 + 3001);
+    CHECK(frame(3, 2000, 10000) > 100);   /* room for its cost (57,000): back at once */
+    CHECK(frame(3, 2000, 10000) == -9);   /* but that left the next frame 9,109 late: no room */
+    /* A render a quarter frame long at the start of every frame, and the rest of the frame 80 % more: each frame runs
+     * 4 % long. The lateness grows while it fits, then a skip lets a frame end early, and it never passes the limit. */
+    fresh(); f_cost = 11973; unsigned ran = 0;
+    for (unsigned i = 0; i < 4000u; ++i) ran += frame(3, 0, 37831) > 100;
+    CHECK(ran > 3000u && ran < 4000u && mw_frame_late_max <= FRAME / 4u);
+    /* Predicted within the slack (late 0, 61,000): a probe every 1,024 frames measures it again; lighter, it stays. */
+    fresh(); f_cost = 45000;
+    CHECK(frame(3, 6000, 10000) > 100 && frame(3, 6000, 10000) == -9); /* measured at 61,000; then 13,109 late */
+    unsigned first = 0; ran = 0;
+    for (unsigned i = 0; i < 2049u; ++i) if (frame(3, 6000, 10000) > 100 && !ran++) first = i;
+    CHECK(ran == 2u && first == 1023u); /* the frame after each probe starts late: past the slack, so not counted */
     f_cost = 5000; ran = 0;
-    for (unsigned i = 0; i < 1024u; ++i) ran += frame(3, 6000, 10000) > 100;
+    for (unsigned i = 0; i < 1025u; ++i) ran += frame(3, 6000, 10000) > 100;
     CHECK(ran == 1u && frame(3, 6000, 10000) > 100 && frame(3, 6000, 10000) > 100);
+    /* A track's second render in a frame has its own estimate: once measured, the heavy second render skips and the
+     * light first one runs (the frame after the first long one skips both: it starts 25,109 late). */
+    fresh(); f_cost = 1000;
+    int one[4], two[4];
+    for (unsigned i = 0; i < 4u; ++i) {
+        mw_frame_t0 = host_timer; host_timer += 1000;
+        one[i] = mw_source_render_impl(3, 0, 0, 1);
+        f_cost = 70000; two[i] = mw_source_render_impl(3, 0, 0, 1); f_cost = 1000;
+        host_timer += 1000; mw_frame_exit();
+    }
+    CHECK(one[0] > 100 && two[0] > 100 && one[1] == -9 && two[1] == -9);
+    CHECK(one[2] > 100 && two[2] == -9 && one[3] > 100 && two[3] == -9);
     /* A track only stock renders always renders, however late the frame. */
     const void *v_only2[] = {&V};
     rows(v_only2, 1, 0, 0);
     uint32_t sheds = mw_frame_sheds;
-    CHECK(frame(6, 60000, 10000) == -7 && mw_frame_sheds == sheds);
+    CHECK(frame(6, 90000, 10000) == -7 && mw_frame_sheds == sheds);
     rows(0, 0, 0, 0);
 
     /* SEQUENCER: FM's quantizer rows, then Scale Quantizer's with the same labels: one set, FM's; QZ alone: QZ's. */
