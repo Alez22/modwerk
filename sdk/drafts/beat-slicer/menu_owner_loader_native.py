@@ -29,7 +29,9 @@ def main():
     p.add_argument('--package',action='store_true',help='Also test proposed typed menu admission and original uploaded callback.')
     p.add_argument('--executable', type=Path, required=True)
     p.add_argument('--transition',action='store_true')
+    p.add_argument('--preview-owner',action='store_true')
     a = p.parse_args()
+    if a.preview_owner:a.transition=True
     if a.transition and a.package:p.error('Choose one fixture.')
     out, repo = a.output.resolve(), ROOT.parents[2]
     if out == repo or repo in out.parents:
@@ -43,14 +45,16 @@ def main():
              '-fno-tree-loop-distribute-patterns', '-fno-optimize-sibling-calls',
              '-fno-asynchronous-unwind-tables', '-fno-unwind-tables', '-fno-ident',
              '-fstack-usage', '-Wall', '-Wextra', '-Werror', '-pedantic', *guard.FLAGS, '-DRUNTIME_MODULES=128u', '-DRUNTIME_POOL_BYTES=786432u', '-I', str(repo/'sdk/runtime/upload')]
+    if a.preview_owner:flags.extend(('-ffunction-sections','-fdata-sections'))
     if a.cached: flags.append('-DMODWERK_CACHED_MODULES')
     if a.sets: flags.append('-DMODWERK_RUNTIME_SETS')
     subprocess.run([sys.executable,'-B',str(ROOT/'test_owner_package_vectors.py')],check=True)
     if a.package:subprocess.run([sys.executable,'-B',str(ROOT/'test_menu_package_vectors.py')],check=True)
     objects = []; dependencies = {}; pinned = json.loads((ROOT/'menu-owner-runtime-sources.json').read_text())
     names=['menu_owner','menu_owner_backend','editor_menu',
-           'test_menu_transition_target' if a.transition else ('test_menu_package_target' if a.package else 'test_menu_owner_loader_target')]
+           'test_preview_owner_target' if a.preview_owner else ('test_menu_transition_target' if a.transition else ('test_menu_package_target' if a.package else 'test_menu_owner_loader_target'))]
     if a.package:names.append('menu_package')
+    if a.preview_owner:names.extend(['planner', 'planner_job', 'pcm_reader', 'preview_guard', 'preview_session', 'preview_async', 'preview_owner'])
     sources=[ROOT/(n+'.c') for n in names]
     if a.sets:sources.append(repo/'sdk/runtime/upload/upload.c')
     for source in sources:
@@ -67,8 +71,8 @@ def main():
         objects.append(obj)
     guard.check(objects)
     elf, binary = out / 'menu-owner-loader-target.elf', out / 'menu-owner-loader-target.bin'
-    entry_name='bs_menu_transition_target_selftest' if a.transition else ('bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest')
-    run('m68k-elf-ld', '--no-undefined', '-e', entry_name, '-Ttext=0x47040000', '-Tbss=0x47400000',
+    entry_name='bs_preview_owner_target_selftest' if a.preview_owner else ('bs_menu_transition_target_selftest' if a.transition else ('bs_menu_package_target_selftest' if a.package else 'bs_owner_loader_target_selftest'))
+    run('m68k-elf-ld', '--no-undefined', *(['--gc-sections'] if a.preview_owner else []), '-e', entry_name, '-Ttext=0x47040000', '-Tbss=0x47400000',
         *map(str, objects), '-o', str(elf))
     if run('m68k-elf-nm', '-u', str(elf)):
         p.error('Unresolved runtime helpers.')
@@ -87,7 +91,9 @@ def main():
     names = ('menu_owner.c','menu_owner.h','menu_owner_backend.c','menu_owner_backend.h','editor_menu.c','editor_menu.h','test_menu_owner_loader_target.c','test_menu_owner_set.h','owner_package_vectors.h','test_owner_package_vectors.py','menu_owner_loader_native.py','menu-owner-runtime-sources.json','stock_probe/job_probe.cpp','stock_probe/CMakeLists.txt')
     if a.package:names+=('menu_package.c','menu_package.h','test_menu_package_target.c','menu_package_vectors.h','test_menu_package_vectors.py')
     if a.transition:names+=('test_menu_transition_target.c','test_menu_transition_set.h')
+    if a.preview_owner:names+=('planner.c', 'planner.h', 'planner_job.c', 'planner_job.h', 'pcm_reader.c', 'pcm_reader.h', 'preview_guard.c', 'preview_guard.h', 'preview_session.c', 'preview_session.h', 'preview_async.c', 'preview_async.h', 'preview_owner.c', 'preview_owner.h', 'test_preview_async.c', 'test_preview_owner_target.c', 'test_preview_owner_set.h')
     report = {
+        'unusedFixtureSectionsDiscarded':a.preview_owner,'previewOwnerInputRefusalsPerSingleScenario':9 if a.preview_owner else 0,'previewOwnerScenarios':18 if a.preview_owner else 0,'previewOwnerSetScenarios':4 if a.preview_owner and a.sets else 0,
         'transitionCallbackPrototype':a.transition,'transitionRefusalsPerScenario':9 if a.transition else 0,'transitionSingleScenarios':4 if a.transition else 0,'transitionSetScenarios':4 if a.transition and a.sets else 0,
         'scope': 'real compiled SDK loader/SHA with full-owner menu adapter, both layouts and two owners; actual ColdFire entry wrappers; synthetic stopped/cache/paused-task/DSP services; '+('original return-42 uploaded callback executes; ' if a.package else 'no module-code execution; ')+'no stock menu, USB or hardware integration',
         'typedMenuProposal':a.package,'malformedDescriptorsPerLayout':30 if a.package else 0,
@@ -118,6 +124,9 @@ def main():
     if a.transition:
         report['scope']='Actual compiled loader metadata callback and outgoing menu activation retirement; synthetic machine services, both layouts, refusal after retirement and restoration without an intervening lease query. No stock menu, uploaded callback, USB or hardware execution in these new scenarios.'
         report['limits']='Production board registration, native menu reference retirement and source lifetime cancellation remain unimplemented. Refused switches conservatively retire affected activations.'
+    if a.preview_owner:
+        report['scope']='Actual compiled loader lifecycle and copied preview exchange over generated synthetic PCM; RUNNING/WAITING/READY replacement/removal/restoration, source-lock refusal/partial cancellation, partial-set rollback/Keep, unchanged companion and fresh activation. No stock source, native menu or USB execution.'
+        report['limits']='Source locks/cache/paused-task services and PCM are synthetic; complete writer/cache ownership, production board wiring and reference retirement remain absent. Old activation storage stays pinned.'
     (out / 'menu-owner-loader-target.json').write_text(json.dumps(report, indent=2) + '\n')
     print(r.stdout, end='')
     if r.returncode:

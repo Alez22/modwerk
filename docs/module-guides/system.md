@@ -295,6 +295,15 @@ admission checks. Beat Slicer's isolated real-loader host/ColdFire fixture tests
 this callback ordering and partial-set rollback; production board registration,
 source cancellation and native reference retirement remain separate.
 
+Cancel copied preview exchanges before publication as well as retiring their
+menu actions. Acquire their nonblocking source boundary within the established
+loader lock; a refusal must prevent publication. A later refusal may leave an
+earlier exchange cancelled, requiring fresh activation even though the image
+stays published. Do not mutate an engine-owned session from the loader path or
+reroute old intents into reused storage. Beat Slicer's generated-PCM real-loader
+fixtures cover partial cancellation and set rollback; production lock/handle
+admission and reference reclamation still require their own proof.
+
 When a menu stores a short module/generation identity, resolve it through an
 admitted full-owner activation and an explicit action allowlist before dispatch.
 Copy registration records into base-owned storage; do not retain a caller's

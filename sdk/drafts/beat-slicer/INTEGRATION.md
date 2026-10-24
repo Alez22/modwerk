@@ -10,7 +10,7 @@ experiments from the shared services and qualification still required.
 | Planner and preservation | Host and ColdFire plans, complete records, conservative ordinal preservation and internal rollback contracts | Native publication and owner review of the preservation restriction |
 | Flex preview | Private stock-loaded sources, four PCM formats, long-source work, copied UI/engine results and recorder-driven invalidation/recovery | Production admission, complete writer coverage and measured physical lock/cache behavior |
 | Menu workflow | Both stock layouts, repeated openings, recorder-driven dismissal/cancellation, stale callback refusal, stock grid/clear transitions and a bounded typed-descriptor prototype | Reviewed base event/table, production package admission and reference retirement |
-| Loader owner | Real-loader metadata-callback activation retirement and upload-controller set rollback with owner-backed dispatch | Production board registration, source retirement and complete module-set readiness |
+| Loader owner | Real-loader callback cancellation of preview exchanges and menu activations, including upload-controller set rollback | Production board/handle admission, native reference retirement and complete module-set readiness |
 | Static source | Stock load/clear and handle-lifetime observations | A bounded leased streaming reader |
 | Apply and playback | Portable transaction and isolated stock refresh fixtures | Atomic native commit/rollback and qualified audible boundary behavior |
 | Distribution | Source-bound private reports; publication deliberately refused | Source-built card/browser/USB packages, scans and companion matrix |
@@ -263,3 +263,11 @@ switch also retires affected activations conservatively. Production board
 composition must retain every existing metadata/DSP admission check and add
 source-reader cancellation and native reference retirement; this fixture does
 not install that integration.
+
+The 0.1.51 isolated callback composition cancels outgoing copied preview
+exchanges before menu retirement. RUNNING/WAITING/READY requests, partial source
+lock refusal and set rollback retain no old output authority; companions and
+fresh exchanges still finish. Its generated PCM and serialized source boundaries
+are synthetic. Production must supply reviewed owner-pinned handles and lock
+composition, keep module-specific controllers in independent packages, and
+retire queued/native references before reclaiming any storage.

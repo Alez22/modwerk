@@ -8,12 +8,14 @@
 static struct bs_menu_owner_backend *transition_registry;
 static unsigned transition_prepares,transition_switches,transition_retired;
 static unsigned transition_refuse_after;
+static int (*transition_precheck)(const struct runtime_dsp *,const struct runtime_dsp *,enum runtime_metadata_operation);
 int modwerk_machine_metadata_admit(const struct runtime_dsp *from,struct runtime_dsp *to,
     const struct runtime_context *context,enum runtime_metadata_operation operation) {
     (void)context;GLUE(lock_held && !mask_held);
     /* Preserve the fixture's ordinary-module-only policy. */
     to->foreign_roots=0;
     if((from->flags|to->flags)&RUNTIME_GROUP_METADATA)return RUNTIME_MALFORMED;
+    if(transition_precheck){int why=transition_precheck(from,to,operation);if(why)return why;}
     if(transition_registry) {
         unsigned before=0,after=0;
         for(unsigned i=0;i<transition_registry->count;++i)

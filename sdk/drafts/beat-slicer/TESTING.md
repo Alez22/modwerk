@@ -2737,3 +2737,45 @@ retirement remain separate requirements. The production shared loader and its
 machine adapter are unchanged; no editor event/table ABI is assigned.
 
 The three retained 0.1.50 callback-retirement reports bind source `878fda00b94917ba5100fff2d5bd5dd31e6079eb`. The full current-upstream source check passed in 136.81 seconds; the inherited stale-fork changelog failure remains recorded separately.
+
+## Preview cancellation at owner transitions (0.1.51)
+
+`test_menu_owner_loader.py --preview-owner` composes the proposed
+`bs_preview_owner_transition_locked` with the real loader metadata callback,
+before menu activation retirement and publication. It uses the exchange's
+ordinary nonblocking revoke API. PREPARE and same-image switches preserve work;
+a failed source lock refuses publication. If a later exchange refuses after an
+earlier one was cancelled, the module stays published and the cancelled
+activation requires a fresh exchange. No engine-owned session is modified by
+the loader callback, and cancellation performs no PCM capture/copy.
+
+Eighteen single-owner scenarios combine RUNNING, WAITING and READY states with
+replacement/removal and successful, first-lock-refused or partially-cancelled
+publication. Replacement and restoration have no intervening preview/lease
+query. Retired requests cannot read or publish again; refused result calls leave
+the caller's output untouched. The companion and a fresh activation each match
+the complete independent planner oracle. Nine malformed-input cases per single
+scenario check count, pointers, duplicate exchange and full-owner identity.
+Storage remains pinned; fresh exchanges use separate objects.
+
+Four whole-set scenarios disconnect before publication, after one row or after
+a complete trial, or Keep the complete set. A READY, WAITING and RUNNING exchange
+coexist. Only affected owners are cancelled; untouched exchanges finish and
+match complete oracles. Rollback cannot revive cancelled output, even without
+polling between publication and restoration. Cancellation leaves source-query
+counts unchanged; final cleanup restores allocation and balances locks.
+
+The retained host ASan/UBSan report covers six loader configurations, including
+two set variants. Both cached and uncached ColdFire set builds pass the same
+scenarios, freestanding link and code-generation checks with exact SDK hashes.
+The combined test initially exceeded the CPU runner's 64 KiB code window.
+Function/data sections and linker garbage collection discard unused fixture
+functions only in `--preview-owner` mode; the runner's bounds remain intact.
+The passing uncached/cached images are 60,786/60,832 bytes. These are isolated
+CPU fixtures, not production memory budgets.
+
+PCM, source locks, cache and paused-task services are synthetic. Production
+pointer/handle admission, independent module packages, complete writer/cache
+coverage and native reference retirement remain absent. Module-specific planner
+or controller code must stay in its package rather than be built into the base.
+No stock source, USB, audible output or physical persistence is qualified here.

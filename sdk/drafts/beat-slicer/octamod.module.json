@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.50-experimental",
+  "version": "0.1.51-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Run outgoing menu activation retirement from the actual loader metadata callback in isolated host and native CPU fixtures. Preparation and unchanged companions remain live; replacement/restoration without intervening queries, refused switches, removal and partial-set rollback cannot revive retired activations. Native board registration, source retirement and USB remain unimplemented.",
+    "summary": "Compose outgoing preview revocation with the real loader transition callback before menu retirement. Eighteen generated-PCM lifecycle scenarios cover RUNNING/WAITING/READY, replacement/removal, lock refusal and partial cancellation; four set scenarios cover disconnect rollback and Keep. Host and cached/uncached ColdFire pass. Production handles, source/cache ownership, USB and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -130,6 +130,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --package",
       "python3 -B sdk/drafts/beat-slicer/test_recorder_boundary.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --transition",
+      "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --preview-owner",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

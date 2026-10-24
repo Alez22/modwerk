@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.51-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Cancel outgoing owner preview exchanges before loader publication and menu retirement, preserving unrelated previews.",
+      "Check RUNNING, WAITING and READY replacement/removal, restoration, source-lock refusal and partial cancellation with generated PCM.",
+      "Exercise partial/full set rollback and Keep; old outputs stay refused, while unaffected and fresh activations match complete planner oracles.",
+      "Known issue: source locks and PCM remain synthetic. Production handles, independent packages, native reference retirement, USB and hardware qualification remain pending."
+    ]
+  },
+  {
     "version": "0.1.50-experimental",
     "date": "2026-10-24",
     "changes": [

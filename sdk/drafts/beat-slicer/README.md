@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.50-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.51-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 

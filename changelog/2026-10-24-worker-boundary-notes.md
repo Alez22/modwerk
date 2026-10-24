@@ -63,3 +63,5 @@ Add maximum metadata count to protected-interval workload planning and explain b
 Clarify Beat Slicer's first USB preview trial: shared admission/retirement and exact source-built package preparation come first; the physical read-only workflow, removal and persistence results remain separate from finished Apply/playback and release acceptance. The draft remains unlisted and not installable.
 
 Explain activation retirement at the existing loader metadata SWITCH callback, the read-only PREPARE boundary and conservative cancellation after a later refusal. The isolated real-loader host/ColdFire fixtures cover callback ordering and partial-set rollback; production board/source/reference integration remains pending.
+
+Document preview-exchange cancellation before owner publication, refusal under nonblocking source locks and partial cancellation without engine-session mutation. The generated-PCM real-loader fixtures establish the proposed ordering; production handles, independent package delivery and reference reclamation remain pending.
