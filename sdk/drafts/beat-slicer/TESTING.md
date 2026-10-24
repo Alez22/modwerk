@@ -2365,3 +2365,5 @@ coverage nor a native source lease. Pickup/overdub, long dynamic growth,
 interrupt/cache/physical latency, USB, audible behavior and persistence remain
 unqualified. The typed-menu and earlier recorder evidence remains historical
 and source-bound; no prior report is relabeled as the new test.
+
+Two recorder-bank reports bind source commit `034701491d876f54ccfda11ed6164771485073dd`. Current-upstream full validation passed in 141.28 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
