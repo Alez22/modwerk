@@ -130,7 +130,7 @@
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],
-    "evidenceRevision": "9b2dcbb9f77d01a40c42e1afb58c46476be3024f"
+    "evidenceRevision": "c65edade167b9eedff37c40e117b2a4912cbe8b1"
   },
   "license": {
     "spdx": "MIT",

@@ -2167,3 +2167,5 @@ physical timing or audio is exercised. Production typed admission, transition
 hooks, live source ownership, Apply/playback, packages and hardware remain open.
 
 Current-upstream full source validation: Check passed in 136.07s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The unchanged real SDK loader and owner adapter pass host and ColdFire execution with synthetic machine services. Production stock-menu and USB integration remain unqualified.
+
+Three actual-loader integration reports bind exact source commit `c65edade167b9eedff37c40e117b2a4912cbe8b1`.
