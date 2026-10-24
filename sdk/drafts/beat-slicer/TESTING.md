@@ -1966,3 +1966,5 @@ open and cancel without modifying markers. No module Apply or Undo is exposed.
 Across the two runs: 152 stock selection dispatches, 2,634 UI calls, 574 engine callbacks, 482 bounded work calls and 530 posted/consumed wakes, with none pending. Source queries remain in the separate engine task. This does not prove production loader retirement, live source admission or physical timing.
 
 Current-upstream full source validation: Check passed in 136.49s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The new CMake probe target also builds and passes the separate 48-case ABI comparison.
+
+Six selection-context reports bind exact source commit `604af6bbcf7a1feaea14d40c846a2ce7acce9ccb`.
