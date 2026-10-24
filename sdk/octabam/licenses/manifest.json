@@ -304,6 +304,20 @@
       "usedIn": [
         "modules/quantize-live-rec-toggle"
       ]
+    },
+    {
+      "id": "kyoti-direct-jump",
+      "name": "Zac Kyoti Direct Jump",
+      "spdx": "MIT",
+      "noticeFile": "kyoti-direct-jump.txt",
+      "sources": [
+        {
+          "path": "sdk/octabam/modules/direct-jump-kyoti/LICENSE"
+        }
+      ],
+      "usedIn": [
+        "modules/direct-jump-kyoti"
+      ]
     }
   ],
   "moduleComponents": {
@@ -343,6 +357,9 @@
     ],
     "quantize-live-rec-toggle": [
       "kyoti-quantize-live-rec-toggle"
+    ],
+    "direct-jump-kyoti": [
+      "kyoti-direct-jump"
     ]
   }
 }
