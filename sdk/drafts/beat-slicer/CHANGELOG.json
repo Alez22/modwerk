@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.47-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Measure protected source sections through exact original mask/restore instructions without inserting native profiling callbacks.",
+      "Separate async bookkeeping, metadata validation and PCM-copy costs; verify balanced windows, preserved caller SR and exact lookup counts.",
+      "Retain full recording invalidation/recovery, whole-plan comparisons and source/card/code preservation in the profiled run.",
+      "Known issue: these are executed instruction measurements for one stopped Flex fixture, not physical timing, full ISR cost or production USB qualification."
+    ]
+  },
+  {
     "version": "0.1.46-experimental",
     "date": "2026-10-24",
     "changes": [

@@ -30,3 +30,11 @@ admission, complete recorder/UI writer coverage, cache handling, physical lock
 latency, the installed editor, or USB lifecycle. Static and recorder sources
 remain unsupported. Production integration belongs behind the reviewed shared
 base ownership interface, not a second module-owned stock hook.
+
+The private `--profile-locks` full boot now measures exact source mask/restore
+instruction intervals without instrumenting native code. It separates async
+coordination from metadata-only validation and PCM copies with before/after
+validation, reconciles every interval with lock counters, and checks saved SR.
+See TESTING.md for the exact source-bound workload and measured maxima. A
+bounded copy size or reader-step count alone does not bound metadata validation
+cost; these instruction measurements do not establish physical lock latency.

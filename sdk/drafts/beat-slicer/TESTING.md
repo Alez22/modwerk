@@ -2593,3 +2593,31 @@ memory or compatibility budget. Complete writer/cache ownership, replaceable
 menu lifetime, physical timing, audio, Apply and source-built USB remain open.
 
 The four retained 0.1.46 compile/UI reports bind source `95bf7deacbcfc96533c60e849fbafd54b6248552`. The full current-upstream source check passed in 140.49 seconds; the inherited stale-fork changelog failure remains recorded separately.
+
+## Source-mask instruction measurements (0.1.47)
+
+`boot_recorder_engine.py --profile-locks` watches the original own-code
+instruction before full masking and the exact instruction restoring saved SR.
+It checks their compiled shapes, pairs every interval, verifies matching saved
+caller SR and reconciles all windows against native lock/unlock counters. PC
+counters precede execution, so the difference plus one includes both mask and
+restore instructions. No profiling callbacks are inserted in the native code.
+
+The first engine preview produced 251 balanced windows and
+12 PCM lookups. All observed caller interrupt masks were zero.
+
+| Protected work | Windows | Minimum instructions | Maximum instructions |
+| --- | ---: | ---: | ---: |
+| coordination | 159 | 55 | 414 |
+| capture | 80 | 1061 | 1861 |
+| copy | 12 | 2882 | 3255 |
+
+Coordination windows contain no metadata capture: the asynchronous request,
+state and copied-result paths use the same backend lock. Metadata-only windows
+capture once; PCM-copy windows capture both before and after the bounded copy.
+The latter include stock pool lookup. Counts are specific to this driver and
+one-second stereo 16-bit stopped Flex source; they are not cycle measurements,
+physical interrupt latency, cache/ISR costs or a worst-case metadata workload.
+The complete fixed-lifetime recording/recovery run still passes five whole-plan
+oracle comparisons, engine-only PCM lookup and source/card/code preservation.
+No production source admission or USB package is enabled.

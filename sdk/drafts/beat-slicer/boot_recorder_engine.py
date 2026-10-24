@@ -25,13 +25,14 @@ ARENA_SHA='23c89015c010ce9d4e6e7957f9325b7da78b7ba75144de10d56cb22149f21e61'
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('emulator','main','card','wav','output','arena-tool','native'):p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--profile-locks',action='store_true',help='Measure exact source-mask instruction intervals in the first engine preview; not hardware latency.')
     p.add_argument('--lifecycle',action='store_true',help='Exercise exact wake identity, WAITING cancellation and fixed-owner retirement.')
     p.add_argument('--service',action='store_true',help='Run previews only through normal engine idle/job scheduling.')
     p.add_argument('--preview',action='store_true',help='Exercise private fixed-lifetime Flex previews with the shared guard.')
     p.add_argument('--card-sha256',required=True)
     p.add_argument('--allow-private-injection',action='store_true',required=True)
     a=p.parse_args()
-    if a.lifecycle:a.service=True
+    if a.lifecycle or a.profile_locks:a.service=True
     if a.service:a.preview=True
     if not __debug__:p.error('Assertions must remain enabled.')
     out,repo=a.output.resolve(),ROOT.parents[2]
@@ -180,9 +181,58 @@ def main():
                 'bpm24':actual[1],'starts':list(actual[2:2+actual[0]]),
                 'wholePlanMatchesHostOracle':True,'balancedLocks':True}
             preview_results.append(result);return result
+        source_profile=None
+        if a.profile_locks:
+            # Observe original fixture instructions without inserting callbacks.
+            # These exact own-code shapes pin the before-mask and before-restore
+            # sites. Unknown compiler output refuses profiling.
+            lock_at,unlock_at=symbols['lock'],symbols['unlock']
+            assert port.peek(lock_at,6)==bytes.fromhex('40c046fc2700')
+            assert port.peek(unlock_at+12,4)==bytes.fromhex('46c04e75')
+            mask_at,restore_at=lock_at+2,unlock_at+12
+            profile_sites=(mask_at,restore_at,symbols['capture'],symbols['copied'],symbols['query'])
+            port.command('watch '+','.join(hex(x) for x in profile_sites));hits(port)
+            profile_locks=word('bs_boot_locks');profile_unlocks=word('bs_boot_unlocks')
         if a.preview:
             assert call('bs_recorder_service_init' if a.service else 'bs_boot_init')==0
             preview()
+        if a.profile_locks:
+            rows=hits(port);port.command('watch off')
+            windows=[];active=None
+            for row in rows:
+                if row[1]==mask_at:
+                    assert active is None,'Overlapping source mask intervals'
+                    active={'start':row[0],'callerSr':row[2]&0xffff,'captures':0,'copies':0,'queries':0}
+                elif row[1]==restore_at:
+                    assert active is not None,'Unpaired source restore'
+                    assert row[2]&0xffff==active['callerSr'],'Restored SR differs from captured SR'
+                    # PC counters precede execution: the delta includes masking,
+                    # and one additional instruction includes restoration itself.
+                    active['instructions']=row[0]-active.pop('start')+1
+                    assert active['instructions']>0 and active['captures'] in ((2,) if active['copies'] else (0,1))
+                    assert active['copies'] in (0,1) and active['queries']<=active['copies']
+                    windows.append(active);active=None
+                else:
+                    assert active is not None,'Source operation outside observed mask'
+                    active[{symbols['capture']:'captures',symbols['copied']:'copies',symbols['query']:'queries'}[row[1]]]+=1
+            assert active is None and windows
+            assert len(windows)==word('bs_boot_locks')-profile_locks==word('bs_boot_unlocks')-profile_unlocks
+            assert sum(w['queries'] for w in windows)==preview_results[0]['queries']
+            groups={}
+            for kind in ('coordination','capture','copy'):
+                selected=[w for w in windows if ('copy' if w['copies'] else ('capture' if w['captures'] else 'coordination'))==kind]
+                assert selected
+                values=[w['instructions'] for w in selected]
+                groups[kind]={'count':len(values),'min':min(values),'max':max(values),
+                    'total':sum(values),'histogram':dict(sorted(Counter(values).items())),
+                    'callerInterruptMasks':sorted(set((w['callerSr']>>8)&7 for w in selected))}
+            source_profile={'method':'PC instruction counts before source mask and before exact SR restore; includes both instructions; unchanged native code',
+                'sites':dict(zip(('mask','restore','capture','copy','query'),profile_sites)),
+                'windows':len(windows),'pcmQueries':sum(w['queries'] for w in windows),'groups':groups,
+                'maxInstructions':max(w['instructions'] for w in windows),
+                'input':'one-second stereo 16-bit stopped Flex source; full metadata snapshot on source acquisition; async coordination uses the same lock without capture',
+                'limits':'executed ColdFire instructions only; no cycle, physical latency, ISR stack, DMA/cache or production admission qualification'}
+            print('PASS source mask instruction profile '+str(source_profile['groups']),flush=True)
 
         port.command(f'watchmem {g_at:#x} 48');port.command(f'watchmem {e_at+4:#x} 4')
         port.command(f'watchmem {b_at+16:#x} 4')
@@ -393,5 +443,6 @@ def main():
             'scheduling':'borrowed-main request/result producer, one engine consumer, exact coalesced immutable wake; ordinary jobs remain writers',
             'nativeSourceAccess':'fixed synthetic lifetime; production owner/source admission, UI integration, DMA/cache and physical timing remain open'})
     if a.lifecycle:report['serviceLifecycle']=lifecycle
+    if a.profile_locks:report['sourceMaskProfile']=source_profile
     (out/('recorder-service-boot.json' if a.service else ('recorder-source-boot.json' if a.preview else 'recorder-engine-boot.json'))).write_text(json.dumps(report,indent=2)+'\n')
 if __name__=='__main__':main()

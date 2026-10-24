@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.46-experimental",
+  "version": "0.1.47-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Combine immutable resident menus and UI/engine preview scheduling with recorder/preparation exclusion. Both stock layouts preserve normal recording dismissal, cancel without further PCM reads, remain closed after Stop and recover through a fresh normal editor opening. A separate run without private waveform classification retires the preview. No production API, package or hardware qualification.",
+    "summary": "Measure source-mask intervals in the private engine preview by watching exact original mask/restore instructions. Separate async coordination, metadata-only validation and two-sided PCM-copy validation; pair every interval and saved SR, and reconcile native lock/query counters. Existing normal recording/recovery and whole-plan checks still pass. Executed instruction counts do not qualify physical latency, cycles, cache behavior or a production USB module.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

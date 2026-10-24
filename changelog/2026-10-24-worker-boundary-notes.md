@@ -55,3 +55,5 @@ Document the pinned emulator borrowed-call argument cleanup and the distinction 
 Document the stronger wake-identity regression: foreign and owned records with identical payloads queued together while ownership is pending. Native fixed-storage checks also cover nonpolling WAITING cancellation and owner retirement, without implying loader reclamation or USB qualification.
 
 Document stock recording dismissal in the named private resident-menu emulator fixture: cancel work when stock closes the popup, preserve the playback screen, and require a fresh editor opening after Stop. Both menu layouts and conservative waveform refusal are tested; this is not device evidence.
+
+Document whole protected-interval budgeting: include both metadata validations around PCM copies, distinguish request/result coordination on the same lock, and keep exact executed-instruction observations separate from physical latency. The private profile pairs mask/restore windows without adding native callbacks.
