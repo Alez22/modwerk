@@ -2272,3 +2272,5 @@ No production hook, scheduler, ISR, UI consumer, live allocator ownership,
 manual stop/overdub, USB, native Apply/playback or hardware is qualified.
 
 Current-upstream full source validation: Check passed in 135.40s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
+
+Two recorder-stop integration reports bind exact source commit `9eccbb0cc5f2a3607f593e4731bd3673d2e2dac7`.
