@@ -1,0 +1,13 @@
+[
+  {
+    "version": "0.1.0-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "First Modwerk release of Zac Kyoti's Direct Jump: hold [PTN] and press [YES] to turn it on, and a pattern you cue takes over on the next step instead of at the end of the playing one.",
+      "The new pattern starts where it would be had it played since you pressed PLAY, also with different lengths and per-track scales. The Part, START SILENT and trig conditions change as on a stock pattern change.",
+      "Off at every power-on; while off, or while the arranger or a chain runs, pattern changes are the stock ones.",
+      "Available for card builds and, for beta testers, over USB. Tested on an MKII over USB: install, the toggle, jumps between a 64- and a 16-step pattern, a power cycle and removal.",
+      "Known issue: not yet tested on hardware with a jump into another Part, per-track scales, external MIDI gear, the arranger or chains, or on an MKI."
+    ]
+  }
+]

@@ -6,7 +6,7 @@ On the stock OS a cued pattern waits for the playing one to reach its end. With 
 
 Version `0.1.0-experimental`, for OS 1.40C card builds and, for beta testers, over USB on the Modwerk base. This is Zac Kyoti's octabam module `direct-jump-kyoti` (his V7, the clock-locked landing). Modwerk re-encodes three of its calls so the USB package carries no stock code; the behaviour is his.
 
-**Hardware status.** The author tested the timing, the Part change and the toggle on his MKI (27 September to 1 October 2026, his own builds). Modwerk's port is tested in the emulator; see [TESTING.md](TESTING.md) for what has run on a unit.
+**Hardware status.** The author tested the timing, the Part change and the toggle on his MKI (27 September to 1 October 2026, his own builds). Modwerk's USB package ran on the owner's MKII on 24 October 2026: installed, kept, restored after a power cycle and removed on the flashed beta base, and on a development twin the toggle and clock-locked jumps between a 64- and a 16-step pattern ([evidence/hardware.md](evidence/hardware.md)). The card build has not run on a unit.
 
 ## Controls
 
@@ -45,7 +45,7 @@ One stock gesture is touched:
 
 ## Compatibility and limitations
 
-- OS 1.40C. The author tested the clock-locked timing, the Part change and the toggle on his MKI; Program Change on fast re-cues, MIDI tracks, START SILENT and the trig-condition reset he verified in his emulator only.
+- OS 1.40C. The author tested the clock-locked timing, the Part change and the toggle on his MKI; Program Change on fast re-cues, MIDI tracks, START SILENT and the trig-condition reset he verified in his emulator only. Modwerk's USB package ran on an MKII (the toggle, jumps, a power cycle, removal); a jump into another Part, per-track scales and external MIDI were not tried on it.
 - OFF at every power-on and not stored in the project: turn it on again after a restart.
 - While the arranger or a pattern chain runs, pattern changes stay stock.
 - With differing track scales in PER TRACK mode the jump waits for the next tick where every track is on a step boundary (see above).

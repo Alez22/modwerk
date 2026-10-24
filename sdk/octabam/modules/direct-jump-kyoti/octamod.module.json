@@ -32,7 +32,7 @@
     "summary": "Hold [PTN] and press [YES] to turn Direct Jump on: a pattern you cue takes over on the next step, where it would be had it played since START.",
     "overview": "On the stock OS a cued pattern waits for the playing one to reach its end. With Direct Jump on, it takes over on the next step instead, locked to the master clock: it starts at the step it would be on had it been playing since you pressed PLAY, whatever its length, scale or per-track settings. The Part, START SILENT and trig conditions change as on a stock pattern change. It is off at every power-on, so the stock behaviour stays the default.",
     "highlights": [
-      "OS 1.40C. Zac Kyoti tested the clock-locked timing, the Part change and the toggle on his MKI.",
+      "OS 1.40C. Zac Kyoti tested the clock-locked timing, the Part change and the toggle on his MKI; Modwerk's USB package ran on an MKII.",
       "Off at every power-on: until you turn it on, pattern changes are the stock ones.",
       "The new pattern lands where it would be had it played since START, also with differing track lengths and scales (PER TRACK mode), so tracks stay in phase with the master clock.",
       "The Part, START SILENT and trig conditions change as on a stock pattern change; the last MIDI Program Change names the pattern that plays; no MIDI START is sent on a jump.",
@@ -78,7 +78,7 @@
       "key:PATTERN+YES"
     ],
     "limitations": [
-      "OS 1.40C. The author tested the timing, the Part change and the toggle on an MKI; Modwerk's port has run in the emulator only so far (see TESTING.md).",
+      "OS 1.40C. The author tested the timing, the Part change and the toggle on an MKI. Modwerk's USB package ran on an MKII (toggle, jumps between a 64- and a 16-step pattern, a power cycle, removal); a jump into another Part, per-track scales and external MIDI were not tried on it, and the card build has not run on a unit.",
       "OFF at every power-on and not stored in the project: turn it on again after a restart.",
       "While the arranger or a pattern chain runs, pattern changes stay stock.",
       "With differing track scales or lengths in PER TRACK mode, the jump waits for the next tick where every track is at a step boundary, at most one common step of all tracks' scales (24 clock ticks for 1x, 3/4x and 1/2x together).",
@@ -110,8 +110,8 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Under the ColdFire port (verify.py): the image and the unit, the [PTN] + [YES] toggle beside the original OS, OFF identical to the original OS through a stock pattern change, and three jumps whose sequencer state equals a reference run of the incoming pattern since START on every tick after the landing.",
-    "hardwareStatus": "untested",
+    "summary": "On the owner's MKII over USB (24 Oct 2026): installed, kept, self-tested, restored after a power cycle and removed on the flashed beta base; on a RAM-booted development twin the agent drove the toggle and read the sequencer: jumps from a 64-step to a 16-step pattern and back landed on the next step at the position each would hold had it played since START, three cues in one gesture landed the last, and with the toggle off a cue waited for the pattern end as on stock. Under the ColdFire port (verify.py, 32 checks): OFF identical to the original OS through a pattern change, and three jumps (16 steps; 7 steps on Part 2; PER TRACK lengths and scales) whose sequencer state equals a reference run of the incoming pattern since START on every tick after the landing.",
+    "hardwareStatus": "reported",
     "evidenceRevision": "6116a6a4d127ee0bac0ec835a474984be8b2c73e",
     "gates": [
       "modules/direct-jump-kyoti/verify.py"
@@ -131,6 +131,89 @@
         "media/ot-direct-jump-off.png"
       ],
       "screenshotStyle": "black-and-white"
+    },
+    "qualification": {
+      "moduleVersion": "0.1.0-experimental",
+      "sourceSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "imageSha256": "c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f",
+      "cycles": [
+        {
+          "processor": "coldfire",
+          "worstCase": 0,
+          "maxConfiguration": 0,
+          "maxInstances": 1,
+          "budget": 95778,
+          "unit": "cycles/event",
+          "method": "emulator",
+          "conditions": {
+            "parameterExtremes": "OFF, ON while idle, the tick that arms a jump and the landing tick; 16-step patterns and a PER TRACK pattern with tracks at 2x, 3/2x, 1x, 3/4x, 1/2x, 1/4x and 1/8x (the largest common step, 48 clock ticks).",
+            "parameterModulation": "Not applicable: one ON/OFF word toggled by a key gesture; no knob, lock, LFO or scene reaches it.",
+            "modeSwitching": "Toggled ON and OFF while stopped and while playing; cues, re-cues inside one gesture and jumps back to the previous pattern.",
+            "maxLoad": "One instance per unit. Runs once per sequencer clock tick in the tick interrupt, which runs at level 3 (its ICR read 3 in the port) below the level-5 DSP frame interrupt, so it never holds that interrupt off.",
+            "inputConditions": "Executed ColdFire instructions of dj_land per tick under ot_emu (entry to its rts, PC watch), including the stock routines the landing tick calls (Program Change, three kernel posts, the trig-condition reset), priced at 16 cycles each. Not chip timing."
+          },
+          "report": "TESTING.md"
+        }
+      ],
+      "memory": {
+        "regions": [
+          {
+            "name": "ColdFire code, two toast strings and 62 bytes of state (one linked unit, DRAM)",
+            "space": "sdram",
+            "words": 2016,
+            "wordBits": 8,
+            "bytes": 2016,
+            "scope": "shared"
+          },
+          {
+            "name": "Three six-byte detours and the four-byte [PTN]-layer YES pointer, written over stock in place",
+            "space": "cpu-flash",
+            "words": 22,
+            "wordBits": 8,
+            "bytes": 22,
+            "scope": "shared"
+          }
+        ],
+        "perInstanceBytes": 0,
+        "sharedBytes": 2038,
+        "maxInstances": 1,
+        "totalBytes": 2038,
+        "conditions": "From the linked unit (2,016 bytes of code and data, no bss; the USB package carries the same bytes with 18 relocations) and the four stock writes. No DSP memory, no heap, no saved data.",
+        "report": "TESTING.md"
+      },
+      "hardware": {
+        "kind": "functional",
+        "status": "reported",
+        "model": "MKII",
+        "testedOn": "2026-10-24",
+        "tester": "repeat98",
+        "sourceRevision": "6116a6a4d127ee0bac0ec835a474984be8b2c73e",
+        "imageSha256": "c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f",
+        "summary": "The owner's MKII, OS 1.40C, driven over USB by the agent. On the flashed beta base b5fae2ae: package c277d24f installed and kept as a tester's sync does it, self-test passed (1/1 intact, longest frame 372 us, card set saved), the owner's power cycle restored it, self-test passed again, removal emptied the set. On a RAM-booted development twin (7889c57a, the beta flags plus --dev) in two trials: the three sites jumped into the unit and the [PTN]-layer slot named dj_toggle; [PTN] + [YES] toggled with DIRECT JUMP ON/OFF toasts and the chooser stayed shut; a 64-step A16 jumped to a 16-step A02 and back, landing on step boundaries at the clock-locked position (A16 came back at step 48, not its start); three cues in one gesture landed the last; OFF, a cue waited for the playing pattern's end; each rollback left the sites stock.",
+        "limitations": [
+          "One unit, driven by the agent; nothing judged by ear, the owner did not run the hand test.",
+          "Not tested on hardware: a jump into another Part, START SILENT, trig conditions, PER TRACK scales, external MIDI (Program Change, no MIDI START), the arranger and chains, a cancelled cue (USB key presses arrive about a step apart).",
+          "USB only: the card build was not flashed. Not tested on an MKI. The site's review, Keep and Undo pages were not used: the device tool installed and removed the package.",
+          "About 15 minutes of use in all."
+        ],
+        "report": "evidence/hardware.md"
+      },
+      "documentation": {
+        "tutorial": {
+          "title": "Quick tutorial: jump between patterns on the next step",
+          "steps": [
+            "Hold [PTN] and press [YES]: DIRECT JUMP ON appears. Release [PTN]; the pattern chooser stays shut.",
+            "Press [PLAY]. Hold [PTN] and press a trig key to cue that pattern: it takes over on the next step, at the step it would be on had it played since START.",
+            "Hold [PTN] and press [YES] again for DIRECT JUMP OFF: cued patterns wait for the end of the playing one again, as on the stock OS."
+          ]
+        },
+        "screenshots": [
+          "media/ot-direct-jump-on.png",
+          "media/ot-jump-landed.png",
+          "media/ot-direct-jump-off.png"
+        ],
+        "screenshotStyle": "black-and-white"
+      }
     }
   },
   "license": {
