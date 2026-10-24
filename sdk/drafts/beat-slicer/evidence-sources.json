@@ -130,6 +130,8 @@
     "preview37-recorder-fifo-reporting-native.json": "66ec0116a5ea4b7ed6ec83659493366a249edce8",
     "recorder39-banks.json": "034701491d876f54ccfda11ed6164771485073dd",
     "recorder39-panel.json": "034701491d876f54ccfda11ed6164771485073dd",
+    "recorder40-boundary-host.json": "a3cd85dabb842e5f23199df31c7602281d06bbc7",
+    "recorder40-boundary-native.json": "a3cd85dabb842e5f23199df31c7602281d06bbc7",
     "service24-boot.json": "9f4d7e4a7a0262073e6c59333e5ea8eda4026b2b",
     "service24-compile.json": "9f4d7e4a7a0262073e6c59333e5ea8eda4026b2b",
     "session-host.json": "9e10767a26b931bbdeaefa573e7b532860a58047",

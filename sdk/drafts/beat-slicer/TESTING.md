@@ -2395,3 +2395,5 @@ install production hooks, admit a live source, or qualify Pickup/overdub,
 cache/interrupt timing, USB, playback or hardware. Replay bytes and binaries
 remain private; the conservative interior-target scan is not a complete
 control-flow or indirect-target proof.
+
+Two recorder-boundary reports bind source commit `a3cd85dabb842e5f23199df31c7602281d06bbc7`. Peak observed stack below the original caller SP is 176 bytes for stock and 260 bytes for the guarded isolated calls, not a complete ISR/task stack budget. Current-upstream validation passed in 142.59 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
