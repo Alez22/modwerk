@@ -1911,3 +1911,5 @@ UI/selection task identity, code/arena canaries, receive call and main stack sta
 intact. PCM, complete settings and cards remain unchanged. The retained private
 waveform classification, synthetic owner/source admission and pinned storage
 remain limitations; no Apply, loader removal or hardware behavior is qualified.
+
+Fifteen optimized-work reports bind exact source commit `cb3c76a1374fe43663ef561375f0d81d63f5841b`. Historical baseline reports retain their own earlier source pins.
