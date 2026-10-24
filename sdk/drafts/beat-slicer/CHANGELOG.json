@@ -6,7 +6,7 @@
       "Fix the private USB probe build to use the SDK MCF54455 target instead of the emulator-oriented MCF5475 override.",
       "Reject scale-eight and word-sized indexed operands that MCF54455 reports as address errors; reject the exact failed 0.1.52 package before USB access.",
       "Preserve the physical failure and post-restart baseline verification separately from host/CPU preparation evidence.",
-      "Known issue: the corrected candidate has not been retested on hardware. Live sample preview, Apply and release qualification remain pending."
+      "Hardware trial: no new crash; self-test failed CPU limit at 93.7%. Owner reports an already playing pattern peaking at 92% without the probe. Exact baseline inventory restored; stopped-transport retest and live preview remain pending."
     ]
   },
   {

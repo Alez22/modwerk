@@ -3,8 +3,15 @@
 The first 0.1.52 attempt failed on the MKII: a wrong CPU target emitted
 scale-eight indexed addressing and caused vector 3 in text drawing. The unit
 restarted; its original base and exact 11-module inventory were verified.
-That package is rejected. The corrected SDK-target candidate is not hardware
-qualified until a new explicitly authorized trial succeeds.
+That package is rejected. The corrected 0.1.53 candidate ran without a new crash, but its physical
+self-test failed the ColdFire CPU limit: 937 per mille against 900. Its recorded
+culprit is Mini Verb; that alone does not establish the cause. The frame gap
+remained below its limit. Automatic recovery restored the exact original base,
+active identity and 11-module inventory. No planner PASS or successful trial/Undo
+is claimed; the owner subsequently reported an already playing pattern peaking at 92%
+without the probe. This exceeds the self-test limit and prevents attribution of
+the CPU failure to the probe. The next authorized attempt needs playback and
+recording stopped, with baseline CPU observed first.
 
 This is the small first hardware step. It runs the existing planner on fixed,
 generated silence using SAMPLE 120 BPM and PROJECT 60 BPM, retaining one marker.

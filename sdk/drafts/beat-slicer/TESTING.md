@@ -2848,3 +2848,7 @@ new addressing guard rejects the MCF5475 object and accepts the SDK MCF54455
 object. The corrected exact package passes real-loader CPU install/Undo/reinstall
 and the complete stock-free scan. These remain offline results, not a hardware
 fix verification.
+
+Private USB probe evidence: `usb52-*` binds source `1d19d3b8d29dd48d7b92744eb01d2d488934d24d`; `usb53-*` binds corrected source `b670fa7506c824d73eee741e3bdca2c51b2bd4aa`. Host/native/stock-free preparation passed, but both physical trials failed: 0.1.52 restarted with vector 3; 0.1.53 had no new crash but failed SELFTEST_CPU at 937 per mille. The second trial recovered the exact original base, active identity and 11-module inventory. Frame gap 52824 is below the 68000 limit. The reported culprit is Mini Verb, without a causal conclusion. No hardware planner PASS, successful self-test/Undo, rendered display or live sample behavior is claimed. Both raw device records and built packages remain private. Source checks 52b and 53a passed before their source commits.
+
+Owner clarification after the 0.1.53 trial: a pattern was already running and peaked at 92% by itself. This was reported by the owner, not measured as a separate baseline by the trial client. It exceeds the self-test CPU limit and prevents attributing the 93.7% result to the probe. A stopped-transport repeat remains pending; the failed run is not relabeled as a pass.

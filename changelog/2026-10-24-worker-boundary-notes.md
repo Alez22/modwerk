@@ -69,3 +69,5 @@ Document preview-exchange cancellation before owner publication, refusal under n
 Clarify that the long-lived device session accepts `try FILE` immediately, whereas a temporary device test must retain explicit self-test and Undo. Beat Slicer now prepares a small fixed-input USB planner probe on existing base hooks, leaving live sample/editor integration separate.
 
 Record the actual MKII vector-3 failure from an MCF5475-targeted private probe and the SDK MCF54455 target requirement. Scale-eight indexed addressing can pass the emulator and fail on the unit; preserve original failure evidence and distinguish restart recovery from trial Undo. The corrected candidate remains untested on hardware.
+
+Record both private USB attempts separately: the corrected SDK-target probe avoids the observed restart, but its physical self-test fails the ColdFire CPU limit. Verify exact original module inventory and active/base identities after recovery; retain no hardware-pass claim.
