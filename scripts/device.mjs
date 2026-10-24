@@ -141,6 +141,64 @@ async function effectTables() {
   const first = await words(fx1, 129), count = first.indexOf(0) < 0 ? 128 : first.indexOf(0)
   return { count, ids: [first.slice(0, count), await words(fx2, count)], rows: [await words(row1, count), await words(row2, count)] }
 }
+/** MEMORY MAP (dev request 24): the module pool's free bytes and largest free run, the delay-buffer blocks in use, and
+ * each core's code arena with the blocks the loader has placed there (committed), sorted by where they start. */
+async function memoryMap() {
+  const pages = [Buffer.from(await devIn(24, 0, 276))] // then 32 packages a page until the base stalls (fxids.h)
+  for (;;) { try { pages.push(Buffer.from(await devIn(24, pages.length, 276))) } catch { break } }
+  const b = pages[0]
+  if (b.toString('latin1', 0, 4) !== 'MWMP') throw new Error('Not a memory map.')
+  const cores = [0, 1].map(core => {
+    const arena = b.readUInt16BE(12 + 2 * core), blocks = []
+    pages.forEach((page, k) => {
+      for (let i = 0; i < 32; i++) {
+        const at = page.readUInt16BE(20 + 4 * (32 * core + i))
+        if (at !== 0xffff) blocks.push({ p: 32 * k + i, at: at - 64, n: page.readUInt16BE(22 + 4 * (32 * core + i)) })
+      }
+    })
+    blocks.sort((x, y) => x.at - y.at)
+    // Holes: free words outside the largest free run (big blocks sit at the top, the rest at the bottom: dsp.c)
+    let end = 0, largest = 0
+    for (const k of [...blocks, { at: arena, n: 0 }]) { largest = Math.max(largest, k.at - end); end = Math.max(end, k.at + k.n) }
+    const used = blocks.reduce((s, k) => s + k.n, 0)
+    return { arena, blocks, used, largest, holes: arena - used - largest }
+  })
+  return { free: b.readUInt32BE(4), largest: b.readUInt32BE(8), buffers: b.readUInt32BE(16), cores }
+}
+/** The DSP code map (development bases): each core's arena as a bar of 64 cells, each placed block a letter and free
+ * words '.', then each block's name, where it starts, its words and the slots that run it, else "preloaded" (code a Part
+ * of the bank names, kept loaded so a Part change waits for no upload). watch:N redraws it whenever a block comes, goes
+ * or moves (compaction, preloading, a pick) for N seconds, at most 15 (the session answers within 20). */
+async function dspmap(seconds) {
+  const tables = await effectTables(), names = new Map()
+  const label = async d => d ? Buffer.from(await mem(d + 9, 13)).toString('latin1').replace(/\0.*$/s, '') : ''
+  const name = async p => {
+    if (!names.has(p)) { const n2 = await label(tables.ids[1][p]); names.set(p, (n2 && n2 !== 'NONE') || !p ? n2 : (await label(tables.ids[0][p])) || 'id ' + p) }
+    return names.get(p)
+  }
+  const letter = i => String.fromCharCode(65 + i % 26)
+  const t0 = Date.now()
+  let last = ''
+  do {
+    const map = await memoryMap(), live = await mem(0x80000ec4, 16), key = JSON.stringify(map.cores) + live.join()
+    if (key !== last) {
+      const out = seconds ? [`${((Date.now() - t0) / 1000).toFixed(1)} s`] : []
+      for (const core of [1, 0]) {
+        const { arena, blocks, used, largest, holes } = map.cores[core], cells = Array(64).fill('.')
+        blocks.forEach((k, i) => { for (let c = 0; c < 64; c++) { const mid = (c + 0.5) * arena / 64; if (mid >= k.at && mid < k.at + k.n) cells[c] = letter(i) } })
+        blocks.forEach((k, i) => { if (!cells.includes(letter(i))) cells[Math.min(63, Math.floor(k.at * 64 / arena))] = letter(i) }) // smaller than a cell
+        out.push(`core ${core} (${core ? 'T1-4' : 'T5-8'}) |${cells.join('')}| ${used}/${arena} words, largest free run ${largest}, holes ${holes}`)
+        for (const [i, k] of blocks.entries()) {
+          const slots = [...live].flatMap((p, s) => p === k.p && ((s & 7) < 4 ? 1 : 0) === core ? [`T${(s & 7) + 1} FX${s < 8 ? 1 : 2}`] : [])
+          out.push(`  ${letter(i)} ${(await name(k.p)).padEnd(13)} @${String(k.at).padEnd(5)} +${String(k.n).padEnd(5)} ${slots.join(', ') || 'preloaded'}`)
+        }
+      }
+      console.log(out.join('\n'))
+      last = key
+    }
+    if (seconds) await wait(250)
+  } while (Date.now() - t0 < Math.min(seconds, 15) * 1000)
+}
 /** What the unit shows, as text: each track's effects (their descriptors' names), the current track, transport. */
 async function ui() {
   const track = (await mem(0x80000000, 1))[0], live = await mem(0x80000ec4, 16)
@@ -242,7 +300,8 @@ async function missing() {
  * hold:N (development bases: host frames wait N seconds, as after a boot), missing (modules the project names, not installed),
  * inventory (the installed modules, INVENTORY),
  * reload (the current Part from its saved copy, through the Part menu), gap (the longest time between frames since the last gap),
- * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed)
+ * memory (development bases: each memory's use, holes and largest free run), compact (pack each core's code now, timed),
+ * dspmap (development bases: each core's code arena drawn, every block named with its slots), dspmap:watch:N (redrawn on change)
  * (spaces in NAME as _; it waits until the track runs it). */
 async function run(sequence, until = Infinity) { // serve: past its time limit a sequence stops before its next step
   for (const step of sequence.trim().split(/\s+/)) {
@@ -285,30 +344,16 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       }
     }
     else if (step === 'memory') { // MEMORY MAP (dev request 24): how full and how fragmented each memory is
-      const pages = [Buffer.from(await devIn(24, 0, 276))] // then 32 packages a page until the base stalls (fxids.h)
-      for (;;) { try { pages.push(Buffer.from(await devIn(24, pages.length, 276))) } catch { break } }
-      const b = pages[0]
-      if (b.toString('latin1', 0, 4) !== 'MWMP') throw new Error('Not a memory map.')
-      const free = b.readUInt32BE(4), largest = b.readUInt32BE(8), pool = free + (await statusWords())(72) // the base's own size
-      console.log(`pool: ${pool - free} of ${pool} bytes used; free ${free}, largest free run ${largest}${free ? ` (${Math.round(100 * largest / free)} % of free)` : ''}`)
+      const map = await memoryMap(), pool = map.free + (await statusWords())(72) // the base's own size
+      console.log(`pool: ${pool - map.free} of ${pool} bytes used; free ${map.free}, largest free run ${map.largest}${map.free ? ` (${Math.round(100 * map.largest / map.free)} % of free)` : ''}`)
       for (const [core, name] of [[1, 'core 1 (T1-4)'], [0, 'core 0 (T5-8)']]) {
-        const arena = b.readUInt16BE(12 + 2 * core), blocks = []
-        pages.forEach((page, k) => {
-          for (let i = 0; i < 32; i++) {
-            const at = page.readUInt16BE(20 + 4 * (32 * core + i))
-            if (at !== 0xffff) blocks.push({ p: 32 * k + i, at: at - 64, n: page.readUInt16BE(22 + 4 * (32 * core + i)) })
-          }
-        })
-        blocks.sort((x, y) => x.at - y.at)
-        // Holes: free words outside the largest free run (big blocks sit at the top, the rest at the bottom: dsp.c)
-        let end = 0, largest = 0
-        for (const k of [...blocks, { at: arena, n: 0 }]) { largest = Math.max(largest, k.at - end); end = Math.max(end, k.at + k.n) }
-        const used = blocks.reduce((s, k) => s + k.n, 0)
+        const { arena, blocks, used, largest, holes } = map.cores[core]
         console.log(`${name}: ${used} of ${arena} words in ${blocks.length} blocks [${blocks.map(k => `id ${k.p} @${k.at}+${k.n}`).join(', ')}]; ` +
-          `holes ${arena - used - largest} words, largest free run ${largest} of ${arena - used} free`)
+          `holes ${holes} words, largest free run ${largest} of ${arena - used} free`)
       }
-      console.log(`buffer blocks in use: 0x${b.readUInt32BE(16).toString(16)}`)
+      console.log(`buffer blocks in use: 0x${map.buffers.toString(16)}`)
     }
+    else if ((m = /^dspmap(?::watch:(\d+))?$/.exec(step))) await dspmap(Number(m[1] ?? 0))
     else if (step === 'compact') { // COMPACT (dev request 25): pack each core's code now (transport stopped); how long it took
       const read = async go => { const b = Buffer.from(await devIn(25, go, 8)); return { step: b.readUInt32BE(0), counts: b.readUInt32BE(4) } }
       if (!(await read(1)).step) throw new Error('Compaction did not start: stop the transport and let the loader finish.')
