@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.51-experimental",
+  "version": "0.1.52-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Compose outgoing preview revocation with the real loader transition callback before menu retirement. Eighteen generated-PCM lifecycle scenarios cover RUNNING/WAITING/READY, replacement/removal, lock refusal and partial cancellation; four set scenarios cover disconnect rollback and Keep. Host and cached/uncached ColdFire pass. Production handles, source/cache ownership, USB and hardware remain unqualified.",
+    "summary": "Prepare a small private USB smoke-test package using existing tick/draw hooks. Fixed SAMPLE/PROJECT planner inputs, injected failure paths, bounded drawing and actual loader/CPU install/Undo/reinstall pass. The standard frontend validates the package and prepares removal Undo. This is a diagnostic first device step; live source/editor/USB module integration remains unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -131,6 +131,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_recorder_boundary.py",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --transition",
       "python3 -B sdk/drafts/beat-slicer/test_menu_owner_loader.py --preview-owner",
+      "python3 -B sdk/drafts/beat-slicer/test_usb_probe.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

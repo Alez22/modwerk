@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.51-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.52-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -208,3 +208,5 @@ another PCM read, remains closed through Stop and recovers after a normal
 AED → SLICE → Beat Grid opening. Positive UI runs retain the explicitly private
 waveform-read classification; a separate conservative run refuses stale output.
 This is emulator integration, not an installable module or physical result.
+
+The [first device-test probe](USB_TEST.md) is a small private USB package that runs the planner on fixed inputs and displays PASS/FAIL. It uses existing base hooks and automatic Undo; it does not access instrument samples or make the full module installable.

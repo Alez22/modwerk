@@ -22,6 +22,13 @@ its independent package to that interface, implement qualified Apply/playback,
 and pass the complete browser/USB and physical acceptance flow. Private test
 injection and a standalone runtime object cannot substitute for those steps.
 
+## Preliminary USB smoke test
+
+Start with the [private planner probe](USB_TEST.md): existing tick/draw hooks,
+fixed inputs, physical self-test and Undo. It needs no new base/editor interface
+and does not access instrument samples. This narrower test advances device
+execution without claiming live Flex preview or relaxing the gates below.
+
 ## First USB preview trial
 
 The next device milestone is a read-only Flex preview through the Modwerk base

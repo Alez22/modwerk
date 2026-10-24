@@ -2781,3 +2781,37 @@ or controller code must stay in its package rather than be built into the base.
 No stock source, USB, audible output or physical persistence is qualified here.
 
 The three retained 0.1.51 reports bind source `5ff97af6850b0c81da18c574f4fe18d67f84bca0`. Their source/SDK hashes, native object hashes and runner identity were checked before retention. The current-upstream source check passed in 139.74 seconds; the inherited stale-fork changelog failure remains recorded separately.
+
+## First USB device-test candidate (0.1.52)
+
+`build_usb_probe.py` builds a separate private diagnostic package on the existing
+base tick/draw hooks. It runs two fixed-input requests through the actual planner:
+SAMPLE 120 BPM gives five starts and PROJECT 60 BPM gives three, retaining the
+original 1,000-frame start. Generated silence gives no fade warnings. It exposes
+no source/editor/recording hooks, stock patch, DSP payload or key/encoder claim.
+The first tick performs the bounded fixed work once; later ticks only publish
+its diagnostic result. The frame hook displays the result within 1,024 bytes.
+
+Host ASan/UBSan passes success and injected first/second planner-failure cases,
+checking one-shot work and guarded display storage. The exact 2,280-byte package
+also passes two real-loader ColdFire install/Undo/reinstall cycles while retaining
+a companion, invoking its relocated tick/draw code and restoring allocation.
+The saved package SHA-256 is
+`f5432b875899a2262ddb17af3c34120bac58b52ec4f58a6d858687564fcb8328`.
+The SDK scanner finds no 16-byte high-entropy stock runs in the complete package
+against pinned 1.40C MAIN and its three reversed 24-bit alignments. Source-built
+frontend validation accepts this exact package and prepares its removal Undo;
+the planning capabilities/base identity in that check are hypothetical.
+
+The [private device client](USB_TEST.md) uses the standard frontend validator,
+OctatrackLink, actual physical self-test and Undo. Review is read-only and expires
+in 60 seconds. Trial requires unchanged package/source/SDK hashes, frontend Git
+revision, base, active identity and inventory. It refuses an existing probe,
+requires an observed passed self-test and planner PASS diagnostic, then Undoes
+and verifies the baseline. It never Keeps. The general MCP package allowlist is
+unchanged; MCP supplies read-only preflight for this unlisted diagnostic.
+
+Preparation results do not qualify USB, display, audio or persistence. The first
+read-only MCP attempt found a disconnected unit; physical results are recorded
+only after an actual authorized trial. Live Flex preview, production handles,
+Apply and finished module delivery remain separate work.

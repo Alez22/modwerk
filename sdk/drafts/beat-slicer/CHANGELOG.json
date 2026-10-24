@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.52-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Prepare a private USB planner probe on the existing tick/draw hooks, with fixed inputs and an on-screen PASS/FAIL result; no instrument sample access.",
+      "Build and test the exact 2,280-byte package through real loader/CPU install, Undo and reinstall; scan saved package bytes and preserve display bounds.",
+      "Provide a read-only review and explicit temporary trial client using the standard frontend validator, actual self-test and automatic Undo, with no Keep.",
+      "Known issue: hardware is not yet tested. This diagnostic package does not supply live Flex preview, Apply, production source handles or release qualification."
+    ]
+  },
+  {
     "version": "0.1.51-experimental",
     "date": "2026-10-24",
     "changes": [
