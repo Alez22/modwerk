@@ -234,6 +234,15 @@ later stock-only menu. Test both selected-slice and unsliced variants and prepar
 their marker state explicitly. A closed window may be used to cancel a preview,
 but is not evidence that retained table pointers can be reclaimed.
 
+A retained no-argument callback must not adopt a newer opening's global token.
+Bind authority to the actual selection path before native close, validate it at
+the direct callback tail and consume it once; retire only after callback return.
+Refuse nested selection before it can use the outer context. Beat Slicer's pinned
+1.40C experiment also observes stock overwriting its caller's first argument:
+an extra nested call frame would change that ABI effect. Compare original and
+wrapped register, SR, stack and argument behavior separately from full-popup
+execution. These checks do not authorize reclaiming retained references.
+
 ## Integrate
 
 - [ ] `sdk/catalog.json` entry, thumbnail, `resources.impact`, README sections, tutorial and screenshots of the menu path, with exact button sequences.

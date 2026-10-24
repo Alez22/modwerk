@@ -197,3 +197,10 @@ target_compile_options(beat_slicer_preview_cost_probe PRIVATE -Wall -Wextra -Wer
 file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/preview_cost_probe.cpp" PREVIEW_COST_PROBE_SHA)
 target_compile_definitions(beat_slicer_preview_cost_probe PRIVATE PROBE_SOURCE_SHA="${PREVIEW_COST_PROBE_SHA}")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS preview_cost_probe.cpp)
+
+add_executable(beat_slicer_selection_abi_probe selection_abi_probe.cpp)
+target_link_libraries(beat_slicer_selection_abi_probe PRIVATE ot_machine)
+target_compile_options(beat_slicer_selection_abi_probe PRIVATE -Wall -Wextra -Werror)
+file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/selection_abi_probe.cpp" SELECTION_ABI_PROBE_SHA)
+target_compile_definitions(beat_slicer_selection_abi_probe PRIVATE PROBE_SOURCE_SHA="${SELECTION_ABI_PROBE_SHA}")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS selection_abi_probe.cpp)

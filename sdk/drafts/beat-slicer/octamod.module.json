@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.29-experimental",
+  "version": "0.1.30-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Batch only owned private reader transitions between source validations; stop at the first live-read request and revalidate before copying. Host/ColdFire cover 192 batch plans, 132 metadata invalidations and 72 exchange interleavings. Sixteen synthetic cost cases preserve complete plans and PCM-copy counts while reducing total work and the worst callback. Exact native execution outcomes are recorded in TESTING.md. Live admission, removal, Apply/playback, browser/USB packages and hardware remain unqualified.",
+    "summary": "Bind each contributed selection to its captured task, table, row, callback, owner and epoch. Capture before stock closes, arm at the exact callback tail and consume once; refuse direct/late/nested calls. Portable and actual-stock ABI probes are recorded separately from full native UI results. Pinned one-shot storage remains; loader retirement, live source admission, Apply/playback, browser/USB and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -121,6 +121,7 @@
       "python3 -B sdk/drafts/beat-slicer/test_ui_text.py",
       "python3 -B sdk/drafts/beat-slicer/test_preview_batch.py",
       "python3 -B sdk/drafts/beat-slicer/test_preview_async.py",
+      "python3 -B sdk/drafts/beat-slicer/test_selection_context.py",
       "python3 -B sdk/drafts/beat-slicer/audit_evidence.py",
       "verify.py deliberately refuses qualification until native/UI/USB/audio/persistence integration is verified"
     ],

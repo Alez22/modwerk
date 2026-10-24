@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.30-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Bind contributed menu and preview-control callbacks to the exact native selection context; reject stale, direct, duplicate and nested activations.",
+      "Preserve the stock dispatcher stack, register and caller-visible argument behavior through a resident return trampoline.",
+      "Check 200 portable context lifetimes and 48 paired stock/wrapped ABI cases, including status-register preservation and four nested refusals.",
+      "Keep original stock menu actions intact; full native control and late-callback outcomes are recorded separately.",
+      "Known issue: pinned one-shot storage is not loader retirement; live admission, Apply/playback, browser/USB packages and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.29-experimental",
     "date": "2026-10-24",
     "changes": [

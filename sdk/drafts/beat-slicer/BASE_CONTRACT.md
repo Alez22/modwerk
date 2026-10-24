@@ -62,6 +62,13 @@ path. A captured menu generation is invalidated on menu replacement/close,
 sample switch, owner replacement or removal. No action row can acquire a new
 meaning by reusing the same index while an earlier activation remains live.
 
+A no-argument callback address alone is not selection authority. Capture the
+opening's task/table/row/callback/owner/epoch before native close, arm only at
+the verified direct-dispatch tail, consume once and retire after callback
+return. Refuse nested dispatch before it can borrow the outer context. The
+[selection prototype](SELECTION_CONTEXT.md) tests this contract with pinned
+storage; it does not prove the production UI/loader boundary or detachment.
+
 Removal must cancel the preview and retire menu/job references before module
 memory is reclaimed. It must return busy while a callback is actually running.
 Loader stack/register scanning alone cannot discover a retained heap/global

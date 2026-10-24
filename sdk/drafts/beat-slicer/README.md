@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.29-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.30-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -240,3 +240,9 @@ validation, stopping at the first live-read request. It revalidates before that
 copy. The private native fixture uses one such work call per engine callback,
 plus optional begin/setup and publication; the original one-step API is retained.
 The selected budget reduces the synthetic worst callback as well as total work.
+
+The [selection-context prototype](SELECTION_CONTEXT.md) now binds callbacks to
+the actual stock selection path. Direct, stale and duplicate calls do not adopt
+a newer dialog's authority. Private native wrappers preserve the stock stack
+and caller-visible effects; this is still pinned one-shot storage, not a
+production loader lease or permission to reclaim menu references.

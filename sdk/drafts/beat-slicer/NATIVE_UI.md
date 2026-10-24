@@ -128,3 +128,15 @@ fixture above. These fixtures do not install a production base service. Source i
 generation are test-owned, with partial writer coverage and unqualified full
 interrupt masking. Static reads, atomic publication, playback, source-built
 browser/USB packages and physical persistence remain unfinished.
+
+
+The guarded `selection_boot_native.py` / `boot_selection_native.py` variant
+captures selection before stock closes, arms at its exact dispatch tail and
+ends only after the callback returns. Every contributed configuration/result
+callback consumes the matching context first. Direct callbacks cannot borrow a
+new global epoch. The wrapper substitutes a resident return trampoline rather
+than nesting the original selection call, preserving the original stack and
+stock's caller-visible first-argument overwrite. Separate ABI and full-popup
+execution results are in TESTING.md. Arrays remain pinned and the contribution
+is still one-shot; no production loader retirement or nested-menu support is
+claimed. See [selection authority](SELECTION_CONTEXT.md).

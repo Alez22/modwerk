@@ -1913,3 +1913,56 @@ waveform classification, synthetic owner/source admission and pinned storage
 remain limitations; no Apply, loader removal or hardware behavior is qualified.
 
 Fifteen optimized-work reports bind exact source commit `cb3c76a1374fe43663ef561375f0d81d63f5841b`. Historical baseline reports retain their own earlier source pins.
+
+
+## Selection-bound callback authority (0.1.30)
+
+Host ASan/UBSan and compiled ColdFire tests pass 200 repeated context lifetimes
+across both menu shapes. They reject direct/late/duplicate calls, wrong tasks,
+tables, rows, callbacks, owners, generations, domains and epochs, blocked
+selections and exhausted serials. Refused output remains unchanged. Capture,
+arm, consume and post-return retirement are distinct; a captured context alone
+is not authority. These portable tests model the trusted adapter boundary.
+The compiled context uses 668 text bytes, no global data/BSS, and at most 48
+local stack bytes excluding callees and the complete chain.
+
+An isolated actual-stock probe compares 48 original/wrapped selections with
+closed popups: four SR values, three rows, present/absent selection output and
+null/hostile callbacks. Authored hostile code clobbers every data/address
+register and changes SR. Both paths match all D0–D7/A0–A6 registers, SP, SR,
+the original return slot, the callback overwrite of the caller's first argument,
+other argument words and selected-row writes. Four nested calls are refused
+before stock dispatch while preserving the outer state and argument layout.
+This probe has no scheduler or popup destruction; full native UI checks are
+separate. The private return trampoline preserves the original stack rather
+than introducing an extra stock call frame.
+
+The combined guarded fixture size report is:
+
+```text
+text	   data	    bss	    dec	    hex	filename
+  25610	      0	  10308	  35918	   8c4e	/evidence/selection30-ui-compile2/source-boot.elf
+```
+
+It fits the eight-page private reservation. Compile size and isolated ABI
+comparisons are not physical timing, native loader admission or module removal
+qualification. Full-boot outcomes are recorded separately below.
+
+
+Both full native menu layouts pass all 42 complete control plans and preserve
+PCM, complete settings, cards, private code/reservation canaries, receive call
+and main stack. Each run traces three actual popup selections through entry,
+tail, stock helper and post-return trampoline, checking registers and stack at
+each boundary. Interactive PC traces do not expose SR; the separate paired ABI
+probe above checks SR directly.
+
+Each layout refuses 40 direct callbacks across configuration, READY, closed and
+post-stock-grid states without changing UI epoch/options, request identity,
+pending work or invocation count. Capture/arm/consume counts agree; dispatch
+entry/exit counts balance, with no nested selection, active context or fault
+left. A later original stock SLICE menu and its eleven-row grid chooser still
+open and cancel without modifying markers. No module Apply or Undo is exposed.
+
+Across the two runs: 152 stock selection dispatches, 2,634 UI calls, 574 engine callbacks, 482 bounded work calls and 530 posted/consumed wakes, with none pending. Source queries remain in the separate engine task. This does not prove production loader retirement, live source admission or physical timing.
+
+Current-upstream full source validation: Check passed in 136.49s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The new CMake probe target also builds and passes the separate 48-case ABI comparison.

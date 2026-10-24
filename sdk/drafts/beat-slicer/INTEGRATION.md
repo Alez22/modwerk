@@ -14,7 +14,9 @@ experiments from the shared services and qualification still required.
    `editor_menu.c` now composes copied stock/contributed labels and owner-checked
    dispatch with explicit retirement. Private full-boot fixtures now render and
    select an appended action in both stock menu variants and exercise read-only
-   controls. Native locking, package admission, event assignment and actual
+   controls. A guarded variant captures/arms/consumes each selection and preserves
+   native dispatch ABI effects; it still keeps one-shot storage pinned.
+   Native locking, package admission, event assignment and actual
    detachment/removal remain absent; test storage stays pinned for the boot.
 3. Connect the compiled planner to an admitted production source adapter.
    The standalone planner now links and executes 164 synthetic CPU-emulator
