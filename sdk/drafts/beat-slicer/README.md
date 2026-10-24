@@ -1,110 +1,64 @@
 # Beat Slicer
 
-Version: `0.1.54-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.55-experimental` · author: @twwwy · **unlisted development draft**.
 
-## Overview
+## Basic device version in development
 
-Beat Slicer plans slice starts at beat intervals derived from sample BPM or
-project BPM. It is a one-shot sample-editor operation, with no effect slot or
-independent sequencer clock. A private full-boot Octatrack emulator fixture now
-exercises the stock-menu entry, controls and read-only previews. This is **not
-an installable module**: production source admission, editor/loader lifecycle,
-Apply/playback and browser/USB integration remain unfinished. A separate private USB
-probe now passes fixed-input planner execution, physical self-test and verified
-Undo on the owner’s MKII; see [the exact scope](USB_TEST.md).
+Beat Slicer creates exact beat-spaced slice starts from sample ATTR BPM or
+captured project BPM. The first usable version targets **both file-backed Flex
+and Static samples** through their shared AED slicing workflow. It uses ordinary
+stock playback, with no effect slot, PCM analysis or new DSP fades. Quiet-boundary
+search and enhanced playback processing are later work, not prerequisites for
+this basic version. Click-free playback is not claimed.
 
-The grid starts at sample trim start. One beat is a quarter note of the chosen
-BPM; track speed and swing do not move offline sample markers. Project BPM is
-captured for the operation. Later tempo changes must never rewrite slices
-automatically. The current core accepts 30–300 BPM in 1/24-BPM units.
+An independent controller package and a proposed base-owned sample-editor service
+now build from source. Host tests exercise the actual controller/grid/service,
+both native metadata paths, confirmation and failed-write rollback. The service
+also executes on the MCF54455 CPU emulator. A private base passes native/browser
+byte parity and normal-boot USB/menu/confirmation emulator tests for both kinds.
+Full lifecycle qualification continues; the candidate has **not run on hardware**. The service is enabled
+only by a private `--sample-editor` base build and needs owner review. It is not
+released capability, and the draft remains absent from the public catalogue.
 
-The new [geometry-only helper](grid_preview.h) prepares an exact grid from copied
-settings with no PCM reads. Boundary amplitude and fade safety remain unknown.
-This is preparation for a smaller read-only live preview, not a live source
-service or installable module.
+## Controls and workflow
 
-## Controls
+Private candidate access: select a file-backed Flex or Static sample → AED →
+AMP (SLICE) → YES → BEAT SLICER. Stop playback and recording for this first
+candidate; recorder buffers and slots 128 onward are excluded.
 
-The private native fixture exercises these read-only controls:
-
-| Control | Values and behavior |
+| Control | Behavior |
 | --- | --- |
-| BPM SOURCE | SAMPLE (default): sample ATTR BPM; PROJECT: captured runtime project tempo. Refuse missing or invalid BPM. External-clock and pattern-tempo behavior remain unqualified. |
-| SPACING | 1, 4, 16, 32 or 64 beats; default 1. |
-| BOUNDARY | SMOOTH (default): search both stereo channels within ±2 ms for a quiet boundary; EXACT: mathematical beat grid. Neither guarantees click-free playback. |
-| Preview | Show captured tempo, total/existing/new markers and fade warnings. No sample changes. |
-| BACK / NO | Leave the private preview without changing markers. Reopening preserves options and issues fresh request/selection identities. |
+| Encoder A | SAMPLE or PROJECT BPM; refuse missing/invalid tempo, with no silent fallback. |
+| Encoder B / UP / DOWN | 1, 4, 16, 32 or 64 beats per slice. |
+| YES | Prepare the exact grid and request the base-owned stock confirmation. No markers change when the question opens. |
+| NO / BACK | Close the options or decline confirmation without changing markers. |
+| After creation | Use stock DELETE SLICE or DELETE ALL SLICES. No separate slice Undo/history is added. |
 
-Confirm/Apply remains planned and unavailable. It must follow the stock slicing
-workflow, committing the exact prepared candidate once. Afterwards, use stock
-DELETE SLICE or DELETE ALL SLICES. No Beat Slicer Undo action or separate history
-dialog is planned. Clearing removes markers; it does not restore a previous
-layout. Internal rollback remains necessary for failed publication.
+The grid starts at trim start. One beat is a quarter note of the chosen BPM;
+track speed and swing do not move offline markers. The core accepts 30–300 BPM
+in 1/24-BPM units. Later tempo changes never rewrite slices automatically.
 
-At stock's grid zero-cross question, NO accepts unaligned slices rather than
-cancelling. The normal stock workflow and the resident contribution are tested
-separately and together in private emulator boots; physical comparison remains
-open.
+Existing complete start/end/loop records and their ordinals must survive or the
+edit refuses. This conservative restriction prevents a sorted insertion from
+renumbering slice locks and still needs owner review. Clear existing slices with
+the stock menu when a replacement layout is wanted. Refuse more than 64 starts
+instead of truncating the grid. Settings affect every track using that sample
+slot. Installing the module itself must change no sample.
 
-## Usage
+The base copies source metadata and owns source/loader retirement, confirmation,
+atomic publication and verified failure rollback. The package receives no sample
+or PCM pointer and contains no native sample-writing code. NO cancels our create
+question; stock's existing zero-cross question retains its own meaning (NO there
+accepts an unaligned stock grid).
 
-Target: Octatrack MKII OS 1.40C through the Modwerk base and USB bridge. MKI is a
-future qualification target.
+No project or sample-settings save is implicit. Saving/reloading through the
+stock workflow, physical reboot persistence, removal, companions and audible
+playback remain qualification gates on the exact candidate. The older 0.1.53
+fixed-input USB probe passed physical self-test and Undo; it did not access
+samples and does not qualify this source. See [USB_TEST.md](USB_TEST.md),
+[TESTING.md](TESTING.md) and [integration requirements](INTEGRATION.md).
 
-Proposed access, exercised privately: Flex/Static audio track → AED → AMP
-(SLICE) → YES → BEAT GRID. The current native source fixture reads Flex;
-Static streaming is not implemented. No stock gesture or screen is claimed by
-this unlisted draft, and no Beat Slicer package is installed on the instrument.
-
-The [first USB preview trial gate](INTEGRATION.md#first-usb-preview-trial) lists
-the shared-service and package work still needed before a read-only device test.
-It is separate from the finished-module acceptance below.
-
-## Planned acceptance tutorial
-
-These steps describe the intended finished module, not currently available
-firmware behavior:
-
-1. In a disposable project, load a copy of a known-tempo sample. Open Beat Grid
-   and choose SAMPLE or PROJECT BPM, then 4 BEATS and SMOOTH.
-2. Preview marker counts and fade warnings. Back out once and verify the original
-   markers remain intact. Reopen and preview again.
-3. Once native Apply and playback policy are qualified, confirm the exact plan
-   and audition adjacent/random slices. Use stock DELETE SLICE and DELETE ALL
-   SLICES; verify that clearing changes markers without changing audio.
-4. Create another grid, save sample settings through stock, save the disposable
-   project and reload both. Compare complete slice records and qualify a physical
-   reboot on the exact installed build.
-
-## Preservation and compatibility
-
-Existing start, end and loop records, including their ordinals, must survive
-unchanged. The portable candidate builder uses a conservative **preserve
-ordinals or refuse** policy because stock sorts records by start: adding an
-earlier marker can renumber a pattern's slice locks. That restriction still
-requires owner review before release. Refuse more than 64 total starts rather
-than truncating the sample or deleting old markers.
-
-Installing the eventual module must not alter a sample. Preserve audio, trim,
-loop points, other slots and project defaults. Slice settings belong to the
-sample slot and affect tracks using that slot; the finished dialog must disclose
-that scope. The planner never writes project or `.ot` files.
-
-**Smooth playback remains an acceptance requirement.** Quiet boundaries cannot
-prevent every click in stereo, DC-offset material, retriggers or abrupt endings.
-The planner checks both sides of each start and the final trim frame against a
-−60 dBFS peak threshold and flags boundaries needing fades. It does not implement
-playback fades. Until a verified native playback policy exists, unsafe Apply
-must be refused. Do not fade source audio destructively or change AMP defaults
-to conceal clicks.
-
-No production hook, event number, loader registry or installable package is
-added by these prototypes. Private stock sites are bound to an exact local
-firmware hash; they are not an exported ABI. Common-companion placement,
-installation orders, full module-set lifecycle and physical headroom remain
-unqualified. See [integration requirements](INTEGRATION.md).
-
-## Current implementation and evidence
+## Retained research (through 0.1.54)
 
 The [typed menu contribution prototype](MENU_PACKAGE.md) checks a bounded
 package descriptor against its exact published loader owner and copies the
@@ -208,12 +162,3 @@ runtime-owner host test includes the repository's unchanged GPL loader fixture;
 its licence and attribution remain in the original files, and the combined test
 binary is not published. No Elektron firmware, extracted routines/tables,
 factory samples, memory dumps or built firmware images are committed.
-
-The combined private resident-menu fixture now follows stock TRACK + REC1
-screen dismissal in both slice-menu layouts. It cancels the preview before
-another PCM read, remains closed through Stop and recovers after a normal
-AED → SLICE → Beat Grid opening. Positive UI runs retain the explicitly private
-waveform-read classification; a separate conservative run refuses stale output.
-This is emulator integration, not an installable module or physical result.
-
-The [first device-test probe](USB_TEST.md) is a small private USB package that runs the planner on fixed inputs and displays PASS/FAIL. It uses existing base hooks and automatic Undo; it does not access instrument samples or make the full module installable.

@@ -1,33 +1,33 @@
 # Sample-editor service proposal
 
-Status: design for owner review, **not an exported ABI or module capability**.
-No event number, base feature bit, address guard or package admission is assigned.
-The implementation belongs in a separate shared-base change before Beat Slicer
-can use it. This draft contains portable core/admission prototypes and stock probes.
+Status: private staging for owner review, **not a released ABI or module capability**.
+The new `ot_sample_editor_actions` table is appended at index 32, with pinned
+native seams and default-base refusal. The source interface is in
+[`modwerk_sample_editor.h`](../../machines/octatrack/include/modwerk_sample_editor.h).
+`--sample-editor` enables the private base integration; this does not publish it.
 
-## Smaller first live milestone: copied settings only
+## First basic device version: exact metadata grid
 
-Proposed for owner review; no new event, feature bit or service is assigned.
-The first read-only live preview can omit PCM entirely: the base copies the
-selected Flex sample's rate, trim, both tempo values and active marker starts;
-the module computes only exact rational grid positions with `bs_grid_preview`.
-SMOOTH and amplitude/fade warnings remain unavailable. Its distinct
-`bs_grid_plan` is informational and cannot enter the existing candidate/Apply
-API. Missing audio analysis must be displayed as unchecked, never as quiet PCM.
+The owner chose a usable basic slicer first. Both file-backed Flex and Static
+use the AED slice commands, with separate source tables. The base coherently
+copies frame count, 44.1 kHz stock frame domain, trim, sample/project tempos and
+all 64 complete slice records. The independent package computes exact geometry
+and requests confirmation. It receives no native source or PCM pointer.
 
-The production boundary still belongs to the base. Admit only the exact selected
-Flex source under a reviewed settings-writer boundary, return copied values,
-and keep no raw source pointer across a yield. Metadata-changing edits, queued
-work, recorder transitions, source/project changes and module removal must retire
-or refuse the display before its source changes. Masking, queue emptiness and
-an unchanged slot counter are insufficient. This narrower path omits PCM/map
-ownership because it reads neither; it does not waive coherent settings capture.
+The base owns the menu, immutable owner-bound tokens, stock question, final
+source revalidation and atomic marker publication with verified failure rollback.
+Playback and recording must be stopped; recorder buffers are excluded. Use
+stock DELETE SLICE / DELETE ALL SLICES afterwards, without an added Undo history.
+Ordinary stock playback is the basic policy. PCM analysis, SMOOTH and enhanced
+playback processing are deferred, with no click-free claim.
 
-Review the exact base service/export and independent browser/USB package before
-a device trial. Use a disposable project/sample, no Apply or save actions, then
-actual self-test and Undo. Keep the successful fixed-input probe separate from
-live-source, rendered-display, PCM, audio and persistence evidence. The new
-geometry helper and generated-input tests are preparation, not that service.
+Host and target checks now cover the shared service and independent package;
+normal-boot menu/USB, companions and exact hardware qualification remain in
+progress. Review the exact shared service and source-built native/browser
+candidate before a device trial. Use a disposable project/sample copy and a
+new explicit RAM-boot/sample-edit authorization; the fixed-input probe's old
+permission does not apply. Keep physical self-test, Undo, audio and persistence
+results separate from emulator evidence. No implicit save, flash or Keep.
 
 ## Preservation rule
 
@@ -52,8 +52,9 @@ native writes. It retains inactive rows for exact restoration and exposes only
 table equality checks for internal rollback and retained history research. The [candidate binder](EDIT_CANDIDATE.md) now connects these tables to an exact
 portable preview and unique operation ID. The [transaction coordinator](EDIT_TRANSACTION.md) now manages exact confirmation,
 post-state checks against an atomic backend contract. Its commit entry point
-retains no user history; the older Undo API remains research. Native callbacks,
-atomic publication and playback qualification remain absent.
+retains no user history; the older Undo API remains research. Those older portable prototypes contain no native callbacks or publication.
+The private basic adapter now implements them; end-to-end and hardware
+qualification remain open.
 
 Beat Slicer submits requested additions, not replacement records. The base
 retains existing records itself, constructs new records with verified stock
@@ -63,7 +64,7 @@ explicit tested rules. Unknown cases are refused; existing records are not
 sanitized as a side effect of preview or cancellation. The current planner's
 out-of-trim refusal is a limitation, not a native preservation implementation.
 
-## Menu registration and lifetime
+## Earlier PCM-capable proposal: menu registration and lifetime
 
 Add one named action to the SLICE action menu, preserving every stock row and
 callback. The registry owns ordering and rejects duplicate action keys. A
@@ -321,12 +322,14 @@ would have a broader compatibility and ownership scope. Neither approach is
 approved here. Existing stock declick behavior must be measured before adding
 a new renderer hook, and the base must not contain Beat Slicer's algorithm.
 
-Apply remains unavailable until a qualified policy exists. A quiet boundary,
+For the later PCM/smoothing extension, Apply remains unavailable until its
+additional playback policy is qualified. The first basic version instead uses
+ordinary stock playback, as agreed above. A quiet boundary,
 emulator trace, native link or synthetic crossfade is not audible hardware
 acceptance. Module-absent loading must preserve ordinary stock markers; any
 loss of module-only smoothing must be clearly described and tested.
 
-## Evidence required before assigning an ABI
+## Further evidence for a released PCM-capable interface
 
 The isolated CPU probes cover menu retention/dispatch, settings lookup,
 complete-record sorting and insertion renumbering using synthetic state.
@@ -361,7 +364,7 @@ explains the documented 44.1 kHz domain and why a loaded 48 kHz header is not
 a native playback-rate getter. Keep that target-specific binding outside the
 generic planner, and qualify it against the exact native source and device.
 
-The current ColdFire guard/session/candidate/journal state totals 10,092 bytes,
+The earlier PCM research guard/session/candidate/journal totals 10,092 bytes,
 excluding backend, menu, code and stack. Reserve actual contiguous storage and
 measure the complete call chain before assigning shared-base RAM.
 

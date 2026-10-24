@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.54-experimental. Development checks: 23–24 October 2026 (Taipei).
+Current draft: 0.1.55-experimental. Development checks: 23–25 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -2886,3 +2886,92 @@ boundaries still require shared-base implementation and owner review. The earlie
 0.1.53 physical result is preserved at its exact source; 0.1.54 is not hardware-qualified.
 
 The retained `grid54-host-native.json` binds source `f0a5bca9f5aa74374862820246723ae0ca27af9c`; source checks against current Modwerk main passed before that commit (136.36 seconds). Native and sanitizer results remain generated-input evidence, not a live base binding.
+
+
+## Basic shared AED candidate (0.1.55, staging)
+
+The owner selected a basic working slicer first. Flex and Static share the AED
+slice commands and record layout, with separate settings/control tables. The
+current exact-grid candidate covers both file-backed source kinds without a
+PCM reader; smooth boundary analysis and playback fades are deferred. Ordinary
+stock playback and stock DELETE SLICE / DELETE ALL SLICES remain the workflow.
+
+`python3 -B -m unittest discover -s sdk/tests -p test_sample_editor.py -v`
+runs the actual independent controller/grid and shared service with ASan/UBSan,
+plus the actual native board adapter against authored sparse metadata. Cases
+cover both source kinds and slots 0/127, all owner digest bytes, unchanged NO,
+duplicate YES, temporary BUSY versus permanent stale rejection, BSS output
+bounds, exact EP0-wake identity, native readiness gates, verified complete
+rollback after a failed store and permanent refusal after uncertain rollback.
+The typed decoder accepts real C code at offset zero, rejects descriptor/BSS
+entries, and confirms default/public bases refuse the new action contribution.
+These model checks do not prove stock writer coverage or hardware behavior.
+
+The actual first target-built descriptor exposed ColdFire's default two-byte
+struct alignment: the base correctly refused its offset 2694. The public action
+type now requires four-byte alignment, with an additional cross-compiled package
+regression. An authored generic error phrase also coincided with 13 non-filler
+stock bytes; the controller now reports the actual busy/refused distinction.
+The corrected 3,672-byte package passes both unchanged strict stock-free scans.
+No rejected package was sent to a physical unit.
+
+The current service test also executes as MCF54455 code with preserved ABI
+registers. Private native empty-row and controller-bound bases link with the
+new service enabled; their stock seams and flash-preservation checks pass.
+No device has run this candidate. The exact private base passes native/browser
+byte parity. Full-menu/USB emulator results are below; companion qualification,
+physical timing, audio and persistence remain pending.
+The new service is a private `--sample-editor` base opt-in, not part of the
+released beta capability. First candidate admission requires stopped playback
+and recording. No hardware authorization from the old probe applies here.
+
+Use `scripts/octatrack-emulator/build.py` for a Modwerk base. On candidate
+`d41ede89`, the stock-oriented port missed task p1b and failed M6a; the adapted
+port passed M6a, loaded the original disposable project, enumerated USB and
+reached the real package-admission check. The initial misaligned package was
+refused before installation. This is emulator evidence, not hardware evidence.
+
+The first real USB/menu confirmation trace showed a later engine job retiring
+the pending edit after the native question opened (no answer callback and no
+marker write). The new boundary therefore distinguishes a possible waveform
+read from an actually executed read: a byte-16 record stays inaccessible until
+the separately guarded native display branch is observed and the whole job
+reaches idle. A changed/reused dispatch, foreign record, recorder kind, nested
+job or missing observer retires the token before admission reopens. Complete
+metadata is still revalidated after a confirmed file-backed display read,
+including Static error/status changes. New host cases cover those refusals;
+the combined Flex/Static confirmation rerun passes on 25 October.
+
+The normal-boot adapted emulator installed the actual independent 3,672-byte
+package (`c58883ddef1dcb38fa5fdf490e4db20fbd779f818a78dc8a12b2acd13600ea9b`)
+through the real USB loader on private base
+`2278e2a0113edc28b0e07c66c913b3194be56a02750d299268cb2eff5f0b3ea4`.
+Both file-backed kinds passed preview and native NO without metadata changes,
+native YES with exact slice records, unchanged attributes/inactive records,
+and stock DELETE ALL SLICES cancellation/confirmation. Flex used its actual
+120.25 BPM attribute (three slices); Static used 120 BPM (two slices). Expected
+positions were independently calculated with Python Fraction arithmetic.
+The run ended with actual USB Rollback/Leave, without Keep.
+
+`boot_device_module.py --help` describes the retained disposable fixture and
+required paths. It copies the card and exercises panel gestures without memory
+writes or native call injection. A receipt is written only after both source
+kinds and USB Undo pass, binding emulator/base/package/card/driver hashes.
+Private raw logs, card images and frame captures stay outside Git. This is
+emulator integration evidence, not audible, physical or saved-project evidence.
+
+Maintain USB HELLO traffic according to elapsed *emulated* time while driving
+panels. Without it the base correctly auto-Undoes a silent host's trial after
+ten seconds, removing the contributed row. That removed row in an earlier
+combined run was a client keepalive error, not a separate Static AED path.
+
+After merging upstream `f7ad1209` into `c39a8eae`, the rebuilt private base
+`52c291c2afb412286ed0e20332aef0868d3c76a3ad01dfa92dacf094a3c96246`
+passes the same combined run with package `c58883ddef1d…`. Native/browser BIN
+bytes match at SHA-256
+`8e1ca0e2982432d047d6de07748769e3f0dc00b31de8dbf8bef6fd8ebf0d91ac`.
+After actual USB Undo, the retained driver additionally opens the displayed
+stock AED menu, verifies its original label-table pointer and absence of the
+contributed action. Cached binding counts are historical storage, not the
+displayed menu; the earlier count-based assertion was a driver error. This
+result still does not qualify physical removal, audio or persistence.

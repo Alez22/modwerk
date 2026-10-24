@@ -1,26 +1,46 @@
 # Native integration requirements
 
-Release integration remains incomplete. The notes below distinguish private
-experiments from the shared services and qualification still required.
-
 ## Current readiness
 
-| Area | What is established | What still blocks use on the unit |
-| --- | --- | --- |
-| Planner and preservation | Host and ColdFire plans, complete records, conservative ordinal preservation and internal rollback contracts | Native publication and owner review of the preservation restriction |
-| Flex preview | Private stock-loaded sources, four PCM formats, long-source work, copied UI/engine results and recorder-driven invalidation/recovery | Production admission, complete writer coverage and measured physical lock/cache behavior |
-| Menu workflow | Both stock layouts, repeated openings, recorder-driven dismissal/cancellation, stale callback refusal, stock grid/clear transitions and a bounded typed-descriptor prototype | Reviewed base event/table, production package admission and reference retirement |
-| Loader owner | Real-loader callback cancellation of preview exchanges and menu activations, including upload-controller set rollback | Production board/handle admission, native reference retirement and complete module-set readiness |
-| Static source | Stock load/clear and handle-lifetime observations | A bounded leased streaming reader |
-| Apply and playback | Portable transaction and isolated stock refresh fixtures | Atomic native commit/rollback and qualified audible boundary behavior |
-| Distribution | Source-bound private reports; publication deliberately refused | Source-built card/browser/USB packages, scans and companion matrix |
-| Hardware | Exact 0.1.53 fixed-input USB probe: physical self-test, planner PASS and verified Undo on MKII/base cd39c494 | Live Flex preview, visible display, Keep/removal, audio and physical persistence |
+Basic scope: 0.1.55-experimental, private staging.
 
-The next production dependency is the reviewed shared editor/source interface,
-including writer exclusion and lifetime retirement. The module must then bind
-its independent package to that interface, implement qualified Apply/playback,
-and pass the complete browser/USB and physical acceptance flow. Private test
-injection and a standalone runtime object cannot substitute for those steps.
+The owner chose a basic working slicer first. File-backed Flex and Static share
+AED slice commands and record geometry; their settings/control tables differ.
+Both are covered by the new metadata-only service. A Static PCM/streaming reader,
+quiet-boundary analysis and playback fades are deferred. Ordinary stock playback,
+confirmation and clearing are the first version's workflow, with no added Undo.
+
+The independent `device_module.c` controller builds through the standard C package
+builder and contributes a typed action to the proposed `ot_sample_editor_actions`
+table. The private base owns native menus, source capture, confirmation and atomic
+marker publication; the package contains no stock addresses or writer. The
+service requires stopped playback/recording and file-backed slots 0–127. Default
+bases refuse this contribution. `--sample-editor` is a private staging opt-in,
+not released beta support or an approved shared ABI.
+
+Established software checks: actual controller/grid/service host sanitizers,
+full-identity retirement and one-use confirmation, actual adapter failure/rollback
+against authored metadata, typed descriptor/default-base refusal, MCF54455 service
+execution, linked empty-row/controller-bound native bases, exact native/browser
+base parity and combined normal-boot Flex/Static USB/menu/native-confirmation
+emulator checks. These do not prove complete stock writer coverage or hardware
+behavior. See [the exact candidate results](TESTING.md#basic-shared-aed-candidate-0155-staging).
+
+Before a functional device trial, finish companion placement and exact-source
+preflight checks, retaining the passing loader/menu/confirmation, native/browser
+parity and stock-free results against their exact package/base identities. Then obtain the
+required shared-service review and exact private RAM-boot/sample-edit trial
+permission. Use a disposable project and original sample copy; run actual
+self-test and Undo, with no Keep, flash or implicit save. Prior fixed-input probe
+permission does not authorize this new base or marker edits. Physical timing,
+audio, removal and persistence stay open until observed on that exact candidate.
+
+## Earlier preview-only research and proposal
+
+The sections below retain the narrower pre-0.1.55 investigation. Their PCM-reader,
+smoothing and preview-only milestones describe retained research or later
+extensions, not the approved first basic version above. The new native service
+is now implemented in staging; its end-to-end qualification remains in progress.
 
 ## Preliminary USB smoke test
 
@@ -39,7 +59,7 @@ and require owner review before use. No direct memory-reading module is substitu
 
 ## First USB preview trial
 
-The next device milestone is a read-only Flex preview through the Modwerk base
+The earlier preview-only proposal targeted a read-only Flex preview through the Modwerk base
 and USB. It is not ready yet. This narrower first trial does not remove the
 finished module's Apply/playback, Static, companion and persistence acceptance
 requirements, and private emulator injection is not its delivery mechanism.
@@ -81,8 +101,8 @@ slice playback, all-source support or release readiness.
 1. Turn the observed 1.40C slice-menu dispatcher, decoded PCM reader and marker
    transaction paths into reviewed shared interfaces. Private execution now
    covers these research paths; their addresses are not an approved ABI. Stock
-   OS stays on the user's computer. There is no slice-editor event in the
-   current registry. Never guess firmware addresses or publish stock bytes.
+   OS stays on the user's computer. The new slice-editor table is private staging in the
+   registry, not a released ABI. Never guess firmware addresses or publish stock bytes.
 2. Design an additive base-owned editor event/table, with locally verified
    site, whole-instruction length and guard hash, in a separate owner-reviewed
    SDK change. The module subscribes, never patches a shared site itself.

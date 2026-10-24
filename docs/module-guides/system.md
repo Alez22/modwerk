@@ -31,6 +31,23 @@ NO at the grid alignment question accepts an unaligned grid. Keep stock slice
 clearing available; clearing removes slices rather than restoring the old grid.
 Verify the exact prompts and saved-settings behavior separately on hardware.
 
+A shared editor's trial-readiness check must distinguish retained rollback data
+from active work. The Octatrack loader retains its candidate and whole-set rows
+until Keep/Undo even after publication completes. Gate edits on the transport's
+actual completed phase plus restore/save/journal readiness; a saved-set export
+predicate intentionally excludes that trial and cannot serve as editor readiness.
+
+Give native contribution records the alignment their base decoder requires.
+ColdFire C defaults to two-byte struct alignment, so a four-byte typed record
+must declare that alignment explicitly. Check the descriptor in an actual
+target-built package; a host build's pointer alignment can hide this mismatch.
+
+Do not infer a read-only job from a mutable queue record's opcode alone. If a
+display read must preserve an editor operation, block access for its entire
+lifetime, identify the actual guarded dispatch branch, retire any unclassified
+completion before reopening admission, and recapture the complete relevant
+metadata. A known Flex rendering fixture does not qualify Static error paths.
+
 Distinguish sample-settings save/revert from project save/load. Beat Slicer's
 stock 1.40C emulator fixture keeps different Flex/Static layouts for the same
 file. Check complete on-card tables separately from active metadata after

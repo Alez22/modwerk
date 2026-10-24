@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.54-experimental",
+  "version": "0.1.55-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -15,12 +15,12 @@
   "presentation": {
     "label": "BEAT SLICER",
     "family": "Sample workflow",
-    "summary": "Development draft: preview beat-spaced slice starts from sample or project BPM.",
-    "overview": "A tested portable planning core, not an installed Octatrack module. Native editor, persistence, playback fade and USB integration are pending.",
+    "summary": "Development draft: create exact beat-spaced slices using sample or project BPM.",
+    "overview": "Independent controller and proposed shared AED service for file-backed Flex and Static samples. Private native/browser builds and normal-boot USB/menu/confirmation emulator checks pass; exact hardware and full lifecycle qualification remain pending.",
     "highlights": [
       "Choose sample BPM or project BPM.",
       "1, 4, 16, 32 or 64 beats per slice.",
-      "Retain existing markers and inspect stereo boundary amplitude."
+      "Stock confirmation and clearing; ordinary stock playback."
     ],
     "usage": [
       "Not installable yet. See README.md for the proposed editor workflow and integration blockers."
@@ -49,16 +49,6 @@
         "32 BEATS",
         "64 BEATS"
       ]
-    },
-    {
-      "name": "BOUNDARY",
-      "default": 1,
-      "count": 2,
-      "doc": "Proposed dialog: exact grid or a stereo-aware quiet-boundary search within 2 ms. This does not guarantee click-free playback.",
-      "labels": [
-        "EXACT",
-        "SMOOTH"
-      ]
     }
   ],
   "compatibility": {
@@ -67,11 +57,11 @@
     "conflicts": [],
     "uiClaims": [],
     "limitations": [
-      "Development draft, not listed or installable.",
-      "No released slice-editor service, stock publication/persistence integration or USB package exists; native adapter/UI work is private emulator staging.",
-      "No audio playback or MKII hardware verification; click-free playback is not established.",
-      "Planner accepts BPM 30\u2013300 in 1/24 BPM units, signed 24-bit mono/stereo decoded PCM, 8\u2013192 kHz, at most 64 slice starts.",
-      "Sample/project identity, live preview invalidation, stock slice clearing/saving and internal failure rollback need native integration; no separate Undo UI is planned."
+      "Unlisted staging draft; not a released module or base capability.",
+      "Requires the proposed shared sample-editor service, enabled only in a private source-built base.",
+      "First basic candidate requires stopped playback/recording and file-backed Flex/Static slots 0\u2013127; recorder buffers are excluded.",
+      "Exact metadata grid only: no PCM analysis, smoothing or click-free playback claim.",
+      "Complete native-menu/USB lifecycle, companion placement, physical timing, audio and persistence remain unqualified."
     ],
     "effectId": null
   },
@@ -98,9 +88,10 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "The separate exact-grid helper plans from copied settings without PCM and reports no amplitude/fade safety. Host sanitizers and SDK-target ColdFire tests compare 193 independent rational-oracle vectors and exact audio-planner results. It has no live base binding. The historical 0.1.53 fixed-input USB probe passed physical self-test, planner diagnostic and Undo on an empty pattern; that hardware result does not qualify this newer source or live Flex preview.",
+    "summary": "Actual controller/grid, shared service and adapter pass host sanitizer regressions, with MCF54455 service execution and target package alignment checks. The private base passes native/browser parity; combined Flex/Static emulator tests pass real USB installation, native confirmation and stock clearing followed by USB Undo. Hardware remains untested for this candidate; historical 0.1.53 physical evidence belongs to the fixed-input probe.",
     "hardwareStatus": "untested",
     "gates": [
+      "python3 -B -m unittest discover -s sdk/tests -p test_sample_editor.py -v",
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
       "python3 -B sdk/drafts/beat-slicer/test_independent.py",
       "python3 -B sdk/drafts/beat-slicer/test_job.py",
@@ -144,11 +135,11 @@
   },
   "media": [],
   "access": {
-    "location": "Proposed MKII audio editor SLICE menu; unavailable in firmware",
+    "location": "Private candidate: AED \u2192 AMP (SLICE) \u2192 YES \u2192 BEAT SLICER",
     "steps": [
-      "Pending native integration: select a Flex or Static audio track and open AED.",
-      "Proposed: press AMP for SLICE, then YES for its menu, then select BEAT GRID. A private full-boot emulator fixture exercises this contribution; it is not installed on the instrument.",
-      "Choose BPM SOURCE, SPACING and BOUNDARY, then preview. Native read-only controls are emulator fixtures only. Confirm and stock clearing are the planned final workflow; no separate Undo action."
+      "Select a file-backed Flex or Static sample in a disposable project; stop playback and recording.",
+      "With the exact private base and package installed, open AED, press AMP (SLICE), then YES and select BEAT SLICER. This workflow remains under qualification.",
+      "Encoder A chooses SAMPLE/PROJECT BPM; encoder B or UP/DOWN chooses spacing. YES requests stock confirmation; NO goes back. Clear slices through the stock slice menu."
     ],
     "screenshots": []
   }

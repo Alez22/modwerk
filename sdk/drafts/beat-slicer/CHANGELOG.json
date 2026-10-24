@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.55-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Stage an independent exact-grid controller and shared AED service for file-backed Flex/Static, without PCM reads.",
+      "Add stock confirmation, source/owner retirement and verified failure rollback. Preserve complete old records or refuse; use stock slice clearing, with no added Undo.",
+      "Fix ColdFire action-record alignment and distinguish retryable busy from refused edits. Validate the actual target-built package and both stock-free scans.",
+      "Pass native/browser base parity and combined Flex/Static emulator preview, native confirmation, stock clearing and USB Undo. Hardware remains untested.",
+      "Private base opt-in and owner review required. Stopped playback/recording only. Hardware, audio, persistence and companions remain unqualified; smoothing is deferred."
+    ]
+  },
+  {
     "version": "0.1.54-experimental",
     "date": "2026-10-24",
     "changes": [
