@@ -221,7 +221,7 @@ static uint32_t refused_module, refused_code;
 void modwerk_diag_refused(uint32_t module, uint32_t refusal) { refused_module = module, refused_code = refusal; }
 void modwerk_diag_set(void)
 {
-    if (!started) return;
+    if (!started) { refused_module = refused_code = 0; return; } /* never carried into a later set's record */
     volatile struct diag_log *l = LOG;
     uint32_t ids[14];
     unsigned count = installed(ids, 14u);
