@@ -1,5 +1,11 @@
 # Verification record
 
+## Analog Rytm MKII: Loop Sync in the library — 24 October 2026
+
+Loop Sync 0.2.0-experimental (stigmagit, #853) leaves `_submissions` on the owner's release approval and is the Rytm's first library module with mod storage (a 3-bit sound field and 31 project fields). Downloads stay off (`DIGI_DOWNLOADS_ENABLED`).
+- **Package:** compiled in the pinned toolchain image (`build-elemod-isolated.sh`, m68k-elf GCC 16.2.0, binutils 2.47) with the shared SDK's `analog-rytm-mk2/store.h` (#858), exported by `scripts/package-elemod-recipe.mjs` as `sdk/imports/packages/loop-sync/loop-sync-0.2.0-experimental-os1.74.elemod` (`2dd3d671…c196`) and pinned for the browser in `sdk/imports/elekloader-loop-sync-2026-10-24.json`; the overlay sync vendors it. Two compiles gave the same bytes, and `verify-elemod-release-exports.mjs` reproduces it with the other 23 exports. `digi-build.test.ts` plans core-ar2 0.3 with it on OS 1.74.
+- **Not tested:** the package is not byte-identical to the author's emulator-tested LS18 build (GCC 12.2) and has not run in the emulator or on a unit. No browser build from a stock OS file ran here (no stock OS on this computer), so the storage lockfile round trip with a real storage module is still unexercised. On a unit: persistence across saves and reboots, external MIDI clock and CPU (the module's TESTING.md).
+
 ## Mod-storage lockfile per configuration — 23 October 2026
 
 A machine configuration now keeps the mod-storage lockfile its last build returned, and the next build passes it back to the kit (`store` in the bridge's `build` call; `buildWithLock` in `src/engine/elekloader/machine-build.ts`), so a rebuild keeps every storage field in place. Before this, each build started from a new layout. This only matters for a core that keeps mod storage (core-ar2 on the Analog Rytm MKII); every other core returns no lockfile, so nothing is saved for it. The kit is unchanged: its client's `build` has no `store` argument, so Modwerk sends the same call through the client's `call`.
