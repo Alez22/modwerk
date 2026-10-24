@@ -94,6 +94,7 @@ error and moves on. macOS `nc -U` hangs up before the reply, so use the script.
 | `screen` | the screen as block characters (thousands of tokens; avoid) |
 | `crash` | the last crash record (vector, PC, registers); `crashtest` makes one |
 | `selftest` | PROJ > MODWERK > SELF TEST over USB: start it (transport stopped), wait, print the verdict, the modules that ran and the CPU and core peaks |
+| `selftest:trace` | the same, printing each half second's phase, progress, the CPU the test recorded and the meter's latest window beside it: what a CPU or core peak came from |
 | `stall` | the last DSP stall record: why, the loader's whole report, each core's last packet header, the live FX ids, as they stood when the stall was seen (it survives the power cycle); `stalltest` writes one now |
 | `guard`, `guard:MILLE` | the frame guard since the last read: the frame interrupt's longest frame, latest start and share of the CPU, the machine renders it skipped and on which tracks, and its share; `guard:MILLE` sets the share (per mille of a frame, `guard:65535` turns it off) |
 | `try FILE`, `remove FILE` | install or remove a module package, accepted at once |
