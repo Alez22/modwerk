@@ -10,7 +10,7 @@ import { Icon } from '../components/Icon'
 import { assetUrl } from '../hosting'
 import { projectMachineForDevice } from '../projects/projects'
 import { issueRepository } from '../community/report-context'
-import type { Configuration } from '../config/workspace'
+import type { Configuration, StorageLock } from '../config/workspace'
 import { LIBRARY_CATEGORY_LABELS, STANDALONE_NOTE, type FirmwareModule, type ModuleCategory } from '../catalog/modules'
 import { DETAILS } from '../catalog/details'
 import type { CatalogBrowse } from '../catalog/catalog-browse'
@@ -205,7 +205,7 @@ export function MachineLibrary({ device, query, category, octatrackModules: octa
   </div>
 }
 
-export function DigiConfiguration({ device, configuration, configurations, onSelect, onDialog, onToggle, onImport, onReport }: { device: DigiDevice; onReport: () => void; configuration?: Configuration; configurations: Configuration[]; onSelect: (id: string) => void; onDialog: (mode: 'create' | 'rename' | 'duplicate' | 'delete') => void; onToggle: (id: string) => void; onImport: (configuration: ReturnType<typeof parseDigiSelection>) => void }) {
+export function DigiConfiguration({ device, configuration, configurations, onSelect, onDialog, onToggle, onImport, onStorageLock, onReport }: { device: DigiDevice; onReport: () => void; configuration?: Configuration; configurations: Configuration[]; onSelect: (id: string) => void; onDialog: (mode: 'create' | 'rename' | 'duplicate' | 'delete') => void; onToggle: (id: string) => void; onImport: (configuration: ReturnType<typeof parseDigiSelection>) => void; onStorageLock: (id: string, lock: StorageLock) => void }) {
   const w = useSetWords()
   const importRef = useRef<HTMLInputElement>(null), [buildResults, setBuildResults] = useState<HTMLDivElement | null>(null), [importError, setImportError] = useState(''), [importNotes, setImportNotes] = useState<string[]>([]), [exported, setExported] = useState('')
   const mobile = useMobileWorkspace()
@@ -248,7 +248,7 @@ export function DigiConfiguration({ device, configuration, configurations, onSel
         </div>
         <div className="configuration-checkout">
           <section className={'compatibility-panel compatibility-' + (estimate.fits && !estimate.clashes.length ? 'clear' : 'conflict')} aria-live="polite" aria-labelledby="digi-compatibility-title"><div className="compatibility-heading"><span className="compatibility-icon"><Icon name={estimate.fits && !estimate.clashes.length ? 'shield' : 'sliders'} size={20}/></span><div><h2 id="digi-compatibility-title">{!estimate.fits || estimate.clashes.length ? 'Your selection needs a change' : selection.length ? 'No declared conflicts' : 'Choose your modules'}</h2><p>{!estimate.fits || estimate.clashes.length ? 'Review the resources below and choose a compatible set.' : selection.length ? mobile ? 'Module claims were checked. Placement checks happen on a computer with your base firmware.' : 'Choose your base firmware for placement checks.' : 'Add a module from the library, or build the core alone. Compatibility updates as you make changes.'}</p></div></div></section>
-          <div className="checkout-card">{mobile ? <ConfigurationHandoff onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported === exportKey} canExport={!!configuration} /> : <MemberGate action="build firmware" next={device.id+'/configuration'}><DigiBuildPanel device={device} firmware={firmware} moduleIds={ids} onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported===exportKey} canExport={!!configuration} results={buildResults}/></MemberGate>}</div>
+          <div className="checkout-card">{mobile ? <ConfigurationHandoff onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported === exportKey} canExport={!!configuration} /> : <MemberGate action="build firmware" next={device.id+'/configuration'}><DigiBuildPanel device={device} firmware={firmware} moduleIds={ids} storage={configuration && { lock: configuration.storageLock, save: lock => onStorageLock(configuration.id, lock) }} onExport={() => { if (configuration) { downloadDigiSelection(configuration, device.id); setExported(exportKey) } }} exported={exported===exportKey} canExport={!!configuration} results={buildResults}/></MemberGate>}</div>
         </div>
       </div>
     </div>
