@@ -55,20 +55,20 @@
     },
     "processing": {
       "label": "ColdFire, per LFO frame",
-      "display": "0.15-0.17 % of the ColdFire with all 24 LFOs on DJV, DJQ or DJC",
-      "value": 0.17,
-      "unit": "%",
+      "display": "+33 us on the frames where all 24 LFOs change (DJQ vs stock RND, ot_emu)",
+      "value": 32.9,
+      "unit": "us",
       "method": "emulator",
-      "conditions": "ot_emu coverage, all 24 audio-track LFOs on one wave, every track trigging every step, TRIG FREE (DJC also ONE); less than the same LFOs on stock RND. Static bound: at most 950 instructions an LFO in a frame (first use, DJQ), 22,800 for all 24.",
-      "source": "TESTING.md"
+      "conditions": "ot_emu under a MIDI flood, all 24 audio-track LFOs on DJQ (PTCH, SPD 0, a new value every step) against stock RND: longest frame interrupt 178.6 us vs 145.7 us, idle 58.3 % vs 59.8 %. Static bound: 950 instructions an LFO in a frame, 22,800 for all 24.",
+      "source": "evidence/performance.json"
     },
     "impact": {
       "conditions": "All 24 audio-track LFOs on Deja Vu waves, every track trigging every step; the dearest frame is the first after install, when each LFO sets up its state.",
       "cpu": {
-        "level": "minimal",
+        "level": "low",
         "basis": "measured-comparison",
-        "rationale": "0.15-0.17 % of ColdFire time with all 24 LFOs on one Deja Vu wave under ot_emu, less than the same LFOs on stock RND. Between value changes an LFO costs a short check each frame. Static bound: 950 instructions an LFO in its first frame, about 600 afterwards. Time on the unit is not measured.",
-        "source": "TESTING.md"
+        "rationale": "Under ot_emu with all 24 LFOs on DJQ at its dearest (a new value every step), the frames in which they all change take 32.9 us more than the same LFOs on stock RND (9.1 % of a frame), and idle time falls by 1.5 points; other frames cost about 1,000 instructions on average. The one frame in which all 24 first set up their state takes about 13,000 instructions. Time on the unit is not measured.",
+        "source": "evidence/performance.json"
       },
       "dsp": {
         "level": "minimal",
@@ -128,9 +128,9 @@
             "parameterModulation": "A changed SPD, DEP, MULT or TRIG reaches the handler as the knob value of that frame (p-locks, scenes, the crossfader); DJQ re-snaps when DEP moves. Each costs at most one call of the C, which the bound already counts per LFO and frame.",
             "modeSwitching": "Switching among DJV, DJQ and DJC keeps the loop; a switch costs one call. PLAY resets the TRIG and ONE positions in the same call.",
             "maxLoad": "Eight audio tracks with three LFOs each, all on Deja Vu waves, all calling the C in one frame. The LFO engine runs in the frame interrupt; budget one frame, 95,778 cycles at 264 MHz (362.8 us).",
-            "inputConditions": "Static count of the compiled unit (dejavu_core.s): the handler's call path (about 57 instructions), dv_call (343) with its 116-byte set-up loop on first use (345 more), dv_visit (55) and dv_quant (116, its two loops at most two extra passes each). At most 950 a call, 2,850 for one track, 22,800 for 24. Instructions, not cycles: divides, cache and wait states are not modelled. ot_emu measured 0.15-0.17 % on average."
+            "inputConditions": "Static count of the compiled unit (dejavu_core.s): the handler's call path (about 57 instructions), dv_call (343) with its 116-byte set-up loop on first use (345 more), dv_visit (55) and dv_quant (116, its two loops at most two extra passes each). At most 950 a call, 2,850 for one track, 22,800 for 24. Instructions, not cycles: divides, cache and wait states are not modelled. ot_emu measured 0.15-0.17 % on average. Measured under ot_emu with all 24 LFOs on DJQ at its dearest: 13,032 executed instructions in the frame where they all set up, at most 6,113 after PLAY (evidence/performance.json)."
           },
-          "report": "TESTING.md"
+          "report": "evidence/performance.json"
         }
       ],
       "memory": {

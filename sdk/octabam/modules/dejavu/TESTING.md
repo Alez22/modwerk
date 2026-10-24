@@ -26,6 +26,20 @@ Not tested on hardware: HOLD, TRIG, ONE and HALF; p-locks, scenes and the crossf
 - **Static bound (ColdFire), from the compiled unit `dejavu_core.s`:** the handler's call path about 57 instructions, `dv_call` 343 plus 345 for its 116-byte set-up loop on an LFO's first use, `dv_visit` 55, `dv_quant` 116 plus at most two extra passes of each note-reach loop. At most 950 instructions an LFO in one frame (first use, DJQ), about 600 afterwards, 22,800 with all 24 LFOs calling in the same frame. Instructions, not cycles. Between value changes an LFO costs only the handler's check.
 - **Memory:** one linked unit of 2,784 bytes (2,776 of text, 5 of rodata, aligned; it holds the code, the three labels and icons and space for the two grown tables) and 2,784 bytes of state (116 for each of the 24 audio-track LFOs). Stock writes: three dispatch slots (12 bytes), the WAVE count (4), two `moveq` immediates (2 each), three `lea` operands (12): 32 bytes. Card builds grow the two tables with TableGrow instead of filling the unit's space.
 
+## Performance (`evidence/performance.json`, ot_emu, 24 Oct 2026)
+
+`npm run perf:audit -- check sdk/octabam/modules/dejavu/evidence/performance.json`:
+
+| Row | Verdict |
+|---|---|
+| cycles | ok: worst event 13,032 of 95,778 (14 %) |
+| stock benchmark | note: under the same flood the longest frame interrupt grows by 32.9 µs (9.1 % of the 362.8 µs frame) and idle time falls by 1.5 points vs stock RND |
+| stress | ok: 1,000 messages/s at 250 BPM for 62 s, no stuck note, no hang, 0 dropped |
+
+What the extra interrupt time costs: the engine runs the wave handlers inside the frame interrupt, and in FREE every LFO of equally fast tracks changes in the same frame. With all 24 LFOs on DJQ at its dearest (PTCH, SPD 0, a new value every step) those frames take 32.9 µs more than the same LFOs on stock RND; other frames cost about 1,000 instructions on average. The one frame in which all 24 LFOs first set up their state, during a project load, took 202.9 µs against stock's dearest load frame of 131.8 µs, still inside the frame.
+
+Commands (private, nothing committed): the Deja Vu card image from `composeStaticOs(original, ['dejavu'])`; two copies of the owner's template project with every LFO of bank A on stock RND or DJQ (written into `bank01.work` with `ot_project`'s offsets before the load); `ot_emu --image IMG --card CARD --set MODWERK --project TEMPLATE --mkii --dsp --frame --sequencer --internal-clock --frames 170888 --midi flood.midi --watch-pc 0x4000aad4,0x4000d9a6,<the four MIDI handlers>` on the original OS and on the Deja Vu image; a second run with watches on DJQ's entry and returns for the module's own instructions per frame.
+
 ## Author's first use (earlier sources)
 
 Octatrack MKII, OS 1.40C, flashed Modwerk beta base `cd39c494`. Packages loaded over USB with `npm run device -- try … --accept` (Windows, WinUSB bridge). Observed by the agent: every version below loaded, ran its trial and was accepted; the base reported the package's module identity as active and stayed in its normal state. The latest, `dejavu.mwrm` sha256 `1347aca9…` (source `edceb9ab`, identical to the tested `51650ecc` on the developer's branch), is active as set generation 9.
