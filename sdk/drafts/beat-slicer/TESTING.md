@@ -2201,3 +2201,5 @@ installed production hooks. No uploaded module hooks, stock menu, self-test,
 physical disconnect, audio, persistence or browser-built package is qualified.
 
 Current-upstream full source validation: Check passed in 133.23s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The unchanged real SDK loader/upload controller and owner adapter pass host and ColdFire whole-set transitions with synthetic machine services. Production stock-menu and USB integration remain unqualified.
+
+Three actual-loader integration reports bind exact source commit `8659d8652775a221117801396e31f8072d24a154`.
