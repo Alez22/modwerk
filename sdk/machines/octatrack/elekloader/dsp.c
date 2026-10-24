@@ -145,10 +145,10 @@ static uint8_t *owner_page[MODWERK_FX_IDS]; /* its page recipe (the module image
 static uint32_t owner_page_bytes[MODWERK_FX_IDS];
 static uint8_t owner_pinned[MODWERK_FX_IDS]; /* its ColdFire code names this id: it never moves (loader.h) */
 static uint32_t owner_cycles[MODWERK_FX_IDS]; /* an instance's chip cycles a sample, unfloored (status.c's MODULE LOAD) */
-/* Each slot's least charge (the allocator's prepare, `ids` its target): the dearest stock effect this bank's Parts name
- * there, working or saved, the one it runs and the one it is asked for. A module id counts nothing here: each module is
- * admitted for itself, and a Part naming one that does not fit is refused at the switch. */
-void modwerk_dsp_slot_floors(const uint8_t ids[16], uint32_t least[16])
+/* Each slot's least charge: the dearest stock effect this bank's Parts name there, working or saved, the one it runs and
+ * the one `ids` asks for. A module id counts nothing here: each module is admitted for itself, and a Part naming one
+ * that does not fit is refused at the switch. */
+static void floors(const uint8_t ids[16], uint32_t least[16])
 {
     uintptr_t bank = BANK;
     for (unsigned i = 0; i < 16u; ++i) {
@@ -160,15 +160,46 @@ void modwerk_dsp_slot_floors(const uint8_t ids[16], uint32_t least[16])
         least[i] = most;
     }
 }
-/* What a pick is admitted against on core (the allocator's sum): each slot's charge, at least its floor. */
+/* What runs and each of the bank's four Parts (working copies), the dearest, on core: each slot its effect's cycles, at
+ * least its floor. No Part switch needs more. */
+static uint32_t bank_booking(const uint32_t least[16], unsigned core)
+{
+    uintptr_t bank = BANK;
+    uint32_t most = 0;
+    for (unsigned n = 0; n < (bank ? 5u : 1u); ++n) {
+        const volatile uint8_t *set = n ? PART(bank, n - 1u) : LIVE_FX;
+        uint32_t sum = 0;
+        for (unsigned i = 0; i < 16u; ++i)
+            if (source_core(i & 7u) == core) {
+                unsigned id = set[i];
+                uint32_t x = id < MODWERK_FX_IDS ? dl_catalog[id].cycles : 0u;
+                sum += x > least[i] ? x : least[i];
+            }
+        most = sum > most ? sum : most;
+    }
+    return most;
+}
+static const uint8_t no_target[16] = {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
+/* The allocator's prepare (`ids` its target): each slot's floor into `least`, and 1 + the core where the target's raised
+ * floors (a stock pick dearer than its bank's Parts use there) take what runs or a Part of the bank past the allowance
+ * beside the machines' voices, else 0, so a Part switch is never refused for a stock effect (owner, 24 October 2026, beta
+ * finding 34). A Part switch, a load or the self-test names nothing the bank and the tracks do not: it raises none. */
+unsigned modwerk_dsp_slot_floors(const uint8_t ids[16], uint32_t least[16])
+{
+    uint32_t was[16];
+    floors(no_target, was), floors(ids, least);
+    for (unsigned c = 0; c < 2u; ++c) {
+        uint32_t voices = modwerk_dsp_source_charge(c), after = bank_booking(least, c) + voices;
+        if (after > (c ? MODWERK_DSP_ALLOWANCE1 : MODWERK_DSP_ALLOWANCE0) && after > bank_booking(was, c) + voices) return 1u + c;
+    }
+    return 0;
+}
+/* The STATUS page's DSP row and the box after a refused pick: the bank's dearest set on core, as the allocator books it. */
 static uint32_t slot_booking(unsigned core)
 {
-    static const uint8_t none[16] = {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
-    uint32_t least[16], sum = 0;
-    modwerk_dsp_slot_floors(none, least);
-    for (unsigned i = 0; i < 16u; ++i)
-        if (source_core(i & 7u) == core) { uint32_t x = dl_slot_cycles(i); sum += x > least[i] ? x : least[i]; }
-    return sum;
+    uint32_t least[16];
+    floors(no_target, least);
+    return bank_booking(least, core);
 }
 static uint8_t owner_measured[MODWERK_FX_IDS]; /* 1: a hardware figure; 0: 7/4 of an emulator claim */
 /* shortcut: a pinned module's ColdFire hooks still act on tracks running its id after it lets go of it (a project

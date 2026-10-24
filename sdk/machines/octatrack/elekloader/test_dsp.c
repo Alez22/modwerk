@@ -271,6 +271,29 @@ int main(void)
         modwerk_dsp_slot_floors(ids, least);
         CHECK(least[0] == 342 && least[1] == 299);
         bank[0x9504a + 3 * 6322 + 12] = 0, modwerk_test_live_fx[1] = 4, dl_catalog[13].cycles = 0;
+        /* A stock pick dearer than the bank uses there, while another Part's modules fill that core, is refused: the
+         * switch back to that Part then needs no room it was not given. A target naming only what the bank and the
+         * tracks do (a Part switch) raises nothing and is never refused here. Core 1: Part 1 books 3,318 of 3,565. */
+        static const uint8_t one[16] = {4, 4, 4, 4, 0, 0, 0, 0, 26, 26, 26, 8, 0, 0, 0, 0}, two[16] = {4, 4, 4, 4, 0, 0, 0, 0, 8, 8, 8, 8, 0, 0, 0, 0};
+        uint8_t live[16], part1[16], part2[16];
+        const uint32_t own26 = owner[26];
+        const struct dl_package cat26 = dl_catalog[26], cat4 = dl_catalog[4], cat5 = dl_catalog[5];
+        memcpy(live, modwerk_test_live_fx, 16), memcpy(part1, bank + 0x8ed80, 16), memcpy(part2, bank + 0x8ed80 + 6322, 16);
+        owner[26] = 0x70, dl_catalog[26].cycles = 726, dl_catalog[4].cycles = 285, dl_catalog[5].cycles = 80;
+        memcpy(bank + 0x8ed80, one, 16), memcpy(bank + 0x8ed80 + 6322, two, 16), memcpy(modwerk_test_live_fx, two, 16);
+        memcpy(ids, two, 16);
+        CHECK(!modwerk_dsp_slot_floors(ids, least));                  /* what runs */
+        memcpy(ids, one, 16);
+        CHECK(!modwerk_dsp_slot_floors(ids, least));                  /* the switch to Part 1 */
+        memcpy(ids, two, 16), ids[11] = 21;                           /* SPRING REV on T4 FX2: 3,318 + 299 */
+        CHECK(modwerk_dsp_slot_floors(ids, least) == 2u && least[11] == 299);
+        ids[11] = 5;                                                  /* SPATIALIZER, 80: fits */
+        CHECK(!modwerk_dsp_slot_floors(ids, least));
+        memcpy(ids, two, 16), ids[15] = 21;                           /* on core 0, which has room */
+        CHECK(!modwerk_dsp_slot_floors(ids, least));
+        CHECK(modwerk_dsp_booked(1) == 3318u * 1000u / 3565u);       /* the STATUS row: the bank's dearest set */
+        memcpy(modwerk_test_live_fx, live, 16), memcpy(bank + 0x8ed80, part1, 16), memcpy(bank + 0x8ed80 + 6322, part2, 16);
+        owner[26] = own26, dl_catalog[26] = cat26, dl_catalog[4] = cat4, dl_catalog[5] = cat5;
     }
     /* One id, stock or module: what an engine's use reads (stock COMPRESSOR, 24, for Sidechain). */
     CHECK(modwerk_dsp_bank_names(21) && modwerk_dsp_bank_names(26) && modwerk_dsp_bank_names(27) && !modwerk_dsp_bank_names(24));

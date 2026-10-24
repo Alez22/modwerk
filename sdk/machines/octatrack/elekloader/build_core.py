@@ -537,14 +537,15 @@ DSP_EDITS = {
     # 2026): a Part switch or a RELOAD then needs no room it was not given, and a stock pick dearer than that is admitted.
     'allocator.c': (('#include "allocator.h"\n', '#include "allocator.h"\nuint32_t modwerk_dsp_source_charge(unsigned);\n'
                      '/* dsp.c\'s; harnesses without it charge each slot its own effect */\n'
-                     '__attribute__((weak)) void modwerk_dsp_slot_floors(const uint8_t ids[16],uint32_t least[16])\n'
-                     '{ (void)ids; for(unsigned i=0;i<16;++i) least[i]=0; }\n'),
+                     '__attribute__((weak)) unsigned modwerk_dsp_slot_floors(const uint8_t ids[16],uint32_t least[16])\n'
+                     '{ (void)ids; for(unsigned i=0;i<16;++i) least[i]=0; return 0; }\n'),
                     ('    if(!token || token==a->token) return DL_ALLOC_STALE;\n',
                      '    if(!token || token==a->token) return DL_ALLOC_STALE;\n'
-                     '    uint32_t least[16]; modwerk_dsp_slot_floors(ids,least);\n'),
-                    ('        if(pkg->cycles>a->allowance[c]-steady[c]) return DL_ALLOC_CYCLES;\n        steady[c]+=pkg->cycles;\n',
+                     '    uint32_t least[16]; unsigned crowded=modwerk_dsp_slot_floors(ids,least); /* 1 + a core a raised floor overfills */\n'),
+                    ('        if(pkg->cycles>a->allowance[c]-steady[c]) return DL_ALLOC_CYCLES;\n        steady[c]+=pkg->cycles;\n    }\n',
                      '        uint32_t cost=pkg->cycles>least[i] ? pkg->cycles : least[i];\n'
-                     '        if(cost>a->allowance[c]-steady[c]) return DL_ALLOC_CYCLES;\n        steady[c]+=cost;\n'),
+                     '        if(cost>a->allowance[c]-steady[c]) return DL_ALLOC_CYCLES;\n        steady[c]+=cost;\n    }\n'
+                     '    if(crowded) return DL_ALLOC_CYCLES;\n'),
                     ('    uint32_t steady[2]={0,0},overlap[2]={0,0};',
                      '    uint32_t steady[2]={modwerk_dsp_source_charge(0),modwerk_dsp_source_charge(1)};\n'
                      '    if(steady[0]>a->allowance[0] || steady[1]>a->allowance[1]) return DL_ALLOC_CYCLES;'),
