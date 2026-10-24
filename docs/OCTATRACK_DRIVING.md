@@ -49,6 +49,9 @@ stages modules at a time (the MCP's sync, or the session's `try`/`remove`); the 
 After an unplug, a crash restart or a RAM boot, the bridge can hold a dead handle; `pkill -f usb_bridge;
 pkill -f '^node scripts/device.mjs serve'` and the loop starts both again. Anchor the pattern: without `^` it also
 matches any shell whose command line contains it (the loop's, or the one running `pkill`), and kills that.
+A sequence can also stall past the 20 s limit below (24 October 2026, once, a twin, after `PLAY` and a pick; the unit
+answered as soon as the session restarted). So give `device-send.py` an alarm, and when the session stops answering,
+kill the serve with the second `pkill`.
 
 **On Windows, from WSL** (12 October 2026). WSL sees no USB device, and the unit binds WinUSB by itself, so the
 bridge runs in Windows Python and serves TCP; with WSL's mirrored networking (`networkingMode=mirrored` in
