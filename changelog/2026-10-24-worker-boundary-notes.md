@@ -41,3 +41,5 @@ Document queued recorder-stop cleanup separately from worker startup and the rec
 Extend recorder cleanup guidance to separate pending per-track records and fresh guard identity per FIFO command. The paired tests retain synthetic serialized calls and do not qualify simultaneous ISR scheduling.
 
 Document bounded typed menu-descriptor copies and the distinction between loader lifetime, reconstruction identity and coherent mutable metadata. The draft decoder is exercised against the real loader; production table admission and hardware integration remain pending.
+
+Document selected, pending and retained recorder banks from normal-panel stock emulator traces and isolated delayed-start calls. Explain why state-byte observations must include overlapping larger stores. Native recorder exclusion and physical timing remain unqualified.

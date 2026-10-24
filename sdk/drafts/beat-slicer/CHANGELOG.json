@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.39-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Trace normal panel recording, retrigger and STOP on tracks 1/8 while preserving unrelated Flex audio/settings and the private card.",
+      "Distinguish pending, selected-active and retained inactive recorder banks; observe pending bytes inside four-byte publications.",
+      "Exercise 48 two-bank fixtures and 16 delayed follow-up calls across both stereo widths, tracks 1/8 and both banks.",
+      "Validate the highest physical recorder page and retain caller, PCM-write and deferred map-cleanup evidence.",
+      "Known issue: these probes do not install recorder exclusion or qualify Pickup/overdub, complete source ownership, USB, Apply/playback or hardware."
+    ]
+  },
+  {
     "version": "0.1.38-experimental",
     "date": "2026-10-24",
     "changes": [

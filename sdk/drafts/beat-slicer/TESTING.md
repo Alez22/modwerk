@@ -2327,3 +2327,41 @@ native references, source ownership, Apply/playback and hardware remain open.
 Three typed-contribution reports bind source commit `0411151155c2364a63e1d16beba2253ea961969a`. Current-upstream full validation passed in 143.06 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
 
 The compiled decoder object contains 872 text bytes and no static data/BSS. GCC reports 136 bytes of bounded local stack for binding, 12 for view and 8 for entry resolution. These are per-function figures, not complete call-chain storage or physical latency qualification.
+
+## Recorder bank and normal-panel transitions (0.1.39)
+
+The stock full-boot driver uses normal TRACK + REC1 start/retrigger and STOP on
+tracks 1 and 8, with the scheduler and both DSPs running. In the original
+ONE/MAX, 16-bit stereo fixture, each recorder has 460 preallocated pages. It
+checks both bank selections, advancing selected positions, retained old-bank
+positions and a quiet interval after STOP. Full unrelated Flex PCM and
+controls/settings, allocation counts and first recorder pages remain intact;
+the private card is not saved or written back.
+
+The pending state is published by an overlapping four-byte write, followed by
+the active-byte store. Each track's two starts and stop produce the state
+sequence `(bank 1, 1) → (1, 2) → (0, 1) → (0, 2) → (0, 0)`. The old bank stays
+`2` after STOP without advancing. The driver decodes the state byte inside each
+store's full big-endian extent; filtering only the store's starting address
+would miss both pending publications. Calls enter from both stock frame
+dispatch returns; separate PCM-prefix and map-tail watches provide positive
+write observations. The first recorder owns physical page 14,602, valid in the
+14,603-page physical arena: usable count and exclusive physical bound differ.
+
+The isolated CPU runner covers 48 two-bank starting states and 16 delayed
+follow-up calls with the complete stock recorder routine and real callees.
+There are no mocked stock calls. Both packed stereo widths, tracks 1/8 and
+both bank selections run with synthetic allocation/input/state and a host-side
+guard. It checks exact PCM in the initial cases, including untouched regions,
+pending delay/state/position transitions, map/dirty/counter preservation and
+callee-save/stack behavior inherited from the original recorder runner. The
+pending follow-ups reach delay zero before starting; retained inactive state
+alone performs no PCM write.
+
+These are separate experiments: the full boot does not run the host guard,
+and the isolated runner does not run the real scheduler or audio interrupt.
+They install no production recorder boundary and establish neither all writer
+coverage nor a native source lease. Pickup/overdub, long dynamic growth,
+interrupt/cache/physical latency, USB, audible behavior and persistence remain
+unqualified. The typed-menu and earlier recorder evidence remains historical
+and source-bound; no prior report is relabeled as the new test.

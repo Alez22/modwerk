@@ -150,6 +150,15 @@ per-track command identity, exercise separate recorder records queued together,
 and test actual return/next-receive lifetime; neither
 fixture completion nor an unmasked wait establishes live ISR/allocator coverage.
 
+Distinguish the selected recorder bank from a pending start and retained history.
+In Beat Slicer's stock 1.40C full boot, retriggering switches banks; STOP clears
+the selected state while the other can remain `2` without advancing. Isolated
+calls distinguish that retained state from a pending `1`, including delayed
+starts. Neither "selected bank only" nor "any nonzero bank" is a complete
+ownership rule. Capture overlapping stores too: the observed pending byte is
+published by a four-byte write beginning two bytes earlier. These are emulator
+observations, not a qualified native recorder/source boundary.
+
 ### Background work
 
 When adding a worker observer at runtime, account for the command already

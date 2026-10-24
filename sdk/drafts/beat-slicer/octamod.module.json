@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.38-experimental",
+  "version": "0.1.39-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Test a proposed typed menu descriptor against the real loader: initialized-image bounds, copied labels, exact owners, malformed records, stale activation and replacement/restore. Host sanitizers and ColdFire use synthetic machine services. Production table admission, coherent metadata capture, complete-set readiness, source ownership, USB, Apply/playback and hardware remain unqualified.",
+    "summary": "Trace ordinary stock panel start, retrigger and STOP on tracks 1/8 with both DSPs and scheduler, preserving the unrelated Flex source and card. Distinguish four-byte pending-state publication from active and retained inactive banks, and exercise 48 synthetic two-bank cases plus 16 delayed follow-up calls across both stereo widths. Native recorder guards, complete source ownership, USB, Apply/playback and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.38-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.39-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -111,6 +111,11 @@ bounded copied PCM reads. [Full-boot source tests](BOOT_SOURCE.md) exercise real
 stock-loaded PCM and invalidation by normal edits. Ownership and admission remain
 fixture-controlled. Stock counters and dirty flags do not cover every writer;
 see [writer coverage](WRITER_COVERAGE.md).
+
+Recorder research now includes ordinary panel start/retrigger/STOP in a stock
+full boot, plus isolated pending-bank transitions. It distinguishes a pending
+start from an old inactive bank that retains its recorded state. These traces
+refine source ownership requirements; they do not install a recorder guard.
 
 The [copied UI/engine exchange](PREVIEW_ASYNC.md) gives one engine consumer
 ownership of the mutable session. UI callbacks submit tagged intents and read

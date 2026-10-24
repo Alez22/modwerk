@@ -207,6 +207,46 @@ allocation ownership rules have been established.
 Do not enable a partially covered provider. These observations refine
 [BASE_CONTRACT.md](BASE_CONTRACT.md); they do not satisfy its admission gate.
 
+## Normal recording and recorder banks (0.1.39)
+
+`boot_recorder.py` uses ordinary MKII panel keys on a disposable stock 1.40C
+project with both DSPs and the scheduler running. TRACK + REC1 starts an
+ordinary recorder in the fixture's ONE/MAX mode; repeating it restarts in the
+other bank, and STOP ends recording. Tracks 1 and 8 are exercised separately.
+The recorder is preallocated 460 pages in this fixture; these short runs do not
+exercise dynamic growth or Pickup/overdub. The unrelated full Flex PCM,
+controls/settings and private card stay unchanged.
+
+The pending state byte `1` is published within a four-byte store at
+`0x40006274`, beginning two bytes before the observed state field. The complete
+recorder entry changes it to `2` at `0x400069e6` and switches the selected bank.
+Retriggering leaves both banks marked `2`; only the selected one advances.
+STOP changes the selected state to `0` at `0x40005e9e`, leaving the old bank's
+`2` and position intact. A further idle interval leaves the published state and
+observed PCM/map spans unchanged. A selected-bank-only activity check can miss
+a pending start; an indiscriminate nonzero-bank check can confuse retained state
+with active recording. This is evidence for an ownership contract, not a
+production activity predicate or installed recorder hook.
+
+Selected recorder calls in these runs return to the two stock frame-dispatch
+sites `0x4000d342` and `0x4000d36e`. PCM-prefix stores provide positive controls,
+and the scenario observes stores of zero to the map tail at `0x40095afc`. Counts and exact
+caller/state observations are in the source-bound reports; they do not provide
+an SR measurement, complete write footprint or hardware timing. No device is
+used, and no module code is injected into these full boots.
+
+`recorder_bank_probe.cpp` separately executes 48 synthetic complete-entry cases:
+idle banks, retained inactive state, immediate pending start, delayed pending
+start, active recording with a longer pending delay, and active recording with
+a delay shorter than the supplied call span. Both stereo widths, tracks 1/8
+and both selected banks are covered. Sixteen extra calls bring an idle pending
+delay to zero, then execute its start. Exact watched PCM regions, map/dirty/
+counter behavior, state/position transitions and host guard exclusion are
+checked. The short-delay fixture retains its delay while the active bank writes;
+it is not a claim about how the real frame caller schedules a pending trigger.
+Caller state and source/allocator geometry remain synthetic; no native guard,
+complete caller coverage or physical reader exclusion is established.
+
 ## Normal panel-to-worker reverse path (0.1.17)
 
 `boot_writer.py` adds a full stock 1.40C emulator path with real frame/task
