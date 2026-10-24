@@ -450,8 +450,8 @@ def allocator(text):
                    '    if(steady[0]>a->allowance[0] || steady[1]>a->allowance[1]) {\n'
                    '        dl_cycles_core=steady[0]>a->allowance[0] ? 0u : 1u; return DL_ALLOC_CYCLES;\n    }',
                    'allocator steady core')
-    return _change(text, '        if(pkg->cycles>a->allowance[c]-steady[c]) return DL_ALLOC_CYCLES;\n',
-                   '        if(pkg->cycles>a->allowance[c]-steady[c]) { dl_cycles_core=c; return DL_ALLOC_CYCLES; }\n',
+    return _change(text, '        if(cost>a->allowance[c]-steady[c]) return DL_ALLOC_CYCLES;\n',
+                   '        if(cost>a->allowance[c]-steady[c]) { dl_cycles_core=c; return DL_ALLOC_CYCLES; }\n',
                    'allocator slot core')
 
 
