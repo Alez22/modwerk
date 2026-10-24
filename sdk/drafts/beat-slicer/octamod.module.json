@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.35-experimental",
+  "version": "0.1.36-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Exercise the actual SDK loader, upload controller and owner-backed menu adapter through two-row module-set replacement/removal, disconnect before/after each publication boundary and complete-set acceptance. Verify permanent lease retirement, fresh reactivation and an unchanged companion with host sanitizers and cached/uncached ColdFire execution. Machine services, retirement hooks, stock menus and USB IO remain synthetic or absent; packages, native Apply/playback and hardware remain unqualified.",
+    "summary": "Execute 32 real queued recorder-stop follow-ups across both stereo widths, tracks 1/8 and both state banks, covering exhausted/disabled allocation and two length limits. Distinguish startup from dispatch, verify exact map-store extents and preserved post-stop PCM/controls/allocation/state, and execute the compiled worker observer through the next unmasked empty-queue wait. Sixteen original recording positive controls remain. Synthetic active state and isolated CPU execution do not qualify live writer coverage, manual stop/overdub, scheduler/ISR, USB, Apply/playback or hardware.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",

@@ -98,8 +98,11 @@ injection and a standalone runtime object cannot substitute for those steps.
    Separate recorder fixtures now cover preallocated/lazy page crossings in both
    stereo formats, both state banks and tracks 1/8, plus early exits and allocation
    shortages. Recorder map/position updates precede PCM without queue/dirty/counter
-   signals; shortage cleanup queues more work. Remaining modes/follow-up writers,
+   signals; shortage cleanup queues more work. Manual-stop/overdub paths and other writers,
    real ISR scheduling and shared-pool serialization still need investigation.
+   Later isolated tests execute queued shortage/length-limit cleanup and cover
+   its map-tail stores with the compiled worker observer; this does not prove
+   all recorder writers or a production source lease.
    `preview_session.c` now connects complete metadata snapshots, guard admission
    and the staged reader through a nonblocking serialized callback interface.
    Host and compiled-target tests cover complete previews and stale/cancel/error

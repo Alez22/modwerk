@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.36-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Execute 32 queued recorder-stop follow-ups across both stereo widths, tracks 1/8, both banks, allocation shortages and two length limits.",
+      "Distinguish startup from deferred dispatch and verify track-specific command records instead of assuming a shared bitmask.",
+      "Check exact zero stores beyond allocated recorder pages while the queue is empty; preserve post-stop PCM, controls, counts, state and free cursors.",
+      "Run the compiled worker observer through every follow-up store and its next unmasked empty-queue wait; retain 16 recording positive controls.",
+      "Known issue: synthetic active state is not live ownership; manual stop/overdub, scheduler/ISR, USB, native Apply and hardware remain unqualified."
+    ]
+  },
+  {
     "version": "0.1.35-experimental",
     "date": "2026-10-24",
     "changes": [

@@ -141,6 +141,14 @@ stability while deliberately allowing real-time interrupts. It is not, by
 itself, proof of exclusion against recorder or PCM writers; establish that
 additional boundary before connecting a live sample reader.
 
+When tracing a recorder's deferred cleanup, distinguish worker startup from
+the queued command and compare state after recording separately from state
+after cleanup. A zero-to-zero map store is still a writer observation; byte
+equality alone cannot establish exclusion. On the isolated 1.40C recorder-stop
+fixtures, an empty queue preceded stores through the unused map tail. Preserve
+per-track command identity and test actual return/next-receive lifetime; neither
+fixture completion nor an unmasked wait establishes live ISR/allocator coverage.
+
 ### Background work
 
 When adding a worker observer at runtime, account for the command already
@@ -253,7 +261,8 @@ current map bounds separately. Never inject test code into apparently unused
 stock heap/globals or delay memory; use a real arena reservation.
 
 For emulator memory watches, use the pinned machine implementation's canonical
-address and verify a known store as a positive control. In Octabam `8250be0`,
+address and verify a known store as a positive control. Attribute stores using
+the callback's PPC value, not the CPU's advanced fetch PC. In Octabam `8250be0`,
 1.40C editor busy/dirty writes at `0x46…` were observed by `0x46…` watches;
 substituting `0x86…` observed none. A silent watch is not evidence of no mutation,
 and a generic CLI alias note must not override the actual mapped window.

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.35-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.36-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Overview
 
@@ -166,3 +166,8 @@ backend through replacement/removal, disconnect at every two-row publication
 boundary and complete-set acceptance. An unchanged companion stays usable,
 while retired activations require fresh admission even after restoration. This
 uses explicit test-side retirement, synthetic machine services and no USB IO.
+
+Recorder-stop research now follows the actual queued cleanup command after
+shortages and length-limited stops. The compiled worker observer covers its
+map-tail stores and retires before an unmasked queue wait. These isolated tests
+retain synthetic active state; they do not enable a live source provider.

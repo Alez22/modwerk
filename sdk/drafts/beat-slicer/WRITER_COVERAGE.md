@@ -129,7 +129,8 @@ state and silent inputs. It does not boot the OS or invoke an audio interrupt.
   position/state and publishes 1024. The routine returns zero, with **no PCM from
   this call written**, one engine follow-up (opcode 34) and one UI notification.
   This synthetic partial-preparation case is not a claim about an audible stock
-  recording fault. Queued follow-up execution remains untested.
+  recording fault. Queued follow-up execution was not tested in this 0.1.7 trace; the later
+  recorder-stop section covers two shortage paths and length-limited stops.
 - A host guard enters before the complete call and leaves on its actual return.
   PCM, map and position stores refuse new tokens; old tokens remain invalid
   afterwards, including early exits. This does not install native hooks or make
@@ -282,3 +283,37 @@ The generic `engine_boundary.c` remains conservative. Full writer coverage,
 cache behavior, source lifetime, shared-base integration and hardware remain
 unqualified. Source-bound reports and actual automatic-UI outcomes are listed
 in TESTING.md.
+
+
+## Queued recorder-stop cleanup (0.1.36)
+
+The new `recorder_followup_probe.cpp` executes the actual opcode-34 command
+queued by the complete ordinary recorder entry. Thirty-two scenarios cover
+packed 16/24-bit stereo, tracks 1/8, both state banks, exhausted or disabled
+allocation, and stops at two configured length limits. Sixteen original
+preallocated/lazy recorder calls remain as positive controls for the inherited
+PCM and map watches. Active state, input buffers and allocation geometry are
+synthetic; the audio ISR, real scheduler and UI consumer do not run.
+
+The queued records are separate per track and contain a track index; they are
+not one shared track-bitmask record. Worker startup and command dispatch are
+observed separately. During dispatch the queue count is already zero while
+the command stores zero to each recorder-map entry beyond its allocated page
+count: 14,601 stores with one allocated page, or 14,600 with two. The allocated
+entries stay intact. In these scenarios the tail was already zero, so stores
+are observed even though the complete map remains byte-identical.
+
+The follow-up does not change the post-stop PCM, sample controls, allocation
+counts, recorder-state banks or free-page cursors in these fixtures. Length-limit
+recording has already written its final two/four frames before queuing cleanup;
+shortage recording wrote none from that call. Comparing post-stop preservation
+separately avoids claiming that the complete recording operation changed no PCM.
+
+The host observer spans the entire command. A separate execution substitutes
+only the engine receive call with the original compiled worker-boundary prototype
+and checks its native ticket at every map store. It remains active through
+return to the loop, then retires at the next receive before the empty-queue
+wait; the wait is unmasked. Loop stack/frame and caller mask remain as expected.
+No production hook is installed. Manual stopping, Pickup/overdub, other
+finalization paths, live interleavings, allocator ownership and physical timing
+remain unqualified. These observations do not reopen source admission.

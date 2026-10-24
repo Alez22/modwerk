@@ -23,12 +23,12 @@ def main():
     parser.add_argument('--main', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'load', 'markers', 'pool-session', 'publication', 'refresh', 'clearing', 'waveform'), default='editor')
+    parser.add_argument('--kind', choices=('editor', 'storage', 'reader', 'coherence', 'worker', 'recorder', 'recorder-followup', 'load', 'markers', 'pool-session', 'publication', 'refresh', 'clearing', 'waveform'), default='editor')
     args = parser.parse_args()
     source = ROOT / 'stock_probe' / {'editor': 'probe.cpp', 'storage': 'storage_probe.cpp',
                                      'reader': 'reader_probe.cpp',
                                      'coherence': 'coherence_probe.cpp',
-                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'load': 'load_probe.cpp', 'markers': 'marker_probe.cpp', 'pool-session': 'pool_session_probe.cpp', 'publication': 'publication_probe.cpp', 'refresh': 'refresh_probe.cpp', 'clearing': 'clearing_probe.cpp', 'waveform': 'waveform_probe.cpp'}[args.kind]
+                                     'worker': 'worker_probe.cpp', 'recorder': 'recorder_probe.cpp', 'recorder-followup': 'recorder_followup_probe.cpp', 'load': 'load_probe.cpp', 'markers': 'marker_probe.cpp', 'pool-session': 'pool_session_probe.cpp', 'publication': 'publication_probe.cpp', 'refresh': 'refresh_probe.cpp', 'clearing': 'clearing_probe.cpp', 'waveform': 'waveform_probe.cpp'}[args.kind]
     if digest(args.main) != STOCK_MAIN_SHA256:
         parser.error('Expected original 1.40C MAIN; refusing another input.')
     if args.output.exists():
@@ -37,6 +37,11 @@ def main():
                             text=True, capture_output=True, timeout=120)
     inputs = [source]
     expected = digest(source)
+    if args.kind == 'recorder-followup':
+        names = ('recorder_followup_probe.cpp', 'recorder_probe.cpp', '../preview_guard.c', '../preview_guard.h')
+        inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
+        binding = ''.join(name + ':' + digest(path) + '\n' for name, path in zip(names, inputs))
+        expected = hashlib.sha256(binding.encode()).hexdigest()
     if args.kind == 'waveform':
         names = ('waveform_probe.cpp', 'worker_probe.cpp', '../preview_guard.c', '../preview_guard.h')
         inputs = [(ROOT / 'stock_probe' / name).resolve() for name in names]
@@ -66,7 +71,8 @@ def main():
     if 'SOURCE_SHA256: ' + expected not in result.stdout.splitlines():
         parser.error('Probe executable does not match current source; rebuild before recording evidence.')
     report = {
-        'scope': ('isolated ordinary Flex waveform reads/cache reuse and worker dispatch with synthetic memory, source write watches and an independent extrema oracle; no Static/recorder rendering, scheduler, UI consumer or hardware'
+        'scope': ('isolated real recorder shortage/length-limit stops followed by actual queued worker dispatch; synthetic active state/silent input and host guard, 16 positive controls plus 32 follow-ups; no scheduler, ISR, UI consumer, manual-stop/overdub, native admission or hardware'
+                  if args.kind == 'recorder-followup' else 'isolated ordinary Flex waveform reads/cache reuse and worker dispatch with synthetic memory, source write watches and an independent extrema oracle; no Static/recorder rendering, scheduler, UI consumer or hardware'
                   if args.kind == 'waveform' else 'real stock confirmed/cancelled slice deletion with synthetic settings, host guard and formatting/display/viewport/task mocks; no scheduler, native hooks or device'
                   if args.kind == 'clearing' else 'real stock editor binding/selection refresh with synthetic settings and viewport mock; no scheduler, transaction or device'
                   if args.kind == 'refresh' else 'real stock grid publication/pointer refresh with synthetic settings and display/progress/zero-search mocks; no scheduler, native transaction, persistence or device'

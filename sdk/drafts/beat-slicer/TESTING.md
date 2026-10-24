@@ -2203,3 +2203,46 @@ physical disconnect, audio, persistence or browser-built package is qualified.
 Current-upstream full source validation: Check passed in 133.23s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The unchanged real SDK loader/upload controller and owner adapter pass host and ColdFire whole-set transitions with synthetic machine services. Production stock-menu and USB integration remain unqualified.
 
 Three actual-loader integration reports bind exact source commit `8659d8652775a221117801396e31f8072d24a154`.
+
+
+## Recorder-stop follow-ups and compiled worker exclusion (0.1.36)
+
+The new isolated stock runner passes 32 stop/follow-up scenarios with the host
+admission observer, then the same 32 with the actual compiled worker-boundary
+prototype substituted at the engine queue-receive call. The private MAIN hash
+remains the original 1.40C input. Both runs also execute 16 original recorder
+positive controls covering preallocated/lazy allocation and PCM stores. Exact
+runner/helper/source hashes are bound separately from the compiled target and
+its code-generation guard. The imported emulator/SDK sources are unchanged.
+
+The matrix covers tracks 1/8, both state banks and both packed stereo widths.
+Two allocation-shortage scenarios produce one queued cleanup and a separate UI
+notification without writing PCM from that recorder call. Two length-limit
+scenarios write their final four/two frames before stopping and queue cleanup
+without that shortage notification. Per-track command records carry opcode 34
+and their track index; they are not a shared track-mask record.
+
+Worker startup performs no watched map writes. The subsequent command stores
+zero through the recorder-map tail beyond its one/two allocated entries: 14,601
+or 14,600 stores while the queue count is already zero. The tail was zero before
+cleanup, so write observations and byte comparisons are checked independently.
+Full post-stop PCM, map, sample-control, allocation-count, recorder-state-bank
+and free-cursor regions remain byte-identical. The follow-up adds no PCM,
+dirty-byte or slot-counter stores. The stock UI notification remains queued;
+its consumer is not run. Worker loop stack/frame and caller mask are preserved.
+
+In the compiled-observer run, every map store requires the actual native guard
+ticket. That ticket remains active at return to the loop, then ends on the next
+receive before the empty-queue event wait. The wait is unmasked. The original
+host guard remains an independent recorder/fixture observer; it is not counted
+as native execution. Fixture construction of a distinct free page is guarded
+and counted separately from the recording/worker observations.
+
+No scheduler, audio ISR, UI consumer, real cache behavior or device runs. Active
+recorder state, silent inputs, partial allocation geometry and source ownership
+are synthetic. Manual stopping, Pickup/overdub, other finalization paths and
+complete shared-pool ownership remain open. The observer is privately injected,
+not an admitted base service. Source-built USB packages, native Apply/playback,
+audio and physical persistence remain unqualified.
+
+Current-upstream full source validation: Check passed in 135.43s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. Isolated recorder-stop and compiled worker-observer executions pass under synthetic active state. Production stock-menu and USB integration remain unqualified.
