@@ -14,6 +14,8 @@
 .instrument-dot.is-connected { background: #7fd39b; }
 .instrument-dot.is-busy { background: var(--accent); animation: link-pulse 1.5s ease-in-out infinite; }
 .instrument-dot.is-stock { background: #e0b26a; }
+/* A base update over USB: red and blinking until it is done, so nobody unplugs the cable. */
+.instrument-dot.is-updating, .status-dot.is-updating { background: #ef6b61; animation: link-pulse .8s ease-in-out infinite; }
 .unit-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 18px; color: var(--muted); font-size: 13px; }
 .unit-strip.is-connected { color: var(--text-secondary); }
 .unit-tag { flex: none; margin-right: 6px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; white-space: nowrap; }
@@ -29,7 +31,7 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .octatrack-activity.is-error { border-color: #6a4348; }
 .octatrack-activity .button { min-height: 30px; padding: 5px 10px; }
 @keyframes link-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .status-dot.is-live, .instrument-dot.is-busy { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .status-dot.is-live, .instrument-dot.is-busy, .instrument-dot.is-updating, .status-dot.is-updating { animation: none; } }
 @media (max-width: 1100px) { .link-card { margin-bottom: 22px; } }
 /* The module set as a compact grid of tiles, with each module's state on the Octatrack. */
 .module-grid-section .section-title { flex-wrap: wrap; }
@@ -409,6 +411,7 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .base-install-warning svg { flex-shrink: 0; margin-top: 3px; }
 .base-install-warning strong, .base-install-warning a { color: #ffe0b8; }
 .base-install-stage .base-install-note { margin-top: 24px; padding: 16px; border-left: 2px solid var(--accent); background: var(--surface-raised); }
+.base-install-note .status-dot.is-updating { width: 8px; height: 8px; margin-right: 10px; vertical-align: 1px; }
 .base-instructions { display: flex; flex-direction: column; gap: 22px; margin: 24px 0 0; padding-left: 22px; }
 .base-instructions li { padding-left: 7px; }
 .base-instructions li::marker { color: var(--accent); font-weight: 600; }
