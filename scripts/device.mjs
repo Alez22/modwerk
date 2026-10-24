@@ -317,10 +317,10 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       const r = await read(0)
       console.log(r.counts === 0xffffffff ? 'compaction gave up (playing again, or ten seconds)' : `compacted in ${(r.counts / 132000).toFixed(1)} ms (${Date.now() - start} ms seen from here)`)
     }
-    else if (step === 'guard' || step.startsWith('guard:')) { // GUARD (dev request 29): guard:MILLE sets the frame guard's limit
-      const b = Buffer.from(await devIn(29, Number(step.slice(6)) || 0, 20)), pc = n => `${(n / 478.91).toFixed(1)} %`
-      const [max, late, skips, tracks, limit] = [0, 4, 8, 12, 16].map(at => b.readUInt32BE(at))
-      console.log(`frame max ${max} (${pc(max)}), latest start ${late} (${pc(late)}), skipped ${skips} on ${[...Array(8).keys()].filter(t => tracks >> t & 1).map(t => 'T' + (t + 1)).join(' ') || '-'}, limit ${limit} (${pc(limit)})`)
+    else if (step === 'guard' || step.startsWith('guard:')) { // GUARD (dev request 29): guard:MILLE sets the frame guard's share
+      const b = Buffer.from(await devIn(29, Number(step.slice(6)) || 0, 28)), pc = n => `${(n / 478.91).toFixed(1)} %`
+      const [max, late, busy, frames, skips, tracks, share] = [0, 4, 8, 12, 16, 20, 24].map(at => b.readUInt32BE(at))
+      console.log(`frame max ${pc(max)}, latest start ${pc(late)}, in the frame interrupt ${frames ? pc(busy * 256 / frames) : '-'} over ${frames} frames, skipped ${skips} on ${[...Array(8).keys()].filter(t => tracks >> t & 1).map(t => 'T' + (t + 1)).join(' ') || '-'}, share ${pc(share)}`)
     }
     else if (step === 'gap') { const g = Buffer.from(await devIn(23, 0, 4)).readUInt32BE(0); console.log(`gap ${g} counts ${(g / 132).toFixed(0)} us`) } // since the last read
     // RELOAD from the Part menu, which keeps its cursor and stops at RENAME. Never PART+FUNC+PLAY: that is CLEAR.
