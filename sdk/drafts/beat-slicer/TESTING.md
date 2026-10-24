@@ -2496,3 +2496,5 @@ The coarse guard deliberately invalidates previews of an unrelated Flex sample
 when another track records. It is not a production source API or a background
 service, and it does not qualify other recording modes, complete UI/allocator/
 DMA/cache ownership, USB, Apply/playback or physical behavior.
+
+Two source-composition reports bind source commit `fee30608d51c0c41d454197133e5392a8347af8d`. Current-upstream full validation passed in 140.30 seconds (2,529 app tests; 37 SDK tests, one skipped). The required origin/main invocation retains the inherited CHANGELOG.md history failure.
