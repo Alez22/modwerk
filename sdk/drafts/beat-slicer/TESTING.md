@@ -2018,3 +2018,5 @@ registry transitions, live source admission, Apply/playback and physical
 qualification remain open.
 
 Current-upstream full source validation: Check passed in 139.33s. The required origin/main invocation retains the inherited CHANGELOG.md history failure. The exact native fixture passes the separate CMake-built 48-case ABI comparison.
+
+Fourteen resident-menu reports bind exact source commit `02ad4c874e2f9af84bf25877ce27b72ae515a6cc`.
