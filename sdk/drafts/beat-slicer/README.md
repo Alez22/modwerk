@@ -139,6 +139,18 @@ ColdFire execution links the actual SDK loader; machine services and menu
 models remain synthetic. It does not admit packages,
 resolve module entry points or install native transition hooks.
 
+The isolated loader fixture also executes the real upload controller and whole-set
+backend through replacement/removal, disconnect at every two-row publication
+boundary and complete-set acceptance. An unchanged companion stays usable,
+while retired activations require fresh admission even after restoration. This
+uses explicit test-side retirement, synthetic machine services and no USB IO.
+
+Recorder-stop research now follows the actual queued cleanup command after
+shortages and length-limited stops, including two independently queued recorders.
+The compiled worker observer covers each command’s
+map-tail stores and retires before an unmasked queue wait. These isolated tests
+retain synthetic active state; they do not enable a live source provider.
+
 [Stock observations](BOOT_OBSERVATION.md) also cover normal slicing, clearing,
 sample-settings saving and project reloads on disposable fixtures. A fresh
 emulator process does not prove physical reboot persistence. Exact results,
@@ -160,15 +172,3 @@ runtime-owner host test includes the repository's unchanged GPL loader fixture;
 its licence and attribution remain in the original files, and the combined test
 binary is not published. No Elektron firmware, extracted routines/tables,
 factory samples, memory dumps or built firmware images are committed.
-
-The isolated loader fixture also executes the real upload controller and whole-set
-backend through replacement/removal, disconnect at every two-row publication
-boundary and complete-set acceptance. An unchanged companion stays usable,
-while retired activations require fresh admission even after restoration. This
-uses explicit test-side retirement, synthetic machine services and no USB IO.
-
-Recorder-stop research now follows the actual queued cleanup command after
-shortages and length-limited stops, including two independently queued recorders.
-The compiled worker observer covers each command’s
-map-tail stores and retires before an unmasked queue wait. These isolated tests
-retain synthetic active state; they do not enable a live source provider.
