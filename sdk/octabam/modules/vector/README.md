@@ -63,21 +63,26 @@ VECTOR is the first entry of the MIDI generator list, which the Modwerk base (ov
 
 | Page | Encoder | Control | Default | On a MIDI track |
 |---|---|---|---|---|
-| ARP | A-F | TYPE, DENS, ROOT, SCAL, GATE, ACNT | 11, 11, C, MIN, 8, 48 | As on audio tracks, except: ROOT and SCAL build the scale on the C at or below the track's NOTE; GATE is in stock LEN units and prints as a note length (generated LEN locks range from half to all of it); ACNT lowers VEL locks from the track's VEL, which is real MIDI velocity. |
-| FUNC+AMP | A-F | SEED, SPAN, OFST, ROT, RPT, DIR | track + 1, 12, 0, 0, OFF, FWD | As on audio tracks. |
+| SRC | A-F | TYPE, DENS, ROOT, SCAL, OCT, SEED | 11, 11, C, MIN, the track's octave, track + 1 | TYPE, DENS, ROOT, SCAL and SEED as on audio tracks. OCT is the track's NOTE: the root in that octave, shown as a note (C3); OCT and ROOT both set NOTE, so a trig placed by hand plays the root. The scale is built on the C of that octave. |
+| AMP | A-F | VEL, ACNT, GATE, SPAN, OFST, RPT | the track's VEL and LEN, 48, 12, 0, OFF | VEL is the track's VEL, real MIDI velocity: strong notes get it, ACNT lowers the others. GATE is the track's LEN, in stock LEN units and shown as a note length; generated LEN locks range from half to all of it. SPAN, OFST and RPT as on audio tracks. |
+| FUNC+AMP | A-D | ROT, DIR, PROB, HUMN | 0, FWD, OFF, 0 | ROT and DIR as on audio tracks. PROB gives every note off the beat (steps 2-4, 6-8, ...) a stock trig condition from 99% down to 1%; notes on the beat always play. HUMN moves every note by up to that many micro-timing units (stock's ±23) either way. Both come from the seed and the step, so turning another control keeps them. |
 
 1. Press MIDI and select a MIDI track. Double-tap its TRACK key (or double-tap SRC): MIDI NOTE SETUP opens with OFF and VECTOR on its left. Highlight VECTOR with DOWN and press YES. An empty track gets its first phrase at once.
-2. Press AMP. The ARP page now shows TYPE, DENS, ROOT, SCAL, GATE and ACNT with their values. Turn any of them to write a new phrase, also while playing. YES makes a fresh variation.
-3. Press FUNC+AMP for SEED, SPAN, OFST, ROT, RPT and DIR; FUNC+AMP or NO returns. Set the track's channel in MIDI NOTE SETUP (CHAN) to hear it.
+2. Press SRC. The NOTE page now shows TYPE, DENS, ROOT, SCAL, OCT and SEED. Turn any of them to write a new phrase, also while playing. YES makes a fresh variation on any VECTOR page.
+3. Press AMP for VEL, ACNT, GATE, SPAN, OFST and RPT, and FUNC+AMP for ROT, DIR, PROB and HUMN; FUNC+AMP or NO returns. Set the track's channel in MIDI NOTE SETUP (CHAN) to hear it.
 4. To leave, open MIDI NOTE SETUP and choose OFF. The phrase stays on the track as ordinary trigs and locks.
 
-Changes to stock flows, while a MIDI track runs VECTOR (the README's minor changes, owner-requested on 21 October 2026):
+LFO, FX1 and FX2 stay stock's: the track's LFOs, PB, AT and CC1-10 work as on any MIDI track. FX1 and FX2 are kept for MIDI effects (planned, not built).
+
+Changes to stock flows, while a MIDI track runs VECTOR (the README's minor changes, owner-requested on 21 and 24 October 2026):
 
 - **Double-tap TRACK in MIDI mode** opens MIDI NOTE SETUP. Stock does nothing there; with no MIDI generator installed it still does nothing.
 - **MIDI NOTE SETUP's empty left half** lists the generators. UP, DOWN and YES move and choose; YES also confirms the window's own values as before. CHAN, BANK, PROG and SBNK are unchanged.
-- **The ARP page and FUNC+AMP** show VECTOR's controls instead of the arpeggiator's. Choosing VECTOR puts the track's arpeggiator back to stock's defaults with MODE OFF and keeps it off; its 16 arp note bytes then hold VECTOR's controls. Holding a trig or a scene shows the stock ARP page, so locks there stay stock's. Choosing OFF restores stock's arpeggiator defaults.
+- **The SRC page** shows VECTOR's controls instead of NOTE, VEL, LEN and NOT2-4. Choosing VECTOR sets NOTE to the C of its octave and turns NOT2-4 off (64), which have no place on VECTOR's page; VEL and LEN stay and are VECTOR's VEL and GATE.
+- **The AMP page and FUNC+AMP** show VECTOR's controls instead of the arpeggiator's. Choosing VECTOR puts the track's arpeggiator back to stock's defaults with MODE OFF and keeps it off; its 16 arp note bytes then hold VECTOR's controls.
+- Holding a trig or a scene shows stock's NOTE and ARP pages, so locks there stay stock's: hold a trig on SRC to change one generated note's NOTE, VEL or LEN. Choosing OFF restores stock's arpeggiator defaults and leaves NOTE, VEL and LEN as VECTOR set them.
 
-Where it is stored: the Part. The track's arp step mask holds 'M' and VECTOR's id (stock's validator never reads it), and its arp note bytes hold the twelve controls (value - 64, within the -64..63 stock's validator keeps). Without VECTOR the track reads as an ordinary MIDI track whose arpeggiator is off. If its ARP SETUP is edited then, the stored controls show there as arp notes, and turning MODE on would play them; installing VECTOR again turns MODE off. NOTE SETUP's two unused slots are not used: its encoders D and F edit them unseen.
+Where it is stored: the Part. The track's arp step mask holds 'M' and VECTOR's id (stock's validator never reads it), and its arp note bytes hold the controls other than OCT, VEL and GATE (value - 64, within the -64..63 stock's validator keeps). Without VECTOR the track reads as an ordinary MIDI track whose arpeggiator is off. If its ARP SETUP is edited then, the stored controls show there as arp notes, and turning MODE on would play them; installing VECTOR again turns MODE off. NOTE SETUP's two unused slots are not used: its encoders D and F edit them unseen.
 
 Cost, measured on the owner's MKII (21 October 2026, development base, PLAY running): the base's generator code takes 4-10 µs a UI tick, with no generator installed 2 µs. A control turn that rewrites all 64 steps takes 0.5 ms on the UI task (0.66 ms at most of 40); the longest time between audio frames stayed 406-417 µs while turning, and the MIDI notes kept their 125 ms grid within 1 ms. Nothing runs in an interrupt. [TESTING.md](TESTING.md#midi-generator-on-the-unit) has the method.
 

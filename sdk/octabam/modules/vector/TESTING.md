@@ -48,6 +48,24 @@ The current 110-profile VECTOR coverage matrix has 46 matching module-owned buil
 | MODE turned on while VECTOR was away, then VECTOR installed | MODE back to OFF (and a MODE 6 left from before: OFF on install) |
 | Crash record during all of the above | unchanged (record 12, older than this work) |
 
+Layout A (the owner's choice of 24 October 2026: VECTOR on SRC and AMP, LFO, FX1 and FX2 stock's), on the owner's MKII, 24 October 2026: a development twin of the base built from this branch merged with `main` (base `4fd515ff…`), RAM-booted, VECTOR installed with `try`, the same disposable project (bank A, Part 1, pattern 16, MIDI track 1, CHAN 1, 132 BPM). MIDI recorded over USB with `midimon`.
+
+| What | Result |
+|---|---|
+| No generator installed, double-tap T1 in MIDI mode | nothing happens, as stock |
+| VECTOR installed on a track still holding 21 October's layout | SRC shows TYPE 11, DENS 11, ROOT C, SCAL MIN, OCT C3, SEED 2; OFF then VECTOR again puts the new defaults in the arp note bytes (mark `V`, PROB and HUMN 0, byte 4 unused), NOTE 48, VEL 100, LEN 6, NOT2-4 64 |
+| SRC, AMP, FUNC+AMP, LFO, FX1 | SRC: TYPE DENS ROOT SCAL OCT SEED; AMP: VEL ACNT GATE SPAN OFST RPT; FUNC+AMP: ROT DIR PROB HUMN and two empty slots; LFO and FX1 stock's, and LFO's SPD1 turns stock's value (32, 33, 32) |
+| OCT +1, ROOT +2 | NOTE 48 to 62 (D4); the phrase's NOTE locks move into D (step 1: 36 to 50) |
+| PROB +5 | stock's label 91%; every note off the beat gets condition 25, the notes on the beat none |
+| PROB 21 (1%), PLAY 12 s | 27 note-ons, all on steps 1, 5, 9 and 13 at VEL 100; none of the 46 notes off the beat played |
+| HUMN 23, PLAY 8 s | the 11 notes of each bar move by their written offsets: all 50 note-ons within 1.0 ms (mean 0.3 ms) of grid + offset x 1/24 step; a negative offset on the first step does not sound before PLAY, as stock |
+| YES; VEL -20; GATE +4 | SEED 1 to 2 and a new phrase; the track's VEL 100 to 80 and LEN 6 to 10; strong notes VEL 80, others 64, LEN locks 5 to 10 |
+| Grid recording, hold TRIG 1 on SRC | stock's NOTE page with the step's locks (D4, 80, 7); turning NOTE locks D#4; letting go shows VECTOR's page again |
+| OFF; VECTOR again; module removed | stock's NOTE (D4, 80, 10) and ARP (MODE OFF) pages, arp step mask `ffff`; VECTOR again: its defaults, NOTE to C4; removed: stock's pages, nothing installed |
+| Crash record | unchanged (record 12) |
+
+Cost with the 21 October method (pattern length 64, DENS 16, every step a note, PLAY, 40 turns of TYPE): 0.52 ms a turn on average, 0.69 ms the longest (0.51 and 0.66 ms on 21 October; the trig words for PROB and HUMN are new). The base's generator code took 10.5-11.9 µs a UI tick on VECTOR's page while playing. The MIDI notes kept their grid while turning: 59 note-ons 113.0-114.0 ms apart (113.6 ms at 132 BPM). The longest time between audio frames was 423-425 µs while turning and 422-424 µs playing without a turn, so this base's normal is a little higher than 21 October's (406-417 µs) and the turns add nothing measurable.
+
 Cost, with the base's development profile (`modwerk_cost[24]`-`[27]`, DTIM3 at 132 MHz, read over `mem` 5 s apart; `cost.py` in the session's private tools):
 
 | State | Base's MIDI generator code per UI tick (61 a second) |
@@ -69,7 +87,7 @@ A temporary probe (not shipped) split the 1.3 ms build by stage: copying the rec
 
 The hoisted scale lookup in `engine.c` gives the same phrases as 0.2.4 over 18,144,000 parameter sets (a throwaway host comparison of both engines), and `test_engine.c` passes. `sdk/tests/test_machine_events.py` checks the base's registry on the host (`test_midi_generators.c`), the package glue and the port's sources.
 
-Not tested: a card build on the unit; a physical power cycle with a VECTOR MIDI track (RAM boots kept it: the battery-backed bank restore and the Part validator pass); a project save and reload; scenes and LFOs on a VECTOR MIDI track; MKI. Two RAM boots of development twins out of about fifteen did not come back on USB (one stall record: frames stopped 41 s after a boot with no module installed); a power cycle recovered both, and the next boot of the same image worked. It matches the RAM-boot trap of 19 October 2026 and was not reproduced.
+Not tested: a card build on the unit (layout A included); a physical power cycle with a VECTOR MIDI track (RAM boots kept it: the battery-backed bank restore and the Part validator pass); a project save and reload; scenes and LFOs on a VECTOR MIDI track; MKI. Two RAM boots of development twins out of about fifteen did not come back on USB (one stall record: frames stopped 41 s after a boot with no module installed); a power cycle recovered both, and the next boot of the same image worked. It matches the RAM-boot trap of 19 October 2026 and was not reproduced.
 
 ## Owner exception and remaining limits
 
