@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.49-experimental",
+    "date": "2026-10-24",
+    "changes": [
+      "Reduce protected metadata-copy overhead with a two-record loop while preserving all 64 records, inactive rows and volatile read order.",
+      "Compare native four-marker and full-table profiles against the previous source under matched fixtures; retain recording recovery and complete-plan checks.",
+      "Keep both resident menu layouts inside the same eight-page reservation and require balanced observer diagnostics before accepting UI checkpoints.",
+      "Known issue: measured instruction savings do not establish physical latency, cache safety, complete writer coverage or production USB readiness."
+    ]
+  },
+  {
     "version": "0.1.48-experimental",
     "date": "2026-10-24",
     "changes": [

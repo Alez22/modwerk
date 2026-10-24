@@ -45,3 +45,5 @@ recording recovery. This measures one maximum metadata-count workload; format,
 allocation geometry, physical timing and cache costs remain separate dimensions.
 Historical evidence stays bound to its original source when report wording or
 scenario flags are corrected.
+
+The 0.1.49 metadata helper processes two complete records per iteration to reduce protected address/branch overhead. It still copies every active and inactive record in volatile order. Compare matched source-bound four-marker and full-table instruction profiles in TESTING.md; these do not establish physical latency or broaden source admission.

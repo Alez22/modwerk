@@ -137,14 +137,25 @@ def main():
         assert struct.unpack('>12I', port.peek(guard_at, 48))[2] == 0, 'Bootstrap admitted readers'
         port.command(f'watchmem {guard_at:#x} 48')
         port.command(f'watchmem {boundary_at+4:#x} 12')
+        checkpoints={'retries':0,'emptyScopeUnbalancedDiagnostics':0,'maxRetries':0}
         def native_state():
             for _ in range(200):
                 g = struct.unpack('>12I', port.peek(guard_at, 48))
                 b = struct.unpack('>4I', port.peek(boundary_at, 16))
                 if native.get('recorderComposition'):
                     recorder=struct.unpack('>19I',port.peek(symbols['bs_recorder_test_boundary'],76))
-                    assert recorder[0]==guard_at and not recorder[2]
-                    if recorder[1] or b[1] or any(g[4:]):port.command('run 0.1');continue
+                    assert recorder[0]==b[0]==guard_at and not recorder[2] and not b[3] and not g[3], 'Native observer fault'
+                    empty=not recorder[1] and not b[1] and not any(g[4:])
+                    balanced=True
+                    for prefix in ('bs_recorder_test_','bs_recorder_prepare_'):
+                        counts=[int.from_bytes(port.peek(symbols[prefix+suffix],4),'big') for suffix in ('entries','exits')]
+                        masks=[int.from_bytes(port.peek(symbols[prefix+suffix+'_masks'],4),'big') for suffix in ('enter','leave')]
+                        balanced=balanced and counts[0]==counts[1] and masks[0]==masks[1]
+                    if not (empty and balanced):
+                        checkpoints['retries']+=1
+                        if empty and not balanced:checkpoints['emptyScopeUnbalancedDiagnostics']+=1
+                        port.command('run 0.1');continue
+                    checkpoints['maxRetries']=max(checkpoints['maxRetries'],_)
                     assert not any(recorder[3:])
                     assert int.from_bytes(port.peek(symbols['bs_recorder_test_entries'],4),'big')==int.from_bytes(port.peek(symbols['bs_recorder_test_exits'],4),'big')
                 break
@@ -701,6 +712,7 @@ def main():
     if native.get('recorderComposition'):
         report.update({'recorderComposition':True,'sdkRevision':native['sdkRevision'],
             'sdkDependencySha256':native['sdkDependencySha256'],'codegenGuardSha256':native['codegenGuardSha256']})
+    if native.get('recorderComposition'):report['observerCheckpoints']=checkpoints
     if a.scenario=='recording':report['recording']=recording_result
     (out / 'async-ui-boot.json').write_text(json.dumps(report, indent=2) + '\n')
 

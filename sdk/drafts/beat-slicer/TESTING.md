@@ -2670,3 +2670,20 @@ flag must be interpreted with the qualification above; no old native run is
 relabelled as a new execution.
 
 The two retained 0.1.48 compile/profile reports bind source `8efd17400916b23203d53c99e80593e84bd96b63`. The full current-upstream source check passed in 140.04 seconds; the inherited stale-fork changelog failure remains recorded separately.
+
+## Complete-table copy optimization (0.1.49)
+
+The metadata helper copies two complete records per loop. Every capture still reads all 64 records, including inactive rows, in its original volatile order. No record count, snapshot field or preservation rule is omitted. The existing ASan/UBSan host suite passes 1,536 full captures, 39 paired refusals, null outputs, 40 session transitions and both inactive-record candidate refusals.
+
+Matched native service runs change only `flex_metadata.c` in their recorded source inputs; stock image, card, WAV, emulator, compiler and flags stay matched. Each workload retains five full oracle-matching plans and track 1/8 recording invalidation/recovery. These are executed instruction counts for the same observed protected intervals, not cycles or physical time.
+
+| Workload | Protected work | Previous maximum | New maximum | Instructions saved |
+| --- | --- | ---: | ---: | ---: |
+| 4 markers | capture | 1861 | 1669 | 192 |
+| 4 markers | copy | 3255 | 2871 | 384 |
+| 64 markers | capture | 2761 | 2569 | 192 |
+| 64 markers | copy | 5055 | 4671 | 384 |
+
+The combined resident fixture occupies 49,068 bytes through BSS, leaving 36 bytes after its 32-byte canary in the unchanged eight-page reservation; this excludes stack. Both stock layouts retain two complete previews, ordinary recording dismissal/cancellation, guarded watched writes, fresh preview after Stop/reopening, and unchanged source/settings/card/code. The positive UI runs still use the explicit private fixed-input waveform-read exception. The conservative run uses no exception and refuses stale source output.
+
+The resident driver now uses the same bounded empty-scope plus balanced counter/mask checkpoint as the service driver. Faults still fail immediately, and persistent diagnostic imbalance still fails the fixed wait bound. This observer correction grants no native retirement or source admission. Production ownership, mutable queued-command stability, cache behavior, USB delivery, audio and physical persistence remain unqualified.

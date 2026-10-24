@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.48-experimental",
+  "version": "0.1.49-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -98,7 +98,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Create all 64 slice records through the stock grid menu before source admission, then profile exact mask/restore intervals with EXACT/64-beat requests. Five full plans retain all existing markers through recording invalidation/recovery, with complete source/card/code preservation. Separate metadata, copy and coordination maxima remain instruction counts only. Correct the recording-only report WAITING flag without rewriting historical source-bound evidence. Production source/USB and hardware remain unqualified.",
+    "summary": "Copy complete marker tables two records per loop, preserving all inactive records and volatile read order. Matched native profiles cover four and 64 markers; resident recording cancellation/recovery passes both layouts in the same eight-page reservation. Conservative source invalidation still refuses. Production source/USB and hardware remain unqualified.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
