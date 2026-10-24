@@ -28,7 +28,7 @@
   "sdk/machines/octatrack/elekloader/crash.c": "cb67f7c90066505f4feee49271e92281dfcd81b02dafb426ef7ecc74ccdd4816",
   "sdk/machines/octatrack/elekloader/crash.s": "2ac70c5491a1d585390e6aa75f30215205c8b48380e626072dd58de739f8a6cf",
   "sdk/machines/octatrack/elekloader/dev.c": "d272d09ae9a86ed7547901166afdb95e67fee74975af0dcd98b5428fdb91f5be",
-  "sdk/machines/octatrack/elekloader/diag.c": "2dbaa1286f28aa0d1a73e1cf536a0acfb8a9ca7aa204aa20161624ca69eaa816",
+  "sdk/machines/octatrack/elekloader/diag.c": "e4428da8b3f1b0c5b20249ec664d16c8dc85ff527e31532b456020541feb4c8f",
   "sdk/machines/octatrack/elekloader/diag.h": "780df3ab1fb8ab65d8f494ef5fc34ee6aff173ade8e3dd154dd718fef86eb329",
   "sdk/machines/octatrack/elekloader/dsp.c": "7f841903dc19d2dd3e0de72873988220d8dae4fa1c22192783a1ddefc1fee69e",
   "sdk/machines/octatrack/elekloader/dsp_core1.s": "ff29debfa7fefa0107bcc26a5de5a9ea411c80a7381ea3d3f13230dcc7cb58db",
