@@ -2779,3 +2779,5 @@ pointer/handle admission, independent module packages, complete writer/cache
 coverage and native reference retirement remain absent. Module-specific planner
 or controller code must stay in its package rather than be built into the base.
 No stock source, USB, audible output or physical persistence is qualified here.
+
+The three retained 0.1.51 reports bind source `5ff97af6850b0c81da18c574f4fe18d67f84bca0`. Their source/SDK hashes, native object hashes and runner identity were checked before retention. The current-upstream source check passed in 139.74 seconds; the inherited stale-fork changelog failure remains recorded separately.
