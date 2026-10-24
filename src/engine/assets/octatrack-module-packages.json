@@ -379,12 +379,12 @@
       "sites": 2,
       "copies": 0,
       "fills": 0,
-      "version": "0.1.0-experimental",
+      "version": "0.1.1-experimental",
       "name": "Quant Live Rec",
       "module": "7d0747d4",
-      "bytes": 356,
-      "sha256": "026464deb27c8178d44ad1fd5866b754478b11c114561e73000cdca3b44f86e8",
-      "path": "octatrack-modules/quantize-live-rec-toggle/0.1.0-experimental.mwrm"
+      "bytes": 364,
+      "sha256": "297f79efa4259486a6df7ce95efa29947b457597cb8f2d2794a214699d7f87fe",
+      "path": "octatrack-modules/quantize-live-rec-toggle/0.1.1-experimental.mwrm"
     },
     {
       "id": "recorder-loop-fix",
