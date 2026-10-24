@@ -156,7 +156,7 @@
       "Sample must be tuned to the stated C reference. Generated pitch is limited to the native \u00b112-semitone range.",
       "Parameter edits and YES publish during playback. Custom Undo and bar-quantized replacement are not implemented.",
       "Uses native pattern/track length, speed and swing. RPT sets a motif length within that track; no independent clock or swing. On a MIDI track it writes trigs and NOTE/VEL/LEN locks that the stock MIDI sequencer sends; it emits no MIDI itself.",
-      "MIDI tracks (0.3.0): chosen in MIDI NOTE SETUP's list; its controls take the ARP page and FUNC+AMP, and the track's arpeggiator stays off. Over USB it needs a base with MIDI generators. Tested on the owner's MKII over USB only; a card build on hardware, power cycles, project save/reload, scenes and LFOs on a VECTOR MIDI track remain untested.",
+      "MIDI tracks (0.3.0): chosen in MIDI NOTE SETUP's list; its controls take the SRC page and the AMP page (FUNC+AMP its second), LFO, FX1 and FX2 stay stock's, and the track's arpeggiator stays off. OCT, VEL and GATE are the track's NOTE, VEL and LEN; choosing VECTOR turns NOT2-4 off. Over USB it needs a base with MIDI generators. Tested on the owner's MKII over USB only; a card build on hardware, power cycles, project save/reload, scenes and LFOs on a VECTOR MIDI track remain untested.",
       "SRC generation knobs are request parameters, not p-lock/LFO/scene destinations. The normal EDIT view retains native playback controls.",
       "Generation owns note trigs, PTCH/HOLD/VOL locks and note timing/conditions. Every changed generator parameter or YES replaces those across the current track; other locks, recorder events and swing are preserved.",
       "The DRAM loader reserves 1,707 audio pages (10,487,808 bytes) shared across DRAM modules.",
@@ -210,14 +210,14 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "0.3.0 adds VECTOR as a MIDI generator for the MIDI tracks and makes edits cheaper: a 64-step rewrite took 0.5 ms on the owner's MKII (3.9 ms before), with audio frames and MIDI timing steady. The list, both pages, generation, MIDI output over USB, removal and reinstall ran on the owner's MKII over USB with development bases; the card build was checked by octabam's native builder only. Current-build hardware, chip cycles and complete memory bounds are not measured, under the owner's approval for this exact source.",
+    "summary": "0.3.0 adds VECTOR as a MIDI generator for the MIDI tracks and makes edits cheaper: a 64-step rewrite took 0.5 ms on the owner's MKII (3.9 ms before), with audio frames and MIDI timing steady. The list, the SRC, AMP and FUNC+AMP pages, generation, PROB and HUMN against recorded MIDI, grid-recording locks, removal and reinstall ran on the owner's MKII over USB with development bases (21 and 24 October 2026); the card build was checked by octabam's native builder only. Current-build hardware, chip cycles and complete memory bounds are not measured, under the owner's approval for this exact source.",
     "hardwareStatus": "untested",
     "gates": [
       "Firmware-free sanitizer generator, writer and packed-settings checks",
       "Hoisted scale lookup identical to 0.2.4 over 18,144,000 parameter sets",
       "Authored C/hooks to assembly reproducibility without firmware",
       "Base MIDI generator registry host test (sdk/tests test_midi_generators.c)",
-      "Owner's MKII over USB: list, pages, generation, MIDI output, removal, MODE guard, edit cost",
+      "Owner's MKII over USB: list, SRC/AMP pages, generation, MIDI output, PROB and HUMN timing, grid-recording locks, removal, MODE guard, edit cost",
       "Browser/native build parity and matching composition rejection",
       "Owner-approved update for this exact source; current-build hardware, chip cycles and memory bounds unmeasured"
     ],
@@ -367,7 +367,7 @@
     }
   ],
   "access": {
-    "location": "MIDI tracks: MIDI NOTE SETUP's generator list, then the ARP page and FUNC+AMP. Audio tracks: machine chooser VECTOR, then the Static/Flex pool modal; SRC holds phrase controls, SRC SETUP the rest. Double-tap TRACK reopens pool choice; push LEVEL for sample editing.",
+    "location": "MIDI tracks: MIDI NOTE SETUP's generator list, then the SRC and AMP pages and FUNC+AMP. Audio tracks: machine chooser VECTOR, then the Static/Flex pool modal; SRC holds phrase controls, SRC SETUP the rest. Double-tap TRACK reopens pool choice; push LEVEL for sample editing.",
     "steps": [
       "Select an audio track. Open SRC page 2 (double-tap SRC), choose VECTOR and press YES. In the backing-pool modal, highlight STATIC or FLEX with UP/DOWN or LEVEL, then press RIGHT to enter that pool. YES also opens the highlighted pool; YES on a loaded sample slot assigns that pool and sample to VECTOR. Use the corresponding stock sample-slot and file-loading tools to load a tuned sample; NO returns from the sample browser.",
       "Double-tap the assigned TRACK to reopen the pool modal. LEFT returns to the machine list; RIGHT on VECTOR opens the modal. RIGHT in the pool modal opens the highlighted Static/Flex sample list. In a sample-slot list, LEFT returns to pool choice and RIGHT opens the stock file browser. Horizontal arrows navigate menus without changing the assigned pool; YES on a sample slot commits the pool and sample.",
