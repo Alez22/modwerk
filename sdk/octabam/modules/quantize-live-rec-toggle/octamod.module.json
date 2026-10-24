@@ -3,7 +3,7 @@
   "id": "quantize-live-rec-toggle",
   "key": "QUANTIZE_LIVE_REC_TOGGLE",
   "name": "Quant Live Rec",
-  "version": "0.1.0-experimental",
+  "version": "0.1.1-experimental",
   "category": "system",
   "source": {
     "repository": "https://github.com/sambanks/octabam",
@@ -12,9 +12,10 @@
   },
   "author": {
     "github": "Zac-Kyoti",
+    "name": "Zac Kyoti",
     "credits": [
-      "Zac-Kyoti: the gesture, its ColdFire source and the MKI hardware work behind it. Sam Banks: octabam integration.",
-      "Modwerk contributors: source import with stock guards in place of stock bytes, the reworded toast, the PERSONALIZE redraw after a flip, the image gate, documentation and SVG thumbnail."
+      "Zac Kyoti: the gesture and its ColdFire source, including the LIVE REC toasts, the PERSONALIZE redraw after a flip and the stock-free order of the flip's stores, and the MKI hardware work behind it. Sam Banks: octabam integration.",
+      "Modwerk contributors: the manifest's stock guards in place of stock bytes, the image gate, documentation and SVG thumbnail."
     ]
   },
   "nativeManifest": "manifest.py",
@@ -145,7 +146,7 @@
       "screenshotStyle": "black-and-white"
     },
     "qualification": {
-      "moduleVersion": "0.1.0-experimental",
+      "moduleVersion": "0.1.1-experimental",
       "sourceSha256": "403c3e4b47e312d78c4ba5a6049d80452efbd63905f33573666c22f281e498b5",
       "imageSha256": "026464deb27c8178d44ad1fd5866b754478b11c114561e73000cdca3b44f86e8",
       "cycles": [
@@ -246,7 +247,7 @@
         "page": "Main screen with the notification",
         "shows": "location-and-controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
+        "moduleVersion": "0.1.1-experimental",
         "imageSha256": "eb34c12e9c906107fc6a8285ec757eaacf83a39c8dfb42e7bc390421f4189afd",
         "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept: the MAIN OS of QLRTEST03 (the stock-free reorder; QLRTEST02, which the MKII ran, gave the same pictures)."
       }
@@ -263,7 +264,7 @@
         "page": "Main screen with the notification",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
+        "moduleVersion": "0.1.1-experimental",
         "imageSha256": "eb34c12e9c906107fc6a8285ec757eaacf83a39c8dfb42e7bc390421f4189afd",
         "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept: the MAIN OS of QLRTEST03 (the stock-free reorder; QLRTEST02, which the MKII ran, gave the same pictures)."
       }
@@ -280,7 +281,7 @@
         "page": "PROJECT / SYSTEM / PERSONALIZE",
         "shows": "location",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
+        "moduleVersion": "0.1.1-experimental",
         "imageSha256": "eb34c12e9c906107fc6a8285ec757eaacf83a39c8dfb42e7bc390421f4189afd",
         "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept: the MAIN OS of QLRTEST03 (the stock-free reorder; QLRTEST02, which the MKII ran, gave the same pictures)."
       }
