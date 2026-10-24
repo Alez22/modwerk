@@ -419,6 +419,48 @@ unsigned mw_row_has_pool(unsigned row)
     const Machine *m[ROWS - 5u]; unsigned n = machines(m);
     return row >= 5 && row < 5 + n && m[row - 5]->flags & MODWERK_MACHINE_POOL;
 }
+/* The frame guard. The frame interrupt (0x4000aad0) renders each track's source in turn, T1 to T8, then builds the
+ * DSP's frame; run on past the next frame and the DSP's audio stops for good, until a power cycle
+ * (OCTATRACK_HARDWARE_TRAPS.md, work inside the frame interrupt). Its entry stamps mw_frame_t0 and its exit calls
+ * mw_frame_exit (machine_registry.s). Each track a machine renders is timed, and so is the work after it up to the
+ * exit; before the next render the guard predicts the exit from those. Past mw_frame_limit the track renders stock's
+ * silent source this frame instead: a dropout on that track, never a dead unit. Tracks only stock renders, and
+ * priced machines' (their voice is the DSP's), always render. A skipped track comes back when the frame has room for
+ * its last cost, or, every PROBE frames, when it would end at most SLACK past the limit: its cost is measured again. */
+#ifndef DTCN3
+#define DTCN3 (*(volatile uint32_t *)0xfc07c00cu) /* the frame timer: 132 MHz, free-running */
+#endif
+#define FRAME 47891u /* 16 samples at 44.1 kHz, in DTCN3 counts */
+typedef int Render(unsigned track, unsigned ping, unsigned start, unsigned end);
+volatile uint32_t mw_frame_t0, mw_frame_limit = FRAME / 5u * 4u; /* the limit: development bases may poke it */
+volatile uint32_t mw_frame_max, mw_frame_sheds, mw_frame_shed_tracks; /* the longest frame interrupt; the skips */
+#define SLACK (FRAME / 10u)
+#define PROBE 1024u /* frames, about 0.37 s */
+static uint32_t cost[8], after[8], end_at[8], timed;
+static uint16_t skipped[8];
+void mw_frame_exit(void)
+{
+    uint32_t now = DTCN3, d = now - mw_frame_t0;
+    if (d > mw_frame_max) mw_frame_max = d;
+    for (unsigned t = 0; t < 8u; ++t) if (timed >> t & 1u) after[t] = now - end_at[t];
+    timed = 0;
+}
+static int guarded(Render *f, unsigned track, unsigned ping, unsigned start, unsigned end)
+{
+    if (track >= 8u) return f(track, ping, start, end);
+    uint32_t at = DTCN3, ends = at - mw_frame_t0 + cost[track] + after[track]; int r;
+    if (ends > mw_frame_limit && (ends > mw_frame_limit + SLACK || ++skipped[track] < PROBE)) {
+        mw_frame_sheds = mw_frame_sheds + 1u, mw_frame_shed_tracks |= 1u << track;
+        r = STOCK(Render *, 0x400047f0u)(track, ping, start, end);
+    } else {
+        skipped[track] = 0;
+        r = f(track, ping, start, end);
+        uint32_t c = DTCN3 - at, k = cost[track] - (cost[track] >> 3);
+        cost[track] = c > k ? c : k; /* a rise at once, a fall by an eighth a frame */
+    }
+    end_at[track] = DTCN3, timed |= 1u << track;
+    return r;
+}
 /* The FLEX renderer, in the audio render: no mask. The row is read once, a word at a time; a module that left
  * stays in memory while the render holds it (the paused-task scan). */
 int mw_source_render_impl(unsigned track, unsigned ping, unsigned start, unsigned end)
@@ -430,12 +472,13 @@ int mw_source_render_impl(unsigned track, unsigned ping, unsigned start, unsigne
     }
     if (valid_bank() && owner(m, n, current_part(), track, &who)) {
         if (who->source_kind && charged[track] != who) /* uncharged: stock's silent source, never an unpaid voice */
-            return STOCK(int (*)(unsigned, unsigned, unsigned, unsigned), 0x400047f0u)(track, ping, start, end);
-        if (who->render) return who->render(track, ping, start, end);
+            return STOCK(Render *, 0x400047f0u)(track, ping, start, end);
+        Render *f = who->render ? who->render : STOCK(Render *, 0x40004008u); /* POLY8's voices render inside stock's */
+        return who->source_kind ? f(track, ping, start, end) : guarded(f, track, ping, start, end);
     } else if (valid_bank() && orphan(current_part(), track)) /* its bytes are the absent machine's, not FLEX's */
-        return STOCK(int (*)(unsigned, unsigned, unsigned, unsigned), 0x400047f0u)(track, ping, start, end);
+        return STOCK(Render *, 0x400047f0u)(track, ping, start, end);
     else
         for (unsigned k = 0; k < n; ++k)
-            if (m[k]->flags & MODWERK_MACHINE_RENDER_FLEX && m[k]->render) return m[k]->render(track, ping, start, end);
-    return STOCK(int (*)(unsigned, unsigned, unsigned, unsigned), 0x40004008u)(track, ping, start, end);
+            if (m[k]->flags & MODWERK_MACHINE_RENDER_FLEX && m[k]->render) return guarded(m[k]->render, track, ping, start, end);
+    return STOCK(Render *, 0x40004008u)(track, ping, start, end);
 }

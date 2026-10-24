@@ -78,6 +78,8 @@ void mw_seq_set_none(void) {}
 #define modwerk_runtime_event_row host_rows
 static uintptr_t volatile *const host_rows[RUNTIME_SITE_EVENTS] = {
     [MODWERK_OT_MACHINES - RUNTIME_EVENTS] = machine_row, [MODWERK_OT_SEQUENCER_ROWS - RUNTIME_EVENTS] = sequencer_row};
+static volatile uint32_t host_timer; /* the frame timer (DTCN3): the synthetic renders advance it */
+#define DTCN3 host_timer
 #include "machine_registry.c"
 #undef modwerk_runtime_event_row
 
@@ -104,7 +106,8 @@ static const uint8_t a_defaults[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
 static unsigned admit_a(const volatile uint8_t *p, unsigned t) { (void)p; (void)t; return (unsigned)a_admit; }
 static uint32_t page_a(const volatile uint8_t *s) { (void)s; return 0x1234u; }
 static int render_a(unsigned t, unsigned p, unsigned s, unsigned e) { (void)t; (void)p; (void)s; (void)e; return ++a_renders; }
-static int render_f(unsigned t, unsigned p, unsigned s, unsigned e) { (void)t; (void)p; (void)s; (void)e; return 100 + ++f_renders; }
+static uint32_t f_cost;
+static int render_f(unsigned t, unsigned p, unsigned s, unsigned e) { (void)t; (void)p; (void)s; (void)e; host_timer += f_cost; return 100 + ++f_renders; }
 static void leave_a(unsigned t) { left = (int)t + 1; }
 static unsigned assign_v(volatile uint8_t *part, unsigned t, unsigned on)
 { unsigned s = 60 + 30 * t; part[s] = on ? 'S' : 0; part[s + 1] = on ? '2' : 0; part[s + 2] = on ? 2 : 0; return on ? 1 : 0; }
@@ -130,6 +133,14 @@ static void rows(const void *const *m, unsigned n, const void *const *s, unsigne
 }
 static Part *part0(void) { return AT(0x46000000u + PART_OFF); }
 static const Part *slot(unsigned t) { return part0() + 0x22 + t; }
+/* One frame interrupt: its entry, `pre` counts of stock work, the track's render, `tail` counts more, its exit. */
+static int frame(unsigned track, uint32_t pre, uint32_t tail)
+{
+    mw_frame_t0 = host_timer; host_timer += pre;
+    int r = mw_source_render_impl(track, 0, 0, 1);
+    host_timer += tail; mw_frame_exit();
+    return r;
+}
 static unsigned counts_now(void) { return (unsigned)code[0x0b] << 24 | (unsigned)code[0x1d] << 16 | (unsigned)code[0x21] << 8 | code[0x33]; }
 
 int main(void)
@@ -282,6 +293,34 @@ int main(void)
     CHECK(part0()[0x22 + 3] == 1);
     rows(0, 0, 0, 0);
 
+    /* The frame guard (limit 38,312 counts, slack 4,789): F's render on track 3 runs while the frame it predicts from
+     * the last frame's times ends in time, and renders stock's silent source while it would not. */
+    const void *f_only[] = {&F};
+    rows(f_only, 1, 0, 0);
+    CHECK(mw_assign(part0(), 3, 5) == 1);
+    int s0 = silent_renders; f_cost = 10000;
+    CHECK(frame(3, 10000, 10000) > 100 && silent_renders == s0 && mw_frame_max == 30000 && !mw_frame_sheds);
+    f_cost = 25000; /* predicted 30,000: it runs, and ends at 45,000 */
+    CHECK(frame(3, 10000, 10000) > 100 && mw_frame_max == 45000 && !mw_frame_sheds);
+    /* Predicted 45,000, past the slack: skipped every frame, never probed. */
+    int skipped_all = 1;
+    for (unsigned i = 0; i < 3000u; ++i) skipped_all &= frame(3, 10000, 10000) == -9;
+    CHECK(skipped_all && mw_frame_sheds == 3000u && mw_frame_shed_tracks == 1u << 3 && silent_renders == s0 + 3000);
+    CHECK(frame(3, 2000, 10000) > 100);   /* room for its cost (37,000): back at once */
+    /* Predicted 41,000, within the slack: a probe every 1,024 frames measures it again; a lighter F stays back. */
+    unsigned ran = 0, first = 0;
+    for (unsigned i = 0; i < 2048u; ++i) if (frame(3, 6000, 10000) > 100 && !ran++) first = i;
+    CHECK(ran == 2u && first == 1023u);
+    f_cost = 5000; ran = 0;
+    for (unsigned i = 0; i < 1024u; ++i) ran += frame(3, 6000, 10000) > 100;
+    CHECK(ran == 1u && frame(3, 6000, 10000) > 100 && frame(3, 6000, 10000) > 100);
+    /* A track only stock renders always renders, however late the frame. */
+    const void *v_only2[] = {&V};
+    rows(v_only2, 1, 0, 0);
+    uint32_t sheds = mw_frame_sheds;
+    CHECK(frame(6, 60000, 10000) == -7 && mw_frame_sheds == sheds);
+    rows(0, 0, 0, 0);
+
     /* SEQUENCER: FM's quantizer rows, then Scale Quantizer's with the same labels: one set, FM's; QZ alone: QZ's. */
     const void *both[] = {&FMQ, &QZ, &MORE};
     rows(0, 0, both, 3);
@@ -296,6 +335,6 @@ int main(void)
     if (failures) { fprintf(stderr, "%u registry checks failed\n", failures); return 1; }
     puts("Machine registry: rows by table order, admission before mutation, signatures and defaults in both copies, absent "
          "machines as stock, the validator's protection and wrapper chain, render routing, keyed SEQUENCER rows and chooser "
-         "counts passed.");
+         "counts and the frame guard passed.");
     return 0;
 }
