@@ -317,6 +317,10 @@ async function run(sequence, until = Infinity) { // serve: past its time limit a
       const r = await read(0)
       console.log(r.counts === 0xffffffff ? 'compaction gave up (playing again, or ten seconds)' : `compacted in ${(r.counts / 132000).toFixed(1)} ms (${Date.now() - start} ms seen from here)`)
     }
+    else if (step === 'guard' || step.startsWith('guard:')) { // GUARD (dev request 29): guard:MILLE sets the frame guard's limit
+      const b = Buffer.from(await devIn(29, Number(step.slice(6)) || 0, 16)), max = b.readUInt32BE(0), limit = b.readUInt32BE(12)
+      console.log(`frame max ${max} counts (${(max / 478.91).toFixed(1)} %), skipped ${b.readUInt32BE(4)} on tracks ${[...Array(8).keys()].filter(t => b.readUInt32BE(8) >> t & 1).map(t => 'T' + (t + 1)).join(' ') || '-'}, limit ${limit} (${(limit / 478.91).toFixed(1)} %)`)
+    }
     else if (step === 'gap') { const g = Buffer.from(await devIn(23, 0, 4)).readUInt32BE(0); console.log(`gap ${g} counts ${(g / 132).toFixed(0)} us`) } // since the last read
     // RELOAD from the Part menu, which keeps its cursor and stops at RENAME. Never PART+FUNC+PLAY: that is CLEAR.
     else if (step === 'reload') await run('FUNC+PART w600 UP w150 UP w150 UP w150 DOWN w200 YES w1000')
