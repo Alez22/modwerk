@@ -180,7 +180,8 @@ class ToolSyntax(unittest.TestCase):
                 ast.parse(source.read_text(encoding='utf-8'), str(source))
 
 # Builder extensions after the Poly8 record, oldest first. Each proves its own exact before/after transition.
-EXTENSIONS = ['air-chorus-split-builder.json', 'plain-formatter-builder.json', 'floating-cave-overflow-builder.json', 'octabam-emulator-gates-5c71bc8c.json']
+EXTENSIONS = ['air-chorus-split-builder.json', 'plain-formatter-builder.json', 'floating-cave-overflow-builder.json', 'octabam-emulator-gates-5c71bc8c.json',
+              'stock-delay-table-builder.json']
 
 class SelectiveImport(unittest.TestCase):
     def assert_current_builder_identity(self, path, historical):
@@ -250,6 +251,31 @@ class SelectiveImport(unittest.TestCase):
             self.assertIn('refused', row['after'])
         self.assertTrue(any('past the stock zero run' in row['before']['refused'] for row in changed))
         self.assertFalse(any('past the stock zero run' in row['after'].get('refused', '') for row in record['selections']))
+
+    def test_stock_delay_table_moves_only_overflowing_images(self):
+        import json
+        record = json.loads((ROOT.parent / 'infrastructure-verification/stock-delay-table-builder.json').read_text())
+        self.assertEqual(record['kind'], 'stock-delay-table-builder-regression')
+        self.assertEqual(set(record['builderAdaptations']), {'tools/build/build_bus.py', 'tools/remix/stock.py'})
+        for path, change in record['builderAdaptations'].items():
+            self.assert_extension_holds('stock-delay-table-builder.json', path, change['after'])
+        changed = [row for row in record['selections'] if row['before'] != row['after']]
+        self.assertGreaterEqual(len(record['selections']) - len(changed), 200)
+        for row in changed:
+            # An overflowing image moves; nothing goes from built to refused or back.
+            self.assertEqual(row['before']['bytes'], row['after']['bytes'])
+            self.assertNotIn('refused', row['before'])
+            self.assertNotIn('refused', row['after'])
+
+    def test_delay_table_tail_is_kept_by_both_builders(self):
+        from remix import stock
+        self.assertEqual((stock.DELAY_KEEP.addr, stock.DELAY_KEEP.expect), (0x400d24d0, bytes(16)))
+        self.assertIn(stock.DELAY_KEEP, next(m for m in stock.MODULES if m.key == 'DELAY').keeps)
+        source = (ROOT / 'tools/build/build_bus.py').read_text(encoding='utf-8')
+        self.assertIn('_ovf_top = OVERFLOW_RUN + len(stock_mod.DELAY_KEEP.expect)', source)
+        self.assertIn('dict.fromkeys((*REMIX.modules, "DELAY"))', source)
+        patches = (ROOT.parents[1] / 'src/engine/os-patches.ts').read_text(encoding='utf-8')
+        self.assertIn('DELAY_TABLE_END = 0x400d24d0, DELAY_READS_PAST = 16', patches)
 
     def test_poly8_builder_preserves_current_main_without_poly8(self):
         import json

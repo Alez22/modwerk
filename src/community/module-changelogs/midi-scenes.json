@@ -7,7 +7,8 @@
       "With one scene muted, the crossfader morphs between the base value and the other scene. With both muted, the CC returns to its base or trig-lock value.",
       "Editing scene locks while holding a muted scene’s key still works, as on stock.",
       "Fixes out-of-range CC values from the crossfader when a scene has nothing assigned.",
-      "Known issue: editing a scene lock while holding its key does not send the CC until you move the crossfader."
+      "Known issue: editing a scene lock while holding its key does not send the CC until you move the crossfader.",
+      "Documentation only: notes that at a slow tempo with a long TIME the stock DELAY reads the first bytes of MIDI Scenes' code past the end of its table, so DELAY may sound different there. Not heard on a unit."
     ]
   },
   {

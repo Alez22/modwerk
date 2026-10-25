@@ -231,6 +231,19 @@ backend's "not stopped") and the host retries.
 
 ## DSP loader (dynamic DSP code)
 
+**P memory ends at P:$1fff on both cores; code written into the shared
+window runs.** Reported from an MKII run on 25 October 2026, not repeated on
+a Modwerk base: a write and read-back at P:$2000, $2100, $2400, $2800, $3000
+and $3800 found no memory on either core, with a control at the spare
+P:$1fe0 that held its word, and P:$3fe0 to $ffe0 were absent too; nothing
+wrapped onto low memory. A three-word routine written at seven addresses
+between P:$30100 and P:$37e00 and called there returned the right value on
+both cores. The emulator maps P everywhere, so code relocated to P:$2000
+passes there and cannot run on the chip (`dspbench` uses that origin for
+emulator timing only). The shared window could hold code, but this base
+hands it to FX2 delay buffers, and the cost of running from it is not
+measured.
+
 **eDMA source buffers must match the inherited transfer size.** The loader
 reuses stock's TCD0 and inherits its 16-byte bursts. Its packet buffer sat
 4 bytes off a 16-byte boundary: the chip raised a source address error
@@ -443,6 +456,19 @@ reads the PC's bytes both cached and through the uncached alias so this is visib
 a stale instruction cache, zeros or other bytes uncached mean the push did not happen.
 
 ## Patching stock code
+
+**The stock DELAY reads 16 bytes past its coefficient table.** It looks up
+`0x400d1ce0 + 4 * (x >> 6)` (`0x40003526`, `0x40003540`) and keeps the word in
+the track's delay state. The table has 508 entries and ends at `0x400d24d0`,
+the start of the free ROM run the builders call the overflow run. At a slow
+tempo with a long TIME the index passes 507 (508 at 51 BPM, measured under
+the ColdFire port) and reads the run's first words, which are zero in 1.40C;
+code there changes DELAY's output. Both builders start placement at
+`0x400d24e0`, the native build checks those bytes in the finished image
+whether or not the chooser lists DELAY (a saved project can still run it),
+and the browser refuses any write over them. MIDI Scenes' pinned author
+image starts its code at `0x400d24d0` and is the one known exception. Not
+heard on a unit.
 
 **Audio-track LFO waveforms** (OS 1.40C, measured in `ot_emu`, 24 October
 2026; background in upstream Octabam's `docs/firmware/LFO.md`):

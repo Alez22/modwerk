@@ -102,6 +102,13 @@ is therefore unsupported. Mixed selections require a reviewed relocation or
 an independently verified composition strategy; they must not reuse the old
 8.2 compatibility proofs. OctaKit remains outside this integration.
 
+The author's code starts at `0x400d24d0`, the first bytes after the stock
+DELAY's coefficient table. At a slow tempo with a long TIME the stock DELAY
+reads those 16 bytes as table entries (zeros on a stock unit), so DELAY may
+sound different there with MIDI Scenes installed. The other card builds keep
+those bytes zero; this pinned image cannot move them without a new release
+from its author. Not heard on a unit.
+
 Standalone MAIN and full ELEK/ELUP update parity and rejection pass in Node
 and an actual browser worker. Exact total memory/stack accounting, defensible
 worst-case cycle bounds and complete 2.0 control qualification remain pending.
