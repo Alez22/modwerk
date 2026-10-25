@@ -3228,3 +3228,9 @@ guards. The five base-bound packages were rebound; all 25 published packages
 then reproduced identically with strict stock-free checks. The default editor
 remains disabled. The private pre-merge base evidence above is unchanged and
 does not qualify this new base for physical testing.
+
+Subsequent upstream documentation (`6ffb6ec3`) and Direct Jump Kyoti 0.1.2
+(`14908619`) also merged. Base runtime inputs are unchanged from the seven
+verified variants above. The four shared asset hashes in each Tape Echo/Euclid
+receipt were refreshed again; all 25 packages, including Direct Jump Kyoti
+0.1.2, reproduce identically and pass strict stock-free checks.
