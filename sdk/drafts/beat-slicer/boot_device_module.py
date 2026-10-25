@@ -137,7 +137,8 @@ try:
         count=word(syms['stock_count'])+word(syms['binding_count'])
         assert 7<=count<=13 and word(syms['binding_count'])==1
         names=[port.peek(word(labels+4*i),32).split(b'\0',1)[0].decode('ascii') for i in range(count)]
-        assert names[-1]=='BEAT SLICER',names
+        assert names.index('CREATE BEAT GRID')+1==names.index('CREATE SLICE GRID'),names
+        assert names[:names.index('CREATE BEAT GRID')]+names[names.index('CREATE BEAT GRID')+1:]==(['ADD SLICE HERE','DELETE ALL SLICES','CREATE SLICE GRID','CREATE LINEAR LOCKS','CREATE RANDOM LOCKS','CHANGE VIEW'] if count==7 else ['DISABLE LOOP','DELETE SLICE','REVERSE SLICE','NORMALIZE SLICE','DELETE ALL SLICES','CREATE SLICE GRID','CREATE LINEAR LOCKS','CREATE RANDOM LOCKS','CHANGE VIEW']),names
         return names
     def choose(name):
         names=current_menu();target=names.index(name)
@@ -200,7 +201,7 @@ try:
         expected=[(start,starts[i+1] if i+1<len(starts) else settings[76],0xffffffff) for i,start in enumerate(starts)]
         print('ORACLE',kind,settings[69],expected,flush=True)
         print('OPEN ACTION',kind,current_menu() if word(0x460e5e30) else 'closed',flush=True)
-        tap(port,'yes');choose('BEAT SLICER')
+        tap(port,'yes');choose('CREATE BEAT GRID')
         for wait in range(40):
             if state()==1:break
             port.command('run 100')
@@ -219,13 +220,11 @@ try:
         if args.check_encoders:
             frame_at=word(0x400b9710)
             def options_frame():
-                # This is the working framebuffer, not a completed LCD transfer.
-                # module_draw clears byte zero first, restores the border, then
-                # finishes at K's final pixel in "YES:OK      NO:BACK" (116,61).
-                # Both pixels distinguish a completed draw from clearing/text.
+                # The popup clears only its rectangle. Its right border at
+                # (124,60) is restored last after fields/footer finish drawing.
                 for _ in range(100):
                     frame=port.peek(frame_at,1024)
-                    if frame[0]&0x80 and frame[116*8]&0x20:return frame
+                    if frame[124*8]&0x10:return frame
                     port.command('run 1')
                 raise AssertionError('no completed options draw within the capture bound')
             original_frame=options_frame()
@@ -248,7 +247,7 @@ try:
         tap(port,'no');port.command('run 200')
         print('NO STATE',kind,state(),flush=True)
         assert state()==0 and port.peek(at,1096)==before,'NO did not cancel cleanly'
-        tap(port,'yes');choose('BEAT SLICER');port.command('run 200')
+        tap(port,'yes');choose('CREATE BEAT GRID');port.command('run 200')
         assert state()==1,'fresh action failed after NO'
         tap(port,'yes');port.command('run 200');assert state()==2
         tap(port,'yes');port.command('run 500')
@@ -262,7 +261,7 @@ try:
         if args.repeat:
             for step in (4,16,32,64,1):
                 old=port.peek(at,1096)
-                tap(port,'yes');choose('BEAT SLICER');port.command('run 200')
+                tap(port,'yes');choose('CREATE BEAT GRID');port.command('run 200')
                 assert state()==1,'reopen after apply failed'
                 port.command(f'knob 0x31 {4 if step!=1 else -16}');port.command('run 200')
                 (out/f'replace-options-{kind}-{step}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
@@ -270,7 +269,7 @@ try:
                 assert word(syms['mw_sample_editor']+28)==1,'replacement warning not selected'
                 tap(port,'no');port.command('run 200')
                 assert state()==0 and port.peek(at,1096)==old,'replacement NO changed the table'
-                tap(port,'yes');choose('BEAT SLICER');port.command('run 200')
+                tap(port,'yes');choose('CREATE BEAT GRID');port.command('run 200')
                 assert state()==1
                 tap(port,'yes');port.command('run 200');assert state()==2
                 tap(port,'yes');port.command('run 1000')

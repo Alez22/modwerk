@@ -79,7 +79,7 @@ void bs_device_open(uint32_t opened,const struct modwerk_sample_editor_api *api)
  * complete descriptor before admission and again under its native owner lock. */
 const struct modwerk_sample_action bs_sample_action={
     MODWERK_SAMPLE_EDITOR_ABI,MODWERK_SAMPLE_ACTION_BYTES,0x446c151du,0,bs_device_open,
-    "BEAT SLICER",{0,0,0}
+    "CREATE BEAT GRID",{0,0,0}
 };
 void module_tick(struct modwerk_runtime_api *api)
 {
@@ -110,7 +110,10 @@ static int adjust(int encoder,int delta)
 int module_enc(int encoder,int delta)
 {
     if(!active)return 0;
-    if(encoder<0 || encoder>1){close_editor();return 0;}
+    /* Unassigned C-F fields belong to this popup too; they do not dismiss it
+     * or change the stock page hidden underneath. */
+    if(encoder>=2 && encoder<6)return 1;
+    if(encoder<0 || encoder>=6){close_editor();return 0;}
     pending_confirm=0;
     if(reply==MODWERK_SAMPLE_BUSY)reply=MODWERK_SAMPLE_OK;
     int *counts=&encoder_counts[encoder];
@@ -163,33 +166,48 @@ void module_draw(unsigned char *frame)
 {
     if(!active || !frame)return;
     char line[32],*at;
-    for(uint32_t i=0;i<1024;++i)frame[i]=0;
-    bs_device_box(frame,0,0,128,64);
-    bs_device_text_at(frame,30,2,"BEAT SLICER");
-    bs_device_invert(frame,1,1,126,10);
+    /* Composite over the stock AED frame: leave its outer edge visible. */
+    bs_device_clear(frame,3,4,122,57);
+    bs_device_text_at(frame,16,6,"CREATE BEAT GRID");
+    bs_device_invert(frame,4,5,120,9);
+    bs_device_box(frame,89,17,1,35);
+    bs_device_small_text(frame,7,19,"A SRC");
+    bs_device_small_text(frame,35,19,"B STEP");
+    bs_device_small_text(frame,66,19,"C");
+    bs_device_small_text(frame,7,37,"D");
+    bs_device_small_text(frame,35,37,"E");
+    bs_device_small_text(frame,66,37,"F");
+    bs_device_small_text(frame,66,27,"---");
+    bs_device_small_text(frame,7,45,"---");
+    bs_device_small_text(frame,35,45,"---");
+    bs_device_small_text(frame,66,45,"---");
+    bs_device_small_text(frame,7,54,"YES:OK NO:BACK");
+    bs_device_small_text(frame,96,54,"0.1.59");
     if(!captured || dirty) {
-        bs_device_text(frame,26,"PLEASE WAIT");
-        bs_device_text(frame,55,"NO:BACK");return;
+        bs_device_small_text(frame,7,27,"WAIT");
+        bs_device_box(frame,3,4,122,57);return;
     }
-    at=append(line,tempo_source?"A BPM:PROJECT ":"A BPM:SAMPLE ");
+    bs_device_small_text(frame,7,27,tempo_source?"PROJECT":"SAMPLE");
+    at=number(line,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
+    bs_device_small_text(frame,35,27,line);
+    bs_device_small_text(frame,93,18,"BPM");
     uint32_t bpm=tempo_source?view.project_bpm24:view.sample_bpm24;
     if(bpm>=720 && bpm<=7200) {
-        at=number(at,bpm/24u);*at++='.';
+        at=number(line,bpm/24u);*at++='.';
         uint32_t fraction=(bpm%24u*100u+12u)/24u;
         *at++=(char)('0'+fraction/10u);*at++=(char)('0'+fraction%10u);*at=0;
-    } else text(at,"NONE");
-    bs_device_text(frame,15,line);
-    at=append(line,"B STEP:");at=number(at,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
-    bs_device_text(frame,25,line);
-    at=append(line,"SLICES:");number(at,plan.count);
-    bs_device_text(frame,35,line);
-    if(geometry==DEVICE_SHORT_TRIM)text(line,"TRIM TOO SHORT");
-    else if(geometry==BS_TOO_MANY)text(line,"OVER 64 SLICES");
-    else if(geometry!=BS_OK)text(line,"CHECK BPM / TRIM");
-    else if(reply==MODWERK_SAMPLE_BUSY)text(line,"PLEASE WAIT");
-    else if(reply!=MODWERK_SAMPLE_OK)text(line,"EDIT REFUSED");
-    else if(view.count){at=append(line,"REPLACE ");at=number(at,view.count);append(at," SLICES");}
-    else text(line,"NEW SLICE GRID");
-    bs_device_text(frame,45,line);
-    bs_device_text(frame,55,"YES:OK      NO:BACK");
+    } else text(line,"NONE");
+    bs_device_small_text(frame,93,25,line);
+    bs_device_small_text(frame,93,34,"SLICES");
+    number(line,geometry==BS_OK?plan.count:0);
+    bs_device_small_text(frame,93,41,line);
+    if(geometry==DEVICE_SHORT_TRIM)text(line,"SHORT");
+    else if(geometry==BS_TOO_MANY)text(line,"OVER64");
+    else if(geometry!=BS_OK)text(line,"CHECK");
+    else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAIT");
+    else if(reply!=MODWERK_SAMPLE_OK)text(line,"REFUSED");
+    else text(line,view.count?"REPLACE":"CREATE");
+    bs_device_small_text(frame,93,47,line);
+    /* Border is restored last, providing a complete-render capture marker. */
+    bs_device_box(frame,3,4,122,57);
 }

@@ -3285,3 +3285,27 @@ image/copy declarations are unchanged. The new document-size check passes after
 replacing duplicate session instructions in the hardware-trap guide with its
 existing driving-guide link. Repository readiness/CI results remain separate
 from this exact emulator receipt.
+
+## Owner's 0.1.58 trial — 25 October 2026
+
+Exact private base `2732acbb336ca430…`, module SHA-256
+`8164829b315c822b72073f341085dc1aaef4f5a62636f4f53f9da4ffa75639ce`,
+frontend `60abcc53` (unchanged runtime from `c02a7274`). All 219 base source
+inputs, nine module inputs and twelve packages were rechecked before RAM boot.
+The owner confirmed a disposable project/sample copies with recording/playback
+stopped. Actual self-test: passed, 12 live/intact modules, seven DSP modules ran,
+peak CPU 74.3%, track-group peaks 65.0% and 71.0%.
+
+The owner reported: “it works very well no bugs occur during testing.” This is
+reported slicing behavior; no per-case audio, persistence or timing attestation
+is inferred. The owner requested the 0.1.59 menu/popup revision afterward.
+
+USB Undo failed separately: the frontend reached ready with unknown active
+identity and a refusal notice; restoration was not verified. The owner then
+power-cycled. Read-only USB verified normal flashed base `cd39c494…`, its exact
+original eleven-module inventory, and unchanged persistent crash/stall counts
+one/two. The first status request encountered the documented stale USB handle;
+the next reads succeeded. No Keep, flash or save was performed. The slicing
+report does not qualify USB Undo. Raw logs and firmware stay private.
+
+0.1.59 is a new UI build; the 0.1.58 result is not reused as its hardware result.

@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.59-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Rename the editor action CREATE BEAT GRID and place it before CREATE SLICE GRID.",
+      "Use a compact popup with A\u2013C / D\u2013F encoder positions and a separate BPM, slice-count and create/replace summary.",
+      "Show version 0.1.59 in the popup; retain 0.1.58 as the previous tested version.",
+      "Keep unassigned C\u2013F encoders inert while the popup is open.",
+      "Known issue: USB Undo was not verified after the 0.1.58 trial; power-cycle recovery restored the original modules."
+    ]
+  },
+  {
     "version": "0.1.58-experimental",
     "date": "2026-10-25",
     "changes": [

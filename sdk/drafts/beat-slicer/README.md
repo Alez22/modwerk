@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.58-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.59-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
@@ -23,7 +23,7 @@ and step changes. The owner then reported 0.1.57 working alone but a DSP-stop
 warning, pop and
 loss of audio while slicing a 22 MB Flex source with TapeHead/Mini Verb active.
 The saved stall record confirms stopped frames, not the exact cause. That build
-is withdrawn from further trials. The 0.1.58 mitigation has not run on hardware;
+is withdrawn from further trials. The owner reported that 0.1.58 worked very well with no bugs during slicing tests. Its USB Undo could not verify restoration; a power cycle restored the flashed base and original eleven modules. The new 0.1.59 UI has not run on hardware;
 full lifecycle qualification continues. The service is enabled
 only by a private `--sample-editor` base build and needs owner review. It is not
 released capability, and the draft remains absent from the public catalogue.
@@ -31,7 +31,7 @@ released capability, and the draft remains absent from the public catalogue.
 ## Controls and workflow
 
 Private candidate access: select a file-backed Flex or Static sample → AED →
-AMP (SLICE) → YES → BEAT SLICER. Stop playback and recording for this first
+AMP (SLICE) → YES → CREATE BEAT GRID. Stop playback and recording for this first
 candidate; recorder buffers and slots 128 onward are excluded.
 
 | Control | Behavior |
@@ -187,3 +187,21 @@ runtime-owner host test includes the repository's unchanged GPL loader fixture;
 its licence and attribution remain in the original files, and the combined test
 binary is not published. No Elektron firmware, extracted routines/tables,
 factory samples, memory dumps or built firmware images are committed.
+
+## UI revision and returning to the tested version
+
+0.1.59 calls the AED action **CREATE BEAT GRID**, directly before stock
+**CREATE SLICE GRID**. Its compact popup leaves the AED edge visible. Six
+parameter positions follow the panel's A–C / D–F layout: A selects SAMPLE or
+PROJECT tempo and B selects beat spacing. C–F are unassigned and inert. The
+right side shows captured BPM, planned slices and CREATE/REPLACE (or a refusal
+status); the footer shows 0.1.59. Native YES/NO confirmation is unchanged.
+
+0.1.58-experimental remains the previous tested version at source `60abcc53`
+(runtime inputs matched its original `686906da` build). Its exact module SHA-256
+is `8164829b315c822b72073f341085dc1aaef4f5a62636f4f53f9da4ffa75639ce`;
+private base `2732acbb336ca4300235b91d8a5ca143f540e0120e2860e964b1ad233108dd67`
+and packages are retained outside Git. Do not overwrite them with a new build.
+Returning to 0.1.58 means using those exact retained trial artifacts after a
+fresh baseline review, not rebuilding a new package with the old version label.
+Neither revision is a released module or qualified for Keep/save/persistence.

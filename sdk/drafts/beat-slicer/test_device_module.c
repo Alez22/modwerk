@@ -39,6 +39,8 @@ static unsigned confirm(uint32_t token,const struct modwerk_sample_grid *grid)
 static void cancel(uint32_t token){++cancels;mw_sample_editor_cancel(&service,token);}
 static const struct mw_sample_backend backend={0,lock,unlock,available,published,capture,publish};
 static const struct modwerk_sample_editor_api api={MODWERK_SAMPLE_EDITOR_ABI,sizeof api,copy,confirm,cancel,confirm};
+static void draw(unsigned char *frame)
+{memset(frame,0x5a,1024);module_draw(frame);}
 static int active(void)
 {struct modwerk_runtime_api runtime={0};module_tick(&runtime);return !!(runtime.value&0x100);}
 static int tap(int code)
@@ -56,9 +58,15 @@ int main(void)
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
         bs_device_open(token,&api);CHECK(active());
         unsigned char guarded[1026];memset(guarded,0xa5,sizeof guarded);
-        module_draw(guarded+1);
+        draw(guarded+1);
+        CHECK(guarded[1]==0x5a && guarded[1024]==0x5a);
         CHECK(guarded[0]==0xa5 && guarded[1025]==0xa5);
         CHECK(memcmp(guarded+1,guarded+2,1023)!=0 && !publishes);
+        for(unsigned x=0;x<128;++x)for(unsigned y=0;y<64;++y)
+            if(x<3 || x>=125 || y<4 || y>=61) {
+                unsigned bit=1u<<(y%8u);
+                CHECK((guarded[1+x*8u+7u-y/8u]&bit)==(0x5au&bit));
+            }
         unsigned previous=confirms;
         CHECK(tap(0x31) && confirms==previous+1 && !active());
         CHECK(service.state==MW_SAMPLE_PROMPT && !publishes);
@@ -78,28 +86,30 @@ int main(void)
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);
     unsigned copied=copies;
-    unsigned char initial_frame[1024],idle_frame[1024];module_draw(initial_frame);
+    unsigned char initial_frame[1024],idle_frame[1024];draw(initial_frame);
     ready=0;
     for(unsigned tick=0;tick<120;++tick)CHECK(active());
-    module_draw(idle_frame);
+    draw(idle_frame);
     CHECK(copies==copied && !memcmp(initial_frame,idle_frame,sizeof initial_frame));
     CHECK(module_enc(1,4) && module_enc(1,-4));
     CHECK(module_enc(0,4) && module_enc(0,-4));
     CHECK(copies==copied); /* settings use the opening snapshot too */
+    for(int encoder=2;encoder<6;++encoder)CHECK(module_enc(encoder,4) && active());
+    draw(idle_frame);CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
     /* Fine encoder pulses accumulate; a complete step or arrow changes once. */
     CHECK(module_enc(1,1) && module_enc(1,1) && module_enc(1,1));
-    module_draw(idle_frame);CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
-    CHECK(module_enc(1,1));module_draw(idle_frame);
+    draw(idle_frame);CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(module_enc(1,1));draw(idle_frame);
     CHECK(memcmp(initial_frame,idle_frame,sizeof initial_frame));
-    CHECK(module_enc(1,-4));module_draw(idle_frame);
+    CHECK(module_enc(1,-4));draw(idle_frame);
     CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
-    CHECK(tap(0x33));module_draw(idle_frame);
+    CHECK(tap(0x33));draw(idle_frame);
     CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
-    CHECK(tap(0x20));module_draw(idle_frame);
+    CHECK(tap(0x20));draw(idle_frame);
     CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
     CHECK(module_enc(0,INT_MAX) && module_enc(0,INT_MIN));
     CHECK(module_enc(1,INT_MAX) && module_enc(1,INT_MIN));
-    module_draw(idle_frame);
+    draw(idle_frame);
     CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
     CHECK(copies==copied);
     ready=1;CHECK(tap(0x32));
