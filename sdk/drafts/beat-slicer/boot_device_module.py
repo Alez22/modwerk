@@ -305,7 +305,7 @@ try:
         st=request(7)
         if st['result']==0:break
         assert st['generation']==before_undo['generation'],'recovery changed generation before complete restoration'
-    else:raise AssertionError('whole-set Undo did not complete within the loader row bound')
+    else:raise AssertionError('whole-set Undo did not complete within the recovery attempt bound')
     assert st['known']==1 and st['generation']==before_undo['generation']+1
     assert st['active']==before_undo['base'],'Undo did not restore the original empty base'
     st=request(9);assert st['phase']==0;port.command('pace off')
