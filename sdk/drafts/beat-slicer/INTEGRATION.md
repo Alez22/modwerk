@@ -731,3 +731,5 @@ attributes separately. Beat Slicer's pinned 1.40C stock fixture measures TEMPO /
 LEVEL adjustment at 90, 137 and 120 BPM; a private native preview run compares
 90 BPM PROJECT results with the sample's distinct BPM. These stopped-source
 observations do not establish external sync, pattern tempo or changes in flight.
+
+Recording-buffer follow-up: see the dated [implementation recommendation](RECORDER_BOUNDARY.md#implementation-recommendation-25-october-2026). It proposes completed/stopped recordings first and does not enable production recorder support.

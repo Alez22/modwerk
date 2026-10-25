@@ -166,3 +166,81 @@ transition; Stop cannot resurrect it. Fresh work requires a new normal editor
 opening. Both menu layouts and the conservative waveform-refusal case are
 recorded separately. Fixed menu storage and private positive-run waveform
 classification remain research limits, not production owner admission.
+
+## Implementation recommendation (25 October 2026)
+
+Research only: no new source provider, native hook, package or device test was
+implemented for this recommendation.
+
+### Start with a completed recording
+
+Implement the existing Beat Slicer action for a completed ordinary track-recorder
+buffer, with transport and all recording stopped. Keep the existing menu and
+rational beat-grid controls; explicitly refuse pending recording, Pickup and
+overdub until separately qualified. A later live-recording feature is a distinct
+scope. This first version can remain metadata-only: constructing beat-spaced
+starts does not require reading PCM or adding DSP processing.
+
+Elektron's [MKII OS 1.40A manual, sections 9 and 13](https://www.elektron.se/wp-content/uploads/2024/09/Octatrack-MKII-User-Manual_ENG_OS1.40A_210414.pdf)
+documents eight recorder buffers in the Flex list, assignment to Flex playback,
+and opening a recording in the audio editor. Recording can overwrite existing
+content, and buffer audio is lost on power-off or project change unless saved.
+Manual recordings receive estimated tempo information; recorder-trig recordings
+receive the project tempo. These are user-facing semantics, not a published
+memory layout or evidence for our private 1.40C writer boundary.
+
+### Separate source capture from grid planning
+
+The existing `sample_editor_board.c` deliberately refuses slots 128 and above;
+its file-backed address calculation and ready predicate are not a recorder
+provider. Do not enable recorders by raising this limit. Establish a distinct,
+verified recorder source capture and publication path behind the same copied
+view/confirmation contract, subject to owner approval of that contract.
+
+Capture recorder identity, selected bank and content generation, actual completed
+frame extent, trim, sample tempo and all slice records. Reserved recording
+capacity or projected RLEN must not substitute for valid recorded frames. Verify
+empty, partial, short and MAX recordings and each admitted sample format against
+stock behavior. Reuse the pure planner once these values have verified meanings;
+keep the complete native end/loop records and minimum-length rules.
+
+Invalidate an open proposal before preparation, re-record, clear, replacement,
+project/memory reconfiguration or any relevant writer can change its source.
+Re-check identity and generation on YES under the same verified boundary that
+protects publication. A pointer, track number or restored bank alone cannot
+exclude reuse of the same address for different content. Cancel stale intent;
+never restore an old marker snapshot over a newer recording. The metadata
+transaction must preserve frame/DMA service, including on error.
+
+### What the previous experiments establish
+
+The experiments above already exercise balanced recorder/preparation lifetimes,
+stale-token retirement and copied service intents under named authored fixtures.
+They are useful regression inputs, not production admission. Fixed owner/menu
+storage is not loader-safe reclamation. An empty queue or recorder return is
+not proof that delayed cleanup is finished. Pickup/overdub, dynamic allocation,
+all UI and asynchronous writers, cache/DMA ownership and physical timing remain
+unqualified. Metadata-only work avoids a PCM reader but still needs correct
+source and slice-table ownership.
+
+### Acceptance sequence
+
+1. Agree the source-provider boundary and patch ownership with the maintainer.
+   Recorder support remains Beat Slicer and does not count as another consumer
+   justifying a shared AED action list.
+2. Add host fixtures for valid length versus capacity, both banks, pending start,
+   clear/re-record, same-address reuse and failed publication. Demonstrate that
+   every stale proposal refuses and complete records survive cancellation.
+3. Exercise stock preparation, recording, stop and deferred cleanup in the
+   emulator with all normal recording modes explicitly distinguished. Retain
+   exact sources and failures; do not generalize a ONE/MAX fixture to Pickup.
+4. After exact-build approval, qualify an original short recording on the MKII,
+   then repeated/long recordings and companion effects, Undo/removal and normal
+   recording after removal. Buffer audio is intentionally volatile; any save
+   or persistence test needs a separate explicit action and report.
+
+Live slicing during recording should wait. It needs a defined stable region or
+verified post-record publication boundary, full writer ownership and the
+instrument's own recording/transport timing; a host timer or independent clock
+cannot provide that guarantee. No new native sites should be added before this
+architecture is agreed.
