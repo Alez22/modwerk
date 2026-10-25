@@ -88,6 +88,26 @@ fixed-input USB probe passed physical self-test and Undo; it did not access
 samples and does not qualify this source. See [USB_TEST.md](USB_TEST.md),
 [TESTING.md](TESTING.md) and [integration requirements](INTEGRATION.md).
 
+## Next private recorder trial
+
+Use the exact qualified candidate and a disposable project after the current
+0.1.63 session finishes. Keep an audible pattern running during edits and
+report any sound interruption or unexpected marker change.
+
+1. Open an empty recorder buffer and create a beat grid. It should remain empty.
+2. Record audio, stop recording, then create a grid in that buffer during pattern
+   playback. Check preview, NO, YES and the stock slice-clearing commands.
+3. With a file loaded on a Flex track, record into that track's separate buffer.
+   Reopen AED for the file: beat-grid editing should remain available. Repeat
+   with a Static file and with buffer A while recorder B runs.
+4. Open the buffer currently being recorded. A new beat-grid edit must refuse.
+   Starting recording from an open edit must cancel it; stopping must not apply
+   that old edit automatically.
+5. Create several markers in a longer recording. Record shorter: markers outside
+   the new trim disappear. Record longer again: only the surviving absolute
+   positions remain. Nothing creates a fresh grid until explicitly requested.
+6. Finish with playback and recording stopped for verified USB Undo/removal.
+
 ## Retained research (through 0.1.54)
 
 The [typed menu contribution prototype](MENU_PACKAGE.md) checks a bounded
