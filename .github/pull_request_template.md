@@ -12,6 +12,7 @@ Existing module authors can opt into [automatic publication](../docs/MODULE_AUTH
 - [ ] Automatically merge and publish my module update after checks pass.
 - [ ] I verified the source, licences, UI and qualification reports, including instance isolation and Part/project/reboot persistence where applicable; no required acceptance check is failed or untested.
 
+- [ ] Changing a module someone else wrote: its author said yes before I started, and I link it here (a GitHub link, or Discord and the day). [Ask the author first](../docs/DEVELOPER_WORKFLOW.md#ask-the-author-first)
 - [ ] New or changed module: I read the guide for its category in `docs/module-guides/` (and `sequencing.md` if it acts in time), walked its checklists, and TESTING.md lists what I did not test. `npm run module:doctor -- <id>` is green.
 - [ ] The module builds, installs and works when it is the only module chosen. It depends on no other module: no `requires`, no hooks into another module, not stacked on another module's pull request. Its key gestures and stock screens are in `compatibility.uiClaims` (`[]` for none).
 - [ ] Every code change to a module has a greater semantic version and exact catalog pin (documentation and media edits need none).
