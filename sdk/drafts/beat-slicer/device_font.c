@@ -92,6 +92,12 @@ void bs_device_box(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_
  for(uint32_t i=x;i<x+w;++i){pixel(frame,i,y,0);pixel(frame,i,y+h-1,0);}
  for(uint32_t i=y;i<y+h;++i){pixel(frame,x,i,0);pixel(frame,x+w-1,i,0);}
 }
+void bs_device_dashed_box(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_t h)
+{
+ if(!frame || !w || !h || x>=128 || y>=64 || w>128-x || h>64-y)return;
+ for(uint32_t i=0;i<w;++i)if(i%4u<2u){pixel(frame,x+i,y,0);pixel(frame,x+i,y+h-1u,0);}
+ for(uint32_t i=0;i<h;++i)if(i%4u<2u){pixel(frame,x,y+i,0);pixel(frame,x+w-1u,y+i,0);}
+}
 void bs_device_invert(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_t h)
 {
  if(!frame || x>=128 || y>=64 || w>128-x || h>64-y)return;

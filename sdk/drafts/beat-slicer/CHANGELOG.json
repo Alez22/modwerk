@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.61-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Label tempo selection BPM and center control values and the summary text.",
+      "Leave unused controls blank and outline the six control positions with dashed lines.",
+      "Keep the nearly full-height window and show version 0.1.61.",
+      "Local UI design preview awaiting owner approval; not pushed or device-tested."
+    ]
+  },
+  {
     "version": "0.1.60-experimental",
     "date": "2026-10-25",
     "changes": [

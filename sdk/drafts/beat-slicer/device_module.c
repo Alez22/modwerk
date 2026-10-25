@@ -154,13 +154,17 @@ int module_key(int code,int pressed)
 }
 static void text(char *out,const char *in)
 {while(*in)*out++=*in++;*out=0;}
-static char *append(char *out,const char *in)
-{while(*in)*out++=*in++;*out=0;return out;}
 static char *number(char *out,uint32_t value)
 {
     if(value>=100)*out++=(char)('0'+value/100u);
     if(value>=10)*out++=(char)('0'+value/10u%10u);
     *out++=(char)('0'+value%10u);*out=0;return out;
+}
+static void center(unsigned char *frame,uint32_t x,uint32_t width,uint32_t y,const char *value)
+{
+    uint32_t n=0;while(value[n])++n;
+    uint32_t pixels=n?4u*n-1u:0;
+    bs_device_small_text(frame,x+(pixels<width?(width-pixels)/2u:0u),y,value);
 }
 void module_draw(unsigned char *frame)
 {
@@ -170,40 +174,39 @@ void module_draw(unsigned char *frame)
     bs_device_clear(frame,3,1,122,62);
     bs_device_text_at(frame,16,4,"CREATE BEAT GRID");
     bs_device_invert(frame,4,3,120,9);
-    bs_device_box(frame,89,16,1,37);
-    bs_device_small_text(frame,7,18,"SOURCE");
-    bs_device_small_text(frame,35,18,"STEP");
-    bs_device_small_text(frame,66,26,"---");
-    bs_device_small_text(frame,7,45,"---");
-    bs_device_small_text(frame,35,45,"---");
-    bs_device_small_text(frame,66,45,"---");
-    bs_device_small_text(frame,7,55,"YES:OK NO:BACK");
-    bs_device_small_text(frame,64,55,"0.1.60");
+    bs_device_dashed_box(frame,6,15,81,38);
+    bs_device_dashed_box(frame,33,15,1,38);
+    bs_device_dashed_box(frame,60,15,1,38);
+    bs_device_dashed_box(frame,6,34,81,1);
+    center(frame,7,26,18,"BPM");
+    center(frame,34,25,18,"BEATS");
+    center(frame,6,81,56,"YES:OK NO:BACK");
+    center(frame,92,30,56,"0.1.61");
     if(!captured || dirty) {
-        bs_device_small_text(frame,7,26,"WAIT");
+        center(frame,7,26,26,"WAIT");
         bs_device_box(frame,3,1,122,62);return;
     }
-    bs_device_small_text(frame,7,26,tempo_source?"PROJECT":"SAMPLE");
-    at=number(line,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
-    bs_device_small_text(frame,35,26,line);
-    bs_device_small_text(frame,93,17,"BPM");
+    center(frame,7,26,26,tempo_source?"PROJ":"SAMPLE");
+    number(line,spacings[spacing]);
+    center(frame,34,25,26,line);
+    center(frame,92,30,17,"BPM");
     uint32_t bpm=tempo_source?view.project_bpm24:view.sample_bpm24;
     if(bpm>=720 && bpm<=7200) {
         at=number(line,bpm/24u);*at++='.';
         uint32_t fraction=(bpm%24u*100u+12u)/24u;
         *at++=(char)('0'+fraction/10u);*at++=(char)('0'+fraction%10u);*at=0;
     } else text(line,"NONE");
-    bs_device_small_text(frame,93,25,line);
-    bs_device_small_text(frame,93,35,"SLICES");
+    center(frame,92,30,25,line);
+    center(frame,92,30,35,"SLICES");
     number(line,geometry==BS_OK?plan.count:0);
-    bs_device_small_text(frame,93,43,line);
+    center(frame,92,30,43,line);
     if(geometry==DEVICE_SHORT_TRIM)text(line,"SHORT");
     else if(geometry==BS_TOO_MANY)text(line,"OVER64");
     else if(geometry!=BS_OK)text(line,"CHECK");
     else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAIT");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"REFUSED");
     else text(line,view.count?"REPLACE":"CREATE");
-    bs_device_small_text(frame,93,51,line);
+    center(frame,92,30,49,line);
     /* Border is restored last, providing a complete-render capture marker. */
     bs_device_box(frame,3,1,122,62);
 }
