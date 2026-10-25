@@ -137,8 +137,11 @@ void mw_sample_selection_arm(callback chosen,uint32_t sp)
     if(select_active && select_serial==serial && select_serial && sp==select_sp &&
        !read32(0x460e5e30u) && read32(0x460e5e28u)==(uint32_t)(uintptr_t)callbacks &&
        read32(0x460e5e2cu)==(uint32_t)(uintptr_t)labels &&
-       read32(0x460e5e40u)==select_row && read32(0x800068fcu)==select_task && chosen==select_callback)
+       read32(0x460e5e40u)==select_row && read32(0x800068fcu)==select_task && chosen==select_callback) {
         select_armed=1;
+        if(chosen!=dispatch && remembered)
+            *remembered=(int32_t)(select_row>=action_at+binding_count?select_row-binding_count:select_row);
+    }
 }
 uint32_t mw_sample_selection_leave(uint32_t sp)
 {
