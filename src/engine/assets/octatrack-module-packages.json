@@ -394,12 +394,13 @@
       "sites": 5,
       "copies": 0,
       "fills": 0,
-      "version": "0.1.1-experimental",
-      "name": "Direct Jump",
+      "version": "0.1.2-experimental",
+      "name": "DirectJmp Kyoti",
       "module": "075d79a3",
       "bytes": 2462,
-      "sha256": "5c7b2d12d9da96e077d21b371c84b1a09935461214d424df57f698f103fc29ed",
-      "path": "octatrack-modules/direct-jump-kyoti/0.1.1-experimental.mwrm"
+      "sha256": "89a38e18728bb2039a0f5e3f39305fcb7be75e0db260acd6b33bd46d7e281cef",
+      "path": "octatrack-modules/direct-jump-kyoti/0.1.2-experimental.mwrm",
+      "title": "DirectJmp Kyoti"
     },
     {
       "id": "dejavu",

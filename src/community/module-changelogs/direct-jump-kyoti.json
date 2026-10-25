@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.1.2-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Renamed Direct Jump Kyoti, as its author asked (#881), so it stays apart from other direct-jump designs. The Octatrack lists it as DirectJmp Kyoti.",
+      "No change to how it works."
+    ]
+  },
+  {
     "version": "0.1.1-experimental",
     "date": "2026-10-25",
     "changes": [

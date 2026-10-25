@@ -33,6 +33,8 @@ Each package is exactly what the local path makes (sdk/runtime/loader/build.py, 
 - an entry with "requiresFeatures" (a key bus reader, RINGMOD SC): the package build.py makes, written as ABI 9 by
   sdk/runtime/loader/abi9.py with those base features (dsp-sites.json names, e.g. "keybus") and its "dspClaims"
   (abi9.py's --claim syntax). The manifest then also says `requires` (the feature bits) and `claims` (their count).
+An entry's "title" is the name the unit lists it by when the catalogue name is longer than a package title's 15
+characters (Direct Jump Kyoti: DirectJmp Kyoti).
 To add a module, add its entry (id and figures) to the manifest and run this.
 
 ABI 6 packages are checked to have no stock-code sites (the only place they would carry stock bytes). --stock also
@@ -78,6 +80,8 @@ def build(entry, out, upstream, private_stock=None, stock_at=None):
         args += ['--octabam-tables', entry['id'], '--upstream', str(upstream)]
     if private_stock:
         args += ['--private-port', '--stock', str(private_stock)]
+    if entry.get('title'):  # the unit's name for it when the catalogue name is longer than a package title's 15 characters
+        args += ['--name', entry['title']]
     subprocess.run(args, check=True, capture_output=True, text=True, cwd=APP)
     if entry.get('requiresFeatures'):
         import importlib.util
