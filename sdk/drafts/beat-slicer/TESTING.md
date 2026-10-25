@@ -2818,9 +2818,9 @@ Apply and finished module delivery remain separate work.
 
 ## Physical failure and CPU-target correction (0.1.52 / 0.1.53)
 
-The authorized 0.1.52 private package on the owner's MKII, Modwerk base
+The authorized 0.1.52 private package on the contributor's MKII, Modwerk base
 `cd39c494b63beae086271f8790f7e704f46fe0a617a8eb1c341c9a925f917e4e`,
-lost USB during trial. The owner observed a restart. The bounded USB diagnostic
+lost USB during trial. The contributor observed a restart. The bounded USB diagnostic
 log records crash count 1, vector 3 at `0x40d52f64`. Its cached/uncached code
 matches; that position uniquely maps to image offset `0x84` in this exact
 package, a scale-eight indexed LEA in `text`. No firmware bytes or raw crash
@@ -2851,11 +2851,11 @@ fix verification.
 
 Private USB probe evidence: `usb52-*` binds source `1d19d3b8d29dd48d7b92744eb01d2d488934d24d`; `usb53-*` binds corrected source `b670fa7506c824d73eee741e3bdca2c51b2bd4aa`. Host/native/stock-free preparation passed, but both physical trials failed: 0.1.52 restarted with vector 3; 0.1.53 had no new crash but failed SELFTEST_CPU at 937 per mille. The second trial recovered the exact original base, active identity and 11-module inventory. Frame gap 52824 is below the 68000 limit. The reported culprit is Mini Verb, without a causal conclusion. No hardware planner PASS, successful self-test/Undo, rendered display or live sample behavior is claimed. Both raw device records and built packages remain private. Source checks 52b and 53a passed before their source commits.
 
-Owner clarification after the 0.1.53 trial: a pattern was already running and peaked at 92% by itself. This was reported by the owner, not measured as a separate baseline by the trial client. It exceeds the self-test CPU limit and prevents attributing the 93.7% result to the probe. A stopped-transport repeat remains pending; the failed run is not relabeled as a pass.
+Contributor clarification after the 0.1.53 trial: a pattern was already running and peaked at 92% by itself. This was reported by the contributor, not measured as a separate baseline by the trial client. It exceeds the self-test CPU limit and prevents attributing the 93.7% result to the probe. A stopped-transport repeat remains pending; the failed run is not relabeled as a pass.
 
-A separately authorized repeat of the exact 0.1.53 package on the owner-selected empty pattern passed: self-test state 2, failed 0, CPU peak 724 per mille, frame-gap count 51644, planner diagnostic 0x42534f4b. The client waited five seconds and verified Undo against the complete raw baseline inventory and active identity. `usb53-hardware-empty-pattern.json` binds module source `b670fa7506c824d73eee741e3bdca2c51b2bd4aa` and records frontend revision `4519794c92891c1ccc6c84c46bee938f838a85da`. The first CPU failure remains preserved. Visible display confirmation, live Flex sources, Apply, audible behavior and persistence remain separate qualification gaps.
+A separately authorized repeat of the exact 0.1.53 package on the contributor-selected empty pattern passed: self-test state 2, failed 0, CPU peak 724 per mille, frame-gap count 51644, planner diagnostic 0x42534f4b. The client waited five seconds and verified Undo against the complete raw baseline inventory and active identity. `usb53-hardware-empty-pattern.json` binds module source `b670fa7506c824d73eee741e3bdca2c51b2bd4aa` and records frontend revision `4519794c92891c1ccc6c84c46bee938f838a85da`. The first CPU failure remains preserved. Visible display confirmation, live Flex sources, Apply, audible behavior and persistence remain separate qualification gaps.
 
-The owner was not looking at the unit during the successful trial; no rendered-display result is claimed and no extra device run was made for that alone.
+The contributor was not looking at the unit during the successful trial; no rendered-display result is claimed and no extra device run was made for that alone.
 
 ## Geometry-only exact grid (0.1.54)
 
@@ -2890,7 +2890,7 @@ The retained `grid54-host-native.json` binds source `f0a5bca9f5aa743748628202467
 
 ## Basic shared AED candidate (0.1.55, staging)
 
-The owner selected a basic working slicer first. Flex and Static share the AED
+The contributor selected a basic working slicer first. Flex and Static share the AED
 slice commands and record layout, with separate settings/control tables. The
 current exact-grid candidate covers both file-backed source kinds without a
 PCM reader; smooth boundary analysis and playback fades are deferred. Ordinary
@@ -2979,8 +2979,8 @@ result still does not qualify physical removal, audio or persistence.
 
 ## First MKII trials and long-grid correction (0.1.56 staging)
 
-The owner authorized private base `52c291c2…` with 0.1.55 package `c58883ddef1d…`.
-Actual USB RAM boot succeeded on the MKII. The owner confirmed that the AED
+The contributor authorized private base `52c291c2…` with 0.1.55 package `c58883ddef1d…`.
+Actual USB RAM boot succeeded on the MKII. The contributor confirmed that the AED
 Beat Slicer options appeared. A combined trial of the original 11 module IDs plus
 Beat Slicer passed the physical self-test: 12 live/intact modules, seven DSP
 modules run, failed mask zero, CPU peak 718 per mille, DSP peaks 638/578 per
@@ -2992,14 +2992,14 @@ headroom measurement. Temporary trials did not Keep, flash or save projects.
 A first client attempt called the frontend's public inventory read while its own
 trial held the link and got a host-busy error; actual Undo restored the empty
 temporary-base inventory. It was a client error, not a passed slicing test.
-A later 15-minute timer also completed an observed successful Undo. The owner's
+A later 15-minute timer also completed an observed successful Undo. The contributor's
 recorder-setting/RAM-clear report does not establish that firmware was erased.
 After clarification, the complete 12-module temporary set was loaded together.
 The Sidechain package byte-matches the exact candidate's privately encoded
 controller and its bound trust row; other companion payload hashes match their
 source-built published packages. No foreign kept-set file was intentionally written.
 
-The owner then reported no AED contribution for recorder buffers, and an
+The contributor then reported no AED contribution for recorder buffers, and an
 approximately 22 MB file refusing with OLD SLICES CONFLICT or busy, despite
 stock DELETE ALL SLICES and stopped playback/recording. Reported tempo is
 SAMPLE 122 BPM, four bars and a displayed count of 49. Recorder buffers remain
@@ -3034,22 +3034,22 @@ The combined 0.1.55 hardware trial's 60-minute Undo did not restore a known
 active identity: read-only status showed recovery, generation 7, active unknown
 on base `52c291c2…`. A fresh standard recovery client adopted transaction 4
 and retried rollback for three seconds; every reply remained needs-recovery.
-No corrected package was installed. The owner was asked to power-cycle before
+No corrected package was installed. The contributor was asked to power-cycle before
 continuing; recovery and the exact long-file test remain unverified. Earlier
 successful single-module Undos do not qualify this combined-set removal.
 
-After the owner-confirmed power cycle, the flashed base `cd39c494…` returned
+After the contributor-confirmed power cycle, the flashed base `cd39c494…` returned
 in normal phase with all original 11 module IDs present. The same private
-base `52c291c2…` was RAM-booted again and the owner-approved 0.1.56 package
+base `52c291c2…` was RAM-booted again and the contributor-approved 0.1.56 package
 `31c65f383807…` plus those companions passed an actual physical self-test:
 12 live/intact modules, seven DSP modules run, failed mask zero, CPU peak
 718 per mille, DSP peaks 772/578 per mille, frame gap 51,323 DTCN3 counts.
 The corrected set entered a fresh 60-minute trial without Keep, flash or save.
-The owner's long-file panel result and this set's final Undo remain pending.
+The contributor's long-file panel result and this set's final Undo remain pending.
 
 ## Repeated edits and explicit replacement (0.1.57 staging)
 
-On the exact 0.1.56/base `52c291c2…` trial, the owner reported the combination
+On the exact 0.1.56/base `52c291c2…` trial, the contributor reported the combination
 worked initially, then failed after repeated stock clearing and different beat
 steps. WAITING FOR SOURCE was followed by CREATE SLICES? and a clipped banner
 consistent with the base's SAMPLE CHANGED - NOT APPLIED message. The exact
@@ -3121,12 +3121,12 @@ The unlisted draft remains unavailable to module:doctor until release integratio
 
 ## DSP-stop report and idle polling (0.1.58 staging)
 
-The owner confirmed 0.1.57 works when alone, but reported a DSP-stop warning,
+The contributor confirmed 0.1.57 works when alone, but reported a DSP-stop warning,
 a pop and sustained loss of audio with TapeHead/Mini Verb active during slicing
 of a 22 MB Flex sample. Reported setup: T1 Static short drum loop, T2 Static long
 sample with TapeHead/Mini Verb, T3 Flex long sample. Recording was off; transport
 state immediately before the failure was not established. The live stall table
-also retained effect handle 31 on T3, separately from the owner's stated setup.
+also retained effect handle 31 on T3, separately from the contributor's stated setup.
 Both physical 12-module self-tests passed before this interaction; those tests
 did not qualify editor/effect coexistence. The 0.1.57 trial is now retired.
 
@@ -3157,12 +3157,12 @@ boundaries, not physical interrupt latency, complete native writer coverage or
 hardware coexistence. Target compilation passed as recorded below; exact physical
 retests remain pending.
 
-Owner UI refinements for 0.1.58: hide Flex/Static slot location, use encoder B
+Contributor UI refinements for 0.1.58: hide Flex/Static slot location, use encoder B
 only for spacing, and match ordinary knob sensitivity. The controller accumulates
 four raw counts per discrete step, discards residual counts on reversal, clamps
 at endpoints, and leaves UP/DOWN without parameter changes. Host tests compare
 unchanged frames/copy counts across idle ticks, sub-step encoder movement,
-parameter adjustments and arrow presses. Matching the owner's physical knob
+parameter adjustments and arrow presses. Matching the contributor's physical knob
 feel remains a hardware check, not an assertion established by these fixtures.
 
 The final target package is 4,524 bytes, SHA-256
@@ -3183,7 +3183,7 @@ unchanged, the fourth stepped, minus four restored, and UP/DOWN had no effect.
 Native NO preserved the complete table, YES created the expected rational grid,
 stock clearing passed and emulated frame counts continued advancing. Retained
 frame review confirms the slot location is absent and all shown labels fit.
-This short authored fixture does not reproduce the owner's long Static streaming
+This short authored fixture does not reproduce the contributor's long Static streaming
 track or physical interrupt timing. The final USB Undo returned result 11,
 recovery phase 6 and active unknown; restoration and stock-menu removal were
 **not confirmed**. The driver deliberately failed and wrote no success receipt.
@@ -3248,7 +3248,7 @@ private trial packages (the original eleven companions plus Beat Slicer) pass
 strict stock-free scans; Sidechain Compressor is rebound to this private base.
 These results do not qualify physical timing or audio.
 
-The owner reported power-cycling, reconnecting and stopping the MKII. Read-only
+The contributor reported power-cycling, reconnecting and stopping the MKII. Read-only
 USB checks observe normal mode on flashed base `cd39c494b63beae0…`, boot 26,
 and all eleven expected modules with no Beat Slicer installed. The saved crash
 count remains one and DSP-stall count two; retained records are historical,
@@ -3274,7 +3274,7 @@ Emulated frames advance through the edits. Whole-set Undo completes across
 explicit retained-recovery responses; the final active identity is the original
 empty base and the stock menu no longer contains Beat Slicer. Uncertain replies
 still fail without write replay. The retained receipt is emulator evidence on a
-short authored sample, not the owner's long streaming setup or physical timing.
+short authored sample, not the contributor's long streaming setup or physical timing.
 Earlier single-response Undo failures remain recorded above and are not silently
 reclassified as complete restoration.
 
@@ -3286,22 +3286,22 @@ replacing duplicate session instructions in the hardware-trap guide with its
 existing driving-guide link. Repository readiness/CI results remain separate
 from this exact emulator receipt.
 
-## Owner's 0.1.58 trial — 25 October 2026
+## Contributor's 0.1.58 trial — 25 October 2026
 
 Exact private base `2732acbb336ca430…`, module SHA-256
 `8164829b315c822b72073f341085dc1aaef4f5a62636f4f53f9da4ffa75639ce`,
 frontend `60abcc53` (unchanged runtime from `c02a7274`). All 219 base source
 inputs, nine module inputs and twelve packages were rechecked before RAM boot.
-The owner confirmed a disposable project/sample copies with recording/playback
+The contributor confirmed a disposable project/sample copies with recording/playback
 stopped. Actual self-test: passed, 12 live/intact modules, seven DSP modules ran,
 peak CPU 74.3%, track-group peaks 65.0% and 71.0%.
 
-The owner reported: “it works very well no bugs occur during testing.” This is
+The contributor reported: “it works very well no bugs occur during testing.” This is
 reported slicing behavior; no per-case audio, persistence or timing attestation
-is inferred. The owner requested the 0.1.59 menu/popup revision afterward.
+is inferred. The contributor requested the 0.1.59 menu/popup revision afterward.
 
 USB Undo failed separately: the frontend reached ready with unknown active
-identity and a refusal notice; restoration was not verified. The owner then
+identity and a refusal notice; restoration was not verified. The contributor then
 power-cycled. Read-only USB verified normal flashed base `cd39c494…`, its exact
 original eleven-module inventory, and unchanged persistent crash/stall counts
 one/two. The first status request encountered the documented stale USB handle;
@@ -3350,7 +3350,7 @@ The 0.1.58 physical Undo failure remains unresolved despite emulator Undo passin
 
 ## 0.1.60 height/label refinement — 25 October 2026
 
-The owner reviewed the actual 0.1.59 popup capture and requested removal of the
+The contributor reviewed the actual 0.1.59 popup capture and requested removal of the
 encoder letters and a window roughly the display height to hide distracting
 underlying content. Version 0.1.60 keeps physical field positions and function
 labels, removes A–F lettering, and uses a 122-by-62 popup at (3,1). The module
@@ -3375,7 +3375,7 @@ for 0.1.59, not a new 0.1.60 run. No 0.1.60 physical load or hardware result.
 
 ## Approved 0.1.63 UI — 25 October 2026
 
-The owner approved the local renderer preview and explicitly authorized pushing
+The contributor approved the local renderer preview and explicitly authorized pushing
 0.1.63. It uses a nearly full-height popup, a dashed six-field form, centered
 BPM/BEATS controls with blank unused fields, and a vertically centered,
 right-aligned summary. The summary shows only the BPM number, count first
@@ -3406,13 +3406,13 @@ No additional hardware load was performed for this push.
 
 ## Extended 0.1.63 physical trial and 0.1.64 development — 25 October 2026
 
-The owner requested an open-ended private RAM session. The actual flashed base
+The contributor requested an open-ended private RAM session. The actual flashed base
 was `77226ffc…` with sixteen modules. Private base `253a9a61…` from `42006d2b`
 RAM-booted, and the exact approved 0.1.63 package `6bd14749…` (5,592 bytes)
 loaded with all sixteen named companions through frontend review/trial.
 Physical self-test passed: 17 live/intact, seven DSP modules exercised, 51.9%
 peak CPU. No Keep, flash, project/sample save or kept-set write occurred.
-The helper has no scheduled Undo. The owner's extensive tests remain in
+The helper has no scheduled Undo. The contributor's extensive tests remain in
 progress; no new slicing, audio, Undo or persistence verdict is inferred.
 
 The separate 0.1.64 working source adds source-scoped recording admission and
@@ -3449,7 +3449,7 @@ success.
 The third run passes empty R8 and completed R1 editing, then fails the stricter
 count-dropping oracle for a shorter re-record. The actual stock result retains
 count 3 and clamps starts 0 / 22,050 / 44,100 to 0 / 16,176 / 16,176 when trim
-ends at 16,240. The owner subsequently clarified that the slice count stays the
+ends at 16,240. The contributor subsequently clarified that the slice count stays the
 same and confirmed this agrees with their observation. The service now captures
 duplicate recorder starts unchanged; the host fixture verifies cancellation and
 explicit replacement, while new proposals remain strictly increasing. A native
@@ -3484,7 +3484,7 @@ reviewed toolchain container, including target compilation. Both unchanged
 strict stock-free scans and declared-site/bootloader-preservation checks pass.
 The native and browser BINs match at
 `ae532a8226b9fe88d40c7cc4f84551d071c682f0354ce6c39f920fb9282e0f9c`
-(774,524 bytes). The private package set for the owner's sixteen companions
+(774,524 bytes). The private package set for the contributor's sixteen companions
 plus Beat Slicer is prepared: all 17 packages pass unchanged strict scans, with
 their exact lengths/hashes independently checked. No new unit load occurred.
 
@@ -3511,3 +3511,130 @@ producers for all seven USB layouts. Native/browser parity, strict stock-free,
 declared-site, bootloader-preservation and bound-package consistency checks
 pass; 219 production input hashes match both integration branches. This does
 not enable the private editor or qualify a physical base update.
+
+## Physical 0.1.64 trial started — 26 October 2026
+
+The contributor requested the device test and confirmed stopped playback/recording and
+disposable copies. The ongoing 0.1.63 trial completed verified USB Undo to its
+empty private RAM baseline `253a9a61…`. After the contributor power-cycled, read-only
+checks verified flashed base `77226ffc…` and the original sixteen saved modules.
+The exact `80eaf0cb…` / `e0e32ab0…` candidate above then RAM-booted, passed
+frontend review and loaded with all sixteen companions. Physical self-test:
+17 live/intact, seven DSP modules exercised, zero failures, CPU field 524
+(52.4%). The helper has no deadline or scheduled Undo; idle sleep is inhibited.
+No Keep, flash, saved-set write or project/sample save occurred.
+
+Contributor slicing/UI/audio/recording results and this 0.1.64 trial's Undo remain
+pending. The successful 0.1.63 Undo does not establish the cause of the earlier
+0.1.58 failure. This new physical evidence is recorded locally; the contributor wants
+device testing before deciding on another GitHub push.
+
+The contributor subsequently reported that 0.1.64 “works pretty well” and
+authorized pushing the tested work/results. After the specific test of applying
+a grid while slices of the exact edited source audibly play was explained, they
+confirmed testing it on their unit with no glitches or freezes. This is a
+contributor-reported result on the exact running build above, not an independent
+audio capture. Source kind, trig pattern, tempo and duration were not specified.
+It does not establish every recording mode, persistence, or the separate
+recording-start interrupt race raised in review.
+
+
+## 0.1.65 local review changes (26 October 2026)
+
+Not loaded on hardware and not a qualification of the still-running 0.1.64
+trial. The actual controller now shows EMPTY for zero-frame recorder sources
+with zero slice entries. YES stays in the popup without a replacement request,
+a stock question or a delayed retry. Existing zero-length stock entries still
+require explicit replacement and stock confirmation before count becomes zero.
+The host backend returns NO_CHANGE for an unchanged complete slice table.
+The controller/service fixture passes under host sanitizers for all eight empty
+recorder slots, both zero entries and eight stock placeholder entries.
+
+The actual shared menu implementation now has authored host fixtures for both
+stock menu variants, callback/selection mapping, YES release, YES/NO, transient
+busy, key cancellation, lost native question callbacks and foreign dialogs.
+A pending menu action is cancelled before a later idle retry can open it.
+Question reconciliation observes the stock question window's linked flag and
+callback ownership, not the unrelated redraw byte. The host sample-editor
+suite passes (five tests, with the ColdFire-only case skipped on this host).
+These fixtures do not prove native window-layout addresses or hardware timing.
+
+Recording-start coordination remains unresolved. A private authored timing
+probe linked the actual board adapter and service, then changed the selected
+recorder bank to pending state 1 immediately before the first publication
+write, after final source capture. The adapter returned APPLIED (7), left
+pending state 1, and published count 2 with 195 writes. This demonstrates that
+the current source-state check and level-4 metadata lock do not exclude that
+modeled ordering. It does not execute a stock recorder interrupt, demonstrate
+physical data corruption, or qualify a fix. Ordinary native recording tests
+and the contributor's positive playback report do not close this gap. Do not
+raise the interrupt mask through capture/planning as an unmeasured workaround.
+A solution must establish ordering against stock recorder preparation and
+publication, keep the scheduled recording start intact, and test forced starts
+before, during and after publication with hardware timing evidence.
+
+Target build checks also passed in the source-tools image: both controller
+regressions (including real ColdFire package descriptor alignment) and native
+menu compilation with both object guards. These are compiler/host executions,
+not execution of the updated menu on the ColdFire emulator or hardware. The
+EMPTY image is an authored-source preview from the actual module renderer;
+UI approval remains pending after the contributor requested the picture.
+
+
+### 0.1.65 action-label revision
+
+The contributor selected NONE instead of EMPTY so the summary line consistently
+names a slice action alongside CREATE and REPLACE. NONE means no slice action
+is available: the source has zero frames and zero slice entries. YES still
+leaves the popup open with no confirmation or write. The prior EMPTY preview is
+superseded; the updated image comes from the actual renderer with authored
+metadata. The existing controller/service host regression passes under
+sanitizers; the ColdFire-only package test was skipped on this host. No device
+reload or new push was performed for this label revision.
+
+The contributor subsequently selected EMPTY again because 0 SLICE and NONE
+felt redundant. The local 0.1.65 renderer and player notes restore EMPTY; YES
+behavior is unchanged. No new device load or push was performed.
+
+
+## 0.1.65 recorder commit candidate — host/stock-call evidence
+
+The local implementation now keeps full capture, table comparison, table
+writes and rollback preemptible at level 4. Recorder buffers alone use a bounded
+level-5 section for one source-state/controls/trim recheck and the final count
+store. Level-6 DMA stays enabled. There is no table copy, owner scan, stock UI
+call, wait or recording-trigger retry inside that section. A start before the
+commit rejects the edit, restores/verifies all old marker rows/count and the
+selected row, and returns STALE without poisoning or retaining the intent.
+Recorder PCM, controls, trim and preparation fields are never restored. A start
+after the count store observes a completed grid. File-backed sources retain
+the level-4 path.
+
+The actual adapter/service host fixture passes 786 authored forced timings:
+591 selected-recorder cases (197 positions times pending, active/changed extent,
+and start/stop with queued cleanup), plus 195 unrelated-recorder starts. The
+positions include every initial publication write, immediately before acquiring
+the short commit lock, and an interrupt requested inside that lock. The model
+queues that last interrupt until unlock and verifies exactly one start, no lost
+trigger, complete rollback where applicable, unchanged recorder mutations and
+no retry after Stop. It rejects row writes in the short section and limits its
+metadata reads to 20 and count stores to one. These bounds describe the model,
+not measured physical latency. The shared menu fixture verifies that late STALE
+closes the question, reports SOURCE CHANGED and leaves future menus usable.
+
+A new source-bound stock CPU probe executes 336 complete preparation/recorder
+calls: tracks 1/8, stereo 16/24-bit formats, both state banks, three authored
+Pickup-flag values and seven state/allocation scenarios. No case writes slice
+rows or the slice count. Observed metadata stores affect offsets 276, 280, 296,
+300, 304 and 308; these include tempo and trim fields, which the final commit
+rechecks where represented in its captured source. Full frame/Pickup operation,
+allocator/cache ownership and other unexercised paths are not thereby qualified.
+The exact runner source binding, pinned stock hash, logs and receipt remain
+private under review-840/race/metadata-results.json; no stock bytes are added.
+
+The five shared host tests pass (one target-only case skipped on this host),
+and the controller host test passes. This supersedes the earlier statement that
+no local race fix exists. The complete new base/module build, normal-boot
+emulator workflow and physical interrupt timing are still pending; the running
+0.1.64 hardware image has not changed. Timer diagnostics in the candidate will
+record the final count-publication body separately from unmasked row work.

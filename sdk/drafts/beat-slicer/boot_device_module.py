@@ -227,13 +227,33 @@ try:
         # Admission can precede the next UI draw. Compare encoder frames only
         # after the opened options have had a normal display tick.
         port.command('run 100')
-        (out/f'options-{kind}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
+        (out/f'options-{kind}-{slot}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
         if state()!=1:
             print('FULL SERVICE',port.peek(syms['mw_sample_editor'],32).hex(),flush=True)
             print('SOURCE CONTROL',port.peek((0x46c90a78,0x46c922c4)[kind]+44*slot,44).hex(),flush=True)
             print('PENDING/WORKER',{n:port.peek(syms[n],4).hex() for n in ('pending_at','pending_kind','pending_slot','pending_generation','job_active','idle_seen')},flush=True)
         assert state()==1,'actual contributed action did not admit a coherent source within its bounded wait'
         assert port.peek(at,1096)==before,'preview changed markers'
+        if not source_frames and not settings[273]:
+            # EMPTY is a no-op action, not a question that promises creation.
+            serial=word(syms['mw_sample_editor']+12)
+            for _ in range(3):
+                tap(port,'yes');port.command('run 250')
+                assert state()==1 and not word(syms['question_active'])
+                assert word(syms['mw_sample_editor']+12)==serial
+                assert port.peek(at,1096)==before,'EMPTY/YES changed the source'
+            tap(port,'no');port.command('run 250')
+            assert state()==0 and port.peek(at,1096)==before
+            tap(port,'yes');choose('CREATE BEAT GRID');port.command('run 250')
+            assert state()==1,'menu did not reopen after EMPTY cancellation'
+            tap(port,'no');port.command('run 250')
+            assert state()==0 and port.peek(at,1096)==before
+            if args.while_playing:assert word(0x800065b8)
+            assert word(syms['dl_frames'])>frames_before
+            results.append({'kind':kind,'slot':slot,'emptyNoAction':True,
+                            'repeatedYesUnchanged':True,'cancelAndReopen':True})
+            print('EMPTY NO-ACTION VERIFIED',kind,slot,flush=True)
+            return
         if args.check_encoders or args.capture_only:
             frame_at=word(0x400b9710)
             def options_frame():
@@ -407,6 +427,12 @@ try:
             'recording into the selected buffer admitted a new editor token'
         stop();tap(port,'no');recorder_editor(0)
         results.append({'sourceScopedRecording':True,'selectedRecordingBufferRefused':True})
+    commit_timing=None
+    if args.recorders:
+        commit_timing={key:word(syms['mw_sample_commit_'+key]) for key in ('max','last','spans')}
+        assert commit_timing['spans']>0,'recorder count-publication path was not exercised'
+        assert commit_timing['max']<48000,'count-publication body exceeded one emulated audio frame'
+        print('RECORDER COMMIT TIMER (EMULATOR ONLY)',commit_timing,flush=True)
     if word(0x800065b8):matrix_tap(port,0x24,128)
     maintain=False
     port.command('pace on');before_undo=request(1,tx=0)
@@ -431,7 +457,7 @@ try:
         assert port.peek(word(labels+4*i),32).split(b'\0',1)[0]!=b'CREATE BEAT GRID'
     tap(port,'no')
     print('STOCK MENU RESTORED',flush=True)
-    (out/'results.json').write_text(json.dumps({'scope':'Normal emulator boot, USB loader, AED action and stock confirmation', 'inputs':inputs,'baseIdentity':proof['configurationHash'],'results':results,'usbUndo':True,'stockMenuAfterRemoval':True,'hardware':False,'companionFx':companion_live},indent=2)+'\n')
+    (out/'results.json').write_text(json.dumps({'scope':'Normal emulator boot, USB loader, AED action and stock confirmation', 'inputs':inputs,'baseIdentity':proof['configurationHash'],'results':results,'usbUndo':True,'stockMenuAfterRemoval':True,'hardware':False,'companionFx':companion_live,'recorderCommitTimerEmulatorOnly':commit_timing},indent=2)+'\n')
 finally:
     if b:b.sock.close()
     port.close()

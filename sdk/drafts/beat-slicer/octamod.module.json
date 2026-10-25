@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.64-experimental",
+  "version": "0.1.65-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -88,7 +88,7 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "The approved 0.1.63 controller is running in an open-ended private MKII trial; its 17-module physical self-test passed. The 0.1.64 recorder/playback candidate passes host, target-build and normal-boot emulator checks, including source-scoped recording and USB Undo/removal. No 0.1.64 unit result is claimed. The earlier physical USB Undo failure remains unresolved; audible output, CPU/timing and persistence require exact-build hardware qualification.",
+    "summary": "The 0.1.64 private trial passed its physical self-test; a contributor reports successful slicing during playback without glitches or freezes. Version 0.1.65 adds EMPTY/no-op behavior, dialog retirement and a bounded recorder count commit. Host forced-timing regressions and stock-call metadata audit pass; full-candidate emulator and physical timing qualification remain pending.",
     "hardwareStatus": "untested",
     "gates": [
       "python3 -B -m unittest discover -s sdk/tests -p test_sample_editor.py -v",

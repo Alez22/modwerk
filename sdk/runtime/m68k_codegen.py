@@ -71,16 +71,25 @@ def hits(disassembly):
     return found
 
 
-def check(objects, objdump='m68k-elf-objdump'):
-    """Refuse any listed object (the C objects of a build) holding a stepped-register reuse."""
-    problems = []
+def _check_objects(objects, objdump, instrument=False):
+    objects = tuple(objects)
+    problems, indexes = [], []
     for obj in objects:
         text = subprocess.run([str(objdump), '-d', str(obj)], check=True, capture_output=True, text=True).stdout
         problems += ['%s: %s' % (Path(obj).name, h) for h in hits(text)]
+        if instrument:
+            indexes += ['%s: %s' % (Path(obj).name, h) for h in index_hits(text)]
     if problems:
         raise ValueError('ColdFire code reuses a post-incremented or pre-decremented address register in the same '
                          'instruction (GCC late-combine; sdk/runtime/m68k_codegen.py):\n  ' + '\n  '.join(problems))
+    if indexes:
+        raise ValueError('MCF54455-incompatible indexed addressing:\n  ' + '\n  '.join(indexes))
     return len(objects)
+
+
+def check(objects, objdump='m68k-elf-objdump'):
+    """Refuse stepped-register reuse, disassembling each input object once."""
+    return _check_objects(objects, objdump)
 
 
 def index_hits(disassembly):
@@ -103,14 +112,7 @@ def index_hits(disassembly):
 
 def check_mcf54455(objects, objdump='m68k-elf-objdump'):
     """Shipping C code: late-combine safety AND the instrument's indexed modes."""
-    check(objects, objdump)
-    problems = []
-    for obj in objects:
-        text = subprocess.run([str(objdump), '-d', str(obj)], check=True, capture_output=True, text=True).stdout
-        problems += ['%s: %s' % (Path(obj).name, h) for h in index_hits(text)]
-    if problems:
-        raise ValueError('MCF54455-incompatible indexed addressing:\n  ' + '\n  '.join(problems))
-    return len(objects)
+    return _check_objects(objects, objdump, instrument=True)
 
 
 def check_assembly(assembly, cross='m68k-elf-', cpu='54455'):

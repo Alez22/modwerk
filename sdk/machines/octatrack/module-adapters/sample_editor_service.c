@@ -216,7 +216,7 @@ unsigned mw_sample_editor_answer(struct mw_sample_editor *e,uint32_t token,unsig
         e->state=MW_SAMPLE_CLOSED;
         if(why==MODWERK_SAMPLE_OK) {
             why=b->publish(b->context,&e->before,&e->edit);
-            if(why!=MODWERK_SAMPLE_APPLIED && why!=MODWERK_SAMPLE_NO_CHANGE) {
+            if(why!=MODWERK_SAMPLE_APPLIED && why!=MODWERK_SAMPLE_NO_CHANGE && why!=MODWERK_SAMPLE_STALE) {
                 why=MODWERK_SAMPLE_FAULT;e->poisoned=1;
             }
             if(e->revision==UINT32_MAX)e->poisoned=1;else ++e->revision;

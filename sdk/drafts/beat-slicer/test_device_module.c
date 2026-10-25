@@ -25,6 +25,9 @@ static unsigned capture(void *p,struct mw_sample_capture *out){(void)p;*out=sour
 static unsigned publish(void *p,const struct mw_sample_capture *before,const struct mw_sample_edit *edit)
 {
     (void)p;if(!held || memcmp(before,&source,sizeof source))bad=1;
+    if(source.view.count==edit->count &&
+       !memcmp(source.view.records,edit->records,sizeof edit->records))
+        return MODWERK_SAMPLE_NO_CHANGE;
     ++publishes;source.view.count=edit->count;
     memcpy(source.view.records,edit->records,sizeof edit->records);return MODWERK_SAMPLE_APPLIED;
 }
@@ -230,8 +233,11 @@ int main(void)
             CHECK(mw_sample_editor_answer(&service,token,0)==MODWERK_SAMPLE_NO_CHANGE);
             CHECK(publishes==before_writes && source.view.count==before_count);
         } else {
-            CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
-            CHECK(source.view.count>=1 && source.view.count<=4 && publishes==before_writes+1);
+            unsigned changed=source.view.count!=service.edit.count ||
+                memcmp(source.view.records,service.edit.records,sizeof service.edit.records);
+            CHECK(mw_sample_editor_answer(&service,token,1)==
+                (changed?MODWERK_SAMPLE_APPLIED:MODWERK_SAMPLE_NO_CHANGE));
+            CHECK(source.view.count>=1 && source.view.count<=4 && publishes==before_writes+!!changed);
         }
         CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_STALE);
     }
@@ -268,8 +274,19 @@ int main(void)
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
         bs_device_open(token,&api);CHECK(active());
         unsigned previous=confirms;
-        CHECK(tap(0x31) && confirms==previous+1 && !active());
-        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+        unsigned previous_writes=publishes;
+        CHECK(tap(0x31));
+        if(!placeholders) {
+            CHECK(confirms==previous && active());
+            struct modwerk_runtime_api runtime={0};module_tick(&runtime);
+            CHECK(!(runtime.value&0x200));
+            CHECK(service.state==MW_SAMPLE_OPEN && publishes==previous_writes);
+            CHECK(tap(0x32));
+        } else {
+            CHECK(confirms==previous+1 && !active());
+            CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+            CHECK(publishes==previous_writes+1);
+        }
         CHECK(!source.view.count && !memcmp(before,source.view.records,sizeof before));
     }
     CHECK(!held && !bad);

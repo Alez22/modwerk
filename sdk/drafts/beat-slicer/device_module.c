@@ -64,7 +64,8 @@ static unsigned refresh(unsigned validate)
 }
 static void confirm_when_ready(void)
 {
-    if(!active || !captured || dirty || geometry!=BS_OK){pending_confirm=0;return;}
+    if(!active || !captured || dirty || geometry!=BS_OK ||
+       (!plan.count && !view.count)){pending_confirm=0;return;}
     proposal.count=plan.count;
     for(uint32_t i=0;i<BS_MAX_SLICES;++i)proposal.starts[i]=plan.starts[i];
     reply=editor->replace(token,&proposal);
@@ -216,6 +217,7 @@ void module_draw(unsigned char *frame)
     else if(geometry!=BS_OK)text(line,"CHECK");
     else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAIT");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"REFUSED");
+    else if(!plan.count && !view.count)text(line,"EMPTY");
     else text(line,view.count?"REPLACE":"CREATE");
     right(frame,120,42,line);
     /* Border is restored last, providing a complete-render capture marker. */

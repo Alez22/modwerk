@@ -11,6 +11,9 @@ static unsigned used,masked,locked,bad,writes,refreshes,retired,live,metadata_re
 static uint32_t fail_address,fail_mode;
 static uint32_t active_settings,row_writes;
 static unsigned inject_writer,queued_writer,engine_writes;
+static unsigned commit_mask,commit_reads,commit_writes,commit_max_reads,commit_spans;
+static unsigned force_start,force_at,force_kind,queued_start,started,start_before_lock,start_in_commit;
+static uint32_t force_slot;
 static int stopped,transport,storage;
 static uint32_t extent[2048];
 static struct runtime_owner owner;
@@ -22,6 +25,19 @@ static void put(uint32_t address,uint32_t value)
     if(used==1024){bad=1;return;}
     memory[used].address=address;memory[used++].value=value;
 }
+static void recorder_start(void)
+{
+    if(commit_mask){queued_start=1;return;}
+    ++started;
+    uint32_t track=force_slot-128u,settings=0x100b14f0u+1096u*force_slot;
+    put(0x80004f1eu+84u*track,force_kind==2?0:force_kind==1?2:1);
+    put(settings+1084u,44100);
+    if(force_kind==1) {
+        put(0x46c922c4u+44u*force_slot+16u,49152);
+        put(settings+304u,49152);
+    }
+    if(force_kind==2)put(0x460d17d2u,1); /* completed start/stop, cleanup queued */
+}
 static int metadata_address(uint32_t at)
 {
     return (at>=0x100b14f0u && at<0x100b14f0u+136u*1096u) ||
@@ -29,20 +45,29 @@ static int metadata_address(uint32_t at)
         (at>=0x46c90a78u && at<0x46c90a78u+128u*44u) ||
         (at>=0x46c922c4u && at<0x46c922c4u+136u*44u);
 }
-int mw_sample_host_audio_preemptible(void){return !masked;}
+int mw_sample_host_audio_preemptible(void){return !masked && !commit_mask;}
 uint32_t mw_sample_host_read(uint32_t address)
 {
     if(metadata_address(address)) {
         ++metadata_reads;
         if(inject_writer){queued_writer=1;inject_writer=0;}
-        if(!locked || masked)bad=1;else ++frame_services;
+        if(!locked || masked)bad=1;
+        else if(commit_mask)++commit_reads;
+        else ++frame_services;
     }
+    if(commit_mask && start_in_commit){start_in_commit=0;recorder_start();}
     return get(address);
 }
 void mw_sample_host_write(uint32_t address,uint32_t value)
 {
-    if(!locked || masked)bad=1;else ++frame_services;
+    if(force_start && writes==force_at){force_start=0;recorder_start();}
+    if(!locked || masked)bad=1;
+    else if(commit_mask) {
+        if(address!=active_settings+1092u)bad=1;
+        ++commit_writes;
+    } else ++frame_services;
     if(address>=active_settings+312u && address<active_settings+1080u) {
+        if(commit_mask)bad=1;
         ++row_writes;
         if(get(active_settings+1092u))bad=1;
     }
@@ -52,6 +77,19 @@ void mw_sample_host_write(uint32_t address,uint32_t value)
         value^=1;
     }
     put(address,value);
+}
+uint32_t mw_sample_host_commit_lock(void)
+{
+    if(!locked || masked || commit_mask)bad=1;
+    if(start_before_lock){start_before_lock=0;recorder_start();}
+    commit_mask=1;commit_reads=commit_writes=0;++commit_spans;return 0xa55a;
+}
+void mw_sample_host_commit_unlock(uint32_t saved)
+{
+    if(saved!=0xa55a || !commit_mask || commit_reads>20 || commit_writes>1)bad=1;
+    if(commit_reads>commit_max_reads)commit_max_reads=commit_reads;
+    commit_mask=0;
+    if(queued_start){queued_start=0;recorder_start();}
 }
 uint32_t modwerk_machine_mask(void){return masked++;}
 void modwerk_machine_unmask(uint32_t saved){if(masked!=saved+1)bad=1;masked=saved;}
@@ -78,6 +116,8 @@ static uint32_t setup(unsigned kind,unsigned slot)
 {
     used=masked=locked=bad=writes=refreshes=retired=metadata_reads=frame_services=0;live=1;
     fail_address=fail_mode=inject_writer=queued_writer=engine_writes=row_writes=0;stopped=transport=storage=1;
+    commit_mask=commit_reads=commit_writes=commit_max_reads=commit_spans=0;
+    force_start=force_at=force_kind=queued_start=started=start_before_lock=start_in_commit=0;force_slot=128;
     memset(&mw_sample_editor,0,sizeof mw_sample_editor);
     memset(&owner,0,sizeof owner);memset(extent,0,sizeof extent);
     owner.generation=1;owner.module=17;owner.owned_extent=(uintptr_t)extent;
@@ -410,6 +450,54 @@ int main(void)
         mw_sample_waveform_job(message);mw_sample_engine_idle();
         CHECK(mw_sample_editor_api.copy(token,view)==(recording?MODWERK_SAMPLE_STALE:MODWERK_SAMPLE_OK));
         CHECK(!writes && !bad && !masked && !locked);
+    }
+    /* Force a recorder before every publication write, immediately before
+     * the final critical section, and while that short section is running.
+     * Preparation/recording own extent/trim, never the marker table; queued
+     * engine cleanup cannot run under the outer level-4 lock. */
+    for(unsigned kind=0;kind<3;++kind)for(unsigned point=0;point<197;++point) {
+        uint32_t settings=setup(1,128),old[192];
+        put(settings+1092u,3);
+        for(unsigned i=0;i<3;++i) {
+            put(settings+312u+12u*i,22050u*i);
+            put(settings+316u+12u*i,i==2?88200u:22050u*(i+1));
+            put(settings+320u+12u*i,UINT32_MAX);
+        }
+        for(unsigned i=0;i<192;++i)old[i]=get(settings+312u+4u*i);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        grid->count=2;grid->starts[0]=0;grid->starts[1]=44100;
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        force_kind=kind;
+        if(point<195){force_start=1;force_at=point;}
+        else if(point==195)start_before_lock=1;
+        else start_in_commit=1;
+        unsigned applied=point==194 || point==196;
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==
+            (applied?MODWERK_SAMPLE_APPLIED:MODWERK_SAMPLE_STALE));
+        CHECK(started==1 && !queued_start && !force_start && !start_in_commit &&
+              !start_before_lock && commit_spans==1 && !commit_mask && !bad);
+        CHECK(get(settings+1092u)==(applied?2u:3u));
+        if(!applied) {
+            for(unsigned i=0;i<192;++i)CHECK(old[i]==get(settings+312u+4u*i));
+            CHECK(get(0x400ceb3cu)==9 && !mw_sample_editor.poisoned);
+        }
+        CHECK(get(settings+1084u)==44100); /* never roll recorder metadata back */
+        if(kind==1)CHECK(get(settings+304u)==49152 && get(0x46c922c4u+44u*128u+16u)==49152);
+        if(kind==2)CHECK(get(0x460d17d2u)==1);
+        unsigned before_writes=writes;
+        put(0x80004f1eu,0);put(0x460d17d2u,0);
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_STALE);
+        CHECK(writes==before_writes && !masked && !locked);
+    }
+    /* An unrelated recorder's start is not a source change. */
+    for(unsigned point=0;point<195;++point) {
+        uint32_t settings=setup(1,128);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        grid->count=2;grid->starts[0]=0;grid->starts[1]=44100;
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        force_slot=129;force_at=point;force_start=1;
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_APPLIED);
+        CHECK(get(settings+1092u)==2 && started==1 && !queued_start && !bad);
     }
     setup(0,0);CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
     struct runtime_dsp from={0};from.present=1;from.module=owner.module;

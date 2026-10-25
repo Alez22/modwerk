@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.65-experimental",
+    "date": "2026-10-26",
+    "changes": [
+      "Show EMPTY for a recorder buffer with no audio or slice entries.",
+      "Keep YES on a truly empty buffer from opening a no-op confirmation.",
+      "Cancel a recorder-buffer grid if recording starts before its final commit.",
+      "Keep slice actions available after a confirmation window disappears.",
+      "Experimental review candidate; device testing remains pending."
+    ]
+  },
+  {
     "version": "0.1.64-experimental",
     "date": "2026-10-25",
     "changes": [

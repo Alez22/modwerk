@@ -1,14 +1,17 @@
 # Beat Slicer
 
-Version: `0.1.64-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.65-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
 Beat Slicer creates exact beat-spaced slice starts from sample ATTR BPM or
-captured project BPM. The 0.1.64 private candidate targets **file-backed Flex,
+captured project BPM. The private implementation targets **file-backed Flex,
 Static and inactive recorder-buffer samples**, with pattern playback continuing.
-The software/native workflow passes; exact-build hardware qualification remains
-pending. It uses ordinary
+The running 0.1.64 private trial passed its 17-module physical self-test, and
+a contributor reports successful slicing during same-source playback without
+glitches or freezes. The 0.1.65 review changes have not run on hardware.
+The local candidate cancels an edit if recording wins its final count commit;
+complete emulator and physical timing qualification are pending. It uses ordinary
 stock playback, with no effect slot, PCM analysis or new DSP fades. Quiet-boundary
 search and enhanced playback processing are later work, not prerequisites for
 this basic version. Click-free playback is not claimed.
@@ -18,15 +21,10 @@ now build from source. Host tests exercise the actual controller/grid/service,
 both native metadata paths, confirmation and failed-write rollback. The service
 also executes on the MCF54455 CPU emulator. A private base passes native/browser
 byte parity and normal-boot USB/menu/confirmation emulator tests for both kinds.
-The 0.1.55 candidate RAM-boots on the owner's MKII, opens its AED options and
-passes a 12-module self-test. The 0.1.56 trial also passed that self-test; the owner
-reported initial successful slicing followed by failures after repeated clearing
-and step changes. The owner then reported 0.1.57 working alone but a DSP-stop
-warning, pop and
-loss of audio while slicing a 22 MB Flex source with TapeHead/Mini Verb active.
-The saved stall record confirms stopped frames, not the exact cause. That build
-is withdrawn from further trials. The owner reported that 0.1.58 worked very well with no bugs during slicing tests. Its USB Undo could not verify restoration; a power cycle restored the flashed base and original eleven modules. The 0.1.59 and 0.1.60 UI revisions have not run on hardware;
-full lifecycle qualification continues. The service is enabled
+The current contributor's MKII remains on its open-ended 0.1.64 trial. Earlier
+0.1.57 audio-stop and 0.1.58 unverified USB Undo results remain historical
+limitations; later successful tests do not establish their causes. See TESTING.md
+for exact builds and observed versus reported evidence. The service is enabled
 only by a private `--sample-editor` base build and needs owner review. It is not
 released capability, and the draft remains absent from the public catalogue.
 
@@ -36,8 +34,9 @@ Private candidate access: select a Flex/Static sample or recorder buffer → AED
 AMP (SLICE) → YES → CREATE BEAT GRID. Playback may continue. Only recording
 into the buffer being edited blocks that source; the playback track and its
 recorder are independent. Empty recorder-buffer edits leave an empty result.
-This new path passes the software/native workflow and is not device-qualified.
-The owner’s ongoing 0.1.63 trial remains on its original file-backed/stopped build.
+The 0.1.65 candidate shows EMPTY when the buffer has neither audio nor slice
+entries. YES then leaves the popup open without a confirmation or write. Existing
+zero-length entries still require explicit replacement confirmation to clear.
 
 | Control | Behavior |
 | --- | --- |
@@ -48,7 +47,7 @@ The owner’s ongoing 0.1.63 trial remains on its original file-backed/stopped b
 | NO / BACK | Close the options or decline confirmation without changing markers. |
 | After creation | Use stock DELETE SLICE or DELETE ALL SLICES. No separate slice Undo/history is added. |
 
-In 4/4, choose **16 BEATS** for four bars. The status line warns `REPLACE n SLICES` when a table already exists.
+In 4/4, choose **16 BEATS** for four bars. The information block shows the slice count and REPLACE when a table already exists.
 
 New boundaries that would leave fewer than the shared writer's minimum 64 frames at the end are omitted; the last valid slice still ends at the original trim end. Existing starts change only after the explicit replacement confirmation. An entirely shorter source uses its full length as the minimum; a shorter trimmed range is refused explicitly.
 
