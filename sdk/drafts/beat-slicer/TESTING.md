@@ -3172,8 +3172,8 @@ Both strict stock-free scans and all five target-enabled tests pass. Private bas
 preservation guards (BIN SHA-256 `fdd4656fcf6c…`, 767,728 bytes).
 The full upstream-main check passes in 147.07 seconds: 2,570 app tests in 325
 files and SDK checks (37 tests, one skipped). The literal stale-fork origin/main
-check retains its inherited CHANGELOG.md policy failure. Public default-base
-inputs and the 25 published packages are unchanged by this private adapter update.
+check retains its inherited CHANGELOG.md policy failure. Before the subsequent upstream merge, public default-base
+inputs and the 25 published packages were unchanged by this private adapter update.
 
 A normal-boot emulator installed the exact three-member USB set (TapeHead, Mini
 Verb and this Beat Slicer; set SHA-256 `d253f4a85359…`). Stock panel gestures
@@ -3190,3 +3190,15 @@ recovery phase 6 and active unknown; restoration and stock-menu removal were
 Two earlier harness attempts rejected a wrong set baseline and an unhandled
 positive publication-progress reply respectively; neither exercised slicing.
 No 0.1.58 package has been loaded onto the physical unit.
+
+After merging upstream `ecca8e66`, all seven default beta USB layouts were
+regenerated through the standard source builder, with native/browser parity,
+stock-free and bootloader checks passing. Their sample editor remains disabled.
+The private `7c82d0d15495…` evidence above belongs to the pre-merge source
+snapshot; it does not qualify a private base incorporating those upstream changes.
+The controller package source remains unchanged.
+
+Integrated upstream-main validation passes in 142.95 seconds: 2,574 app tests
+in 325 files and SDK checks (37 tests, one skipped). All 25 published USB
+packages rebuild identically with stock-free checks after the standard base-only
+rebind. Play Modes retains the declared older release and issue #764 gap.

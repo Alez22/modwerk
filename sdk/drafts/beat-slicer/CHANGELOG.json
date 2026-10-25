@@ -7,7 +7,7 @@
       "Keep the opening snapshot stable through setup; revalidate at confirmation, without idle source polling.",
       "Use encoder-only controls with four counts per step and bounded ends; remove slot locations and internal source messages.",
       "Requires the revised private base. Recorder buffers and PCM operations remain unsupported; no Keep, flash or implicit save.",
-      "Known issue: the reported TapeHead/Mini Verb DSP stop requires exact-build hardware retesting and timing qualification."
+      "Known limits: TapeHead/Mini Verb coexistence, interrupt timing and USB Undo/removal require exact-build hardware qualification."
     ]
   },
   {
