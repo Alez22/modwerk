@@ -3444,7 +3444,16 @@ shortcut had left AED, so YES armed recorder trigs on the track AMP page rather
 than opening an action menu. The captured screen confirms this driver context
 error. A fresh recorder run explicitly reopens AED and adds short/long marker
 lifetime checks. Neither incomplete run establishes full-suite or USB Undo
-success; the fresh run remains in progress.
+success.
+
+The third run passes empty R8 and completed R1 editing, then fails the stricter
+count-dropping oracle for a shorter re-record. The actual stock result retains
+count 3 and clamps starts 0 / 22,050 / 44,100 to 0 / 16,176 / 16,176 when trim
+ends at 16,240. The owner subsequently clarified that the slice count stays the
+same and confirmed this agrees with their observation. The service now captures
+duplicate recorder starts unchanged; the host fixture verifies cancellation and
+explicit replacement, while new proposals remain strictly increasing. A native
+rebuild/regression is pending. No automatic stock-cleanup override is introduced.
 
 An isolated stock-CPU fixture invokes the grid callback for slots 128 and 135
 at extents 0/1/63/64/1000/44100. Its chosen eight slices include zero-length

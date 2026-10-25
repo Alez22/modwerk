@@ -103,9 +103,10 @@ report any sound interruption or unexpected marker change.
 4. Open the buffer currently being recorded. A new beat-grid edit must refuse.
    Starting recording from an open edit must cancel it; stopping must not apply
    that old edit automatically.
-5. Create several markers in a longer recording. Record shorter: markers outside
-   the new trim disappear. Record longer again: only the surviving absolute
-   positions remain. Nothing creates a fresh grid until explicitly requested.
+5. Create several markers in a longer recording. Record shorter: out-of-range
+   starts collapse near its new end, with the slice count unchanged. Record
+   longer again: those resulting positions remain. Nothing creates a fresh grid
+   until explicitly requested.
 6. Finish with playback and recording stopped for verified USB Undo/removal.
 
 ## Retained research (through 0.1.54)

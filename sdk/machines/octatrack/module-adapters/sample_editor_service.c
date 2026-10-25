@@ -69,11 +69,20 @@ static int view_valid(const struct modwerk_sample_view *v)
        v->count>MODWERK_SAMPLE_EDITOR_SLICES)return 0;
     /* An actually empty recorder may be opened without inventing a length
      * from reserved capacity. Its explicit grid result stays empty. */
-    if(!v->frames)return recorder && !v->trim_start && !v->trim_end && !v->count;
+    if(!v->frames) {
+        if(!recorder || v->trim_start || v->trim_end)return 0;
+        for(uint32_t i=0;i<v->count;++i)
+            if(v->records[i].start || v->records[i].end)return 0;
+        return 1;
+    }
     if(v->trim_start>=v->trim_end || v->trim_end>v->frames)return 0;
     for(uint32_t i=0;i<v->count;++i)
         if(v->records[i].start<v->trim_start || v->records[i].start>=v->trim_end ||
-           (i && v->records[i-1].start>=v->records[i].start))return 0;
+           (i && (v->records[i-1].start>v->records[i].start ||
+                  (!recorder && v->records[i-1].start==v->records[i].start))))return 0;
+    /* Stock's shorter-recording cleanup can clamp several old starts onto
+     * the same final boundary. Capture those rows unchanged for NO/replacement;
+     * proposals still require strictly increasing starts. */
     return 1;
 }
 int mw_sample_editor_init(struct mw_sample_editor *e,const struct mw_sample_backend *b)
@@ -143,7 +152,8 @@ static unsigned prepare(struct mw_sample_editor *e,const struct modwerk_sample_g
     uint32_t minimum=v->frames<64u?v->frames:64u;
     if(!g || g->count>MODWERK_SAMPLE_EDITOR_SLICES)return MODWERK_SAMPLE_INVALID;
     if(!v->frames) {
-        if(g->count || v->count)return MODWERK_SAMPLE_INVALID;
+        if(g->count)return MODWERK_SAMPLE_INVALID;
+        if(v->count && !replacing)return MODWERK_SAMPLE_PRESERVATION;
         e->edit.count=0;records_copy(e->edit.records,v->records);
         return MODWERK_SAMPLE_OK;
     }

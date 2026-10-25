@@ -256,9 +256,14 @@ int main(void)
             CHECK(tap(0x32));
         }
     }
-    for(unsigned slot=128;slot<136;++slot) {
+    for(unsigned slot=128;slot<136;++slot)for(unsigned placeholders=0;placeholders<=8;placeholders+=8) {
         source.view.kind=MODWERK_SAMPLE_FLEX;source.view.slot=slot;
         source.view.frames=source.view.trim_start=source.view.trim_end=source.view.count=0;
+        source.view.count=placeholders;
+        for(unsigned i=0;i<placeholders;++i) {
+            source.view.records[i].start=source.view.records[i].end=0;
+            source.view.records[i].loop=UINT32_MAX;
+        }
         struct modwerk_slice_record before[64];memcpy(before,source.view.records,sizeof before);
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
         bs_device_open(token,&api);CHECK(active());

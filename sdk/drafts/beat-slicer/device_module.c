@@ -44,7 +44,7 @@ static unsigned refresh(unsigned validate)
     dirty=0;
     if(view.count>BS_MAX_SLICES){geometry=BS_INVALID;return 1;}
     if(view.kind==MODWERK_SAMPLE_FLEX && view.slot>=128u && view.slot<136u &&
-       !view.frames && !view.trim_start && !view.trim_end && !view.count) {
+       !view.frames && !view.trim_start && !view.trim_end) {
         /* Empty recorder slots are valid editor sources. There is no audio
          * extent to divide and no reserved-memory placeholder to populate. */
         plan.count=0;

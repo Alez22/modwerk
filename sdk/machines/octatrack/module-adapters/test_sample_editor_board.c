@@ -206,8 +206,9 @@ int main(void)
         CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_STALE);
         CHECK(writes==before_writes && get(settings+1092u)==2);
     }
-    /* A short replacement drops later active markers; growing the recording
-     * again cannot resurrect them from an old proposal or inactive rows. */
+    /* Re-recording shorter can retain the count with clamped duplicate starts.
+     * A later longer source must not revive the old proposal or old positions,
+     * even when the source's slot counter stays unchanged. */
     {
         uint32_t settings=setup(1,128),controls=0x46c922c4u+44u*128u;
         put(settings+1092u,4);
@@ -218,32 +219,76 @@ int main(void)
         }
         CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
         grid->count=4;CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
-        put(controls+16u,44100);put(controls+20u,8);put(settings+304u,44100);put(settings+1092u,2);
+        put(controls+16u,44100);put(settings+304u,44100);
+        for(unsigned i=0;i<4;++i) {
+            put(settings+312u+12u*i,i<2?22050u*i:44036u);
+            put(settings+316u+12u*i,i?44100u:22050u);
+        }
         CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_STALE && !writes);
-        put(controls+16u,132300);put(controls+20u,9);put(settings+304u,132300);
+        put(controls+16u,132300);put(settings+304u,132300);
         CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_STALE && !writes);
         CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
         CHECK(mw_sample_editor_api.copy(token,view)==MODWERK_SAMPLE_OK);
-        CHECK(view->count==2 && view->records[0].start==0 && view->records[1].start==22050 &&
-              view->records[1].end==44100 && view->frames==132300);
+        CHECK(view->count==4 && view->records[0].start==0 && view->records[1].start==22050 &&
+              view->records[2].start==44036 && view->records[3].start==44036 &&
+              view->records[1].end==44100 && view->frames==132300 && get(controls+20u)==7);
         grid->count=6;for(unsigned i=0;i<6;++i)grid->starts[i]=22050u*i;
         CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
         CHECK(mw_sample_editor_answer(&mw_sample_editor,token,0)==MODWERK_SAMPLE_NO_CHANGE);
-        CHECK(get(settings+1092u)==2 && !writes);
+        CHECK(get(settings+1092u)==4 && !writes);
         CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
         CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
         CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_APPLIED);
         CHECK(get(settings+1092u)==6 && get(settings+316u+12u*5u)==132300 && !bad);
     }
-    for(unsigned track=0;track<8;++track) {
-        uint32_t slot=128u+track,settings=setup(1,slot);
-        put(0x46c922c4u+44u*slot+16u,0);put(settings+304u,0);
-        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
-        CHECK(mw_sample_editor_api.copy(token,view)==MODWERK_SAMPLE_OK && !view->frames && !view->count);
-        grid->count=0;
+    /* Observed native short-recording metadata can instead retain three rows,
+     * clamping two starts onto the final 64-frame boundary. A copied recorder
+     * view must retain those duplicates for NO and explicit replacement. */
+    for(unsigned which=0;which<3;++which) {
+        unsigned slot=which==0?0u:which==1?128u:135u;
+        uint32_t settings=setup(1,slot),before[192];
+        put(0x46c922c4u+44u*slot+16u,16240);put(settings+304u,16240);put(settings+1092u,3);
+        for(unsigned i=0;i<3;++i) {
+            put(settings+312u+12u*i,i?16176:0);put(settings+316u+12u*i,16240);
+            put(settings+320u+12u*i,UINT32_MAX);
+        }
+        for(unsigned i=0;i<192;++i)before[i]=get(settings+312u+4u*i);
+        unsigned why=mw_sample_editor_begin(&mw_sample_editor,&owner,&token);
+        if(!which){CHECK(why==MODWERK_SAMPLE_UNSUPPORTED && !writes);continue;}
+        CHECK(why==MODWERK_SAMPLE_OK && mw_sample_editor_api.copy(token,view)==MODWERK_SAMPLE_OK);
+        CHECK(view->count==3 && view->records[1].start==16176 && view->records[2].start==16176);
+        grid->count=1;grid->starts[0]=0;
         CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
-        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_NO_CHANGE);
-        CHECK(!writes && !get(settings+1092u) && !bad);
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,0)==MODWERK_SAMPLE_NO_CHANGE && !writes);
+        for(unsigned i=0;i<192;++i)CHECK(before[i]==get(settings+312u+4u*i));
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_APPLIED);
+        CHECK(get(settings+1092u)==1 && get(settings+316u)==16240 && !bad);
+        for(unsigned i=3;i<192;++i)CHECK(before[i]==get(settings+312u+4u*i));
+    }
+    for(unsigned track=0;track<8;++track)for(unsigned placeholders=0;placeholders<=8;placeholders+=8) {
+        uint32_t slot=128u+track,settings=setup(1,slot),before[192];
+        put(0x46c922c4u+44u*slot+16u,0);put(settings+304u,0);put(settings+1092u,placeholders);
+        for(unsigned i=0;i<placeholders;++i) {
+            put(settings+312u+12u*i,0);put(settings+316u+12u*i,0);put(settings+320u+12u*i,UINT32_MAX);
+        }
+        for(unsigned i=0;i<192;++i)before[i]=get(settings+312u+4u*i);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_api.copy(token,view)==MODWERK_SAMPLE_OK && !view->frames && view->count==placeholders);
+        grid->count=0;
+        if(placeholders)CHECK(mw_sample_editor_api.confirm(token,grid)==MODWERK_SAMPLE_PRESERVATION);
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,0)==MODWERK_SAMPLE_NO_CHANGE && !writes);
+        CHECK(get(settings+1092u)==placeholders);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==
+              (placeholders?MODWERK_SAMPLE_APPLIED:MODWERK_SAMPLE_NO_CHANGE));
+        CHECK((placeholders?!!writes:!writes) && !get(settings+1092u) && !bad);
+        for(unsigned i=0;i<192;++i)CHECK(before[i]==get(settings+312u+4u*i));
+        put(settings+1092u,1);put(settings+316u,1);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_UNSUPPORTED);
     }
     for(unsigned kind=0;kind<2;++kind) {
         uint32_t settings=setup(kind,0);

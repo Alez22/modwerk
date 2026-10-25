@@ -256,9 +256,10 @@ executed firmware trace or qualification of recorder support in Beat Slicer:
 - Re-recording the same length preserves existing marker positions.
 - A longer recording preserves those positions rather than stretching the grid
   across the longer range.
-- A shorter recording permanently drops markers outside its new trim range.
-- Recording longer again retains only the surviving markers at their existing
-  positions. It neither restores dropped markers nor redistributes survivors.
+- A shorter recording removes the old out-of-range marker positions. The owner
+  subsequently clarified that the slice count stays the same.
+- Recording longer again retains the resulting positions, including clamped
+  starts. It neither restores old out-of-range positions nor redistributes them.
 
 Use this as the recorder-support behavior to match. Explicitly creating a new
 grid is a separate action: stock CREATE SLICE GRID distributes its chosen
@@ -266,9 +267,18 @@ count across the current TRIM range (MKII manual, section 13.2.2). Beat Grid
 keeps beat-based spacing when explicitly invoked. Do not add automatic
 re-gridding, proportional stretching, or restoration of an older marker snapshot
 when a recorder changes length. Include a long → short → long regression so
-deleted markers cannot reappear from retained module state. Exact endpoint
+old positions cannot reappear from retained module state. Exact endpoint
 equality and treatment of a retained slice's end/loop fields still need native
 verification; the report establishes marker lifetime, not those internal rules.
+
+The 0.1.64 normal-boot emulator regression clarified the representation behind
+that report. After creating starts 0 / 22,050 / 44,100
+in a 51,584-frame recording, a 16,240-frame re-record retained count 3 and starts
+0 / 16,176 / 16,176, with all ends at 16,240. Stock collapsed the later starts
+onto its final 64-frame boundary. The owner confirmed that the count stays the
+same and that this agrees with their observation; the exact numeric trace above
+remains emulator evidence. Capture must preserve duplicate recorder rows for NO and
+explicit replacement; Beat Grid must not add automatic deletion or reslicing.
 
 ### Accepted 0.1.64 private development scope
 

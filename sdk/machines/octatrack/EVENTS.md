@@ -220,8 +220,9 @@ The base patches these for its table readers; no package may patch them: contrib
 | 0x40072c30 | 6 | `ot_sample_editor_actions` | lea mw_sample_menu_open | `62295a0156c23c7879c85f24676dd992b7d513321043f7a89e70f8a8e90bc2b0` | SLICE menu variant which loads its opener callback; preserve all stock rows and append admitted actions |
 | 0x40072caa | 6 | `ot_sample_editor_actions` | jmp mw_sample_menu_call | `d35bfe797abb5bb27e98ec6d4cb422e20c44f307e5d6597af674380832f8dbdf` | CHANGE VIEW three-row opener call; unknown layouts pass through unchanged to the original continuation |
 | 0x40077b5c | 6 | `ot_machines` | jmp mw_pool_title | `fc4b77b1c83703e8c61dda0b64b9ec139541c633433304b843f270cd461c6370` | the machine title's right chevron for rows with a pool |
+| 0x4007865e | 4 | `ot_machines` | ptr mw_chooser_name | `7d0c3559d87019b7bb3475f5740bad5d216041e6b6cd0f2943aa176156345398` | machine chooser names by the list's row: its scroll offset plus the row on screen |
 | 0x40078678 | 2 | `ot_machines` | own | `04cd1c6d463ba6752ff68f9125991b1c4af983ae355b62366122ba2d47eee3b2` | machine chooser draws: moveq #4+n |
-| 0x400786c8 | 6 | `ot_machines` | jmp mw_chooser_row | `c611970befafba97f882ab297bd19f0efe0c7d927bfd6110c53f03ad4b7da1c7` | machine chooser row highlight |
+| 0x400786c8 | 6 | `ot_machines` | jmp mw_chooser_row | `c611970befafba97f882ab297bd19f0efe0c7d927bfd6110c53f03ad4b7da1c7` | machine chooser row highlight, by the list's row |
 | 0x400786ce | 2 | `ot_machines` | own | `04cd1c6d463ba6752ff68f9125991b1c4af983ae355b62366122ba2d47eee3b2` | machine chooser highlight bound: moveq #4+n |
 | 0x40078886 | 10 | `ot_machines` | jmp mw_chooser_open | `fe6cb52458c7d968dc467c1cd7721d832baf6bc2fac1826c8c10ed07fee2e7f8` | the machine list opens on the track's machine row |
 | 0x400791e4 | 8 | `ot_machines` | jmp mw_pool_open | `fa7132fac15d6e498fd0e73744e1f94218824f3f54d5b3bad6083b60363e9f14` | double-tap TRACK opens a machine's pool |

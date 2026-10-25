@@ -190,11 +190,11 @@ try:
         port.command('run 300')
         assert word(at+1092)==0,'stock clear failed'
     results=[]
-    def exercise(kind,slot=0,keep_grid=False):
+    def exercise(kind,slot=0,keep_grid=False,clear_before=True):
         at=(0x100d5b30,0x100b14f0)[kind]+1096*slot
         assert word(0x46c8d1a0)==kind and word(0x46c8d19c)==slot
         matrix_tap(port,0x24,8);port.command('run 300')
-        stock_clear(kind,slot)
+        if clear_before:stock_clear(kind,slot)
         if args.while_playing:
             if not word(0x800065b8):matrix_tap(port,0x25,1)
             assert word(0x800065b8),'pattern playback did not start'
@@ -280,7 +280,8 @@ try:
         assert [struct.unpack('>3I',after[312+12*i:324+12*i]) for i in range(len(expected))]==expected
         assert after[312+12*len(expected):1080]==before[312+12*len(expected):1080],'inactive records changed'
         results.append({'kind':kind,'slot':slot,'whilePlaying':bool(word(0x800065b8)),
-                        'unchangedPreviewAndNO':True,'nativeYesCount':len(expected),'sampleBpm24':settings[69],'exactRecords':True})
+                        'inputCount':settings[273],'unchangedPreviewAndNO':True,
+                        'nativeYesCount':len(expected),'sampleBpm24':settings[69],'exactRecords':True})
         if args.repeat:
             for step in (4,16,32,64,1):
                 old=port.peek(at,1096)
@@ -338,6 +339,11 @@ try:
         stop();recorder_editor(7)
         assert not word(0x46c922c4+44*135+16),'expected untouched empty recorder 8'
         exercise(1,135)
+        tap(port,'yes');choose('CREATE SLICE GRID');choose('4 SLICES');tap(port,'no')
+        port.command('run 500')
+        empty_settings=0x100b14f0+1096*135
+        assert word(empty_settings+1092)==4,'stock did not create empty placeholder rows'
+        exercise(1,135,clear_before=False)
         tap(port,'no');recorder_start(0);port.command('run 1100');stop()
         assert word(0x46c922c4+44*128+16)>0,'ordinary recording produced no completed extent'
         recorder_editor(0);exercise(1,128,keep_grid=True)
@@ -350,15 +356,18 @@ try:
         assert len(original_starts)>1,'recording too short to test permanent marker dropping'
         tap(port,'no');recorder_start(0);port.command('run 300');stop();recorder_editor(0)
         short_end,short_starts=recorder_markers()
-        assert short_end<original_end and short_starts==[s for s in original_starts if s<short_end], \
-            'shorter recording did not retain exactly the in-range absolute markers'
-        assert len(short_starts)<len(original_starts),'shorter recording did not drop any marker'
+        # Stock keeps the row count and clamps out-of-range starts. The owner
+        # confirmed that the count remains unchanged on hardware too.
+        assert short_end<original_end and short_starts==[min(s,short_end-64) for s in original_starts], \
+            'shorter recording differs from the observed native boundary clamp'
+        assert short_starts!=original_starts,'shorter recording did not affect any marker'
         tap(port,'no');recorder_start(0);port.command('run 1600');stop();recorder_editor(0)
         long_end,long_starts=recorder_markers()
         assert long_end>original_end and long_starts==short_starts, \
             'longer recording restored or moved previously dropped markers'
         results.append({'recorderRerecord':True,'extents':[original_end,short_end,long_end],
-                        'absoluteStarts':[original_starts,short_starts,long_starts]})
+                        'absoluteStarts':[original_starts,short_starts,long_starts],
+                        'nativeCleanup':'retained count with clamped duplicate starts'})
         # A normal recorder gesture retires an open edit before it passes to
         # stock. Returning to the same buffer must not revive that intent.
         matrix_tap(port,0x24,8);tap(port,'yes');choose('CREATE BEAT GRID')

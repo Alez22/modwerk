@@ -41,6 +41,7 @@ Every document in `docs/`, one line each. [AGENTS.md](../AGENTS.md) says which t
 ## Octatrack
 
 - [OCTATRACK_HARDWARE_TRAPS.md](OCTATRACK_HARDWARE_TRAPS.md): what fails on a real unit: the base, the USB link, RAM boot, the DSP loader.
+- [OCTATRACK_TWO_SLOT_BASE.md](OCTATRACK_TWO_SLOT_BASE.md): base updates a power cut can't brick: two slots, a boot stub, the update on the unit's screen.
 - [OCTATRACK_DRIVING.md](OCTATRACK_DRIVING.md): working a unit over USB from an agent.
 - [FRONTEND_MCP.md](FRONTEND_MCP.md): the developer MCP for the site and a connected unit.
 - [OCTATRACK_MODULE_EDGE_CASES.md](OCTATRACK_MODULE_EDGE_CASES.md): what can go wrong across projects, Parts and power cycles.

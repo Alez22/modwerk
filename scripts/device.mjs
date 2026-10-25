@@ -12,7 +12,7 @@
 //   npm run device -- remove [MODULE.mwrm] [--accept]   # that file's module, else module 0
 //   npm run device -- lifecycle
 //   npm run device -- boot BUILD_DIR [--chunk 4096]  # RAM boot: build_core.py's output, no flashing; serve: 'boot DIR 4096'
-//   npm run device -- flash BUILD_DIR               # after `boot BUILD_DIR`: that base writes itself to NOR and restarts on it
+//   npm run device -- flash BUILD_DIR               # after `boot BUILD_DIR`: that base writes itself to NOR (two slots: it runs on)
 //   npm run device -- key PLAY | FUNC+FX1 | 0x27    # development bases (build_core.py --dev)
 //   npm run device -- screen [--png FILE] [--scale 1-4]  # the display, in block characters or as a PNG (4x unless --scale)
 //   npm run device -- ui                            # tracks, effects and transport as text, read from RAM (MEM)
@@ -635,7 +635,8 @@ if (command === 'serve') {
   if (command === 'state') { const [stopped, recording] = await devIn(6, 0, 2); console.log(stopped ? 'stopped' : 'playing', recording ? '(recording)' : ''); process.exit(0) }
   // A whole OS image takes the unit (and far longer the emulator) a while to hash.
   const session = await UploadSession.connect(transport, identity.base, { timeoutMs: command === 'flash' ? 180000 : command === 'boot' ? 60000 : 10000 })
-  if (command === 'status') console.log(state(session.status), '\nDIAG', await diag() ?? 'not answered')
+  if (command === 'status') console.log(state(session.status), '\nDIAG', await diag() ?? 'not answered',
+    '\nSLOTS', JSON.stringify(await transport.slots().catch(() => undefined) ?? 'not answered (a base before the two slots)'))
   if (command === 'lifecycle') await runLifecycle(unit, index, console.log)
   if (command === 'remove') {
     // An ABI 4 file names its module (sdk/runtime/loader/README.md); ABI 3 modules are module 0.
@@ -659,14 +660,19 @@ if (command === 'serve') {
     await session.stage({ base: identity.base, data: container, sha256: sha(container) }, { signal: interrupt.signal, chunk: values.chunk ? Number(values.chunk) : undefined, progress: (done, total) => {
       if (Math.floor(10 * done / total) > shown) console.log(`  staged ${10 * (shown = Math.floor(10 * done / total))}%`)
     } })
-    console.log('writing NOR (the base erases, programs and verifies; keep the power on)…')
+    console.log('writing NOR (the base erases, programs and verifies; the unit shows the update on its screen)…')
     await session.activate()
-    console.log('written and verified; accepting: the unit restarts on NOR half a second on')
+    // A base that answers SLOTS (flash.c's two slots) writes itself while it runs on; one before it restarts on NOR.
+    const twoSlots = await transport.slots().catch(() => undefined) !== undefined
+    console.log(twoSlots ? 'written and verified into a slot; the unit runs on, and its next start is from that slot' : 'written and verified; accepting: the unit restarts on NOR half a second on')
     await session.accept()
-    bench.socket.end()
-    const back = await rebooted()
-    if (back.base !== expected) throw new Error(`The unit came back on base ${back.base.slice(0, 16)}…, not the one written.`)
-    console.log(`flashed over USB: base ${expected.slice(0, 16)}… (power cycles boot it now)`)
+    if (twoSlots) console.log('SLOTS', JSON.stringify(await transport.slots().catch(() => undefined)))
+    else {
+      bench.socket.end()
+      const back = await rebooted()
+      if (back.base !== expected) throw new Error(`The unit came back on base ${back.base.slice(0, 16)}…, not the one written.`)
+      console.log(`flashed over USB: base ${expected.slice(0, 16)}… (power cycles boot it now)`)
+    }
   }
   if (command === 'boot') {
     try { mkdirSync(join(homedir(), '.cache/modwerk-octatrack'), { recursive: true }); writeFileSync(LAST_BOOT, resolve(file)) } catch { /* profile then asks */ }
