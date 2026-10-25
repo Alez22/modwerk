@@ -488,6 +488,15 @@ NOR when a host asks, with stock's OS UPGRADE routines (the sector erase and
 A verify that still fails after the second write answers `uncertain` and leaves
 the unit running from RAM for another try (the self-test record's `refusal`
 reads 100 + flash.h's reason); only a power-off then needs the Startup Menu.
+The site (`OctatrackLink.writeBase`) writes again after a failed verify or a lost
+reply, reopening the unit first so its connect rolls the lost session back, until
+the unit comes back on the new base from NOR: a repeat writes nothing when NOR
+already matches. Two rules keep any update from bricking a unit: nothing writes
+below `0x4000`, where Elektron's bootloader and its FUNC startup menu (MIDI
+UPGRADE, the recovery) live, and once a write may have started, the site never
+shows an error that invites switching the unit off. Base releases are paused
+until a two-slot layout makes a power cut during the write harmless (owner, 25
+October 2026; `npm run octatrack:base -- --write` refuses without `--owner-exception`).
 The write itself (some seconds) is the window a power cut can hit, as with
 the card. A base without the capability (feature bit 8 of CAPABILITIES) still
 needs the card once. Host check: `test_flash.c` (NOR modelled as clearing

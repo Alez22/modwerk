@@ -5,7 +5,7 @@
 import type { Inventory, InventoryTarget } from '../config/inventory.ts'
 import { sha } from '../../vendor/elekloader/kit/src/bytes.ts'
 import { OctatrackLink, type LinkDevice, type LinkSession, type LinkUsb } from '../engine/elekloader/octatrack-link.ts'
-import { UPLOAD_TIMEOUT_MAX_MS, UploadDeviceError } from '../engine/elekloader/upload-session.ts'
+import { UPLOAD_TIMEOUT_MAX_MS, UploadDeviceError, UploadUnconfirmedError } from '../engine/elekloader/upload-session.ts'
 import { SELFTEST_BYTES, VENDOR_CLASS, VENDOR_PROTOCOL, VENDOR_SUBCLASS } from '../engine/elekloader/upload-usb.ts'
 import type { UploadPhaseName, UploadResultName, UploadStatus } from '../engine/elekloader/upload-wire.ts'
 import baseBinding from '../../sdk/machines/octatrack/base-binding.json' with { type: 'json' }
@@ -55,6 +55,12 @@ export interface FakeUnit {
   /** The running base refuses to write its own container with this reason (flash.h flash_refusal); its record reports
    * 100 + it, as dsp.c does. */
   writeRefusal?: number
+  /** Writes of its own container that fail their verify (flash.h FLASH_WRITE, record 107): NOR is left without a
+   * base ('') and the unit stays up from RAM for another try. */
+  writeFails?: number
+  /** Writes during which USB drops: the write finishes on the unit, the reply is lost, and the replugged unit's
+   * reset rolls the lost session back, which restarts it on NOR (flash.c f_restore). */
+  writeDropouts?: number
   /** Rollbacks the loader cannot switch yet (an effect's code still being published): the controller stays in recovery. */
   stuck?: number
   /** The runtime ids (hex) of the modules the kept runtime packages installed, as INVENTORY lists them, and each kept
@@ -114,7 +120,7 @@ export function fakeUnit(kind: 'base' | 'stock' | 'none' = 'base'): FakeUnit {
           ;[380 + wave(0), 520 + wave(2), 640, 260 + wave(4), 410].forEach((value, i) => load.setUint32(28 + 4 * i, value))
           return { status: 'ok', data: load }
         }
-        const refusal = unit.refusal ?? unit.publishRefusal ?? (unit.writeRefusal ? 100 + unit.writeRefusal : undefined)
+        const refusal = unit.refusal ?? unit.publishRefusal ?? (unit.writeRefusal ? 100 + unit.writeRefusal : unit.flashed === '' ? 107 : undefined)
         if (setup.request === 21 && unit.status && refusal === undefined) { // passed, peaks, saved on the card and read back
           const record = new DataView(new ArrayBuffer(SELFTEST_BYTES)), count = unit.installed.moduleIds.length
           ;[[0, 2], [3, count], [7, 410], [8, 655], [9, 470], [14, 47900], [15, 7], [16, count], [17, count]].forEach(([at, value]) => record.setUint32(4 * at, value))
@@ -176,6 +182,12 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
       activate: async () => {
         const container = !!data && String.fromCharCode(...data.subarray(0, 4)) === 'ELEK'
         if (unit.publishRefusal || container && unit.writeRefusal) { await wait(); throw new UploadDeviceError(status = { ...status, phase: 'ready', result: 'backend' }) } // the package dropped
+        if (container && unit.writeFails && unit.writeFails-- > 0) { unit.flashed = ''; await wait(); throw new UploadDeviceError(status = { ...status, phase: 'recovery', result: 'needs-recovery', activeKnown: false }) }
+        if (container && unit.writeDropouts && unit.writeDropouts-- > 0) {
+          unit.flashed = unit.base; unit.unplug()
+          setTimeout(() => { unit.plug('base'); setTimeout(() => { unit.unplug(); unit.plug('base') }, delay + 500) }, delay + 100)
+          throw new UploadUnconfirmedError('The activation reply was lost.', status)
+        }
         const published = await step('pending')
         // A RAM boot image (boot.c): the unit restarts half a second on. Only the flashed base's gate reads the mailbox, so
         // armed from a base running out of RAM it comes back on the flashed one; from that one, on the image's base.
