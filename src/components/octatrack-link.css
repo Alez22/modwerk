@@ -223,7 +223,8 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
 .hub-cell { min-width: 0; min-height: 0; overflow: auto; padding: 14px 18px; background: var(--surface); }
 .hub-cell-cpu { grid-area: cpu; } .hub-cell-dsp1 { grid-area: dsp1; } .hub-cell-dsp2 { grid-area: dsp2; }
 .hub-cell-chart { grid-area: chart; } .hub-cell-health { grid-area: health; } .hub-cell-unit { grid-area: unit; } .hub-cell-history { grid-area: history; }
-.hub-cell-unit, .hub-cell-history { display: flex; flex-direction: column; }
+/* Size containment: their lists never size the row, so a long history can't stretch the graph; they scroll instead. */
+.hub-cell-unit, .hub-cell-history { display: flex; flex-direction: column; contain: size; }
 /* Modules the unit's project uses but the unit lacks: a yellow-edged note, one band wide where there is room. */
 .usb-missing { padding: 14px 16px; border: 1px solid var(--line); border-left: 3px solid #d4b663; border-radius: 8px; background: var(--surface-raised); }
 .usb-missing h3 { margin: 0; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.5; }
