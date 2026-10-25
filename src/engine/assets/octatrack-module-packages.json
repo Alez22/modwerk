@@ -391,15 +391,15 @@
       "octabam": true,
       "abi": 7,
       "features": 1,
-      "sites": 4,
+      "sites": 5,
       "copies": 0,
       "fills": 0,
-      "version": "0.1.0-experimental",
+      "version": "0.1.1-experimental",
       "name": "Direct Jump",
       "module": "075d79a3",
-      "bytes": 2350,
-      "sha256": "c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f",
-      "path": "octatrack-modules/direct-jump-kyoti/0.1.0-experimental.mwrm"
+      "bytes": 2462,
+      "sha256": "5c7b2d12d9da96e077d21b371c84b1a09935461214d424df57f698f103fc29ed",
+      "path": "octatrack-modules/direct-jump-kyoti/0.1.1-experimental.mwrm"
     },
     {
       "id": "dejavu",
