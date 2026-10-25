@@ -7,6 +7,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import json
 from host_flags import SANITIZE
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,32 +44,37 @@ class SampleEditor(unittest.TestCase):
         self.run_fixture(['sample_editor_service.c', 'sample_editor_board.c',
                           'test_sample_editor_board.c'], ['-DMW_SAMPLE_BOARD_HOST'])
 
-    def test_actual_independent_controller_with_shared_service(self):
-        self.run_fixture(['sample_editor_service.c', 'test_sample_editor_module.c',
-                          *[ROOT / 'sdk/drafts/beat-slicer' / name for name in
-                            ('device_module.c', 'device_font.c', 'grid_preview.c')]])
-
     @unittest.skipUnless(shutil.which('m68k-elf-gcc'), 'ColdFire compiler unavailable')
     def test_actual_c_package_uses_the_required_descriptor_alignment(self):
-        # Host pointer alignment hid the target's default two-byte alignment.
-        # Build the real package: a valid C object must also be admissible by
-        # the base's four-byte typed-record decoder.
+        # A generic source-only client keeps the base regression independent
+        # of any particular module. Host alignment hides ColdFire's default.
         with tempfile.TemporaryDirectory() as folder:
-            package = Path(folder) / 'beat-slicer.mwrm'
+            package = Path(folder) / 'sample-action.mwrm'
+            source = Path(folder) / 'action.c'
+            header = ROOT / 'sdk/machines/octatrack/include/modwerk_sample_editor.h'
+            source.write_text('#include "' + str(header) + '"\n' + '''
+static void probe_open(uint32_t token, const struct modwerk_sample_editor_api *api)
+{ (void)token; (void)api; }
+const struct modwerk_sample_action sample_action = {
+    MODWERK_SAMPLE_EDITOR_ABI, MODWERK_SAMPLE_ACTION_BYTES, 0x706c616eu, 0,
+    probe_open, "TEST ACTION", {0, 0, 0}
+};
+''')
             subprocess.run([sys.executable, '-B', str(ROOT / 'sdk/runtime/loader/build.py'),
-                            *[str(ROOT / 'sdk/drafts/beat-slicer' / name) for name in
-                              ('device_module.c', 'device_font.c', 'grid_preview.c')],
-                            '--subscribe', 'ot_sample_editor_actions:bs_sample_action:50',
+                            str(source),
+                            '--subscribe', 'ot_sample_editor_actions:sample_action:50',
                             '-o', str(package)], check=True, capture_output=True)
             data = package.read_bytes()
+        events = json.loads((ROOT / 'sdk/machines/octatrack/events.json').read_text())['events']
+        index = next(event['index'] for event in events if event['event'] == 'ot_sample_editor_actions')
         image_bytes, _, _, hooks = struct.unpack_from('>4I', data, 8)
-        self.assertEqual(hooks, 33)
-        at = struct.unpack_from('>I', data, 76 + 32 * 4)[0] & 0xffffff
+        self.assertEqual(hooks, index + 1)
+        at = struct.unpack_from('>I', data, 76 + index * 4)[0] & 0xffffff
         image = data[76 + hooks * 4:76 + hooks * 4 + image_bytes]
         self.assertEqual(at % 4, 0)
         self.assertLessEqual(at + 64, len(image))
         abi, size, action, flags, entry = struct.unpack_from('>5I', image, at)
-        self.assertEqual((abi, size, action, flags), (1, 64, 0x446c151d, 0))
+        self.assertEqual((abi, size, action, flags), (1, 64, 0x706c616e, 0))
         self.assertEqual(entry % 2, 0)
         self.assertLess(entry + 1, len(image))
         self.assertFalse(at <= entry < at + 64)

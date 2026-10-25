@@ -1,0 +1,1 @@
+Moved Beat Slicer-specific integration research and controller tests into its draft, keeping the general system guide and shared SDK tests independent of the draft. The proposed shared API and device qualification remain pending review.
