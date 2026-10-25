@@ -11,6 +11,7 @@ The checks do the rest. `npm run pr:ready` (a registered author: `npm run pr:rea
 
 No check can prove these, so you vouch for them:
 
+- [ ] Changing a module someone else wrote: its author said yes before I started, and I link it here (a GitHub link, or Discord and the day). [Ask the author first](../docs/DEVELOPER_WORKFLOW.md#ask-the-author-first)
 - [ ] I read the guide for its category in `docs/module-guides/` (and `sequencing.md` if it acts in time), and TESTING.md lists what I did not test.
 - [ ] Source and media are mine or properly licensed, with authors and full licence texts kept. Nothing comes from Elektron firmware: no extracted code or tables, upgrade files or factory content.
 - [ ] Screenshots are real captures of the current module UI. Hardware results are what a named person saw on this exact build; emulator results are labelled as emulator results.
