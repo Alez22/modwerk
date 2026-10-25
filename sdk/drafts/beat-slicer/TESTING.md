@@ -3396,3 +3396,10 @@ result are recorded in PR #840. Capture-only mode verifies UI rendering, not a
 new full Flex/Static/companion/Undo suite. The full 0.1.59 regression remains
 historical evidence for that version. No 0.1.63 physical load or hardware result
 is claimed; the earlier physical Undo failure remains unresolved.
+
+After this capture, upstream #919 changed the loader to support 128 installed
+modules. Its generated base and bound packages were regenerated for integration.
+The capture above remains evidence for the named pre-128 base `92b6c7bb…`;
+it does not qualify the newly merged base. Before a future device trial, rebuild
+the private base and companion set from current source and repeat preflight.
+No additional hardware load was performed for this push.
