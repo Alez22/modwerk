@@ -4400,7 +4400,7 @@
       ]
     }
   ],
-  "sourceCommit": "f4f1b1d23f6f255a449c602f7de4f021bbe9188a",
+  "sourceCommit": "f026ad71d7e6d4ff3c207cbb9d3466424c03cdf2",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -4419,7 +4419,7 @@
     "midi-scenes": "0.2.5-experimental",
     "usb-audio-out-tracks-main-cue": "0.2.0-experimental",
     "quantizer": "0.1.3-experimental",
-    "synth": "0.1.2-experimental",
+    "synth": "0.1.3-experimental",
     "previewvol": "0.1.2-experimental",
     "cc-map": "0.1.2-experimental",
     "sidechain-compressor": "0.1.2-experimental",
