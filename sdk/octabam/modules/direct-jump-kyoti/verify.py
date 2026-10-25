@@ -28,6 +28,10 @@ Needs m68k-elf-as/ld/nm on PATH: the unit is assembled here for its symbol offse
    on, the landing reaches stock's MIDI START gate in the landing path and the START send after it does not
    run.
 5. A power cycle of the port (battery RAM of a run left ON, booted again) comes up OFF.
+6. The author's MIDI Plays-Free fix, on this image and on the original OS: pattern A01 in PER TRACK mode, MIDI
+   track 1 Plays Free with trig quantize DIRECT at 1x, the byte stock reads in its place set to 0xff as in the
+   author's repro bank, started while playing by stock's manual-trig dispatcher. The original OS seeds its scale
+   with 0xff and the track stays on its first step; the image seeds 1x and the track steps on.
 What it cannot see: a real unit's timing, audio, external MIDI gear, the arranger and chains, an MKI panel.
 """
 import ast
@@ -58,6 +62,8 @@ ENGINE = ((0x800064d0, 0x80006513), (0x800065b2, 0x800065b4), (0x800065b6, 0x800
           (0x80006624, 0x80006628), (0x8000663d, 0x8000664e))
 START_SEND = 0x400a2224                   # stock's MIDI START send in the landing path, after the gate the hook replaces
 PAT_BASE, PAT_STRIDE = 0x400e21e0, 0x8ed8
+DISPATCH = 0x40044584                     # stock's manual-trig dispatcher, (track, press)
+STEPS, SCALES = 0x800064d0, 0x8000663e    # per-track step and scale index, tracks 0-15 (in ENGINE)
 FAILS = []
 
 
@@ -82,11 +88,11 @@ def declared():
     return names
 
 
-def unit_symbols(address):
+def unit_symbols(address, source="patch_directjump_v7.s"):
     """The unit assembled and linked at `address` as native octabam does: (bytes, {symbol: offset})."""
     with tempfile.TemporaryDirectory(prefix="dj-gate.") as directory:
         work = pathlib.Path(directory)
-        subprocess.run(["m68k-elf-as", "-mcpu=54455", str(HERE / "patch_directjump_v7.s"), "-o", str(work / "u.o")], check=True)
+        subprocess.run(["m68k-elf-as", "-mcpu=54455", str(HERE / source), "-o", str(work / "u.o")], check=True)
         subprocess.run(["m68k-elf-ld", "-e", "0", "-Ttext=%#x" % address, "-o", str(work / "u.elf"), str(work / "u.o")], check=True)
         subprocess.run(["m68k-elf-objcopy", "-O", "binary", "-j", ".text", str(work / "u.elf"), str(work / "u.bin")], check=True)
         rows = [line.split() for line in subprocess.check_output(["m68k-elf-nm", str(work / "u.elf")], text=True).splitlines()]
@@ -332,6 +338,28 @@ def power_cycle(image, battery, symbols):
             port.close()
 
 
+def plays_free(image):
+    """A01 in PER TRACK, MIDI track 1 Plays Free + DIRECT at 1x, started by the dispatcher while playing:
+    (its seeded scale byte, the distinct steps it shows over the next second)."""
+    with tempfile.TemporaryDirectory(prefix="dj-gate.") as directory:
+        port = Port(image, pathlib.Path(directory))
+        try:
+            port.poke(PAT_BASE + 0x8e55, b"\x01")                                      # PER TRACK
+            port.poke(PAT_BASE + 0x8e50, (16).to_bytes(2, "big") + b"\x02")           # master 16 steps at 1x
+            port.poke(PAT_BASE + 0x48f8, bytes([16, 2, 0, 0, 1, 0, 0xff]))            # 16 steps 1x, PLAYS FREE, DIRECT
+            port.poke(PAT_BASE + 8 * 0x91a + 0x51, b"\xff")                           # what stock reads instead
+            port.tap("PLAY")
+            port.send("run 500")
+            port.send("call %d 8 1" % DISPATCH)
+            seen = set()
+            for _ in range(50):
+                port.send("run 20")
+                seen.add(port.int(STEPS + 8, 1))
+            return port.int(SCALES + 8, 1), seen
+        finally:
+            port.close()
+
+
 def main():
     if not IMAGE.is_file() or not STOCK.is_file():
         print("[SKIP] direct-jump-kyoti: needs the built image and the original MAIN OS")
@@ -339,7 +367,7 @@ def main():
     facts, image, stock = declared(), IMAGE.read_bytes(), STOCK.read_bytes()
     at = lambda address: address - BASE
     print("1. the image")
-    for site in ("LAND_HOOK", "NOFA_HOOK", "PTNREL_HOOK"):
+    for site in ("LAND_HOOK", "NOFA_HOOK", "PTNREL_HOOK", "TS_HOOK"):
         length, digest = facts["guards"][site]
         address = facts[site]
         check(hashlib.sha256(stock[at(address):at(address) + length]).hexdigest() == digest, "the original OS matches the guard at %#x" % address)
@@ -354,6 +382,12 @@ def main():
         check(image[at(address):at(address) + 6] == opcode + (unit + symbols[name]).to_bytes(4, "big"),
               "%#x holds a %s to %s" % (address, "jsr" if opcode[1] == 0xb9 else "jmp", name))
     check(symbols["dj_toggle"] == 0, "the [PTN]-layer YES press slot names dj_toggle (%#x)" % unit)
+    fix, fix_bytes = facts["TS_HOOK"], facts["guards"]["TS_HOOK"][0]
+    ts_unit = int.from_bytes(image[at(fix) + 2:at(fix) + 6], "big")
+    ts_reference, _ = unit_symbols(facts["TS_REFERENCE"][0], "patch_trigscale.s")
+    check(hashlib.sha256(ts_reference).hexdigest() == facts["TS_REFERENCE"][1], "patch_trigscale.s links to the manifest's reference")
+    check(image[at(fix):at(fix) + 2] == b"\x4e\xf9" and image[at(fix) + 6:at(fix) + fix_bytes] == stock[at(fix) + 6:at(fix) + fix_bytes],
+          "%#x holds a jmp to ts_cave (%#x), the rest of the guarded span stock" % (fix, ts_unit))
     if not EMU.is_file():
         print("[SKIP] the port: none at %s" % EMU)
         return 1 if FAILS else 0
@@ -361,6 +395,8 @@ def main():
         port = Port(IMAGE, pathlib.Path(directory))
         try:
             check(port.mem(unit, facts["UNIT_BYTES"]) == unit_symbols(unit)[0], "after boot the unit in DRAM at %#x is this source, linked there" % unit)
+            ts_bytes = unit_symbols(ts_unit, "patch_trigscale.s")[0]
+            check(port.mem(ts_unit, len(ts_bytes)) == ts_bytes, "after boot the fix's unit at %#x is patch_trigscale.s, linked there" % ts_unit)
         finally:
             port.close()
     print("2. the toggle")
@@ -380,6 +416,11 @@ def main():
             tracks=((0, 16, 2), (1, 7, 0), (2, 5, 3), (3, 3, 4), (8, 5, 1)), window=24)
     print("5. a power cycle in the port")
     power_cycle(IMAGE, battery, symbols)
+    print("6. the MIDI Plays-Free fix")
+    scale, seen = plays_free(STOCK)
+    check(scale == 0xff and len(seen) == 1, "original OS: the track's scale is seeded %#x and it stays on step %s" % (scale, sorted(seen)))
+    scale, seen = plays_free(IMAGE)
+    check(scale == 2 and len(seen) > 4, "module: the track's scale is seeded %#x (1x) and it plays %d steps in a second" % (scale, len(seen)))
     print("%d failed" % len(FAILS) if FAILS else "all passed")
     return 1 if FAILS else 0
 

@@ -3,7 +3,7 @@
   "id": "direct-jump-kyoti",
   "key": "DIRECT_JUMP_KYOTI",
   "name": "Direct Jump",
-  "version": "0.1.0-experimental",
+  "version": "0.1.1-experimental",
   "category": "system",
   "source": {
     "repository": "https://github.com/sambanks/octabam",
