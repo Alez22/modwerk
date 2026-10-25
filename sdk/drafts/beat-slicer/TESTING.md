@@ -3207,3 +3207,16 @@ Upstream `96a3a993` subsequently added a self-test failure after a recorded DSP
 stall. It is also integrated: all seven default beta USB layouts were rebuilt
 again with native/browser parity and the same stock-free/bootloader checks.
 No private hardware result is claimed for that integration.
+
+Final integration also includes upstream `ec529820` (Direct Jump). Its changes
+to four shared engine asset files left Tape Echo and Euclid source receipts
+stale. Refreshed only those eight hashes; image and copy declarations are
+unchanged. The retained full source rebuild and strict stock-free comparison
+passes for all 25 published packages, including Direct Jump 0.1.1. This is
+receipt synchronization, not a module release or physical qualification.
+
+Resumed validation against upstream `ec529820` passes in 141.16 seconds:
+2,574 app tests in 325 files and SDK checks (37 tests, one skipped). The initial
+sandboxed attempt denied local HTTP/socket listeners; the unrestricted rerun
+passes. The stale-fork origin/main check retains its inherited CHANGELOG.md
+policy failure.
