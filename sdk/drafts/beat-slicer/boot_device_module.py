@@ -23,6 +23,7 @@ parser=argparse.ArgumentParser(description=__doc__)
 for name in ('emulator','base-dir','package','card','output'):
     parser.add_argument('--'+name,type=Path,required=True)
 parser.add_argument('--check-encoders',action='store_true',help='Check four-count discrete stepping, stable substeps and inactive arrows through UART.')
+parser.add_argument('--capture-only',action='store_true',help='Capture the first real popup after normal boot; do not claim full functional or Undo coverage.')
 parser.add_argument('--companion-fx',action='store_true',help='An uploaded set includes TapeHead/Mini Verb; select them on T2 through stock UI.')
 parser.add_argument('--repeat',action='store_true',help='Repeat replacement/NO/YES with all five spacings before stock clearing.')
 parser.add_argument('--set',default='BEATLAB')
@@ -220,7 +221,7 @@ try:
             print('PENDING/WORKER',{n:port.peek(syms[n],4).hex() for n in ('pending_at','pending_kind','pending_slot','pending_generation','job_active','idle_seen')},flush=True)
         assert state()==1,'actual contributed action did not admit a coherent source within its bounded wait'
         assert port.peek(at,1096)==before,'preview changed markers'
-        if args.check_encoders:
+        if args.check_encoders or args.capture_only:
             frame_at=word(0x400b9710)
             def options_frame():
                 # The popup clears its upper-left corner first. Its right border
@@ -232,6 +233,12 @@ try:
                 raise AssertionError('no completed options draw within the capture bound')
             original_frame=options_frame()
             (out/f'encoder-{kind}-baseline.private.bin').write_bytes(original_frame)
+            if args.capture_only:
+                (out/'capture.json').write_text(json.dumps({'scope':'Actual popup capture after normal emulator boot and USB module load',
+                    'inputs':inputs,'baseIdentity':proof['configurationHash'],'kind':kind,
+                    'hardware':False,'functionalSuiteCompleted':False,'usbUndoTested':False},indent=2)+'\n')
+                print('POPUP CAPTURED',kind,flush=True)
+                raise SystemExit(0)
             for substep in range(3):
                 port.command('knob 0x31 1');port.command('run 100')
                 frame=options_frame()
