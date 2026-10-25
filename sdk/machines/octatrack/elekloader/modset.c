@@ -102,16 +102,17 @@ void modwerk_modset_candidate(const uint8_t *package, uint32_t bytes)
  * argument it rechecks the retained candidate immediately before Keep. */
 int modwerk_modset_check_set(const uint8_t *data,uint32_t length)
 {
-    const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
+    /* Static, as every per-row array here: 128 rows outgrow a stock task's stack. Engine task only. */
+    static const uint8_t *packages[RUNTIME_SET_CHANGES];static uint32_t lengths[RUNTIME_SET_CHANGES];
     if(!data) data=candidate,length=candidate_bytes;
     int n=runtime_set_parse(data,length,packages,lengths);
     /* The reason the site reads after a refusal here, not the loader's last one: BUSY (it retries) while the last
      * change is on its way to the card, else none. */
     modwerk_runtime_refused(pending && modwerk_modset_result != SAVE_FAILED ? RUNTIME_BUSY : RUNTIME_OK);
     if(!n || !restored || pending) return 0;
-    uint32_t ids[RUNTIME_JOURNAL_ROWS],old_ids[RUNTIME_JOURNAL_ROWS];
-    uint8_t sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],old_sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],digest[32];
-    unsigned count=0,old_count=0;uint32_t end=HEADER,total=used();
+    static uint32_t ids[RUNTIME_JOURNAL_ROWS],old_ids[RUNTIME_JOURNAL_ROWS];
+    static uint8_t sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES],old_sha[RUNTIME_JOURNAL_ROWS*MU_DIGEST_BYTES];
+    uint8_t digest[32];unsigned count=0,old_count=0;uint32_t end=HEADER,total=used();
     for(uint32_t at=HEADER;at<total;) {
         if(total-at<8u || old_count==RUNTIME_JOURNAL_ROWS) return 0;
         uint32_t id=be32(set+at),bytes=be32(set+at+4);
@@ -124,7 +125,9 @@ int modwerk_modset_check_set(const uint8_t *data,uint32_t length)
     if(!runtime_journal_set_digest(old_ids,old_sha,old_count,digest)) return 0;
     for(unsigned i=0;i<32u;++i) if(digest[i]!=data[48+i]) return 0;
     for(int i=0;i<n;++i) if(!removes(packages[i],lengths[i])) {
-        if(count==RUNTIME_JOURNAL_ROWS || lengths[i]>SET_BYTES-end || 8u+((lengths[i]+3u)&~3u)>SET_BYTES-end) return 0;
+        /* The set would outgrow the saved set: say why, as the loader would. */
+        if(count==RUNTIME_JOURNAL_ROWS) { modwerk_runtime_refused(RUNTIME_FULL);return 0; }
+        if(lengths[i]>SET_BYTES-end || 8u+((lengths[i]+3u)&~3u)>SET_BYTES-end) { modwerk_runtime_refused(RUNTIME_MEMORY);return 0; }
         ids[count]=module_of(packages[i],lengths[i]);mu_sha256(packages[i],lengths[i],sha+32u*count++);
         end+=8u+((lengths[i]+3u)&~3u);
     }
@@ -134,7 +137,7 @@ int modwerk_modset_check_set(const uint8_t *data,uint32_t length)
  * surviving replacements, then seal one generation for the entire Keep. */
 static void accept_set(const uint8_t *data,uint32_t length)
 {
-    const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
+    static const uint8_t *packages[RUNTIME_SET_CHANGES];static uint32_t lengths[RUNTIME_SET_CHANGES];
     int n=runtime_set_parse(data,length,packages,lengths);uint32_t end=used(),count=be32(set)==0x4d575354u?be32(set+12):0;
     for(uint32_t at=HEADER;at<end;) {
         uint32_t bytes=be32(set+at+4),step=8u+((bytes+3u)&~3u);int changed=0;
@@ -184,8 +187,8 @@ static uint32_t keep_count, keep_bytes; /* a checked Keep: its packages wait pas
  * refused at boot has left set[]). */
 int modwerk_modset_keep(const uint8_t *const package[], const uint32_t bytes[], unsigned n, const uint8_t digest[MU_DIGEST_BYTES])
 {
-    uint32_t ids[RUNTIME_JOURNAL_ROWS], end = used(), count = 0;
-    uint8_t sha[MU_DIGEST_BYTES * RUNTIME_JOURNAL_ROWS], got[MU_DIGEST_BYTES];
+    static uint32_t ids[RUNTIME_JOURNAL_ROWS];static uint8_t sha[MU_DIGEST_BYTES * RUNTIME_JOURNAL_ROWS];
+    uint32_t end = used(), count = 0;uint8_t got[MU_DIGEST_BYTES];
     keep_bytes = 0;
     if (!restored) return 0;
     for (unsigned i = 0; i < n; ++i) {
