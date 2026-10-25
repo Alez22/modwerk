@@ -923,6 +923,7 @@ volatile uint32_t modwerk_test_playing;
 int dl_bound(unsigned core, unsigned id);           /* manager.c (build_core.py's edit): a slot there runs bound code */
 extern volatile uint8_t dl_intended_override[16];   /* manager.c (build_core.py's edit): what a parked slot waits for */
 unsigned modwerk_runtime_intact(void);              /* loader.c: live modules whose sites hold */
+extern volatile uint32_t dl_residency_enabled;      /* manager.c: 0 once a stall shut the loader off (recover) */
 extern volatile uint32_t modwerk_status[];          /* status.c: [0] the CPU, [2] the T5-8 peak, [4] the T1-4 peak */
 extern volatile uint32_t modwerk_status_reads, modwerk_status_fast; /* status.c: meter windows read; peaks only */
 extern volatile uint32_t dl_residency_rollbacks, dl_residency_failures;
@@ -1063,6 +1064,9 @@ int modwerk_selftest_start(void)
         }
     t->modules = modwerk_runtime_active(), t->dsp = st_queued, t->intact = modwerk_runtime_intact(), t->total = st_queued + 2u;
     if (t->intact != t->modules) t->failed |= SELFTEST_BROKEN, blame(MODWERK_FX_IDS, modwerk_runtime_broken());
+    /* A stall earlier this boot shut the loader off: no module's DSP code loads until a restart, so nothing here can
+     * pass (a release image passed with it so on the owner's MKII, 24 October 2026). */
+    if (!dl_residency_enabled) t->failed |= SELFTEST_STOPPED;
     for (unsigned i = 0; i < 16u; ++i) st_live[i] = st_base[i] = st_want[i] = LIVE_SET[i];
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
     st_counted = counted(), st_ticks = st_step = st_back = 0, st_played = 0;
