@@ -3264,8 +3264,24 @@ stages, not encoder settings. The driver now observes both the border restored
 after framebuffer clearing and the final footer pixel before comparing frames.
 It retains each compared frame; a fixed delay alone is insufficient.
 A subsequent launch failed on an overlong host socket path before USB testing.
-None is a passing qualification receipt. The corrected short-path rerun is
-pending. The driver also follows explicit retained-recovery replies for bounded
-whole-set Undo, matching the frontend's retry behavior, and verifies the final
-active baseline and stock-menu removal; uncertain replies still fail without
-write replay. Earlier single-response Undo failures remain recorded above.
+None of those attempts is a passing qualification receipt. The corrected
+short-path run, with driver source from `f1c3eee3`, passes on the exact base and
+three-member set (set SHA-256 `066f5cdfd6ae…`). TapeHead/Mini Verb were selected
+through stock gestures on T2. Flex and Static each pass four-count encoder
+stepping, unchanged substeps, reverse stepping, inactive arrows, native NO,
+exact rational-grid YES, replacement at 4/16/32/64/1 beats and stock clearing.
+Emulated frames advance through the edits. Whole-set Undo completes across
+explicit retained-recovery responses; the final active identity is the original
+empty base and the stock menu no longer contains Beat Slicer. Uncertain replies
+still fail without write replay. The retained receipt is emulator evidence on a
+short authored sample, not the owner's long streaming setup or physical timing.
+Earlier single-response Undo failures remain recorded above and are not silently
+reclassified as complete restoration.
+
+The later merge through upstream `74a84e71` changes no recorded candidate
+runtime input. The standalone recipe conflict was ordering and the branch's
+builder hash: retained the actual branch builder hash for Tape Echo/Euclid;
+image/copy declarations are unchanged. The new document-size check passes after
+replacing duplicate session instructions in the hardware-trap guide with its
+existing driving-guide link. Repository readiness/CI results remain separate
+from this exact emulator receipt.
