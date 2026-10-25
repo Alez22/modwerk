@@ -26,9 +26,13 @@ parser.add_argument('--check-encoders',action='store_true',help='Check four-coun
 parser.add_argument('--capture-only',action='store_true',help='Capture the first real popup after normal boot; do not claim full functional or Undo coverage.')
 parser.add_argument('--companion-fx',action='store_true',help='An uploaded set includes TapeHead/Mini Verb; select them on T2 through stock UI.')
 parser.add_argument('--repeat',action='store_true',help='Repeat replacement/NO/YES with all five spacings before stock clearing.')
+parser.add_argument('--while-playing',action='store_true',help='Exercise the actual edit/confirmation while pattern playback runs.')
+parser.add_argument('--recorders',action='store_true',help='Exercise empty/completed recorder sources and source-scoped recording admission.')
+parser.add_argument('--recorders-only',action='store_true',help='Run recorder regressions without repeating the initial file-backed edits; implies --recorders.')
 parser.add_argument('--set',default='BEATLAB')
 parser.add_argument('--project',default='PROJECT 261023')
 args=parser.parse_args()
+if args.recorders_only:args.recorders=True
 for name in ('emulator','base_dir','package','card','output'):
     setattr(args,name,getattr(args,name).expanduser().resolve())
 out=args.output
@@ -176,8 +180,8 @@ try:
             print('COMPANION LIVE',slot,effect,flush=True)
         pick(1,31);pick(2,23)
         keycode(0x10);tap(port,'aed');matrix_tap(port,0x24,8);port.command('run 300')
-    def stock_clear(kind):
-        at=(0x100d5b30,0x100b14f0)[kind]
+    def stock_clear(kind,slot=0):
+        at=(0x100d5b30,0x100b14f0)[kind]+1096*slot
         if not word(at+1092):return
         old=port.peek(at,1096)
         tap(port,'yes');choose('DELETE ALL SLICES');tap(port,'no')
@@ -186,26 +190,34 @@ try:
         port.command('run 300')
         assert word(at+1092)==0,'stock clear failed'
     results=[]
-    def exercise(kind):
-        at=(0x100d5b30,0x100b14f0)[kind]
-        assert word(0x46c8d1a0)==kind and word(0x46c8d19c)==0
+    def exercise(kind,slot=0,keep_grid=False):
+        at=(0x100d5b30,0x100b14f0)[kind]+1096*slot
+        assert word(0x46c8d1a0)==kind and word(0x46c8d19c)==slot
         matrix_tap(port,0x24,8);port.command('run 300')
-        stock_clear(kind)
+        stock_clear(kind,slot)
+        if args.while_playing:
+            if not word(0x800065b8):matrix_tap(port,0x25,1)
+            assert word(0x800065b8),'pattern playback did not start'
         frames_before=word(syms['dl_frames'])
         before=port.peek(at,1096)
         settings=struct.unpack('>274I',before)
         from fractions import Fraction
         interval=Fraction(44100*1440,settings[69])
         starts=[]
-        for n in range(65):
+        source_frames=word((0x46c90a78,0x46c922c4)[kind]+44*slot+16)
+        for n in range(65) if source_frames else ():
             frame=settings[75]+int(n*interval+Fraction(1,2))
-            if frame+min(64,word((0x46c90a78,0x46c922c4)[kind]+16))>settings[76]:break
+            if frame+min(64,source_frames)>settings[76]:break
             starts.append(frame)
-        assert 0<len(starts)<=64
+        assert len(starts)<=64 and (starts or kind==1 and 128<=slot<136 and not source_frames)
         expected=[(start,starts[i+1] if i+1<len(starts) else settings[76],0xffffffff) for i,start in enumerate(starts)]
         print('ORACLE',kind,settings[69],expected,flush=True)
         print('OPEN ACTION',kind,current_menu() if word(0x460e5e30) else 'closed',flush=True)
-        tap(port,'yes');choose('CREATE BEAT GRID')
+        tap(port,'yes')
+        if not word(0x460e5e30):
+            (out/f'missing-menu-{kind}-{slot}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
+        assert word(0x460e5e30),'stock action menu did not open for the source'
+        choose('CREATE BEAT GRID')
         for wait in range(40):
             if state()==1:break
             port.command('run 100')
@@ -217,7 +229,7 @@ try:
         (out/f'options-{kind}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
         if state()!=1:
             print('FULL SERVICE',port.peek(syms['mw_sample_editor'],32).hex(),flush=True)
-            print('SOURCE CONTROL',port.peek((0x46c90a78,0x46c922c4)[kind],44).hex(),flush=True)
+            print('SOURCE CONTROL',port.peek((0x46c90a78,0x46c922c4)[kind]+44*slot,44).hex(),flush=True)
             print('PENDING/WORKER',{n:port.peek(syms[n],4).hex() for n in ('pending_at','pending_kind','pending_slot','pending_generation','job_active','idle_seen')},flush=True)
         assert state()==1,'actual contributed action did not admit a coherent source within its bounded wait'
         assert port.peek(at,1096)==before,'preview changed markers'
@@ -267,7 +279,8 @@ try:
         assert after[:312]==before[:312] and after[1080:1092]==before[1080:1092]
         assert [struct.unpack('>3I',after[312+12*i:324+12*i]) for i in range(len(expected))]==expected
         assert after[312+12*len(expected):1080]==before[312+12*len(expected):1080],'inactive records changed'
-        results.append({'kind':kind,'unchangedPreviewAndNO':True,'nativeYesCount':len(expected),'sampleBpm24':settings[69],'exactRecords':True})
+        results.append({'kind':kind,'slot':slot,'whilePlaying':bool(word(0x800065b8)),
+                        'unchangedPreviewAndNO':True,'nativeYesCount':len(expected),'sampleBpm24':settings[69],'exactRecords':True})
         if args.repeat:
             for step in (4,16,32,64,1):
                 old=port.peek(at,1096)
@@ -296,15 +309,95 @@ try:
                     assert struct.unpack('>3I',table[312+12*i:324+12*i])==(start,end,0xffffffff)
                 print('REPLACED',kind,step,len(replacement),flush=True)
             results[-1]['repeatedReplacementSteps']=[4,16,32,64,1]
-        stock_clear(kind);assert word(at+1092)==0
+        if not keep_grid:
+            stock_clear(kind,slot);assert word(at+1092)==0
+        if args.while_playing:assert word(0x800065b8),'edit stopped pattern playback'
         assert word(syms['dl_frames'])>frames_before,'emulated audio frames stopped during editing'
-    exercise(1)
+    if not args.recorders_only:exercise(1)
     tap(port,'no');tap(port,'track1');tap(port,'track1')
     matrix_tap(port,0x26,0x10);tap(port,'up');matrix_tap(port,0x24,2)
     for _ in range(3):tap(port,'yes')
     port.command('run 1000')
     tap(port,'yes');tap(port,'no');tap(port,'aed');port.command('run 1000')
-    exercise(0)
+    if not args.recorders_only:exercise(0)
+    if args.recorders:
+        def recorder_start(track):
+            port.command(f'key 0x22 {1<<track}');port.command('run 60')
+            port.command('key 0x25 8');port.command('run 60')
+            port.command('key 0x25 0');port.command('key 0x22 0')
+            bank=(word(0x80004f18)>>track)&1
+            assert port.peek(0x80004f1e+84*(track+8*bank),1)[0] in (1,2), \
+                'panel gesture did not start the requested recorder'
+        def stop():
+            matrix_tap(port,0x24,128);port.command('run 500')
+            assert not word(0x800065b8)
+        def recorder_editor(track):
+            tap(port,'no');matrix_tap(port,0x22,1<<track)
+            matrix_tap(port,0x25,0x88);port.command('run 500')
+            assert word(0x46c8d1a0)==1 and word(0x46c8d19c)==128+track
+        stop();recorder_editor(7)
+        assert not word(0x46c922c4+44*135+16),'expected untouched empty recorder 8'
+        exercise(1,135)
+        tap(port,'no');recorder_start(0);port.command('run 1100');stop()
+        assert word(0x46c922c4+44*128+16)>0,'ordinary recording produced no completed extent'
+        recorder_editor(0);exercise(1,128,keep_grid=True)
+        stop()
+        recorder_settings=0x100b14f0+1096*128
+        def recorder_markers():
+            data=struct.unpack('>274I',port.peek(recorder_settings,1096))
+            return data[76],[data[78+3*i] for i in range(data[273])]
+        original_end,original_starts=recorder_markers()
+        assert len(original_starts)>1,'recording too short to test permanent marker dropping'
+        tap(port,'no');recorder_start(0);port.command('run 300');stop();recorder_editor(0)
+        short_end,short_starts=recorder_markers()
+        assert short_end<original_end and short_starts==[s for s in original_starts if s<short_end], \
+            'shorter recording did not retain exactly the in-range absolute markers'
+        assert len(short_starts)<len(original_starts),'shorter recording did not drop any marker'
+        tap(port,'no');recorder_start(0);port.command('run 1600');stop();recorder_editor(0)
+        long_end,long_starts=recorder_markers()
+        assert long_end>original_end and long_starts==short_starts, \
+            'longer recording restored or moved previously dropped markers'
+        results.append({'recorderRerecord':True,'extents':[original_end,short_end,long_end],
+                        'absoluteStarts':[original_starts,short_starts,long_starts]})
+        # A normal recorder gesture retires an open edit before it passes to
+        # stock. Returning to the same buffer must not revive that intent.
+        matrix_tap(port,0x24,8);tap(port,'yes');choose('CREATE BEAT GRID')
+        port.command('run 300');assert state()==1
+        edit_serial=word(syms['mw_sample_editor']+12)
+        recorder_start(0);port.command('run 600');stop();recorder_editor(0)
+        assert state()==0 and word(syms['mw_sample_editor']+12)==edit_serial, \
+            'recording gesture did not retire the existing edit'
+        stopped_table=port.peek(recorder_settings,1096)
+        port.command('run 500')
+        assert port.peek(recorder_settings,1096)==stopped_table, \
+            'retired edit applied after recording stopped'
+        results.append({'recordGestureRetiresOpenEdit':True,'noApplyAfterStop':True})
+        # Buffer A remains editable while the independent recorder B runs.
+        tap(port,'no');recorder_start(1);port.command('run 200');recorder_editor(0)
+        exercise(1,128)
+        stop()
+        # Return T1 from the Static machine to its file-backed Flex source.
+        tap(port,'no');tap(port,'track1');tap(port,'track1')
+        matrix_tap(port,0x26,0x10);tap(port,'down');matrix_tap(port,0x24,2)
+        for _ in range(3):tap(port,'yes')
+        port.command('run 500');tap(port,'yes');tap(port,'no');tap(port,'aed')
+        assert word(0x46c8d1a0)==1 and word(0x46c8d19c)==0
+        recorder_start(0);port.command('run 200')
+        # Holding TRACK to start its recorder leaves AED for the track page.
+        # The remembered AED identity alone does not prove AED is displayed.
+        tap(port,'aed');port.command('run 500')
+        exercise(1,0)  # the SAME playback track records into a different source
+        stop();recorder_editor(0)
+        recorder_start(0);port.command('run 200');recorder_editor(0)
+        serial_before=word(syms['mw_sample_editor']+12)
+        matrix_tap(port,0x24,8);tap(port,'yes')
+        if word(0x460e5e30):
+            choose('CREATE BEAT GRID');port.command('run 500')
+        assert (state()!=1 and word(syms['mw_sample_editor']+12)==serial_before), \
+            'recording into the selected buffer admitted a new editor token'
+        stop();tap(port,'no');recorder_editor(0)
+        results.append({'sourceScopedRecording':True,'selectedRecordingBufferRefused':True})
+    if word(0x800065b8):matrix_tap(port,0x24,128)
     maintain=False
     port.command('pace on');before_undo=request(1,tx=0)
     # The real whole-set backend restores one row per engine turn. Only an

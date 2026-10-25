@@ -4,7 +4,7 @@
 
 **Review hold (25 October 2026):** [#840 maintainer review](https://github.com/repeat98/modwerk/pull/840#issuecomment-6395411406) requests a separate base proposal before this draft. Beat Slicer is the only confirmed consumer of the proposed action list; reuse and the provisional index collision with [#857](https://github.com/repeat98/modwerk/pull/857) remain unresolved. The owner later explicitly requested the private 0.1.58 trial and reported successful slicing; USB Undo did not verify restoration, and a power cycle restored the flashed base and original eleven modules. This is not approval of the shared API or qualification of the new 0.1.63 UI.
 
-Basic scope: 0.1.63-experimental, private staging. The owner subsequently authorized and completed the private 0.1.58 slicing trial; its report and unverified USB Undo are recorded in TESTING.md. The public shared-service review remains pending.
+Basic scope: 0.1.64-experimental, private staging with recorder/playback qualification in progress. The owner subsequently authorized and completed the private 0.1.58 slicing trial; its report and unverified USB Undo are recorded in TESTING.md. The public shared-service review remains pending.
 
 The owner chose a basic working slicer first. File-backed Flex and Static share
 AED slice commands and record geometry; their settings/control tables differ.
@@ -16,7 +16,10 @@ The independent `device_module.c` controller builds through the standard C packa
 builder and contributes a typed action to the proposed `ot_sample_editor_actions`
 table. The private base owns native menus, source capture, confirmation and atomic
 marker publication; the package contains no stock addresses or writer. The
-service requires stopped playback/recording and file-backed slots 0–127. Default
+0.1.64 experiment admits file-backed slots and inactive Flex recorder slots
+128–135 while pattern playback continues. Only recording into the edited buffer
+blocks that source; unrelated recorders remain independent. Empty buffers stay
+empty. Native playback/recorder qualification is in progress. Default
 bases refuse this contribution. `--sample-editor` is a private staging opt-in,
 not released beta support or an approved shared ABI. `module:doctor -- beat-slicer`
 currently reports no registered module because the draft is deliberately unlisted;

@@ -16,7 +16,11 @@ and requests confirmation. It receives no native source or PCM pointer.
 
 The base owns the menu, immutable owner-bound tokens, stock question, final
 source revalidation and atomic marker publication with verified failure rollback.
-Playback and recording must be stopped; recorder buffers are excluded. Use
+The private 0.1.64 experiment extends this boundary to inactive recorder buffers
+and pattern playback. Recording is checked against the edited source, not its
+playback track: recording into a separate buffer does not block a file-backed
+edit. Empty recorder edits produce an empty result. Native writer/CPU validation
+for this extension remains in progress. Use
 stock DELETE SLICE / DELETE ALL SLICES afterwards, without an added Undo history.
 Ordinary stock playback is the basic policy. PCM analysis, SMOOTH and enhanced
 playback processing are deferred, with no click-free claim.

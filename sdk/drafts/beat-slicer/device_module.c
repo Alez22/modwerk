@@ -43,6 +43,14 @@ static unsigned refresh(unsigned validate)
     if(!dirty)return 1;
     dirty=0;
     if(view.count>BS_MAX_SLICES){geometry=BS_INVALID;return 1;}
+    if(view.kind==MODWERK_SAMPLE_FLEX && view.slot>=128u && view.slot<136u &&
+       !view.frames && !view.trim_start && !view.trim_end && !view.count) {
+        /* Empty recorder slots are valid editor sources. There is no audio
+         * extent to divide and no reserved-memory placeholder to populate. */
+        plan.count=0;
+        for(uint32_t i=0;i<BS_MAX_SLICES;++i)plan.starts[i]=0;
+        geometry=BS_OK;return 1;
+    }
     uint32_t minimum=view.frames<STOCK_MIN_SLICE_FRAMES?view.frames:STOCK_MIN_SLICE_FRAMES;
     if(!minimum || view.trim_start>=view.trim_end || view.trim_end-view.trim_start<minimum) {
         geometry=DEVICE_SHORT_TRIM;return 1;

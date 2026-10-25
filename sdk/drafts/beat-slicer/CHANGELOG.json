@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.64-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Create beat grids for inactive recording buffers without saving a sample first.",
+      "Keep pattern playback running for Flex, Static and recorder-buffer edits.",
+      "Leave empty recorder buffers empty; unrelated recording does not block an edit.",
+      "Retain stock marker behavior when recordings change length.",
+      "Experimental candidate; exact-build device qualification remains pending."
+    ]
+  },
+  {
     "version": "0.1.63-experimental",
     "date": "2026-10-25",
     "changes": [

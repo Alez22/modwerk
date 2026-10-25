@@ -175,10 +175,12 @@ implemented for this recommendation.
 ### Start with a completed recording
 
 Implement the existing Beat Slicer action for a completed ordinary track-recorder
-buffer, with transport and all recording stopped. Keep the existing menu and
-rational beat-grid controls; explicitly refuse pending recording, Pickup and
-overdub until separately qualified. A later live-recording feature is a distinct
-scope. This first version can remain metadata-only: constructing beat-spaced
+buffer while that source is not being recorded. The owner subsequently clarified
+that pattern playback should continue for file-backed Flex, Static and recorder
+edits, and that unrelated recorders do not block editing. Keep the existing menu
+and rational beat-grid controls. Pending recording into the edited buffer blocks
+that source; Pickup/overdub behavior remains unqualified. Editing a buffer during
+its recording is outside scope. This first version can remain metadata-only: constructing beat-spaced
 starts does not require reading PCM or adding DSP processing.
 
 Elektron's [MKII OS 1.40A manual, sections 9 and 13](https://www.elektron.se/wp-content/uploads/2024/09/Octatrack-MKII-User-Manual_ENG_OS1.40A_210414.pdf)
@@ -191,9 +193,9 @@ memory layout or evidence for our private 1.40C writer boundary.
 
 ### Separate source capture from grid planning
 
-The existing `sample_editor_board.c` deliberately refuses slots 128 and above;
-its file-backed address calculation and ready predicate are not a recorder
-provider. Do not enable recorders by raising this limit. Establish a distinct,
+Before the 0.1.64 experiment, `sample_editor_board.c` deliberately refused slots
+128 and above; its file-backed address calculation and ready predicate did not
+establish recorder support. Raising this limit alone is insufficient. Establish a distinct,
 verified recorder source capture and publication path behind the same copied
 view/confirmation contract, subject to owner approval of that contract.
 
@@ -239,8 +241,43 @@ source and slice-table ownership.
    recording after removal. Buffer audio is intentionally volatile; any save
    or persistence test needs a separate explicit action and report.
 
-Live slicing during recording should wait. It needs a defined stable region or
+Editing a recorder buffer during its own recording should wait. It needs a defined stable region or
 verified post-record publication boundary, full writer ownership and the
 instrument's own recording/transport timing; a host timer or independent clock
 cannot provide that guarantee. No new native sites should be added before this
 architecture is agreed.
+
+### Owner-reported stock marker lifetime (25 October 2026)
+
+After reviewing the recorder-grid research, the owner confirmed this behavior
+on their Octatrack. This is owner-reported stock behavior, not an independently
+executed firmware trace or qualification of recorder support in Beat Slicer:
+
+- Re-recording the same length preserves existing marker positions.
+- A longer recording preserves those positions rather than stretching the grid
+  across the longer range.
+- A shorter recording permanently drops markers outside its new trim range.
+- Recording longer again retains only the surviving markers at their existing
+  positions. It neither restores dropped markers nor redistributes survivors.
+
+Use this as the recorder-support behavior to match. Explicitly creating a new
+grid is a separate action: stock CREATE SLICE GRID distributes its chosen
+count across the current TRIM range (MKII manual, section 13.2.2). Beat Grid
+keeps beat-based spacing when explicitly invoked. Do not add automatic
+re-gridding, proportional stretching, or restoration of an older marker snapshot
+when a recorder changes length. Include a long → short → long regression so
+deleted markers cannot reappear from retained module state. Exact endpoint
+equality and treatment of a retained slice's end/loop fields still need native
+verification; the report establishes marker lifetime, not those internal rules.
+
+### Accepted 0.1.64 private development scope
+
+The owner permits pre-slicing an empty buffer with an empty result, and expects
+pattern playback to continue for Flex files, Static files and recorder buffers
+when CPU permits. The recording restriction belongs to the edited source.
+An audio track can play a file while its independent recorder captures another
+buffer; that file must remain editable. Buffer A can likewise be edited while
+buffer B records. Only pending/active recording into A blocks editing A.
+
+The implementation and host cases for this extension are in progress. No new
+device build has replaced the owner's ongoing 0.1.63 extended trial.

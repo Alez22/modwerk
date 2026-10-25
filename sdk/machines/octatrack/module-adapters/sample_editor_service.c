@@ -62,10 +62,15 @@ static int owner_equal(const struct runtime_owner *a,const struct runtime_owner 
 }
 static int view_valid(const struct modwerk_sample_view *v)
 {
-    if(v->kind>MODWERK_SAMPLE_FLEX || v->slot>=128u || !v->frames ||
+    unsigned recorder=v->kind==MODWERK_SAMPLE_FLEX && v->slot>=MW_SAMPLE_FILE_SLOTS;
+    uint32_t slots=MW_SAMPLE_FILE_SLOTS+(v->kind==MODWERK_SAMPLE_FLEX?MW_SAMPLE_RECORDER_COUNT:0u);
+    if(v->kind>MODWERK_SAMPLE_FLEX || v->slot>=slots ||
        v->frames>0x7fffffffu || v->frame_rate<8000u || v->frame_rate>192000u ||
-       v->trim_start>=v->trim_end || v->trim_end>v->frames ||
        v->count>MODWERK_SAMPLE_EDITOR_SLICES)return 0;
+    /* An actually empty recorder may be opened without inventing a length
+     * from reserved capacity. Its explicit grid result stays empty. */
+    if(!v->frames)return recorder && !v->trim_start && !v->trim_end && !v->count;
+    if(v->trim_start>=v->trim_end || v->trim_end>v->frames)return 0;
     for(uint32_t i=0;i<v->count;++i)
         if(v->records[i].start<v->trim_start || v->records[i].start>=v->trim_end ||
            (i && v->records[i-1].start>=v->records[i].start))return 0;
@@ -136,7 +141,13 @@ static unsigned prepare(struct mw_sample_editor *e,const struct modwerk_sample_g
 {
     const struct modwerk_sample_view *v=&e->before.view;
     uint32_t minimum=v->frames<64u?v->frames:64u;
-    if(!g || !g->count || g->count>MODWERK_SAMPLE_EDITOR_SLICES)return MODWERK_SAMPLE_INVALID;
+    if(!g || g->count>MODWERK_SAMPLE_EDITOR_SLICES)return MODWERK_SAMPLE_INVALID;
+    if(!v->frames) {
+        if(g->count || v->count)return MODWERK_SAMPLE_INVALID;
+        e->edit.count=0;records_copy(e->edit.records,v->records);
+        return MODWERK_SAMPLE_OK;
+    }
+    if(!g->count)return MODWERK_SAMPLE_INVALID;
     uint32_t retained=replacing?0:v->count;
     if(g->count<retained)return MODWERK_SAMPLE_PRESERVATION;
     for(uint32_t i=0;i<g->count;++i)

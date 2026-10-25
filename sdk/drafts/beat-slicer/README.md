@@ -1,12 +1,13 @@
 # Beat Slicer
 
-Version: `0.1.63-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.64-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
 Beat Slicer creates exact beat-spaced slice starts from sample ATTR BPM or
-captured project BPM. The first usable version targets **both file-backed Flex
-and Static samples** through their shared AED slicing workflow. It uses ordinary
+captured project BPM. The 0.1.64 private candidate targets **file-backed Flex,
+Static and inactive recorder-buffer samples**, with pattern playback continuing.
+Recorder/playback qualification is in progress. It uses ordinary
 stock playback, with no effect slot, PCM analysis or new DSP fades. Quiet-boundary
 search and enhanced playback processing are later work, not prerequisites for
 this basic version. Click-free playback is not claimed.
@@ -30,9 +31,12 @@ released capability, and the draft remains absent from the public catalogue.
 
 ## Controls and workflow
 
-Private candidate access: select a file-backed Flex or Static sample → AED →
-AMP (SLICE) → YES → CREATE BEAT GRID. Stop playback and recording for this first
-candidate; recorder buffers and slots 128 onward are excluded.
+Private candidate access: select a Flex/Static sample or recorder buffer → AED →
+AMP (SLICE) → YES → CREATE BEAT GRID. Playback may continue. Only recording
+into the buffer being edited blocks that source; the playback track and its
+recorder are independent. Empty recorder-buffer edits leave an empty result.
+This new path is undergoing software/native checks and is not device-qualified.
+The owner’s ongoing 0.1.63 trial remains on its original file-backed/stopped build.
 
 | Control | Behavior |
 | --- | --- |

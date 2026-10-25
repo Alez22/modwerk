@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT
  * Native 1.40C base adapter. The source build checks every owned seam against
  * the private stock image. Enabled only by the private sample-editor option.
- * File-backed Flex/Static metadata only; recorder buffers and PCM are excluded.
+ * Flex/Static and inactive recorder metadata only; no PCM access.
  */
 #include "sample_editor_board.h"
 #ifdef MW_SAMPLE_BOARD_HOST
@@ -9,6 +9,7 @@ uint32_t mw_sample_host_read(uint32_t);
 void mw_sample_host_write(uint32_t,uint32_t);
 #define READ(a) mw_sample_host_read(a)
 #define READ_PACKED(a) mw_sample_host_read(a)
+#define READ_BYTE(a) (mw_sample_host_read(a)&255u)
 #define WRITE(a,v) mw_sample_host_write(a,v)
 #else
 /* Byte reads also cover the packed engine queue's two-byte aligned fields. */
@@ -19,6 +20,7 @@ static uint32_t read32(uint32_t at)
 }
 #define READ(a) (*(volatile uint32_t *)(uintptr_t)(a))
 #define READ_PACKED(a) read32(a)
+#define READ_BYTE(a) (*(volatile uint8_t *)(uintptr_t)(a))
 #define WRITE(a,v) (*(volatile uint32_t *)(uintptr_t)(a)=(v))
 #endif
 /* Defined by ep0.c/modset.c; observations only, no transport initialization,
@@ -32,8 +34,8 @@ static const void *job_message;
 static unsigned owner_hint;
 struct mw_sample_editor mw_sample_editor;
 /* File-backed settings are written by UI/engine/storage tasks, excluded by
- * the level-4 lock. Playback, recording and audition are excluded below.
- * This service never touches PCM/recorder buffers. Keep the level-5 frame and
+ * the level-4 lock. Recording into the edited buffer and audition are excluded.
+ * This service never touches PCM. Keep the level-5 frame and
  * level-6 DMA interrupts running through copies, validation and publication. */
 static uint32_t lock(void *unused){(void)unused;return modwerk_machine_lock();}
 static void unlock(void *unused,uint32_t sr){(void)unused;modwerk_machine_unlock(sr);}
@@ -58,29 +60,50 @@ int mw_sample_owner_current_locked(const struct runtime_owner *owner)
 }
 static int owner(void *unused,const struct runtime_owner *value)
 {(void)unused;return mw_sample_owner_current_locked(value);}
+static int source_not_recording(uint32_t kind,uint32_t slot)
+{
+    /* A track's loaded file and its recorder are independent. Only an AED
+     * source that IS a recorder buffer is gated by that recorder's state. */
+    if(kind!=MODWERK_SAMPLE_FLEX || slot<MW_SAMPLE_FILE_SLOTS ||
+       slot>=MW_SAMPLE_FILE_SLOTS+MW_SAMPLE_RECORDER_COUNT)return 1;
+    unsigned track=slot-MW_SAMPLE_FILE_SLOTS;
+    /* Stock alternates two banks. The inactive bank can retain state 2
+     * after Stop; pending state 1 or an unknown state still blocks. */
+    uint32_t banks=READ(0x80004f18u);
+    unsigned selected=(banks>>track)&1u;
+    uint32_t active=READ_BYTE(0x80004f1eu+84u*(track+8u*selected));
+    uint32_t other=READ_BYTE(0x80004f1eu+84u*(track+8u*(1u-selected)));
+    return !active && (other==0u || other==2u);
+}
 static int ready(void *unused)
 {
     (void)unused;
     return audio_preemptible() && idle_seen && !job_active && !READ_PACKED(0x460d17d2u) && !READ(0x460e6bccu) &&
         READ(0x460d1cb8u)==1u && !READ(0x460e76a0u) &&
-        modwerk_machine_stopped() && mw_sample_transport_ready() && mw_sample_storage_ready();
+        mw_sample_transport_ready() && mw_sample_storage_ready();
 }
 static unsigned capture(void *unused,struct mw_sample_capture *out)
 {
     (void)unused;
+    /* Recording is a source change, not a transient display job. Cancel the
+     * intent instead of queueing YES to apply automatically after recording. */
     uint32_t kind=READ(0x46c8d1a0u),slot=READ(0x46c8d19cu);
-    if(kind>MODWERK_SAMPLE_FLEX || slot>=128u || !READ(0x46105408u))return MODWERK_SAMPLE_UNSUPPORTED;
+    if(!source_not_recording(kind,slot))return MODWERK_SAMPLE_STALE;
+    unsigned recorder=kind==MODWERK_SAMPLE_FLEX && slot>=MW_SAMPLE_FILE_SLOTS;
+    uint32_t slots=MW_SAMPLE_FILE_SLOTS+(kind==MODWERK_SAMPLE_FLEX?MW_SAMPLE_RECORDER_COUNT:0u);
+    if(kind>MODWERK_SAMPLE_FLEX || slot>=slots || !READ(0x46105408u))return MODWERK_SAMPLE_UNSUPPORTED;
     uint32_t controls=(kind?0x46c922c4u:0x46c90a78u)+44u*slot;
     uint32_t settings=(kind?0x100b14f0u:0x100d5b30u)+1096u*slot;
     for(uint32_t i=0;i<11u;++i)out->controls[i]=READ(controls+4u*i);
-    if(out->controls[0]>3u || out->controls[2] || !out->controls[4] ||
+    if(out->controls[0]>3u || out->controls[2] || (!recorder && !out->controls[4]) ||
        out->controls[4]>0x7fffffffu || (!kind && out->controls[9]==UINT32_MAX))return MODWERK_SAMPLE_UNSUPPORTED;
     struct modwerk_sample_view *v=&out->view;
     v->kind=kind;v->slot=slot;v->frames=out->controls[4];v->frame_rate=44100u;
     v->sample_bpm24=READ(settings+69u*4u);v->project_bpm24=READ(0x80001814u);
     v->trim_start=READ(settings+75u*4u);v->trim_end=READ(settings+76u*4u);v->loop=READ(settings+77u*4u);
     v->count=READ(settings+273u*4u);
-    if(v->trim_start>=v->trim_end || v->trim_end>v->frames || v->count>64u)return MODWERK_SAMPLE_UNSUPPORTED;
+    if(v->count>64u || (v->frames?(v->trim_start>=v->trim_end || v->trim_end>v->frames):
+       (!recorder || v->trim_start || v->trim_end || v->count)))return MODWERK_SAMPLE_UNSUPPORTED;
     for(uint32_t i=0;i<64u;++i) {
         v->records[i].start=READ(settings+312u+12u*i);
         v->records[i].end=READ(settings+316u+12u*i);
@@ -88,14 +111,20 @@ static unsigned capture(void *unused,struct mw_sample_capture *out)
     }
     return MODWERK_SAMPLE_OK;
 }
-static void store(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
+static int store(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
 {
+    /* Match stock grid publication: readers see no active rows while their
+     * contents change, then the new count. Frame and DMA service stay enabled.
+     * A failed count clear must not expose partially replaced active rows. */
+    WRITE(settings+1092u,0);
+    if(READ(settings+1092u))return 0;
     for(uint32_t i=0;i<64u;++i) {
         WRITE(settings+312u+12u*i,records[i].start);
         WRITE(settings+316u+12u*i,records[i].end);
         WRITE(settings+320u+12u*i,records[i].loop);
     }
     WRITE(settings+1092u,count);
+    return 1;
 }
 static int matches(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
 {
@@ -123,8 +152,7 @@ static unsigned publish(void *unused,const struct mw_sample_capture *before,cons
         WRITE(0x400ceb3cu,selected);
         return READ(0x400ceb3cu)==selected?MODWERK_SAMPLE_NO_CHANGE:MODWERK_SAMPLE_FAULT;
     }
-    store(settings,edit->count,edit->records);
-    if(matches(settings,edit->count,edit->records)) {
+    if(store(settings,edit->count,edit->records) && matches(settings,edit->count,edit->records)) {
         refresh_pending=1;return MODWERK_SAMPLE_APPLIED;
     }
     /* Roll back every active/inactive record and selected row before releasing
@@ -214,10 +242,11 @@ void mw_sample_waveform_job(const void *message)
     if(job_active && waveform_candidate && message==job_message && p) {
         uint32_t kind=(uint32_t)p[2]<<24 | (uint32_t)p[3]<<16 | (uint32_t)p[4]<<8 | p[5];
         uint32_t slot=(uint32_t)p[6]<<24 | (uint32_t)p[7]<<16 | (uint32_t)p[8]<<8 | p[9];
-        /* Only the actual stock file-backed display branch is classified.
+        /* Only the actual guarded stock display branch is classified.
          * Static error/status changes still fail the complete recapture; no
          * PCM analysis, pointer lease or arbitrary callback is authorized. */
-        if(kind<=MODWERK_SAMPLE_FLEX && slot<128u)waveform_seen=1;
+        uint32_t slots=MW_SAMPLE_FILE_SLOTS+(kind==MODWERK_SAMPLE_FLEX?MW_SAMPLE_RECORDER_COUNT:0u);
+        if(kind<=MODWERK_SAMPLE_FLEX && slot<slots && source_not_recording(kind,slot))waveform_seen=1;
     }
     modwerk_machine_unmask(saved);
 }

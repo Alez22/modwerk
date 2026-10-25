@@ -53,7 +53,9 @@ int main(void)
     CHECK(mw_sample_editor_init(&service,&backend));owner.generation=1;
     source.view.frames=source.view.trim_end=88200;source.view.frame_rate=44100;
     source.view.sample_bpm24=2880;source.view.project_bpm24=2160;
-    for(unsigned kind=0;kind<2;++kind) {
+    for(unsigned source_index=0;source_index<4;++source_index) {
+        unsigned kind=source_index?1u:0u;
+        source.view.slot=source_index<2?0u:source_index==2?128u:135u;
         source.view.kind=kind;source.view.count=0;
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
         bs_device_open(token,&api);CHECK(active());
@@ -82,7 +84,7 @@ int main(void)
         bs_device_open(token,&api);CHECK(tap(0x32) && !active() && service.state==MW_SAMPLE_CLOSED);
         publishes=0;
     }
-    source.view.count=0;
+    source.view.slot=0;source.view.count=0;
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);
     unsigned copied=copies;
@@ -254,6 +256,17 @@ int main(void)
             CHECK(tap(0x32));
         }
     }
+    for(unsigned slot=128;slot<136;++slot) {
+        source.view.kind=MODWERK_SAMPLE_FLEX;source.view.slot=slot;
+        source.view.frames=source.view.trim_start=source.view.trim_end=source.view.count=0;
+        struct modwerk_slice_record before[64];memcpy(before,source.view.records,sizeof before);
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);CHECK(active());
+        unsigned previous=confirms;
+        CHECK(tap(0x31) && confirms==previous+1 && !active());
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+        CHECK(!source.view.count && !memcmp(before,source.view.records,sizeof before));
+    }
     CHECK(!held && !bad);
-    puts("PASS: actual package controller/grid, frame bounds and shared confirmation for Flex/Static");return 0;
+    puts("PASS: actual controller/grid, frame bounds and shared confirmation for Flex/Static/recorders");return 0;
 }

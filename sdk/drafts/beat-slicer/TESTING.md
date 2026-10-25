@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.58-experimental. Development checks: 23–25 October 2026 (Taipei).
+Current draft: 0.1.64-experimental. Development checks: 23–25 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -3403,3 +3403,57 @@ The capture above remains evidence for the named pre-128 base `92b6c7bb…`;
 it does not qualify the newly merged base. Before a future device trial, rebuild
 the private base and companion set from current source and repeat preflight.
 No additional hardware load was performed for this push.
+
+## Extended 0.1.63 physical trial and 0.1.64 development — 25 October 2026
+
+The owner requested an open-ended private RAM session. The actual flashed base
+was `77226ffc…` with sixteen modules. Private base `253a9a61…` from `42006d2b`
+RAM-booted, and the exact approved 0.1.63 package `6bd14749…` (5,592 bytes)
+loaded with all sixteen named companions through frontend review/trial.
+Physical self-test passed: 17 live/intact, seven DSP modules exercised, 51.9%
+peak CPU. No Keep, flash, project/sample save or kept-set write occurred.
+The helper has no scheduled Undo. The owner's extensive tests remain in
+progress; no new slicing, audio, Undo or persistence verdict is inferred.
+
+The separate 0.1.64 working source adds source-scoped recording admission and
+metadata handling for inactive recorder slots. Host adapter/controller cases
+cover independent recording versus file-backed edits, all eight recorder slots,
+both state banks, empty results, count-publication failures and stale proposals
+across short/long changes. The complete native playback/recorder workflow remains
+in progress; the unit above has not received 0.1.64.
+
+Private build attempt 2 binds base
+`8f88fdc5d8ed80fed77019e17fcd4eddaa64914c1574902683f6224e04de10f4`
+and module
+`5e8d1e8409da7270186f3278e2e5181d22071030a791ac42d568a9a651427afd`
+(5,712 bytes). All 219 base and nine module inputs match the working runtime.
+Four shared-service cases and both controller/descriptor cases pass with the
+reviewed ColdFire compiler; strict stock-free scans and safety gates pass.
+Native/browser BINs match at SHA-256
+`a887bf3c249b5fd011af595a0b5ca97a519dc091e94b4ca5f94b652aa27491df`
+(769,564 bytes). Local draft discovery passes 33 tests, with one descriptor
+case skipped on macOS and covered by the compiler run above.
+
+The second normal-boot emulator run installs the three-module set with TapeHead
+and Mini Verb. Flex file, Static file, empty R8 and completed R1 cases each pass
+preview, native NO/YES, exact complete-record comparison and continued pattern
+playback/frame service. The first attempt had lost the empty-buffer token to a
+waveform redraw; attempt 2 includes the source-bounded redraw classification.
+The second run later stops at the file/independent-recorder case: the recording
+shortcut had left AED, so YES armed recorder trigs on the track AMP page rather
+than opening an action menu. The captured screen confirms this driver context
+error. A fresh recorder run explicitly reopens AED and adds short/long marker
+lifetime checks. Neither incomplete run establishes full-suite or USB Undo
+success; the fresh run remains in progress.
+
+An isolated stock-CPU fixture invokes the grid callback for slots 128 and 135
+at extents 0/1/63/64/1000/44100. Its chosen eight slices include zero-length
+records when the extent is empty; this bypasses ordinary UI admission and is
+not proof of the complete empty-buffer menu path. A separate normal-panel
+emulator run on private base `253a9a61…` observes an empty recorder with zero
+length, zero trim and zero active slices. Manual recordings of three different
+lengths publish matching control lengths and trim ends (33,456 / 15,824 /
+51,120 frames), independent from reserved capacity. The settings counter stays
+unchanged across those recordings: it is not a complete recording-content epoch.
+Existing engine-writer invalidation still needs direct regression coverage for
+open proposals across recording. No hardware result is inferred from this run.

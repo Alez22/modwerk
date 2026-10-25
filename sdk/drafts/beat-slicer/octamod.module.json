@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.63-experimental",
+  "version": "0.1.64-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -16,7 +16,7 @@
     "label": "BEAT SLICER",
     "family": "Sample workflow",
     "summary": "Development draft: create exact beat-spaced slices using sample or project BPM.",
-    "overview": "Independent controller and proposed shared AED service for file-backed Flex and Static samples. Private native/browser builds and normal-boot USB/menu/confirmation emulator checks pass; exact hardware and full lifecycle qualification remain pending.",
+    "overview": "Private candidate: beat-spaced grids for file-backed Flex/Static samples and inactive recorder buffers, with pattern playback retained. Recorder and playback qualification is in progress; shared API review remains pending.",
     "highlights": [
       "Choose sample BPM or project BPM.",
       "1, 4, 16, 32 or 64 beats per slice.",
