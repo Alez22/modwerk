@@ -6,7 +6,7 @@ On the stock OS a cued pattern waits for the playing one to reach its end. With 
 
 Version `0.1.1-experimental`, for OS 1.40C card builds and, for beta testers, over USB on the Modwerk base. This is Zac Kyoti's octabam module `direct-jump-kyoti` (his V7, the clock-locked landing), with his fix for stock's MIDI Plays-Free trig stall built in, as in his own Direct Jump builds. Modwerk re-encodes a few of its instructions so the USB package carries no stock code; the behaviour is his.
 
-**Hardware status.** The author tested the timing, the Part change and the toggle on his MKI (27 September to 1 October 2026, his own builds). Modwerk's USB package ran on the owner's MKII on 24 October 2026: installed, kept, restored after a power cycle and removed on the flashed beta base, and on a development twin the toggle and clock-locked jumps between a 64- and a 16-step pattern ([evidence/hardware.md](evidence/hardware.md)). The card build has not run on a unit.
+**Hardware status.** The author tested the timing, the Part change and the toggle on his MKI (27 September to 1 October 2026, his own builds). Modwerk's USB package ran on the owner's MKII on 24 October 2026: installed, kept, restored after a power cycle and removed on the flashed beta base, and on a development twin the toggle and clock-locked jumps between a 64- and a 16-step pattern ([evidence/hardware.md](evidence/hardware.md)). The card build has not run on a unit. Version 0.1.1 adds the author's MIDI Plays-Free fix, which he confirmed on his MKI; the 0.1.1 package has not yet run on a unit.
 
 ## Controls
 
@@ -61,7 +61,7 @@ Hook sites: the landing countdown read in phase D of the sequencer's tick handle
 
 ## Tests and measurements
 
-[TESTING.md](TESTING.md) has the commands and every result: the unit's bytes, the emulator gate (the toggle, OFF against the original OS, three jumps against reference runs), the USB package's stock-free scan, and what was not tested. Emulator results say nothing about a real unit's timing or audio.
+[TESTING.md](TESTING.md) has the commands and every result: the unit's bytes, the emulator gate (the toggle, OFF against the original OS, three jumps against reference runs, and the MIDI Plays-Free stall on the original OS against the fix), the USB package's stock-free scan, and what was not tested. Emulator results say nothing about a real unit's timing or audio.
 
 ## Authorship and licences
 

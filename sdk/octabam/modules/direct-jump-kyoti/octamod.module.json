@@ -156,9 +156,9 @@
       "screenshotStyle": "black-and-white"
     },
     "qualification": {
-      "moduleVersion": "0.1.0-experimental",
-      "sourceSha256": "fc2290016d67e81443722ae5eaf33ab3f253fd13d8dd3cd2a918e62089ed359e",
-      "imageSha256": "c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f",
+      "moduleVersion": "0.1.1-experimental",
+      "sourceSha256": "924916295ec37758499d103e5f9fa9290af59801598f45d39b15d3d89037d65a",
+      "imageSha256": "5c7b2d12d9da96e077d21b371c84b1a09935461214d424df57f698f103fc29ed",
       "cycles": [
         {
           "processor": "coldfire",
@@ -265,9 +265,9 @@
         "page": "Main screen with the notification",
         "shows": "location-and-controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "9af03715a100eeb80c564312e1d6c3d5666ba287a79f03555f19195285a07172",
-        "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 9af03715…)."
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768",
+        "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 4453c368…)."
       }
     },
     {
@@ -282,9 +282,9 @@
         "page": "Main screen while playing",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "9af03715a100eeb80c564312e1d6c3d5666ba287a79f03555f19195285a07172",
-        "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 9af03715…)."
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768",
+        "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 4453c368…)."
       }
     },
     {
@@ -299,9 +299,9 @@
         "page": "Main screen with the notification",
         "shows": "controls",
         "firmware": "1.40C",
-        "moduleVersion": "0.1.0-experimental",
-        "imageSha256": "9af03715a100eeb80c564312e1d6c3d5666ba287a79f03555f19195285a07172",
-        "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 9af03715…)."
+        "moduleVersion": "0.1.1-experimental",
+        "imageSha256": "4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768",
+        "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 4453c368…)."
       }
     }
   ]
