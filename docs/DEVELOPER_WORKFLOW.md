@@ -129,6 +129,7 @@ The guides are the context every prompt and agent reads, so a finding that helps
 
 - It is asked for. Before every push, `npm run pr:ready` lists the guide edits on your branch and asks what the guides lacked or got wrong; the pull request template has the same line, and the starter prompts ask the agent to answer it. "Nothing" is a fine answer; a lesson left in the session is not.
 - Correct a stale or wrong statement instead of adding a contradicting one. Keep the entry short and general, and say a hardware behaviour only as observed on a named build, otherwise "not tested".
+- Make room instead of appending. `AGENTS.md` and every document in `docs/` may grow to 32 KB, and one already longer may not grow, so `npm run check` refuses an edit that only adds to it: cut what is stale or said elsewhere first. A guide holds what is true now; results, decisions and changes go in dated records ([where each goes](README.md)).
 - Keep it stock-free: no firmware bytes, code, tables or dumps. `sdk/octabam/AGENTS.md` stays unchanged because octabam's code cites it; put Modwerk-specific traps in a Modwerk guide.
 - Put it on the pull request you already have open for this work, or in a small docs-only pull request when none is open. Inside a module release it is outside a registered author's scope and would remove the update from the automatic path. Docs-only edits use the lightweight checks. The owner reviews the wording, and the agent tells the contributor what it added.
 

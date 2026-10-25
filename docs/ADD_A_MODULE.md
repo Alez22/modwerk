@@ -276,7 +276,6 @@ the [loader compatibility guide](../sdk/machines/octatrack/elekloader/README.md#
 7. **Check how it shows on the site.** The catalog entry puts the module in the library and the configurator; `npm run dev` shows it.
    - The library card draws `presentation/thumbnail.svg` (320×192). Hand-drawn art in `src/components/ModulePreview.tsx` is optional.
    - Analog BD admits only the custom DSP effects named in `analogBdCompanions` in `src/catalog/selection-conflicts.ts` and refuses every other module with an `effectId`. Add yours there only after native/browser placement evidence on both cores. If your effect builds beside the stock FX2 effects, add it to `FITS_BESIDE_STOCK_FX2` in the same file. Both lists describe baked card placement, not the USB arena; see the [USB lifecycle](#octatrack-base-and-usb-lifecycle).
-   - Add a short entry to `docs/VERIFICATION.md` with what you compared and the result.
 8. **Open the pull request.** Say what you tested, what you did not test and why.
 
 ## Digitakt and Digitone
@@ -313,4 +312,4 @@ Firmware for these machines is built by elekloader's builder, vendored unchanged
 | Contract v3 and evidence tiers | [SDK.md](SDK.md) |
 | Writing native Octatrack code | [MODULES.md](../sdk/octabam/docs/remixer/MODULES.md) and [PLACEMENT.md](../sdk/octabam/docs/remixer/PLACEMENT.md) |
 | Assembler and hardware traps that already cost real work | [octabam's AGENTS.md](../sdk/octabam/AGENTS.md) |
-| What has been verified, and how | [VERIFICATION.md](VERIFICATION.md) |
+| Where results and records go, and every other document | [docs/README.md](README.md) |
