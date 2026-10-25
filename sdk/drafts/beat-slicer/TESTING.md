@@ -3309,3 +3309,41 @@ the next reads succeeded. No Keep, flash or save was performed. The slicing
 report does not qualify USB Undo. Raw logs and firmware stay private.
 
 0.1.59 is a new UI build; the 0.1.58 result is not reused as its hardware result.
+
+## 0.1.59 popup/menu software checks — 25 October 2026
+
+Private base `92b6c7bba906ea7ef742fe8252fad7a2fd5b1b9bc8223f61c59176e34c1122ad`,
+BIN 769,276 bytes, SHA-256
+`eb6b0b3a28bbcd5e5f0a122ce188ff066b31b0acfc2863dacb6d9cc5d361c8d3`.
+Native/browser byte parity, declared-site and bootloader-preservation guards
+pass; the unchanged strict stock-free scans pass. All 219 recorded base inputs
+match current source. Default beta builds do not enable the editor feature.
+
+Independent module 0.1.59: 5,448 bytes, SHA-256
+`5003874aff0ddbdda65654c9be5184411d15f17e346ca752f2aa543871f8c266`.
+All nine module inputs match source. The initial authored font/clear build hit
+the strict scanner on coincidental compiled instruction runs; that failure is
+retained. Removing an unused text helper and clearing packed column bytes
+produced the passing package without weakening either scanner.
+
+Actual controller/grid/service host checks pass, including unchanged pixels
+outside the popup, stable copied snapshots, inert C–F controls and the existing
+confirmation/short-tail/repeated-edit cases. Target-built descriptor checks and
+all four generic SDK service/board/action/target checks pass, as does the
+saved-set transaction regression.
+
+The normal-boot emulator set contains TapeHead, Mini Verb and 0.1.59, digest
+`b5cfa75103041ffce2a9a56c48e9929c16460a8f7970b9ebecaefcced2dc8c6e`.
+Both effects are selected on T2 through stock panel gestures. For both Flex and
+Static, the actual menu inserts CREATE BEAT GRID immediately before CREATE
+SLICE GRID and preserves every stock row/callback order; stock remembered
+selection indices are verified after selecting an original action. Encoder
+substeps/reversal, inactive arrows, NO, exact native YES records, stock clearing,
+frame advance, whole-set Undo and stock-only menu restoration pass. The actual
+popup captures were visually reviewed with the AED visible around the window.
+This short authored fixture did not repeat the longer spacing sweep already
+recorded for 0.1.58. Driver SHA-256: `aa31597c1a510d8506acde4c2e41e8bb607b6faa4a6117cb398c877c44536bd1`.
+
+These are software/emulator results. No 0.1.59 physical RAM load, audible output,
+interrupt latency, Keep, sample/project save or persistence result is claimed.
+The 0.1.58 physical Undo failure remains unresolved despite emulator Undo passing.

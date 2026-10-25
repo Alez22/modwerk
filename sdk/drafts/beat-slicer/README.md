@@ -39,6 +39,7 @@ candidate; recorder buffers and slots 128 onward are excluded.
 | Encoder A | SAMPLE or PROJECT BPM; refuse missing/invalid tempo, with no silent fallback. |
 | Encoder B | 1, 4, 16, 32 or 64 beats per slice. |
 | YES | Validate the opening snapshot and request stock confirmation. NO or changing a control cancels a pending request. Markers change only after the stock YES. |
+| Encoders C–F | Unassigned; leave the popup and parameters unchanged. |
 | NO / BACK | Close the options or decline confirmation without changing markers. |
 | After creation | Use stock DELETE SLICE or DELETE ALL SLICES. No separate slice Undo/history is added. |
 

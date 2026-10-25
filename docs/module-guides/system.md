@@ -17,6 +17,8 @@ Read [the module guides index](README.md) first.
 
 ## Sample-editor actions
 
+- Match the machine’s native popup and encoder-field layout. Composite inside the popup rectangle, preserve stock content outside it, and keep unassigned controls inert while the modal owns input.
+
 - Bind an edit to the actual source, content lifetime, trim, tempo and complete marker table. Revalidate at explicit confirmation; a cancelled or stale view must not write.
 - Preserve complete end/loop records and native minimum-length constraints. Replacing existing records needs an explicit warning and confirmation; reject rather than silently sanitize a preservation edit.
 - Keep a complete internal rollback snapshot, including inactive rows. Verify both the expected after-state and current source before attempting restoration. Internal rollback does not imply a musician-facing Undo feature.

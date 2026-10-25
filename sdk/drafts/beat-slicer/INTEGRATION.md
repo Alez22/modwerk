@@ -2,7 +2,7 @@
 
 ## Current readiness
 
-**Review hold (25 October 2026):** [#840 maintainer review](https://github.com/repeat98/modwerk/pull/840#issuecomment-6395411406) requests a separate base proposal before this draft. Beat Slicer is the only confirmed consumer of the proposed action list; reuse and the provisional index collision with [#857](https://github.com/repeat98/modwerk/pull/857) remain unresolved. The owner deferred the physical test. Existing software receipts do not authorize a new RAM load or qualify a future split build.
+**Review hold (25 October 2026):** [#840 maintainer review](https://github.com/repeat98/modwerk/pull/840#issuecomment-6395411406) requests a separate base proposal before this draft. Beat Slicer is the only confirmed consumer of the proposed action list; reuse and the provisional index collision with [#857](https://github.com/repeat98/modwerk/pull/857) remain unresolved. The owner later explicitly requested the private 0.1.58 trial and reported successful slicing; USB Undo did not verify restoration, and a power cycle restored the flashed base and original eleven modules. This is not approval of the shared API or qualification of the new 0.1.59 UI.
 
 Basic scope: 0.1.59-experimental, private staging. The owner subsequently authorized and completed the private 0.1.58 slicing trial; its report and unverified USB Undo are recorded in TESTING.md. The public shared-service review remains pending.
 
