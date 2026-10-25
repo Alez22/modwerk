@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "revision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
-  "sourceCommit": "7e4a451d86e658de9629ab54a9b89714f79a6c8a",
+  "sourceCommit": "cf95656dbc0e386b4fda769e04cc18eb2a5d3364",
   "moduleVersions": {
     "spectrum": "0.1.1-experimental",
     "modulation": "0.1.1-experimental",
@@ -32,7 +32,7 @@
     "output-matrix": "0.1.1-experimental",
     "quantize-live-rec-toggle": "0.1.1-experimental",
     "apply-scene": "0.2.0-experimental",
-    "direct-jump-kyoti": "0.1.1-experimental",
+    "direct-jump-kyoti": "0.1.2-experimental",
     "dejavu": "0.1.0-experimental"
   },
   "objects": [
@@ -1084,7 +1084,7 @@
     {
       "label": "dj7",
       "moduleId": "direct-jump-kyoti",
-      "version": "0.1.1-experimental",
+      "version": "0.1.2-experimental",
       "key": "DIRECT_JUMP_KYOTI",
       "author": "Zac-Kyoti",
       "nativeAuthor": "Zac-Kyoti",
@@ -1130,7 +1130,7 @@
     {
       "label": "ts",
       "moduleId": "direct-jump-kyoti",
-      "version": "0.1.1-experimental",
+      "version": "0.1.2-experimental",
       "key": "DIRECT_JUMP_KYOTI",
       "author": "Zac-Kyoti",
       "nativeAuthor": "Zac-Kyoti",
