@@ -36,8 +36,6 @@ void bs_device_text_at(unsigned char *frame,uint32_t x,uint32_t y,const char *s)
  }
 }
 
-void bs_device_text(unsigned char *frame,uint32_t y,const char *s)
-{bs_device_text_at(frame,4,y,s);}
 static void pixel(unsigned char *frame,uint32_t x,uint32_t y,unsigned invert)
 {
  if(x>=128 || y>=64)return;
@@ -47,8 +45,13 @@ static void pixel(unsigned char *frame,uint32_t x,uint32_t y,unsigned invert)
 void bs_device_clear(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_t h)
 {
  if(!frame || x>=128 || y>=64 || w>128-x || h>64-y)return;
- for(uint32_t i=x;i<x+w;++i)for(uint32_t j=y;j<y+h;++j)
-  frame[i*8u+7u-j/8u]&=(unsigned char)~(1u<<(j%8u));
+ /* Clear packed column bytes, rather than revisiting a byte for each pixel. */
+ uint32_t last=y+h-1u;
+ for(uint32_t band=y/8u;band<=last/8u;++band) {
+  uint32_t low=band==y/8u?y%8u:0u,high=band==last/8u?last%8u:7u;
+  unsigned char keep=(unsigned char)~((255u<<low)&(255u>>(7u-high)));
+  for(uint32_t column=x;column<x+w;++column)frame[column*8u+7u-band]&=keep;
+ }
 }
 /* Original compact lettering for the instrument-sized popup fields. */
 void bs_device_small_text(unsigned char *frame,uint32_t x,uint32_t y,const char *s)

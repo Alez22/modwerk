@@ -5,7 +5,6 @@
 void bs_device_text_at(unsigned char *,uint32_t,uint32_t,const char *);
 void bs_device_box(unsigned char *,uint32_t,uint32_t,uint32_t,uint32_t);
 void bs_device_invert(unsigned char *,uint32_t,uint32_t,uint32_t,uint32_t);
-void bs_device_text(unsigned char *,uint32_t,const char *);
 void bs_device_small_text(unsigned char *,uint32_t,uint32_t,const char *);
 void bs_device_clear(unsigned char *,uint32_t,uint32_t,uint32_t,uint32_t);
 #endif
