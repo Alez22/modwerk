@@ -2,18 +2,22 @@
 
 How to write a module that behaves like part of the instrument and fits every Modwerk workflow. Read this page, then the guide for your module's category, before you write code.
 
-A module's category is the `category` field of its manifest (`octamod.module.json`, or `modwerk.module.json` on Digitakt and Digitone). The manifest picks the guide, not the library grouping: the library lists Scale Quantizer, Repitch and Preview Vol under System and MIDI Scenes under MIDI & USB (`src/catalog/modules.ts`).
+## Choose the category
 
-| Category | Guide | Covers | Modules that already follow it |
+A module's category is the `category` field of its manifest (`octamod.module.json`, or `modwerk.module.json` on Digitakt and Digitone). It picks the guide; the library may group the module elsewhere.
+
+**Choose it by where the module acts, not by the menu you would like to switch it on from.** An FX processes the audio its slot receives. A module that makes or replaces a track's sound (reads the sample itself, renders voices on the ColdFire) is a machine. A module that makes or changes notes is a MIDI generator or MIDI effect. A module in the wrong category is sent back, so when it is unclear, ask the owner in an issue before you write code.
+
+| Category | Guide | Choose it when the module | For example |
 | --- | --- | --- | --- |
-| `effects` | [effects.md](effects.md) | FX1 and FX2 effects: knobs, modes, modulation, locks, DSP space | Mini Verb, Tape Echo, Euclid, TapeHead, Sidechain Compressor, Spectrum, Modulation, Character |
-| `machines` | [machines.md](machines.md) | Track machines in the machine chooser and SRC SETUP; project-wide sequencer machines | Analog BD (track machine), Scale Quantizer (project machine) |
-| `playback` | [playback.md](playback.md) | Sample playback behaviour: pitch, rate, timestretch, preview | Repitch, Preview Vol |
-| `scenes` | [scenes.md](scenes.md) | Scenes, crossfader and per-track state recall | MIDI Scenes |
-| `midi-usb` | [midi-usb.md](midi-usb.md) | MIDI messages and USB: what is consumed, mapped and enumerated; MIDI generators and MIDI effects | CC Map, USB Audio |
-| `system` | [system.md](system.md) | Project and system menus and settings | none yet; Scale Quantizer, Repitch and Preview Vol are shown here by the library |
-| `standalone` | [standalone.md](standalone.md) | Complete firmware that replaces the whole OS | none yet; MIDI Scenes is built standalone |
-| any | [sequencing.md](sequencing.md) | Anything that acts in time: follow the instrument's transport, tempo, track speed, scale, length and swing | Euclid, Repitch |
+| `effects` | [effects.md](effects.md) | processes the audio its FX1 or FX2 slot receives, on the DSP | Mini Verb, Tape Echo, Euclid, Sidechain Compressor |
+| `machines` | [machines.md](machines.md) | makes or replaces a track's sound (a track machine, in `ot_machines`), or changes the sequencer project-wide | Analog BD, POLY8, Scale Quantizer |
+| `playback` | [playback.md](playback.md) | changes how a stock machine plays its sample: pitch, rate, timestretch, preview | Repitch, Preview Vol |
+| `scenes` | [scenes.md](scenes.md) | changes scenes, the crossfader or per-track state recall | MIDI Scenes |
+| `midi-usb` | [midi-usb.md](midi-usb.md) | makes, changes or maps MIDI (generators in `ot_midi_generators`, MIDI effects), or USB | CC Map, USB Audio |
+| `system` | [system.md](system.md) | changes project and system menus and settings | Mute Modes, Output Matrix |
+| `standalone` | [standalone.md](standalone.md) | replaces the whole OS | none yet |
+| any | [sequencing.md](sequencing.md) | also acts in time: follow the instrument's transport, tempo, track speed, scale, length and swing | Euclid, Repitch |
 
 ## The workflow, in order
 
@@ -21,7 +25,7 @@ A module's category is the `category` field of its manifest (`octamod.module.jso
 2. Follow [Add or port a module](../ADD_A_MODULE.md) for the folder, the manifest, the packages and the comparison with native octabam.
 3. Walk the guide's checklists: **Behave like the instrument** and **Integrate**, and for an effect **Sound quality** (aliasing, clipping, DC, idle behaviour). Tick an item only when you did it.
 4. Measure the [performance](#performance) and write `evidence/performance.json`: worst-case cycles, a benchmark against stock and a stress run. `npm run perf:audit -- check <that file>` must pass.
-5. Run `npm run module:doctor -- <id>` until every line is green. It reads the repository only: no firmware runs, and module code runs only as manifest declarations (for the cross-compatibility line). Its `dsp sources` line, and `npm run modules:check`, refuse a DSP source with a label that is a prefix of another label, and a `rep` in a module listed from 23 October 2026 (`scripts/dsp-source-gates.py`, octabam's two gates). For a module listed from 7 October 2026 it also refuses a missing or failing performance record.
+5. Run `npm run module:doctor -- <id>` until every line is green. It reads the repository only (no firmware runs) and names the fix for each red line, for example octabam's two DSP source gates (`scripts/dsp-source-gates.py`), a missing or failing performance record, and an effect that renders audio on the ColdFire.
 6. Run `npm run check`, and `npm run module:verify -- <id> --os <your 1.40C update>` for an Octatrack module.
 7. If you learned something the next developer needs and no guide says, write it into the guide that fits, as its own docs-only pull request ([Share what you learn](../DEVELOPER_WORKFLOW.md#share-what-you-learn)).
 
