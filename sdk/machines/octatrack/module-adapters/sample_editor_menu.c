@@ -12,7 +12,7 @@
 typedef void (*callback)(void);
 struct binding {struct runtime_owner owner;struct mw_sample_action_view action;uint32_t live;};
 static struct binding bindings[ACTIONS],pending;
-static uint32_t binding_count,stock_count,serial,root_task,root_kind,root_slot;
+static uint32_t binding_count,stock_count,action_at,serial,root_task,root_kind,root_slot;
 static uint32_t pending_at,pending_kind,pending_slot,pending_generation;
 static uint32_t question_token,question_active,question_pending,yes_down;
 static uint32_t initial;
@@ -60,12 +60,12 @@ static void dispatch(void)
 {
     uint32_t saved=modwerk_machine_lock();
     if(!select_active || !select_armed || select_callback!=dispatch || select_serial!=serial ||
-       select_task!=read32(0x800068fcu) || select_row<stock_count || select_row>=stock_count+binding_count) {
+       select_task!=read32(0x800068fcu) || select_row<action_at || select_row>=action_at+binding_count) {
         modwerk_machine_unlock(saved);return;
     }
     select_armed=0; /* one use, including refusal */
     if(remembered)*remembered=(int32_t)initial;
-    struct binding *b=&bindings[select_row-stock_count];
+    struct binding *b=&bindings[select_row-action_at];
     if(b->live && mw_sample_owner_current_locked(&b->owner) &&
        read32(0x46c8d1a0u)==root_kind && read32(0x46c8d19cu)==root_slot) {
         copy(&pending,b,sizeof pending);pending_at=modwerk_runtime_ticks;
@@ -85,7 +85,10 @@ void mw_sample_menu_open(uint32_t count,uint32_t selected,int32_t *out,
               (count==9u && (uintptr_t)names==0x400cebc8u && (uintptr_t)actions==0x400ceba4u);
     int admissible=known && out && !select_active && !read32(0x460e5e30u) &&
         !question_active && !pending.live && serial!=UINT32_MAX && kind<=1u && slot<128u;
-    uint32_t added=0;
+    /* Both pinned stock variants put CREATE SLICE GRID four rows from the
+     * end. Group admitted creation actions immediately before it. Stock rows
+     * retain their relative order, callbacks and remembered stock indices. */
+    uint32_t added=0,insert=known?count-4u:0;
     if(admissible) {
         const volatile uintptr_t *row=modwerk_runtime_event_row[MODWERK_OT_SAMPLE_EDITOR_ACTIONS-RUNTIME_EVENTS];
         for(unsigned i=0;i<ACTIONS && row[i];++i) {
@@ -93,20 +96,21 @@ void mw_sample_menu_open(uint32_t count,uint32_t selected,int32_t *out,
             ++added;
         }
         for(unsigned i=0;admissible && added && i<count;++i) {
-            if(!label_copy(text[i],names[i])){admissible=0;break;}
-            labels[i]=text[i];callbacks[i]=actions[i];
+            uint32_t target=i<insert?i:i+added;
+            if(!label_copy(text[target],names[i])){admissible=0;break;}
+            labels[target]=text[target];callbacks[target]=actions[i];
         }
     }
     if(admissible && added) {
         for(unsigned i=0;i<added;++i) {
-            copy(text[count+i],bindings[i].action.label,32);
-            labels[count+i]=text[count+i];callbacks[count+i]=dispatch;
+            copy(text[insert+i],bindings[i].action.label,32);
+            labels[insert+i]=text[insert+i];callbacks[insert+i]=dispatch;
         }
-        stock_count=count;binding_count=added;++serial;
+        stock_count=count;binding_count=added;action_at=insert;++serial;
         root_task=read32(0x800068fcu);root_kind=kind;root_slot=slot;
         initial=selected<count?selected:0;remembered=out;
         modwerk_machine_unlock(saved);
-        open_stock(count+added,initial,out,labels,callbacks);return;
+        open_stock(count+added,initial+(initial>=insert?added:0),out,labels,callbacks);return;
     }
     modwerk_machine_unlock(saved);
     open_stock(count,selected<count?selected:0,out,names,actions);

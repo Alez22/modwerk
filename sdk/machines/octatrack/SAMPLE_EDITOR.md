@@ -70,3 +70,5 @@ remain bound to their actual source. Combined #840 prototype receipts are
 historical evidence for that combined snapshot; they are not relabeled as this
 split branch. No physical test, Keep, flash or project/sample save is authorized
 by opening this proposal.
+
+Creation actions are grouped immediately before stock CREATE SLICE GRID in both pinned stock variants. Stock row order and callbacks are preserved, and remembered selections remain stock indices. This placement is shared policy, not a module-name special case.
