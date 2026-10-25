@@ -217,19 +217,30 @@ try:
         assert state()==1,'actual contributed action did not admit a coherent source within its bounded wait'
         assert port.peek(at,1096)==before,'preview changed markers'
         if args.check_encoders:
-            frame_at=word(0x400b9710);original_frame=port.peek(frame_at,1024)
+            frame_at=word(0x400b9710)
+            def options_frame():
+                # This is the working framebuffer, not a completed LCD transfer.
+                # module_draw clears byte zero first, restores the border, then
+                # finishes at K's final pixel in "YES:OK      NO:BACK" (116,61).
+                # Both pixels distinguish a completed draw from clearing/text.
+                for _ in range(100):
+                    frame=port.peek(frame_at,1024)
+                    if frame[0]&0x80 and frame[116*8]&0x20:return frame
+                    port.command('run 1')
+                raise AssertionError('no completed options draw within the capture bound')
+            original_frame=options_frame()
             (out/f'encoder-{kind}-baseline.private.bin').write_bytes(original_frame)
             for substep in range(3):
                 port.command('knob 0x31 1');port.command('run 100')
-                frame=port.peek(frame_at,1024)
+                frame=options_frame()
                 (out/f'encoder-{kind}-substep-{substep}.private.bin').write_bytes(frame)
                 assert frame==original_frame,'substep changed parameter'
             port.command('knob 0x31 1');port.command('run 100')
-            assert port.peek(frame_at,1024)!=original_frame,'complete encoder step did not change parameter'
+            assert options_frame()!=original_frame,'complete encoder step did not change parameter'
             port.command('knob 0x31 -4');port.command('run 100')
-            assert port.peek(frame_at,1024)==original_frame
+            assert options_frame()==original_frame
             tap(port,'up');tap(port,'down')
-            assert port.peek(frame_at,1024)==original_frame,'arrows changed encoder-only settings'
+            assert options_frame()==original_frame,'arrows changed encoder-only settings'
             print('ENCODERS VERIFIED',kind,flush=True)
         tap(port,'yes');port.command('run 200')
         assert state()==2,'native question was not prepared'

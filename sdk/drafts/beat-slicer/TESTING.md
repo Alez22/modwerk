@@ -3257,10 +3257,14 @@ Keep, flash or sample edit was performed on the unit.
 
 An initial normal-boot emulator run installed the exact three-member companion
 set and selected TapeHead/Mini Verb, then failed a whole-frame encoder-substep
-comparison before Undo. Its cause is not established. The driver now allows
-the first options redraw before comparison and retains each compared frame.
+comparison before Undo. A short-path rerun retained the same failure despite
+an extra redraw delay: its baseline contains only a partial title, while the
+next capture contains the complete options page. This compares different draw
+stages, not encoder settings. The driver now observes both the border restored
+after framebuffer clearing and the final footer pixel before comparing frames.
+It retains each compared frame; a fixed delay alone is insufficient.
 A subsequent launch failed on an overlong host socket path before USB testing.
-Neither is a passing qualification receipt. The corrected short-path rerun is
+None is a passing qualification receipt. The corrected short-path rerun is
 pending. The driver also follows explicit retained-recovery replies for bounded
 whole-set Undo, matching the frontend's retry behavior, and verifies the final
 active baseline and stock-menu removal; uncertain replies still fail without
