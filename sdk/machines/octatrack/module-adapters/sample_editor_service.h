@@ -3,12 +3,14 @@
 #define MODWERK_SAMPLE_EDITOR_SERVICE_H
 #include "modwerk_sample_editor.h"
 #include "loader.h"
+#define MW_SAMPLE_FILE_SLOTS 128u
+#define MW_SAMPLE_RECORDER_COUNT 8u
 
 /* Base-owned state. The board must install and prove writer/recorder/project
  * invalidation and its serialization before making this service available.
  * capture/owner/publish are synchronous, bounded, non-reentrant and called with
  * that same lock held. No firmware/UI call which can yield belongs in them.
- * ready refuses playback/recording, unsettled jobs, incomplete module sets and
+ * ready refuses recording into the edited source, unsettled jobs, incomplete module sets and
  * unqualified source states. Empty queue alone is never sufficient. */
 struct mw_sample_capture {
     struct modwerk_sample_view view;

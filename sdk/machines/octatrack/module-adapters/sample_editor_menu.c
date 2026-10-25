@@ -83,8 +83,9 @@ void mw_sample_menu_open(uint32_t count,uint32_t selected,int32_t *out,
     uint32_t kind=read32(0x46c8d1a0u),slot=read32(0x46c8d19cu);
     int known=(count==6u && (uintptr_t)names==0x400ceb8cu && (uintptr_t)actions==0x400ceb74u) ||
               (count==9u && (uintptr_t)names==0x400cebc8u && (uintptr_t)actions==0x400ceba4u);
+    uint32_t slots=MW_SAMPLE_FILE_SLOTS+(kind==MODWERK_SAMPLE_FLEX?MW_SAMPLE_RECORDER_COUNT:0u);
     int admissible=known && out && !select_active && !read32(0x460e5e30u) &&
-        !question_active && !pending.live && serial!=UINT32_MAX && kind<=1u && slot<128u;
+        !question_active && !pending.live && serial!=UINT32_MAX && kind<=MODWERK_SAMPLE_FLEX && slot<slots;
     /* Both pinned stock variants put CREATE SLICE GRID four rows from the
      * end. Group admitted creation actions immediately before it. Stock rows
      * retain their relative order, callbacks and remembered stock indices. */
@@ -209,7 +210,7 @@ void mw_sample_ui_tick(void)
             modwerk_machine_unlock(saved);return;
         }
         modwerk_machine_unlock(saved);
-        say(why==MODWERK_SAMPLE_BUSY?"STOP PLAY / RECORD":"EDIT NOT AVAILABLE");
+        say(why==MODWERK_SAMPLE_BUSY?"EDIT BUSY":"EDIT NOT AVAILABLE");
     }
     if(mw_sample_editor.state==MW_SAMPLE_PROMPT && !question_active && !yes_down &&
        !select_active && !read32(0x460e5e30u)) {

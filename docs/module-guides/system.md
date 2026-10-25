@@ -21,6 +21,9 @@ a sorted marker renumbers slice locks. Resolve stock minimum-length and
 working/saved-copy behavior before enabling Apply. Bind preview to sample,
 content, markers, trim and chosen tempo; a stale or cancelled preview must not
 write. Quiet marker boundaries are not evidence of click-free playback.
+A playback track and its recorder are independent: gate recording by the actual
+source being edited, and verify its writer boundary. Unrelated recording must
+not automatically block a file or another inactive buffer.
 
 Match the stock edit workflow before adding recovery controls. Internal failure
 rollback does not imply a user-facing Undo action. Beat Slicer's 1.40C emulator

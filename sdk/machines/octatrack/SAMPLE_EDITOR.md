@@ -40,9 +40,12 @@ This branch is based on main, not stacked on #857 or another module.
   revalidation, create/replacement confirmation and complete failure rollback.
 - `sample_editor_actions.*`: copied labels and image-relative callbacks admitted
   against the exact current owner. Retirement withdraws menu reachability.
-- `sample_editor_board.*`: stopped, file-backed Flex/Static slots 0–127 only.
-  Metadata work preserves frame/DMA interrupts. Heavy high-mask entry refuses.
-  Recorder buffers, PCM analysis, playback processing and implicit saves are out.
+- `sample_editor_board.*`: the private 0.1.64 experiment extends file-backed
+  Flex/Static slots 0–127 to inactive recorder buffers 128–135, and permits
+  pattern playback. Recording blocks only its own edited buffer, not unrelated
+  files or buffers. Empty recorder sources stay empty. Metadata work preserves
+  frame/DMA interrupts; native playback/recorder qualification is in progress.
+  PCM analysis, playback processing and implicit saves remain out of scope.
 - `sample_editor_menu.c` and `sample_editor_hooks.s`: native menu/selection and
   waveform-worker boundaries, enabled only by the private `--sample-editor` flag.
   Ordinary beta bases leave the stock editor sites and contribution disabled.
