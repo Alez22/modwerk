@@ -261,6 +261,14 @@ export function previewKit() {
   const unit = fakeUnit(kind === 'stock' || kind === 'none' ? kind : 'base')
   unit.installed = { moduleIds: params.get('inventory') === 'empty' ? [] : ['everb', 'airwindows-chorus', 'poly8'], removedStockFx: [] }
   unit.status = params.get('status') !== 'old'
+  // &base=older: a unit on an older base, so the base dialog offers the update over USB; &slots=one|two: what the
+  // base's SLOTS says (one copy: Send, Restart, Save; two slots: Send, Save, Restart), absent for a base before them.
+  if (params.get('base') === 'older') unit.base = unit.flashed = unit.active = 'aa'.repeat(32)
+  const slots = params.get('slots')
+  if (slots === 'one' || slots === 'two') {
+    unit.slots = new Uint8Array(24)
+    unit.slots.set([0x4d, 0x57, 0x53, 0x53, slots === 'two' ? 1 : 0, slots === 'two' ? 0 : 0xff])
+  }
   if (params.get('missing') === 'project') unit.project = [{ id: 'everb', name: 'E-Verb' }, { id: 'euclid', name: 'Euclid' }, { id: 'airwindows-chorus', name: 'Air Chorus' }, { id: 'tapehead', name: 'TapeHead' }]
   Object.assign(window, { modwerkUsbPreview: unit })
   return {

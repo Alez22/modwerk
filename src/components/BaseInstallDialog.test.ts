@@ -51,8 +51,8 @@ describe('the base dialog for a unit on an older base', () => {
   })
   it('with one copy of the base, names Send, Restart, Save and one restart first, then tracks them, still as an update while the unit runs the new base', async () => {
     const { unit, link, update, expected } = await older(true)
-    expect([...container.querySelectorAll('.base-instructions strong')].map(item => item.textContent)).toEqual(['Send', 'Restart', 'Save'])
-    expect(container.textContent).toContain('the Octatrack restarts once')
+    expect([...container.querySelectorAll('.base-update-plan strong')].map(item => item.textContent)).toEqual(['Send', 'Restart', 'Save'])
+    expect(container.textContent).toContain('Your Octatrack restarts once')
     expect(container.textContent).toContain('Save your project and stop playback first.')
     let resume = () => {}
     update.mockImplementation(async (_bin, _base, report) => {
@@ -67,34 +67,34 @@ describe('the base dialog for a unit on an older base', () => {
     await vi.waitFor(() => expect(container.textContent).toContain('Saving the new base'))
     expect(container.querySelector('h2')!.textContent).toContain('Update the Modwerk base')
     expect(container.querySelector('.base-install-intro code')!.textContent).toBe('cc'.repeat(4))
-    expect(container.querySelector('.base-update-steps .is-active')!.textContent).toBe('Save')
-    expect(container.querySelectorAll('.base-update-steps .is-complete')).toHaveLength(2)
+    expect(container.querySelector('.base-update-plan .is-active strong')!.textContent).toBe('Save')
+    expect(container.querySelectorAll('.base-update-plan .is-complete')).toHaveLength(2)
     expect(container.querySelector('[role="status"]')!.className).toBe('base-install-warning')
-    expect(container.querySelector('.base-instructions')).toBeNull()
+    expect(container.querySelector('.base-install-recovery')).toBeNull() // the before-start notes give way to the progress
     expect(container.querySelector('.base-install-close')).toBeNull()
     expect(buttonNamed('Continue')).toBeUndefined()
     await act(async () => resume()); await settle()
     expect(container.textContent).toContain('Done. Your Octatrack runs the new base.')
-    expect(container.querySelectorAll('.base-update-steps .is-complete')).toHaveLength(3)
+    expect(container.querySelectorAll('.base-update-plan .is-complete')).toHaveLength(3)
     expect(buttonNamed('Continue')).toBeDefined()
   })
   it('on two slots, names Send, Save, Restart, and says the container’s upload as the send', async () => {
     const twoSlots = Uint8Array.from([0x4d, 0x57, 0x53, 0x53, 1, 0, 2, ...new Array(17).fill(0)]) // SLOTS: "MWSS", two slots, running A, confirmed
     const { link, update } = await older(true, twoSlots)
     await vi.waitFor(() => expect(link.getState().slots?.layout).toBe('two'))
-    expect([...container.querySelectorAll('.base-instructions strong')].map(item => item.textContent)).toEqual(['Send', 'Save', 'Restart'])
+    expect([...container.querySelectorAll('.base-update-plan strong')].map(item => item.textContent)).toEqual(['Send', 'Save', 'Restart'])
     const steps: (() => void)[] = []
     update.mockImplementation(async (_bin, _base, report) => {
       for (const [step, fraction] of [['writing', 0.3], ['writing', 1], ['restarting'], ['done']] as const) { report?.(step, fraction); await new Promise<void>(resolve => steps.push(resolve)) }
     })
-    const active = () => container.querySelector('.base-update-steps .is-active')?.textContent
+    const active = () => container.querySelector('.base-update-plan .is-active strong')?.textContent
     click(container.querySelector('.risk-accept input')!); click(buttonNamed('Update over USB')!)
     await vi.waitFor(() => expect(container.textContent).toContain('Sending the new base to your Octatrack'))
     expect(active()).toBe('Send'); expect(container.querySelector('progress')).not.toBeNull()
     await act(async () => steps.shift()!()); expect(active()).toBe('Save')
     expect(container.querySelector('[role="status"]')!.className).toBe('base-install-warning')
     await act(async () => steps.shift()!()); expect(active()).toBe('Restart')
-    expect(container.querySelectorAll('.base-update-steps .is-complete')).toHaveLength(2)
+    expect(container.querySelectorAll('.base-update-plan .is-complete')).toHaveLength(2)
     await act(async () => steps.shift()!()); await settle()
     expect(container.textContent).toContain('Done. Your Octatrack runs the new base.')
   })
@@ -112,7 +112,9 @@ describe('the base dialog for a unit on an older base', () => {
     const { update } = await older(true)
     update.mockImplementation(async () => { throw new UploadUnconfirmedError('hello was not confirmed; no further commands will be sent on this connection.') })
     click(container.querySelector('.risk-accept input')!); click(buttonNamed('Update over USB')!); await settle(); await settle()
-    expect(container.textContent).toContain('The Octatrack stopped answering. You can try again, or update from the card.')
+    expect(container.textContent).toContain('The update stopped.')
+    expect(container.textContent).toContain('The Octatrack stopped answering. Nothing was saved: your Octatrack keeps its current base.')
+    expect(container.querySelector('.base-update-plan .is-failed strong')!.textContent).toBe('Send')
     expect(container.textContent).not.toContain('hello was not confirmed')
   })
   it('asks for a reload instead of sending its base when the site was deployed since the page opened', async () => {
