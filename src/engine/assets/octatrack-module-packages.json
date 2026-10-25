@@ -399,8 +399,7 @@
       "module": "075d79a3",
       "bytes": 2462,
       "sha256": "89a38e18728bb2039a0f5e3f39305fcb7be75e0db260acd6b33bd46d7e281cef",
-      "path": "octatrack-modules/direct-jump-kyoti/0.1.2-experimental.mwrm",
-      "title": "DirectJmp Kyoti"
+      "path": "octatrack-modules/direct-jump-kyoti/0.1.2-experimental.mwrm"
     },
     {
       "id": "dejavu",
