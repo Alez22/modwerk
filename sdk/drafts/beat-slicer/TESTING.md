@@ -3202,3 +3202,8 @@ Integrated upstream-main validation passes in 142.95 seconds: 2,574 app tests
 in 325 files and SDK checks (37 tests, one skipped). All 25 published USB
 packages rebuild identically with stock-free checks after the standard base-only
 rebind. Play Modes retains the declared older release and issue #764 gap.
+
+Upstream `96a3a993` subsequently added a self-test failure after a recorded DSP
+stall. It is also integrated: all seven default beta USB layouts were rebuilt
+again with native/browser parity and the same stock-free/bootloader checks.
+No private hardware result is claimed for that integration.
