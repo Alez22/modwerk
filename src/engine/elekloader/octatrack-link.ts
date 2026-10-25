@@ -34,8 +34,9 @@ export function openFailure(agent = typeof navigator === 'undefined' ? '' : navi
 const KEEPALIVE_MS = 1000
 /** Asked while playing, the base presses STOP itself and answers `unsafe` that once; ask again until it has stopped. */
 const STOP_RETRY_MS = 200
-/** A whole-set restore acknowledges one row per engine turn: 20 rows already need 3.8 s at this retry interval. */
-const ROLLBACK_WAIT_MS = 10000
+/** A whole set publishes and restores one row per engine turn (20 rows took 3.8 s at the 200 ms retry interval):
+ * 500 ms a row, 10 s at least, so a set of up to 128 changes is not cut off midway. */
+const setBudget = (rows: number) => Math.max(10000, 500 * rows)
 /** How often a unit another window or app holds is tried again, so it connects once they let go. */
 const BUSY_RETRY_MS = 3000
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -160,6 +161,8 @@ export class OctatrackLink {
   private index?: number
   private transport?: UsbVendorTransport
   private session?: LinkSession
+  /** Changes in the last load: how long its publication or restore may take (setBudget). */
+  private rows = 1
   private abort?: AbortController
   private keepalive?: ReturnType<typeof setInterval>
   private baseStep?: BaseUpdateStep
@@ -327,6 +330,7 @@ export class OctatrackLink {
     const base = this.state.identity?.base, connection = this.connection
     if (!changes.length || this.state.status !== 'ready' || !this.state.identity?.canSubmit || !base || !await this.claim()) return
     const abort = this.abort = new AbortController(), total = changes.reduce((sum, change) => sum + change.data.length, 0)
+    this.rows = changes.length
     this.set({ status: 'sending', identity: this.state.identity, active: this.state.active, module, progress: 0 })
     this.diagnostic('sync_started', {packages: changes.map(change => ({sha256:sha(change.data),bytes:change.data.length}))})
     let session: LinkSession | undefined
@@ -341,7 +345,7 @@ export class OctatrackLink {
         const baseline = await this.transport!.setIdentity(abort.signal)
         this.live(connection)
         const data = encodeModuleSet(base, baseline, changes.map(change => change.data))
-        await this.install(session, data, abort.signal, received => this.set({ ...this.state, progress: received / data.length }))
+        await this.install(session, data, abort.signal, received => this.set({ ...this.state, progress: received / data.length }), changes.length)
       } else {
         await this.install(session, changes[0].data, abort.signal, received => this.set({ ...this.state, progress: received / total }))
       }
@@ -361,7 +365,7 @@ export class OctatrackLink {
   }
   /** Stage and publish one package. shortcut: module files do not name their base yet (as in scripts/device.mjs), so
    * the connected base's loader validates the file; bind the package to its base once module files carry one. */
-  private async install(session: LinkSession, data: Uint8Array, signal?: AbortSignal, progress?: (received: number) => void) {
+  private async install(session: LinkSession, data: Uint8Array, signal?: AbortSignal, progress?: (received: number) => void, rows = 1) {
     const connection = this.connection
     if (data.length > session.status.capacity) throw new UploadDeviceError({ ...session.status, result: 'limit' })
     // A publication the loader refused as busy (a resident controller quiescing before it can leave) drops the staged
@@ -369,7 +373,7 @@ export class OctatrackLink {
     await this.whenStopped(async () => {
       if (!['verified', 'publishing'].includes(session.status.phase)) await session.stage({ base: session.status.base, data, sha256: sha(data) }, { signal, progress })
       signal?.throwIfAborted() // cancelled, unplugged or left while the last chunk's reply was on its way
-      await session.activate()
+      await session.activate(setBudget(rows))
     })
     this.live(connection); signal?.throwIfAborted()
   }
@@ -531,7 +535,7 @@ export class OctatrackLink {
     try {
       await this.whenStopped(() => session.holdTrial())
       if (keep) await session.accept()
-      else await this.whenStopped(() => session.rollback(), Math.max(this.stopWaitMs, ROLLBACK_WAIT_MS))
+      else await this.whenStopped(() => session.rollback(), Math.max(this.stopWaitMs, setBudget(this.rows)))
       const unsaved = keep && this.transport && !await waitUntilSaved(this.transport).catch(() => false)
       this.live(connection)
       await session.leaveUploadMode()
@@ -584,7 +588,7 @@ export class OctatrackLink {
   private async cleanUp(session: LinkSession) {
     const phase = session.status.phase
     if (phase === 'receiving' || phase === 'verified') { session.adopt(); await session.cancel() } // a fresh session adopts what the lost one staged
-    else if (phase === 'pending' || phase === 'trial' || phase === 'recovery' || phase === 'publishing') { session.adopt(); await this.whenStopped(() => session.rollback(), Math.max(this.stopWaitMs, ROLLBACK_WAIT_MS)); await session.leaveUploadMode() }
+    else if (phase === 'pending' || phase === 'trial' || phase === 'recovery' || phase === 'publishing') { session.adopt(); await this.whenStopped(() => session.rollback(), Math.max(this.stopWaitMs, setBudget(this.rows))); await session.leaveUploadMode() }
     else if (phase === 'ready') await session.leaveUploadMode()
     return session.status.phase === 'normal'
   }
