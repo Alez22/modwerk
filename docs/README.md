@@ -23,6 +23,7 @@ Every document in `docs/`, one line each. [AGENTS.md](../AGENTS.md) says which t
 - [ADD_A_MACHINE.md](ADD_A_MACHINE.md): bring a machine up before it gets modules.
 - [MODULE_AUTHOR_UPDATES.md](MODULE_AUTHOR_UPDATES.md): registered authors publishing their own updates.
 - [OWNER_OPERATIONS.md](OWNER_OPERATIONS.md): the owner's issue-fix and release flow, mail sendouts, locks and disk rules.
+- [MAINTENANCE.md](MAINTENANCE.md): the daily pass the owner starts with "maintain": pull request, issue, beta and upstream workers, one briefing.
 - [MODULE_ADDITION_WORKFLOW.md](MODULE_ADDITION_WORKFLOW.md): moved to ADD_A_MODULE.md.
 
 ## Module reference
