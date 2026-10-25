@@ -133,9 +133,9 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "On the owner's MKII over USB (24 Oct 2026): installed, kept, self-tested, restored after a power cycle and removed on the flashed beta base; on a RAM-booted development twin the agent drove the toggle and read the sequencer: jumps from a 64-step to a 16-step pattern and back landed on the next step at the position each would hold had it played since START, three cues in one gesture landed the last, and with the toggle off a cue waited for the pattern end as on stock. Under the ColdFire port (verify.py, 32 checks): OFF identical to the original OS through a pattern change, and three jumps (16 steps; 7 steps on Part 2; PER TRACK lengths and scales) whose sequencer state equals a reference run of the incoming pattern since START on every tick after the landing.",
+    "summary": "On the owner's MKII over USB (25 Oct 2026), on the published beta base 109f23bd: the 0.1.1 package installed and kept beside four other modules as a tester's sync does it, self-test passed (5/5 intact), removed, and the restored set self-tested again. 0.1.0's run on a development twin (24 Oct 2026) drove the toggle and clock-locked jumps with the same Direct Jump unit. Under the ColdFire port (verify.py, 39 checks): OFF identical to the original OS through a pattern change; three jumps (16 steps; 7 steps on Part 2; PER TRACK lengths and scales) whose sequencer state equals a reference run of the incoming pattern since START on every tick after the landing; and the MIDI Plays-Free stall, which the original OS shows and the module fixes.",
     "hardwareStatus": "reported",
-    "evidenceRevision": "6116a6a4d127ee0bac0ec835a474984be8b2c73e",
+    "evidenceRevision": "fd3940e74c5105de7af38dfeb2dbe49c771e15c9",
     "gates": [
       "modules/direct-jump-kyoti/verify.py"
     ],
@@ -216,16 +216,16 @@
         "kind": "functional",
         "status": "reported",
         "model": "MKII",
-        "testedOn": "2026-10-24",
+        "testedOn": "2026-10-25",
         "tester": "repeat98",
-        "sourceRevision": "6116a6a4d127ee0bac0ec835a474984be8b2c73e",
-        "imageSha256": "c277d24f24bd05d4d75dc008ffced79471e6bf14068de65435175b3a506f655f",
-        "summary": "The owner's MKII, OS 1.40C, driven over USB by the agent. On the flashed beta base b5fae2ae: package c277d24f installed and kept as a tester's sync does it, self-test passed (1/1 intact, longest frame 372 us, card set saved), the owner's power cycle restored it, self-test passed again, removal emptied the set. On a RAM-booted development twin (7889c57a, the beta flags plus --dev) in two trials: the three sites jumped into the unit and the [PTN]-layer slot named dj_toggle; [PTN] + [YES] toggled with DIRECT JUMP ON/OFF toasts and the chooser stayed shut; a 64-step A16 jumped to a 16-step A02 and back, landing on step boundaries at the clock-locked position (A16 came back at step 48, not its start); three cues in one gesture landed the last; OFF, a cue waited for the playing pattern's end; each rollback left the sites stock.",
+        "sourceRevision": "fd3940e74c5105de7af38dfeb2dbe49c771e15c9",
+        "imageSha256": "5c7b2d12d9da96e077d21b371c84b1a09935461214d424df57f698f103fc29ed",
+        "summary": "The owner's MKII, OS 1.40C, driven over USB by the agent at the owner's request, on the published beta base 109f23bd (flashed, running from RAM on the same image) with SIDECHAIN COMP, Ringmod SC, Mini Verb and POLY8 kept: package 5c7b2d12 installed and kept as a tester's sync does it (generation 5), self-test passed (5/5 intact, both DSP modules ran, longest frame 421 us, card set saved 5/5); removal kept (generation 6), the four remained; self-test passed again (4/4, 422 us). The 0.1.0 package's toggle and jumps ran on a development twin on 24 Oct 2026 with the byte-identical Direct Jump unit (evidence/hardware.md).",
         "limitations": [
-          "One unit, driven by the agent; nothing judged by ear, the owner did not run the hand test.",
-          "Not tested on hardware: a jump into another Part, START SILENT, trig conditions, PER TRACK scales, external MIDI (Program Change, no MIDI START), the arranger and chains, a cancelled cue (USB key presses arrive about a step apart).",
-          "USB only: the card build was not flashed. Not tested on an MKI. The site's review, Keep and Undo pages were not used: the device tool installed and removed the package.",
-          "About 15 minutes of use in all."
+          "One unit, driven by the agent; nothing judged by ear.",
+          "Not exercised on the unit with 0.1.1: the toggle, a jump and the MIDI Plays-Free fix itself (the beta base answers no key presses or RAM reads over USB). The author confirmed the fix on his MKI; the emulator gate runs the stall against the original OS.",
+          "Not run: a power cycle with 0.1.1 kept, the card build, an MKI, the site's review/Keep/Undo pages.",
+          "About five minutes of use."
         ],
         "report": "evidence/hardware.md"
       },
