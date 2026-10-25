@@ -3372,3 +3372,27 @@ of the full functional suite or USB Undo. Driver SHA-256:
 `6fdf33527ba6da59761e28d141621f16ae6bc8ae2bf3048f86c89ec3586bec67`.
 The full 0.1.59 Flex/Static/companion/Undo regression remains historical evidence
 for 0.1.59, not a new 0.1.60 run. No 0.1.60 physical load or hardware result.
+
+## Approved 0.1.63 UI — 25 October 2026
+
+The owner approved the local renderer preview and explicitly authorized pushing
+0.1.63. It uses a nearly full-height popup, a dashed six-field form, centered
+BPM/BEATS controls with blank unused fields, and a vertically centered,
+right-aligned summary. The summary shows only the BPM number, count first
+(3 SLICE), and CREATE/REPLACE. No version is displayed in the popup.
+
+Exact target package: 5,592 bytes, SHA-256
+`6bd14749b2281accb6a20a5f0811b61975b5731013cbef64d4206ec91485834c`.
+Both unchanged strict stock-free scans pass. Four generic SDK cases and both
+actual controller/target descriptor cases pass in the reviewed compiler. All
+nine module input hashes match source. Base `92b6c7bb…` is reused unchanged,
+with all 219 source inputs verified before reuse; its native/browser parity and
+safety receipts remain bound to the unchanged image recorded above.
+
+The approved picture was rendered by the actual C controller on the host with
+authored metadata over retained emulator background. It is distinct from a
+normal-boot target capture. The exact target capture receipt and comparison
+result are recorded in PR #840. Capture-only mode verifies UI rendering, not a
+new full Flex/Static/companion/Undo suite. The full 0.1.59 regression remains
+historical evidence for that version. No 0.1.63 physical load or hardware result
+is claimed; the earlier physical Undo failure remains unresolved.
