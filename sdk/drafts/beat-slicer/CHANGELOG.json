@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.63-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Center the information block vertically beside the control form.",
+      "Align the BPM value, slice count and CREATE/REPLACE text to one right edge.",
+      "Local UI preview awaiting approval; not pushed or device-tested."
+    ]
+  },
+  {
     "version": "0.1.62-experimental",
     "date": "2026-10-25",
     "changes": [

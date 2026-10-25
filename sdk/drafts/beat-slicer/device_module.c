@@ -166,6 +166,12 @@ static void center(unsigned char *frame,uint32_t x,uint32_t width,uint32_t y,con
     uint32_t pixels=n?4u*n-1u:0;
     bs_device_small_text(frame,x+(pixels<width?(width-pixels)/2u:0u),y,value);
 }
+static void right(unsigned char *frame,uint32_t edge,uint32_t y,const char *value)
+{
+    uint32_t n=0;while(value[n])++n;
+    uint32_t pixels=n?4u*n-1u:0;
+    bs_device_small_text(frame,pixels<=edge+1u?edge+1u-pixels:0u,y,value);
+}
 void module_draw(unsigned char *frame)
 {
     if(!active || !frame)return;
@@ -194,16 +200,16 @@ void module_draw(unsigned char *frame)
         uint32_t fraction=(bpm%24u*100u+12u)/24u;
         *at++=(char)('0'+fraction/10u);*at++=(char)('0'+fraction%10u);*at=0;
     } else text(line,"NONE");
-    center(frame,92,32,25,line);
+    right(frame,120,20,line);
     at=number(line,geometry==BS_OK?plan.count:0);text(at," SLICE");
-    center(frame,92,32,37,line);
+    right(frame,120,31,line);
     if(geometry==DEVICE_SHORT_TRIM)text(line,"SHORT");
     else if(geometry==BS_TOO_MANY)text(line,"OVER64");
     else if(geometry!=BS_OK)text(line,"CHECK");
     else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAIT");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"REFUSED");
     else text(line,view.count?"REPLACE":"CREATE");
-    center(frame,92,32,49,line);
+    right(frame,120,42,line);
     /* Border is restored last, providing a complete-render capture marker. */
     bs_device_box(frame,3,1,122,62);
 }
