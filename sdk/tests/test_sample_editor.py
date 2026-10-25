@@ -44,6 +44,10 @@ class SampleEditor(unittest.TestCase):
         self.run_fixture(['sample_editor_service.c', 'sample_editor_board.c',
                           'test_sample_editor_board.c'], ['-DMW_SAMPLE_BOARD_HOST'])
 
+    def test_menu_selection_confirmation_and_dialog_retirement(self):
+        self.run_fixture(['sample_editor_service.c', 'test_sample_editor_menu.c'],
+                         ['-DMW_SAMPLE_MENU_HOST', '-DMODWERK_RUNTIME_EVENTS'])
+
     @unittest.skipUnless(shutil.which('m68k-elf-gcc'), 'ColdFire compiler unavailable')
     def test_actual_c_package_uses_the_required_descriptor_alignment(self):
         # A generic source-only client keeps the base regression independent

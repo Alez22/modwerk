@@ -29,7 +29,10 @@ struct mw_sample_backend {
     unsigned (*capture)(void *, struct mw_sample_capture *);
     /* Exactly one atomic attempt. On failure restore and verify the complete
      * prior table BEFORE returning NO_CHANGE. An unverified failure returns
-     * FAULT and permanently disables this service for the boot. No disk save,
+     * FAULT and permanently disables this service for the boot. STALE means
+     * a recorder/source change won publication and the complete marker table
+     * was restored and verified; it consumes the intent without a retry.
+     * Recorder extent/trim/PCM changes must never be rolled back. No disk save,
      * PCM mutation, normalizing old rows or user history is permitted. */
     unsigned (*publish)(void *, const struct mw_sample_capture *, const struct mw_sample_edit *);
 };

@@ -174,7 +174,15 @@ uint32_t mw_sample_editor_service_test(void)
         for(unsigned i=2;i<64;++i)CHECK(equal(&source.view.records[i],&before.view.records[i],12));
     }
     grid.count=4;for(unsigned i=0;i<4;++i)grid.starts[i]=22050*i;
-    /* A failed publisher may report verified no-change; anything else poisons. */
+    /* A late source change is a consumed, verified rollback, not a fault. */
+    reset(1,128,0);bytes(&before,&source,sizeof before);publish_reply=MODWERK_SAMPLE_STALE;
+    CHECK(mw_sample_editor_begin(&editor,&owner,&token)==MODWERK_SAMPLE_OK);
+    CHECK(mw_sample_editor_confirm(&editor,token,&grid)==MODWERK_SAMPLE_CONFIRMING);
+    CHECK(mw_sample_editor_answer(&editor,token,1)==MODWERK_SAMPLE_STALE);
+    CHECK(equal(&before,&source,sizeof source) && publishes==1 && !editor.poisoned);
+    CHECK(mw_sample_editor_answer(&editor,token,1)==MODWERK_SAMPLE_STALE && publishes==1);
+    CHECK(mw_sample_editor_begin(&editor,&owner,&token)==MODWERK_SAMPLE_OK);
+    /* Other failed publishers must verify no-change; unknown replies poison. */
     for(uint32_t fault=0;fault<2;++fault) {
         reset(1,0,0);bytes(&before,&source,sizeof before);
         publish_reply=fault?MODWERK_SAMPLE_INVALID:MODWERK_SAMPLE_NO_CHANGE;

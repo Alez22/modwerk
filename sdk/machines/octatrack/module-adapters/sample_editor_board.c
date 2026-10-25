@@ -36,7 +36,9 @@ struct mw_sample_editor mw_sample_editor;
 /* File-backed settings are written by UI/engine/storage tasks, excluded by
  * the level-4 lock. Recording into the edited buffer and audition are excluded.
  * This service never touches PCM. Keep the level-5 frame and
- * level-6 DMA interrupts running through copies, validation and publication. */
+ * level-6 DMA interrupts running through copies, validation and row writes.
+ * Only the final recorder-state check/count publication briefly excludes the
+ * level-5 recorder; it never copies a table, waits or calls stock UI code. */
 static uint32_t lock(void *unused){(void)unused;return modwerk_machine_lock();}
 static void unlock(void *unused,uint32_t sr){(void)unused;modwerk_machine_unlock(sr);}
 static int audio_preemptible(void)
@@ -75,6 +77,42 @@ static int source_not_recording(uint32_t kind,uint32_t slot)
     uint32_t other=READ_BYTE(0x80004f1eu+84u*(track+8u*(1u-selected)));
     return !active && (other==0u || other==2u);
 }
+/* Diagnostic timer counts for the bounded final count publication. Physical
+ * latency still needs exact-build device measurement; emulator counts are not
+ * an SDRAM/cache timing qualification. DMA (level 6) stays enabled. */
+uint32_t mw_sample_commit_max,mw_sample_commit_last,mw_sample_commit_spans;
+#ifdef MW_SAMPLE_BOARD_HOST
+uint32_t mw_sample_host_commit_lock(void);
+void mw_sample_host_commit_unlock(uint32_t);
+static uint32_t commit_lock(void){return mw_sample_host_commit_lock();}
+static void commit_unlock(uint32_t saved){mw_sample_host_commit_unlock(saved);}
+#else
+static uint32_t commit_at;
+static uint32_t commit_lock(void)
+{
+    uint32_t sr;
+    __asm__ __volatile__("move.w %%sr,%0" : "=d"(sr) :: "memory");
+    if((sr&0x0700u)<0x0500u)
+        __asm__ __volatile__("move.w %0,%%sr" :: "d"((sr&~0x0700u)|0x0500u) : "memory");
+    commit_at=READ(0xfc07c00cu);return sr;
+}
+static void commit_unlock(uint32_t saved)
+{
+    uint32_t elapsed=READ(0xfc07c00cu)-commit_at;
+    __asm__ __volatile__("move.w %0,%%sr" :: "d"(saved) : "memory");
+    mw_sample_commit_last=elapsed;++mw_sample_commit_spans;
+    if(elapsed>mw_sample_commit_max)mw_sample_commit_max=elapsed;
+}
+#endif
+static int source_stable(const struct mw_sample_capture *before,uint32_t settings)
+{
+    const struct modwerk_sample_view *v=&before->view;
+    if(!source_not_recording(v->kind,v->slot) || READ_PACKED(0x460d17d2u) || READ(0x460e6bccu))return 0;
+    uint32_t controls=(v->kind?0x46c922c4u:0x46c90a78u)+44u*v->slot;
+    for(uint32_t i=0;i<11u;++i)if(READ(controls+4u*i)!=before->controls[i])return 0;
+    return READ(settings+276u)==v->sample_bpm24 && READ(0x80001814u)==v->project_bpm24 &&
+        READ(settings+300u)==v->trim_start && READ(settings+304u)==v->trim_end && READ(settings+308u)==v->loop;
+}
 static int ready(void *unused)
 {
     (void)unused;
@@ -111,7 +149,7 @@ static unsigned capture(void *unused,struct mw_sample_capture *out)
     }
     return MODWERK_SAMPLE_OK;
 }
-static int store(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
+static int store_rows(uint32_t settings,const struct modwerk_slice_record *records)
 {
     /* Match stock grid publication: readers see no active rows while their
      * contents change, then the new count. Frame and DMA service stay enabled.
@@ -123,17 +161,22 @@ static int store(uint32_t settings,uint32_t count,const struct modwerk_slice_rec
         WRITE(settings+316u+12u*i,records[i].end);
         WRITE(settings+320u+12u*i,records[i].loop);
     }
-    WRITE(settings+1092u,count);
     return 1;
 }
-static int matches(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
+static int rows_match(uint32_t settings,const struct modwerk_slice_record *records)
 {
-    if(READ(settings+1092u)!=count)return 0;
     for(uint32_t i=0;i<64u;++i)
         if(READ(settings+312u+12u*i)!=records[i].start ||
            READ(settings+316u+12u*i)!=records[i].end ||
            READ(settings+320u+12u*i)!=records[i].loop)return 0;
     return 1;
+}
+static int matches(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
+{return READ(settings+1092u)==count && rows_match(settings,records);}
+static int store(uint32_t settings,uint32_t count,const struct modwerk_slice_record *records)
+{
+    if(!store_rows(settings,records))return 0;
+    WRITE(settings+1092u,count);return 1;
 }
 static unsigned publish(void *unused,const struct mw_sample_capture *before,const struct mw_sample_edit *edit)
 {
@@ -152,14 +195,30 @@ static unsigned publish(void *unused,const struct mw_sample_capture *before,cons
         WRITE(0x400ceb3cu,selected);
         return READ(0x400ceb3cu)==selected?MODWERK_SAMPLE_NO_CHANGE:MODWERK_SAMPLE_FAULT;
     }
-    if(store(settings,edit->count,edit->records) && matches(settings,edit->count,edit->records)) {
-        refresh_pending=1;return MODWERK_SAMPLE_APPLIED;
+    unsigned stale=0;
+    if(store_rows(settings,edit->records) && rows_match(settings,edit->records)) {
+        /* All long work remains preemptible. A start before this atomic
+         * decision wins and cancels the edit; a start after the count store
+         * observes an already-complete grid. No recorder is skipped/retried.
+         * The stock recorder changes extent/trim, not marker rows/count, in
+         * the audited preparation/recording paths. Deferred marker cleanup is
+         * an engine task, still excluded by the outer metadata lock. */
+        unsigned recorder=v->kind==MODWERK_SAMPLE_FLEX && v->slot>=MW_SAMPLE_FILE_SLOTS;
+        uint32_t saved=recorder?commit_lock():0;
+        stale=!source_stable(before,settings);
+        unsigned applied=0;
+        if(!stale && !READ(settings+1092u)) {
+            WRITE(settings+1092u,edit->count);
+            applied=READ(settings+1092u)==edit->count;
+        }
+        if(recorder)commit_unlock(saved);
+        if(applied){refresh_pending=1;return MODWERK_SAMPLE_APPLIED;}
     }
     /* Roll back every active/inactive record and selected row before releasing
      * the lock. This is failure recovery, not user slice history. */
     store(settings,v->count,v->records);WRITE(0x400ceb3cu,selected);
     return matches(settings,v->count,v->records) && READ(0x400ceb3cu)==selected?
-        MODWERK_SAMPLE_NO_CHANGE:MODWERK_SAMPLE_FAULT;
+        (stale?MODWERK_SAMPLE_STALE:MODWERK_SAMPLE_NO_CHANGE):MODWERK_SAMPLE_FAULT;
 }
 static const struct mw_sample_backend backend={0,lock,unlock,ready,owner,capture,publish};
 void mw_sample_editor_bootstrap(void)
