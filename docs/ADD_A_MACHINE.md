@@ -27,6 +27,10 @@ An Erica Synths machine (`family: "erica"`) has published firmware source (the L
 
 An Erica Synths release lists its version with `"files": []`, and the machine stays locked for modules until an `lxr` module contract exists. The licence, trademark and install terms a build must meet are in [LXR_02.md](LXR_02.md).
 
+## Start read-only over USB
+
+A device with no profile yet starts from **Another device** on the Start developing page. On every machine, research starts with the unit connected read-only (through a USB MIDI interface if it only has MIDI ports): its USB IDs and interfaces (MIDI, audio, mass storage, an update or DFU mode), the OS version its menu shows, and the maker's update file and how it restores stock. Write nothing to the unit, start no update and send nothing that changes it until a way back to stock is tested and its projects and presets are backed up with the maker's tools.
+
 ## Never share firmware
 
 Do not put OS files, stock effects, memory dumps, disassembly listings or extracted Elektron or Zoom code in a pull request, issue or forum post. Work from your own download of the stock OS. Share hashes, file structure, addresses, notes and your own code only. Erica Synths' published source is not stock firmware: link and cite it under its GPL-3.0 licence, but never commit a built image.
