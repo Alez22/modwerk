@@ -181,7 +181,6 @@ void module_draw(unsigned char *frame)
     center(frame,7,26,18,"BPM");
     center(frame,34,25,18,"BEATS");
     center(frame,6,81,56,"YES:OK NO:BACK");
-    center(frame,92,30,56,"0.1.61");
     if(!captured || dirty) {
         center(frame,7,26,26,"WAIT");
         bs_device_box(frame,3,1,122,62);return;
@@ -189,24 +188,22 @@ void module_draw(unsigned char *frame)
     center(frame,7,26,26,tempo_source?"PROJ":"SAMPLE");
     number(line,spacings[spacing]);
     center(frame,34,25,26,line);
-    center(frame,92,30,17,"BPM");
     uint32_t bpm=tempo_source?view.project_bpm24:view.sample_bpm24;
     if(bpm>=720 && bpm<=7200) {
         at=number(line,bpm/24u);*at++='.';
         uint32_t fraction=(bpm%24u*100u+12u)/24u;
         *at++=(char)('0'+fraction/10u);*at++=(char)('0'+fraction%10u);*at=0;
     } else text(line,"NONE");
-    center(frame,92,30,25,line);
-    center(frame,92,30,35,"SLICES");
-    number(line,geometry==BS_OK?plan.count:0);
-    center(frame,92,30,43,line);
+    center(frame,92,32,25,line);
+    at=number(line,geometry==BS_OK?plan.count:0);text(at," SLICE");
+    center(frame,92,32,37,line);
     if(geometry==DEVICE_SHORT_TRIM)text(line,"SHORT");
     else if(geometry==BS_TOO_MANY)text(line,"OVER64");
     else if(geometry!=BS_OK)text(line,"CHECK");
     else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAIT");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"REFUSED");
     else text(line,view.count?"REPLACE":"CREATE");
-    center(frame,92,30,49,line);
+    center(frame,92,32,49,line);
     /* Border is restored last, providing a complete-render capture marker. */
     bs_device_box(frame,3,1,122,62);
 }

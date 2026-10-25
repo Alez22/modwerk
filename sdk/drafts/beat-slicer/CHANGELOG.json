@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.62-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Show the BPM number without a repeated right-side label.",
+      "Show the slice count first, such as 3 SLICE.",
+      "Remove the version from the popup; retain version metadata for comparison and reverting.",
+      "Local UI preview awaiting approval; not pushed or device-tested."
+    ]
+  },
+  {
     "version": "0.1.61-experimental",
     "date": "2026-10-25",
     "changes": [

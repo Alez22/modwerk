@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.61-experimental` (local UI review; not pushed) · author: @twwwy · **unlisted development draft**.
+Version: `0.1.62-experimental` (local UI review; not pushed) · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
