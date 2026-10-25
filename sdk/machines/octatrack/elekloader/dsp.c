@@ -1011,12 +1011,24 @@ static void restore_lanes(void)
 static int st_played;
 static uint32_t counted(void) { return modwerk_dsp_stalls + dl_rejected[0] + dl_rejected[1] + dl_errors + dl_residency_rollbacks; }
 static unsigned core_of_slot(unsigned i) { return (i & 7u) < 4u ? 1u : 0u; }
-static int settled(const uint8_t *want) /* the manager idle, and every slot running `want` with its code bound */
+static unsigned unsettled_slot(const uint8_t *want) /* the first slot not running `want` with its code bound, 16 none */
 {
-    if (!dl_publication_idle()) return 0;
     for (unsigned i = 0; i < 16u; ++i)
-        if (LIVE_SET[i] != want[i] || (want[i] < MODWERK_FX_IDS && !dl_catalog[want[i]].resident && !dl_bound(core_of_slot(i), want[i]))) return 0;
-    return 1;
+        if (LIVE_SET[i] != want[i] || (want[i] < MODWERK_FX_IDS && !dl_catalog[want[i]].resident && !dl_bound(core_of_slot(i), want[i]))) return i;
+    return 16u;
+}
+static int settled(const uint8_t *want) { return dl_publication_idle() && unsettled_slot(want) > 15u; } /* the manager idle too */
+/* A set that never settles (a tester's unit, 25 October 2026: a batch waited with 5 of 7 placed until the site gave up
+ * after three minutes, twice in one boot). The manager never asks again for an automatic set it refused (finding 70),
+ * so it is nudged once; still unsettled after about four seconds, the test fails with `why`, names the first slot's
+ * effect and puts the tracks back. */
+static void waiting(volatile struct selftest *t, const uint8_t *want, uint32_t why)
+{
+    if (st_ticks == 120u) nudge = 1;
+    if (st_ticks <= 240u) return;
+    unsigned i = unsettled_slot(want);
+    if (i < 16u) blame(want[i], 0);
+    t->failed |= why, t->phase = SELFTEST_RESTORE, st_ticks = 0;
 }
 /* Settled, judged at least seven ticks after the change, once the manager has taken it: a set that only takes code
  * off looks settled before the manager has seen it, and its next step would then meet the old code still loaded. */
@@ -1150,7 +1162,7 @@ static void together(volatile struct selftest *t)
         return;
     }
     if (st_step == HOLD) { /* until both cores' meters have a fresh window with everything bound */
-        if (st_reads == ~0u) { if (settled(st_want)) st_reads = modwerk_status_reads, st_ticks = 0; return; }
+        if (st_reads == ~0u) { if (settled(st_want)) st_reads = modwerk_status_reads, st_ticks = 0; else waiting(t, st_want, SELFTEST_REFUSED); return; }
         if (st_ticks > 6u && modwerk_status[4] > t->peak[0]) t->peak[0] = modwerk_status[4];
         if (st_ticks > 6u && modwerk_status[2] > t->peak[1]) t->peak[1] = modwerk_status[2];
         if (modwerk_status[0] > t->cpu) t->cpu = modwerk_status[0];
@@ -1204,7 +1216,7 @@ static void together(volatile struct selftest *t)
     if (st_queued) { /* the modules off first, then an emptied core's effects back: their code arrives once the modules' left */
         if (!st_back) set_live(st_base), st_back = 1, st_ticks = 0;
         if (st_back == 1u) { if (!taken(st_base) && st_ticks <= 300u) return; set_live(st_live), st_back = 2, st_ticks = 0; }
-        if (!taken(st_live)) return;
+        if (!taken(st_live)) { waiting(t, st_live, SELFTEST_NOT_BACK); return; }
         for (unsigned i = 0; i < 16u; ++i) st_base[i] = st_want[i] = st_live[i];
         for (unsigned i = 0; i < 8u; ++i) t->track[i] = 0;
         st_used = st_try = st_batch = st_back = 0, st_step = PLACE;
