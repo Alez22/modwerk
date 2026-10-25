@@ -153,4 +153,9 @@ struct modwerk_midi_generator {
 };
 #define MODWERK_MIDI_GENERATOR_ABI 2u
 
+/* ev_trig_muted (raised by a module): a machine that starts a note from a trig itself, before stock binds the track's voice (ev_voice_bind), asks which tracks' new trigs a module drops now; no stock site: the machine calls the base's modwerk_raise_ev_trig_muted(), which returns every handler's answer OR'd, 0 with none. Where the machine starts its note: the frame interrupt (the renderer the packer calls at 0x4000d43e) or a task: short, no firmware call that can block. Return the tracks whose new trigs this module drops now: bit t for track t+1, bits 0-7; higher bits are ignored. Every handler runs. They are the tracks whose ev_voice_bind this module drops (1) in the same frame: muted or soloed-out tracks while one of its trig-dropping modes is on, less those whose trigs it lets through (ev_mute_keep). The asking machine starts no new note on these tracks and lets a note already sounding finish; with no answer (0) it plays every trig, as stock does. d2-d7/a2-a6 must be kept. */
+#define MODWERK_EV_TRIG_MUTED 32
+typedef unsigned modwerk_ev_trig_muted(void);
+/* Raise it: define `modwerk_ev_trig_muted *raise_ev_trig_muted` as a zero word in your image (initialized data, not bss), list "ev_trig_muted" under "raise" in runtime.json and call through it; every handler's answer, OR'd. */
+
 #endif
