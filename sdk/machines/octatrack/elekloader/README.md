@@ -494,9 +494,7 @@ the unit comes back on the new base from NOR: a repeat writes nothing when NOR
 already matches. Two rules keep any update from bricking a unit: nothing writes
 below `0x4000`, where Elektron's bootloader and its FUNC startup menu (MIDI
 UPGRADE, the recovery) live, and once a write may have started, the site never
-shows an error that invites switching the unit off. Base releases are paused
-until a two-slot layout makes a power cut during the write harmless (owner, 25
-October 2026; `npm run octatrack:base -- --write` refuses without `--owner-exception`).
+shows an error that invites switching the unit off.
 The write itself (some seconds) is the window a power cut can hit, as with
 the card. A base without the capability (feature bit 8 of CAPABILITIES) still
 needs the card once. Host check: `test_flash.c` (NOR modelled as clearing
