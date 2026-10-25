@@ -36,6 +36,7 @@
       "Off at every power-on: until you turn it on, pattern changes are the stock ones.",
       "The new pattern lands where it would be had it played since START, also with differing track lengths and scales (PER TRACK mode), so tracks stay in phase with the master clock.",
       "The Part, START SILENT and trig conditions change as on a stock pattern change; the last MIDI Program Change names the pattern that plays; no MIDI START is sent on a jump.",
+      "Includes Zac Kyoti's fix for stock's MIDI Plays-Free stall, so a Plays Free MIDI track in PER TRACK mode keeps playing and Direct Jump places it with its own scale.",
       "The arranger and pattern chains are left alone: while either runs, pattern changes are stock."
     ],
     "usage": [
@@ -83,19 +84,20 @@
       "While the arranger or a pattern chain runs, pattern changes stay stock.",
       "With differing track scales or lengths in PER TRACK mode, the jump waits for the next tick where every track is at a step boundary, at most one common step of all tracks' scales (24 clock ticks for 1x, 3/4x and 1/2x together).",
       "[PTN] + [YES] no longer opens the pattern chooser on releasing [PTN]; [YES] alone and [PTN] with a trig key are unchanged.",
+      "Carries the author's fix for stock's MIDI Plays-Free stall (a Plays Free MIDI track with trig quantize DIRECT under PER TRACK scale stopped after its first step), whether Direct Jump is on or off. The bundle's other two fixes are not included.",
       "A jump changes the Part through stock's own Part-change path, so stock's known Part-change carryover issues (a track going from PICKUP to FLEX can keep the old Part's pickup loop) happen on a jump as on a stock pattern change.",
       "With Play Modes, each jump counts as a transport start for Play Modes, which restarts its own per-track state."
     ]
   },
   "resources": {
-    "recorded": "24 October 2026; source assembly, the image gate and the ColdFire port",
+    "recorded": "25 October 2026; source assembly, the image gate and the ColdFire port",
     "storage": {
       "label": "DRAM code and detours",
-      "display": "2,016 B code and state + three 6 B detours + one 4 B pointer",
-      "value": 2038,
+      "display": "2,078 B code and state + four 6 B detours + one 4 B pointer",
+      "value": 2106,
       "unit": "bytes",
       "method": "static",
-      "conditions": "One linked unit of 2,016 bytes (code, two toast strings and 62 bytes of state) in the DRAM reserve, three six-byte detours over stock instructions and the [PTN]-layer YES press pointer. No DSP memory, no saved data.",
+      "conditions": "Two linked units in the DRAM reserve: Direct Jump's 2,016 bytes (code, two toast strings and 62 bytes of state) and the MIDI Plays-Free fix's 62 bytes of code; four six-byte detours over stock instructions and the [PTN]-layer YES press pointer. The USB package carries the units as 2,080 bytes (aligned). No DSP memory, no saved data.",
       "source": "TESTING.md"
     },
     "processing": {
@@ -124,7 +126,7 @@
       "memory": {
         "level": "minimal",
         "basis": "measured-comparison",
-        "rationale": "2,016 bytes of ColdFire code and state in the DRAM reserve (62 bytes of state) and 22 bytes of stock writes; no DSP memory and no saved data.",
+        "rationale": "2,078 bytes of ColdFire code and state in the DRAM reserve (62 bytes of state) and 28 bytes of stock writes; no DSP memory and no saved data.",
         "source": "TESTING.md"
       }
     }
@@ -179,7 +181,7 @@
       "memory": {
         "regions": [
           {
-            "name": "ColdFire code, two toast strings and 62 bytes of state (one linked unit, DRAM)",
+            "name": "ColdFire code, two toast strings and 62 bytes of state (Direct Jump's linked unit, DRAM)",
             "space": "sdram",
             "words": 2016,
             "wordBits": 8,
@@ -187,19 +189,27 @@
             "scope": "shared"
           },
           {
-            "name": "Three six-byte detours and the four-byte [PTN]-layer YES pointer, written over stock in place",
-            "space": "cpu-flash",
-            "words": 22,
+            "name": "The MIDI Plays-Free fix's code (a second linked unit, DRAM)",
+            "space": "sdram",
+            "words": 62,
             "wordBits": 8,
-            "bytes": 22,
+            "bytes": 62,
+            "scope": "shared"
+          },
+          {
+            "name": "Four six-byte detours and the four-byte [PTN]-layer YES pointer, written over stock in place",
+            "space": "cpu-flash",
+            "words": 28,
+            "wordBits": 8,
+            "bytes": 28,
             "scope": "shared"
           }
         ],
         "perInstanceBytes": 0,
-        "sharedBytes": 2038,
+        "sharedBytes": 2106,
         "maxInstances": 1,
-        "totalBytes": 2038,
-        "conditions": "From the linked unit (2,016 bytes of code and data, no bss; the USB package carries the same bytes with 18 relocations) and the four stock writes. No DSP memory, no heap, no saved data.",
+        "totalBytes": 2106,
+        "conditions": "From the two linked units (2,016 and 62 bytes of code and data, no bss; the USB package carries the same bytes, 2,080 aligned, with 18 relocations) and the five stock writes. No DSP memory, no heap, no saved data.",
         "report": "TESTING.md"
       },
       "hardware": {
