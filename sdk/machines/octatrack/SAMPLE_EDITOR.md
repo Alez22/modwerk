@@ -58,6 +58,12 @@ tail `0x4006d91c` and waveform command dispatch `0x400858c0`. Selection entries
 are broader than one row; unchanged stock dispatch and pointer lifetime need
 review across normal menus, not only this client.
 
+The ordinary-recorder emulator fixtures distinguish the selected state bank
+from an inactive bank retaining state 2 after Stop. An OR of both banks would
+incorrectly keep editing blocked. Completed lengths come from published source
+metadata, never reserved capacity. The slot counter did not advance across the
+observed re-recordings; it cannot establish the whole content lifetime by itself.
+
 ## Review and verification
 
 The SDK test is independent of Beat Slicer: authored backend/lifetime/rollback
