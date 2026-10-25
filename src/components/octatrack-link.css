@@ -429,3 +429,6 @@ button.octatrack-status { width: 100%; border: 0; border-top: 1px solid var(--li
   .base-install-dialog .base-install-footer > .button:first-child { flex: 0 1 auto; }
   .base-install-dialog .base-install-footer > .button:last-child { flex: 1; }
 }
+/* The update over USB: three stages, one restart. */
+.base-update-steps { grid-template-columns: repeat(3, 1fr); }
+.base-install-warning .status-dot.is-updating { width: 8px; height: 8px; margin-top: 8px; }
