@@ -8611,8 +8611,8 @@
       "schemaVersion": 2,
       "id": "direct-jump-kyoti",
       "key": "DIRECT_JUMP_KYOTI",
-      "name": "Direct Jump",
-      "version": "0.1.1-experimental",
+      "name": "Direct Jump Kyoti",
+      "version": "0.1.2-experimental",
       "category": "system",
       "source": {
         "repository": "https://github.com/sambanks/octabam",
@@ -8635,15 +8635,8 @@
       "author": {
         "github": "Zac-Kyoti",
         "name": "Zac Kyoti",
-        "contributors": [
-          {
-            "github": "uvbproject",
-            "name": "Sebastien Michel"
-          }
-        ],
         "credits": [
           "Zac Kyoti: Direct Jump's design, its ColdFire source and the MKI hardware work behind it. Sam Banks: octabam integration.",
-          "Sebastien Michel (uvbproject): the port investigation (pull request #856).",
           "Modwerk contributors: source import with stock guards in place of stock bytes, the stock-free re-encoding of three kernel posts for the USB package, the emulator gate, documentation and SVG thumbnail."
         ]
       },
@@ -8651,8 +8644,8 @@
       "presentation": {
         "label": "Clock-locked pattern jump on [PTN] + [YES]",
         "family": "Sequencer",
-        "summary": "Hold [PTN] and press [YES] to turn Direct Jump on: a pattern you cue takes over on the next step, where it would be had it played since START.",
-        "overview": "On the stock OS a cued pattern waits for the playing one to reach its end. With Direct Jump on, it takes over on the next step instead, locked to the master clock: it starts at the step it would be on had it been playing since you pressed PLAY, whatever its length, scale or per-track settings. The Part, START SILENT and trig conditions change as on a stock pattern change. It is off at every power-on, so the stock behaviour stays the default.",
+        "summary": "Hold [PTN] and press [YES] to turn Direct Jump Kyoti on: a pattern you cue takes over on the next step, where it would be had it played since START.",
+        "overview": "On the stock OS a cued pattern waits for the playing one to reach its end. With Direct Jump on, it takes over on the next step instead, locked to the master clock: it starts at the step it would be on had it been playing since you pressed PLAY, whatever its length, scale or per-track settings. The Part, START SILENT and trig conditions change as on a stock pattern change. It is off at every power-on, so the stock behaviour stays the default. It is Zac Kyoti's design, distinct from octabam's other direct jump (Tim Hastie's CHAIN AFTER option).",
         "highlights": [
           "OS 1.40C. Zac Kyoti tested the clock-locked timing, the Part change and the toggle on his MKI; Modwerk's USB package ran on an MKII.",
           "Off at every power-on: until you turn it on, pattern changes are the stock ones.",
@@ -8742,9 +8735,9 @@
       },
       "tests": {
         "report": "TESTING.md",
-        "summary": "On the owner's MKII over USB (25 Oct 2026), on the published beta base 109f23bd: the 0.1.1 package installed and kept beside four other modules as a tester's sync does it, self-test passed (5/5 intact), removed, and the restored set self-tested again. 0.1.0's run on a development twin (24 Oct 2026) drove the toggle and clock-locked jumps with the same Direct Jump unit. Under the ColdFire port (verify.py, 39 checks): OFF identical to the original OS through a pattern change; three jumps (16 steps; 7 steps on Part 2; PER TRACK lengths and scales) whose sequencer state equals a reference run of the incoming pattern since START on every tick after the landing; and the MIDI Plays-Free stall, which the original OS shows and the module fixes.",
+        "summary": "On the owner's MKII over USB (25 Oct 2026), on the published beta base 109f23bd: the 0.1.2 package (listed as DirectJmp Kyoti) installed and kept beside four other modules as a tester's sync does it, self-test passed (5/5 intact), removed, and the restored set self-tested again. 0.1.0's run on a development twin (24 Oct 2026) drove the toggle and clock-locked jumps with the same Direct Jump unit. Under the ColdFire port (verify.py, 39 checks): OFF identical to the original OS through a pattern change; three jumps (16 steps; 7 steps on Part 2; PER TRACK lengths and scales) whose sequencer state equals a reference run of the incoming pattern since START on every tick after the landing; and the MIDI Plays-Free stall, which the original OS shows and the module fixes.",
         "hardwareStatus": "reported",
-        "evidenceRevision": "fd3940e74c5105de7af38dfeb2dbe49c771e15c9",
+        "evidenceRevision": "cf95656dbc0e386b4fda769e04cc18eb2a5d3364",
         "gates": [
           "modules/direct-jump-kyoti/verify.py"
         ],
@@ -8781,9 +8774,9 @@
             ],
             "screenshotStyle": "black-and-white"
           },
-          "moduleVersion": "0.1.1-experimental",
-          "sourceSha256": "924916295ec37758499d103e5f9fa9290af59801598f45d39b15d3d89037d65a",
-          "imageSha256": "5c7b2d12d9da96e077d21b371c84b1a09935461214d424df57f698f103fc29ed",
+          "moduleVersion": "0.1.2-experimental",
+          "sourceSha256": "a692cb9858bc80acb561de3a9d13e30523a4b6921c834de9335485cbf38eecf8",
+          "imageSha256": "89a38e18728bb2039a0f5e3f39305fcb7be75e0db260acd6b33bd46d7e281cef",
           "cycles": [
             {
               "processor": "coldfire",
@@ -8843,14 +8836,14 @@
             "model": "MKII",
             "testedOn": "2026-10-25",
             "tester": "repeat98",
-            "sourceRevision": "fd3940e74c5105de7af38dfeb2dbe49c771e15c9",
-            "imageSha256": "5c7b2d12d9da96e077d21b371c84b1a09935461214d424df57f698f103fc29ed",
-            "summary": "The owner's MKII, OS 1.40C, driven over USB by the agent at the owner's request, on the published beta base 109f23bd (flashed, running from RAM on the same image) with SIDECHAIN COMP, Ringmod SC, Mini Verb and POLY8 kept: package 5c7b2d12 installed and kept as a tester's sync does it (generation 5), self-test passed (5/5 intact, both DSP modules ran, longest frame 421 us, card set saved 5/5); removal kept (generation 6), the four remained; self-test passed again (4/4, 422 us). The 0.1.0 package's toggle and jumps ran on a development twin on 24 Oct 2026 with the byte-identical Direct Jump unit (evidence/hardware.md).",
+            "sourceRevision": "cf95656dbc0e386b4fda769e04cc18eb2a5d3364",
+            "imageSha256": "89a38e18728bb2039a0f5e3f39305fcb7be75e0db260acd6b33bd46d7e281cef",
+            "summary": "The owner's MKII, OS 1.40C, driven over USB by the agent at the owner's request, on the published beta base 109f23bd (flashed, running from RAM on the same image) with SIDECHAIN COMP, Ringmod SC, Mini Verb and POLY8 kept: package 89a38e18 installed and kept as a tester's sync does it (generation 7), listed as DirectJmp Kyoti; self-test passed (5/5 intact, both DSP modules ran, longest frame 419 us, card set saved 5/5); removal kept (generation 8), the four remained; self-test passed again (4/4, 418 us). 0.1.2 differs from the 0.1.1 package run the same way earlier that day only in its 15-character title. The 0.1.0 package's toggle and jumps ran on a development twin on 24 Oct 2026 with the byte-identical Direct Jump unit (evidence/hardware.md).",
             "limitations": [
               "One unit, driven by the agent; nothing judged by ear.",
-              "Not exercised on the unit with 0.1.1: the toggle, a jump and the MIDI Plays-Free fix itself (the beta base answers no key presses or RAM reads over USB). The author confirmed the fix on his MKI; the emulator gate runs the stall against the original OS.",
+              "Not exercised on the unit with 0.1.1 or 0.1.2: the toggle, a jump and the MIDI Plays-Free fix itself (the beta base answers no key presses or RAM reads over USB). The author confirmed the fix on his MKI; the emulator gate runs the stall against the original OS.",
               "Not run: a power cycle with 0.1.1 kept, the card build, an MKI, the site's review/Keep/Undo pages.",
-              "About five minutes of use."
+              "About ten minutes of use over the two runs."
             ],
             "report": "evidence/hardware.md"
           }
@@ -8874,7 +8867,7 @@
             "page": "Main screen with the notification",
             "shows": "location-and-controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.1-experimental",
+            "moduleVersion": "0.1.2-experimental",
             "imageSha256": "4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768",
             "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 4453c368…)."
           }
@@ -8891,7 +8884,7 @@
             "page": "Main screen while playing",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.1-experimental",
+            "moduleVersion": "0.1.2-experimental",
             "imageSha256": "4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768",
             "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 4453c368…)."
           }
@@ -8908,7 +8901,7 @@
             "page": "Main screen with the notification",
             "shows": "controls",
             "firmware": "1.40C",
-            "moduleVersion": "0.1.1-experimental",
+            "moduleVersion": "0.1.2-experimental",
             "imageSha256": "4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768",
             "setup": "Headless ot_emu; MKII panel; 128×64 LCD at integer scale 6; DSP cores running; empty scratch card, its missing-project prompts dismissed with three NO presses; native initialized state, no saved project. Static native build of this module alone with every stock effect kept (MAIN OS 4453c368…)."
           }

@@ -1,6 +1,14 @@
 # Direct Jump: tests and measurements
 
-Version `0.1.1-experimental`, recorded 25 October 2026. Its changes and results come first; the 0.1.0-experimental record (24 October 2026) follows, and what it measured of the Direct Jump unit still holds, because that unit is byte-identical in 0.1.1.
+Version `0.1.2-experimental`, recorded 25 October 2026. The 0.1.2 and 0.1.1 changes and results come first; the 0.1.0-experimental record (24 October 2026) follows, and what it measured of the Direct Jump unit still holds, because that unit is byte-identical in 0.1.1 and 0.1.2.
+
+## 0.1.2-experimental: the name ([#881](https://github.com/repeat98/modwerk/issues/881))
+
+- **What changed.** The catalogue name is Direct Jump Kyoti, as the author asked. A package title holds 15 characters, so the package entry carries `"title": "DirectJmp Kyoti"`, which `module_packages.py` passes to `build.py --name`. uvbproject's contributor line and credit came out; the README thanks him for the investigation. No source changed.
+- **USB package.** `0.1.2-experimental.mwrm`, SHA-256 `89a38e18728bb2039a0f5e3f39305fcb7be75e0db260acd6b33bd46d7e281cef` (2,462 bytes): the 0.1.1 package with its nine title bytes changed. The strict stock scans pass as before (10 counted bytes, no 16-byte run).
+- **Tested image.** Built again from this branch: MAIN OS SHA-256 `4453c3684fd72b242bbf9b4abef5b53a344364274391352266b4d81919677768`, byte-identical to 0.1.1's (the card build carries no module name), so the 0.1.1 gate result below holds for it. The three captures, taken again on it, are byte-identical too.
+- **Hardware** (owner's MKII, 25 October 2026, [evidence/hardware.md](evidence/hardware.md)): installed and kept on the beta base `109f23bd` beside four modules, listed as DirectJmp Kyoti; self-test passed (5/5, 419 µs); removed; the restored set passed (4/4, 418 µs).
+
 
 ## 0.1.1-experimental: the author's MIDI Plays-Free fix ([#881](https://github.com/repeat98/modwerk/issues/881))
 

@@ -1,4 +1,17 @@
-# Direct Jump: hardware record
+# Direct Jump Kyoti: hardware record
+
+## 0.1.2-experimental (25 October 2026)
+
+The same unit, base and kept set as the 0.1.1 run below, the same day, at the owner's request; no power cycle, no flash, nothing saved, the kept set put back.
+
+- USB package: `direct-jump-kyoti/0.1.2-experimental.mwrm`, SHA-256 `89a38e18728bb2039a0f5e3f39305fcb7be75e0db260acd6b33bd46d7e281cef`, built from Modwerk commit `cf95656dbc0e386b4fda769e04cc18eb2a5d3364`. It differs from 0.1.1's only in the nine title bytes: same module `075d79a3`, code, relocations and five sites.
+
+1. Installed and kept as a tester's sync does it: accepted, generation 7; the inventory lists the four plus `DirectJmp Kyoti`.
+2. Self-test: passed, 5/5 intact (both DSP modules ran), peaks CPU 53.1 %, T1-4 35 %, T5-8 56.1 %, longest frame 419 µs, card set saved 5/5.
+3. Removal (kept): accepted, generation 8, the four again.
+4. Self-test of the restored set: passed, 4/4, longest frame 418 µs, card set saved 4/4.
+
+The toggle, a jump and the Plays-Free fix were not exercised on the unit (see the 0.1.1 run).
 
 ## 0.1.1-experimental (25 October 2026)
 

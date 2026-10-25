@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "moduleId": "direct-jump-kyoti",
-  "moduleVersion": "0.1.1-experimental",
-  "moduleSourceSha256": "924916295ec37758499d103e5f9fa9290af59801598f45d39b15d3d89037d65a",
+  "moduleVersion": "0.1.2-experimental",
+  "moduleSourceSha256": "a692cb9858bc80acb561de3a9d13e30523a4b6921c834de9335485cbf38eecf8",
   "revision": "b8deefc88b2c3e5f3c6158e364eb741df1924e1d",
   "originalOsSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e",
   "pool": [
