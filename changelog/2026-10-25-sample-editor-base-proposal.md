@@ -1,0 +1,1 @@
+Stage an owner-review proposal for copied Octatrack sample-editor metadata, native confirmation and typed AED actions, with target-aligned C descriptors. The editor remains disabled in ordinary beta bases; reuse and event allocation require review before release.
