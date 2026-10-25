@@ -220,11 +220,11 @@ try:
         if args.check_encoders:
             frame_at=word(0x400b9710)
             def options_frame():
-                # The popup clears only its rectangle. Its right border at
-                # (124,60) is restored last after fields/footer finish drawing.
+                # The popup clears its upper-left corner first. Its right border
+                # at (124,54) is restored near the end of the final border pass.
                 for _ in range(100):
                     frame=port.peek(frame_at,1024)
-                    if frame[124*8]&0x10:return frame
+                    if frame[3*8+6]&1 and frame[124*8+1]&0x40:return frame
                     port.command('run 1')
                 raise AssertionError('no completed options draw within the capture bound')
             original_frame=options_frame()
@@ -315,7 +315,7 @@ try:
     stock_layouts={0x400ceb8c:6,0x400cebc8:9}
     assert labels in stock_layouts,'removed module still supplies the displayed menu'
     for i in range(stock_layouts[labels]):
-        assert port.peek(word(labels+4*i),32).split(b'\0',1)[0]!=b'BEAT SLICER'
+        assert port.peek(word(labels+4*i),32).split(b'\0',1)[0]!=b'CREATE BEAT GRID'
     tap(port,'no')
     print('STOCK MENU RESTORED',flush=True)
     (out/'results.json').write_text(json.dumps({'scope':'Normal emulator boot, USB loader, AED action and stock confirmation', 'inputs':inputs,'baseIdentity':proof['configurationHash'],'results':results,'usbUndo':True,'stockMenuAfterRemoval':True,'hardware':False,'companionFx':companion_live},indent=2)+'\n')

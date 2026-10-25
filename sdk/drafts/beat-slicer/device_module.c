@@ -167,37 +167,37 @@ void module_draw(unsigned char *frame)
     if(!active || !frame)return;
     char line[32],*at;
     /* Composite over the stock AED frame: leave its outer edge visible. */
-    bs_device_clear(frame,3,4,122,57);
-    bs_device_text_at(frame,16,6,"CREATE BEAT GRID");
-    bs_device_invert(frame,4,5,120,9);
-    bs_device_box(frame,89,17,1,35);
-    bs_device_small_text(frame,7,19,"A SRC");
-    bs_device_small_text(frame,35,19,"B STEP");
-    bs_device_small_text(frame,66,19,"C");
+    bs_device_clear(frame,3,8,122,48);
+    bs_device_text_at(frame,16,10,"CREATE BEAT GRID");
+    bs_device_invert(frame,4,9,120,9);
+    bs_device_box(frame,89,20,1,29);
+    bs_device_small_text(frame,7,21,"A SRC");
+    bs_device_small_text(frame,35,21,"B STEP");
+    bs_device_small_text(frame,66,21,"C");
     bs_device_small_text(frame,7,37,"D");
     bs_device_small_text(frame,35,37,"E");
     bs_device_small_text(frame,66,37,"F");
-    bs_device_small_text(frame,66,27,"---");
-    bs_device_small_text(frame,7,45,"---");
-    bs_device_small_text(frame,35,45,"---");
-    bs_device_small_text(frame,66,45,"---");
-    bs_device_small_text(frame,7,54,"YES:OK NO:BACK");
-    bs_device_small_text(frame,96,54,"0.1.59");
+    bs_device_small_text(frame,66,28,"---");
+    bs_device_small_text(frame,7,44,"---");
+    bs_device_small_text(frame,35,44,"---");
+    bs_device_small_text(frame,66,44,"---");
+    bs_device_small_text(frame,7,50,"YES:OK NO:BACK");
+    bs_device_small_text(frame,64,50,"0.1.59");
     if(!captured || dirty) {
-        bs_device_small_text(frame,7,27,"WAIT");
-        bs_device_box(frame,3,4,122,57);return;
+        bs_device_small_text(frame,7,28,"WAIT");
+        bs_device_box(frame,3,8,122,48);return;
     }
-    bs_device_small_text(frame,7,27,tempo_source?"PROJECT":"SAMPLE");
+    bs_device_small_text(frame,7,28,tempo_source?"PROJECT":"SAMPLE");
     at=number(line,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
-    bs_device_small_text(frame,35,27,line);
-    bs_device_small_text(frame,93,18,"BPM");
+    bs_device_small_text(frame,35,28,line);
+    bs_device_small_text(frame,93,20,"BPM");
     uint32_t bpm=tempo_source?view.project_bpm24:view.sample_bpm24;
     if(bpm>=720 && bpm<=7200) {
         at=number(line,bpm/24u);*at++='.';
         uint32_t fraction=(bpm%24u*100u+12u)/24u;
         *at++=(char)('0'+fraction/10u);*at++=(char)('0'+fraction%10u);*at=0;
     } else text(line,"NONE");
-    bs_device_small_text(frame,93,25,line);
+    bs_device_small_text(frame,93,27,line);
     bs_device_small_text(frame,93,34,"SLICES");
     number(line,geometry==BS_OK?plan.count:0);
     bs_device_small_text(frame,93,41,line);
@@ -209,5 +209,5 @@ void module_draw(unsigned char *frame)
     else text(line,view.count?"REPLACE":"CREATE");
     bs_device_small_text(frame,93,47,line);
     /* Border is restored last, providing a complete-render capture marker. */
-    bs_device_box(frame,3,4,122,57);
+    bs_device_box(frame,3,8,122,48);
 }
