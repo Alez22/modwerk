@@ -7,7 +7,8 @@ Version: `0.1.64-experimental` · author: @twwwy · **unlisted development draft
 Beat Slicer creates exact beat-spaced slice starts from sample ATTR BPM or
 captured project BPM. The 0.1.64 private candidate targets **file-backed Flex,
 Static and inactive recorder-buffer samples**, with pattern playback continuing.
-Recorder/playback qualification is in progress. It uses ordinary
+The software/native workflow passes; exact-build hardware qualification remains
+pending. It uses ordinary
 stock playback, with no effect slot, PCM analysis or new DSP fades. Quiet-boundary
 search and enhanced playback processing are later work, not prerequisites for
 this basic version. Click-free playback is not claimed.
@@ -35,7 +36,7 @@ Private candidate access: select a Flex/Static sample or recorder buffer → AED
 AMP (SLICE) → YES → CREATE BEAT GRID. Playback may continue. Only recording
 into the buffer being edited blocks that source; the playback track and its
 recorder are independent. Empty recorder-buffer edits leave an empty result.
-This new path is undergoing software/native checks and is not device-qualified.
+This new path passes the software/native workflow and is not device-qualified.
 The owner’s ongoing 0.1.63 trial remains on its original file-backed/stopped build.
 
 | Control | Behavior |

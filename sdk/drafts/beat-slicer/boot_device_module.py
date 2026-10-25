@@ -16,6 +16,7 @@ sys.path.insert(0,str(APP/'sdk/machines/octatrack/elekloader'))
 from boot_observe import Port
 from boot_writer import tap
 from boot_static import matrix_tap
+from boot_slices import choose as choose_stock
 import verify_vendor_usb as usb
 
 import argparse
@@ -339,7 +340,7 @@ try:
         stop();recorder_editor(7)
         assert not word(0x46c922c4+44*135+16),'expected untouched empty recorder 8'
         exercise(1,135)
-        tap(port,'yes');choose('CREATE SLICE GRID');choose('4 SLICES');tap(port,'no')
+        tap(port,'yes');choose('CREATE SLICE GRID');choose_stock(port,'4 SLICES');tap(port,'no')
         port.command('run 500')
         empty_settings=0x100b14f0+1096*135
         assert word(empty_settings+1092)==4,'stock did not create empty placeholder rows'
