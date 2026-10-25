@@ -3234,3 +3234,34 @@ Subsequent upstream documentation (`6ffb6ec3`) and Direct Jump Kyoti 0.1.2
 verified variants above. The four shared asset hashes in each Tape Echo/Euclid
 receipt were refreshed again; all 25 packages, including Direct Jump Kyoti
 0.1.2, reproduce identically and pass strict stock-free checks.
+
+## Current-source device-trial preparation, 25 October 2026
+
+Source snapshot `686906da7acdbd0d6a01ea262147a01fdb60a8c2` produces private
+sample-editor base `2732acbb336ca4300235b91d8a5ca143f540e0120e2860e964b1ad233108dd67`.
+Its native/browser BINs match (769,260 bytes, SHA-256
+`23bcfe8b29a3aca3639f7ab6ef9a363693c497e706f21b6c96dda4c4b0a70c01`),
+and stock-free, declared-site and bootloader-preservation checks pass. All five
+target-enabled service/controller tests and the saved-set regression pass.
+The module reproduces the unchanged 4,524-byte `8164829b315c…` package. Twelve
+private trial packages (the original eleven companions plus Beat Slicer) pass
+strict stock-free scans; Sidechain Compressor is rebound to this private base.
+These results do not qualify physical timing or audio.
+
+The owner reported power-cycling, reconnecting and stopping the MKII. Read-only
+USB checks observe normal mode on flashed base `cd39c494b63beae0…`, boot 26,
+and all eleven expected modules with no Beat Slicer installed. The saved crash
+count remains one and DSP-stall count two; retained records are historical,
+not evidence of a new failure after this power cycle. No new RAM boot, trial,
+Keep, flash or sample edit was performed on the unit.
+
+An initial normal-boot emulator run installed the exact three-member companion
+set and selected TapeHead/Mini Verb, then failed a whole-frame encoder-substep
+comparison before Undo. Its cause is not established. The driver now allows
+the first options redraw before comparison and retains each compared frame.
+A subsequent launch failed on an overlong host socket path before USB testing.
+Neither is a passing qualification receipt. The corrected short-path rerun is
+pending. The driver also follows explicit retained-recovery replies for bounded
+whole-set Undo, matching the frontend's retry behavior, and verifies the final
+active baseline and stock-menu removal; uncertain replies still fail without
+write replay. Earlier single-response Undo failures remain recorded above.

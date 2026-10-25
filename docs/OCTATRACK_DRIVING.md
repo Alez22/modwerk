@@ -31,11 +31,14 @@ runs short. Everything here was done on the owner's MKII on 11 October 2026. Why
   power-cycle and `try` each again.
 - Verify an Undo's active identity and inventory after the reply; a ready host UI alone is insufficient. On a contributor's MKII (25 October 2026, private base `52c291c2…`), a 12-module timed Undo left recovery/active unknown and standard
   rollback retries still returned needs-recovery. Stop installing and ask the owner to power-cycle when recovery cannot finish.
+- A whole-set rollback restores one row per engine turn. A private test client must follow explicit retained-recovery replies until the base confirms the complete baseline, as the frontend's bounded recovery loop does. A missing or uncertain reply never permits replaying a write; a partial restore is not successful Undo.
 - After a crash restart, or finding the unit on the flashed base with no power cycle you know of, ask for a power
   cycle before the next RAM boot: one such boot hung at the logo (12 October 2026,
   [traps](OCTATRACK_HARDWARE_TRAPS.md#dsp-loader-dynamic-dsp-code)).
 
 ## Start the link
+
+Keep emulator socket paths short, including the host path behind a container bind mount. A long host output path can fail with `usb: cannot listen` even when its container alias is short.
 
 ```sh
 export PATH=~/.nvm/versions/node/v24.21.0/bin:$PATH   # Node 24; the default node is 18 and cannot load .ts

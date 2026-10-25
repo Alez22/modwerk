@@ -71,10 +71,13 @@ try:
         response=submit.exchange(data)
         assert response is not None
         result=usb.status(response)
-        if result['result'] and not (command==5 and result['result']==12):
+        assert result['command']==command and result['base']==expected and result['session']==session
+        continuing=(command==5 and result['result']==12 and result['phase']==7 and not result['known']) or \
+                   (command==7 and result['result']==11 and result['phase']==6 and not result['known'])
+        if result['result'] and not continuing:
             symbols=json.loads((args.base_dir/'symbols.json').read_text())
             print('LOADER REFUSAL',port.peek(symbols['refusal'],4).hex(),flush=True)
-        assert result['result']==0 or (command==5 and result['result']==12 and result['phase']==7 and not result['known']),(command,result)
+        assert result['result']==0 or continuing,(command,result)
         return result
     package=args.package.read_bytes()
     if package[:4]==b'MWMS':
@@ -203,6 +206,9 @@ try:
             port.command('run 100')
         print('OPEN WAIT MS',wait*100,flush=True)
         print('OPTIONS STATE',kind,state(),flush=True)
+        # Admission can precede the next UI draw. Compare encoder frames only
+        # after the opened options have had a normal display tick.
+        port.command('run 100')
         (out/f'options-{kind}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
         if state()!=1:
             print('FULL SERVICE',port.peek(syms['mw_sample_editor'],32).hex(),flush=True)
@@ -212,9 +218,12 @@ try:
         assert port.peek(at,1096)==before,'preview changed markers'
         if args.check_encoders:
             frame_at=word(0x400b9710);original_frame=port.peek(frame_at,1024)
-            for _ in range(3):
+            (out/f'encoder-{kind}-baseline.private.bin').write_bytes(original_frame)
+            for substep in range(3):
                 port.command('knob 0x31 1');port.command('run 100')
-                assert port.peek(frame_at,1024)==original_frame,'substep changed parameter'
+                frame=port.peek(frame_at,1024)
+                (out/f'encoder-{kind}-substep-{substep}.private.bin').write_bytes(frame)
+                assert frame==original_frame,'substep changed parameter'
             port.command('knob 0x31 1');port.command('run 100')
             assert port.peek(frame_at,1024)!=original_frame,'complete encoder step did not change parameter'
             port.command('knob 0x31 -4');port.command('run 100')
@@ -277,7 +286,18 @@ try:
     tap(port,'yes');tap(port,'no');tap(port,'aed');port.command('run 1000')
     exercise(0)
     maintain=False
-    port.command('pace on');request(1,tx=0);request(7);st=request(9);assert st['phase']==0;port.command('pace off')
+    port.command('pace on');before_undo=request(1,tx=0)
+    # The real whole-set backend restores one row per engine turn. Only an
+    # explicit retained-recovery reply permits another rollback request;
+    # missing/uncertain replies still fail without replaying a write.
+    for _ in range(129):
+        st=request(7)
+        if st['result']==0:break
+        assert st['generation']==before_undo['generation'],'recovery changed generation before complete restoration'
+    else:raise AssertionError('whole-set Undo did not complete within the loader row bound')
+    assert st['known']==1 and st['generation']==before_undo['generation']+1
+    assert st['active']==before_undo['base'],'Undo did not restore the original empty base'
+    st=request(9);assert st['phase']==0;port.command('pace off')
     print('USB UNDONE',flush=True)
     tap(port,'yes')
     assert word(0x460e5e30),'stock AED menu did not open after Undo'

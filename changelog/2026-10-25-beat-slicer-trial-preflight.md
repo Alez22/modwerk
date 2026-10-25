@@ -1,0 +1,1 @@
+Correct Beat Slicer's private emulator trial check to follow acknowledged whole-set recovery through complete Undo, then verify the original active identity and stock menu removal. Keep uncertain replies and incomplete restoration as failed checks.
