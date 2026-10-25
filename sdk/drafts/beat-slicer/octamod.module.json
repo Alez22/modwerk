@@ -135,10 +135,10 @@
   },
   "media": [],
   "access": {
-    "location": "Private candidate: AED \u2192 AMP (SLICE) \u2192 YES \u2192 BEAT SLICER",
+    "location": "Private candidate: AED \u2192 AMP (SLICE) \u2192 YES \u2192 CREATE BEAT GRID",
     "steps": [
       "Select a file-backed Flex or Static sample in a disposable project; stop playback and recording.",
-      "With the exact private base and package installed, open AED, press AMP (SLICE), then YES and select BEAT SLICER. This workflow remains under qualification.",
+      "With the exact private base and package installed, open AED, press AMP (SLICE), then YES and select CREATE BEAT GRID. This workflow remains under qualification.",
       "Encoder A chooses SAMPLE/PROJECT BPM; encoder B chooses spacing. YES requests stock confirmation; NO goes back. Clear slices through the stock slice menu."
     ],
     "screenshots": []

@@ -23,7 +23,7 @@ and step changes. The owner then reported 0.1.57 working alone but a DSP-stop
 warning, pop and
 loss of audio while slicing a 22 MB Flex source with TapeHead/Mini Verb active.
 The saved stall record confirms stopped frames, not the exact cause. That build
-is withdrawn from further trials. The owner reported that 0.1.58 worked very well with no bugs during slicing tests. Its USB Undo could not verify restoration; a power cycle restored the flashed base and original eleven modules. The new 0.1.59 UI has not run on hardware;
+is withdrawn from further trials. The owner reported that 0.1.58 worked very well with no bugs during slicing tests. Its USB Undo could not verify restoration; a power cycle restored the flashed base and original eleven modules. The 0.1.59 and 0.1.60 UI revisions have not run on hardware;
 full lifecycle qualification continues. The service is enabled
 only by a private `--sample-editor` base build and needs owner review. It is not
 released capability, and the draft remains absent from the public catalogue.

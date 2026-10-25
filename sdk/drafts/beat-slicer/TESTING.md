@@ -3347,3 +3347,28 @@ recorded for 0.1.58. Driver SHA-256: `aa31597c1a510d8506acde4c2e41e8bb607b6faa4a
 These are software/emulator results. No 0.1.59 physical RAM load, audible output,
 interrupt latency, Keep, sample/project save or persistence result is claimed.
 The 0.1.58 physical Undo failure remains unresolved despite emulator Undo passing.
+
+## 0.1.60 height/label refinement — 25 October 2026
+
+The owner reviewed the actual 0.1.59 popup capture and requested removal of the
+encoder letters and a window roughly the display height to hide distracting
+underlying content. Version 0.1.60 keeps physical field positions and function
+labels, removes A–F lettering, and uses a 122-by-62 popup at (3,1). The module
+shows 0.1.60 in its footer. Previous 0.1.59/0.1.58 artifacts remain retained.
+
+Target package: 5,348 bytes, SHA-256
+`05dd1ac93d86618001eac69eb7e9fb3309b1bbf67936ea953d74a5b6be5eede5`.
+Both unchanged strict stock-free scans pass. The actual controller host and
+target descriptor cases pass, with preservation outside the revised rectangle.
+The base is unchanged from the named 0.1.59 base `92b6c7bb…`; all 219 recorded
+base inputs were verified identical before reuse.
+
+A normal emulator boot and USB installation of the single 0.1.60 package opened
+the actual Flex CREATE BEAT GRID popup. The frame was captured and visually
+reviewed: no encoder letters, underlying AED heading/tabs covered, correct
+right summary and version footer. This uses `boot_device_module.py --capture-only`,
+which writes a distinct capture receipt and explicitly does not claim completion
+of the full functional suite or USB Undo. Driver SHA-256:
+`6fdf33527ba6da59761e28d141621f16ae6bc8ae2bf3048f86c89ec3586bec67`.
+The full 0.1.59 Flex/Static/companion/Undo regression remains historical evidence
+for 0.1.59, not a new 0.1.60 run. No 0.1.60 physical load or hardware result.
