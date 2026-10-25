@@ -2,9 +2,9 @@
 
 ## Current readiness
 
-**Review hold (25 October 2026):** [#840 maintainer review](https://github.com/repeat98/modwerk/pull/840#issuecomment-6395411406) requests a separate base proposal before this draft. Beat Slicer is the only confirmed consumer of the proposed action list; reuse and the provisional index collision with [#857](https://github.com/repeat98/modwerk/pull/857) remain unresolved. The owner later explicitly requested the private 0.1.58 trial and reported successful slicing; USB Undo did not verify restoration, and a power cycle restored the flashed base and original eleven modules. This is not approval of the shared API or qualification of the new 0.1.60 UI.
+**Review hold (25 October 2026):** [#840 maintainer review](https://github.com/repeat98/modwerk/pull/840#issuecomment-6395411406) requests a separate base proposal before this draft. Beat Slicer is the only confirmed consumer of the proposed action list; reuse and the provisional index collision with [#857](https://github.com/repeat98/modwerk/pull/857) remain unresolved. The owner later explicitly requested the private 0.1.58 trial and reported successful slicing; USB Undo did not verify restoration, and a power cycle restored the flashed base and original eleven modules. This is not approval of the shared API or qualification of the new 0.1.63 UI.
 
-Basic scope: 0.1.60-experimental, private staging. The owner subsequently authorized and completed the private 0.1.58 slicing trial; its report and unverified USB Undo are recorded in TESTING.md. The public shared-service review remains pending.
+Basic scope: 0.1.63-experimental, private staging. The owner subsequently authorized and completed the private 0.1.58 slicing trial; its report and unverified USB Undo are recorded in TESTING.md. The public shared-service review remains pending.
 
 The owner chose a basic working slicer first. File-backed Flex and Static share
 AED slice commands and record geometry; their settings/control tables differ.
@@ -29,7 +29,7 @@ work and revalidates before one write; NO or another stock gesture cancels it.
 The owner reported initial 0.1.56 success followed by repeated-edit failures.
 The 0.1.57 trial subsequently produced a reported DSP stop with active TapeHead/
 Mini Verb. Its saved record confirms stopped frames. It is withdrawn from trials.
-The owner reported successful 0.1.58 slicing; its USB Undo remained unverified and required a power cycle. The 0.1.60 popup/menu revision requires its own exact-build qualification.
+The owner reported successful 0.1.58 slicing; its USB Undo remained unverified and required a power cycle. The 0.1.63 popup/menu revision requires its own exact-build qualification.
 
 Established software checks: actual controller/grid/service host sanitizers,
 full-identity retirement and one-use confirmation, actual adapter failure/rollback

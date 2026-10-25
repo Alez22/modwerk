@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.63-experimental` (local UI review; not pushed) · author: @twwwy · **unlisted development draft**.
+Version: `0.1.63-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
@@ -208,3 +208,13 @@ fresh baseline review, not rebuilding a new package with the old version label.
 Neither revision is a released module or qualified for Keep/save/persistence.
 
 0.1.60 refines that popup: encoder letters are removed because field position identifies the encoder. The window is nearly the full display height so the AED heading and tabs do not distract. The popup footer identifies 0.1.60; 0.1.59 artifacts remain retained separately.
+
+## Approved 0.1.63 layout
+
+The owner approved this design on 25 October 2026. The nearly full-height
+CREATE BEAT GRID popup uses a dashed two-row, three-column control form.
+Function labels and values are centered: BPM selects SAMPLE/PROJ and BEATS
+selects spacing; unused fields are blank. The right summary is centered
+vertically with one aligned right edge: BPM number, count first (3 SLICE),
+and CREATE/REPLACE. No version is shown in the popup; the package and release
+notes retain the version. This UI approval is not hardware qualification.

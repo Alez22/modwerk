@@ -5,7 +5,7 @@
     "changes": [
       "Center the information block vertically beside the control form.",
       "Align the BPM value, slice count and CREATE/REPLACE text to one right edge.",
-      "Local UI preview awaiting approval; not pushed or device-tested."
+      "Approved UI design; exact-build hardware qualification remains pending."
     ]
   },
   {
@@ -15,7 +15,7 @@
       "Show the BPM number without a repeated right-side label.",
       "Show the slice count first, such as 3 SLICE.",
       "Remove the version from the popup; retain version metadata for comparison and reverting.",
-      "Local UI preview awaiting approval; not pushed or device-tested."
+      "Design checkpoint superseded by the approved 0.1.63 layout; not device-qualified."
     ]
   },
   {
@@ -25,7 +25,7 @@
       "Label tempo selection BPM and center control values and the summary text.",
       "Leave unused controls blank and outline the six control positions with dashed lines.",
       "Keep the nearly full-height window and show version 0.1.61.",
-      "Local UI design preview awaiting owner approval; not pushed or device-tested."
+      "Design checkpoint superseded by the approved 0.1.63 layout; not device-qualified."
     ]
   },
   {
