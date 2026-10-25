@@ -21,16 +21,18 @@ const LAUNCH_HOLD_SECONDS = 10
  * one as the fallback; on two slots the running base saves the new one into its spare slot, then the unit restarts. */
 const USB_STAGES = {
   one: [
-    ['Send', 'The new base goes to the Octatrack over USB.'],
-    ['Restart', 'The Octatrack restarts on the new base without saving it. If it doesn’t start, switching it off and on brings back your current base.'],
-    ['Save', 'The new base saves itself while the Octatrack keeps running, and keeps your current base as a fallback. This takes under a minute.'],
+    ['Send', 'The new base goes over USB.'],
+    ['Restart', 'The Octatrack starts the new base. Nothing is saved yet.'],
+    ['Save', 'It saves the new base and keeps your current one as a fallback.'],
   ],
   two: [
-    ['Send', 'The new base goes to the Octatrack over USB.'],
-    ['Save', 'The Octatrack saves it next to your current base, which stays as a fallback. This takes under a minute.'],
-    ['Restart', 'The Octatrack restarts on the new base. If it doesn’t start, switching it off and on twice brings back your current base.'],
+    ['Send', 'The new base goes over USB.'],
+    ['Save', 'It saves the new base next to your current one, which stays as a fallback.'],
+    ['Restart', 'The Octatrack restarts on the new base.'],
   ],
 } as const
+/** Folded away below the update: what to do when it goes wrong, the beta's recovery notice included. */
+const USB_RECOVERY = 'If the Octatrack doesn’t start after the update, switch it off and on: after two starts that fail, it goes back to your current base by itself. A save cut off by a power cut or the cable leaves your current base in place. As a last resort, Elektron’s startup menu installs the original OS: hold FUNC while switching on, choose MIDI UPGRADE and send the original OS 1.40C .syx through a MIDI interface.'
 type UsbOrder = keyof typeof USB_STAGES
 /** Which of the stages a step the link reports (updateBase) belongs to; 3 once done. On two slots the container is
  * sent while 'writing' (its fraction), then written. */
@@ -85,7 +87,8 @@ export function BaseInstallDialog({ link, launch = false, layout, firmwareReady,
   const state = useOctatrackLink(link)
   const [hold, setHold] = useState(launch ? LAUNCH_HOLD_SECONDS : 0)
   const [accepted, setAccepted] = useState(false)
-  const [usb, setUsb] = useState<{ step: BaseUpdateStep; fraction?: number } | { error: string } | null>(null)
+  // A failed update keeps the stage it stopped in (`at`), so the window shows where, and whether anything was saved.
+  const [usb, setUsb] = useState<{ step: BaseUpdateStep; fraction?: number } | { error: string; at: number } | null>(null)
   const [card, setCard] = useState(false), [outdated, setOutdated] = useState(false)
   const [pending, setPending] = useState(pendingBaseInstall)
   const [download, setDownload] = useState<'idle' | 'building' | 'done' | 'failed'>(pending ? 'done' : 'idle'), [failure, setFailure] = useState('')
@@ -134,15 +137,16 @@ export function BaseInstallDialog({ link, launch = false, layout, firmwareReady,
   async function updateOverUsb() {
     if (await siteUpdated()) return setOutdated(true)
     setBegan(live); setUsb({ step: 'staging' })
+    let at = 0
     try {
       const image = await buildBase!(layout)
-      await link.updateBase(new Uint8Array(image.buffer), image.base, (step, fraction) => setUsb({ step, fraction }))
+      await link.updateBase(new Uint8Array(image.buffer), image.base, (step, fraction) => { at = stageOf(live.order, step, fraction); setUsb({ step, fraction }) })
       setUsb({ step: 'done' }) // the user closes it with Continue, so the end of the update is seen
     } catch (error) {
       console.error(error)
       // A transport error's own text is for developers ("hello was not confirmed; …"): say it in the link's words.
       const transport = error instanceof UploadUnconfirmedError || error instanceof UploadDeviceError
-      setUsb({ error: transport ? explainLinkError(error) : error instanceof Error ? error.message : 'The update did not finish.' })
+      setUsb({ error: transport ? explainLinkError(error) : error instanceof Error ? error.message : 'The update did not finish.', at })
     }
   }
   async function downloadBase() {
@@ -171,30 +175,46 @@ export function BaseInstallDialog({ link, launch = false, layout, firmwareReady,
     <p id="base-install-intro" className="base-install-intro">{outdated ? 'Modwerk was updated since you opened this page, so it doesn’t know the current base yet. Reload the page; it then checks your Octatrack again.' : switching && running && layout ? <>Your Octatrack is set to {layoutName(running)}. USB Audio is part of the base, so switching to {layoutName(layout)} updates the base over USB. Your modules are synced again afterwards. After the Octatrack restarts, your computer sees the new audio channels. On Windows, open Sound settings → Recording → Octatrack → Properties → Advanced and pick the new channel count: Windows keeps the old one until you do.</> : older ? <>A new Modwerk base is out. Your Octatrack has an older one{from && <> (<code>{from.slice(0, 8)}</code>)</>}. {overUsb ? 'You can update it over USB, no card needed.' : 'Update it from the card, the same way as the first time.'}</> : 'A one-time install from your Octatrack’s card.'}</p>
     {!overUsb && !outdated && <ol className="base-install-progress" aria-label="Installation progress">{stages.map((item, index) => <li key={item} aria-current={stage === item ? 'step' : undefined} className={index < stageIndex ? 'is-past' : undefined}><span aria-hidden="true">{index < stageIndex ? <Icon name="check" size={13}/> : index + 1}</span>{['Download', 'Copy', 'Install', 'Connect'][index]}</li>)}</ol>}
     {!outdated && <section className="base-install-stage" aria-labelledby="base-stage-title">
-    {overUsb && <>
-      <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Update over USB</h3>
-      {usb && 'step' in usb ? (() => {
-        const at = stageOf(order, usb.step, usb.fraction), sending = usb.fraction !== undefined && usb.fraction < 1
-        // On two slots the container goes over while 'writing': it is said as the send it is.
-        const said = order === 'two' && usb.step === 'writing' && sending ? 'staging' : usb.step
-        return <>
-          <ol className="load-steps base-update-steps" aria-label="Update progress">{usbStages.map(([title], index) => <li key={title} className={index < at ? 'is-complete' : index === at ? 'is-active' : undefined} aria-current={index === at ? 'step' : undefined}>{title}</li>)}</ol>
-          {sending && <progress className="load-progress" max={1} value={usb.fraction} aria-label={usbStages[at]?.[0]}/>}
+    {overUsb && (() => {
+      // One row of the three stages, the same before, during and after, so the window never changes its layout: what
+      // will happen, then where it is, then where it stopped.
+      const step = usb && 'step' in usb ? usb : undefined, failed = usb && 'error' in usb ? usb : undefined
+      const at = step ? stageOf(order, step.step, step.fraction) : failed ? failed.at : -1
+      const sending = step?.fraction !== undefined && step.fraction < 1
+      const save = usbStages.findIndex(([title]) => title === 'Save')
+      // On two slots the container goes over while 'writing': it is said as the send it is.
+      const said = step && (order === 'two' && step.step === 'writing' && sending ? 'staging' : step.step)
+      return <>
+        <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Update over USB</h3>
+        {!usb && <p>It takes a minute or two{layout ? <>, with {layoutName(layout)}</> : ''}. Your Octatrack restarts once.</p>}
+        <ol className="base-update-plan" aria-label={usb ? 'Update progress' : 'What happens'}>{usbStages.map(([title, text], index) => {
+          const state = !usb ? undefined : index < at || step?.step === 'done' ? 'is-complete' : index === at ? (failed ? 'is-failed' : 'is-active') : undefined
+          return <li key={title} className={state} aria-current={index === at && step && step.step !== 'done' ? 'step' : undefined}>
+            <span className="base-update-mark" aria-hidden="true">{state === 'is-complete' ? <Icon name="check" size={13}/> : state === 'is-failed' ? '!' : index + 1}</span>
+            <strong>{title}</strong>
+            <p>{text}</p>
+            {index === at && sending && <progress max={1} value={step!.fraction} aria-label={title}/>}
+          </li>
+        })}</ol>
+        {step && <>
           {/* While it saves, the line is the warning itself. */}
-          <p className={usbStages[at]?.[0] === 'Save' ? 'base-install-warning' : usb.step === 'done' ? 'success-note' : 'base-install-note'} role="status">{updating && <span className="status-dot is-updating" />}{USB_STEPS[said]}{sending ? ` (${Math.round(100 * usb.fraction!)} %)` : ''}{usb.step === 'done' ? '' : '…'}</p>
+          <p className={usbStages[at]?.[0] === 'Save' ? 'base-install-warning' : step.step === 'done' ? 'success-note' : 'base-install-note'} role="status">{updating && <span className="status-dot is-updating" />}{USB_STEPS[said!]}{sending ? ` (${Math.round(100 * step.fraction!)} %)` : ''}{step.step === 'done' ? '' : '…'}</p>
           {updating && <p className="link-hint">Keep this page open until it says Done.</p>}
-        </>
-      })() : <>
-        <p>The new base{layout ? <> with {layoutName(layout)}</> : ''} is built in your browser from your original OS 1.40C file. The update takes a minute or two, and the Octatrack restarts once:</p>
-        <ol className="base-instructions">{usbStages.map(([title, text]) => <li key={title}><strong>{title}</strong><p>{text}</p></li>)}</ol>
-        <p className="base-install-warning" role="note"><Icon name="warn" size={18}/><span><strong>Save your project and stop playback first.</strong> The Octatrack restarts once by itself, and changes that aren’t saved may be lost. Keep it switched on and the USB cable in until this window says Done.</span></p>
-        <p className="base-install-warning" role="note"><Icon name="warn" size={18}/><span><strong>{BETA_RECOVERY_NOTICE}</strong> Keep the original OS 1.40C .bin and .syx on your computer. <a href="#faq" target="_blank" rel="noreferrer">Recovery in the FAQ</a></span></p>
-      </>}
-      <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }}/>
-      {!usb && (firmwareReady ? <><p className="base-file-ready"><Icon name="check" size={18}/>Your OS 1.40C file is ready.</p><RiskAcceptance checked={accepted} onChange={setAccepted}/></> : <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get the original OS file? <Icon name="arrow" size={14}/></a>)}
-      {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}
-      {usb && 'error' in usb && <p className="file-error" role="alert">{usb.error} {state.status === 'ready' ? 'You can try again, or update from the card.' : 'Once it is connected again you can try again, or update from the card.'}</p>}
-    </>}
+        </>}
+        {failed && <div className="file-error base-update-error" role="alert">
+          <strong>The update stopped.</strong>
+          <p>{failed.error}{failed.at < save ? ' Nothing was saved: your Octatrack keeps its current base.' : ''}</p>
+          {state.status !== 'ready' && <p>Connect the Octatrack again to try again.</p>}
+        </div>}
+        {!usb && <>
+          <p className="base-install-warning" role="note"><Icon name="warn" size={18}/><span><strong>Save your project and stop playback first.</strong> Keep the Octatrack on and the cable in until this window says Done.</span></p>
+          {firmwareReady ? <><p className="base-file-ready"><Icon name="check" size={18}/>Your OS 1.40C file is ready.</p><RiskAcceptance checked={accepted} onChange={setAccepted}/></> : <a className="text-button" href="#faq" target="_blank" rel="noreferrer">Where do I get the original OS file? <Icon name="arrow" size={14}/></a>}
+          <details className="base-install-recovery"><summary>If something goes wrong</summary><p>{USB_RECOVERY} Keep the original OS 1.40C .bin and .syx on your computer. <a href="#faq" target="_blank" rel="noreferrer">Recovery in the FAQ</a></p></details>
+        </>}
+        <input ref={fileRef} type="file" accept=".bin" hidden aria-label="Choose your original OS 1.40C file" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onChooseFirmware(file) }}/>
+        {firmwareError && <p className="file-error" role="alert">{firmwareError}</p>}
+      </>
+    })()}
     {stage === 'download' && !overUsb && <>
       <h3 id="base-stage-title" data-stage-title tabIndex={-1}>Download the base</h3>
       <p>The base is built in your browser from your original OS 1.40C file. The file stays on your computer.</p>
