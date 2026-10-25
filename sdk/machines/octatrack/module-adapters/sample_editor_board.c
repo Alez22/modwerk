@@ -103,7 +103,7 @@ static unsigned capture(void *unused,struct mw_sample_capture *out)
     v->trim_start=READ(settings+75u*4u);v->trim_end=READ(settings+76u*4u);v->loop=READ(settings+77u*4u);
     v->count=READ(settings+273u*4u);
     if(v->count>64u || (v->frames?(v->trim_start>=v->trim_end || v->trim_end>v->frames):
-       (!recorder || v->trim_start || v->trim_end || v->count)))return MODWERK_SAMPLE_UNSUPPORTED;
+       (!recorder || v->trim_start || v->trim_end)))return MODWERK_SAMPLE_UNSUPPORTED;
     for(uint32_t i=0;i<64u;++i) {
         v->records[i].start=READ(settings+312u+12u*i);
         v->records[i].end=READ(settings+316u+12u*i);

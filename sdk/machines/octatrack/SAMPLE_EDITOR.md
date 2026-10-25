@@ -63,6 +63,9 @@ from an inactive bank retaining state 2 after Stop. An OR of both banks would
 incorrectly keep editing blocked. Completed lengths come from published source
 metadata, never reserved capacity. The slot counter did not advance across the
 observed re-recordings; it cannot establish the whole content lifetime by itself.
+Stock can clamp several recorder rows onto the same final start after a shorter
+recording. Preserve those existing rows for cancellation and replacement; new
+grid proposals still require strictly increasing starts.
 
 ## Review and verification
 
