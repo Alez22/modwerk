@@ -70,6 +70,9 @@ function octatrack(id) {
   if (document.category === 'effects') {
     const testing = exists(folder + '/TESTING.md') ? readFileSync(resolve(root, folder + '/TESTING.md'), 'utf8') : ''
     info('sound quality', (/alias/i.test(testing) ? 'TESTING.md mentions aliasing' : 'TESTING.md does not mention aliasing') + '. If it processes audio: npm run fx:audit (aliasing, DC, clipping, idle), or write "not tested" (guide: Sound quality)')
+    // An effect processes its slot's audio on the DSP; ColdFire audio work means it makes its track's sound (FRACT, #926).
+    const record = exists(folder + '/evidence/performance.json') ? json(folder + '/evidence/performance.json') : null
+    if (record?.kind === 'coldfire' || record?.coldfire) fail('category', 'its performance record prices audio work on the ColdFire, so it makes or replaces its track\'s sound: that is a machine, not an effect', 'make it a track machine (docs/module-guides/README.md#choose-the-category)')
   }
 
   // Cycles, a benchmark against stock and a stress run. Required for a module listed from PERFORMANCE_REQUIRED_FROM; older modules are told.
