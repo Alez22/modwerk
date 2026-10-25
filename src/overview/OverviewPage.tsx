@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Icon } from '../components/Icon'
 import { DeviceImage, MachinePhotoCredits } from '../devices/DeviceImage'
 import { DEVICE_STEPS, deviceSteps } from '../devices/registry'
-import type { Overview, OverviewKind, OverviewMachine } from './overview'
+import { developHref, type Overview, type OverviewKind, type OverviewMachine } from './overview'
+import { OTHER_DEVICE } from '../community/starter-prompts'
 import './overview.css'
 
 // short: the label in the phone's segmented control.
@@ -52,13 +53,13 @@ function DevelopTile({ machines }: { machines: string[] }) {
 
 // The last tile: Modwerk is not limited to the machines above, whichever company makes the instrument.
 function AddMachineTile() {
-  return <a className="overview-tile is-develop is-add-machine" href="#forum?category=requests">
+  return <a className="overview-tile is-develop is-add-machine" href={developHref(OTHER_DEVICE)}>
     <span className="overview-art">
       <span className="overview-waiting"><strong>Add your machine</strong><small>Any instrument · any maker</small></span>
-      <span className="overview-pitch">Not only Elektron. Suggest the instrument you want to mod and help open its firmware.</span>
+      <span className="overview-pitch">Not only Elektron. Connect the instrument you want to mod over USB and help open its firmware.</span>
     </span>
     <div className="overview-tile-body">
-      <div className="overview-tile-line"><h2 className="overview-tile-name">Suggest a machine</h2><Icon name="plus" size={16} /></div>
+      <div className="overview-tile-line"><h2 className="overview-tile-name">Unlock another machine</h2><Icon name="plus" size={16} /></div>
     </div>
   </a>
 }

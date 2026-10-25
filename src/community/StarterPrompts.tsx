@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
-import { STARTER_MACHINES, starterPrompt, startersFor, updatePrompt, type StarterMachine } from './starter-prompts'
+import { OTHER_DEVICE, STARTER_MACHINES, starterPrompt, startersFor, updatePrompt, type StarterMachine } from './starter-prompts'
 import type { DeveloperTask } from './developer-guidance'
 
 export function CopyButton({ text, label = 'Copy', primary = false }: { text: string; label?: string; primary?: boolean }) {
@@ -21,6 +21,10 @@ export function StarterPrompts({ login, machine, onMachine, task, repository, in
   const [change, setChange] = useState('')
   const [module, setModule] = useState(initialModule)
   const starter = starters.find(item => item.id === starterId) ?? starters[0]
+  // Unlocking asks for the device (when it is not listed) and the goal, not a module idea.
+  const [ideaLabel, ideaPlaceholder] = machine === OTHER_DEVICE ? ['Which device?', 'Maker, model and OS version, and what you would like to mod on it']
+    : starter.id === 'integration' ? ['Your goal', 'What you would like to mod on it, or what you already found out']
+    : starter.port ? ['Module name or source link', 'The module name and a link to its source'] : ['Your idea', 'What should it do? Describe the controls, sound or behaviour.']
   const prompt = task === 'create' ? starterPrompt(machine, starter, idea, login, repository) : updatePrompt(machine, module, change, '', repository, login)
   return <div className="starter-prompts">
     <div className="starter-fields">
@@ -33,8 +37,8 @@ export function StarterPrompts({ login, machine, onMachine, task, repository, in
         <label className="starter-field"><span>Module type</span>
           <select value={starter.id} onChange={event => setStarterId(event.target.value)}>{starters.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
         </label>
-        <label className="starter-field starter-field-wide"><span>{starter.port ? 'Module name or source link' : 'Your idea'} <small>optional</small></span>
-          <textarea rows={2} value={idea} onChange={event => setIdea(event.target.value)} placeholder={starter.port ? 'The module name and a link to its source' : 'What should it do? Describe the controls, sound or behaviour.'} />
+        <label className="starter-field starter-field-wide"><span>{ideaLabel} <small>optional</small></span>
+          <textarea rows={2} value={idea} onChange={event => setIdea(event.target.value)} placeholder={ideaPlaceholder} />
         </label>
       </> : <>
         <label className="starter-field"><span>Module ID or source link</span><input value={module} onChange={event => setModule(event.target.value)} placeholder="e.g. miniverb" /></label>

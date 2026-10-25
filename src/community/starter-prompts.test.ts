@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { SubmissionPage } from './SubmissionPage'
-import { cloneCommands, STARTER_MACHINES, starterPrompt, starterReading, startersFor, updatePrompt } from './starter-prompts'
+import { cloneCommands, OTHER_DEVICE, STARTER_MACHINES, starterPrompt, starterReading, startersFor, updatePrompt } from './starter-prompts'
 import { RELEASE_STEPS } from './developer-guidance'
 import { DEVICES } from '../devices/registry'
 
@@ -11,7 +11,7 @@ const all = STARTER_MACHINES.flatMap(machine => startersFor(machine.id).map(star
 
 describe('starter prompts', () => {
   it('lists every registered instrument and routes those without an SDK to integration', () => {
-    expect(STARTER_MACHINES.map(machine => machine.id)).toEqual(DEVICES.map(device => device.id))
+    expect(STARTER_MACHINES.map(machine => machine.id)).toEqual([...DEVICES.map(device => device.id), OTHER_DEVICE])
     for (const device of DEVICES.filter(device => !device.sdk)) {
       const starter = startersFor(device.id)[0]
       expect(starter.id).toBe('integration')
@@ -23,6 +23,20 @@ describe('starter prompts', () => {
       expect(prompt).not.toContain('core_machines, slots 4–7')
     }
   })
+  it('unlocks a device Modwerk has no profile for, read-only over USB first', () => {
+    const prompt = starterPrompt(OTHER_DEVICE, startersFor(OTHER_DEVICE)[0], 'Korg Volca Sample 2')
+    expect(prompt).toContain('a device Modwerk has no profile for yet')
+    expect(prompt).toContain('Device and goal: Korg Volca Sample 2')
+    expect(prompt).toContain('sdk/machines/<id>/machine.json')
+    expect(prompt).toContain('src/devices/machine-contract.ts')
+    expect(prompt).not.toContain('npm run module:new')
+    for (const device of DEVICES.filter(device => !device.sdk).concat([{ id: OTHER_DEVICE } as never])) {
+      const unlock = starterPrompt(device.id, startersFor(device.id)[0])
+      expect(unlock).toContain('lsusb -v')
+      expect(unlock).toContain('Write nothing to the device, start no update and send it nothing that changes it until we have a tested way back to stock')
+    }
+  })
+
   it('only ask the agent to read files that exist', () => {
     for (const { machine, starter } of all) for (const file of starterReading(machine, starter)) expect(existsSync(file), machine + '/' + starter.id + ': ' + file).toBe(true)
   })
@@ -145,12 +159,24 @@ describe('starter prompts', () => {
 })
 
 describe('start developing page', () => {
-  it('says that unlocking a machine without a core needs programming experience', () => {
+  it('starts unlocking a machine without a core over USB, read-only, and says it needs programming experience', () => {
     const html = renderToStaticMarkup(createElement(SubmissionPage, { machine: 'analog-heat' }))
     expect(html).toContain('Help unlock the Analog Heat')
-    expect(html).toContain('Programming experience needed.')
+    expect(html).toContain('Start by connecting it over USB.')
+    expect(html).toContain('Nothing is written to the device until there is a tested way back to stock')
+    expect(html).toContain('Some programming experience')
+    expect(html).toContain('0 of 5 steps done')
     expect(html).not.toContain('Describe it, paste one prompt, build it together.')
-    expect(html).not.toContain('What you need')
+    expect(html.indexOf('The road to mods')).toBeLessThan(html.indexOf('Your starter prompt'))
+  })
+
+  it('offers any other device, preselected from the overview', () => {
+    const html = renderToStaticMarkup(createElement(SubmissionPage, { machine: OTHER_DEVICE }))
+    expect(html).toMatch(/<option value="other" selected="">/)
+    expect(html).toContain('Unlock another device.')
+    expect(html).toContain('Which device?')
+    expect(html).toContain('The steps most firmware takes')
+    expect(html).toContain('Instrument integration')
   })
 
   it('shows one complete prompt and hides its long preview and setup by default', () => {

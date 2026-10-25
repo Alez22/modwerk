@@ -14,3 +14,42 @@
 .develop-steps h3 { margin: 0; font-size: 15px; font-weight: 620; }
 .develop-steps p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
 .develop-step-who { align-self: flex-start; margin-top: auto; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-raised); color: var(--text-secondary); font: 10.5px var(--mono); letter-spacing: .8px; text-transform: uppercase; }
+
+/* Unlocking: the device on a USB cable to the coding agent reading it, the road to mods and what it takes. */
+.unlock-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(56px, 120px) minmax(0, 1fr); align-items: center; gap: 0 12px; margin: 0; padding: 22px 24px 18px; border: 1px solid var(--line); border-radius: 14px; background: radial-gradient(ellipse at 50% 100%, #e6cfa814, transparent 70%), var(--surface); }
+.unlock-hero-device { position: relative; display: grid; place-items: center; min-height: 150px; }
+.unlock-hero-device .device-photo, .unlock-hero-device .device-art { width: 100%; max-width: 260px; max-height: 150px; height: auto; object-fit: contain; }
+.unlock-hero-label { position: absolute; bottom: -4px; left: 0; right: 0; color: var(--faint); font: 10px var(--mono); letter-spacing: .9px; text-align: center; text-transform: uppercase; }
+.unlock-hero-cable { width: 100%; height: auto; overflow: visible; }
+.unlock-hero-cable path, .unlock-hero-cable circle { stroke: #e6cfa8; stroke-width: 1.6; }
+.unlock-hero-cable path:first-child { opacity: .25; }
+.unlock-hero-cable circle { fill: var(--surface); }
+.unlock-hero-cable .is-flow { stroke-dasharray: 3 11; animation: unlock-flow 1s linear infinite; }
+.unlock-hero-agent { position: relative; display: flex; flex-direction: column; gap: 5px; align-self: stretch; justify-content: center; min-height: 150px; padding: 14px 16px 26px; border: 1px solid #4a4236; border-radius: 10px; background: #1d1b18; font: 12px/1.4 var(--mono); }
+.unlock-hero-agent > span:not(.unlock-hero-label, .unlock-hero-command) { display: flex; gap: 10px; color: var(--text-secondary); animation: unlock-line 6s infinite both; }
+.unlock-hero-agent b { flex: none; width: 7ch; color: var(--faint); font-weight: 400; }
+.unlock-hero-agent .is-safe { color: #a8d8a0; }
+.unlock-hero-command { color: #e6cfa8; }
+.unlock-hero-agent .unlock-hero-label { bottom: 8px; }
+.unlock-hero figcaption { grid-column: 1 / -1; margin-top: 18px; color: var(--muted); font-size: 13px; line-height: 1.6; text-align: center; }
+.unlock-hero .photo-credit { grid-column: 1 / -1; text-align: center; }
+.unlock-road { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: road; }
+.unlock-road li { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); counter-increment: road; }
+.unlock-road li::before { content: counter(road, decimal-leading-zero); color: var(--faint); font: 600 18px/1 var(--mono); }
+.unlock-road strong { font-size: 13.5px; font-weight: 620; }
+.unlock-road small { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.unlock-road li > span { align-self: flex-start; margin-top: auto; padding: 2px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--faint); font: 10px var(--mono); letter-spacing: .8px; text-transform: uppercase; }
+.unlock-road .is-now { border-color: #8a7350; background: #2b2823; }
+.unlock-road .is-now::before, .unlock-road .is-now > span { color: #e6cfa8; border-color: #8a7350; }
+.unlock-road .is-done::before, .unlock-road .is-done > span { color: #a8d8a0; border-color: #4f6b4a; }
+.unlock-road .is-started > span { color: #e6cfa8; }
+.unlock-ask { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+@keyframes unlock-flow { to { stroke-dashoffset: -14; } }
+@keyframes unlock-line { 0%, 4% { opacity: 0; } 10%, 92% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .unlock-hero * { animation: none !important; } }
+@media (max-width: 600px) {
+  .unlock-hero { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 16px; }
+  .unlock-hero-device { min-height: 120px; }
+  .unlock-hero-cable { width: 40px; margin: 18px auto; transform: rotate(90deg); }
+  .unlock-hero-agent { min-height: 0; }
+}

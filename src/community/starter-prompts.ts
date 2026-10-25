@@ -17,10 +17,13 @@ export interface Starter {
   example: string
 }
 
-export const STARTER_MACHINES: { id: StarterMachine; name: string; note?: string }[] = DEVICES.map(device => ({
+/** Any device that runs its own firmware can be unlocked; one Modwerk has no profile for yet starts here. */
+export const OTHER_DEVICE = 'other'
+
+export const STARTER_MACHINES: { id: StarterMachine; name: string; note?: string }[] = [...DEVICES.map(device => ({
   id: device.id, name: deviceTitle(device),
   note: device.sdk ? (device.status === 'preview' ? 'Preview' : undefined) : 'Integration needed',
-}))
+})), { id: OTHER_DEVICE, name: 'Another device', note: 'Name it below' }]
 
 const OCTATRACK: Starter[] = [
   { id: 'effect', title: 'An effect', summary: 'A new FX1 or FX2 effect on the DSP, such as a filter, delay or distortion.', guides: ['effects.md'], example: 'Mini Verb, Tape Echo, Character',
@@ -105,7 +108,7 @@ export function starterReading(machine: StarterMachine, starter: Starter) {
   const files = ['AGENTS.md', 'docs/DEVELOPER_WORKFLOW.md', 'docs/ADD_A_MODULE.md', 'docs/module-guides/README.md', ...starter.guides.map(guide => 'docs/module-guides/' + guide)]
   return machine === 'octatrack' ? [...files, 'sdk/octabam/AGENTS.md'] : DEVICES_BY_ID[machine]?.sdk
     ? [...files, DEVICES_BY_ID[machine].sdk!]
-    : [...files, 'docs/ADD_A_MACHINE.md', 'sdk/machines/README.md', 'sdk/machines/' + machine + '/machine.json']
+    : [...files, 'docs/ADD_A_MACHINE.md', 'sdk/machines/README.md', ...DEVICES_BY_ID[machine] ? ['sdk/machines/' + machine + '/machine.json'] : []]
 }
 
 export function starterPrompt(machine: StarterMachine, starter: Starter, idea = '', login = '', repository = REPOSITORY) {
@@ -151,25 +154,30 @@ export function updatePrompt(machine: StarterMachine, module = '', idea = '', is
   ], repository, login)
 }
 
+/** Unlocking starts read-only over USB: identify the device and its update route, and write nothing until stock can be restored. */
+const CONNECT_FIRST = 'Start with the device connected to my computer over USB (or through a USB MIDI interface if it only has MIDI ports), read-only. Tell me exactly how to see what it reports on my system (System Information on macOS, lsusb -v on Linux, Device Manager on Windows), then record its USB vendor and product IDs, the interfaces it offers (MIDI, audio, mass storage, a firmware-update or DFU mode) and the OS version its own menu shows. Find the maker\'s official update file and updater and how the official update restores stock. Write nothing to the device, start no update and send it nothing that changes it until we have a tested way back to stock and I have backed up my projects and presets with the maker\'s own tools.'
+
 function integrationPrompt(machine: StarterMachine, idea = '', login = '', module = '', issue = '', repository = REPOSITORY) {
   const device = DEVICES_BY_ID[machine]
-  const name = deviceTitle(device)
+  const name = device ? 'the ' + deviceTitle(device) : 'a device Modwerk has no profile for yet'
   return withSetup([
-    'I am working in my Modwerk fork. Help me research and prepare instrument support for the ' + name + '.',
-    'Goal: ' + (idea.trim() || '<describe the module or instrument support you want>'),
+    'I am working in my Modwerk fork. Help me research and prepare instrument support for ' + name + '.',
+    (device ? 'Goal: ' : 'Device and goal: ') + (idea.trim() || (device ? '<describe the module or instrument support you want>' : '<maker, model and OS version, and what I would like to mod>')),
     ...(module.trim() ? ['Requested module/change: ' + module.trim()] : []),
     ...(issue.trim() ? ['Related issue: ' + issue.trim()] : []),
     ...(login.trim() ? ['My GitHub login: ' + login.trim().replace(/^@/, '')] : []),
     '',
     'This instrument has no published Modwerk SDK or qualified module builder yet. The dropdown lists known instruments, not a claim that they can all build modules. Do not use Digitakt/Digitone commands, core slots, render hooks or memory budgets for this hardware.',
+    ...(device ? [] : ['Ask me for the maker, model and OS version if I have not named them. Check sdk/machines/, open pull requests and the forum\'s requests for an existing profile or someone already on it. Then add its profile at sdk/machines/<id>/machine.json as docs/ADD_A_MACHINE.md describes. A device outside the families in src/devices/machine-contract.ts needs a new family and its steps, an owner-reviewed change on its own pull request. Tell me early if its updates are signed or encrypted with keys only the device holds, which closes the firmware route (as the Tonverk research found), or if its maker\'s terms forbid modifying it.']),
     'Before changing code, read:', ...starterReading(machine, INTEGRATION[0]).map(file => '- ' + file),
-    'Current machine profile: ' + device.summary,
-    ...device.research?.map(source => 'Public research: ' + source.label + ' — ' + source.url) ?? [],
+    ...(device ? ['Current machine profile: ' + device.summary, ...device.research?.map(source => 'Public research: ' + source.label + ' — ' + source.url) ?? []] : []),
+    '',
+    CONNECT_FIRST,
     '',
     'Instrument integration workflow:', ...INSTRUMENT_STEPS.map((step, index) => `${index + 1}. ${step.title}: ${step.summary}`),
     '',
     'Use Node 24 and npm ci. Establish what is known about the stock format, exact rebuild, recovery/boot, hooks/core and module support. Separate confirmed evidence, public research and unknowns. Propose a scoped integration plan and wait for my approval before implementation. Shared SDK/builder changes need owner review; the automatic author-update path does not apply to instrument integration.',
-    'Follow docs/ADD_A_MACHINE.md for profile, platform, toolchain, compatibility and browser integration. Keep stock firmware and extracted bytes private; do not mark unsupported milestones done or invent hardware results. Regenerate the machine registry through npm run machines:generate; never edit generated files by hand.',
+    'Follow docs/ADD_A_MACHINE.md for profile, platform, toolchain, compatibility and browser integration. Aim for the Octatrack\'s interface there: mods sent over the same USB cable without a reflash. Keep stock firmware and extracted bytes private; do not mark unsupported milestones done or invent hardware results. Regenerate the machine registry through npm run machines:generate; never edit generated files by hand.',
     'Only after the platform is integrated and qualified may we scaffold, build or publish a module; the module workflow in docs/DEVELOPER_WORKFLOW.md applies from then on. It does not establish present support.',
   ], repository, login)
 }

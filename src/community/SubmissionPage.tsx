@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { BackLink } from '../components/BackLink'
 import { CopyButton, StarterPrompts } from './StarterPrompts'
-import { cloneCommands, STARTER_MACHINES, type StarterMachine } from './starter-prompts'
+import { cloneCommands, OTHER_DEVICE, STARTER_MACHINES, type StarterMachine } from './starter-prompts'
+import { UnlockIntro } from './UnlockIntro'
 import { assetUrl, sourceRepository } from '../hosting'
 import { communityModule } from './modules'
 import { DEVELOPMENT_DISCORD_URL } from '../config/development-discord'
@@ -20,14 +21,14 @@ export function SubmissionPage({ moduleId = '', machine: initialMachine }: { mod
   const [task, setTask] = useState<DeveloperTask>(module ? 'update' : 'create')
   const [machine, setMachine] = useState<StarterMachine>(() => STARTER_MACHINES.find(item => item.id === (module?.machine ?? initialMachine))?.id ?? 'octatrack')
   const clone = cloneCommands(repository, login)
-  // A machine without a core has to be unlocked first: reverse engineering, which needs programming experience.
+  // A machine without a core, or one Modwerk has no profile for, has to be unlocked first: reverse engineering, which needs programming experience.
   const device = DEVICES_BY_ID[machine], locked = !module && !(device && readyForMods(device)), machineName = STARTER_MACHINES.find(item => item.id === machine)?.name ?? machine
 
   return <div className="community-page contribution-page start-developing">
     <BackLink href={moduleId ? '#developer' : '#library'}>{moduleId ? 'Creator settings' : 'Module library'}</BackLink>
     <header className="page-heading developer-heading">
-      <div><p className="page-kicker">MODWERK / DEVELOPERS</p><h1>{module ? 'Update ' + module.name : locked ? <>Help unlock the {machineName}. <span>Programming experience needed.</span></> : <>Make a mod for your machine. <span>Describe it, paste one prompt, build it together.</span></>}</h1>
-        <p>{module ? 'Current version ' + module.version + '. One prompt for your agent. Four steps to publication.' : locked ? (device?.family === 'erica' ? 'Its firmware source is public, so nothing has to be reverse engineered. Before anyone can build mods for it here, a marked build has to boot from the SD card, a Modwerk base has to give mods a place to run, and Modwerk needs a module contract for them. An AI coding assistant helps, but you need to read and judge code yourself.' : (device?.family === 'zoom' ? 'Before anyone can build mods for it here, its effect files have to be understood and loaded on the stock firmware, and Modwerk needs a module contract for them.' : 'Before anyone can build mods for it, its firmware file has to be understood, rebuilt and booted, and a core has to give mods a place to run.') + ' That is reverse-engineering work. An AI coding assistant helps, but you need to read and judge code yourself.') + ' The starter prompt below sets up the machine integration with you.' : 'An AI coding assistant writes and checks the code. You bring the idea, try it on your machine and decide when it’s ready. The starter prompt below sets everything up with you and guides you through every step.'}</p>
+      <div><p className="page-kicker">MODWERK / DEVELOPERS</p><h1>{module ? 'Update ' + module.name : locked ? <>{machine === OTHER_DEVICE ? 'Unlock another device.' : 'Help unlock the ' + machineName + '.'} <span>Start by connecting it over USB.</span></> : <>Make a mod for your machine. <span>Describe it, paste one prompt, build it together.</span></>}</h1>
+        <p>{module ? 'Current version ' + module.version + '. One prompt for your agent. Four steps to publication.' : locked ? 'Most instruments and pedals that run their own firmware can be opened up for mods. Some lock their updates with signatures, and the first steps find that out. ' + (device?.family === 'erica' ? 'Its firmware source is public, so nothing has to be reverse engineered. ' : device?.family === 'zoom' ? 'Its effects load as separate files on the stock firmware, which is never changed. ' : '') + 'Paste the prompt below into a coding agent: it reads what the device reports, finds the official update file and works out, one step at a time, how mods can run on it.' : 'An AI coding assistant writes and checks the code. You bring the idea, try it on your machine and decide when it’s ready. The starter prompt below sets everything up with you and guides you through every step.'}</p>
       </div>
       <div className="developer-heading-links">
         <a className="button development-discord-button" href={DEVELOPMENT_DISCORD_URL} target="_blank" rel="noreferrer" aria-label="Join Discord for module development (opens in a new tab)">
@@ -36,7 +37,7 @@ export function SubmissionPage({ moduleId = '', machine: initialMachine }: { mod
         <a className="developer-repository-link" href={repository} target="_blank" rel="noreferrer" aria-label="Modwerk repository on GitHub (opens in a new tab)">Modwerk on GitHub <span aria-hidden="true">↗</span></a>
       </div>
     </header>
-    {!module && !locked && <DevelopIntro />}
+    {!module && (locked ? <UnlockIntro device={device} name={machineName} /> : <DevelopIntro />)}
 
     <section className="configuration-section developer-start" aria-labelledby="agent-start-title">
       <div className="developer-section-heading"><h2 id="agent-start-title">Your starter prompt</h2><span className="subtle">{module ? 'Open your agent in your Modwerk fork' : 'Paste it into your AI assistant or straight into your coding agent'}</span></div>
