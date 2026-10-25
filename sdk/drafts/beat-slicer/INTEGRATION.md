@@ -2,7 +2,7 @@
 
 ## Current readiness
 
-Basic scope: 0.1.57-experimental, private staging.
+Basic scope: 0.1.58-experimental, private staging.
 
 The owner chose a basic working slicer first. File-backed Flex and Static share
 AED slice commands and record geometry; their settings/control tables differ.
@@ -25,7 +25,9 @@ tables are replaced only after the stock REPLACE SLICES? warning; old API caller
 retain preservation-only behavior. A confirmed YES waits across temporary busy
 work and revalidates before one write; NO or another stock gesture cancels it.
 The owner reported initial 0.1.56 success followed by repeated-edit failures.
-Exact 0.1.57 device qualification remains pending.
+The 0.1.57 trial subsequently produced a reported DSP stop with active TapeHead/
+Mini Verb. Its saved record confirms stopped frames. It is withdrawn from trials.
+The 0.1.58 metadata-lock/polling changes still require exact device qualification.
 
 Established software checks: actual controller/grid/service host sanitizers,
 full-identity retirement and one-use confirmation, actual adapter failure/rollback

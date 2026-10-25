@@ -6,6 +6,7 @@
 #include "modwerk_module.h"
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 #define CHECK(x) do {if(!(x)){printf("FAIL line %u\n",(unsigned)__LINE__);return 1;}}while(0)
 void bs_device_open(uint32_t,const struct modwerk_sample_editor_api *);
 void module_tick(struct modwerk_runtime_api *);
@@ -15,7 +16,7 @@ int module_enc(int,int);
 static struct mw_sample_editor service;
 static struct mw_sample_capture source;
 static struct runtime_owner owner;
-static unsigned ready=1,held,bad,confirms,cancels,publishes,block_confirm;
+static unsigned ready=1,held,bad,confirms,cancels,publishes,block_confirm,copies;
 static uint32_t lock(void *p){(void)p;if(held)bad=1;held=1;return 7;}
 static void unlock(void *p,uint32_t saved){(void)p;if(!held || saved!=7)bad=1;held=0;}
 static int available(void *p){(void)p;return ready;}
@@ -28,7 +29,7 @@ static unsigned publish(void *p,const struct mw_sample_capture *before,const str
     memcpy(source.view.records,edit->records,sizeof edit->records);return MODWERK_SAMPLE_APPLIED;
 }
 static unsigned copy(uint32_t token,struct modwerk_sample_view *out)
-{return mw_sample_editor_copy(&service,token,out);}
+{++copies;return mw_sample_editor_copy(&service,token,out);}
 static unsigned confirm(uint32_t token,const struct modwerk_sample_grid *grid)
 {
     ++confirms;
@@ -42,6 +43,8 @@ static int active(void)
 {struct modwerk_runtime_api runtime={0};module_tick(&runtime);return !!(runtime.value&0x100);}
 static int tap(int code)
 {return module_key(code,1) && module_key(code,0);}
+static int select_spacing(unsigned index)
+{return module_enc(1,-127) && (!index || module_enc(1,(int)index*4));}
 int main(void)
 {
     uint32_t token;
@@ -73,6 +76,35 @@ int main(void)
     }
     source.view.count=0;
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+    bs_device_open(token,&api);
+    unsigned copied=copies;
+    unsigned char initial_frame[1024],idle_frame[1024];module_draw(initial_frame);
+    ready=0;
+    for(unsigned tick=0;tick<120;++tick)CHECK(active());
+    module_draw(idle_frame);
+    CHECK(copies==copied && !memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(module_enc(1,4) && module_enc(1,-4));
+    CHECK(module_enc(0,4) && module_enc(0,-4));
+    CHECK(copies==copied); /* settings use the opening snapshot too */
+    /* Fine encoder pulses accumulate; a complete step or arrow changes once. */
+    CHECK(module_enc(1,1) && module_enc(1,1) && module_enc(1,1));
+    module_draw(idle_frame);CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(module_enc(1,1));module_draw(idle_frame);
+    CHECK(memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(module_enc(1,-4));module_draw(idle_frame);
+    CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(tap(0x33));module_draw(idle_frame);
+    CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(tap(0x20));module_draw(idle_frame);
+    CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(module_enc(0,INT_MAX) && module_enc(0,INT_MIN));
+    CHECK(module_enc(1,INT_MAX) && module_enc(1,INT_MIN));
+    module_draw(idle_frame);
+    CHECK(!memcmp(initial_frame,idle_frame,sizeof initial_frame));
+    CHECK(copies==copied);
+    ready=1;CHECK(tap(0x32));
+    source.view.count=0;
+    CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     ready=0;bs_device_open(token,&api);CHECK(active());
     unsigned previous=confirms;
     CHECK(tap(0x31) && confirms==previous && active() && !publishes);
@@ -83,17 +115,18 @@ int main(void)
     mw_sample_editor_answer(&service,token,0);
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);CHECK(active());previous=confirms;
-    CHECK(module_enc(1,1) && module_enc(1,-1));
-    CHECK(module_enc(0,1) && module_enc(0,-1));
+    CHECK(module_enc(1,4) && module_enc(1,-4));
+    CHECK(module_enc(0,4) && module_enc(0,-4));
     CHECK(tap(0x31) && confirms==previous+1 && service.state==MW_SAMPLE_PROMPT);
     mw_sample_editor_answer(&service,token,0);
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);++source.controls[5];
-    CHECK(!active() && service.state==MW_SAMPLE_CLOSED && !publishes);
+    CHECK(active()); /* snapshot stays visible; explicit YES must reject it */
+    CHECK(tap(0x31) && !active() && service.state==MW_SAMPLE_CLOSED && !publishes);
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
     bs_device_open(token,&api);previous=cancels;
     CHECK(!module_key(0x30,1) && !active() && cancels==previous+1);
-    CHECK(!module_enc(0,1) && !module_key(0x30,0));
+    CHECK(!module_enc(0,4) && !module_key(0x30,0));
     CHECK(!held && !bad && !publishes);
     /* A job can start between copy and confirm. Only a fresh copy on a later
      * tick may retry; cancellation, edits and stale source retire that intent. */
@@ -107,12 +140,12 @@ int main(void)
         bs_device_open(token,&api);ready=0;previous=confirms;
         CHECK(tap(0x31) && active() && confirms==previous);
         if(reason==0)CHECK(tap(0x32));
-        if(reason==1)CHECK(module_enc(1,1));
+        if(reason==1)CHECK(module_enc(1,4));
         if(reason==2)++source.controls[5];
         ready=1;
         if(reason==1) {
             CHECK(active() && service.state==MW_SAMPLE_OPEN);
-            CHECK(module_enc(1,-1) && tap(0x32));
+            CHECK(module_enc(1,-4) && tap(0x32));
         } else CHECK(!active() && service.state==MW_SAMPLE_CLOSED);
         CHECK(confirms==previous && !publishes);
     }
@@ -125,7 +158,7 @@ int main(void)
         source.view.frames=source.view.trim_end=4164197u+tail;
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
         bs_device_open(token,&api);
-        if(kind==0 && tail==1)CHECK(module_enc(1,1));
+        if(kind==0 && tail==1)CHECK(module_enc(1,4));
         CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
         CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
         uint32_t n=tail<64?48:49;
@@ -142,7 +175,7 @@ int main(void)
     /* Four bars is sixteen quarter-note beats: the same 49-point tail case. */
     source.view.count=0;source.view.frames=source.view.trim_end=16656797u;
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
-    bs_device_open(token,&api);CHECK(module_enc(1,1));
+    bs_device_open(token,&api);CHECK(module_enc(1,4));
     CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
     CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
     CHECK(source.view.count==48 && source.view.records[1].start==347016u);
@@ -173,7 +206,7 @@ int main(void)
         source.view.trim_start=0;source.view.sample_bpm24=2880;
         if(run%2==0)source.view.count=0; /* stock DELETE ALL SLICES */
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
-        bs_device_open(token,&api);CHECK(active());CHECK(module_enc(1,1));
+        bs_device_open(token,&api);CHECK(active());CHECK(select_spacing(run%5));
         unsigned before_count=source.view.count,before_writes=publishes;
         CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT && service.replacing);
         ready=0;
@@ -198,7 +231,7 @@ int main(void)
         source.view.sample_bpm24=2928;
         if(run%2==0)source.view.count=0;
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
-        bs_device_open(token,&api);CHECK(module_enc(1,(run || kind)?1:0));
+        bs_device_open(token,&api);CHECK(select_spacing((run%5+2)%5));
         unsigned before_writes=publishes;
         CHECK(tap(0x31));
         if(run%5<3) {

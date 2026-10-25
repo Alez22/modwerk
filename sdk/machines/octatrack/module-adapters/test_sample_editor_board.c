@@ -7,8 +7,9 @@
 #include <string.h>
 #define CHECK(x) do {if(!(x)){printf("FAIL line %u\n",(unsigned)__LINE__);return 1;}}while(0)
 static struct {uint32_t address,value;} memory[1024];
-static unsigned used,masked,locked,bad,writes,refreshes,retired,live;
+static unsigned used,masked,locked,bad,writes,refreshes,retired,live,metadata_reads,frame_services;
 static uint32_t fail_address,fail_mode;
+static unsigned inject_writer,queued_writer,engine_writes;
 static int stopped,transport,storage;
 static uint32_t extent[2048];
 static struct runtime_owner owner;
@@ -20,10 +21,26 @@ static void put(uint32_t address,uint32_t value)
     if(used==1024){bad=1;return;}
     memory[used].address=address;memory[used++].value=value;
 }
-uint32_t mw_sample_host_read(uint32_t address){return get(address);}
+static int metadata_address(uint32_t at)
+{
+    return (at>=0x100b14f0u && at<0x100b14f0u+128u*1096u) ||
+        (at>=0x100d5b30u && at<0x100d5b30u+128u*1096u) ||
+        (at>=0x46c90a78u && at<0x46c90a78u+128u*44u) ||
+        (at>=0x46c922c4u && at<0x46c922c4u+128u*44u);
+}
+int mw_sample_host_audio_preemptible(void){return !masked;}
+uint32_t mw_sample_host_read(uint32_t address)
+{
+    if(metadata_address(address)) {
+        ++metadata_reads;
+        if(inject_writer){queued_writer=1;inject_writer=0;}
+        if(!locked || masked)bad=1;else ++frame_services;
+    }
+    return get(address);
+}
 void mw_sample_host_write(uint32_t address,uint32_t value)
 {
-    if(!masked)bad=1;
+    if(!locked || masked)bad=1;else ++frame_services;
     ++writes;
     if(address==fail_address && fail_mode) {
         if(fail_mode==1){fail_mode=0;return;}
@@ -34,7 +51,12 @@ void mw_sample_host_write(uint32_t address,uint32_t value)
 uint32_t modwerk_machine_mask(void){return masked++;}
 void modwerk_machine_unmask(uint32_t saved){if(masked!=saved+1)bad=1;masked=saved;}
 uint32_t modwerk_machine_lock(void){return locked++;}
-void modwerk_machine_unlock(uint32_t saved){if(locked!=saved+1)bad=1;locked=saved;}
+void modwerk_machine_unlock(uint32_t saved)
+{
+    if(locked!=saved+1)bad=1;
+    locked=saved;
+    if(!locked && queued_writer){queued_writer=0;++engine_writes;put(0x46c922d8,get(0x46c922d8)+1);}
+}
 int modwerk_machine_stopped(void){return stopped;}
 int mw_sample_transport_ready(void){return transport;}
 int mw_sample_storage_ready(void){return storage;}
@@ -49,8 +71,8 @@ void mw_sample_host_refresh(void)
 {if(!locked || masked)bad=1;++refreshes;}
 static uint32_t setup(unsigned kind,unsigned slot)
 {
-    used=masked=locked=bad=writes=refreshes=retired=0;live=1;
-    fail_address=fail_mode=0;stopped=transport=storage=1;
+    used=masked=locked=bad=writes=refreshes=retired=metadata_reads=frame_services=0;live=1;
+    fail_address=fail_mode=inject_writer=queued_writer=engine_writes=0;stopped=transport=storage=1;
     memset(&mw_sample_editor,0,sizeof mw_sample_editor);
     memset(&owner,0,sizeof owner);memset(extent,0,sizeof extent);
     owner.generation=1;owner.module=17;owner.owned_extent=(uintptr_t)extent;
@@ -99,7 +121,7 @@ int main(void)
             for(unsigned i=12;i<192;++i)CHECK(before[i]==get(settings+312+4*i));
             mw_sample_refresh_ui();CHECK(refreshes==1);mw_sample_refresh_ui();CHECK(refreshes==1);
         }
-        CHECK(!masked && !locked && !bad);
+        CHECK(!masked && !locked && !bad && metadata_reads && frame_services);
     }
     /* Replacement uses the real board API buffer checks and writer. NO and
      * transient busy preserve a complete nonempty table; YES may reduce it. */
@@ -129,6 +151,18 @@ int main(void)
         for(unsigned i=6;i<192;++i)CHECK(before[i]==get(settings+312+4*i));
         CHECK(!masked && !locked && !bad);
     }
+    /* Audio may run during a snapshot, but a queued engine writer waits for
+     * the level-4 boundary. Its later change invalidates the copied preview. */
+    setup(1,0);CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+    inject_writer=1;
+    CHECK(mw_sample_editor_api.copy(token,view)==MODWERK_SAMPLE_OK);
+    CHECK(engine_writes==1 && !queued_writer && frame_services && !bad);
+    grid->count=1;grid->starts[0]=0;
+    CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_STALE && !writes);
+    /* An ISR/high-mask caller cannot start any heavy metadata operation. */
+    setup(1,0);masked=1;
+    CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_BUSY);
+    CHECK(!metadata_reads && !writes && !bad);masked=0;
     /* Readiness is the conjunction of real service gates; no writes on any
      * refused opening. Only the base's exact immutable EP0 wake is exempt. */
     for(unsigned gate=0;gate<8;++gate) {

@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.57-experimental",
+  "version": "0.1.58-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -139,7 +139,7 @@
     "steps": [
       "Select a file-backed Flex or Static sample in a disposable project; stop playback and recording.",
       "With the exact private base and package installed, open AED, press AMP (SLICE), then YES and select BEAT SLICER. This workflow remains under qualification.",
-      "Encoder A chooses SAMPLE/PROJECT BPM; encoder B or UP/DOWN chooses spacing. YES requests stock confirmation; NO goes back. Clear slices through the stock slice menu."
+      "Encoder A chooses SAMPLE/PROJECT BPM; encoder B chooses spacing. YES requests stock confirmation; NO goes back. Clear slices through the stock slice menu."
     ],
     "screenshots": []
   }

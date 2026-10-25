@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.57-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.58-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
@@ -19,8 +19,12 @@ byte parity and normal-boot USB/menu/confirmation emulator tests for both kinds.
 The 0.1.55 candidate RAM-boots on the owner's MKII, opens its AED options and
 passes a 12-module self-test. The 0.1.56 trial also passed that self-test; the owner
 reported initial successful slicing followed by failures after repeated clearing
-and step changes. The 0.1.57 correction has not run on hardware; full lifecycle
-qualification continues. The service is enabled
+and step changes. The owner then reported 0.1.57 working alone but a DSP-stop
+warning, pop and
+loss of audio while slicing a 22 MB Flex source with TapeHead/Mini Verb active.
+The saved stall record confirms stopped frames, not the exact cause. That build
+is withdrawn from further trials. The 0.1.58 mitigation has not run on hardware;
+full lifecycle qualification continues. The service is enabled
 only by a private `--sample-editor` base build and needs owner review. It is not
 released capability, and the draft remains absent from the public catalogue.
 
@@ -33,8 +37,8 @@ candidate; recorder buffers and slots 128 onward are excluded.
 | Control | Behavior |
 | --- | --- |
 | Encoder A | SAMPLE or PROJECT BPM; refuse missing/invalid tempo, with no silent fallback. |
-| Encoder B / UP / DOWN | 1, 4, 16, 32 or 64 beats per slice. |
-| YES | Request the base-owned stock confirmation. A busy source waits for a fresh snapshot; NO or changing a control cancels that request. Markers change only after the stock YES. |
+| Encoder B | 1, 4, 16, 32 or 64 beats per slice. |
+| YES | Validate the opening snapshot and request stock confirmation. NO or changing a control cancels a pending request. Markers change only after the stock YES. |
 | NO / BACK | Close the options or decline confirmation without changing markers. |
 | After creation | Use stock DELETE SLICE or DELETE ALL SLICES. No separate slice Undo/history is added. |
 
@@ -53,6 +57,13 @@ Replacement can change slice numbers used by locks on any track sharing the
 sample. Refuse more than 64 starts instead of truncating the grid. Settings affect every track using that sample
 slot. Installing the module itself must change no sample.
 
+The options retain the opening snapshot throughout setup. Encoder counts
+accumulate four per discrete setting step, with clamped endpoints; UP/DOWN do
+not change settings. Slot location and kind stay internal. Source metadata is
+checked at confirmation, not on display ticks or parameter changes.
+PLEASE WAIT is limited to a pending operation, rather than exposing internal
+waveform-worker readiness during normal setup.
+
 The base copies source metadata and owns source/loader retirement, confirmation,
 atomic publication and verified failure rollback. The package receives no sample
 or PCM pointer and contains no native sample-writing code. NO cancels our create
@@ -61,8 +72,8 @@ accepts an unaligned stock grid).
 
 If the source is busy after the stock YES, the base waits and revalidates before
 applying once. NO or another stock gesture cancels that wait; an actual source
-or owner change still refuses the edit. The optional replacement extension
-requires a revised private base; older preservation-only callers retain their
+or owner change still refuses the edit. The frame-preserving metadata boundary and optional replacement extension
+require a revised private base; older preservation-only callers retain their
 existing API behavior.
 
 No project or sample-settings save is implicit. Saving/reloading through the

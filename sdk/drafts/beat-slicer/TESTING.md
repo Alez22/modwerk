@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.57-experimental. Development checks: 23–25 October 2026 (Taipei).
+Current draft: 0.1.58-experimental. Development checks: 23–25 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -3118,3 +3118,75 @@ in 325 files, lint/type/build and the SDK check (37 tests, one skipped). All
 Play Modes retains the declared older release and issue #764 gap. The literal
 stale-fork origin/main check still fails on inherited CHANGELOG.md changes.
 The unlisted draft remains unavailable to module:doctor until release integration.
+
+## DSP-stop report and idle polling (0.1.58 staging)
+
+The owner confirmed 0.1.57 works when alone, but reported a DSP-stop warning,
+a pop and sustained loss of audio with TapeHead/Mini Verb active during slicing
+of a 22 MB Flex sample. Reported setup: T1 Static short drum loop, T2 Static long
+sample with TapeHead/Mini Verb, T3 Flex long sample. Recording was off; transport
+state immediately before the failure was not established. The live stall table
+also retained effect handle 31 on T3, separately from the owner's stated setup.
+Both physical 12-module self-tests passed before this interaction; those tests
+did not qualify editor/effect coexistence. The 0.1.57 trial is now retired.
+
+After ending the trial (Undo again returned active unknown), the standard LOG
+request captured the unit's persistent record on exact base `aba69ad57d71…`:
+boot 25, stall count 2, reason 1 (frames stopped), tick 15,529, frame counter
+722,121, frame state 7, busy 0 and eDMA ES/errors zero. Reported snapshot CPU was
+610 per mille and DSP peaks 419/645. These are the saved readings, not proof
+of worst-case headroom or a confirmed root cause. Raw diagnostics remain private.
+
+The board held the level-7 global interrupt mask across full captures, full-table
+comparison, preparation and publication. That is inconsistent with the documented
+frame-interrupt deadline, even for stopped transport. The 0.1.58 mitigation uses
+the level-4 metadata-writer boundary for the stopped, file-backed UI/engine/storage
+paths, leaving audio frames and DMA enabled. Recorder/PCM access is not admitted.
+A context gate refuses heavy work if entered at interrupt level 5 or higher.
+The page retains the opening snapshot while idle and while adjusting settings;
+YES still revalidates.
+It no longer exposes WAITING FOR SOURCE during ordinary display work.
+
+Host regressions exercise frame service during metadata access, unchanged atomic
+failure rollback, writer deferral until the metadata lock is released, subsequent
+stale-source rejection and refusal from a high-mask context. Another runs 120
+idle ticks with no new source copy and an unchanged frame despite temporary
+worker busy state. Original 0.1.57 board/module code fails the corresponding
+regressions; the revised code passes. These generated tests establish modeled
+boundaries, not physical interrupt latency, complete native writer coverage or
+hardware coexistence. Target compilation passed as recorded below; exact physical
+retests remain pending.
+
+Owner UI refinements for 0.1.58: hide Flex/Static slot location, use encoder B
+only for spacing, and match ordinary knob sensitivity. The controller accumulates
+four raw counts per discrete step, discards residual counts on reversal, clamps
+at endpoints, and leaves UP/DOWN without parameter changes. Host tests compare
+unchanged frames/copy counts across idle ticks, sub-step encoder movement,
+parameter adjustments and arrow presses. Matching the owner's physical knob
+feel remains a hardware check, not an assertion established by these fixtures.
+
+The final target package is 4,524 bytes, SHA-256
+`8164829b315c822b72073f341085dc1aaef4f5a62636f4f53f9da4ffa75639ce`.
+Both strict stock-free scans and all five target-enabled tests pass. Private base
+`7c82d0d15495…` passes native/browser parity, stock-free and bootloader/flash
+preservation guards (BIN SHA-256 `fdd4656fcf6c…`, 767,728 bytes).
+The full upstream-main check passes in 147.07 seconds: 2,570 app tests in 325
+files and SDK checks (37 tests, one skipped). The literal stale-fork origin/main
+check retains its inherited CHANGELOG.md policy failure. Public default-base
+inputs and the 25 published packages are unchanged by this private adapter update.
+
+A normal-boot emulator installed the exact three-member USB set (TapeHead, Mini
+Verb and this Beat Slicer; set SHA-256 `d253f4a85359…`). Stock panel gestures
+selected TapeHead on T2 FX1 and Mini Verb on T2 FX2; live handles were verified.
+On each file-backed kind, the first three raw encoder counts left the frame
+unchanged, the fourth stepped, minus four restored, and UP/DOWN had no effect.
+Native NO preserved the complete table, YES created the expected rational grid,
+stock clearing passed and emulated frame counts continued advancing. Retained
+frame review confirms the slot location is absent and all shown labels fit.
+This short authored fixture does not reproduce the owner's long Static streaming
+track or physical interrupt timing. The final USB Undo returned result 11,
+recovery phase 6 and active unknown; restoration and stock-menu removal were
+**not confirmed**. The driver deliberately failed and wrote no success receipt.
+Two earlier harness attempts rejected a wrong set baseline and an unhandled
+positive publication-progress reply respectively; neither exercised slicing.
+No 0.1.58 package has been loaded onto the physical unit.

@@ -18,6 +18,8 @@ static struct modwerk_sample_grid proposal;
 static const uint32_t spacings[5]={1,4,16,32,64};
 static uint32_t token,active,tempo_source,spacing,reply,geometry,dirty,captured;
 static uint32_t pending_confirm;
+static int encoder_counts[2];
+#define COUNTS_PER_STEP 4
 static uint32_t consumed[2];
 enum { DEVICE_SHORT_TRIM=16 };
 #define STOCK_MIN_SLICE_FRAMES 64u
@@ -26,15 +28,18 @@ static void close_editor(void)
 {
     if(active && editor)editor->cancel(token);
     active=0;token=0;editor=0;pending_confirm=0;
+    encoder_counts[0]=encoder_counts[1]=0;
 }
-static unsigned refresh(void)
+static unsigned refresh(unsigned validate)
 {
     if(!active || !editor)return 0;
-    unsigned current=editor->copy(token,&view);
-    if(current==MODWERK_SAMPLE_BUSY){reply=MODWERK_SAMPLE_BUSY;return 0;}
-    if(current!=MODWERK_SAMPLE_OK){close_editor();return 0;}
-    captured=1;
-    if(reply==MODWERK_SAMPLE_BUSY)reply=MODWERK_SAMPLE_OK;
+    if(!captured || validate) {
+        unsigned current=editor->copy(token,&view);
+        if(current==MODWERK_SAMPLE_BUSY){reply=MODWERK_SAMPLE_BUSY;return 0;}
+        if(current!=MODWERK_SAMPLE_OK){close_editor();return 0;}
+        captured=1;
+        if(reply==MODWERK_SAMPLE_BUSY)reply=MODWERK_SAMPLE_OK;
+    }
     if(!dirty)return 1;
     dirty=0;
     if(view.count>BS_MAX_SLICES){geometry=BS_INVALID;return 1;}
@@ -68,7 +73,7 @@ void bs_device_open(uint32_t opened,const struct modwerk_sample_editor_api *api)
        !api->copy || !api->confirm || !api->cancel || !api->replace)return;
     editor=api;token=opened;active=1;dirty=1;captured=0;
     geometry=BS_INVALID;reply=MODWERK_SAMPLE_OK;
-    refresh();
+    refresh(0);
 }
 /* Relocated function pointer, copied inline label. The base validates this
  * complete descriptor before admission and again under its native owner lock. */
@@ -78,25 +83,45 @@ const struct modwerk_sample_action bs_sample_action={
 };
 void module_tick(struct modwerk_runtime_api *api)
 {
-    if(active && refresh() && pending_confirm)confirm_when_ready();
+    /* The options are a copied snapshot. Idle ticks must not repeatedly copy
+     * live metadata or flash readiness for ordinary waveform work.
+     * Parameter edits use that snapshot;
+     * YES still obtains/revalidates a fresh source. */
+    if(active && (dirty || !captured || pending_confirm) && refresh(pending_confirm) && pending_confirm)
+        confirm_when_ready();
     api->value=0x42530000u | (active?0x100u:0u) | (pending_confirm?0x200u:0u) |
         (reply<<10) | geometry;
 }
-static int cycle(int current,int delta,int count)
+static int step_value(int current,int delta,int count)
 {
-    int next=current+delta%count;
-    if(next<0)next+=count;
-    if(next>=count)next-=count;
+    int next=current+delta;
+    if(next<0)next=0;
+    if(next>=count)next=count-1;
     return next;
+}
+static int adjust(int encoder,int delta)
+{
+    pending_confirm=0;
+    if(encoder==0)tempo_source=(uint32_t)step_value((int)tempo_source,delta,2);
+    else if(encoder==1)spacing=(uint32_t)step_value((int)spacing,delta,5);
+    else {close_editor();return 0;}
+    reply=MODWERK_SAMPLE_OK;dirty=1;refresh(0);return 1;
 }
 int module_enc(int encoder,int delta)
 {
     if(!active)return 0;
+    if(encoder<0 || encoder>1){close_editor();return 0;}
     pending_confirm=0;
-    if(encoder==0)tempo_source=(uint32_t)cycle((int)tempo_source,delta,2);
-    else if(encoder==1)spacing=(uint32_t)cycle((int)spacing,delta,5);
-    else {close_editor();return 0;}
-    reply=MODWERK_SAMPLE_OK;dirty=1;refresh();return 1;
+    if(reply==MODWERK_SAMPLE_BUSY)reply=MODWERK_SAMPLE_OK;
+    int *counts=&encoder_counts[encoder];
+    if((*counts>0 && delta<0) || (*counts<0 && delta>0))*counts=0;
+    /* Split the quotient before accumulating, so even a large signed input
+     * cannot overflow the small residual. */
+    int steps=delta/COUNTS_PER_STEP;
+    *counts+=delta%COUNTS_PER_STEP;
+    steps+=*counts/COUNTS_PER_STEP;
+    *counts%=COUNTS_PER_STEP;
+    return steps?adjust(encoder,steps):1;
 }
 int module_key(int code,int pressed)
 {
@@ -115,9 +140,13 @@ int module_key(int code,int pressed)
     }
     consumed[bank]|=mask;
     if(code==NO){close_editor();return 1;}
-    if(code==UP || code==DOWN)return module_enc(1,code==UP?1:-1);
+    if(code==UP || code==DOWN) {
+        pending_confirm=0;
+        if(reply==MODWERK_SAMPLE_BUSY)reply=MODWERK_SAMPLE_OK;
+        return 1;
+    }
     pending_confirm=1;
-    if(refresh())confirm_when_ready();
+    if(refresh(1))confirm_when_ready();
     return 1;
 }
 static void text(char *out,const char *in)
@@ -139,7 +168,7 @@ void module_draw(unsigned char *frame)
     bs_device_text_at(frame,30,2,"BEAT SLICER");
     bs_device_invert(frame,1,1,126,10);
     if(!captured || dirty) {
-        bs_device_text(frame,26,"WAITING FOR SOURCE");
+        bs_device_text(frame,26,"PLEASE WAIT");
         bs_device_text(frame,55,"NO:BACK");return;
     }
     at=append(line,tempo_source?"A BPM:PROJECT ":"A BPM:SAMPLE ");
@@ -152,13 +181,12 @@ void module_draw(unsigned char *frame)
     bs_device_text(frame,15,line);
     at=append(line,"B STEP:");at=number(at,spacings[spacing]);append(at,spacing?" BEATS":" BEAT");
     bs_device_text(frame,25,line);
-    at=append(line,"SLICES:");at=number(at,plan.count);
-    at=append(at,view.kind==MODWERK_SAMPLE_FLEX?" FLEX ":" STATIC ");number(at,view.slot+1u);
+    at=append(line,"SLICES:");number(at,plan.count);
     bs_device_text(frame,35,line);
     if(geometry==DEVICE_SHORT_TRIM)text(line,"TRIM TOO SHORT");
     else if(geometry==BS_TOO_MANY)text(line,"OVER 64 SLICES");
     else if(geometry!=BS_OK)text(line,"CHECK BPM / TRIM");
-    else if(reply==MODWERK_SAMPLE_BUSY)text(line,"WAITING FOR SOURCE");
+    else if(reply==MODWERK_SAMPLE_BUSY)text(line,"PLEASE WAIT");
     else if(reply!=MODWERK_SAMPLE_OK)text(line,"EDIT REFUSED");
     else if(view.count){at=append(line,"REPLACE ");at=number(at,view.count);append(at," SLICES");}
     else text(line,"NEW SLICE GRID");

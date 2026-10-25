@@ -204,6 +204,15 @@ that the operation must preserve, and verify that setup difference explicitly.
 
 ### Background work
 
+A stopped transport does not stop DSP frames. Do not mask audio/DMA interrupts
+across full metadata copies, table comparisons or planning. Establish the actual
+metadata-writer boundary separately; a frame-preserving task lock is not permission
+to read PCM or recorder buffers. Reject heavy entry from an already high interrupt
+context. Keep an idle options page on a copied snapshot and revalidate on intent;
+repeated full source polling can add work and expose ordinary worker busy states.
+Measure and test editor operations with effects actually running, beyond a load
+self-test. Hardware timing and writer coverage remain separate proof obligations.
+
 Budget the entire protected interval, including metadata validation before and
 after a bounded PCM copy. Include the maximum supported metadata count as
 a distinct workload; a short sample with few markers does not cover that cost.

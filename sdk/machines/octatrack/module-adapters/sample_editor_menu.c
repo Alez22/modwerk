@@ -163,7 +163,7 @@ static void answer(uint32_t yes)
     uint32_t token=question_token;
     unsigned why=mw_sample_editor_answer(&mw_sample_editor,token,yes!=0);
     if(why==MODWERK_SAMPLE_BUSY) {
-        if(!question_pending)say("WAITING FOR SOURCE");
+        if(!question_pending)say("PLEASE WAIT");
         question_pending=1;return;
     }
     question_active=question_pending=question_token=0;

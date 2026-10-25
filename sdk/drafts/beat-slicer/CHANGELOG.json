@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.1.58-experimental",
+    "date": "2026-10-25",
+    "changes": [
+      "Keep audio/DMA interrupts serviceable during file-backed metadata transactions; refuse heavy work from high-interrupt contexts.",
+      "Keep the opening snapshot stable through setup; revalidate at confirmation, without idle source polling.",
+      "Use encoder-only controls with four counts per step and bounded ends; remove slot locations and internal source messages.",
+      "Requires the revised private base. Recorder buffers and PCM operations remain unsupported; no Keep, flash or implicit save.",
+      "Known issue: the reported TapeHead/Mini Verb DSP stop requires exact-build hardware retesting and timing qualification."
+    ]
+  },
+  {
     "version": "0.1.57-experimental",
     "date": "2026-10-25",
     "changes": [
@@ -7,7 +18,7 @@
       "Keep stock YES pending through temporary source work, revalidating before one publication; Back or another gesture cancels.",
       "Use an outlined options window, inverted title and short labels/banners that fit the display.",
       "Requires the revised private sample-editor base extension. File-backed Flex/Static only; recording buffers remain unsupported.",
-      "Known issue: repeated-edit robustness, exact hardware behavior, audio and persistence require qualification of this build."
+      "Known issue: MKII DSP stop and loss of audio reported during Flex slicing with TapeHead/Mini Verb active. This build is withdrawn from further trials."
     ]
   },
   {

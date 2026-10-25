@@ -31,8 +31,22 @@ static uint32_t waveform_candidate,waveform_seen;
 static const void *job_message;
 static unsigned owner_hint;
 struct mw_sample_editor mw_sample_editor;
-static uint32_t mask(void *unused){(void)unused;return modwerk_machine_mask();}
-static void unmask(void *unused,uint32_t sr){(void)unused;modwerk_machine_unmask(sr);}
+/* File-backed settings are written by UI/engine/storage tasks, excluded by
+ * the level-4 lock. Playback, recording and audition are excluded below.
+ * This service never touches PCM/recorder buffers. Keep the level-5 frame and
+ * level-6 DMA interrupts running through copies, validation and publication. */
+static uint32_t lock(void *unused){(void)unused;return modwerk_machine_lock();}
+static void unlock(void *unused,uint32_t sr){(void)unused;modwerk_machine_unlock(sr);}
+static int audio_preemptible(void)
+{
+#ifdef MW_SAMPLE_BOARD_HOST
+    int mw_sample_host_audio_preemptible(void);return mw_sample_host_audio_preemptible();
+#else
+    uint32_t sr;
+    __asm__ __volatile__("move.w %%sr,%0" : "=d"(sr));
+    return (sr&0x0700u)<0x0500u;
+#endif
+}
 int mw_sample_owner_current_locked(const struct runtime_owner *owner)
 {
     if(!owner || !modwerk_runtime_owner_held(owner,&owner_hint))return 0;
@@ -47,7 +61,7 @@ static int owner(void *unused,const struct runtime_owner *value)
 static int ready(void *unused)
 {
     (void)unused;
-    return idle_seen && !job_active && !READ_PACKED(0x460d17d2u) && !READ(0x460e6bccu) &&
+    return audio_preemptible() && idle_seen && !job_active && !READ_PACKED(0x460d17d2u) && !READ(0x460e6bccu) &&
         READ(0x460d1cb8u)==1u && !READ(0x460e76a0u) &&
         modwerk_machine_stopped() && mw_sample_transport_ready() && mw_sample_storage_ready();
 }
@@ -97,7 +111,8 @@ static unsigned publish(void *unused,const struct mw_sample_capture *before,cons
     (void)unused;
     const struct modwerk_sample_view *v=&before->view;
     uint32_t settings=(v->kind?0x100b14f0u:0x100d5b30u)+1096u*v->slot;
-    /* Source/owner/ready were checked under this SAME uninterrupted mask.
+    /* Source/owner/ready were checked under this SAME metadata-writer lock.
+     * Audio frames and DMA remain serviceable; no UI/engine writer can run.
      * Reset native selected-row state before any bindings can change. */
     if(matches(settings,edit->count,edit->records))return MODWERK_SAMPLE_NO_CHANGE;
     if(!matches(settings,v->count,v->records))return MODWERK_SAMPLE_FAULT;
@@ -113,12 +128,12 @@ static unsigned publish(void *unused,const struct mw_sample_capture *before,cons
         refresh_pending=1;return MODWERK_SAMPLE_APPLIED;
     }
     /* Roll back every active/inactive record and selected row before releasing
-     * the mask. This is failure recovery, not user slice history. */
+     * the lock. This is failure recovery, not user slice history. */
     store(settings,v->count,v->records);WRITE(0x400ceb3cu,selected);
     return matches(settings,v->count,v->records) && READ(0x400ceb3cu)==selected?
         MODWERK_SAMPLE_NO_CHANGE:MODWERK_SAMPLE_FAULT;
 }
-static const struct mw_sample_backend backend={0,mask,unmask,ready,owner,capture,publish};
+static const struct mw_sample_backend backend={0,lock,unlock,ready,owner,capture,publish};
 void mw_sample_editor_bootstrap(void)
 {
     if(!mw_sample_editor.initialized)(void)mw_sample_editor_init(&mw_sample_editor,&backend);

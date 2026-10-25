@@ -22,6 +22,8 @@ import argparse
 parser=argparse.ArgumentParser(description=__doc__)
 for name in ('emulator','base-dir','package','card','output'):
     parser.add_argument('--'+name,type=Path,required=True)
+parser.add_argument('--check-encoders',action='store_true',help='Check four-count discrete stepping, stable substeps and inactive arrows through UART.')
+parser.add_argument('--companion-fx',action='store_true',help='An uploaded set includes TapeHead/Mini Verb; select them on T2 through stock UI.')
 parser.add_argument('--repeat',action='store_true',help='Repeat replacement/NO/YES with all five spacings before stock clearing.')
 parser.add_argument('--set',default='BEATLAB')
 parser.add_argument('--project',default='PROJECT 261023')
@@ -69,16 +71,37 @@ try:
         response=submit.exchange(data)
         assert response is not None
         result=usb.status(response)
-        if result['result']:
+        if result['result'] and not (command==5 and result['result']==12):
             symbols=json.loads((args.base_dir/'symbols.json').read_text())
-            print('LOADER REFUSAL',port.peek(symbols['modwerk_runtime_refusal'],4).hex(),flush=True)
-        assert result['result']==0,(command,result)
+            print('LOADER REFUSAL',port.peek(symbols['refusal'],4).hex(),flush=True)
+        assert result['result']==0 or (command==5 and result['result']==12 and result['phase']==7 and not result['known']),(command,result)
         return result
-    request(1,tx=0)
     package=args.package.read_bytes()
+    if package[:4]==b'MWMS':
+        # The active upload digest at cold boot is the base, not the cached
+        # journal identity required by an encoded whole-set offer.
+        for _ in range(1200):
+            try:
+                current=b.ctrl_in(usb.VENDOR_IN,38,0,usb.usb.VENDOR_INTERFACE,40)
+                break
+            except usb.bench.Stall:
+                current=None;time.sleep(.05)
+        assert current is not None and len(current)==40 and current[:4]==b'MWSD'
+        assert package[16:48]==bytes.fromhex(st['base'])
+        assert package[48:80]==current[8:40],'encoded set does not match actual module inventory identity'
+    request(1,tx=0)
     request(2,bytes.fromhex(st['base'])+hashlib.sha256(package).digest()+struct.pack('>II',st['generation'],len(package)))
     for at in range(0,len(package),4096):request(3,struct.pack('>I',at)+package[at:at+4096])
-    request(4);st=request(5);assert st['phase']==4
+    request(4)
+    deadline=time.monotonic()+300
+    st=request(5)
+    # A positive PROGRESS acknowledgement explicitly authorizes the next
+    # publication step, as UploadSession.activate does. Never retry a missing
+    # or uncertain reply. No other refusal is replayed here.
+    while st['result']==12:
+        assert time.monotonic()<deadline,'confirmed publication progress timed out'
+        time.sleep(.025);st=request(5)
+    assert st['phase']==4 and st['active']==hashlib.sha256(package).hexdigest()
     st=request(9);assert st['phase']==5
     print('USB TRIAL INSTALLED',hashlib.sha256(package).hexdigest(),flush=True)
     port.command('pace off')
@@ -121,6 +144,30 @@ try:
             tap(port,'down' if row<target else 'up')
         assert word(0x460e5e40)==target
         tap(port,'yes')
+    companion_live=[]
+    if args.companion_fx:
+        def keycode(code):matrix_tap(port,0x20+code//8,1<<(code%8))
+        def pick(slot,effect):
+            tap(port,'no');port.command('run 300');keycode(0x11);keycode(0x24+slot)
+            port.command('key 0x25 0x20');port.command('run 60')
+            keycode(0x24+slot);port.command('key 0x25 0');port.command('run 150')
+            target=word(syms['modwerk_fx'+str(slot)+'_id2pos']+4*effect)
+            cursor=(0x460d5c94,0x460d5ca8)[slot-1]
+            assert target,'companion absent from native chooser'
+            delta=target-word(cursor)
+            assert -127<=delta<=127
+            if delta:port.command(f'knob 0x36 {delta}');port.command('run 150')
+            assert word(cursor)==target,'native FX chooser did not reach companion'
+            tap(port,'yes')
+            at=0x80000ec4+8*(slot-1)+1
+            for _ in range(30):
+                if port.peek(at,1)==bytes([effect]):break
+                port.command('run 100')
+            assert port.peek(at,1)==bytes([effect]),'companion not live on T2'
+            tap(port,'no');companion_live.append({'track':2,'slot':slot,'handle':effect})
+            print('COMPANION LIVE',slot,effect,flush=True)
+        pick(1,31);pick(2,23)
+        keycode(0x10);tap(port,'aed');matrix_tap(port,0x24,8);port.command('run 300')
     def stock_clear(kind):
         at=(0x100d5b30,0x100b14f0)[kind]
         if not word(at+1092):return
@@ -136,6 +183,7 @@ try:
         assert word(0x46c8d1a0)==kind and word(0x46c8d19c)==0
         matrix_tap(port,0x24,8);port.command('run 300')
         stock_clear(kind)
+        frames_before=word(syms['dl_frames'])
         before=port.peek(at,1096)
         settings=struct.unpack('>274I',before)
         from fractions import Fraction
@@ -162,6 +210,18 @@ try:
             print('PENDING/WORKER',{n:port.peek(syms[n],4).hex() for n in ('pending_at','pending_kind','pending_slot','pending_generation','job_active','idle_seen')},flush=True)
         assert state()==1,'actual contributed action did not admit a coherent source within its bounded wait'
         assert port.peek(at,1096)==before,'preview changed markers'
+        if args.check_encoders:
+            frame_at=word(0x400b9710);original_frame=port.peek(frame_at,1024)
+            for _ in range(3):
+                port.command('knob 0x31 1');port.command('run 100')
+                assert port.peek(frame_at,1024)==original_frame,'substep changed parameter'
+            port.command('knob 0x31 1');port.command('run 100')
+            assert port.peek(frame_at,1024)!=original_frame,'complete encoder step did not change parameter'
+            port.command('knob 0x31 -4');port.command('run 100')
+            assert port.peek(frame_at,1024)==original_frame
+            tap(port,'up');tap(port,'down')
+            assert port.peek(frame_at,1024)==original_frame,'arrows changed encoder-only settings'
+            print('ENCODERS VERIFIED',kind,flush=True)
         tap(port,'yes');port.command('run 200')
         assert state()==2,'native question was not prepared'
         assert port.peek(at,1096)==before,'question changed markers'
@@ -184,7 +244,7 @@ try:
                 old=port.peek(at,1096)
                 tap(port,'yes');choose('BEAT SLICER');port.command('run 200')
                 assert state()==1,'reopen after apply failed'
-                tap(port,'up');port.command('run 200')
+                port.command(f'knob 0x31 {4 if step!=1 else -16}');port.command('run 200')
                 (out/f'replace-options-{kind}-{step}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
                 tap(port,'yes');port.command('run 200');assert state()==2
                 assert word(syms['mw_sample_editor']+28)==1,'replacement warning not selected'
@@ -208,6 +268,7 @@ try:
                 print('REPLACED',kind,step,len(replacement),flush=True)
             results[-1]['repeatedReplacementSteps']=[4,16,32,64,1]
         stock_clear(kind);assert word(at+1092)==0
+        assert word(syms['dl_frames'])>frames_before,'emulated audio frames stopped during editing'
     exercise(1)
     tap(port,'no');tap(port,'track1');tap(port,'track1')
     matrix_tap(port,0x26,0x10);tap(port,'up');matrix_tap(port,0x24,2)
@@ -227,7 +288,7 @@ try:
         assert port.peek(word(labels+4*i),32).split(b'\0',1)[0]!=b'BEAT SLICER'
     tap(port,'no')
     print('STOCK MENU RESTORED',flush=True)
-    (out/'results.json').write_text(json.dumps({'scope':'Normal emulator boot, USB loader, AED action and stock confirmation', 'inputs':inputs,'baseIdentity':proof['configurationHash'],'results':results,'usbUndo':True,'stockMenuAfterRemoval':True,'hardware':False},indent=2)+'\n')
+    (out/'results.json').write_text(json.dumps({'scope':'Normal emulator boot, USB loader, AED action and stock confirmation', 'inputs':inputs,'baseIdentity':proof['configurationHash'],'results':results,'usbUndo':True,'stockMenuAfterRemoval':True,'hardware':False,'companionFx':companion_live},indent=2)+'\n')
 finally:
     if b:b.sock.close()
     port.close()
