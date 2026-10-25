@@ -148,6 +148,9 @@ try:
             tap(port,'down' if row<target else 'up')
         assert word(0x460e5e40)==target
         tap(port,'yes')
+        if name!='CREATE BEAT GRID':
+            stock=names.copy();stock.remove('CREATE BEAT GRID')
+            assert word(word(syms['remembered']))==stock.index(name),'stock remembered index shifted by contribution'
     companion_live=[]
     if args.companion_fx:
         def keycode(code):matrix_tap(port,0x20+code//8,1<<(code%8))

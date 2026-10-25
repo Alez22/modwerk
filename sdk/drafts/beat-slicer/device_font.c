@@ -44,7 +44,7 @@ static void pixel(unsigned char *frame,uint32_t x,uint32_t y,unsigned invert)
 }
 void bs_device_clear(unsigned char *frame,uint32_t x,uint32_t y,uint32_t w,uint32_t h)
 {
- if(!frame || x>=128 || y>=64 || w>128-x || h>64-y)return;
+ if(!frame || !w || !h || x>=128 || y>=64 || w>128-x || h>64-y)return;
  /* Clear packed column bytes, rather than revisiting a byte for each pixel. */
  uint32_t last=y+h-1u;
  for(uint32_t band=y/8u;band<=last/8u;++band) {
