@@ -119,7 +119,9 @@ the container, nothing is written (the site's repeat after a lost reply).
 ## Hardware run (the owner's MKII, a DIN MIDI interface at hand)
 
 1. Read-only: `0x100000`-`0x1fffff` blank or unused before the first conversion erases it.
-2. Convert (the trial, then the write while it runs on: UI, audio and the box during it, the screen after), power
+2. Convert (the trial, then the write while it runs on: UI, audio and the box during it, the screen after; stock
+   copies a bulk-data directory from flash `0x200000` at start, and if it reads that data later a read during the
+   write would see the chip's status, so watch for glitches; a crash then is a cut write, not a brick), power
    off and on (BASE UPDATED, the confirm), then update A to B and back on two slots (stock's screen, one restart).
 3. Pull the power during the slot write, several times at different points; pull the USB cable during the write.
 4. Install a base that fails to start: after two power cycles the stub must start the previous one.

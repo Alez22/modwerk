@@ -213,7 +213,7 @@ export function fakeSession(unit: FakeUnit, delay = 0) {
         if (data && String.fromCharCode(...data.subarray(0, 4)) === 'ELEK') { // a base written to NOR (flash.c)
           const target = written()
           unit.flashed = target
-          if (unit.slots) unit.slots = unit.slots.slice(), unit.slots[4] = 1 // two slots now
+          if (unit.slots) { unit.slots = unit.slots.slice(); unit.slots[4] = 1 } // two slots now
           if (!unit.slots || target !== unit.base) setTimeout(() => { unit.base = unit.active = target; unit.unplug(); unit.plug('base') }, delay)
           return status
         }
