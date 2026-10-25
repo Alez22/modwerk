@@ -507,6 +507,7 @@ static void ep0_tick(void)
     if (activity != heard) {
         if (quiet >= HOST_TIMEOUT_TICKS) ((void (*)(const char *, unsigned))0x4005a2b8u)("MODWERK CONNECTED", 0x60);
         heard = activity, quiet = 0;
+        modwerk_flash_host = 1; /* a computer talks to this base: flash.c may confirm its slot */
     } else if (quiet < HOST_TIMEOUT_TICKS) ++quiet;
     if (started && controller_started && mv_tick(vendor(), controller.phase != MU_NORMAL, HOST_TIMEOUT_TICKS)) wake();
     if (controller_started && controller.disconnecting) wake(); /* finish all rows of an abandoned set */

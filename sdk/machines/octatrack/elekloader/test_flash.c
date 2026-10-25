@@ -194,15 +194,22 @@ int main(void)
     slot_read(SLOT_A, s); slot_read(SLOT_B, s + 1);
     CHECK(s[0].whole && !s[0].confirmed && s[0].generation == 2u && !memcmp(s[0].identity, modwerk_base_digest, 32));
     CHECK(s[1].whole && s[1].confirmed && s[1].generation == 1u);
-    CHECK(modwerk_flash_slots[4] == 1 && modwerk_test_screens > 0);
-    CHECK(restarted() == 0 && b->retire(0) == 1 && restarted() == 1);
+    CHECK(modwerk_flash_slots[4] == 1);
+    /* Written by this base itself, from RAM after its trial (the update's one restart): not quiesced, so the base's
+     * own box showed it, not stock's screen; it runs on, says BASE SAVED, and starts from A next time. */
+    CHECK(modwerk_test_screens == 0 && modwerk_flash_progress == 1001u);
+    CHECK(b->retire(0) == 1 && restarted() == 0);
+    modwerk_test_popup = 0; modwerk_flash_tick();
+    CHECK(modwerk_test_popup && !strcmp(modwerk_test_popup, "BASE SAVED") && !modwerk_flash_progress);
 
     /* Just written, not yet started from NOR: never confirmed. */
+    modwerk_flash_host = 1; asked = 0;
     ticks = SLOTS_CONFIRM_TICKS - 1u; CHECK(modwerk_flash_tick() == 1); modwerk_flash_service();
     slot_read(SLOT_A, s); CHECK(!s[0].confirmed);
-    /* The restart: the stub starts A (a try used); the base shows BASE UPDATED at 5 s and confirms A at 15 s. */
+    /* The next power-on: the stub starts A (a try used); the base shows BASE UPDATED at 5 s and confirms A at 15 s.
+     * A names this base, which talked over USB in its trial: no computer needed this time. */
     CHECK(power_on() == SLOT_A + SLOT_RECORD);
-    ticks = 0; modwerk_test_popup = 0;
+    ticks = 0; asked = 0; modwerk_flash_host = 0; modwerk_test_popup = 0;
     for (unsigned t = 0; t < SLOTS_CONFIRM_TICKS; ++t) if (modwerk_flash_tick()) modwerk_flash_service();
     CHECK(modwerk_test_popup && !strcmp(modwerk_test_popup, "BASE UPDATED"));
     slot_read(SLOT_A, s); CHECK(s[0].confirmed && s[0].tries == 1u);
@@ -214,7 +221,7 @@ int main(void)
     modwerk_test_erases = modwerk_test_programs = 0;
     CHECK(offered() == 1 && b->publish(0) == MU_APPLIED);
     CHECK(modwerk_test_erases == 0 && modwerk_test_programs == 0);
-    CHECK(b->restore(0) == 1 && restarted() == 1);
+    CHECK(b->restore(0) == 1 && restarted() == 0);
 
     /* Refused before any write. */
     uint8_t keep[4];
@@ -231,13 +238,6 @@ int main(void)
     modwerk_test_bootloader_digest[0] ^= 1; /* the candidate's bootloader copy is not stock's */
     CHECK(offered() == 1 && b->publish(0) == MU_UNCHANGED && modwerk_flash_refusal == FLASH_PROTECTED);
     modwerk_test_bootloader_digest[0] ^= 1;
-    memcpy(running + run_off, image + run_off, run_len);
-    running[run_off + 12] ^= 1; modwerk_flash_snapshot(); /* another base's .run booted */
-    CHECK(offered() == 1 && b->publish(0) == MU_UNCHANGED && modwerk_flash_refusal == FLASH_OTHER_BASE);
-    running[run_off] = 0xff; modwerk_flash_snapshot(); /* a length past the stage: no digest taken */
-    CHECK(offered() == 1 && b->publish(0) == MU_UNCHANGED && modwerk_flash_refusal == FLASH_OTHER_BASE);
-    memcpy(running + run_off, image + run_off, run_len); modwerk_flash_snapshot();
-    memset(running + run_off, 0xa5, run_len);
     {   /* a stream that does not end where its length says (a byte dropped in the middle: resummed) */
         uint8_t *whole = malloc(container_len);
         memcpy(whole, container, container_len);
@@ -252,12 +252,41 @@ int main(void)
     }
     CHECK(modwerk_test_erases == 0 && !memcmp(modwerk_test_nor, saved, NOR_LIMIT) && restarted() == 0);
 
+    /* Another base's container, from a unit with one copy: refused, the conversion is the trial's (the new base, from
+     * RAM, writes itself). */
+    one_copy_unit(old);
+    memcpy(saved, modwerk_test_nor, NOR_LIMIT);
+    memcpy(running + run_off, image + run_off, run_len);
+    running[run_off + 12] ^= 1; modwerk_flash_snapshot(); /* another base's .run booted */
+    CHECK(offered() == 1 && b->publish(0) == MU_UNCHANGED && modwerk_flash_refusal == FLASH_OTHER_BASE);
+    running[run_off] = 0xff; modwerk_flash_snapshot(); /* a length past the stage: no digest taken */
+    CHECK(offered() == 1 && b->publish(0) == MU_UNCHANGED && modwerk_flash_refusal == FLASH_OTHER_BASE);
+    CHECK(!memcmp(modwerk_test_nor, saved, NOR_LIMIT));
+    /* On two slots another base goes into the spare slot (one restart, owner 25 October 2026), its record unnamed; it
+     * confirms itself once started, run 15 s and talked to. */
+    two_slot_unit(old);
+    modwerk_test_screens = 0;
+    CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && holds(SLOT_B + SLOT_RECORD, container, container_len));
+    slot_read(SLOT_B, s + 1); CHECK(s[1].whole && !s[1].confirmed && s[1].generation == 3u && !s[1].identity[0]);
+    CHECK(modwerk_test_screens > 0); /* quiesced: stock's own upgrade screen */
+    CHECK(b->retire(0) == 1 && restarted() == 1 && started_is(power_on(), container)); /* the one restart */
+    ticks = 0; asked = 0; modwerk_flash_host = 0;
+    for (unsigned t = 0; t < 2u * SLOTS_CONFIRM_TICKS; ++t) if (modwerk_flash_tick()) modwerk_flash_service();
+    slot_read(SLOT_B, s + 1); CHECK(!s[1].confirmed); /* unnamed: not before a computer has talked to it */
+    modwerk_flash_host = 1;
+    CHECK(modwerk_flash_tick() == 1); modwerk_flash_service();
+    slot_read(SLOT_B, s + 1); CHECK(s[1].confirmed && modwerk_flash_slots[5] == 1u);
+    memcpy(running + run_off, image + run_off, run_len); modwerk_flash_snapshot();
+    memset(running + run_off, 0xa5, run_len);
+    memcpy(modwerk_test_nor, saved, NOR_LIMIT);
+    CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && b->retire(0) == 1 && restarted() == 0); /* convert again */
+
     /* A conversion that stopped after B (the stub's verify failed, the unit still up) goes on from there; NOR with
      * neither layout is refused and left alone. */
     memset(modwerk_test_nor + SLOT_STUB, 0, 0x100);
     memset(modwerk_test_nor + SLOT_A, 0xff, SLOT_BYTES);
     CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && power_on() == SLOT_A + SLOT_RECORD);
-    CHECK(holds(SLOT_B + SLOT_RECORD, old, container_len) && b->retire(0) == 1 && restarted() == 1);
+    CHECK(holds(SLOT_B + SLOT_RECORD, old, container_len) && b->retire(0) == 1 && restarted() == 0);
     memset(modwerk_test_nor + SLOT_STUB, 0, 0x100);
     memset(modwerk_test_nor + SLOT_B, 0xff, SLOT_RECORD);
     memcpy(saved, modwerk_test_nor, NOR_LIMIT);
@@ -286,21 +315,21 @@ int main(void)
     modwerk_test_drop = 0;
     CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && holds(SLOT_B + SLOT_RECORD, container, container_len));
     CHECK(holds(SLOT_A + SLOT_RECORD, old, container_len));
-    CHECK(b->retire(0) == 1 && restarted() == 1 && modwerk_flash_refusal == FLASH_OK);
+    CHECK(b->retire(0) == 1 && restarted() == 0 && modwerk_flash_refusal == FLASH_OK);
     CHECK(started_is(power_on(), container));
 
-    /* The new base never confirms (it does not start): three starts, then the stub returns to A, and the base that
-     * runs says so. The next update goes into B again; A stays. */
+    /* The new base never confirms (it does not start): two starts, then the stub returns to A, and the base that
+     * runs says so and confirms nothing. The next update goes into B again; A stays. */
     memcpy(modwerk_test_nor, two, NOR_LIMIT);
-    CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && b->retire(0) == 1 && restarted() == 1);
-    for (int i = 0; i < 3; ++i) CHECK(power_on() == SLOT_B + SLOT_RECORD);
+    CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && b->retire(0) == 1 && restarted() == 0);
+    for (unsigned i = 0; i < SLOT_TRIES; ++i) CHECK(power_on() == SLOT_B + SLOT_RECORD);
     CHECK(power_on() == SLOT_A + SLOT_RECORD && power_on() == SLOT_A + SLOT_RECORD);
-    modwerk_test_popup = 0; ticks = 0;
+    modwerk_test_popup = 0; ticks = 0; asked = 0; modwerk_flash_host = 1;
     for (unsigned t = 0; t < SLOTS_CONFIRM_TICKS; ++t) if (modwerk_flash_tick()) modwerk_flash_service();
     CHECK(modwerk_test_popup && !strcmp(modwerk_test_popup, "UPDATE UNDONE") && (modwerk_flash_slots[6] & 1u));
     slot_read(SLOT_B, s + 1); CHECK(!s[1].confirmed);
     CHECK(offered() == 1 && b->publish(0) == MU_APPLIED && holds(SLOT_A + SLOT_RECORD, old, container_len));
-    CHECK(b->retire(0) == 1 && restarted() == 1 && power_on() == SLOT_B + SLOT_RECORD);
+    CHECK(b->retire(0) == 1 && restarted() == 0 && power_on() == SLOT_B + SLOT_RECORD);
 
     /* A power cut at every NOR operation of an update: a whole base starts every time. Of a conversion: only a cut in
      * the stub's own sector (its erase and 32 pages) leaves nothing to start. */

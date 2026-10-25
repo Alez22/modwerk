@@ -478,28 +478,41 @@ NOR when a host asks, with stock's OS UPGRADE routines (the sector erase and
    Both are compared by SHA-256, never with the running RAM, which stock rewrites
    once started: the copy with stock 1.40C's digest, the stream with the digest
    `.boot` takes right after unpacking it (`modwerk_flash_snapshot`).
-   Then OS UPGRADE's quiesce, the sectors up to the container's end erased, the
-   pages programmed, NOR compared word by word (once more after a second write),
-   and the reply. A container NOR already holds writes nothing.
+   Then OS UPGRADE's quiesce and the write, into one of **two slots** (below),
+   with stock's upgrade screen on the unit (PREPARING FLASH, WRITING OS DATA,
+   VERIFYING OS DATA), and the reply.
 3. Accept (or any rollback after the write) restarts the unit half a second on,
-   as a RAM boot does but with no mailbox, so the bootstrap unpacks NOR: the new
-   base. The host sees it come back and checks IDENTIFY.
+   as a RAM boot does but with no mailbox: Elektron's bootloader starts our boot
+   stub, which starts the new slot. The host sees it come back and checks
+   IDENTIFY. The base shows BASE UPDATED, and confirms the slot 15 s later.
+
+**Two slots** ([docs/OCTATRACK_TWO_SLOT_BASE.md](../../../../docs/OCTATRACK_TWO_SLOT_BASE.md),
+`slots.h`): a boot stub at `0x4000` (`stub.s`, `stub.c`, built by `build_stub.py`
+into `stub_body.c`) starts the newest whole slot of A (`0x10000`) and B
+(`0x100000`), or the other one after an unconfirmed slot failed to start three
+times (UPDATE UNDONE on the unit; SLOTS, vendor request 39, tells the site). A
+write goes only into the slot the unit can lose, its record page last, so a
+power cut or USB dropout at any point leaves a base that starts. A unit with one
+copy (the card's install) is converted on its first update: its base copied to
+B and confirmed, the stub's sector, then the new base into A. That sector is the
+one moment, once per unit and under a second, when a cut still needs the
+startup menu. Flash with neither layout is refused (refusal 108).
 
 A verify that still fails after the second write answers `uncertain` and leaves
 the unit running from RAM for another try (the self-test record's `refusal`
-reads 100 + flash.h's reason); only a power-off then needs the Startup Menu.
-The site (`OctatrackLink.writeBase`) writes again after a failed verify or a lost
-reply, reopening the unit first so its connect rolls the lost session back, until
-the unit comes back on the new base from NOR: a repeat writes nothing when NOR
-already matches. Two rules keep any update from bricking a unit: nothing writes
-below `0x4000`, where Elektron's bootloader and its FUNC startup menu (MIDI
-UPGRADE, the recovery) live, and once a write may have started, the site never
-shows an error that invites switching the unit off.
-The write itself (some seconds) is the window a power cut can hit, as with
-the card. A base without the capability (feature bit 8 of CAPABILITIES) still
-needs the card once. Host check: `test_flash.c` (NOR modelled as clearing
-bits only, the kit's packer for the fixture); the stock routines, the quiesce
-and the restart are hardware-only.
+reads 100 + flash.h's reason). The site (`OctatrackLink.writeBase`) writes
+again after a failed verify or a lost reply, reopening the unit first so its
+connect rolls the lost session back, until the unit comes back on the new base
+from NOR: a repeat writes nothing when the slot the stub starts next already
+holds it. Two rules keep any update from bricking a unit: nothing writes below
+`0x4000`, where Elektron's bootloader and its FUNC startup menu (MIDI UPGRADE,
+the recovery) live, and once a write may have started, the site never shows an
+error that invites switching the unit off. A base without the capability
+(feature bit 8 of CAPABILITIES) still needs the card once. Host check:
+`test_flash.c` (NOR modelled as clearing bits only, a power cut after every
+operation); `check_stub.py` runs the stub with the bootloader's own code from
+your OS file in Unicorn. Stock's routines, its screen, the quiesce and the
+restart are hardware-only.
 
 `build_ports.py` prepares independent source ports with the same pinned SDK
 and its native source checker. It registers the internal USB MIDI dependency

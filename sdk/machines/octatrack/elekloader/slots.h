@@ -14,7 +14,7 @@
 #define SLOT_RECORD 0x100u       /* one program page; the container follows it */
 #define SLOT_CONTAINER_MAX (SLOT_BYTES - SLOT_RECORD)
 #define SLOT_MAGIC 0x4d57534cu   /* "MWSL" */
-#define SLOT_TRIES 3u            /* starts of an unconfirmed slot before the stub returns to the other */
+#define SLOT_TRIES 2u            /* starts of an unconfirmed slot before the stub returns to the other */
 /* The record page: programmed last, so a slot whose write was cut never counts. */
 #define REC_MAGIC 0x00u
 #define REC_GENERATION 0x04u     /* one more than the other slot's at write time */

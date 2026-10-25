@@ -27,5 +27,9 @@ extern volatile uint8_t modwerk_flash_slots[FLASH_SLOTS_BYTES];
 /* The 60 Hz tick (ep0.c): 1 when the engine has work here (modwerk_flash_service): the first look at the slots,
  * the confirm. It shows BASE UPDATED or UPDATE UNDONE once after a start. */
 int modwerk_flash_tick(void);
+/* Set by ep0.c at a host's first request after a start: a computer talks to this base over USB. */
+extern volatile int modwerk_flash_host;
 void modwerk_flash_service(void);
+/* A write while the OS runs on (this base's own, no restart after): 1 + per mille done, 0 none (status.c's box). */
+extern volatile uint32_t modwerk_flash_progress;
 #endif

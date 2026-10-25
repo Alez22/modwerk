@@ -675,6 +675,19 @@ static void refused_box(unsigned char *frame)
     label(23u, 34u, "DSP"), share_bar(frame, 45u, 34u, 40, 6, dsp, dsp_add), percent(89u, 34u, dsp);
     label(23u, 42u, "MEM"), share_bar(frame, 45u, 42u, 40, 6, mem, mem_add), percent(89u, 42u, mem);
 }
+extern volatile uint32_t modwerk_flash_progress; /* flash.c: 1 + per mille of a write while the OS runs on, 0 none */
+/* A base update saving itself while the OS runs on (flash.c: its own write, no restart after), over everything until
+ * it is saved; while quiesced for another base's write, stock's own upgrade screen shows instead. */
+static void saving_box(unsigned char *frame)
+{
+    uint32_t done = modwerk_flash_progress - 1u;
+    if (done > 1000u) done = 1000u;
+    dialog(frame, "BASE UPDATE");
+    label(X0 + 6u, Y0 + 17u, "SAVING THE NEW BASE.");
+    label(X0 + 6u, Y0 + 25u, "KEEP THE POWER ON.");
+    bar(frame, X0 + 6u, Y0 + 38u, 76, 5, done, 0);
+    percent(X0 + 86u, Y0 + 37u, done);
+}
 static void status_draw(unsigned char *frame);
 void modwerk_status_draw(unsigned char *frame)
 {
@@ -682,6 +695,7 @@ void modwerk_status_draw(unsigned char *frame)
 }
 static void status_draw(unsigned char *frame)
 {
+    if (modwerk_flash_progress) { saving_box(frame); return; }
     if (open == REFUSED) { refused_box(frame); return; }
     if (open == MEMORY) { memory_box(frame); return; }
     if (open == MISSING) { missing_page(frame); return; }

@@ -68,6 +68,9 @@ const BASE_WRITE_ATTEMPTS = 4
 const RECONNECT_MS = 120000
 /** Connected this long without going away again: any restart the reconnect set off has happened. */
 const STEADY_MS = 2000
+/** Two slots: the old base stays in the other slot, so nothing is at risk; a new base that hangs at its start is left
+ * after two. */
+const NEW_BASE_LATE = 'The Octatrack didn’t come back on the new base. If it hangs while starting, switch it off and on again: after two starts that fail, it goes back to its previous base by itself.'
 const UNCONFIRMED = 'The Octatrack hasn’t confirmed that the new base is saved. Keep it switched on, check the USB cable and press Try again. Switched off before the save is confirmed, it may need the startup menu’s MIDI recovery to start again.'
 /** The running base refused the container before writing anything (flash.c's checks). */
 class NothingWritten extends Error {}
@@ -91,6 +94,8 @@ export interface LinkState {
   readonly notice?: { tone: 'success' | 'error'; text: string }
   /** A base update over USB is running (updateBase), through its restarts: the cable must stay in. */
   readonly baseUpdate?: BaseUpdateStep
+  /** Where the base lives in the unit's flash (SLOTS, flash.h): on two slots an update restarts the unit once. */
+  readonly slots?: BaseSlots | null
 }
 
 const REFUSED: Partial<Record<UploadResultName, string>> = {
@@ -113,6 +118,8 @@ const REJECTED: Partial<Record<number, string>> = {
   10: 'The Octatrack can’t start the key bus this module needs until it restarts. Turn it off and on, then sync again.',
 }
 const UNPLUG = 'Unplug the USB cable to undo anything unfinished, then plug it back in.'
+/** The boot stub started the previous base after the new one failed to start three times (BaseSlots.fellBack). */
+const FELL_BACK = 'The last base update didn’t start, so your Octatrack went back to its previous base. Nothing was lost. Try the update again, and report it in #beta-testers on Discord.'
 const RECOVERED = 'The Octatrack missed a reply, so nothing changed. Try again.'
 
 /** A stress test found a problem; its reason is shown to the user. */
@@ -175,6 +182,8 @@ export class OctatrackLink {
   private abort?: AbortController
   private keepalive?: ReturnType<typeof setInterval>
   private baseStep?: BaseUpdateStep
+  /** SLOTS as the unit answered it at connect (undefined from a base before the two slots). */
+  private slotsRead?: BaseSlots | null
   private users = 0
   /** Bumped when the unit goes away or the last view leaves: a reply or queued job from before must not change the link. */
   private connection = 0
@@ -198,7 +207,7 @@ export class OctatrackLink {
     for (const listener of this.diagnosticListeners) { try { listener(reading) } catch { /* Diagnostics never affect USB work. */ } }
   }
   // Every state carries the base update's step, so the restarts in between (idle, then ready again) keep showing it.
-  private set(state: LinkState) { this.state = { ...state, baseUpdate: this.baseStep }; for (const listener of this.listeners) listener() }
+  private set(state: LinkState) { this.state = { ...state, baseUpdate: this.baseStep, slots: this.slotsRead }; for (const listener of this.listeners) listener() }
   private setFor(connection: number, state: LinkState) { if (connection === this.connection) this.set(state) }
   private live(connection: number) { if (connection !== this.connection) throw new DOMException('The Octatrack connection changed.', 'AbortError') }
   private ready(notice?: LinkState['notice'], active = this.state.active) { this.set({ status: 'ready', identity: this.state.identity, active, notice }) }
@@ -243,7 +252,7 @@ export class OctatrackLink {
     const { status, module } = this.state
     this.diagnostic('disconnected')
     this.stopKeepalive(); this.abort?.abort()
-    this.device = this.index = this.transport = this.session = undefined
+    this.device = this.index = this.transport = this.session = this.slotsRead = undefined
     this.set({ status: 'idle', notice: status === 'sending' ? { tone: 'error', text: 'USB disconnected. The Octatrack undoes the unfinished load as soon as playback is stopped.' }
       : status === 'testing' || status === 'trial' ? { tone: 'error', text: `USB disconnected. The Octatrack undoes ${module} by itself as soon as playback is stopped.` }
       : status === 'finishing' ? { tone: 'error', text: 'USB disconnected before Keep or Undo was confirmed. Reconnect to read the Octatrack’s state.' }
@@ -275,6 +284,9 @@ export class OctatrackLink {
         const capabilities = await this.transport.capabilities()
         this.live(connection)
         if (capabilities) identity.capabilities = capabilities
+        const slots = await this.transport.slots().catch(() => undefined)
+        this.live(connection)
+        this.slotsRead = slots
         // HELLO is read-only; a base that cannot answer it still counts as ready.
         const session = identity.canSubmit ? await this.connectSession(this.transport, identity.base).catch(() => undefined) : undefined
         this.live(connection)
@@ -287,6 +299,7 @@ export class OctatrackLink {
           this.live(connection)
           notice = !undone ? { tone: 'error', text: UNPLUG } : staged ? { tone: 'success', text: 'The last sync wasn’t finished, so the Octatrack undid it.' } : undefined
         }
+        if (!notice && slots?.fellBack) notice = { tone: 'error', text: FELL_BACK }
         this.set({ status: 'ready', identity, active: session?.status.active, notice })
         this.diagnostic('connected')
       }
@@ -464,29 +477,35 @@ export class OctatrackLink {
   private async writeBase(bin: Uint8Array, expected: string, report: (step: BaseUpdateStep, fraction?: number) => void, signal?: AbortSignal) {
     const file = formats.parse(bin, OCTATRACK) as ElekFile, container = file.container, image = file.section(3)
     if (this.state.status !== 'ready' || !this.state.identity?.canSubmit) throw new Error('Connect the Octatrack first.')
-    let current = this.state.identity.base
-    const armedFrom: string[] = []
-    // Only the flashed base's gate reads the mailbox: armed from a RAM-booted base, the unit comes back on the flashed one, which arms it properly.
-    while (current !== expected) {
-      if (armedFrom.includes(current)) throw new Error(`The Octatrack came back on base ${current.slice(0, 8)}, not the new one. A power cycle returns to the flashed base.`)
-      armedFrom.push(current)
-      report('staging', 0)
-      const connection = this.connection
-      await this.sendBase(current, image, 60000, fraction => report('staging', fraction), signal, session => session.activate().then(() => {}))
-      report('starting')
-      current = await this.returned(connection, signal)
+    // On two slots the running base writes the new one into its spare slot and the unit restarts once (owner, 25
+    // October 2026); a new base that does not start is left by the boot stub after two starts. Otherwise the new base
+    // starts from RAM first (the trial) and writes itself, which converts a unit with one copy to the two slots.
+    const direct = this.slotsRead?.layout === 'two' && this.canUpdateBase(), late = direct ? NEW_BASE_LATE : UNCONFIRMED
+    if (!direct) {
+      let current = this.state.identity.base
+      const armedFrom: string[] = []
+      // Only the flashed base's gate reads the mailbox: armed from a RAM-booted base, the unit comes back on the flashed one, which arms it properly.
+      while (current !== expected) {
+        if (armedFrom.includes(current)) throw new Error(`The Octatrack came back on base ${current.slice(0, 8)}, not the new one. A power cycle returns to the flashed base.`)
+        armedFrom.push(current)
+        report('staging', 0)
+        const connection = this.connection
+        await this.sendBase(current, image, 60000, fraction => report('staging', fraction), signal, session => session.activate().then(() => {}))
+        report('starting')
+        current = await this.returned(connection, signal)
+      }
+      report('started')
+      if (!this.canUpdateBase()) throw new Error('The new base can’t write itself over USB, so install it from the card. A power cycle returns the Octatrack to its current base.')
     }
-    report('started')
-    if (!this.canUpdateBase()) throw new Error('The new base can’t write itself over USB, so install it from the card. A power cycle returns the Octatrack to its current base.')
     // Once a write may have started, an error is no verdict: a power-off then can leave NOR without a base. The
     // write runs on the unit whatever USB does and a repeat is harmless (flash.c compares NOR first), so the unit is
     // reopened, which rolls back what the lost session left (a verified write then restarts it on NOR), and written again.
     let wrote = false // an activation was sent that may have written NOR
     for (let attempt = 1; ; attempt++) {
       report('writing', 0)
-      const connection = this.connection
+      const connection = this.connection, writer = this.state.identity?.base ?? expected
       try {
-        await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => {
+        await this.sendBase(writer, container, 180000, fraction => report('writing', fraction), signal, async session => {
           const earlier = wrote
           wrote = true
           await session.activate().catch(async error => {
@@ -498,18 +517,26 @@ export class OctatrackLink {
           })
           await session.accept()
         })
+        // A base that answers SLOTS saved itself while it runs on: the trial was the update's one restart.
+        if (!direct && this.slotsRead !== undefined) {
+          const slots = await this.read('base slots', transport => transport.slots()).catch(() => undefined)
+          if (slots !== undefined) { this.slotsRead = slots; this.set(this.state) }
+          return report('done')
+        }
         report('restarting')
-        const back = await this.returned(connection, signal, 90000, UNCONFIRMED)
+        const back = await this.returned(connection, signal, 90000, late)
         if (back !== expected) throw new Error(`After the write the Octatrack came back on base ${back.slice(0, 8)}, not the new one.`)
         return report('done')
       } catch (error) {
         if (!wrote || signal?.aborted) throw error
         console.warn('Base write not confirmed, attempt ' + attempt, error)
-        if (attempt >= BASE_WRITE_ATTEMPTS) throw new Error(UNCONFIRMED, { cause: error })
+        if (attempt >= BASE_WRITE_ATTEMPTS) throw new Error(late, { cause: error })
         report('reconnecting')
         const back = await this.steady(connection, signal)
-        // Back on another base, the unit booted NOR, so NOR still holds that base whole: the write never landed.
-        if (back !== expected) throw new Error(`The Octatrack restarted on its current base (${back.slice(0, 8)}) before the new one was saved, so nothing changed. Try again.`, { cause: error })
+        if (direct && back === expected) return report('done') // it restarted on the new base: the write landed
+        // After the trial, back on another base means the unit booted NOR, which still holds that base whole: the
+        // write never landed. On two slots it is the base that writes: write again.
+        if (!direct && back !== expected) throw new Error(`The Octatrack restarted on its current base (${back.slice(0, 8)}) before the new one was saved, so nothing changed. Try again.`, { cause: error })
       }
     }
   }
@@ -519,7 +546,8 @@ export class OctatrackLink {
   private async writeRefused(error: unknown) {
     if (!(error instanceof UploadDeviceError) || !['backend', 'needs-recovery'].includes(error.status.result)) return error
     const refusal = (await this.transport?.selftest(false).catch(() => undefined))?.refusal ?? 0
-    if (refusal > 100 && refusal < 107) return new NothingWritten(`The new base refused to write itself (reason ${refusal}), so nothing was written. A power cycle returns the Octatrack to its current base and modules.`, { cause: error })
+    // 101-106 the container is not this base; 108 flash holds neither one base nor the two slots (flash.h)
+    if (refusal > 100 && refusal < 107 || refusal === 108) return new NothingWritten(`The new base refused to write itself (reason ${refusal}), so nothing was written. A power cycle returns the Octatrack to its current base and modules.`, { cause: error })
     return error
   }
   /** The unit reopened after a write step ended without a verdict, once it has stayed connected for a moment: its

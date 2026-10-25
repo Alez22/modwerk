@@ -98,7 +98,7 @@ static int nor_word_program(uint32_t a, uint16_t v)
     modwerk_test_nor[a] &= (uint8_t)(v >> 8); modwerk_test_nor[a + 1u] &= (uint8_t)v;
     return nor_word(a) == v;
 }
-static void upgrade_screen(int step, uint32_t done, uint32_t total) { (void)step; (void)done; (void)total; ++modwerk_test_screens; }
+static void stock_screen(int step, uint32_t done, uint32_t total) { (void)step; (void)done; (void)total; ++modwerk_test_screens; }
 const char *modwerk_test_popup;
 static void popup(const char *text) { modwerk_test_popup = text; }
 #else
@@ -133,13 +133,23 @@ static int nor_word_program(uint32_t a, uint16_t v)
 }
 /* Stock's OS UPGRADE screen (1.40C 0x4007f9cc): step 0 PREPARING FLASH, 1 WRITING OS DATA, 3 VERIFYING OS DATA,
  * with its progress bar, drawn and sent to the LCD at once; stock calls it after the same quiesce. */
-static void upgrade_screen(int step, uint32_t done, uint32_t total) { ((void (*)(int, uint32_t, uint32_t))0x4007f9ccu)(step, done, total); }
+static void stock_screen(int step, uint32_t done, uint32_t total) { ((void (*)(int, uint32_t, uint32_t))0x4007f9ccu)(step, done, total); }
 /* Stock's brief popup, as ep0.c says MODWERK CONNECTED. */
 static void popup(const char *text) { ((void (*)(const char *, unsigned))0x4005a2b8u)(text, 0x60); }
 #endif
 
 static uint32_t rd32(const uint8_t *p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
 static int refuse(enum flash_refusal why) { modwerk_flash_refusal = why; f_candidate = 0; return 0; }
+/* A write's progress for the unit's screen: stock's own upgrade screen while quiesced; written while the OS runs on,
+ * the base's box shows it (modwerk_flash_progress, status.c) instead, so the two never draw over each other. */
+static int quiet;
+volatile uint32_t modwerk_flash_progress; /* 0 none, else 1 + per mille done */
+static void upgrade_screen(int step, uint32_t done, uint32_t total)
+{
+    if (quiet) stock_screen(step, done, total);
+    else modwerk_flash_progress = 1u + (step == 3 ? 1000u : step == 1 ? 100u + 850u * done / total : 100u * done / total);
+}
+static const char *note; /* a popup the next tick shows (stock's popup from the sys task, as ep0.c's) */
 
 /* The packed .run as MAIN loaded it: its digest and length with its header, 0 until .boot took them. */
 static uint8_t run_digest[MU_DIGEST_BYTES];
@@ -222,7 +232,8 @@ static int f_prepare(void *u, const uint8_t *d, uint32_t n)
 }
 static int f_discard(void *u) { f_candidate = f_owned = 0; return modwerk_boot_backend.discard(u); }
 
-/* The depacked container is this base, and nothing else. */
+/* The depacked container: 0 refused (named), 1 another base that keeps Elektron's bootloader safe (an OS entry with
+ * NOR's bootstrap version and stock's bootloader copy), 2 this very base (its packed .run as .boot found it). */
 static int same_base(void)
 {
     uint8_t *img = modwerk_boot_staging();
@@ -236,10 +247,9 @@ static int same_base(void)
     mu_sha256(img + (BOOTLOADER_FROM - OS_ENTRY), BOOTLOADER_END - BOOTLOADER_FROM, digest);
     if (differ(digest, BOOTLOADER_DIGEST, MU_DIGEST_BYTES)) return refuse(FLASH_PROTECTED);
     uint32_t at = (uint32_t)(RUN_LOAD - RUNNING(OS_ENTRY));
-    if (!run_bytes || at > size || run_bytes > size - at) return refuse(FLASH_OTHER_BASE);
+    if (!run_bytes || at > size || run_bytes > size - at) return 1;
     mu_sha256(img + at, run_bytes, digest);
-    if (differ(digest, run_digest, MU_DIGEST_BYTES)) return refuse(FLASH_OTHER_BASE);
-    return 1;
+    return differ(digest, run_digest, MU_DIGEST_BYTES) ? 1 : 2;
 }
 static uint8_t nor8(uint32_t a) { return (uint8_t)(nor_word(a & ~1u) >> (a & 1u ? 0 : 8)); }
 static uint32_t nor32(uint32_t a) { return (uint32_t)nor_word(a) << 16 | nor_word(a + 2u); }
@@ -286,11 +296,18 @@ static int write_slot(uint32_t base, const uint8_t *ram, uint32_t from, uint32_t
     return 0;
 }
 
+/* Byte i (SECT and on) of the stub's sector. The base keeps only what is not 0xff (stub_body.c, build_stub.py): the
+ * trampoline's section and the mark, and the code, so its RAM costs about a kilobyte, not the sector's 8. */
 #ifdef MODWERK_HOST
 uint8_t modwerk_test_stub[SLOT_STUB_BYTES - SECT];
-#define modwerk_stub_body modwerk_test_stub
+static uint8_t stub_byte(uint32_t i) { return modwerk_test_stub[i - SECT]; }
 #else
-extern const uint8_t modwerk_stub_body[SLOT_STUB_BYTES - SECT]; /* the stub's sector after its header (build_stub.py) */
+extern const uint8_t modwerk_stub_head[STUB_CODE - SECT], modwerk_stub_code[];
+extern const uint32_t modwerk_stub_code_bytes;
+static uint8_t stub_byte(uint32_t i)
+{
+    return i < STUB_CODE ? modwerk_stub_head[i - SECT] : i - STUB_CODE < modwerk_stub_code_bytes ? modwerk_stub_code[i - STUB_CODE] : 0xffu;
+}
 #endif
 /* NOR's stub sector holds a whole stub (slots.c), whichever base wrote it. */
 static int stub_ours(void) { return slot_stub_whole(); }
@@ -303,11 +320,12 @@ static int write_stub(void)
         upgrade_screen(0, 0, 1u);
         if (!erase_at(SLOT_STUB)) return 0;
         for (uint32_t off = 0; off < SLOT_STUB_BYTES; off += PAGE) {
-            for (unsigned i = 0; i < PAGE; ++i) page[i] = off + i < SECT ? packed[off + i] : modwerk_stub_body[off + i - SECT];
+            for (unsigned i = 0; i < PAGE; ++i) page[i] = off + i < SECT ? packed[off + i] : stub_byte(off + i);
             nor_program(SLOT_STUB + off, page);
         }
-        if (nor_holds(SLOT_STUB, packed, 0, SECT) && nor_holds(SLOT_STUB + SECT, modwerk_stub_body, 0, SLOT_STUB_BYTES - SECT) && stub_ours())
-            return 1;
+        int same = nor_holds(SLOT_STUB, packed, 0, SECT);
+        for (uint32_t i = SECT; same && i < SLOT_STUB_BYTES; ++i) same = nor8(SLOT_STUB + i) == stub_byte(i);
+        if (same && stub_ours()) return 1;
     }
     return 0;
 }
@@ -341,20 +359,38 @@ static int convert(uint32_t old)
     return write_slot(SLOT_A, packed, 0, f_length, next_generation(s), modwerk_base_digest, 0);
 }
 /* Two slots: nothing to write when the slot the stub starts next already holds this container (a repeat after a
- * lost reply); otherwise into the slot slot_keep leaves alone, as the newest. */
-static int update(void)
+ * lost reply); otherwise into the slot slot_keep leaves alone, as the newest. The record names this base when it
+ * writes itself; another base's (the one-restart update, owner 25 October 2026) it cannot name: zeros. */
+static int update(int mine)
 {
     struct slot_state s[2];
     int mark, next;
     read_slots(s);
     next = slot_pick(s, &mark);
     if (next >= 0 && s[next].length == f_length && nor_holds(slot_base(next) + SLOT_RECORD, packed, 0, f_length)) return 1;
-    return write_slot(slot_base(!slot_keep(s)), packed, 0, f_length, next_generation(s), modwerk_base_digest, 0);
+    return write_slot(slot_base(!slot_keep(s)), packed, 0, f_length, next_generation(s), mine ? modwerk_base_digest : 0, 0);
 }
 
+/* A record that names its base (written by the base itself), not zeros (another base wrote it). */
+static int named(const struct slot_state *s)
+{
+    for (unsigned i = 0; i < MU_DIGEST_BYTES; ++i) if (s->identity[i]) return 1;
+    return 0;
+}
+/* The slot the stub started this time, from the records alone: the newest when confirmed or one of its tries used,
+ * the other after its tries ran out or before its first start (just written), -1 when neither tells. */
+static int running(const struct slot_state *s)
+{
+    int n = slot_newest(s);
+    if (n < 0 || s[n].confirmed || (s[n].tries >= 1u && s[n].tries <= SLOT_TRIES)) return n;
+    return s[!n].whole ? !n : -1;
+}
 /* SLOTS (ep0.c): refreshed by the engine, read by the interrupt. */
 volatile uint8_t modwerk_flash_slots[FLASH_SLOTS_BYTES];
 static int slots_note; /* the popup after a start: 1 a new base started, 2 the stub went back to the previous one */
+/* The newest slot names its base (it wrote itself after it had run from RAM and talked over USB in the trial): a
+ * healthy run from it is enough to keep it, without a computer this time. Another base's needs one. */
+static int newest_named;
 static void slots_refresh(void)
 {
     struct slot_state s[2];
@@ -365,8 +401,9 @@ static void slots_refresh(void)
     if (two) {
         r[4] = 1;
         n = slot_newest(s);
+        int run = running(s);
+        if (run >= 0 && (!named(&s[run]) || !differ(s[run].identity, modwerk_base_digest, MU_DIGEST_BYTES))) r[5] = (uint8_t)run;
         for (int k = 0; k < 2; ++k) {
-            if (s[k].whole && !differ(s[k].identity, modwerk_base_digest, MU_DIGEST_BYTES) && (r[5] == 0xff || k == n)) r[5] = (uint8_t)k;
             uint8_t *at = r + 8 + 8 * k;
             at[0] = (uint8_t)(s[k].generation >> 24); at[1] = (uint8_t)(s[k].generation >> 16);
             at[2] = (uint8_t)(s[k].generation >> 8); at[3] = (uint8_t)s[k].generation;
@@ -374,13 +411,16 @@ static void slots_refresh(void)
         }
         if (n >= 0 && !s[n].confirmed && s[n].tries > SLOT_TRIES) r[6] |= 1u; /* the stub started the other one */
         if (r[5] != 0xff && s[r[5]].confirmed) r[6] |= 2u;
+        newest_named = n >= 0 && named(&s[n]);
         if (r[6] & 1u) slots_note = 2;
         else if (n >= 0 && r[5] == n && !s[n].confirmed && s[n].tries == 1u) slots_note = 1;
     }
     for (unsigned i = 0; i < FLASH_SLOTS_BYTES; ++i) modwerk_flash_slots[i] = r[i];
 }
-/* Confirm the newest slot once its base has run healthy from it: the stub has started it (a try used), it is this
- * base, and its tries are not yet spent. Never a slot this base has only just written (no try used yet). */
+/* Confirm the newest slot once its base has run healthy from it for 15 s: the stub started it (a try used) and its
+ * tries are not spent, and it is this base when its record names one. Another base's slot (unnamed) also waits for
+ * a computer's USB contact since the start, so a base that starts but has lost USB is never kept (owner, 25 October
+ * 2026); a named one talked over USB in its trial. Never a slot this base has only just written (no try used yet). */
 static int confirm(void)
 {
     struct slot_state s[2];
@@ -388,21 +428,23 @@ static int confirm(void)
     read_slots(s);
     int n = slot_newest(s);
     if (n < 0 || s[n].confirmed || s[n].tries < 1u || s[n].tries > SLOT_TRIES ||
-        differ(s[n].identity, modwerk_base_digest, MU_DIGEST_BYTES)) return 0;
+        (named(&s[n]) && differ(s[n].identity, modwerk_base_digest, MU_DIGEST_BYTES))) return 0;
     return nor_word_program(slot_base(n) + REC_CONFIRMED, 0);
 }
 #define SLOTS_LOOK_TICKS 60u      /* 1 s after start (60 Hz): the first look at the slots */
 #define SLOTS_NOTE_TICKS 300u     /* 5 s: the popup, after the startup */
-#define SLOTS_CONFIRM_TICKS 900u  /* 15 s up and running: healthy enough to keep */
+#define SLOTS_CONFIRM_TICKS 900u  /* 15 s up and running: healthy enough to keep, once a computer has talked to it */
 static uint32_t ticks;
-static volatile int due_look, due_confirm, busy;
+static volatile int due_look, due_confirm, busy, asked;
+volatile int modwerk_flash_host;
 int modwerk_flash_tick(void)
 {
     if (ticks < 0xffffffffu) ++ticks;
     if (ticks == SLOTS_LOOK_TICKS) return due_look = 1;
     if (ticks == SLOTS_NOTE_TICKS && slots_note)
         popup(slots_note == 1 ? "BASE UPDATED" : "UPDATE UNDONE");
-    if (ticks == SLOTS_CONFIRM_TICKS) return due_confirm = 1;
+    if (note && !busy) { popup(note); note = 0; modwerk_flash_progress = 0; }
+    if (!asked && ticks >= SLOTS_CONFIRM_TICKS && (modwerk_flash_host || newest_named)) return asked = due_confirm = 1;
     return 0;
 }
 void modwerk_flash_service(void)
@@ -418,20 +460,29 @@ static enum mu_publication f_publish(void *u)
     f_candidate = 0;
     copy(packed, modwerk_boot_staging(), f_length);
     for (uint32_t i = 0; i < PAGE; ++i) packed[f_length + i] = 0; /* the last page's slack */
-    if (!same_base()) return MU_UNCHANGED;
+    int base = same_base(), two = stub_ours();
+    if (!base) return MU_UNCHANGED;
+    /* Another base goes only into a spare slot: converting a unit with one copy, a base writes only itself, after it
+     * started on the unit from RAM (the trial). */
+    if (base != 2 && !two) { refuse(FLASH_OTHER_BASE); return MU_UNCHANGED; }
     struct slot_state b;
     uint32_t old = 0;
-    int two = stub_ours();
     if (!two && !(old = one_copy())) { /* neither layout: only a conversion that stopped after slot B continues */
         slot_read(SLOT_B, &b);
         if (!b.whole || !b.confirmed) { refuse(FLASH_LAYOUT); return MU_UNCHANGED; }
     }
-    f_owned = 1; busy = 1;
-    modwerk_boot_quiesce();
-    int ok = two ? update() : convert(old);
+    /* At most one restart per update (owner, 25 October 2026). Another base's: stock's quiesce and screen, the write,
+     * then the restart onto it. This base's own, from RAM after the trial (the update's restart): written while it
+     * runs on, as stock's routines need no quiesce (they mask only their command writes, and the OS runs from RAM);
+     * the next start is from the new slot. */
+    int restart = base != 2;
+    f_owned = 1; busy = 1; quiet = restart;
+    if (restart) modwerk_boot_quiesce();
+    int ok = two ? update(base == 2) : convert(old);
     slots_refresh(); busy = 0;
     if (!ok) { modwerk_flash_refusal = FLASH_WRITE; return MU_UNCERTAIN; }
-    f_flashed = 1;
+    f_flashed = restart;
+    if (!restart) note = "BASE SAVED";
     return MU_APPLIED;
 }
 /* After a write the unit restarts on NOR whichever way the transaction ends; a failed write stays up for a retry. */
