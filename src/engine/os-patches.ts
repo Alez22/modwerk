@@ -1,5 +1,8 @@
 export const OS_LOAD_ADDRESS = 0x40000400
 export type OsWrite = { address: number; guardLength: number; guardSha256: string; bytes: Uint8Array; note: string }
+// At a slow tempo with a long TIME the stock DELAY reads past its 508-entry table into these
+// zero bytes, the start of the overflow run, so nothing is written there (native: stock.DELAY_KEEP).
+export const DELAY_TABLE_END = 0x400d24d0, DELAY_READS_PAST = 16
 
 // Validate every extent and guard before copying or writing the local image.
 // An error cannot leave a half-patched image for a later build to consume.
@@ -11,6 +14,7 @@ export async function applyGuardedOsWrites(original: Uint8Array, writes: readonl
     const offset = write.address - OS_LOAD_ADDRESS
     if (!Number.isInteger(write.address) || !Number.isInteger(write.guardLength) || offset < 0 || write.guardLength < 1 || write.bytes.length < 1 || write.bytes.length > write.guardLength || offset + write.guardLength > original.length || !/^[0-9a-f]{64}$/.test(write.guardSha256)) throw new Error('The OS write plan has an invalid guarded range.')
     if (write.address < previousEnd) throw new Error('The OS write plan contains overlapping guards.')
+    if (write.address < DELAY_TABLE_END + DELAY_READS_PAST && write.address + write.guardLength > DELAY_TABLE_END) throw new Error(write.note + ' would write over the bytes the stock DELAY reads past its table.')
     previousEnd = write.address + write.guardLength
   }
   for (const write of ordered) {

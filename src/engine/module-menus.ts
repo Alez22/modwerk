@@ -7,7 +7,7 @@ import { CATALOG_SOURCE, resolveSelection } from '../catalog/modules.ts'
 import { composeDescriptors, placementOrder } from './descriptors.ts'
 import { emitLabelFormatter, emitModeFormatter, type ModeRenames } from './menu-formatters.ts'
 import { readRomPackage, linkRomText, createWideDial } from './rom-package.ts'
-import { applyGuardedOsWrites, type OsWrite } from './os-patches.ts'
+import { applyGuardedOsWrites, DELAY_TABLE_END, DELAY_READS_PAST, type OsWrite } from './os-patches.ts'
 import { MenuSpaceError } from './placement-error.ts'
 export const MENU_CAVE_END = 0x400d7c3c, MENU_LONG_LIST = 0x400d7bbc
 const OVERFLOW_START = 0x400d24d0, OVERFLOW_END = 0x400d2ce0
@@ -27,7 +27,7 @@ export async function composeModuleMenus(original: Uint8Array, ids: readonly str
   if (baseline.caveCursor > caveLimit) throw new Error('The descriptor clones run into the chooser list.')
   const writes: OsWrite[] = [...baseline.writes], regions: { address: number; bytes: number; note: string }[] = []
   const formatters: { id: string; slot: number; address: number; bytes: number; wideMaximum: number | null }[] = []
-  let cursor = baseline.caveCursor, overflow = OVERFLOW_START
+  let cursor = baseline.caveCursor, overflow = DELAY_TABLE_END + DELAY_READS_PAST
   async function cave(address: number, bytes: Uint8Array, note: string) {
     if (!Number.isInteger(address) || address % 2 || !bytes.length) throw new Error('Invalid module menu placement.')
     const end = address >= baseline.caveCursor ? caveLimit : address >= OVERFLOW_START && address < OVERFLOW_END ? OVERFLOW_END : address === 0x400c45b0 ? 0x400c4702 : address

@@ -86,9 +86,11 @@ LIST_REFS = [0x400375f4, 0x40052496, 0x40059a42]
 DESC_LEN = 0x192
 NEW_LIST = 0x400d6b00
 # The other unclaimed zero run docs/firmware/MAINMENU.md section 5 names -- 2,064 bytes
-# at 0x400d24d0. The menu shortcut cave is pinned at its start; label
-# formatters overflow into it when the clone window is full (the character
-# station's BUS-mode renames tipped the rig over by 56 bytes).
+# at 0x400d24d0. Label formatters overflow into it when the clone window is
+# full (the character station's BUS-mode renames tipped the rig over by 56
+# bytes). Its first 16 bytes stay zero for the stock DELAY (stock.DELAY_KEEP),
+# so placement starts after them; OVERFLOW_RUN itself is the run's published
+# layout (chooser-metadata.json) and stays.
 OVERFLOW_RUN = 0x400d24d0
 OVERFLOW_RUN_END = 0x400d2ce0
 SAFE_CAVE_CEIL = 0x400d8000
@@ -794,7 +796,9 @@ def main():
                  % (REMIX.name, "\n  ".join(_clashes)))
     img = bytearray(IMG.read_bytes())
     from remix import keep as _keep
-    _kept = _keep.violations(img, BASE, [remix_modules()[k] for k in REMIX.modules])
+    # DELAY's kept bytes count when it is not listed too: a saved project can still run it.
+    _keepers = [remix_modules()[k] for k in dict.fromkeys((*REMIX.modules, "DELAY"))]
+    _kept = _keep.violations(img, BASE, _keepers)
     if _kept:
         sys.exit("kept stock bytes differ before build: " + "; ".join(_kept))
 
@@ -1183,7 +1187,7 @@ def main():
         print("  tempo cave OFF (NOTEMPO=1) -- SYNC reads zeros")
         _plan = []
     _cave_top = cave_end            # caves start past the descriptor clones
-    _ovf_top = OVERFLOW_RUN
+    _ovf_top = OVERFLOW_RUN + len(stock_mod.DELAY_KEEP.expect)
     # ROM-placed linked units go FIRST, so a cave may name a unit's global
     # (cc-map's CC_MODEDEF*, resolved to mode-defaults' cc_fx2 / cc_fx1 when
     # the module is in the image, its stub `rts` otherwise). Floating caves
@@ -3473,7 +3477,7 @@ hostquit:
         _appends[_platform_at] = (
             "octabam loader + payloads (" + ", ".join(_pnames) + ")", _pappend)
 
-    _kept = _keep.violations(img, BASE, [remix_modules()[k] for k in REMIX.modules])
+    _kept = _keep.violations(img, BASE, _keepers)
     if _kept:
         sys.exit("build changed kept stock bytes: " + "; ".join(_kept))
 

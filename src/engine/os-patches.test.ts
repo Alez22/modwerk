@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Buffer } from 'node:buffer'
-import { applyGuardedOsWrites, OS_LOAD_ADDRESS, type OsWrite } from './os-patches'
+import { applyGuardedOsWrites, DELAY_READS_PAST, DELAY_TABLE_END, OS_LOAD_ADDRESS, type OsWrite } from './os-patches'
 import { createPlatformOsWrites } from './platform-writes'
 import proofs from './assets/coldfire-runtime-proofs.json'
 async function hash(bytes: Uint8Array) { const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes).buffer); return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('') }
@@ -24,6 +24,12 @@ describe('transactional guarded OS writes', () => {
     expect(result).toEqual(new Uint8Array([1,2,9,8,5,6]))
     expect(original).toEqual(before)
     result[0] = 0; expect(original[0]).toBe(1)
+  })
+  it('writes nothing over the 16 bytes the stock DELAY reads past its table', async () => {
+    const original = new Uint8Array(DELAY_TABLE_END - OS_LOAD_ADDRESS + 64)
+    const write = async (address: number, length: number): Promise<OsWrite> => ({ address, guardLength: length, guardSha256: await hash(new Uint8Array(length)), bytes: new Uint8Array(length).fill(1), note: 'synthetic cave' })
+    for (const [address, length] of [[DELAY_TABLE_END, 4], [DELAY_TABLE_END - 4, 8], [DELAY_TABLE_END + DELAY_READS_PAST - 2, 4]]) await expect(applyGuardedOsWrites(original, [await write(address, length)])).rejects.toThrow('stock DELAY')
+    await expect(applyGuardedOsWrites(original, [await write(DELAY_TABLE_END - 4, 4), await write(DELAY_TABLE_END + DELAY_READS_PAST, 4)])).resolves.toBeInstanceOf(Uint8Array)
   })
   it('refuses missing, odd or non-code runtime hook targets before installation', () => {
     const proof = proofs.cases[6], runtime = { symbols: new Map(Object.entries(proof.symbols)), sections: proof.sections }

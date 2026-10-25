@@ -270,9 +270,10 @@ class SelectiveImport(unittest.TestCase):
                                                              'tools/emu/ot_emu/test_periph.cpp', 'tools/emu/ot_emu/usb.cpp', 'tools/emu/ot_emu/usb.h'})
         for path, change in record['builderAdaptations'].items():
             self.assert_extension_holds('octabam-emulator-gates-5c71bc8c.json', path, change['after'])
-        # The builder is untouched: the native images and refusals of the earlier records hold by identity.
+        # The builder is untouched: the native images and refusals of the earlier records hold by identity
+        # (a later extension's record starts from these files).
         for path, digest in record['builderSourcesUnchanged'].items():
-            self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path)
+            self.assert_extension_holds('octabam-emulator-gates-5c71bc8c.json', path, digest)
         imported = json.loads((sdk / record['importRecord']).read_text(encoding='utf-8'))
         self.assertEqual(imported['revision'], record['upstreamRevision'])
         self.assertEqual(imported['modules'], [])
