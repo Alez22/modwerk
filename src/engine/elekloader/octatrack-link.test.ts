@@ -623,6 +623,39 @@ describe('updating the base over USB', () => {
     await vi.waitFor(() => expect(link.getState().status).toBe('ready'))
     expect(link.getState().baseUpdate).toBeUndefined()
   })
+  // With fake timers: the reconnects wait for the unit to stay connected for seconds.
+  async function run(update: Promise<void>) {
+    let done = false
+    update.then(() => { done = true }, () => { done = true })
+    while (!done) await vi.advanceTimersByTimeAsync(100)
+    return update
+  }
+  it('carries on through a USB dropout during the write until the unit is back on the new base from NOR', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    unit.writeDropouts = 1
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    await run(link.updateBase(bin, expected, step => steps.push(step)))
+    expect(dedupe(steps)).toEqual(['staging', 'starting', 'started', 'writing', 'reconnecting', 'writing', 'restarting', 'done'])
+    expect(unit.flashed).toBe(expected)
+    expect(link.getState()).toMatchObject({ status: 'ready', identity: { base: expected }, baseUpdate: undefined })
+  })
+  it('writes again after a failed verify, the unit staying up from RAM', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    unit.writeFails = 1
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    await run(link.updateBase(bin, expected, step => steps.push(step)))
+    expect(dedupe(steps)).toEqual(['staging', 'starting', 'started', 'writing', 'reconnecting', 'writing', 'restarting', 'done'])
+    expect(unit.flashed).toBe(expected)
+  })
+  it('asks to keep the unit on when the save is never confirmed', async () => {
+    const { unit, link } = await linked(), { bin, expected } = fakeBin(), steps: string[] = []
+    unit.writeFails = 9
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    await expect(run(link.updateBase(bin, expected, step => steps.push(step)))).rejects.toThrow('Keep it switched on')
+    expect(steps.filter(step => step === 'reconnecting')).toHaveLength(3)
+    expect(unit.flashed).toBe(''); expect(unit.base).toBe(expected) // still up from RAM, for the next try
+    expect(link.getState().baseUpdate).toBeUndefined()
+  })
 })
 
 it('uploads a capable base’s complete set once and accepts nothing before the user presses Keep', async () => {

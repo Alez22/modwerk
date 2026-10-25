@@ -21,7 +21,8 @@ const USB_STEPS: Record<BaseUpdateStep, string> = {
   staging: 'Sending the new base to your Octatrack',
   starting: 'The Octatrack is trying the new base. Nothing is saved yet',
   started: 'The new base works. Saving it now',
-  writing: 'Saving the new base. Don’t switch off or unplug the Octatrack',
+  writing: 'Saving the new base, which takes under a minute. Don’t switch off or unplug the Octatrack',
+  reconnecting: 'USB dropped out. Keep the Octatrack switched on: it finishes saving by itself. Reconnecting',
   restarting: 'Saved and checked. The Octatrack restarts',
   done: 'Done. Your Octatrack runs the new base.',
 }
@@ -92,6 +93,13 @@ export function BaseInstallDialog({ link, launch = false, layout, firmwareReady,
     return () => { element?.close(); if (previousFocus instanceof HTMLElement) previousFocus.focus() }
   }, [])
   useEffect(() => { (dialog.current?.querySelector<HTMLElement>('[data-stage-title]') ?? dialog.current?.querySelector('h2'))?.focus(); dialog.current?.scrollTo(0, 0) }, [view, stage])
+  // Closing the page mid-update leaves a save that failed its check unrepeated, and the user unaware of it.
+  useEffect(() => {
+    if (!updating) return
+    const stay = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', stay)
+    return () => window.removeEventListener('beforeunload', stay)
+  }, [updating])
   useEffect(() => {
     if (!hold) return
     const timer = window.setTimeout(() => setHold(hold - 1), 1000)

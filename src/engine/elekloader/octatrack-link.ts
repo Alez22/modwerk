@@ -61,7 +61,16 @@ export type LinkSession = Pick<UploadSession, 'status' | 'connectionTrusted' | '
 type Connect = (transport: UsbVendorTransport, base: string, options?: { timeoutMs?: number }) => Promise<LinkSession>
 /** A base update over USB, step by step: the new base staged and started from RAM (the trial), then, running, writing its own
  * container to NOR and restarting on it. */
-export type BaseUpdateStep = 'staging' | 'starting' | 'started' | 'writing' | 'restarting' | 'done'
+export type BaseUpdateStep = 'staging' | 'starting' | 'started' | 'writing' | 'reconnecting' | 'restarting' | 'done'
+/** A base write ended without a verdict this many times: the user is told to keep the unit on and try again. */
+const BASE_WRITE_ATTEMPTS = 4
+/** How long a unit may take to come back after a write step failed (a slow NOR erase, then the restart). */
+const RECONNECT_MS = 120000
+/** Connected this long without going away again: any restart the reconnect set off has happened. */
+const STEADY_MS = 2000
+const UNCONFIRMED = 'The Octatrack hasn’t confirmed that the new base is saved. Keep it switched on, check the USB cable and press Try again. Switched off before the save is confirmed, it may need the startup menu’s MIDI recovery to start again.'
+/** The running base refused the container before writing anything (flash.c's checks). */
+class NothingWritten extends Error {}
 
 /** One step of a module set load: a runtime package, and the package that puts back what it changes (absent when the
  * site has none, such as for a removed module it does not publish). */
@@ -469,30 +478,62 @@ export class OctatrackLink {
     }
     report('started')
     if (!this.canUpdateBase()) throw new Error('The new base can’t write itself over USB, so install it from the card. A power cycle returns the Octatrack to its current base.')
-    report('writing', 0)
-    const connection = this.connection
-    await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => {
-      await session.activate().catch(async error => {
-        const why = await this.writeRefused(error)
-        // A refusal leaves upload mode; a write that failed its verify stays for another try (flash.c).
-        if (error instanceof UploadDeviceError && error.status.result === 'backend') await session.cancel().catch(() => {})
-        throw why
-      })
-      await session.accept()
-    })
-    report('restarting')
-    const back = await this.returned(connection, signal)
-    if (back !== expected) throw new Error(`After the write the Octatrack came back on base ${back.slice(0, 8)}, not the new one.`)
-    report('done')
+    // Once a write may have started, an error is no verdict: a power-off then can leave NOR without a base. The
+    // write runs on the unit whatever USB does and a repeat is harmless (flash.c compares NOR first), so the unit is
+    // reopened, which rolls back what the lost session left (a verified write then restarts it on NOR), and written again.
+    let wrote = false // an activation was sent that may have written NOR
+    for (let attempt = 1; ; attempt++) {
+      report('writing', 0)
+      const connection = this.connection
+      try {
+        await this.sendBase(expected, container, 180000, fraction => report('writing', fraction), signal, async session => {
+          const earlier = wrote
+          wrote = true
+          await session.activate().catch(async error => {
+            const why = await this.writeRefused(error)
+            if (why instanceof NothingWritten) wrote = earlier
+            // A refusal leaves upload mode; a write that failed its verify stays for another try (flash.c).
+            if (error instanceof UploadDeviceError && error.status.result === 'backend') await session.cancel().catch(() => {})
+            throw why
+          })
+          await session.accept()
+        })
+        report('restarting')
+        const back = await this.returned(connection, signal, 90000, UNCONFIRMED)
+        if (back !== expected) throw new Error(`After the write the Octatrack came back on base ${back.slice(0, 8)}, not the new one.`)
+        return report('done')
+      } catch (error) {
+        if (!wrote || signal?.aborted) throw error
+        console.warn('Base write not confirmed, attempt ' + attempt, error)
+        if (attempt >= BASE_WRITE_ATTEMPTS) throw new Error(UNCONFIRMED, { cause: error })
+        report('reconnecting')
+        const back = await this.steady(connection, signal)
+        // Back on another base, the unit booted NOR, so NOR still holds that base whole: the write never landed.
+        if (back !== expected) throw new Error(`The Octatrack restarted on its current base (${back.slice(0, 8)}) before the new one was saved, so nothing changed. Try again.`, { cause: error })
+      }
+    }
   }
   /** A write the running base refused (flash.c, "backend") or could not verify ("needs-recovery"), in words: the
-   * self-test record names its reason as 100 + flash.h's flash_refusal. */
+   * self-test record names its reason as 100 + flash.h's flash_refusal. Refusals wrote nothing; a failed verify is
+   * written again (writeBase). */
   private async writeRefused(error: unknown) {
     if (!(error instanceof UploadDeviceError) || !['backend', 'needs-recovery'].includes(error.status.result)) return error
     const refusal = (await this.transport?.selftest(false).catch(() => undefined))?.refusal ?? 0
-    if (refusal === 107) return new Error('The Octatrack wrote the new base but could not verify it. Keep it switched on and try again.', { cause: error })
-    if (refusal > 100 && refusal < 107) return new Error(`The new base refused to write itself (reason ${refusal}), so nothing was written. A power cycle returns the Octatrack to its current base and modules.`, { cause: error })
+    if (refusal > 100 && refusal < 107) return new NothingWritten(`The new base refused to write itself (reason ${refusal}), so nothing was written. A power cycle returns the Octatrack to its current base and modules.`, { cause: error })
     return error
+  }
+  /** The unit reopened after a write step ended without a verdict, once it has stayed connected for a moment: its
+   * connect undoes the lost session (cleanUp), which restarts it half a second on when its write had verified. */
+  private async steady(connection: number, signal?: AbortSignal) {
+    const device = this.device
+    if (connection === this.connection && device) { this.connection++; this.set({ status: 'connecting' }); void this.open(device) }
+    for (let since = connection; ; ) {
+      const base = await this.returned(since, signal, RECONNECT_MS, UNCONFIRMED)
+      since = this.connection
+      await wait(STEADY_MS)
+      signal?.throwIfAborted()
+      if (since === this.connection && this.state.status === 'ready') return base
+    }
   }
   /** One upload to the idle unit, then `then` on its session: a RAM boot's image, or the container the base writes. */
   private sendBase(base: string, data: Uint8Array, timeoutMs: number, progress: (fraction: number) => void, signal: AbortSignal | undefined, then: (session: LinkSession) => Promise<void>) {
@@ -510,11 +551,11 @@ export class OctatrackLink {
     })
   }
   /** The unit going away (the connection counter moves on) and coming back after a restart: the base it reports then. */
-  private returned(connection: number, signal?: AbortSignal, timeoutMs = 90000) {
+  private returned(connection: number, signal?: AbortSignal, timeoutMs = 90000, late = `The Octatrack did not come back within ${timeoutMs / 1000} s. A power cycle boots its flashed base.`) {
     return new Promise<string>((resolve, reject) => {
       const done = (settle: () => void) => { stop(); clearTimeout(timer); signal?.removeEventListener('abort', aborted); settle() }
       const aborted = () => done(() => reject(new DOMException('The base update was cancelled.', 'AbortError')))
-      const timer = setTimeout(() => done(() => reject(new Error('The Octatrack did not come back within 90 s. A power cycle boots its flashed base.'))), timeoutMs)
+      const timer = setTimeout(() => done(() => reject(new Error(late))), timeoutMs)
       const check = () => {
         const { status, identity } = this.state
         if (this.connection === connection) return
