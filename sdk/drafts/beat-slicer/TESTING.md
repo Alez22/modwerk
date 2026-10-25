@@ -3220,3 +3220,11 @@ Resumed validation against upstream `ec529820` passes in 141.16 seconds:
 sandboxed attempt denied local HTTP/socket listeners; the unrestricted rerun
 passes. The stale-fork origin/main check retains its inherited CHANGELOG.md
 policy failure.
+
+Upstream `a87b5515` (measured key-bus timing) was integrated during resumed
+readiness checks. All seven default beta base variants were regenerated from
+the merged source and passed native/browser parity, stock-free and bootloader
+guards. The five base-bound packages were rebound; all 25 published packages
+then reproduced identically with strict stock-free checks. The default editor
+remains disabled. The private pre-merge base evidence above is unchanged and
+does not qualify this new base for physical testing.
