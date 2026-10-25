@@ -1037,7 +1037,8 @@ static int journal_view(const struct journal_row *r,struct runtime_journal_view 
 }
 int modwerk_runtime_journal_digest(uint8_t out[MU_DIGEST_BYTES])
 {
-    uint32_t ids[RUNTIME_JOURNAL_ROWS];uint8_t sha[MU_DIGEST_BYTES*RUNTIME_JOURNAL_ROWS];unsigned n=0;
+    static uint32_t ids[RUNTIME_JOURNAL_ROWS];static uint8_t sha[MU_DIGEST_BYTES*RUNTIME_JOURNAL_ROWS]; /* engine task only */
+    unsigned n=0;
     if(!out) return 0;
     for(unsigned i=0;i<RUNTIME_MODULES;++i) if(live[i]) {
         struct runtime_owner o;
@@ -1237,7 +1238,7 @@ static void set_end(const struct runtime_context *context)
 }
 static int __attribute__((used)) set_prepare_context(void *u,const uint8_t *data,uint32_t bytes,const struct runtime_context *context)
 {
-    const uint8_t *packages[RUNTIME_SET_CHANGES];uint32_t lengths[RUNTIME_SET_CHANGES];
+    static const uint8_t *packages[RUNTIME_SET_CHANGES];static uint32_t lengths[RUNTIME_SET_CHANGES];
     if(change_set.count || candidate || prepared || previous || modwerk_runtime_volatile_busy()) return refuse(RUNTIME_BUSY);
     int count=runtime_set_parse(data,bytes,packages,lengths);
     if(!count) return refuse(RUNTIME_MALFORMED);
