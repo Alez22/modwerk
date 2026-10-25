@@ -63,7 +63,7 @@ int main(void)
         CHECK(guarded[0]==0xa5 && guarded[1025]==0xa5);
         CHECK(memcmp(guarded+1,guarded+2,1023)!=0 && !publishes);
         for(unsigned x=0;x<128;++x)for(unsigned y=0;y<64;++y)
-            if(x<3 || x>=125 || y<8 || y>=56) {
+            if(x<3 || x>=125 || y<1 || y>=63) {
                 unsigned bit=1u<<(y%8u);
                 CHECK((guarded[1+x*8u+7u-y/8u]&bit)==(0x5au&bit));
             }

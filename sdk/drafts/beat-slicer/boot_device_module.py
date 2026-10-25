@@ -224,10 +224,10 @@ try:
             frame_at=word(0x400b9710)
             def options_frame():
                 # The popup clears its upper-left corner first. Its right border
-                # at (124,54) is restored near the end of the final border pass.
+                # at (124,61) is restored near the end of the final border pass.
                 for _ in range(100):
                     frame=port.peek(frame_at,1024)
-                    if frame[3*8+6]&1 and frame[124*8+1]&0x40:return frame
+                    if frame[3*8+7]&2 and frame[124*8]&0x20:return frame
                     port.command('run 1')
                 raise AssertionError('no completed options draw within the capture bound')
             original_frame=options_frame()

@@ -1,6 +1,6 @@
 # Beat Slicer
 
-Version: `0.1.59-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.60-experimental` · author: @twwwy · **unlisted development draft**.
 
 ## Basic device version in development
 
@@ -206,3 +206,5 @@ and packages are retained outside Git. Do not overwrite them with a new build.
 Returning to 0.1.58 means using those exact retained trial artifacts after a
 fresh baseline review, not rebuilding a new package with the old version label.
 Neither revision is a released module or qualified for Keep/save/persistence.
+
+0.1.60 refines that popup: encoder letters are removed because field position identifies the encoder. The window is nearly the full display height so the AED heading and tabs do not distract. The popup footer identifies 0.1.60; 0.1.59 artifacts remain retained separately.
