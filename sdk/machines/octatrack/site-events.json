@@ -184,6 +184,11 @@
    "event": "ev_arp_setup_text",
    "kind": "take",
    "room": 8
+  },
+  {
+   "index": 35,
+   "event": "ev_trig_muted",
+   "kind": "raise"
   }
  ]
 }
