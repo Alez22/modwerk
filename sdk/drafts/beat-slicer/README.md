@@ -28,6 +28,14 @@ The author approves **0.1.66-experimental** for public-beta review. The identica
 
 The implementation creates exact metadata grids for file-backed Flex, Static and inactive recorder-buffer sources while pattern playback may continue. It uses ordinary stock playback, without an effect slot, PCM analysis or new DSP fades. Physical short-commit timing, the extended emulator stress cancellation and complete save/reboot qualification remain open. Earlier failed self-test track restorations and unverified historical Undo outcomes remain recorded in [TESTING.md](TESTING.md); they are not relabelled as passing evidence. No click-free playback or implicit save is claimed.
 
+## Emulator UI captures
+
+![SLICE action menu](media/ot-beat-grid-menu.png)
+
+![Two-beat setup popup](media/ot-create-beat-grid.png)
+
+Actual 0.1.66 emulator LCD captures, not hardware audio evidence. See [capture provenance](media/capture.json).
+
 ## Controls and workflow
 
 Access with the compatible candidate base: select a Flex/Static sample or recorder buffer → AED →

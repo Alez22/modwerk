@@ -3973,3 +3973,15 @@ remains in #914 and first-release approval belongs to the Modwerk owner. The
 current sixteen-module RAM trial without RLF remains active, with no new device
 load or save for this documentation change. Publication, once approved and live,
 uses the normal follower notifications; a PR push itself does not send them.
+
+## 0.1.66 documentation UI captures
+
+Normal-boot emulator capture on 26 October 2026 installed the exact 0.1.66
+package through the USB loader on private base `97409840…`. The actual SLICE
+action menu and completed CREATE BEAT GRID draw with 2 beats were rendered
+at integer 6x scaling and visually inspected. `media/capture.json` binds the
+emulator, MAIN image, package set, driver and disposable card hashes. The
+menu places CREATE BEAT GRID above CREATE SLICE GRID; the popup shows
+SAMPLE BPM 120.25, 2 beats and 2 slices. This capture-only run does not
+claim functional-suite completion, audible playback or USB Undo qualification.
+Raw LCD planes/card/logs remain private. No physical unit was accessed.
