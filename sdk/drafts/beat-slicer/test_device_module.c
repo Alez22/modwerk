@@ -173,7 +173,7 @@ int main(void)
         source.view.frames=source.view.trim_end=4164197u+tail;
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
         bs_device_open(token,&api);
-        if(kind==0 && tail==1)CHECK(module_enc(1,4));
+        if(kind==0 && tail==1)CHECK(select_spacing(2));
         CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
         CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
         uint32_t n=tail<64?48:49;
@@ -190,7 +190,7 @@ int main(void)
     /* Four bars is sixteen quarter-note beats: the same 49-point tail case. */
     source.view.count=0;source.view.frames=source.view.trim_end=16656797u;
     CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
-    bs_device_open(token,&api);CHECK(module_enc(1,4));
+    bs_device_open(token,&api);CHECK(select_spacing(3));
     CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
     CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
     CHECK(source.view.count==48 && source.view.records[1].start==347016u);
@@ -221,7 +221,7 @@ int main(void)
         source.view.trim_start=0;source.view.sample_bpm24=2880;
         if(run%2==0)source.view.count=0; /* stock DELETE ALL SLICES */
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
-        bs_device_open(token,&api);CHECK(active());CHECK(select_spacing(run%5));
+        bs_device_open(token,&api);CHECK(active());CHECK(select_spacing(run%6));
         unsigned before_count=source.view.count,before_writes=publishes;
         CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT && service.replacing);
         ready=0;
@@ -242,21 +242,21 @@ int main(void)
         CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_STALE);
     }
     /* Long 122-BPM material: change 48 -> 24 -> 12 slices, then refuse
-     * the two grids exceeding 64. Repeat after stock clearing and replacement. */
+     * the three grids exceeding 64. Repeat after stock clearing and replacement. */
     for(unsigned kind=0;kind<2;++kind)for(unsigned run=0;run<20;++run) {
         source.view.kind=kind;
         source.view.frames=source.view.trim_end=16656797u;
         source.view.sample_bpm24=2928;
         if(run%2==0)source.view.count=0;
         CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
-        bs_device_open(token,&api);CHECK(select_spacing((run%5+2)%5));
+        bs_device_open(token,&api);CHECK(select_spacing((run%6+3)%6));
         unsigned before_writes=publishes;
         CHECK(tap(0x31));
-        if(run%5<3) {
+        if(run%6<3) {
             CHECK(service.state==MW_SAMPLE_PROMPT && !active());
             ready=0;CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_BUSY);
             ready=1;CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
-            CHECK(source.view.count==(48u>>(run%5)) && publishes==before_writes+1);
+            CHECK(source.view.count==(48u>>(run%6)) && publishes==before_writes+1);
         } else {
             CHECK(active() && service.state==MW_SAMPLE_OPEN && publishes==before_writes);
             CHECK(tap(0x32));
@@ -289,6 +289,45 @@ int main(void)
         }
         CHECK(!source.view.count && !memcmp(before,source.view.records,sizeof before));
     }
+    /* Encoder B visits 1 -> 2 -> 4 and back to 2. Confirm independent
+     * two-beat deadlines for both tempo sources and all supported kinds. */
+    for(unsigned source_index=0;source_index<4;++source_index)for(unsigned project=0;project<2;++project) {
+        source.view.kind=source_index?MODWERK_SAMPLE_FLEX:MODWERK_SAMPLE_STATIC;
+        source.view.slot=source_index<2?0u:source_index==2?128u:135u;
+        source.view.count=source.view.trim_start=0;
+        source.view.frames=source.view.trim_end=176400;
+        source.view.sample_bpm24=2880;source.view.project_bpm24=2160;
+        CHECK(mw_sample_editor_begin(&service,&owner,&token)==MODWERK_SAMPLE_OK);
+        bs_device_open(token,&api);CHECK(select_spacing(0));
+        CHECK(module_enc(1,4) && module_enc(1,4) && module_enc(1,-4));
+        CHECK(module_enc(0,-127));if(project)CHECK(module_enc(0,4));
+        CHECK(tap(0x31) && service.state==MW_SAMPLE_PROMPT);
+        CHECK(mw_sample_editor_answer(&service,token,1)==MODWERK_SAMPLE_APPLIED);
+        uint32_t interval=project?58800u:44100u,count=project?3u:4u;
+        CHECK(source.view.count==count);
+        for(uint32_t i=0;i<count;++i) {
+            CHECK(source.view.records[i].start==i*interval);
+            CHECK(source.view.records[i].end==(i+1u<count?(i+1u)*interval:176400u));
+            CHECK(source.view.records[i].loop==UINT32_MAX);
+        }
+    }
+    /* Once confirmation closes the popup, manual slice keys and encoder
+     * input must pass through. Idle callbacks must not recapture or mutate
+     * the completed recorder's first slice (or any other source metadata). */
+    struct mw_sample_capture idle_source=source;
+    unsigned idle_copies=copies,idle_confirms=confirms,idle_cancels=cancels,idle_publishes=publishes;
+    unsigned char closed_frame[1024],closed_before[1024];
+    memset(closed_frame,0x5a,sizeof closed_frame);memcpy(closed_before,closed_frame,sizeof closed_frame);
+    CHECK(!active() && source.view.slot==135 && source.view.records[0].start==0 &&
+          source.view.records[0].end==58800);
+    ready=0;
+    for(unsigned tick=0;tick<32;++tick){CHECK(!active());module_draw(closed_frame);}
+    for(int code=0;code<64;++code)CHECK(!module_key(code,1) && !module_key(code,0));
+    for(int encoder=0;encoder<6;++encoder)CHECK(!module_enc(encoder,4));
+    ready=1;
+    CHECK(!memcmp(&idle_source,&source,sizeof source) &&
+          !memcmp(closed_before,closed_frame,sizeof closed_frame));
+    CHECK(copies==idle_copies && confirms==idle_confirms && cancels==idle_cancels && publishes==idle_publishes);
     CHECK(!held && !bad);
     puts("PASS: actual controller/grid, frame bounds and shared confirmation for Flex/Static/recorders");return 0;
 }

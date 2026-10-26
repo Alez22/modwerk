@@ -3,7 +3,7 @@
   "id": "beat-slicer",
   "key": "BEAT SLICER",
   "name": "Beat Slicer",
-  "version": "0.1.65-experimental",
+  "version": "0.1.66-experimental",
   "category": "system",
   "author": {
     "github": "twwwy",
@@ -15,15 +15,20 @@
   "presentation": {
     "label": "BEAT SLICER",
     "family": "Sample workflow",
-    "summary": "Development draft: create exact beat-spaced slices using sample or project BPM.",
-    "overview": "Private candidate: beat-spaced grids for file-backed Flex/Static samples and inactive recorder buffers, with pattern playback retained. The software/native workflow passes; exact-build hardware qualification and shared API review remain pending.",
+    "summary": "Record freely, set the original BPM, and create beat-spaced slices without planning an exact recording length.",
+    "overview": "Beat Slicer allows users to record audio freely without having to determine the recording length in advance. You only need to start recording on a downbeat and know the original BPM. There is no need to plan the recording length, stop on a bar boundary, or trim the audio to fit a fixed number of slices.",
     "highlights": [
-      "Choose sample BPM or project BPM.",
-      "1, 4, 16, 32 or 64 beats per slice.",
-      "Stock confirmation and clearing; ordinary stock playback."
+      "Record without planning an exact number of bars; stop between bar boundaries.",
+      "Use the original sample BPM or the captured project BPM.",
+      "Choose 1, 2, 4, 16, 32 or 64 beats per slice.",
+      "Create grids for Flex, Static and completed recorder buffers during playback."
     ],
     "usage": [
-      "Not installable yet. See README.md for the proposed editor workflow and integration blockers."
+      "Start recording on a downbeat. Begin recording on the first beat of a bar so the audio is aligned with the musical grid.",
+      "Record for as long as you like. Perform, improvise, or capture live audio without worrying about recording an exact number of bars. Stop recording whenever you are finished, even in the middle of a bar.",
+      "Set the original BPM. Enter the tempo at which the audio was recorded so Beat Slicer can calculate the duration of each beat.",
+      "Choose the number of beats per slice. For example, selecting 4 beats per slice divides the recording into 4-beat segments. Any remaining audio becomes a shorter final slice.",
+      "Sequence and play back the slices. Trigger the slices at the appropriate beat intervals to reconstruct the original performance, preserving its musical timing without manually trimming the recording."
     ]
   },
   "controls": [
@@ -31,7 +36,7 @@
       "name": "BPM SOURCE",
       "default": 0,
       "count": 2,
-      "doc": "Proposed dialog: use the sample ATTR BPM or the project BPM captured at preview. No silent fallback.",
+      "doc": "use the sample ATTR BPM or the project BPM captured at preview. No silent fallback.",
       "labels": [
         "SAMPLE",
         "PROJECT"
@@ -40,10 +45,11 @@
     {
       "name": "SPACING",
       "default": 0,
-      "count": 5,
-      "doc": "Proposed dialog: beat spacing, anchored at trim start. A beat is a quarter note.",
+      "count": 6,
+      "doc": "beat spacing, anchored at trim start. A beat is a quarter note.",
       "labels": [
         "1 BEAT",
+        "2 BEATS",
         "4 BEATS",
         "16 BEATS",
         "32 BEATS",
@@ -55,13 +61,17 @@
     "firmware": "1.40C",
     "location": "Flex / Static",
     "conflicts": [],
-    "uiClaims": [],
+    "uiClaims": [
+      "screen:CREATE BEAT GRID"
+    ],
     "limitations": [
-      "Unlisted staging draft; not a released module or base capability.",
-      "Requires the proposed shared sample-editor service, enabled only in a private source-built base.",
-      "First basic candidate requires stopped playback/recording and file-backed Flex/Static slots 0\u2013127; recorder buffers are excluded.",
-      "Exact metadata grid only: no PCM analysis, smoothing or click-free playback claim.",
-      "Complete native-menu/USB lifecycle, companion placement, physical timing, audio and persistence remain unqualified."
+      "Public-beta candidate approved by the module author; public availability still requires Modwerk owner review and the shared sample-editor base proposal.",
+      "Recording duration remains subject to Octatrack memory; a grid can contain at most 64 slices. Increase beats per slice if the grid would exceed this limit.",
+      "The grid starts at the current trim start. A final fragment shorter than the stock 64-frame minimum is included in the preceding slice.",
+      "Recording must be stopped for the buffer being edited; unrelated recording and pattern playback may continue.",
+      "Recorder Loop Fix 0.1.0 can cause recorder-buffer slice 1 to miss even with stock grids and without Beat Slicer; exclude that module for this workflow. Reported upstream as sambanks/octabam#908.",
+      "Exact metadata grid only: no PCM analysis, smoothing or click-free playback claim. No project or sample-settings save is implicit.",
+      "Physical interrupt timing and complete Part/project/save/reboot qualification remain open; the private trial does not establish public-base or installation persistence."
     ],
     "effectId": null
   },
@@ -88,8 +98,8 @@
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "The 0.1.64 private trial passed its physical self-test; a contributor reports successful slicing during playback without glitches or freezes. Version 0.1.65 adds EMPTY/no-op behavior, dialog retirement and a bounded recorder count commit. Host forced-timing regressions and stock-call metadata audit pass; full-candidate emulator and physical timing qualification remain pending.",
-    "hardwareStatus": "untested",
+    "summary": "Author approves 0.1.66 for public-beta review after MKII trials. The exact package passed physical self-test alone and with fifteen companion mods excluding Recorder Loop Fix; the contributor reports successful slicing. Recorder Loop Fix independently reproduced the first-slice miss and is reported upstream. Earlier self-test track-restoration failures, physical commit timing, an extended emulator cancellation, complete save/reboot evidence and shared API review remain open.",
+    "hardwareStatus": "reported",
     "gates": [
       "python3 -B -m unittest discover -s sdk/tests -p test_sample_editor.py -v",
       "python3 -B sdk/drafts/beat-slicer/test_planner.py",
@@ -135,11 +145,11 @@
   },
   "media": [],
   "access": {
-    "location": "Private candidate: AED \u2192 AMP (SLICE) \u2192 YES \u2192 CREATE BEAT GRID",
+    "location": "AED → AMP (SLICE) → YES → CREATE BEAT GRID",
     "steps": [
-      "Select a file-backed Flex or Static sample in a disposable project; stop playback and recording.",
-      "With the exact private base and package installed, open AED, press AMP (SLICE), then YES and select CREATE BEAT GRID. This workflow remains under qualification.",
-      "Encoder A chooses SAMPLE/PROJECT BPM; encoder B chooses spacing. YES requests stock confirmation; NO goes back. Clear slices through the stock slice menu."
+      "Select a file-backed Flex or Static sample, or a completed recorder buffer. Stop recording into the source being edited; playback may continue.",
+      "Open AED, press AMP (SLICE), then YES and select CREATE BEAT GRID. The compatible sample-editor base and module are currently under owner review.",
+      "Encoder A selects SAMPLE or PROJECT BPM; encoder B selects 1, 2, 4, 16, 32 or 64 beats. YES opens stock CREATE/REPLACE SLICES confirmation; NO goes back. Use stock slice commands to clear markers."
     ],
     "screenshots": []
   }

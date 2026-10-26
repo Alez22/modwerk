@@ -15,7 +15,7 @@ static const struct modwerk_sample_editor_api *editor;
 static struct modwerk_sample_view view;
 static struct bs_grid_plan plan;
 static struct modwerk_sample_grid proposal;
-static const uint32_t spacings[5]={1,4,16,32,64};
+static const uint32_t spacings[6]={1,2,4,16,32,64};
 static uint32_t token,active,tempo_source,spacing,reply,geometry,dirty,captured;
 static uint32_t pending_confirm;
 static int encoder_counts[2];
@@ -112,7 +112,7 @@ static int adjust(int encoder,int delta)
 {
     pending_confirm=0;
     if(encoder==0)tempo_source=(uint32_t)step_value((int)tempo_source,delta,2);
-    else if(encoder==1)spacing=(uint32_t)step_value((int)spacing,delta,5);
+    else if(encoder==1)spacing=(uint32_t)step_value((int)spacing,delta,(int)(sizeof spacings/sizeof spacings[0]));
     else {close_editor();return 0;}
     reply=MODWERK_SAMPLE_OK;dirty=1;refresh(0);return 1;
 }

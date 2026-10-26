@@ -1,3 +1,0 @@
-Stage a mitigation for the reported Beat Slicer/TapeHead/Mini Verb DSP stop: move stopped file-backed metadata work from the global interrupt mask to the frame-preserving writer lock, reject heavy work from high interrupt contexts, and stop idle source polling. Preserve confirmation/source revalidation and complete failed-store rollback. Retire 0.1.57 from trials after its saved frames-stopped record; root cause, hardware timing and exact companion retests remain unverified.
-
-Synchronize Tape Echo and Euclid source receipts after the upstream Direct Jump integration; their shipped packages are unchanged.

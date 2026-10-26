@@ -40,7 +40,7 @@ static void copy_options(struct bs_preview_options *out, const struct bs_preview
 }
 static int valid_options(const struct bs_preview_options *o) {
     return o && o->snap <= 1 && o->tempo_source <= BS_PROJECT_BPM &&
-        (o->beats == 1 || o->beats == 4 || o->beats == 16 || o->beats == 32 || o->beats == 64);
+        (o->beats == 1 || o->beats == 2 || o->beats == 4 || o->beats == 16 || o->beats == 32 || o->beats == 64);
 }
 static void copy_result(struct bs_async_result *out, const struct bs_async_result *in) {
     out->request = in->request; out->existing = in->existing;

@@ -7,7 +7,7 @@ enum bs_status bs_grid_preview(const struct bs_grid_request *r, struct bs_grid_p
     uint32_t bpm, numerator, remainder, whole;
     if (!r || !out || r->sample_rate < 8000 || r->sample_rate > 192000 ||
         r->trim_start >= r->trim_end || r->tempo_source > BS_PROJECT_BPM ||
-        (r->beats != 1 && r->beats != 4 && r->beats != 16 && r->beats != 32 && r->beats != 64) ||
+        (r->beats != 1 && r->beats != 2 && r->beats != 4 && r->beats != 16 && r->beats != 32 && r->beats != 64) ||
         r->existing_count > BS_MAX_SLICES || (r->existing_count && !r->existing))
         return BS_INVALID;
     bpm = r->tempo_source == BS_SAMPLE_BPM ? r->sample_bpm24 : r->project_bpm24;

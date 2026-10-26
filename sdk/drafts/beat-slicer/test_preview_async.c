@@ -171,7 +171,7 @@ static int late_publication(void) {
 static int refusals(void) {
     CHECK(!setup());struct bs_preview_options options={1,1,0};
     CHECK(!bs_async_request(&f.async,7,9,&options));
-    options.beats=2;CHECK(!bs_async_request(&f.async,7,8,&options));options.beats=1;
+    options.beats=3;CHECK(!bs_async_request(&f.async,7,8,&options));options.beats=1;
     f.denied=1;CHECK(!bs_async_request(&f.async,7,8,&options));
     uint32_t sequence=bs_async_request(&f.async,7,8,&options);CHECK(sequence);
     f.pending=1;CHECK(bs_async_service(&f.async,8)==BS_SESSION_WAITING);

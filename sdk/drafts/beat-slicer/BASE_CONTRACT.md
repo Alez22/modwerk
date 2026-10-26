@@ -8,7 +8,7 @@ native seams and default-base refusal. The source interface is in
 
 ## First basic device version: exact metadata grid
 
-The owner chose a usable basic slicer first. Both file-backed Flex and Static
+The module author chose a usable basic slicer first. Both file-backed Flex and Static
 use the AED slice commands, with separate source tables. The base coherently
 copies frame count, 44.1 kHz stock frame domain, trim, sample/project tempos and
 all 64 complete slice records. The independent package computes exact geometry
@@ -24,6 +24,14 @@ workflow passes; physical writer timing and CPU remain unqualified. Use
 stock DELETE SLICE / DELETE ALL SLICES afterwards, without an added Undo history.
 Ordinary stock playback is the basic policy. PCM analysis, SMOOTH and enhanced
 playback processing are deferred, with no click-free claim.
+
+The 0.1.65 review candidate adds EMPTY/no-op handling and a bounded recorder
+count commit. Full table work remains interruptible; only the final recorder
+state/controls/trim check and count store exclude level 5, while DMA runs.
+A start that wins that decision restores/verifies the old markers without
+restoring any recorder PCM or extent/trim changes, consumes the edit and never
+retries after Stop. Timer diagnostics and forced-timing tests are described in
+TESTING.md; exact-build physical timing is still unqualified.
 
 Host and target checks now cover the shared service and independent package;
 normal-boot menu/USB, companions and exact hardware qualification remain in

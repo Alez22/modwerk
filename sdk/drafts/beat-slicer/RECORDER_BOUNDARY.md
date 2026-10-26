@@ -249,7 +249,7 @@ architecture is agreed.
 
 ### Owner-reported stock marker lifetime (25 October 2026)
 
-After reviewing the recorder-grid research, the owner confirmed this behavior
+After reviewing the recorder-grid research, the contributor confirmed this behavior
 on their Octatrack. This is owner-reported stock behavior, not an independently
 executed firmware trace or qualification of recorder support in Beat Slicer:
 
@@ -275,7 +275,7 @@ The 0.1.64 normal-boot emulator regression clarified the representation behind
 that report. After creating starts 0 / 22,050 / 44,100
 in a 51,584-frame recording, a 16,240-frame re-record retained count 3 and starts
 0 / 16,176 / 16,176, with all ends at 16,240. Stock collapsed the later starts
-onto its final 64-frame boundary. The owner confirmed that the count stays the
+onto its final 64-frame boundary. The contributor confirmed that the count stays the
 same and that this agrees with their observation; the exact numeric trace above
 remains emulator evidence. Capture must preserve duplicate recorder rows for NO and
 explicit replacement; Beat Grid must not add automatic deletion or reslicing.

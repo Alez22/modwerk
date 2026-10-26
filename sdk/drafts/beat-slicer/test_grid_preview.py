@@ -29,7 +29,7 @@ def load(name, path):
 def oracle(r, existing):
     rate, start, end, sample, project, beats, source, count = r
     if (not 8000 <= rate <= 192000 or start >= end or source > 1 or
-            beats not in (1, 4, 16, 32, 64) or count > 64 or count != len(existing) or
+            beats not in (1, 2, 4, 16, 32, 64) or count > 64 or count != len(existing) or
             any(not start <= x < end for x in existing) or
             any(a >= b for a, b in zip(existing, existing[1:]))):
         return 1, 0, []
@@ -54,7 +54,7 @@ def vectors():
     for count in (0, 1, 63, 64):
         rows.append(([8000, 0, 256000, 2880, 1440, 1, 0, count], [4000*i for i in range(count)]))
     for source in (0, 1):
-        for beats in (1, 4, 16, 32, 64):
+        for beats in (1, 2, 4, 16, 32, 64):
             rows.append(([192000, 0xff000000, 0xffffffff, 7199, 721, beats, source, 0], []))
     rng = random.Random(5401)
     for i in range(160):
@@ -63,10 +63,10 @@ def vectors():
         length = rng.randrange(1, 4000000)
         existing = sorted(rng.sample(range(start, start+length), rng.randrange(0, 8)))
         rows.append(([rate, start, start+length, rng.randrange(720, 7201),
-                      rng.randrange(720, 7201), rng.choice((1, 4, 16, 32, 64)), i % 2, len(existing)], existing))
+                      rng.randrange(720, 7201), rng.choice((1, 2, 4, 16, 32, 64)), i % 2, len(existing)], existing))
     base = [44100, 0, 88200, 2880, 2160, 1, 0, 0]
     for index, value in ((0, 0), (0, 7999), (0, 192001), (2, 0), (3, 0),
-                         (3, 719), (3, 7201), (5, 0), (5, 2), (6, 2), (7, 65)):
+                         (3, 719), (3, 7201), (5, 0), (5, 3), (6, 2), (7, 65)):
         r = base.copy(); r[index] = value; rows.append((r, []))
     for existing in ([5, 5], [6, 5], [88200], [0xffffffff]):
         r = base.copy(); r[7] = len(existing); rows.append((r, existing))

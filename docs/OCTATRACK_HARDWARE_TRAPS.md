@@ -536,7 +536,7 @@ PLAY MODES' three project-file seams; it now sits beside them and SCALE
 QUANTIZER's, and the build fails when a base site meets the stock bytes any
 catalogue module patches or keeps (`catalogue_overlaps`).
 
-**Use the SDK's MCF54455 CPU target, not the emulator's MCF5475 target.** On the owner's MKII
+**Use the SDK's MCF54455 CPU target, not the emulator's MCF5475 target.** On a contributor's MKII
 (24 October 2026, base `cd39c494`, Beat Slicer private USB probe 0.1.52), an override to
 `-mcpu=5475` emitted scale-eight indexed LEA in text drawing; the unit restarted with vector 3
 at that exact instruction. MCF54455 rejects scale-eight and word-sized indexes with address

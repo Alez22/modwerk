@@ -26,7 +26,7 @@ for name in ('emulator','base-dir','package','card','output'):
 parser.add_argument('--check-encoders',action='store_true',help='Check four-count discrete stepping, stable substeps and inactive arrows through UART.')
 parser.add_argument('--capture-only',action='store_true',help='Capture the first real popup after normal boot; do not claim full functional or Undo coverage.')
 parser.add_argument('--companion-fx',action='store_true',help='An uploaded set includes TapeHead/Mini Verb; select them on T2 through stock UI.')
-parser.add_argument('--repeat',action='store_true',help='Repeat replacement/NO/YES with all five spacings before stock clearing.')
+parser.add_argument('--repeat',action='store_true',help='Repeat replacement/NO/YES with all six spacings before stock clearing.')
 parser.add_argument('--while-playing',action='store_true',help='Exercise the actual edit/confirmation while pattern playback runs.')
 parser.add_argument('--recorders',action='store_true',help='Exercise empty/completed recorder sources and source-scoped recording admission.')
 parser.add_argument('--recorders-only',action='store_true',help='Run recorder regressions without repeating the initial file-backed edits; implies --recorders.')
@@ -303,12 +303,12 @@ try:
         results.append({'kind':kind,'slot':slot,'whilePlaying':bool(word(0x800065b8)),
                         'inputCount':settings[273],'unchangedPreviewAndNO':True,
                         'nativeYesCount':len(expected),'sampleBpm24':settings[69],'exactRecords':True})
-        if args.repeat:
-            for step in (4,16,32,64,1):
+        if args.repeat and source_frames:
+            for step in (2,4,16,32,64,1):
                 old=port.peek(at,1096)
                 tap(port,'yes');choose('CREATE BEAT GRID');port.command('run 200')
                 assert state()==1,'reopen after apply failed'
-                port.command(f'knob 0x31 {4 if step!=1 else -16}');port.command('run 200')
+                port.command(f'knob 0x31 {4 if step!=1 else -20}');port.command('run 200')
                 (out/f'replace-options-{kind}-{step}.private.bin').write_bytes(port.peek(word(0x400b9710),1024))
                 tap(port,'yes');port.command('run 200');assert state()==2
                 assert word(syms['mw_sample_editor']+28)==1,'replacement warning not selected'
@@ -330,7 +330,7 @@ try:
                     end=replacement[i+1] if i+1<len(replacement) else settings[76]
                     assert struct.unpack('>3I',table[312+12*i:324+12*i])==(start,end,0xffffffff)
                 print('REPLACED',kind,step,len(replacement),flush=True)
-            results[-1]['repeatedReplacementSteps']=[4,16,32,64,1]
+            results[-1]['repeatedReplacementSteps']=[2,4,16,32,64,1]
         if not keep_grid:
             stock_clear(kind,slot);assert word(at+1092)==0
         if args.while_playing:assert word(0x800065b8),'edit stopped pattern playback'

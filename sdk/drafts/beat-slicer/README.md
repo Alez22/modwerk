@@ -1,47 +1,47 @@
 # Beat Slicer
 
-Version: `0.1.65-experimental` · author: @twwwy · **unlisted development draft**.
+Version: `0.1.66-experimental` · author: @twwwy · **author-approved public-beta candidate; pending Modwerk review**.
 
-## Basic device version in development
+## Beat Slicer: Recording Workflow
 
-Beat Slicer creates exact beat-spaced slice starts from sample ATTR BPM or
-captured project BPM. The private implementation targets **file-backed Flex,
-Static and inactive recorder-buffer samples**, with pattern playback continuing.
-The running 0.1.64 private trial passed its 17-module physical self-test, and
-a contributor reports successful slicing during same-source playback without
-glitches or freezes. The 0.1.65 review changes have not run on hardware.
-The local candidate cancels an edit if recording wins its final count commit;
-complete emulator and physical timing qualification are pending. It uses ordinary
-stock playback, with no effect slot, PCM analysis or new DSP fades. Quiet-boundary
-search and enhanced playback processing are later work, not prerequisites for
-this basic version. Click-free playback is not claimed.
+Beat Slicer allows users to record audio freely without having to determine the recording length in advance.
 
-An independent controller package and a proposed base-owned sample-editor service
-now build from source. Host tests exercise the actual controller/grid/service,
-both native metadata paths, confirmation and failed-write rollback. The service
-also executes on the MCF54455 CPU emulator. A private base passes native/browser
-byte parity and normal-boot USB/menu/confirmation emulator tests for both kinds.
-The current contributor's MKII remains on its open-ended 0.1.64 trial. Earlier
-0.1.57 audio-stop and 0.1.58 unverified USB Undo results remain historical
-limitations; later successful tests do not establish their causes. See TESTING.md
-for exact builds and observed versus reported evidence. The service is enabled
-only by a private `--sample-editor` base build and needs owner review. It is not
-released capability, and the draft remains absent from the public catalogue.
+1. **Start recording on a downbeat.** Begin recording on the first beat of a bar so the audio is aligned with the musical grid.
+
+2. **Record for as long as you like.** Perform, improvise, or capture live audio without worrying about recording an exact number of bars. Stop recording whenever you're finished, even in the middle of a bar.
+
+3. **Set the original BPM.** Enter the tempo at which the audio was recorded so Beat Slicer can calculate the duration of each beat.
+
+4. **Choose the number of beats per slice.** For example, selecting 4 beats per slice divides the recording into 4-beat segments. Any remaining audio becomes a shorter final slice.
+
+5. **Sequence and play back the slices.** Trigger the slices at the appropriate beat intervals to reconstruct the original performance, preserving its musical timing without manually trimming the recording.
+
+**The key advantage:** You only need to start recording on a downbeat and know the original BPM. There's no need to plan the recording length, stop on a bar boundary, or trim the audio to fit a fixed number of slices.
+
+Recording duration remains subject to available recorder memory, and a grid can contain at most 64 slices. A final fragment shorter than the stock 64-frame minimum is included in the preceding slice. The grid is anchored at trim start; for the workflow above, retain the original downbeat as that start. Choose SAMPLE BPM after entering the recording's original BPM in ATTR, or PROJECT BPM if it matches that original tempo.
+
+## Public-beta candidate and compatibility
+
+The author approves **0.1.66-experimental** for public-beta review. The identical module package passed its MKII self-test alone and with fifteen companion mods, with Recorder Loop Fix excluded (16 modules total). Hardware playback observations are contributor-reported, and the current no-time-limit RAM trial remains active. This does not publish the module: the shared base/API proposal [#914](https://github.com/repeat98/modwerk/pull/914) and first release still need Modwerk owner review. The draft remains unlisted until that integration is accepted.
+
+**Recorder Loop Fix 0.1.0:** the first-slice miss was reproduced with that module alone and stock CREATE SLICE GRID, without Beat Slicer. The same Beat Slicer build had no misses reported so far when isolated, and the miss returned when only Recorder Loop Fix was added. Exclude Recorder Loop Fix for this workflow; the report is [sambanks/octabam#908](https://github.com/sambanks/octabam/issues/908). No fix to that module is claimed here.
+
+The implementation creates exact metadata grids for file-backed Flex, Static and inactive recorder-buffer sources while pattern playback may continue. It uses ordinary stock playback, without an effect slot, PCM analysis or new DSP fades. Physical short-commit timing, the extended emulator stress cancellation and complete save/reboot qualification remain open. Earlier failed self-test track restorations and unverified historical Undo outcomes remain recorded in [TESTING.md](TESTING.md); they are not relabelled as passing evidence. No click-free playback or implicit save is claimed.
 
 ## Controls and workflow
 
-Private candidate access: select a Flex/Static sample or recorder buffer → AED →
+Access with the compatible candidate base: select a Flex/Static sample or recorder buffer → AED →
 AMP (SLICE) → YES → CREATE BEAT GRID. Playback may continue. Only recording
 into the buffer being edited blocks that source; the playback track and its
 recorder are independent. Empty recorder-buffer edits leave an empty result.
-The 0.1.65 candidate shows EMPTY when the buffer has neither audio nor slice
+The popup shows EMPTY when the buffer has neither audio nor slice
 entries. YES then leaves the popup open without a confirmation or write. Existing
 zero-length entries still require explicit replacement confirmation to clear.
 
 | Control | Behavior |
 | --- | --- |
 | Encoder A | SAMPLE or PROJECT BPM; refuse missing/invalid tempo, with no silent fallback. |
-| Encoder B | 1, 4, 16, 32 or 64 beats per slice. |
+| Encoder B | 1, 2, 4, 16, 32 or 64 beats per slice. |
 | YES | Validate the opening snapshot and request stock confirmation. NO or changing a control cancels a pending request. Markers change only after the stock YES. |
 | Encoders C–F | Unassigned; leave the popup and parameters unchanged. |
 | NO / BACK | Close the options or decline confirmation without changing markers. |
@@ -88,10 +88,9 @@ fixed-input USB probe passed physical self-test and Undo; it did not access
 samples and does not qualify this source. See [USB_TEST.md](USB_TEST.md),
 [TESTING.md](TESTING.md) and [integration requirements](INTEGRATION.md).
 
-## Next private recorder trial
+## Device verification checklist
 
-Use the exact qualified candidate and a disposable project after the current
-0.1.63 session finishes. Keep an audible pattern running during edits and
+Use the exact reviewed candidate and a disposable project/sample copy. Keep an audible pattern running during edits and
 report any sound interruption or unexpected marker change.
 
 1. Open an empty recorder buffer and create a beat grid. It should remain empty.

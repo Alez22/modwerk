@@ -499,6 +499,28 @@ int main(void)
         CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==MODWERK_SAMPLE_APPLIED);
         CHECK(get(settings+1092u)==2 && started==1 && !queued_start && !bad);
     }
+    /* Full-capacity publication and rollback have the same small commit
+     * window; all 64 records are copied with the frame interrupt enabled. */
+    for(unsigned cancel=0;cancel<2;++cancel) {
+        uint32_t settings=setup(1,128),old[192];
+        put(0x46c922c4u+44u*128u+16u,1411200u);put(settings+304u,1411200u);
+        put(settings+1092u,63);
+        for(unsigned i=0;i<63;++i) {
+            put(settings+312u+12u*i,22050u*i);
+            put(settings+316u+12u*i,i==62?1411200u:22050u*(i+1));
+            put(settings+320u+12u*i,UINT32_MAX);
+        }
+        for(unsigned i=0;i<192;++i)old[i]=get(settings+312u+4u*i);
+        CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
+        grid->count=64;for(unsigned i=0;i<64;++i)grid->starts[i]=22050u*i;
+        CHECK(mw_sample_editor_api.replace(token,grid)==MODWERK_SAMPLE_CONFIRMING);
+        if(cancel){force_start=1;force_at=193;}
+        CHECK(mw_sample_editor_answer(&mw_sample_editor,token,1)==
+            (cancel?MODWERK_SAMPLE_STALE:MODWERK_SAMPLE_APPLIED));
+        CHECK(get(settings+1092u)==(cancel?63u:64u) && commit_spans==1 && commit_max_reads<=20 && !bad);
+        if(cancel)for(unsigned i=0;i<192;++i)CHECK(old[i]==get(settings+312u+4u*i));
+        else CHECK(get(settings+312u+12u*63u)==1389150u && get(settings+316u+12u*63u)==1411200u);
+    }
     setup(0,0);CHECK(mw_sample_editor_begin(&mw_sample_editor,&owner,&token)==MODWERK_SAMPLE_OK);
     struct runtime_dsp from={0};from.present=1;from.module=owner.module;
     from.image=(const uint8_t *)(owner.owned_extent+owner.image_offset);

@@ -4,7 +4,7 @@ The first 0.1.52 attempt failed on the MKII: a wrong CPU target emitted
 scale-eight indexed addressing and caused vector 3 in text drawing. The unit
 restarted; its original base and exact 11-module inventory were verified.
 That package is rejected. The corrected 0.1.53 candidate first failed the CPU self-test at 93.7%; the
-owner reported the already playing pattern peaked at 92% without the probe.
+contributor reported the already playing pattern peaked at 92% without the probe.
 That failed result is preserved without attributing the overload to the probe.
 A separately authorized repeat on the owner's empty pattern passed the physical
 self-test (72.4% peak CPU), reported planner PASS and completed Undo with the exact

@@ -2,11 +2,13 @@
 
 ## Current readiness
 
-**Review hold (25 October 2026):** [#840 maintainer review](https://github.com/repeat98/modwerk/pull/840#issuecomment-6395411406) requests a separate base proposal before this draft. Beat Slicer is the only confirmed consumer of the proposed action list; reuse and the provisional index collision with [#857](https://github.com/repeat98/modwerk/pull/857) remain unresolved. The owner later explicitly requested the private 0.1.58 trial and reported successful slicing; USB Undo did not verify restoration, and a power cycle restored the flashed base and original eleven modules. This is not approval of the shared API or qualification of the new 0.1.63 UI.
+**0.1.66 public-beta candidate (26 October 2026):** the module author approves this version for public-beta review and supplied its recording-workflow description. The exact module was tested privately on a contributor's MKII, including the current 16-module RAM set without Recorder Loop Fix. This author sign-off does not approve or publish the shared base/API. [#914](https://github.com/repeat98/modwerk/pull/914) remains the separate owner-reviewed proposal; Beat Slicer is its only confirmed consumer. Reuse and the provisional event index 32 versus [#857](https://github.com/repeat98/modwerk/pull/857) remain owner decisions.
 
-Basic scope: 0.1.64-experimental, private staging with the recorder/playback software workflow passing and exact-build hardware qualification pending. The owner subsequently authorized and completed the private 0.1.58 slicing trial; its report and unverified USB Undo are recorded in TESTING.md. The public shared-service review remains pending.
+The draft remains unlisted and the sample-editor integration is still a private `--sample-editor` opt-in. Public beta requires the base review and first-release integration, current required checks, and honest disposition of the physical timing, persistence and extended-emulator gaps recorded in TESTING.md. `module:doctor -- beat-slicer` does not pass for an unregistered draft; it is not represented as a released module.
 
-The owner chose a basic working slicer first. File-backed Flex and Static share
+Recorder Loop Fix 0.1.0 independently reproduces the first-slice miss with stock grids and Beat Slicer absent. It is excluded from the current trial and reported as [sambanks/octabam#908](https://github.com/sambanks/octabam/issues/908). No companion fix is part of this release candidate.
+
+The module author chose a basic working slicer first. File-backed Flex and Static share
 AED slice commands and record geometry; their settings/control tables differ.
 Both are covered by the new metadata-only service. A Static PCM/streaming reader,
 quiet-boundary analysis and playback fades are deferred. Ordinary stock playback,
@@ -16,10 +18,10 @@ The independent `device_module.c` controller builds through the standard C packa
 builder and contributes a typed action to the proposed `ot_sample_editor_actions`
 table. The private base owns native menus, source capture, confirmation and atomic
 marker publication; the package contains no stock addresses or writer. The
-0.1.64 experiment admits file-backed slots and inactive Flex recorder slots
+0.1.66 candidate admits file-backed slots and inactive Flex recorder slots
 128–135 while pattern playback continues. Only recording into the edited buffer
 blocks that source; unrelated recorders remain independent. Empty buffers stay
-empty. The exact native workflow passes; physical playback/recorder qualification is pending. Default
+empty. The exact private native workflow and named MKII trial results are recorded in TESTING.md; complete qualification remains open. Default
 bases refuse this contribution. `--sample-editor` is a private staging opt-in,
 not released beta support or an approved shared ABI. `module:doctor -- beat-slicer`
 currently reports no registered module because the draft is deliberately unlisted;
@@ -29,10 +31,10 @@ The current replacement extension needs a revised private base. Existing slice
 tables are replaced only after the stock REPLACE SLICES? warning; old API callers
 retain preservation-only behavior. A confirmed YES waits across temporary busy
 work and revalidates before one write; NO or another stock gesture cancels it.
-The owner reported initial 0.1.56 success followed by repeated-edit failures.
+The contributor reported initial 0.1.56 success followed by repeated-edit failures.
 The 0.1.57 trial subsequently produced a reported DSP stop with active TapeHead/
 Mini Verb. Its saved record confirms stopped frames. It is withdrawn from trials.
-The owner reported successful 0.1.58 slicing; its USB Undo remained unverified and required a power cycle. The 0.1.63 popup/menu revision requires its own exact-build qualification.
+The contributor reported successful 0.1.58 slicing; its USB Undo remained unverified and required a power cycle. The 0.1.63 popup/menu revision requires its own exact-build qualification.
 
 Established software checks: actual controller/grid/service host sanitizers,
 full-identity retirement and one-use confirmation, actual adapter failure/rollback

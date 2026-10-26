@@ -12,6 +12,6 @@ MODULE = Module(
     doc="Draft: sample/project BPM exact slicing; shared native integration in qualification.",
     category=Category.FIXES, author="twwwy", author_url="https://github.com/twwwy",
     proof=Proof.UNTESTED,
-    proof_note="Portable core host-tested; no native, USB, audio or hardware qualification.",
+    proof_note="Private source-bound MKII trials and contributor reports recorded; public integration and owner review pending.",
     gates=(Gate("modules/beat-slicer/verify.py", remix_arg=False),),
 )

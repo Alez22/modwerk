@@ -5,7 +5,7 @@ The versioned sections below retain historical research evidence; old Undo
 experiments do not add a player-facing Undo requirement. USB Keep/Undo remains
 an independent installation lifecycle requirement.
 
-Current draft: 0.1.64-experimental. Development checks: 23–26 October 2026 (Taipei).
+Current draft: 0.1.66-experimental. Development checks: 23–26 October 2026 (Taipei).
 The chronological records below retain their own versions and source bindings;
 older results do not qualify newer source or an installed module.
 See [unlocked planning](#private-planning-outside-the-source-lock-0121), the [whole-command observer](#whole-command-observer-0120) and [Flex metadata results](#bounded-flex-metadata-0119) and the
@@ -3541,7 +3541,7 @@ recording-start interrupt race raised in review.
 
 ## 0.1.65 local review changes (26 October 2026)
 
-Not loaded on hardware and not a qualification of the still-running 0.1.64
+Not loaded on hardware and not a qualification of the earlier 0.1.64
 trial. The actual controller now shows EMPTY for zero-frame recorder sources
 with zero slice entries. YES stays in the popup without a replacement request,
 a stock question or a delayed retry. Existing zero-length stock entries still
@@ -3624,7 +3624,8 @@ closes the question, reports SOURCE CHANGED and leaves future menus usable.
 
 A new source-bound stock CPU probe executes 336 complete preparation/recorder
 calls: tracks 1/8, stereo 16/24-bit formats, both state banks, three authored
-Pickup-flag values and seven state/allocation scenarios. No case writes slice
+machine-type values (0–2) and seven state/allocation scenarios. This initial
+audit did not cover the distinct type-4 Pickup branch. No case writes slice
 rows or the slice count. Observed metadata stores affect offsets 276, 280, 296,
 300, 304 and 308; these include tempo and trim fields, which the final commit
 rechecks where represented in its captured source. Full frame/Pickup operation,
@@ -3638,3 +3639,337 @@ no local race fix exists. The complete new base/module build, normal-boot
 emulator workflow and physical interrupt timing are still pending; the running
 0.1.64 hardware image has not changed. Timer diagnostics in the candidate will
 record the final count-publication body separately from unmasked row work.
+
+### Latest private preparation and restoration check
+
+The 0.1.64 helper subsequently ended after its link reported USB disconnected.
+Its final Undo was **not verified**; this is not evidence of a DSP failure or
+of the physical cause of the connection loss. On 26 October the contributor
+confirmed a reboot and reconnection. A fresh read-only check verified normal
+phase, known active state, flashed base `77226ffc…` and all original sixteen
+saved module IDs/names. The contributor also confirmed stopped playback and
+recording with disposable test copies ready. No recovery command was replayed.
+
+The complete private 0.1.65 build is base `9740984014108c48…` and module
+`63ab1db2ca415d64…` (5,760 bytes). Native and browser-built images are identical
+(775,272 bytes, SHA-256 `044db6c9ffa72654…`); target controller/menu checks,
+strict stock-free scans and declared-site/bootloader checks pass. All seventeen
+private packages pass the unchanged stock-free scanners and the actual
+frontend's offline preparation with Undo. The original sixteen companion IDs
+and versions are retained; base-bound packages are rebuilt for this candidate.
+These are preparation results, not physical qualification.
+
+The extended synthetic stock-call audit now executes 560 complete calls,
+including machine-type values 0–4 and the distinct type-4 branch, with no slice
+row/count writes in those cases. This supersedes the initial 336-case scope;
+it still does not qualify full Pickup operation or every interrupt path.
+
+The normal-boot emulator run passed all five replacement spacings for Static,
+Flex and completed recorder buffers, fresh EMPTY/no-op and explicit clearing
+of stock empty placeholders, shorter/longer re-record cleanup, cancellation on
+a normal recording gesture, and editing buffer A while recorder B runs.
+The extended file-backed Flex/own-recorder stress run failed a later expected
+confirmation-state assertion after several successful replacements. Its cause
+is not established; the run did not reach verified USB Undo and is not a full
+passing receipt. A shorter source-bound test subsequently passed: file-backed
+Flex preview/NO/YES produced the exact two expected records while its own track's
+separate recorder remained active before and after editing; the selected active
+recording buffer was refused. USB Undo restored the empty private baseline and
+the original stock menu. Its receipt remains private under
+`review-840/candidate65/focused-file-recorder/results.json`. This does not explain
+the longer stress failure. Physical 0.1.65 timing, audio and lifecycle results
+remain pending.
+
+### Physical 0.1.65 trial started — 26 October 2026
+
+After a fresh reboot/original-sixteen verification and the contributor's stopped
+transport/disposable-copy confirmation, exact private base `9740984014108c48…`
+RAM-booted. The actual frontend reviewed the empty known private baseline and
+all seventeen exact package hashes before trial publication. Physical self-test
+passed: 17 live/intact, seven DSP modules exercised, zero failures, CPU field
+520 (52.0%), frame-gap field 55,067. A fresh diagnostic heartbeat confirms the
+helper remains connected; no deadline or scheduled Undo is configured.
+
+The module is `63ab1db2ca415d64…`, 0.1.65-experimental. The original sixteen
+companion IDs/versions are present, with required base-bound rebuilds. No Keep,
+flash, saved-set write, project/sample save or backup/export was performed.
+The saved original set was verified before the RAM boot, not after this still
+active trial. Contributor panel/audio/recording results, physical short commit
+timing and final verified trial Undo remain pending. The longer emulator
+stress cancellation remains unexplained; the focused passing run does not
+close it. No new GitHub push accompanies this device load.
+
+
+## 0.1.65 contributor report and 0.1.66 two-beat update
+
+The contributor reports that the running exact 0.1.65 trial “works very well”
+and that they encountered no bugs. This is a contributor-reported panel result;
+no independent audio capture, physical commit timing or final Undo is implied.
+They requested a 2-beat spacing option. The 0.1.65 trial remains running while
+its replacement is prepared; no physical commands or new GitHub push were used
+for this change.
+
+Version 0.1.66-experimental adds 2 between 1 and 4, giving 1/2/4/16/32/64 beats.
+The controller's encoder bound, manifest and exact/cooperative planner
+validation accept the new choice. Unsupported-spacing fixtures now use 3.
+The current emulator driver includes all six choices; historical prototype UI
+fixtures and earlier evidence retain their original five-choice scope.
+
+Host controller/service tests pass, including 1 -> 2 -> 4 -> 2 encoder selection
+and exact two-beat starts/ends for sample and project BPM on Static, file Flex
+and recorder slots 128/135. Fourteen planner tests, four independent tests,
+500 cooperative oracle vectors, session and async lifecycle checks pass.
+All 195 geometry vectors pass both host sanitizers and ColdFire execution,
+including 2-beat fractional/high-offset cases. Native compilation, both object
+code guards, actual package descriptor alignment and the unchanged strict
+stock-free scanner pass. The actual frontend prepares all seventeen exact
+trial packages with Undo offline.
+
+Private module SHA-256 is
+`05512de0888638d0a68ff136a5e439b3bdaccf4aa05c371c3cf3cfc893103e8b`
+(5,764 bytes). No base change is needed: it reuses the tested private base
+`9740984014108c48…`. Receipts stay private under `review-840/candidate66/`.
+Version 0.1.66 has not been loaded on hardware; exact-build panel/audio checks
+and final verified USB Undo remain pending. The earlier extended-emulator
+cancellation and physical commit-timing gaps remain open.
+
+
+### Physical 0.1.66 trial started — 26 October 2026
+
+The contributor explicitly requested loading 0.1.66 and freshly confirmed
+stopped playback/recording. The existing 0.1.65 helper completed verified
+whole-set Undo to exact private base `9740984014108c48…`, active digest equal to
+that base and empty RAM inventory; its launchd job was then stopped. This
+verifies private trial rollback, not reboot restoration of the saved original
+sixteen modules. No power cycle or new RAM boot was needed for this update.
+
+The actual frontend reviewed that baseline and all seventeen exact 0.1.66-set
+package hashes. Physical self-test passed: 17 live/intact, seven DSP modules
+exercised, zero failures, CPU field 649 (64.9%) and frame-gap field 51,520.
+Module SHA-256 is `05512de0888638d0…` on unchanged private base `9740984014108c48…`.
+A fresh diagnostic heartbeat and actual inventory confirm the trial is running.
+The helper has no deadline or scheduled Undo. No Keep, flash, saved-set write,
+project/sample save or new GitHub push occurred. Contributor 0.1.66 panel/audio
+results, final verified Undo, physical short-commit timing and the earlier
+extended-emulator cancellation investigation remain pending.
+
+
+## First-slice recorder-buffer report and isolated trial — 26 October 2026
+
+On the all-seventeen 0.1.66 trial the contributor reports that slice 1 sometimes
+fails to trigger when Flex uses its recording buffer, while file-backed Flex
+works. They confirmed recording had fully stopped, manual triggering also
+missed, and the same buffer also missed after using stock CREATE SLICE GRID.
+These observations do not identify the cause or exonerate the module/base.
+The contributor requested investigation of Beat Slicer first and a trial
+containing only Beat Slicer; no companion-module source was changed.
+
+The actual controller/service host fixture now also checks the closed state
+following a confirmed recorder grid. All 64 key codes and six encoders pass
+through, 32 idle tick/draw calls perform no source recapture or mutation, and
+the complete source/frame remains unchanged, including first slice start 0,
+end 58,800. Host sanitizers pass; the target-only descriptor test was skipped
+on this host. This is an input/metadata regression, not audible playback proof.
+No Beat Slicer production code changed during this investigation.
+
+After fresh stopped confirmation, the existing all-seventeen trial completed
+verified whole-set Undo to exact private base `9740984014108c48…` with empty
+inventory; that helper was stopped. The actual frontend then reviewed and
+loaded the identical 0.1.66 package `05512de0888638d0…` as the only module.
+Physical self-test passed: one live/intact module, zero failures, no DSP module
+exercises. Actual inventory contains only `c8d078f2` / beat-slicer and a fresh
+heartbeat confirms the solo trial is active. No new base boot was needed, and
+no Keep, flash, saved-set or project/sample writes were performed.
+
+The saved original sixteen modules remain on the card, outside this private
+RAM set. The contributor's first-slice comparison on the solo trial is pending;
+root cause and solo final verified Undo remain unestablished. Private receipts
+are under `review-840/candidate66-solo/hardware1/`.
+
+
+### Preliminary solo result and native binding comparison
+
+The contributor subsequently reports **no misses so far** with only Beat Slicer
+loaded and considers a companion interaction likely. This is a preliminary
+negative observation on the identical 0.1.66 module, not a completed stress
+qualification or proof of which component caused the all-seventeen failure.
+The solo trial remains active and unchanged.
+
+A private authored CPU probe compared 24 synthetic full stock voice-bind states
+with and without the two unchanged Recorder Loop Fix seek/counter hooks.
+Completed file-backed Flex and recorder-buffer sources used identical slice
+records. For same-generation recorder slot 128, first-slice start 0/end 44,100,
+and old positions 44,100 or 176,400, stock returned restart flag 256 and bumped
+the voice counter 77 -> 78. The two hooks instead returned continuation flag 0
+and retained counter 77, with unchanged selected slice extents. Recording state
+was inactive. This reproduces a potentially relevant change in restart
+signalling, **not** an audible missed trigger: no DSP, scheduler or hardware
+playback was exercised. It does not establish that Recorder Loop Fix caused
+the contributor's symptom. Private source/hash/log receipts are under
+`review-840/first-slice/`; no firmware or extracted stock code is committed.
+
+A two-module comparison containing the identical Beat Slicer 0.1.66 and the
+unchanged released Recorder Loop Fix 0.1.0 is prepared and passes frontend
+offline package/Undo validation. It has not been loaded; the contributor's
+choice and fresh stopped confirmation are pending. No companion-module
+production source was changed and no fix or publication is claimed.
+
+
+### Two-module hardware comparison loaded
+
+The contributor chose the prepared comparison and freshly confirmed stopped.
+The existing solo trial completed verified whole-set Undo to exact empty
+`9740984014108c48…` RAM baseline, and its helper was stopped. Actual frontend
+review and trial then loaded only Beat Slicer 0.1.66 (`c8d078f2`) and unchanged
+Recorder Loop Fix 0.1.0 (`823e0f45`) on that same base. No reboot or source fix
+occurred. Physical self-test passed with two live/intact modules, zero failures
+and no DSP module exercises; actual inventory and a fresh heartbeat confirm
+those two modules only. No Keep, flash, saved-set, project/sample write or new
+GitHub push was performed. The contributor's missed-trigger comparison and
+final verified two-module Undo remain pending. Private lifecycle receipts are
+under `review-840/candidate66-recorder-loop-ab/hardware2/`.
+
+
+### Miss returned with Recorder Loop Fix added; independent trial started
+
+The contributor reports that the miss **returned** when the only added module
+was unchanged Recorder Loop Fix 0.1.0. Beat Slicer 0.1.66, base, and requested
+buffer/test remained the same; the prior solo report was no misses so far.
+This strongly isolates an RLF-enabled failure in this setup. The precise DSP
+failure mechanism is still inferred from the native restart-signal comparison,
+not independently captured audio or a hook-by-hook hardware test.
+
+After fresh stopped confirmation the two-module helper completed verified Undo
+to exact empty private base `9740984014108c48…`. A return to solo Beat Slicer
+had already started when the contributor instead requested **Recorder Loop Fix
+only**. That interim load passed its one-module self-test, then completed
+verified Undo without a panel-test handoff. The still-current stopped
+confirmation was used; both superseded helpers were stopped.
+
+Actual frontend review/load then installed only unchanged released Recorder
+Loop Fix 0.1.0, SHA-256
+`bd1673b302a9e3db7cba0eec181224c1b976e699753f7201e93807e7fd833f4c`.
+Physical self-test passed: one live/intact module, zero failures, no DSP module
+exercises. Actual inventory contains only `823e0f45` / Recorder Loop: Beat Slicer
+is absent. A fresh heartbeat confirms this trial is active on the unchanged
+private base. No base boot, Keep, flash, saved-set or project/sample write, new
+source fix or GitHub push occurred. The contributor's RLF-only stock-grid
+comparison and final verified Undo are pending. Private receipts are under
+`review-840/recorder-loop-only/hardware1/`.
+
+
+### Miss reproduced with Recorder Loop Fix alone
+
+The contributor confirms the miss still occurs in the Recorder Loop Fix-only
+trial with stock CREATE SLICE GRID; actual inventory excludes Beat Slicer.
+Together with the solo Beat Slicer no-misses-so-far report and the return of the
+miss when only RLF was added, this isolates an RLF-enabled playback problem in
+this setup. Beat Slicer is not required to reproduce it. The exact downstream
+DSP mechanism and individual-hook causality remain inferred from the native
+restart/counter comparison, not independently audio-captured. No production
+source fix, first-marker offset workaround, companion release or external issue
+submission was made. The unsent diagnostic report is private under
+`review-840/first-slice/REPORT.md`. RLF-only remains the active RAM trial;
+fresh stopped confirmation is required before Undo or another load.
+
+
+### Upstream report submitted
+
+At the contributor's explicit request, the diagnostic report was submitted to
+Recorder Loop Fix's source repository as
+[sambanks/octabam#908](https://github.com/sambanks/octabam/issues/908) and read
+back verified open under @twwwy. It names the Modwerk port/private base, notes
+that clean upstream firmware has not been tested, and separates the hardware
+reports from the synthetic CPU evidence and suspected mechanism. @sambanks is
+mentioned. No production fix, code push or device change accompanied reporting;
+the Recorder Loop Fix-only trial remains active.
+
+
+## Requested sixteen-module set without Recorder Loop Fix — first attempt
+
+The contributor requested Beat Slicer 0.1.66 plus the original companions
+excluding RLF: sixteen modules total. After a fresh stopped confirmation, the
+RLF-only helper completed verified Undo to exact empty private base `97409840…`
+and was stopped. Package hashes/versions were preserved from the earlier
+seventeen-module candidate, with only RLF excluded; actual frontend preparation
+and physical review passed.
+
+The first sixteen-module load failed the physical self-test with
+`SELFTEST_NOT_BACK` (32): 16 modules intact, seven DSP modules present, five
+exercised, CPU field 686 and frame-gap field 51,569. It was **not** handed over
+as a passing trial. The frontend automatically rolled back and the helper
+exited. Fresh read-only status/inventory verified normal phase, known active
+state, exact empty `97409840…` baseline and zero live modules. No blind rollback
+or uncertain write was replayed. Receipts remain private under
+`review-840/candidate66-no-recorder-loop/`.
+
+One fresh full trial of the identical packages was reviewed from that verified
+baseline, with the self-test requirement unchanged and the failed session guard
+preserved. It is a new transaction, not adoption or replay of an uncertain one.
+The cause of the first track-restoration failure remains unestablished; this is
+separate from the reported recorder first-slice issue. Final second-attempt
+status is recorded below once observed.
+
+
+### Second identical-set attempt also failed; both rollbacks verified
+
+The second sixteen-module attempt again failed `SELFTEST_NOT_BACK` (32), with
+16 intact, seven DSP modules, five exercised, CPU field 688 and frame-gap field
+50,956. It was not handed over. The helper exited after frontend failure
+handling. Read-only status/inventory independently verified normal phase,
+known active state, exact empty `97409840…` private baseline and zero live
+modules. Both failed attempts and readback receipts are retained; no failure
+was waived and no uncertain upload was adopted or replayed.
+
+The contributor was asked for a fresh power cycle/reconnection with transport
+stopped before another load, and reminded that restarting clears recorder-buffer
+audio. No automatic power cycle or flash was performed. Original flashed base
+and saved-sixteen verification is required after their restart, before another
+RAM boot/load. Current state is empty private RAM base, no active trial/helper;
+the requested sixteen-module set is not running. Cause of the repeated
+self-test track-restoration failure is still unestablished and separate from
+the RLF first-slice report.
+
+
+### Fresh-reboot sixteen-module load passed — 26 October 2026
+
+The contributor confirmed a restart/reconnection. After one read-only stale
+USB-handle failure, a fresh read-only connection verified the original flashed
+base `77226ffc…`, normal/known status and all sixteen saved module IDs/names.
+Exact private base `9740984014108c48…` RAM-booted; actual frontend review matched
+its empty baseline and all sixteen target package hashes (Beat Slicer 0.1.66
+plus fifteen original companions, Recorder Loop Fix excluded).
+
+This fresh-boot load **passed** physical self-test: 16 live/intact, seven DSP
+modules exercised, zero failures, CPU field 523 (52.3%) and frame-gap field
+55,058. Actual inventory matches all sixteen reviewed IDs and excludes RLF's
+`823e0f45`; a fresh diagnostic heartbeat confirms the trial is active. Beat
+Slicer remains the identical `05512de0888638d0…` package. This passes after the
+restart; it does not establish the cause of the two earlier restoration-check
+failures or claim a self-test code fix.
+
+The contributor was told ready. The trial has no deadline or scheduled Undo.
+No Keep, flash, saved-set or project/sample write, new source fix or code push
+occurred. The saved original sixteen-module set on the card remains unchanged
+and includes RLF; exclusion applies to this active RAM trial. Final verified
+Undo of this sixteen-module trial remains pending. Private lifecycle receipts
+are under `review-840/candidate66-no-recorder-loop-freshboot/hardware16/`.
+
+
+## Author public-beta approval and recording-workflow description
+
+On 26 October 2026, @twwwy supplied the five-step Recording Workflow and
+explicitly approved the current 0.1.66 version as ready for public beta. That
+text is retained in README.md and presentation metadata: start on a downbeat,
+record an arbitrary musical length, set the original BPM, choose beats per slice,
+then sequence slices at their corresponding intervals. Documentation also states
+the available-memory/64-slice limits, trim-start anchoring and the existing
+64-frame tail rule. No runtime source changed for this description/approval.
+
+This is the module author's beta sign-off on the tested private package; it
+does not approve the unshipped shared base/API, fill untested timing/persistence
+checks, or assert that a public beta is already published. The shared proposal
+remains in #914 and first-release approval belongs to the Modwerk owner. The
+current sixteen-module RAM trial without RLF remains active, with no new device
+load or save for this documentation change. Publication, once approved and live,
+uses the normal follower notifications; a PR push itself does not send them.

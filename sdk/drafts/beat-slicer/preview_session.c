@@ -157,7 +157,7 @@ enum bs_session_state bs_session_step(struct bs_preview_session *s) {
 enum bs_session_state bs_session_begin(struct bs_preview_session *s, const struct bs_preview_options *options) {
     (void)finish(s, BS_SESSION_CANCELLED);
     if (!options || options->tempo_source > BS_PROJECT_BPM || options->snap > 1 ||
-        (options->beats != 1 && options->beats != 4 && options->beats != 16 &&
+        (options->beats != 1 && options->beats != 2 && options->beats != 4 && options->beats != 16 &&
          options->beats != 32 && options->beats != 64)) return finish(s, BS_SESSION_FAILED);
     s->options.beats = options->beats; s->options.snap = options->snap;
     s->options.tempo_source = options->tempo_source;
