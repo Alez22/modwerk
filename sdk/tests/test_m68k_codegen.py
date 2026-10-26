@@ -9,6 +9,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('m68k_codegen_under_test', ROOT / 'sdk/runtime/m68k_codegen.py')
@@ -36,6 +38,43 @@ def disassembled(obj):
 
 
 class M68kCodegen(unittest.TestCase):
+    @unittest.skipUnless(TOOLS, 'no ColdFire compiler')
+    def test_c_source_builder_checks_actual_objects_before_packaging(self):
+        with tempfile.TemporaryDirectory() as folder:
+            work = Path(folder)
+            safe = work / 'safe.c'
+            safe.write_text('volatile unsigned value;\nvoid module_tick(void *p){(void)p; ++value;}\n')
+            bad = work / 'bad.c'
+            # A raw instruction keeps the refusal stable across optimizers and
+            # bypasses assembler CPU validation, exercising the object guard.
+            bad.write_text('void module_tick(void *p){(void)p;'
+                           '__asm__ __volatile__(".short 0x41f0,0x0e00");}\n')
+            for source, passes in [(safe, True), (bad, False)]:
+                output = source.with_suffix('.mwrm')
+                run = subprocess.run([sys.executable, '-B', str(ROOT / 'sdk/runtime/loader/build.py'),
+                                      str(source), '-o', str(output)], capture_output=True, text=True)
+                if passes:
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertEqual(output.read_bytes()[:4], b'MWRM')
+                else:
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertIn('MCF54455', run.stdout + run.stderr)
+                    self.assertFalse(output.exists())
+
+    def test_target_checks_share_one_disassembly_per_object(self):
+        safe = '00000000 <safe>:\n   0: 41f0 0c00      lea %a0@(0,%d0:l:4),%a0\n'
+        with patch.object(codegen.subprocess, 'run', return_value=SimpleNamespace(stdout=safe)) as run:
+            self.assertEqual(codegen.check_mcf54455(iter(['first.o', 'second.o'])), 2)
+            self.assertEqual(run.call_count, 2)
+        for text, error in [
+            ('00000000 <bad>:\n   0: 1198 0800      moveb %a0@+,%a0@(0,%d0:l)\n', 'late-combine'),
+            ('00000000 <bad>:\n   0: 41f0 0e00      lea %a0@(0,%d0:l:8),%a0\n', 'MCF54455'),
+        ]:
+            with patch.object(codegen.subprocess, 'run', return_value=SimpleNamespace(stdout=text)) as run:
+                with self.assertRaisesRegex(ValueError, error):
+                    codegen.check_mcf54455(['bad.o'])
+                self.assertEqual(run.call_count, 1)
+
     def test_instrument_index_modes_are_separate_from_the_emulator_guard(self):
         text = '''00000000 <indexes>:
    0: 41f0 0e00      lea %a0@(0,%d0:l:8),%a0

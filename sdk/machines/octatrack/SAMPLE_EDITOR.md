@@ -43,8 +43,10 @@ This branch is based on main, not stacked on #857 or another module.
 - `sample_editor_board.*`: the private 0.1.64 experiment extends file-backed
   Flex/Static slots 0–127 to inactive recorder buffers 128–135, and permits
   pattern playback. Recording blocks only its own edited buffer, not unrelated
-  files or buffers. Empty recorder sources stay empty. Metadata work preserves
-  frame/DMA interrupts; native playback/recorder qualification is in progress.
+  files or buffers. Empty recorder sources stay empty. Table copies, comparisons
+  and row writes preserve frame/DMA interrupts. The 0.1.65 candidate briefly
+  excludes level 5 only for a recorder's final state/controls/trim check and
+  count store, with DMA still enabled; physical timing remains unqualified.
   PCM analysis, playback processing and implicit saves remain out of scope.
 - `sample_editor_menu.c` and `sample_editor_hooks.s`: native menu/selection and
   waveform-worker boundaries, enabled only by the private `--sample-editor` flag.
@@ -66,6 +68,16 @@ observed re-recordings; it cannot establish the whole content lifetime by itself
 Stock can clamp several recorder rows onto the same final start after a shorter
 recording. Preserve those existing rows for cancellation and replacement; new
 grid proposals still require strictly increasing starts.
+
+The candidate orders the count commit against recorder preparation: a start
+before that decision cancels the edit, restores/verifies the old marker table
+and consumes the intent. It never restores recorder PCM, extent or trim, and
+never queues a retry after Stop. A start after the count store observes a
+completed grid. Row work and rollback remain outside the short level-5 section;
+queued engine cleanup remains excluded by the outer metadata lock. Timer
+diagnostics record the protected body separately. Authored forced-timing tests
+and complete stock-call metadata audits support this candidate, not a claim of
+physical deadline qualification or all Pickup/allocator paths.
 
 ## Review and verification
 
