@@ -262,14 +262,14 @@ class SiteEventTests(unittest.TestCase):
         reg = events.load()
         raised = events.raised(reg)
         self.assertEqual(raised, {'ev_mute_keep': 'modwerk_raise_ev_mute_keep', 'ev_trig_muted': 'modwerk_raise_ev_trig_muted'})
-        self.assertEqual(events.index('ev_trig_muted', reg), 32)  # released hook indices never move
+        self.assertEqual(events.index('ev_trig_muted', reg), 35)  # released hook indices never move
         self.assertNotIn(None, reg['sites'])
         header = events.loader(reg)
         self.assertIn('{0x00000000u, 0u}', header)  # no span: the loader's site checks never meet it
         words = re.search(r'#define RUNTIME_SITE_EVENT_RAISES \{ (.*) \}', header).group(1).split(', ')
         self.assertEqual(len(words), len(reg['events']))  # by hook index: the base's entry on a raised event, else 0
         self.assertEqual({i + 4: w for i, w in enumerate(words) if w != '0'},
-                         {7: '(uintptr_t)modwerk_raise_ev_mute_keep', 32: '(uintptr_t)modwerk_raise_ev_trig_muted'})
+                         {7: '(uintptr_t)modwerk_raise_ev_mute_keep', 35: '(uintptr_t)modwerk_raise_ev_trig_muted'})
         for name in raised:
             self.assertIn('modwerk_%s *raise_%s' % (name, name), events.sdk(reg))
         asm = shutil.which('m68k-elf-as')

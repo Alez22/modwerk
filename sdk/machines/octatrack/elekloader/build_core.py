@@ -1615,10 +1615,14 @@ def main():
             spec = importlib.util.spec_from_file_location('modwerk_usb_audio_profiles',
                 APP / 'sdk/machines/octatrack/module-adapters/usb-audio-profiles/profiles.py')
             usb_profiles = importlib.util.module_from_spec(spec); spec.loader.exec_module(usb_profiles)
-    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'flash.c', 'flash.h', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
+    for name in ('ep0.c', 'fxids.h', 'runtime.c', 'runtime.h', 'boot.c', 'boot.h', 'boot.s', 'flash.c', 'flash.h', 'slots.c', 'slots.h', 'modset.c', 'boot_anim.c', 'boot_anim.s', 'crash.c', 'crash.s', 'run_unpack.s') + (('dev.c',) if args.dev else ()) + (
             ('runtime_events.h', 'runtime_events.s', 'machine_registry.c', 'machine_registry.s', 'midi_generators.c',
              'midi_generators.s') if args.site_events else ()):
         shutil.copyfile(HERE / name, source / name)
+    # The boot stub's sector, which flash.c writes when it converts a unit to two slots (build_stub.py: stub_body.c).
+    sys.path.insert(0, str(HERE))
+    import build_stub
+    build_stub.build(upstream, source, args.cross + 'gcc')
     if args.dev and args.resident_on_demand:  # dev MEM reaches the engines' diagnostics (resident_engines.dev)
         sys.path.insert(0, str(APP / 'sdk/machines/octatrack/module-adapters'))
         import resident_engines as dev_engines
@@ -2131,7 +2135,7 @@ modwerk_retained_end:
     if usb_functions and not usb_profiles:
         usb_reserve_check(json.loads(Path(path).read_text())['symbols'])
     # Every C object of the base, before anything is packaged (sdk/runtime/m68k_codegen.py).
-    if not CODEGEN.check(sorted((out/'package').glob('*.work/*.c.o')), args.cross + 'objdump'):
+    if not CODEGEN.check_mcf54455(sorted((out/'package').glob('*.work/*.c.o')), args.cross + 'objdump'):
         raise ValueError('The base build left no C objects to check.')
     document = json.loads(Path(path).read_text())
     for key in ('idle', 'job', 'transport', 'open', 'read', 'write', 'close'):

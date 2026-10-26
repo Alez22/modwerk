@@ -151,6 +151,7 @@ static void run(const uint8_t *part, struct runtime_dsp *fx, unsigned n)
     for (unsigned tick = 0; modwerk_selftest.state == SELFTEST_RUNNING && tick < 200000u; ++tick) {
         manager(), selftest_tick();
         if (during) during();
+        if (nudge) nudge = 0, observed_valid = 0; /* dl_residency_nudge: the manager takes the live set again */
     }
     CHECK(modwerk_selftest.state != SELFTEST_RUNNING && !modwerk_test_playing);
     CHECK(!memcmp(modwerk_test_live_fx, part, 16) && settled(part));   /* every slot runs what it ran, its code loaded */
@@ -158,6 +159,15 @@ static void run(const uint8_t *part, struct runtime_dsp *fx, unsigned n)
     CHECK(!memcmp(bank, before, sizeof bank));                         /* every Part, working and saved, untouched */
     for (unsigned i = 0; i < 16u; ++i) CHECK(dl_intended_override[i] == 255u);
     for (unsigned k = 0; k < n; ++k) modwerk_machine_dsp_switch(&fx[k], &none);
+}
+/* A batch whose code went missing while it waited to settle (manager.c unloads code it then cannot reload, finding 70):
+ * E-Verb's code is lost once as the batch is about to be measured, or (`drop_always`) for good: the nudge loads nothing. */
+static int drop_always, dropped;
+static void drop_verb(void)
+{
+    if (modwerk_selftest.phase != SELFTEST_TOGETHER || st_step != HOLD || st_reads != ~0u || (dropped && !drop_always)) return;
+    loaded[0][27] = loaded[1][27] = 0, dropped = 1;
+    if (drop_always) nudge = 0;
 }
 /* Beta finding 63: while the test runs, a machine voice not charged before waits for its end; one charged keeps its. */
 static unsigned during_checked;
@@ -234,6 +244,17 @@ int main(void)
     test_keybus_lost = 0;
     modwerk_selftest_refresh();
     CHECK(modwerk_selftest.refusal == RUNTIME_OK);
+    /* A batch that never settles must not hold the test until the site gives up (a tester's 16 modules waited three
+     * minutes, 25 October 2026): nudged, the manager loads the code again and the test passes; code that never comes
+     * back fails the test as refused, with the module named, in seconds, and the tracks come back. */
+    during = drop_verb, dropped = 0;
+    run(blank, &verb, 1);
+    CHECK(dropped && modwerk_selftest.state == SELFTEST_PASSED && !modwerk_selftest.failed && modwerk_selftest.ran == 1);
+    drop_always = 1, dropped = 0;
+    run(blank, &verb, 1);
+    during = 0, drop_always = 0;
+    CHECK(dropped && modwerk_selftest.state == SELFTEST_FAILED && modwerk_selftest.failed == SELFTEST_REFUSED);
+    CHECK(modwerk_selftest.culprit == 0x873d83ccu && !strcmp((const char *)modwerk_selftest.culprit_name, "E-Verb"));
     /* A stall earlier this boot shut the loader off (dsp.c recover): the test fails as stopped, whatever else runs. */
     dl_residency_enabled = 0;
     run(blank, &verb, 1);
