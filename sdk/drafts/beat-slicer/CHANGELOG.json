@@ -5,7 +5,8 @@
     "changes": [
       "Add a 2-beat spacing between 1 and 4 beats.",
       "Document the free-length recording workflow using the original BPM and beats per slice.",
-      "Public-beta candidate approved by the module author; compatible base and first-release review remain pending."
+      "Public-beta candidate approved by the module author; compatible base and first-release review remain pending.",
+      "Explain PROJECT BPM and track time-stretch so playback uses the intended sample tempo."
     ]
   },
   {

@@ -28,7 +28,16 @@ unintended stretching. Beat Slicer does not change those playback settings.
 
 ## Public-beta candidate and compatibility
 
-The author approves **0.1.66-experimental** for public-beta review. The identical module package passed its MKII self-test alone and with fifteen companion mods, with Recorder Loop Fix excluded (16 modules total). Hardware playback observations are contributor-reported, and the current no-time-limit RAM trial remains active. This does not publish the module: the shared base/API proposal [#914](https://github.com/repeat98/modwerk/pull/914) and first release still need Modwerk owner review. The draft remains unlisted until that integration is accepted.
+The author approves **0.1.66-experimental** for public-beta review. Earlier .66
+MKII self-tests passed alone and with fifteen companions excluding Recorder Loop
+Fix. On 27 October, a new event-35 build passed a singleton self-test and the
+contributor reported flawless slicing, re-slicing and playback with Flex file
+slots, Static file slots and a completed recorder buffer, across more than 20
+minutes overall. The exact build, settings and limits are in [TESTING.md](TESTING.md).
+The private helper later lost USB; final Undo is unverified. This does not publish the module:
+the shared base/API proposal [#914](https://github.com/repeat98/modwerk/pull/914)
+and first release still need Modwerk owner review. The draft remains unlisted
+until that integration is accepted.
 
 **Recorder Loop Fix 0.1.0:** the first-slice miss was reproduced with that module alone and stock CREATE SLICE GRID, without Beat Slicer. The same Beat Slicer build had no misses reported so far when isolated, and the miss returned when only Recorder Loop Fix was added. Exclude Recorder Loop Fix for this workflow; the report is [sambanks/octabam#908](https://github.com/sambanks/octabam/issues/908). No fix to that module is claimed here.
 

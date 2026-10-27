@@ -3985,3 +3985,56 @@ menu places CREATE BEAT GRID above CREATE SLICE GRID; the popup shows
 SAMPLE BPM 120.25, 2 beats and 2 slices. This capture-only run does not
 claim functional-suite completion, audible playback or USB Undo qualification.
 Raw LCD planes/card/logs remain private. No physical unit was accessed.
+
+## Physical playback replacement report — 27 October 2026
+
+A contributor's MKII ran a fresh private build from base proposal #914 commit
+`5fc2c4717e3f21a7dc36e0cac05a15a3f78debc6` plus Beat Slicer #840 commit
+`4a01dae04e1789e8c4d2da03704e4f871d8cb663` (0.1.66, provisional event 35):
+
+- RAM base: `8ffc8ffefe3ecd00ca434fe67ee6e902ea0b359d0f6343a404a5bd3ec4e9c69a`.
+- Module SHA-256: `5e5e1e41257b0f290110e47ee6881a485661fc1daafa0986a7dd7ae6e6ca1e03`
+  (5,776 bytes). Module C sources are unchanged from the earlier .66 package;
+  its longer hook list follows the move from event 32 to 35.
+- Source-built native/browser BIN parity:
+  `d995496790bac6429c10fcf64cdfac01f7a4ba6decc019de6a38915272367acc`
+  (775,296 bytes). Private firmware and raw diagnostics are not committed.
+
+After the contributor confirmed a power cycle, stopped transport/recording and
+a disposable test project/sample copies, read-only checks verified the original
+flashed base and sixteen saved module IDs. The private RAM base was then booted
+and reviewed from its empty baseline. Actual singleton upload and device
+self-test passed: one live/intact Beat Slicer module, zero failures and no DSP
+modules. Recorder Loop Fix and all companion modules were absent.
+
+The contributor then tested slice creation/replacement during the instructed
+same-source slice-trig playback workflow and reported the following. This is
+contributor-reported panel/audio evidence, not an independent audio capture or
+physical interrupt-timing measurement.
+
+| Source | Pattern BPM | Sample BPM | Sample length | Beats per slice | Contributor report |
+| --- | --- | --- | --- | --- | --- |
+| Flex recorder buffer, recording completed | 120 | 120 | 9.14 bars | 4 | Slicing, re-slicing and playback were flawless. |
+| Flex file slot | 108 and 120 | 108 and 120 | 6 and 15.9 bars | 1 and 4 | Flawless; both settings tested. |
+| Static file slot | 108 and 120 | 108 and 120 | 6 and 15.9 bars | 1 and 4 | Flawless; both settings tested. |
+
+The contributor clarified that the bar counts are sample lengths and reported
+**more than 20 minutes of testing overall**. Separate elapsed times for each
+source and a full pairing of the file-slot values were not supplied; no
+per-source duration or additional cross-product coverage is inferred.
+
+The private helper later recorded USB loss at 10:41 Taipei time on 27 October
+and stopped; its final Undo was not verified. Whether this was a deliberate
+unplug/restart after testing or an unexpected disconnect awaits clarification.
+No Keep, flash, sample/project save, persistence or final Undo result is claimed. Exact physical short-commit
+timing, complete scheduler/Pickup coverage and extended cancellation remain
+open. These results belong to the event-35 build above; the later merge of
+#912 allocates event 35 to `ev_trig_muted`, moving this proposal to 36. They are
+not relabeled as tests of a regenerated event-36 base or default beta build.
+The board, service, menu, hooks and action implementation files still match
+the tested snapshot byte for byte; this source comparison does not qualify
+the different complete binary or its physical interrupt timing.
+
+Documentation update only: the PROJECT BPM time-stretch guidance was added to
+README and presentation usage at the contributor's request. Beat Slicer does
+not change stock time-stretch or sample ATTR BPM. No runtime/version change.
