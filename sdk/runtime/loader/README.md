@@ -145,9 +145,9 @@ produce candidates, not qualified public modules.
 
 A base may own stock sites that several modules need, and turn each into a hook, as
 Elekloader's core does for `ev_tick` and the others (its rule 4: do not patch the shared sites,
-subscribe). The Octatrack's are one reviewed registry, `sdk/machines/octatrack/events.json`;
-`events.py` generates the base's dispatch (`runtime_events.s`), the loader's table header
-(`runtime_events.h`, built in with `MODWERK_RUNTIME_EVENTS`), the SDK header and
+subscribe). The Octatrack's are one reviewed registry, `sdk/machines/octatrack/hooks.json`;
+`hooks.py` generates the base's dispatch (`runtime_hooks.s`), the loader's table header
+(`runtime_hooks.h`, built in with `MODWERK_RUNTIME_EVENTS`), the SDK header and
 `sdk/machines/octatrack/HOOKS.md`, which states each hook's prototype, context, results and
 the reviewed order of its current subscribers.
 

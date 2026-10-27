@@ -144,7 +144,7 @@ boot. It uses `~/.cache/modwerk-upstream` (`--upstream`, `ELEKLOADER_DSP_ASM`) a
 
 ### Take hooks
 
-A take hook in `../events.json` has no C prototype: beside its `events` entry it needs a `sites` entry with the
+A take hook in `../hooks.json` has no C prototype: beside its `events` entry it needs a `sites` entry with the
 site's guard and the tail that replays stock when nobody takes the call. `{"stock": n}` copies the site's bytes as
 they are, so a site holding a PC-relative branch needs its tail written as instructions with the branch made absolute
 (`ev_midi_note_key`'s `ble`). `ev_midi_note_key` runs where each sequencer, chord and arp note of a MIDI track is

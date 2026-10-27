@@ -110,11 +110,11 @@ New modules must declare it (`module:doctor` checks). If the clash with another 
 
 ### Hooks
 
-Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md), "Do not patch the shared sites: subscribe"). The Modwerk base owns every stock site that more than one module needs and shares it as a hook of one of four kinds. The registry is `sdk/machines/octatrack/events.json`. `sdk/machines/octatrack/HOOKS.md` lists every hook with its prototype or record, what a result means, its order rule and where it runs. C modules include `sdk/machines/octatrack/include/modwerk_events.h`. The next base build renames these files and `runtime.json`'s `event` key.
+Shared behaviour on the Octatrack follows Elekloader's hook bus ([ADAPTING.md](https://github.com/irpina/elekloader/blob/main/docs/ADAPTING.md), "Do not patch the shared sites: subscribe"). The Modwerk base owns every stock site that more than one module needs and shares it as a hook of one of four kinds. The registry is `sdk/machines/octatrack/hooks.json`. `sdk/machines/octatrack/HOOKS.md` lists every hook with its prototype or record, what a result means, its order rule and where it runs. C modules include `sdk/machines/octatrack/include/modwerk_hooks.h`. Older `runtime.json` files name the hook with `event`; it is still read.
 
 | Kind | What the base does | What your `runtime.json` declares | Example |
 | --- | --- | --- | --- |
-| Call hook | Runs every handler at its stock site, lowest `order` first, then stock. A handler's result passes, takes or drops the call, as the hook's contract says. | `subscribe`: `event`, `fn` (a C function) and `order` | `ev_play_increment`: Repitch changes a track's playback increment |
+| Call hook | Runs every handler at its stock site, lowest `order` first, then stock. A handler's result passes, takes or drops the call, as the hook's contract says. | `subscribe`: `hook`, `fn` (a C function) and `order` | `ev_play_increment`: Repitch changes a track's playback increment |
 | Raised hook | Has no stock site. A module asks it, and the base runs every handler and returns their answers OR'd. | To ask it: `raise`, and a zero word `raise_<hook>` in initialized data, which the loader points at the base's entry at install. To answer it: `subscribe`, as for a call hook | `ev_mute_keep`: Mute Modes asks which tracks another module still reads while they are muted |
 | Take hook | Gives its site to one subscriber: the first record, in `order`, whose `claims` is 0 or accepts the call. Its `entry` runs with every register as at the site, replays the stock instructions and returns to stock itself. | `subscribe`, with `fn` naming a `struct modwerk_take` {claims, entry} | `ev_octave_key`: POLY8, FM Synth and Scale Quantizer each claim their own tracks |
 | Table | Has no site. Modules contribute fixed-size records, and base code reads them in `order`. | `contribute`: `to`, `data` (the record's symbol) and `order` | `ot_machines`: each track machine's chooser row, page and renderer; `ot_midi_generators`: each MIDI generator's list row and pages |
@@ -124,7 +124,7 @@ A `runtime.json` needs `schema` and at least one subscription or contribution. T
 ```json
 {
   "schema": 1,
-  "subscribe": [{ "event": "ev_play_increment", "fn": "mymod_rate", "order": 50 }],
+  "subscribe": [{ "hook": "ev_play_increment", "fn": "mymod_rate", "order": 50 }],
   "contribute": [{ "to": "ot_machines", "data": "mymod_machine", "order": 40 }],
   "raise": ["ev_mute_keep"]
 }
@@ -143,7 +143,7 @@ Machine modules whose native source predates these hooks declare the same subscr
 
 Propose a hook, or a table, when the gate says two module hooks meet, when you need a site that another module or the base already patches, or when many modules will plainly need the same site. A site only your module uses needs no shared hook ([choose how a module hooks in](#choose-how-a-module-hooks-in)):
 
-1. Open a pull request that adds one entry at the end of `sdk/machines/octatrack/events.json`, then regenerate the dispatch, headers, HOOKS.md and hook list with `python3 -B sdk/machines/octatrack/events.py --write`. A hook needs its name (`ev_` and what happens), its kind, its stock site (address, length in whole instructions and a SHA-256 guard), or none for a raised hook, when it runs, its C prototype and its order rule. A table needs an `ot_` name, its record size and C declaration, its room and the sites its reader owns. Addresses, lengths and hashes only: no stock bytes. A [take hook](../../sdk/machines/octatrack/elekloader/README.md#take-hooks) needs a stock tail, not a prototype. CI has no firmware: rebuild the base with your OS.
+1. Open a pull request that adds one entry at the end of `sdk/machines/octatrack/hooks.json`, then regenerate the dispatch, headers, HOOKS.md and hook list with `python3 -B sdk/machines/octatrack/hooks.py --write`. A hook needs its name (`ev_` and what happens), its kind, its stock site (address, length in whole instructions and a SHA-256 guard), or none for a raised hook, when it runs, its C prototype and its order rule. A table needs an `ot_` name, its record size and C declaration, its room and the sites its reader owns. Addresses, lengths and hashes only: no stock bytes. A [take hook](../../sdk/machines/octatrack/elekloader/README.md#take-hooks) needs a stock tail, not a prototype. CI has no firmware: rebuild the base with your OS.
 2. Say which modules patch that site today. Until they subscribe, list each such pair in `compatibility.json` as `pending-migration`, with the hook and `until`.
 3. The owner reviews the entry. Every later module subscribes or contributes instead of patching.
 

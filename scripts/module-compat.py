@@ -29,7 +29,7 @@ APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP / 'sdk/octabam/tools'))
 GUIDE = 'docs/module-guides/README.md#cross-compatibility'
 RELATIONS = 'sdk/machines/octatrack/compatibility.json'
-EVENTS = 'sdk/machines/octatrack/events.json'
+EVENTS = 'sdk/machines/octatrack/hooks.json'
 # shortcut: the event registry is being written on another branch; until EVENTS exists on this branch, these
 # are its two planned sites (working names). Delete this fixture once EVENTS lands: the gate reads the file.
 PLANNED_EVENTS = [dict(event='ev_play_increment', site='0x40004100', length=8),
@@ -47,7 +47,7 @@ ROUTES = {
     'contribute': ('the base owns this stock site for a table (its machine registry or menu rows): contribute a record '
                    'to the table (contribute: to, order, data in runtime.json) instead of patching it', '#tables'),
     'event': ('two module hooks meet on this stock site: request a new base hook (one reviewed entry in '
-              'sdk/machines/octatrack/events.json), then subscribe to it instead of patching', '#propose-a-hook'),
+              'sdk/machines/octatrack/hooks.json), then subscribe to it instead of patching', '#propose-a-hook'),
     'site': ('one owner per byte: patch other bytes, or request a new base hook if you need the same behaviour',
              '#propose-a-hook'),
     'cave': ('pick free space nobody else claims, or let the build place the unit (a floating Linked unit)',
@@ -63,7 +63,7 @@ ROUTES = {
               '#cross-compatibility'),
     'relation': (f'correct {RELATIONS}; every entry needs owner review', '#cross-compatibility'),
     'room': ('the base has room for fewer modules on this take hook or table than subscribe to it, so the unit refuses '
-             'the last one to install: propose more room (an owner-reviewed change to events.json and the base)',
+             'the last one to install: propose more room (an owner-reviewed change to hooks.json and the base)',
              '#hooks'),
 }
 # octabam ledger findings this gate already compares by exact byte range (with relations), not by message.
@@ -316,8 +316,8 @@ def read_events():
 
 
 def read_rooms():
-    """{event: room} for every take event and table, resolved as the base's generator resolves it (events.py)."""
-    spec = importlib.util.spec_from_file_location('modwerk_events', APP / 'sdk/machines/octatrack/events.py')
+    """{event: room} for every take event and table, resolved as the base's generator resolves it (hooks.py)."""
+    spec = importlib.util.spec_from_file_location('modwerk_events', APP / 'sdk/machines/octatrack/hooks.py')
     registry = importlib.util.module_from_spec(spec); spec.loader.exec_module(registry)
     return {e['event']: e['room'] for e in registry.load()['events'] if e.get('room') is not None}
 
@@ -372,7 +372,7 @@ def repository_inputs():
         path = APP / 'sdk/octabam/modules' / i / 'runtime.json'
         if path.is_file():
             runtime = json.loads(path.read_text(encoding='utf-8'))
-            subscriptions[i] = runtime.get('subscribe', [])
+            subscriptions[i] = [dict(e, event=e['hook']) if 'hook' in e else e for e in runtime.get('subscribe', [])]
             hooks[i] = {e['event'] for e in subscriptions[i]} | {c['to'] for c in runtime.get('contribute', [])}
     for name, port in json.loads((APP / PORTS_JSON).read_text(encoding='utf-8'))['ports'].items():
         if name in ids:

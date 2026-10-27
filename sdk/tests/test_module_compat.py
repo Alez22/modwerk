@@ -74,7 +74,7 @@ class GateTests(unittest.TestCase):
         modules = [module('a', 0x40004100), module('b', 0x40004100)]
         pending = relation(('a', 'b'), 'pending-migration', (0x40004100,), event='ev_test', until='both subscribe')
         self.assertEqual(gate.check(modules, events=[EVENT], relations=[pending]), [])
-        self.assertIn('not in sdk/machines/octatrack/events.json',
+        self.assertIn('not in sdk/machines/octatrack/hooks.json',
                       gate.check(modules, events=[], relations=[pending])[0]['text'])
         third = gate.check(modules + [module('c', 0x40004100)], events=[EVENT], relations=[pending])
         self.assertEqual({p['route'] for p in third}, {'subscribe', 'event'})
