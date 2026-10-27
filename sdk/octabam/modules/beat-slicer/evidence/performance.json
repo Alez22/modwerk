@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "module": "beat-slicer",
+  "version": "0.1.66-experimental",
+  "kind": "coldfire",
+  "cycles": {
+    "unit": "cycles/event",
+    "static": null,
+    "measured": 279312,
+    "budget": 4330000,
+    "method": "An event is one composed screen frame while the CREATE BEAT GRID popup is open: module_draw redraws the popup over the stock AED frame, on the UI task, not in an interrupt. Measured on the owner's MKII, 27 Oct 2026 (evidence/hardware.md): the development twin's modwerk_cost[22] (runtime module draw, DTIM3 counts at 132 MHz) read before and after 9.9 s with the popup open and BEATS/BPM turned 16 times: 640 ms over 605 UI ticks, 1,058 us a tick, 279,312 cycles at 264 MHz. An average over 605 frames, not a per-frame maximum; the drawing is a fixed layout, so frames differ only in their text. No static bound was counted. Grid calculation (bs_grid_preview, at most 65 grid points and 64-entry inserts) runs once per encoder step in module_tick: runtime_tick went from 25.8 to 27.0 us a tick in the same window. Budget: one UI tick, 16.4 ms at 61 ticks a second (4,330,000 cycles)."
+  },
+  "load": {
+    "frameUs": 362.8,
+    "stockLongestUs": 125.2,
+    "moduleLongestUs": 126.6,
+    "stockIdlePercent": 54.9,
+    "moduleIdlePercent": 36.4,
+    "method": "Hardware, not cfmeter.py: the base's guard (longest frame, 47,891 counts a frame) and CPU meter on the owner's MKII, transport stopped, AED SLICE page of a Flex sample. Stock: longest frame 34.5 % (125.2 us) with no module; idle 100 - 45.1 % with the stock CREATE SLICE GRID list open and the same encoder turns (Beat Slicer installed, inactive). Module: popup open, BEATS and BPM turned 16 times in 9.9 s: longest frame 34.9 % (126.6 us), CPU 63.6 %. The frame interrupt's share stayed 26.3 % and nothing was skipped. The idle drop applies only while the popup is open; installed and closed, the module's draw costs 31 us a tick, the same as stock. 6.5 of the 18.5 points are the draw hook; the rest was not traced. No MIDI flood ran."
+  },
+  "stress": {
+    "floodMessagesPerSecond": null,
+    "clockBpm": null,
+    "seconds": null,
+    "stuckNotes": null,
+    "hangs": null,
+    "dropped": null,
+    "droppedExplanation": "No MIDI flood ran: Beat Slicer has no MIDI path, and nothing on this Mac sends MIDI yet. Instead it re-sliced while the pattern played, and the base self-test passed with it installed (evidence/hardware.md)."
+  }
+}

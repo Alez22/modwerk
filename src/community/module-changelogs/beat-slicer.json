@@ -8,6 +8,7 @@
       "Works while the pattern plays. Only recording into the buffer you are editing blocks that buffer. YES opens the Octatrack's own CREATE or REPLACE SLICES confirmation; clear slices with the stock DELETE commands. Nothing is saved for you.",
       "Needs the Modwerk base loaded over USB, which is in the beta. Card firmware cannot include it.",
       "Known issue: Recorder Loop Fix 0.1.0 can make slice 1 of a recorder buffer miss, also with the stock CREATE SLICE GRID and without Beat Slicer (sambanks/octabam#908), so the configurator does not offer the two together.",
+      "Known issue: while the CREATE BEAT GRID window is open, the Octatrack's CPU use rises by about 18 points (measured on an MKII). The audio interrupt's own load did not change, and it costs nothing once the window is closed.",
       "Not yet tested: the MKI, and slices kept through a project save and a power cycle. Grid placement is exact, but no clicks are smoothed at slice boundaries."
     ]
   }
