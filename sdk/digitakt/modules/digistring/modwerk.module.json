@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 3,
+  "id": "digistring",
+  "name": "STRING",
+  "version": "0.8.0",
+  "machine": "digitakt",
+  "category": "machines",
+  "exclusive": false,
+  "author": {
+    "github": "Alez22",
+    "credits": [
+      "Alez22 — STRING design and code, with Claude Code assistance.",
+      "irpina — elekloader Core 2.1, its machine table and SDK."
+    ]
+  },
+  "maintainers": [
+    "Alez22"
+  ],
+  "source": {
+    "repository": "https://github.com/Alez22/digistring",
+    "revision": "b23f061a6980ba9f2db4b612ac778264b6b6aeaa",
+    "path": "."
+  },
+  "presentation": {
+    "label": "STRING",
+    "family": "Synthesis",
+    "summary": "A Karplus-Strong plucked string SRC machine: bowed, hit, noise or plucked strings that go through the Digitakt's own AMP, filter, mixer and effects.",
+    "overview": "STRING adds a Karplus-Strong physical-model string to the SRC machine list of the original Digitakt. Choose an exciter (BOW, HIT, NOISE or PLUCK), then shape the string with stiffness, pluck position, softness, damping and a decay time. It borrows SLICE's eight parameter slots, so its values are saved with the project, can be locked per step and are reachable by MIDI CC and NRPN like any stock parameter. Its audio enters the normal AMP envelope, filter, mixer and sends.",
+    "highlights": [
+      "Four exciters: BOW keeps exciting the string while the note is held; HIT, NOISE and PLUCK are one-shot.",
+      "DECAY is a time (T60, 0.07 s to about 17 s, endless at the top): the same setting rings as long on a low note as on a high one.",
+      "STIFF moves from an ideal string to a bell-like, inharmonic tone; TONE sets the damping inside the string.",
+      "Retriggering a ringing string adds the new excitation to the vibration, as on a real string.",
+      "Values are ordinary SLICE slots: saved, p-lockable, LFO destinations and MIDI CC/NRPN controllable."
+    ],
+    "usage": [
+      "Select an audio track, press FUNC + SRC, choose STRING in the machine list and confirm with YES.",
+      "Play a trig key: the default sound is a plucked string at the track's pitch. Turn knob B (EXC) to choose BOW, HIT, NOISE or PLUCK, drawn as icons.",
+      "Turn knob H (DECAY) to set how long the string rings, and knob G (TONE) from 0 (warm) to 4 (open and metallic). The AMP page still shapes what you hear.",
+      "Return to a stock machine with FUNC + SRC; the track's SLICE values stay in the project."
+    ]
+  },
+  "access": {
+    "location": "SRC machine list (FUNC + SRC), as STRING",
+    "steps": [
+      "Use a build containing STRING for the original Digitakt on OS 1.53 or 1.54.",
+      "Select an audio track, press FUNC + SRC, choose STRING in the machine list and confirm with YES.",
+      "The SRC page then shows TUNE, EXC, STIFF, SAMP, POS, SOFT, TONE and DECAY."
+    ],
+    "screenshots": [
+      "media/chooser.png"
+    ]
+  },
+  "controls": [
+    {
+      "name": "A — TUNE",
+      "default": 0,
+      "doc": "Pitch, with the stock range. An untransposed note plays C4 at 261.6 Hz; the keyboard follows equal temperament up to about 12 kHz.",
+      "labels": null
+    },
+    {
+      "name": "B — EXC",
+      "default": null,
+      "doc": "Exciter, drawn as an icon: BOW, HIT (mallet), NOISE or PLUCK. BOW keeps exciting the string while the note is held; the others are one-shot.",
+      "labels": [
+        "BOW",
+        "HIT",
+        "NOISE",
+        "PLUCK"
+      ]
+    },
+    {
+      "name": "C — STIFF",
+      "default": 0,
+      "doc": "Stiffness, 0–127: from an ideal string to a bell-like, inharmonic tone. The fundamental stays in tune up to about 880 Hz.",
+      "labels": null
+    },
+    {
+      "name": "D — SAMP",
+      "default": null,
+      "doc": "The stock sample selector. STRING does not use the sample.",
+      "labels": null
+    },
+    {
+      "name": "E — POS",
+      "default": 0,
+      "doc": "Pluck position, OFF or 1–64, from the bridge to the middle of the string.",
+      "labels": null
+    },
+    {
+      "name": "F — SOFT",
+      "default": 0,
+      "doc": "0–63: a darker, softer attack.",
+      "labels": null
+    },
+    {
+      "name": "G — TONE",
+      "default": 0,
+      "doc": "Damping inside the string, 0–4: 0 warm, 3 bright, 4 open and metallic. Its cutoff follows the note and rises with DECAY.",
+      "labels": null
+    },
+    {
+      "name": "H — DECAY",
+      "default": 100,
+      "doc": "How long the string itself rings (T60), 0–127: 0.07 s to about 17 s, endless at the top. The AMP envelope decides how long you hear it.",
+      "labels": null
+    },
+    {
+      "name": "LFO destinations",
+      "default": null,
+      "doc": "The LFO's destination list shows STRING's names, grouped as STRG.",
+      "labels": null
+    }
+  ],
+  "compatibility": {
+    "releases": [
+      "1.53",
+      "1.54"
+    ],
+    "requires": [],
+    "conflicts": [
+      "note-accumulator"
+    ],
+    "limitations": [
+      "STRING keeps SLICE's parameter ranges and defaults: they come from a stock table shared with the real SLICE machine.",
+      "Below F#1 (47 Hz) the string runs at a lower internal rate, down to about 1.5 Hz, without octave jumps.",
+      "High STIFF values make very high notes slightly sharp (about +8 cents at 1760 Hz).",
+      "On high notes with a long DECAY the damping filter opens completely, so TONE 3 and 4 can sound the same there.",
+      "Cannot be installed with Note Accumulator: both patch the stock routines that name parameters and draw the value popup (0x4000fe94-0x4000febe and 0x400657f8 on OS 1.53 and 1.54).",
+      "Up to four STRING tracks play cleanly at once; with more than four the UI lags (OS 1.54, measured on hardware with STRING alone)."
+    ]
+  },
+  "platform": {
+    "kind": "elemod",
+    "core": "2.1",
+    "build": "build.json",
+    "events": [],
+    "claims": [
+      "machine:8"
+    ]
+  },
+  "resources": {
+    "memoryBytes": 25054,
+    "fastBytes": 0,
+    "load": {
+      "display": "Four STRING tracks play cleanly on hardware; with more, the UI lags",
+      "method": "hardware",
+      "conditions": "Author's Digitakt I, OS 1.54, Core 2.1 and STRING only (build M002), 2026-10-27, judged by ear and by the UI's response: four STRING tracks playing together give no crackles; with more than four the UI lags. No DSP or CPU readout was taken (digihealth is not in this build)."
+    }
+  },
+  "evidence": {
+    "tier": "author-hardware",
+    "moduleVersion": "0.8.0",
+    "sourceSha256": "e4007c2c7253cbb7390ca386ad62e3c46b2bed61380135fdfeec5e2d03e0f8cc",
+    "reports": [
+      "evidence/hardware-testing.json",
+      "evidence/source-identity.json",
+      "TESTING.md"
+    ],
+    "hardware": {
+      "model": "Digitakt 1",
+      "release": "1.54",
+      "testedOn": "2026-10-27",
+      "tester": "Alez22",
+      "durationMinutes": 30,
+      "summary": "Alez22 flashed the Modwerk-compiled STRING 0.8.0 with Core 2.1 alone (OS 1.54, build M002) and played it for 30 minutes: STRING appears in the SRC machine list with its SRC page names and EXC icons, the four exciters, DECAY and TONE work, parameter locks and LFO modulation work with STRG destinations, a project with STRING tracks survives save, power cycle and reload, and stock machines on other tracks play normally. Four STRING tracks play without crackles; with more than four the UI lags.",
+      "limitations": [
+        "OS 1.53 build (M001) not run on hardware; it differs only in the release's addresses and gives byte-identical emulator screens.",
+        "Not tested beside other modules in this session.",
+        "Track count judged by ear; no DSP or CPU readout.",
+        "Tested SysEx: 1.54 6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103. Firmware was not read back from the device."
+      ]
+    },
+    "verifiedBy": null
+  },
+  "tests": {
+    "report": "TESTING.md",
+    "summary": "Hardware (author, 30 min, OS 1.54, STRING alone): machine list, SRC page, exciters, locks, LFO, save/reload and stock machines work; four tracks clean, the UI lags beyond four. Source-only packages compiled twice with identical output; emulator captures on OS 1.53 and 1.54.",
+    "documentation": {
+      "tutorial": {
+        "title": "Quick tutorial: a plucked and a bowed string",
+        "steps": [
+          "Select an audio track, press FUNC + SRC, choose STRING in the machine list and confirm with YES.",
+          "Play a trig key: the default sound is a plucked string at the track's pitch. Turn knob B (EXC) to choose BOW, HIT, NOISE or PLUCK, drawn as icons.",
+          "Turn knob H (DECAY) to set how long the string rings, and knob G (TONE) from 0 (warm) to 4 (open and metallic). The AMP page still shapes what you hear.",
+          "Return to a stock machine with FUNC + SRC; the track's SLICE values stay in the project."
+        ]
+      },
+      "screenshots": [
+        "media/chooser.png",
+        "media/src.png",
+        "media/src-bow.png"
+      ],
+      "captureRecord": "media/capture.json"
+    }
+  },
+  "license": {
+    "spdx": "MIT",
+    "file": "LICENSE",
+    "declaration": "The author's own source, imported unchanged from github.com/Alez22/digistring at v0.8.0 (commit b23f061a6980) under its MIT licence. Stock firmware bytes in the upstream build manifest became address, length and SHA-256 guards in build.json, and its keep2 sites became the equivalent explicit jsr and lea sites."
+  },
+  "media": [
+    {
+      "path": "media/thumbnail.svg",
+      "kind": "thumbnail",
+      "caption": "STRING thumbnail",
+      "alt": "A vibrating string between two bridges.",
+      "credit": "Alez22",
+      "license": "MIT",
+      "source": "Original illustration"
+    },
+    {
+      "path": "media/chooser.png",
+      "kind": "screenshot",
+      "caption": "STRING in the SRC machine list, below SLICE",
+      "alt": "STRING in the SRC machine list, below SLICE on the Digitakt monochrome LCD",
+      "credit": "Modwerk documentation capture; Elektron interface; Alez22 module",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.54",
+        "moduleVersion": "0.8.0",
+        "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
+        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1 and STRING only."
+      }
+    },
+    {
+      "path": "media/src.png",
+      "kind": "screenshot",
+      "caption": "STRING's SRC page with the default PLUCK exciter",
+      "alt": "STRING's SRC page with the default PLUCK exciter on the Digitakt monochrome LCD",
+      "credit": "Modwerk documentation capture; Elektron interface; Alez22 module",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.54",
+        "moduleVersion": "0.8.0",
+        "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
+        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1 and STRING only."
+      }
+    },
+    {
+      "path": "media/src-bow.png",
+      "kind": "screenshot",
+      "caption": "EXC turned to BOW, with its name in the title bar",
+      "alt": "EXC turned to BOW, with its name in the title bar on the Digitakt monochrome LCD",
+      "credit": "Modwerk documentation capture; Elektron interface; Alez22 module",
+      "license": "LicenseRef-Digi-UI-Documentation",
+      "source": "original",
+      "capture": {
+        "type": "emulator",
+        "release": "1.54",
+        "moduleVersion": "0.8.0",
+        "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
+        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1 and STRING only."
+      }
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "module": "digitakt/digistring",
+  "version": "0.8.0",
+  "date": "2026-10-27",
+  "upstream": {
+    "repository": "https://github.com/Alez22/digistring",
+    "revision": "b23f061a6980ba9f2db4b612ac778264b6b6aeaa",
+    "tag": "v0.8.0",
+    "path": ".",
+    "license": "MIT"
+  },
+  "changes": [
+    "First release: STRING, a Karplus-Strong plucked string SRC machine in slot 8, imported unchanged from the author's v0.8.0 sources (glue.s, digitakt.c, karplus.c, ui.c and their headers). One jmp site at 0x40077fb2 for the render and thirteen jmp, jsr and lea sites for the SRC page names, value texts, EXC icons, knob scaling and LFO names.",
+    "build.json is the author's mod.json with each stock byte run replaced by an address, length and SHA-256 guard, and its five keep2 sites written as the equivalent explicit jsr (opcode 4eb9) and lea a3 (47f9) sites, so the linked bytes are the same. Source-only export compiled in the pinned GCC 16.2 Docker toolchain; STRING-fast is not imported."
+  ],
+  "runtimeSourceSha256": "e4007c2c7253cbb7390ca386ad62e3c46b2bed61380135fdfeec5e2d03e0f8cc",
+  "files": [
+    {
+      "from": "digitakt.c",
+      "to": "src/digitakt.c",
+      "sha256": "7e9d78e0d237794c97e124f63c94ac31799533fdcbbfb88cc28db49464b58cad"
+    },
+    {
+      "from": "glue.s",
+      "to": "src/glue.s",
+      "sha256": "52be0bcc3a66debf2623f9536b7b0bdac62df2f4f0ccf8801995413d7904a487"
+    },
+    {
+      "from": "karplus.c",
+      "to": "src/karplus.c",
+      "sha256": "ba49107a461bd1bd1830535cf89359e3ce4f704010efcdd79367445c994a09f4"
+    },
+    {
+      "from": "karplus.h",
+      "to": "src/karplus.h",
+      "sha256": "efc7f22273877758338871c123910513a0025edc80ac3c7f5a3141db9ff6f70f"
+    },
+    {
+      "from": "ks_icons.inc",
+      "to": "src/ks_icons.inc",
+      "sha256": "ae1bd659112dde4489c0e9f8bd33d5fba370098cbf94427866d2a9b7362b84bf"
+    },
+    {
+      "from": "ks_loop.inc",
+      "to": "src/ks_loop.inc",
+      "sha256": "46d63a7e0a91aaf043174c58ae26300db320fbc7ca5ec74e886f5893140048b3"
+    },
+    {
+      "from": "ks_tables.inc",
+      "to": "src/ks_tables.inc",
+      "sha256": "4ae85753416038d7cd2f3255a50c29134004142744072032ce6a274253792633"
+    },
+    {
+      "from": "ui.c",
+      "to": "src/ui.c",
+      "sha256": "f3ca9973c1dfebd75aacc442c98b9ceea10fb8c4a70a6acf8a605c3645c2e3da"
+    },
+    {
+      "from": "LICENSE",
+      "to": "LICENSE",
+      "sha256": "cb324e38c1f7aeeba913686315f37f538f0fc4288a66d245905006807e52bd37"
+    },
+    {
+      "from": "README.md",
+      "to": "upstream/README.md",
+      "sha256": "ea2962a39f4277f77304740867cfad3d883bc7392a6003c87f7a538fb9bb4e4e"
+    }
+  ],
+  "excluded": [
+    "mod.json",
+    "variants/fast",
+    "Makefile",
+    "scripts",
+    "tests",
+    "site",
+    "release",
+    "out"
+  ],
+  "packages": [
+    {
+      "os": "1.53",
+      "path": "sdk/imports/packages/digistring/digistring-0.8.0-os1.53.elemod",
+      "sha256": "76579a2fd0a3851f091138c7fb719e782003487b4aa9e30ad4727882e7659f7e"
+    },
+    {
+      "os": "1.54",
+      "path": "sdk/imports/packages/digistring/digistring-0.8.0-os1.54.elemod",
+      "sha256": "cf64535c89b0d93eeb6d3973c86ce321f5a6a8218fa240bc1f775c549a17fcdf"
+    }
+  ],
+  "stockPolicy": "No firmware or stock-derived code/tables are present. Addresses, lengths and SHA-256 guards are metadata; exported instructions and sections are authored module code. Local materialized recipes and firmware are never committed.",
+  "evidence": "sdk/digitakt/modules/digistring/TESTING.md",
+  "requires": []
+}

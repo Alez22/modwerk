@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "machine": "digitakt",
+  "moduleId": "digistring",
+  "moduleVersion": "0.8.0",
+  "capturedAt": "2026-10-27",
+  "firmware": "1.54",
+  "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
+  "stockSha256": "f78ba80fa7b1da5fb0e1ff61ad61e9e71aafe79f4364fc49679f3651353e3cf6",
+  "source": {
+    "repository": "https://github.com/repeat98/modwerk",
+    "revision": "uncommitted working tree, branch digistring-0.8.0",
+    "path": "sdk/digitakt/modules/digistring"
+  },
+  "kit": {
+    "version": "0.7.0",
+    "lockSha256": "ae6d4bd3c7c474db4268e44c49aae2ba7ec4c6b5b04780b3360dd59c74b03e10"
+  },
+  "catalog": {
+    "revision": "6910e9e9af430de387c428c519445f684266bf8c2ce59f4d40354b6bca4fe349",
+    "sha256": "2c9b30f09c7caff42c864d39f3d128f117a8e8c9547ca82cb5a05ed935370e5d",
+    "cores": 7,
+    "mods": 43
+  },
+  "build": {
+    "modules": [
+      {
+        "id": "core",
+        "version": "2.1",
+        "sha256": "8c1fe78ccd1427d6a93f181eaad9f064efb65cf6dd683192dbcc33e83dc548b9"
+      },
+      {
+        "id": "digistring",
+        "version": "0.8.0",
+        "sha256": "cf64535c89b0d93eeb6d3973c86ce321f5a6a8218fa240bc1f775c549a17fcdf"
+      }
+    ],
+    "linker": "elekloader's Python patcher (commit 1b40132) wrote the .syx; Modwerk engine linkMods gives the identical MAIN image",
+    "outputVersion": "M002",
+    "verified": true
+  },
+  "emulator": {
+    "repository": "https://github.com/irpina/digiemu",
+    "revision": "c1b5735835923e328f8b4950d6ba927875e5b669",
+    "unicorn": {
+      "version": "2.1.4",
+      "patches": {
+        "unicorn-2.1.4-m68k-digikit-accel.patch": "7048704a068cb074b93b751df4b1a73fd8972c1c0cc27e30774c4c2771ec2b5c",
+        "unicorn-2.1.4-m68k-digikit-speed.patch": "9560613223502656e82adc1ecc36d5d8486995bed13ea8ddad168f8c4558a799",
+        "unicorn-2.1.4-m68k-emac-mac-load.patch": "ac128dd6836997de55e0d2ad70d7a2978639168090f552c5634da50fddc70bfe",
+        "unicorn-2.1.4-m68k-emac-modes.patch": "5fc44429ea913c5256c34a6e9c93ab90f727f120b4f12922a8f35a952fd1dace",
+        "unicorn-2.1.4-m68k-fast-mem.patch": "7f79332f318352cbd8055386dbf5149efc801d0663ae2450e33f9f39fed53374",
+        "unicorn-2.1.4-m68k-hook-ccr-sync.patch": "56de71acf2adbd5ca2f448095478e65e49fd79d378aeb5b5e4217d2c90f52f4e"
+      },
+      "librarySha256": "e5d384c3d6c97d0a1d023a86517ecb341b6369494bf3bd87a79653ff445849d8"
+    },
+    "python": "3.12.13",
+    "platform": "Linux x86_64",
+    "hle": false,
+    "audioRecording": false,
+    "cycleTiming": false,
+    "framebuffer": "firmware front LCD buffer at panel_diff flush",
+    "scale": 6,
+    "frameSelection": "Most populated actual LCD frame within the final 250 ms after the latest panel action; 6x integer scaling."
+  },
+  "setup": {
+    "project": "Disposable first-boot A01, stock initial track state; no owner projects or samples.",
+    "fixture": "No sample fixture required.",
+    "sandbox": "Private temporary output only."
+  },
+  "inputs": [
+    [
+      1000.0,
+      "press 1"
+    ],
+    [
+      1100.0,
+      "press 20"
+    ],
+    [
+      1200.0,
+      "release 20"
+    ],
+    [
+      1500.0,
+      "release 1"
+    ],
+    [
+      1614.24,
+      "press 15"
+    ],
+    [
+      1714.244,
+      "release 15"
+    ],
+    [
+      2014.252,
+      "press 15"
+    ],
+    [
+      2114.255,
+      "release 15"
+    ],
+    [
+      2414.264,
+      "press 15"
+    ],
+    [
+      2514.266,
+      "release 15"
+    ],
+    [
+      2814.275,
+      "press 15"
+    ],
+    [
+      2914.278,
+      "release 15"
+    ],
+    [
+      3214.287,
+      "press 12"
+    ],
+    [
+      3314.29,
+      "release 12"
+    ],
+    [
+      4614.328,
+      "turn 2 -4"
+    ],
+    [
+      4660.0,
+      "turn 2 -4"
+    ],
+    [
+      4700.0,
+      "turn 2 -4"
+    ],
+    [
+      4740.0,
+      "turn 2 -4"
+    ],
+    [
+      4780.0,
+      "turn 2 -4"
+    ],
+    [
+      4820.001,
+      "turn 2 -4"
+    ],
+    [
+      4860.557,
+      "turn 2 -4"
+    ],
+    [
+      4914.337,
+      "turn 2 -4"
+    ],
+    [
+      4960.0,
+      "turn 2 -4"
+    ],
+    [
+      5000.0,
+      "turn 2 -4"
+    ],
+    [
+      5040.0,
+      "turn 2 -4"
+    ],
+    [
+      5081.008,
+      "turn 2 -4"
+    ],
+    [
+      5127.224,
+      "turn 2 -4"
+    ],
+    [
+      5180.001,
+      "turn 2 -4"
+    ],
+    [
+      5227.224,
+      "turn 2 -4"
+    ],
+    [
+      5280.0,
+      "turn 2 -4"
+    ],
+    [
+      5320.0,
+      "turn 2 -4"
+    ],
+    [
+      5360.001,
+      "turn 2 -4"
+    ],
+    [
+      5414.351,
+      "turn 2 -4"
+    ],
+    [
+      5460.0,
+      "turn 2 -4"
+    ],
+    [
+      5500.0,
+      "turn 2 -4"
+    ],
+    [
+      5547.688,
+      "turn 2 -4"
+    ],
+    [
+      5593.893,
+      "turn 2 -4"
+    ],
+    [
+      5640.0,
+      "turn 2 -4"
+    ],
+    [
+      5680.0,
+      "turn 2 -4"
+    ],
+    [
+      5720.0,
+      "turn 2 -4"
+    ],
+    [
+      5760.001,
+      "turn 2 -4"
+    ],
+    [
+      5814.363,
+      "turn 2 -4"
+    ],
+    [
+      5860.0,
+      "turn 2 -4"
+    ],
+    [
+      5900.0,
+      "turn 2 -4"
+    ],
+    [
+      5940.0,
+      "turn 2 -4"
+    ],
+    [
+      5980.001,
+      "turn 2 -4"
+    ],
+    [
+      6027.227,
+      "turn 2 -4"
+    ],
+    [
+      6080.001,
+      "turn 2 -4"
+    ],
+    [
+      6127.228,
+      "turn 2 -4"
+    ],
+    [
+      6180.001,
+      "turn 2 -4"
+    ],
+    [
+      6227.228,
+      "turn 2 -4"
+    ],
+    [
+      6280.001,
+      "turn 2 -4"
+    ],
+    [
+      6327.228,
+      "turn 2 -4"
+    ],
+    [
+      6380.001,
+      "turn 2 -4"
+    ],
+    [
+      6420.001,
+      "turn 2 -4"
+    ],
+    [
+      6460.562,
+      "turn 2 -4"
+    ],
+    [
+      6514.383,
+      "turn 2 -4"
+    ],
+    [
+      6560.001,
+      "turn 2 -4"
+    ],
+    [
+      6614.386,
+      "turn 2 -4"
+    ],
+    [
+      6660.0,
+      "turn 2 -4"
+    ],
+    [
+      6700.0,
+      "turn 2 -4"
+    ],
+    [
+      6740.0,
+      "turn 2 -4"
+    ]
+  ],
+  "captures": [
+    {
+      "path": "media/chooser.png",
+      "sha256": "36bef31c1763ee8f4f50a556be537644fec01ef56978a4ecbfa25681b792973f",
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\nwait 1000\nsnap src\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nwait 1000\nsnap src-bow\n",
+      "atMs": 3214.2871794871794,
+      "requestedAtMs": 3214.2871794871794
+    },
+    {
+      "path": "media/src.png",
+      "sha256": "4738689fef9e9e5dcc870047cfd193d8db23bed59403fd5fda62e8bc7f6645fe",
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\nwait 1000\nsnap src\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nwait 1000\nsnap src-bow\n",
+      "atMs": 4430.988675213675,
+      "requestedAtMs": 4614.327991452991
+    },
+    {
+      "path": "media/src-bow.png",
+      "sha256": "3654b6caad892a662d0da724dfc2576c2e90c13587e388e4d0f070e451931dd7",
+      "plan": "wait 1000\npress FUNC\ntap SRC\nrelease FUNC\ntap DOWN\ntap DOWN\ntap DOWN\ntap DOWN\nsnap chooser\ntap YES\nwait 1000\nsnap src\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nturn B -1 40\nwait 1000\nsnap src-bow\n",
+      "atMs": 7640.0,
+      "requestedAtMs": 7781.086538461538
+    }
+  ]
+}

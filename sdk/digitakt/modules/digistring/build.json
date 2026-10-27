@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    "src/glue.s",
+    "src/digitakt.c",
+    "src/karplus.c",
+    "src/ui.c"
+  ],
+  "defsym": {},
+  "cflags": [],
+  "weak": [],
+  "subscribe": [],
+  "contribute": [
+    {
+      "to": "core_machines",
+      "order": 80,
+      "data": "00000000",
+      "relocs": [
+        [
+          0,
+          "abs32",
+          "sym:digistring_machine",
+          0
+        ]
+      ]
+    }
+  ],
+  "collections": {},
+  "copied": [],
+  "regions": [],
+  "claims": [
+    "machine:8"
+  ],
+  "requires": [],
+  "derive": null,
+  "releases": {
+    "1.53": {
+      "defsym": {},
+      "cflags": [],
+      "sites": [
+        {
+          "addr": "0x40077fb2",
+          "len": 6,
+          "stockSha256": "83a146960c578acd5e6c3562235cab6a2c83dbcf4ef4443cc330e34d2588aae6",
+          "op": "jmp",
+          "target": "digistring_inject_s"
+        },
+        {
+          "addr": "0x400325e8",
+          "len": 6,
+          "stockSha256": "fef3113b52bb2643c735a140124f0803332b59b887f8be05b5c4b3afbf9c1957",
+          "op": "jsr",
+          "target": "digistring_layout_s"
+        },
+        {
+          "addr": "0x4003ab02",
+          "len": 6,
+          "stockSha256": "22df39d31baa26b53964f32c3dec3dbc3273da8065202f44cec7746ad20fc1d0",
+          "op": "lea",
+          "target": "digistring_layout_s",
+          "register": 3
+        },
+        {
+          "addr": "0x4000fe96",
+          "len": 6,
+          "stockSha256": "2089e24a3da4b21a87a1724df31552cb6f4ff6d713d2ff60a1750f391471e710",
+          "op": "jmp",
+          "target": "digistring_lab_short_s"
+        },
+        {
+          "addr": "0x4000feb8",
+          "len": 6,
+          "stockSha256": "2089e24a3da4b21a87a1724df31552cb6f4ff6d713d2ff60a1750f391471e710",
+          "op": "jmp",
+          "target": "digistring_lab_long_s"
+        },
+        {
+          "addr": "0x400657aa",
+          "len": 6,
+          "stockSha256": "4c51a762db25562f62b38f4b680ab34826e6f9c61fcf90046d0c6fee19a91f01",
+          "op": "jmp",
+          "target": "digistring_ui_rec_s"
+        },
+        {
+          "addr": "0x4000f33e",
+          "len": 6,
+          "stockSha256": "3c4c63c2040b80467d76b5ca948bad7848241ae8beedec00e6c91b543eaa13e9",
+          "op": "jsr",
+          "target": "digistring_val_text_s"
+        },
+        {
+          "addr": "0x4000f2dc",
+          "len": 6,
+          "stockSha256": "3c4c63c2040b80467d76b5ca948bad7848241ae8beedec00e6c91b543eaa13e9",
+          "op": "jsr",
+          "target": "digistring_knob_s"
+        },
+        {
+          "addr": "0x400657fa",
+          "len": 6,
+          "stockSha256": "adffc7ac8b2ed51f5418d4f0371e2160e0afcb99c59833c28e68129ad58f4076",
+          "op": "jmp",
+          "target": "digistring_pop_text_s"
+        },
+        {
+          "addr": "0x40060baa",
+          "len": 6,
+          "stockSha256": "034daf466a84a080e7aa51b52900b82e2b79577991ccfa4dbe9382f58e729569",
+          "op": "jmp",
+          "target": "digistring_lfo_label_s"
+        },
+        {
+          "addr": "0x400a437a",
+          "len": 6,
+          "stockSha256": "9955575a774cf8992175a9fdc374d03b10a84fa31f54886bf8833c5d6daa7fbb",
+          "op": "jmp",
+          "target": "digistring_lfo_pop_s"
+        },
+        {
+          "addr": "0x400a43f6",
+          "len": 6,
+          "stockSha256": "9955575a774cf8992175a9fdc374d03b10a84fa31f54886bf8833c5d6daa7fbb",
+          "op": "jmp",
+          "target": "digistring_lfo_pop_fb_s"
+        },
+        {
+          "addr": "0x40065dec",
+          "len": 6,
+          "stockSha256": "2cbe7d57bf80f3f72a45cf297662e8a1a79b1677b28e5fea9627c7c0e366f41e",
+          "op": "jsr",
+          "target": "digistring_lfo_ov_group_s"
+        },
+        {
+          "addr": "0x40065e6e",
+          "len": 6,
+          "stockSha256": "7524962e0cc8d49b4b5a77a6aab8f2fd23b70df493bb8c0928587184c363ff10",
+          "op": "jmp",
+          "target": "digistring_lfo_ov_name_s"
+        }
+      ]
+    },
+    "1.54": {
+      "defsym": {
+        "OS154": "1"
+      },
+      "cflags": [
+        "-DDIGISTRING_OS154"
+      ],
+      "sites": [
+        {
+          "addr": "0x40077fb2",
+          "len": 6,
+          "stockSha256": "83a146960c578acd5e6c3562235cab6a2c83dbcf4ef4443cc330e34d2588aae6",
+          "op": "jmp",
+          "target": "digistring_inject_s"
+        },
+        {
+          "addr": "0x400325e8",
+          "len": 6,
+          "stockSha256": "fef3113b52bb2643c735a140124f0803332b59b887f8be05b5c4b3afbf9c1957",
+          "op": "jsr",
+          "target": "digistring_layout_s"
+        },
+        {
+          "addr": "0x4003ab02",
+          "len": 6,
+          "stockSha256": "22df39d31baa26b53964f32c3dec3dbc3273da8065202f44cec7746ad20fc1d0",
+          "op": "lea",
+          "target": "digistring_layout_s",
+          "register": 3
+        },
+        {
+          "addr": "0x4000fe96",
+          "len": 6,
+          "stockSha256": "348bda2f007e286fe03335905a468d107ca5b515969d4cd3adabcd24a09dd485",
+          "op": "jmp",
+          "target": "digistring_lab_short_s"
+        },
+        {
+          "addr": "0x4000feb8",
+          "len": 6,
+          "stockSha256": "348bda2f007e286fe03335905a468d107ca5b515969d4cd3adabcd24a09dd485",
+          "op": "jmp",
+          "target": "digistring_lab_long_s"
+        },
+        {
+          "addr": "0x400657aa",
+          "len": 6,
+          "stockSha256": "cc2a184b381075367ed97dba2300691811aaa53f3b913fea117311a1375d90ae",
+          "op": "jmp",
+          "target": "digistring_ui_rec_s"
+        },
+        {
+          "addr": "0x4000f33e",
+          "len": 6,
+          "stockSha256": "3c4c63c2040b80467d76b5ca948bad7848241ae8beedec00e6c91b543eaa13e9",
+          "op": "jsr",
+          "target": "digistring_val_text_s"
+        },
+        {
+          "addr": "0x4000f2dc",
+          "len": 6,
+          "stockSha256": "3c4c63c2040b80467d76b5ca948bad7848241ae8beedec00e6c91b543eaa13e9",
+          "op": "jsr",
+          "target": "digistring_knob_s"
+        },
+        {
+          "addr": "0x400657fa",
+          "len": 6,
+          "stockSha256": "7c7938430ba93cea47a48e7aab46394edcad109048ef83604be7259e9a0d51d3",
+          "op": "jmp",
+          "target": "digistring_pop_text_s"
+        },
+        {
+          "addr": "0x40060baa",
+          "len": 6,
+          "stockSha256": "7afd5dfe45b41d3f80b646533b2647c26a8412b2d5463c7d930a06551737f2b3",
+          "op": "jmp",
+          "target": "digistring_lfo_label_s"
+        },
+        {
+          "addr": "0x400a44d6",
+          "len": 6,
+          "stockSha256": "7f933d0d5acefde1375d7e2daeb57b99652c0ffcb4a572d390ec82b40d230136",
+          "op": "jmp",
+          "target": "digistring_lfo_pop_s"
+        },
+        {
+          "addr": "0x400a4552",
+          "len": 6,
+          "stockSha256": "7f933d0d5acefde1375d7e2daeb57b99652c0ffcb4a572d390ec82b40d230136",
+          "op": "jmp",
+          "target": "digistring_lfo_pop_fb_s"
+        },
+        {
+          "addr": "0x40065dec",
+          "len": 6,
+          "stockSha256": "6590d16bdd081ea233dd8cd12ad18f8c2b82376e533d5a37129eaf9a538e19c0",
+          "op": "jsr",
+          "target": "digistring_lfo_ov_group_s"
+        },
+        {
+          "addr": "0x40065e6e",
+          "len": 6,
+          "stockSha256": "7ac6717b98fc6dfcaedfdf72abb2038d491bbf577347f7d1756d56db3732effd",
+          "op": "jmp",
+          "target": "digistring_lfo_ov_name_s"
+        }
+      ]
+    }
+  }
+}

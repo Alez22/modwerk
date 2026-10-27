@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "reportedOn": "2026-10-27",
+  "source": "Direct statement by the module author after flashing",
+  "reporter": "Alez22",
+  "statement": "tutto funziona, 4 tracce senza crackle, sessione di 30 minuti. con piu di 4 si riscontrano dei lag nella ui",
+  "status": "hardware-tested-author-reported",
+  "model": "Digitakt 1",
+  "release": "1.54",
+  "durationMinutes": 30,
+  "build": {
+    "version": "M002",
+    "syxSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
+    "mainImageSha256": "47d6bd7befb185702295ec671eae633b749045400a2331de4e6f01974a12e907",
+    "modules": [
+      {
+        "id": "core",
+        "version": "2.1",
+        "sha256": "8c1fe78ccd1427d6a93f181eaad9f064efb65cf6dd683192dbcc33e83dc548b9"
+      },
+      {
+        "id": "digistring",
+        "version": "0.8.0",
+        "sha256": "cf64535c89b0d93eeb6d3973c86ce321f5a6a8218fa240bc1f775c549a17fcdf"
+      }
+    ]
+  },
+  "checked": [
+    "STRING in the FUNC + SRC machine list, below SLICE",
+    "SRC page names and EXC icons",
+    "BOW, HIT, NOISE and PLUCK exciters, DECAY and TONE",
+    "Parameter locks and LFO modulation of STRING parameters, STRG destinations",
+    "Project save, power cycle and reload",
+    "Stock machines on other tracks",
+    "Four STRING tracks without crackles; more than four make the UI lag"
+  ],
+  "notChecked": [
+    "OS 1.53 build on hardware",
+    "Other modules in the same build",
+    "DSP or CPU readout"
+  ]
+}
