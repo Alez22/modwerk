@@ -9,7 +9,11 @@ import { resolveSelection } from './modules.ts'
 
 export type PackageList = { packages: readonly { id: string; requires?: number; sources?: readonly string[] }[] }
 export function moduleUsbOnly(id: string, published: PackageList = packages) {
-  return published.packages.some(entry => entry.id === id && ((entry.requires ?? 0) !== 0 || Boolean(entry.sources)))
+  return published.packages.some(entry => entry.id === id && (entry.requires ?? 0) !== 0) || moduleCardless(id, published)
+}
+/** A C runtime module has no card form at all: the card build neither compiles nor fingerprints it (scripts/module-source.mjs). */
+export function moduleCardless(id: string, published: PackageList = packages) {
+  return published.packages.some(entry => entry.id === id && Boolean(entry.sources))
 }
 
 /** Why card firmware cannot include these modules. `usb` says whether this member can sync over USB (the beta
