@@ -196,7 +196,9 @@ DYNLOAD_HOOKS = (
     (0x40047a3c, 6, '9b2c003ba4d776237ad71bef15451bfea4447f2acca77ef6922dcea6ac52ca78', 'mw_wide_dial'),
     # Modwerk's: main's idle spin counts the ColdFire's idle time (status.s, status.c). Its last init call only:
     # stock's spin stays, where ot_emu parks main again after a bench call.
-    (0x4001fc96, 6, '2edb8c17ea73bf5ecd097ec929f3bfd6f8a74c81b11080d0d74efd55bec6b416', 'mw_idle'))
+    (0x4001fc96, 6, '2edb8c17ea73bf5ecd097ec929f3bfd6f8a74c81b11080d0d74efd55bec6b416', 'mw_idle'),
+    # Modwerk's: the time-stretch helper task skips a track whose TSTR is OFF (status.s).
+    (0x40098b2c, 8, 'e3b2889593533c76e33bdee43526078d47b0b1c53b99a6d93d9ff1118e752203', 'mw_ts_gate'))
 # --dsp-loader: the knob routine of an audio track's main pages (0x40055008) names the default stepper 0x4003240c by
 # `lea 0x4003240c,%aN` for a live turn; the base repoints that operand at fxpage.s's mw_knob_step, which restages a
 # module page's turned knob before it (a select then steps as stock's do from the first visit). Address, the lea's
@@ -1287,11 +1289,11 @@ def fill_table_owners(document, owners, stock_at):
 
 
 def resident_effect_fills(tag, fx, words, section, offset, effect, original, hooks):
-    """Copy original stock words around the exact authored COMP proc bridge.
+    """Copy original stock words around the exact authored COMP bridges (its proc and its init).
 
-    The recipe already guards and lowers this complete two-word long JSR. It
-    must stay literal in the stock-free package: recovering it as original stock
-    silently removes the resident hook on the browser path. No other changed
+    The recipe already guards and lowers each complete two-word long JSR. They
+    must stay literal in the stock-free package: recovering them as original stock
+    silently removes the resident hooks on the browser path. No other changed
     word, arbitrary excluded span or caller-authored fill is accepted here.
     """
     if (tag not in ('A', 'B') or type(fx) is not int or not 0 <= fx < 32 or
@@ -1303,17 +1305,25 @@ def resident_effect_fills(tag, fx, words, section, offset, effect, original, hoo
         if words != original:
             raise ValueError('An unreviewed stock effect changed outside the COMP bridge.')
         return [dict(tag=tag, fx=fx, first=first, count=count, section=section, offset=offset)]
-    guards = [row for row in hooks['guards'] if row.get('relocated') is True]
-    at = effect['proc']
-    if (len(guards) != 1 or type(at) is not int or not 0 <= at <= len(words) - 2 or
-            type(hooks['origin']) is not int or type(guards[0].get('entry')) is not int or
-            not hooks['origin'] <= guards[0]['entry'] <= 0xffffff or
-            hashlib.sha256(b''.join(w.to_bytes(3, 'big') for w in original[at:at+2])).hexdigest() != guards[0]['expectedSha256'] or
-            words[at:at+2] != [0x0bf080, guards[0]['entry']] or
-            words[:at] != original[:at] or words[at+2:] != original[at+2:]):
+    guards = [row for row in hooks['guards'] if row.get('relocated') in ('proc', 'init')]
+    spans, expected = [], list(original)
+    if (sorted(row['relocated'] for row in guards) != ['init', 'proc'] or type(hooks['origin']) is not int):
         raise ValueError('Resident COMP fill does not preserve its exact guarded authored bridge.')
+    for guard in guards:
+        at = effect[guard['relocated']]
+        if (type(at) is not int or not 0 <= at <= len(words) - 2 or type(guard.get('entry')) is not int or
+                not hooks['origin'] <= guard['entry'] <= 0xffffff or
+                hashlib.sha256(b''.join(w.to_bytes(3, 'big') for w in original[at:at+2])).hexdigest() != guard['expectedSha256'] or
+                words[at:at+2] != [0x0bf080, guard['entry']]):
+            raise ValueError('Resident COMP fill does not preserve its exact guarded authored bridge.')
+        expected[at:at+2] = words[at:at+2]
+        spans.append(at)
+    spans.sort()
+    if expected != words or any(b - a < 2 for a, b in zip(spans, spans[1:])):
+        raise ValueError('Resident COMP fill does not preserve its exact guarded authored bridge.')
+    cuts = [0] + [x for at in spans for x in (at, at + 2)] + [len(words)]
     return [dict(tag=tag, fx=fx, first=start, count=end-start, section=section, offset=offset+3*start)
-            for start, end in ((0, at), (at+2, len(words))) if start < end]
+            for start, end in zip(cuts[::2], cuts[1::2]) if start < end]
 
 
 def share_equal_stock_catalog(text, layout):
