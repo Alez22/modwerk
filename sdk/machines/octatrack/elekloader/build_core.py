@@ -2049,7 +2049,7 @@ modwerk_retained_end:
         recipe['cflags'].append('-DMODWERK_RESIDENT_STOCK_HOOKS')
     if args.resident_on_demand:
         recipe['cflags'].append('-DMODWERK_RESIDENT_ON_DEMAND')
-    if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/EVENTS.md)
+    if args.site_events:  # the base owns these stock sites; packages subscribe (sdk/machines/octatrack/HOOKS.md)
         recipe['cflags'].append('-DMODWERK_RUNTIME_EVENTS')
         recipe['sources'] += ['runtime_hooks.s', 'machine_registry.s', 'midi_generators.s']
         for addr, n, guard, label in EVENTS.base_sites():

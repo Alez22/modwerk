@@ -36,7 +36,7 @@
 /* Hook order in packages: the events every Elekloader core has. Later events
  * append; a base refuses a package with hooks it does not dispatch. */
 enum runtime_event { RUNTIME_TICK, RUNTIME_DRAW, RUNTIME_KEY, RUNTIME_ENC, RUNTIME_EVENTS };
-/* A machine's events at stock sites its base owns (the Octatrack's: sdk/machines/octatrack/EVENTS.md) follow as hook
+/* A machine's hooks at stock sites its base owns (the Octatrack's: sdk/machines/octatrack/HOOKS.md) follow as hook
  * indices RUNTIME_EVENTS on, from its generated header (runtime_hooks.h, generated from its hooks.json). */
 #ifdef MODWERK_RUNTIME_EVENTS
 #include "runtime_hooks.h"
