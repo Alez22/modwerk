@@ -9760,7 +9760,7 @@
           "Not offered together with Recorder Loop Fix 0.1.0: that module can make recorder-buffer slice 1 miss, also with stock CREATE SLICE GRID and without Beat Slicer (sambanks/octabam#908).",
           "Exact metadata grid only: no PCM analysis, smoothing or click-free playback claim. No project or sample-settings save is implicit.",
           "Not yet tested on the MKI. Slices kept through a project save and a power cycle, Static machines and recorder buffers were not run on this exact package (an earlier build was, by the author).",
-          "While the CREATE BEAT GRID popup is open the ColdFire CPU meter rises by about 18 points (owner's MKII); the frame interrupt was unaffected and no machine render was skipped."
+          "While the CREATE BEAT GRID popup is open its drawing takes about 6 % of the ColdFire (owner's MKII); the frame interrupt was unaffected and no machine render was skipped."
         ]
       },
       "resources": {
@@ -9780,7 +9780,7 @@
           "value": 1058,
           "unit": "us",
           "method": "hardware",
-          "conditions": "Owner's MKII, 27 Oct 2026: the module's draw took 1,058 us a UI tick on average while CREATE BEAT GRID was open, and the CPU meter rose from 45 % to 64 % in that time. Installed and closed it costs the same as stock. The frame interrupt was unchanged.",
+          "conditions": "Owner's MKII, 27 Oct 2026: the module's draw took 975-1,058 us a UI tick (about 6 % of the CPU) while CREATE BEAT GRID was open; nothing else measurably changed, and the CPU meter swung between 41 % and 60 % with the popup open and closed alike. Installed and closed it costs the same as stock. The frame interrupt was unchanged.",
           "source": "evidence/hardware.md"
         },
         "impact": {
@@ -9788,7 +9788,7 @@
           "cpu": {
             "level": "low",
             "basis": "measured-comparison",
-            "rationale": "Only while its popup is open: the draw took 1,058 us a UI tick and the CPU meter rose from 45 % to 64 % on the owner's MKII, with the frame interrupt unchanged and nothing skipped. Closed it costs the same as stock (31 us a tick). The grid itself is at most 65 points, once per change.",
+            "rationale": "Only while its popup is open: its draw took 975-1,058 us a UI tick on the owner's MKII, about 6 % of the CPU, with the frame interrupt unchanged and nothing skipped. The CPU meter swung between 41 % and 60 % with the popup open and closed alike. Closed it costs the same as stock (31 us a tick). The grid itself is at most 65 points, once per change.",
             "source": "evidence/performance.json"
           },
           "dsp": {
@@ -9902,7 +9902,7 @@
             "tester": "repeat98",
             "sourceRevision": "35301de1360c5b2e940c54823010356809846632",
             "imageSha256": "6650ef77a837a61a570a300c3bd0b2d4dfd4c9bed6e52bb355034d39bf5ff90d",
-            "summary": "The owner's MKII, OS 1.40C, driven over USB by Claude Code, on a RAM-booted development twin (b610b11c) of the beta base with the sample-editor service at event index 36. Two timed trials of the exact package, each rolled back by itself. Trial 1: CREATE BEAT GRID listed above CREATE SLICE GRID; on a Flex sample (101.04 BPM) BEATS 2 made 8 slices after the stock CREATE SLICES? question; while the pattern played BEATS 4 replaced them with 4 after REPLACE SLICES?; PROJECT BPM showed 119.00 and 5 slices; NO left the slices as they were; the base self-test passed with the module intact; after the rollback the menu was stock and the inventory empty. Trial 2: the popup's draw cost 1,058 us a UI tick while open, the CPU meter 63.6 % against 45.1 % on the stock list, the frame interrupt unchanged, nothing skipped.",
+            "summary": "The owner's MKII, OS 1.40C, driven over USB by Claude Code, on a RAM-booted development twin (b610b11c) of the beta base with the sample-editor service at event index 36. Two timed trials of the exact package, each rolled back by itself. Trial 1: CREATE BEAT GRID listed above CREATE SLICE GRID; on a Flex sample (101.04 BPM) BEATS 2 made 8 slices after the stock CREATE SLICES? question; while the pattern played BEATS 4 replaced them with 4 after REPLACE SLICES?; PROJECT BPM showed 119.00 and 5 slices; NO left the slices as they were; the base self-test passed with the module intact; after the rollback the menu was stock and the inventory empty. Trials 2 and 4: the popup's draw cost 975-1,058 us a UI tick while open (about 6 % of the CPU), with or without encoder turns; the frame interrupt was unchanged and nothing skipped; the CPU meter swung between 41 % and 60 % with the popup open and closed alike. On the exact beta base 903f8ed6: a trial, self-test and rollback.",
             "limitations": [
               "One unit and one Flex sample; Static machines, recorder buffers and slicing during recording were not run on this package.",
               "A development twin of the beta base, not the exact beta base 903f8ed6.",

@@ -61,7 +61,7 @@ The base copies the source's metadata and owns confirmation, publication and rol
 - Recording must be stopped for the buffer being edited; unrelated recording and pattern playback may continue.
 - A grid holds at most 64 slices; recording length stays subject to the Octatrack's memory.
 - Exact metadata grid only: no PCM analysis, smoothing or click-free playback claim. No project or sample-settings save is implicit.
-- While the popup is open the ColdFire CPU meter rose by about 18 points on the owner's MKII; the frame interrupt was unaffected and no machine render was skipped.
+- While the popup is open its drawing takes about 6 % of the ColdFire (about 1 ms a screen frame, owner's MKII); the frame interrupt was unaffected and no machine render was skipped.
 - Not yet tested on the MKI. Slices kept through a project save and a power cycle are not confirmed on the unit.
 
 ## Tests and measurements

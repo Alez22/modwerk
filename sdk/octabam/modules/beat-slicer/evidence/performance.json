@@ -14,9 +14,9 @@
     "frameUs": 362.8,
     "stockLongestUs": 125.2,
     "moduleLongestUs": 126.6,
-    "stockIdlePercent": 54.9,
-    "moduleIdlePercent": 36.4,
-    "method": "Hardware, not cfmeter.py: the base's guard (longest frame, 47,891 counts a frame) and CPU meter on the owner's MKII, transport stopped, AED SLICE page of a Flex sample. Stock: longest frame 34.5 % (125.2 us) with no module; idle 100 - 45.1 % with the stock CREATE SLICE GRID list open and the same encoder turns (Beat Slicer installed, inactive). Module: popup open, BEATS and BPM turned 16 times in 9.9 s: longest frame 34.9 % (126.6 us), CPU 63.6 %. The frame interrupt's share stayed 26.3 % and nothing was skipped. The idle drop applies only while the popup is open; installed and closed, the module's draw costs 31 us a tick, the same as stock. 6.5 of the 18.5 points are the draw hook; the rest was not traced. No MIDI flood ran."
+    "stockIdlePercent": 43.2,
+    "moduleIdlePercent": 36.8,
+    "method": "Hardware, not cfmeter.py, on the owner's MKII with the transport stopped on the AED SLICE page of a Flex sample. Longest frame from the base's guard (47,891 counts a frame): 34.5 % (125.2 us) with no module, 34.9 % (126.6 us) with the popup open and its settings turning. Idle: the base's CPU meter swung between 41 % and 60 % with the popup open and closed alike (ten readings a second apart in each state), so the module's share is taken from its own hook instead: stock idle 43.2 % (100 minus the closed median, 56.8 %), module idle 36.8 %, that minus the draw hook's 6.4 % (1,055 us in each of 61 UI ticks a second, modwerk_cost[22]). Nothing else measurably changed (module tick 26-27 us a tick in both states). The cost applies only while the popup is open. No MIDI flood ran."
   },
   "stress": {
     "floodMessagesPerSecond": null,

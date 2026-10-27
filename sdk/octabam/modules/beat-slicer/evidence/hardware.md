@@ -3,7 +3,7 @@
 - **Unit:** the owner's Octatrack MKII, OS 1.40C, driven over USB by Claude Code (`scripts/device-send.py`, `npm run device`).
 - **Base:** a RAM-booted development twin of the beta base with the sample-editor service (`--sample-editor`, event `ot_sample_editor_actions` at index 36), identity `b610b11c…`. It is the beta base `903f8ed6…` built as `0.3.1-modwerk-dev.1`, which adds the development readouts (`modwerk_cost`, `guard`); the exact beta base was not booted.
 - **Package:** `public/octatrack-modules/beat-slicer/0.1.66-experimental.mwrm`, SHA-256 `6650ef77a837a61a570a300c3bd0b2d4dfd4c9bed6e52bb355034d39bf5ff90d`, 5,780 bytes (4,992 of code and data, 1,388 of bss), module `c8d078f2`, built from commit `35301de1360c5b2e940c54823010356809846632`.
-- **How it ran:** two timed trials (`npm run device -- try FILE --seconds N`, no `--accept`), so each rolled back by itself. Nothing was kept, saved or flashed.
+- **How it ran:** four timed trials (`npm run device -- try FILE --seconds N`, no `--accept`): 1, 2 and 4 on the twin, 3 on the exact beta base. Each rolled back by itself. Nothing was kept, saved or flashed.
 - **Source:** Flex slot 004 on track 4 (a one-shot stab, sample BPM 101.04, no slices beforehand) in the project on the unit, bank B pattern 1, project tempo 119.
 
 ## Trial 1 (180 s)
@@ -31,7 +31,19 @@ Afterwards the stock DELETE ALL SLICES put the sample back to no slices.
 | Beat Slicer popup open, BEATS and BPM turned 16 times | 605 | 1,058 µs a tick (640 ms in 9.9 s, 6.5 % of the CPU) | 63.6 % |
 | Stock CREATE SLICE GRID list open, same turns | 602 | 31 µs a tick | 45.1 % |
 
-The frame interrupt stayed at 26.3 % of the CPU in all three windows, its longest frame 34.9 % of a frame with the popup open (40.1 % closed), and no machine render was skipped. While the popup is open the CPU meter rises by about 18.5 points: 6.5 come from the module's own draw hook; the rest was not traced.
+The frame interrupt stayed at 26.3 % of the CPU in all three windows, its longest frame 34.9 % of a frame with the popup open (40.1 % closed), and no machine render was skipped. The CPU meter column is one reading each; trial 4 shows it swings by about 20 points on its own, so the gap between 45 % and 63.6 % here is not the popup's cost.
+
+## Trial 4 (120 s): where the cost goes
+
+The dev twin was RAM-booted again and the same package trialled on the same page.
+
+| Window (8-10 s) | UI ticks | Runtime module draw | Module tick | CPU meter |
+|---|---|---|---|---|
+| Popup closed, no input | 488 | 29 µs a tick | 27 µs | 54.1 % (one reading) |
+| Popup open, no input | 488 | 975 µs a tick | 27 µs | 44.7 % (one reading) |
+| Popup open, BEATS and BPM turned 16 times | 605 | 1,055 µs a tick | 26 µs | 44.8 %, then 60.0 % and 59.8 % idle |
+
+Ten meter readings a second apart: popup open 60, 56, 56, 60, 60, 60, 45, 45, 45, 45 %; popup closed 42, 42, 57, 57, 59, 53, 53, 57, 57, 57 %. The meter swings between about 41 % and 60 % in both states, so the popup's cost is its draw hook: about 1 ms in each of 61 UI ticks a second, 6.0-6.4 % of the CPU, with or without encoder turns. The base's own tick chain, the other draw hooks and the module tick did not grow. Lowering it would mean drawing the popup with byte-wide fills instead of a call per pixel, or only when it changes; not done here.
 
 ## Load without the module
 
@@ -41,7 +53,7 @@ The frame interrupt stayed at 26.3 % of the CPU in all three windows, its longes
 | No module, playing | 52.8–60.4 % | 62.4 % | 30.5 % |
 | Beat Slicer, playing, re-slice committed in the window | 51.2–55.7 % | 70.6 % | 30.5 % |
 
-## The exact beta base (40 s trial)
+## Trial 3: the exact beta base (40 s)
 
 Afterwards the exact beta base `903f8ed6…` (`npm run octatrack:base -- --beta`, the base #992 ships) was RAM-booted from the twin. It does not answer development requests, so no panel steps or cost readouts ran on it. A 40 s timed trial of the same package ran (the module's tick reported its idle value every second), the base self-test passed with modules 1/1 intact, and the rollback left the inventory empty with the base's own identity active.
 
