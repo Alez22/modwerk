@@ -20,6 +20,12 @@ Beat Slicer allows users to record audio freely without having to determine the 
 
 Recording duration remains subject to available recorder memory, and a grid can contain at most 64 slices. A final fragment shorter than the stock 64-frame minimum is included in the preceding slice. The grid is anchored at trim start; for the workflow above, retain the original downbeat as that start. Choose SAMPLE BPM after entering the recording's original BPM in ATTR, or PROJECT BPM if it matches that original tempo.
 
+**Time-stretch when using PROJECT BPM:** the chosen BPM determines grid spacing;
+stock playback still follows the track's time-stretch setting and sample ATTR
+BPM. If the sample and project tempos differ, turn off track time-stretch or
+set the sample ATTR BPM to the audio's actual recorded tempo to avoid
+unintended stretching. Beat Slicer does not change those playback settings.
+
 ## Public-beta candidate and compatibility
 
 The author approves **0.1.66-experimental** for public-beta review. The identical module package passed its MKII self-test alone and with fifteen companion mods, with Recorder Loop Fix excluded (16 modules total). Hardware playback observations are contributor-reported, and the current no-time-limit RAM trial remains active. This does not publish the module: the shared base/API proposal [#914](https://github.com/repeat98/modwerk/pull/914) and first release still need Modwerk owner review. The draft remains unlisted until that integration is accepted.

@@ -23,12 +23,9 @@ Do not invent future consumers to justify base ownership.
 
 ## Event allocation is unresolved
 
-This snapshot appends `ot_sample_editor_actions` at provisional index 32.
-[MIDI events #857](https://github.com/repeat98/modwerk/pull/857) proposes take
-handlers at 32–34. Both allocations cannot ship together as written. The first
-approved merge establishes the registry; the later proposal must append without
-renumbering published entries. If #857 lands first, this table would follow at
-35. No module package may be released against the provisional allocation.
+This snapshot appends `ot_sample_editor_actions` at provisional index 35,
+following main's MIDI events at indices 32–34 (#857). No module package may be
+released against the provisional allocation.
 The target descriptor test reads the registry index instead of assuming 32.
 This branch is based on main, not stacked on #857 or another module.
 

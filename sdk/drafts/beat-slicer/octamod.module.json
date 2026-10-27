@@ -28,7 +28,8 @@
       "Record for as long as you like. Perform, improvise, or capture live audio without worrying about recording an exact number of bars. Stop recording whenever you are finished, even in the middle of a bar.",
       "Set the original BPM. Enter the tempo at which the audio was recorded so Beat Slicer can calculate the duration of each beat.",
       "Choose the number of beats per slice. For example, selecting 4 beats per slice divides the recording into 4-beat segments. Any remaining audio becomes a shorter final slice.",
-      "Sequence and play back the slices. Trigger the slices at the appropriate beat intervals to reconstruct the original performance, preserving its musical timing without manually trimming the recording."
+      "Sequence and play back the slices. Trigger the slices at the appropriate beat intervals to reconstruct the original performance, preserving its musical timing without manually trimming the recording.",
+      "When using PROJECT BPM with a different sample tempo, turn off track time-stretch or set the sample ATTR BPM to the audio's actual recorded tempo to avoid unintended stretching. Beat Slicer does not change playback settings."
     ]
   },
   "controls": [
@@ -180,7 +181,7 @@
     }
   ],
   "access": {
-    "location": "AED → AMP (SLICE) → YES → CREATE BEAT GRID",
+    "location": "AED \u2192 AMP (SLICE) \u2192 YES \u2192 CREATE BEAT GRID",
     "steps": [
       "Select a file-backed Flex or Static sample, or a completed recorder buffer. Stop recording into the source being edited; playback may continue.",
       "Open AED, press AMP (SLICE), then YES and select CREATE BEAT GRID. The compatible sample-editor base and module are currently under owner review.",
