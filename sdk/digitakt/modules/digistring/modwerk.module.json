@@ -108,7 +108,7 @@
     {
       "name": "LFO destinations",
       "default": null,
-      "doc": "The LFO's destination list shows STRING's names, grouped as STRG.",
+      "doc": "The LFO destination list shows the STRING parameter names, grouped as STRG.",
       "labels": null
     }
   ],
