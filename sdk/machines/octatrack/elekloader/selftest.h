@@ -5,7 +5,8 @@
 #include <stdint.h>
 
 enum { SELFTEST_IDLE, SELFTEST_RUNNING, SELFTEST_PASSED, SELFTEST_FAILED };
-enum { SELFTEST_CONFIGURATION = 1, SELFTEST_TOGETHER, SELFTEST_STRESS, SELFTEST_RESTORE }; /* phases */
+enum { SELFTEST_CONFIGURATION = 1, SELFTEST_TOGETHER, SELFTEST_STRESS, SELFTEST_RESTORE, SELFTEST_CODE }; /* phases; the
+  * install check runs CONFIGURATION (patches, frames), then CODE (the sums) */
 /* failed: what went wrong, bits */
 #define SELFTEST_BROKEN 1u       /* a module's stock-code sites no longer hold its patches */
 #define SELFTEST_REFUSED 2u      /* a set that ran was refused when placed again */
@@ -37,7 +38,8 @@ struct selftest {
 };
 typedef char selftest_size[sizeof(struct selftest) == 96u ? 1 : -1]; /* not a whole number of 64-byte EP0 packets */
 extern volatile struct selftest modwerk_selftest;
-int modwerk_selftest_start(void); /* 1 when it started: stopped, the loader idle */
+int modwerk_selftest_start(void); /* the stress test (the menu's): 1 when it started: stopped, the loader idle */
+int modwerk_selftest_check(void); /* the install check (a sync's): 1 when it started: the loader idle, playing or not */
 void modwerk_selftest_refresh(void); /* the record's "now" fields, before a host reads it */
 void modwerk_selftest_abort(void);
 extern volatile uint32_t modwerk_selftest_key; /* a key the test pressed (code + 1, 0 none): status.c lets it through */

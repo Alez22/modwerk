@@ -906,7 +906,16 @@ static void peek_tick(void)
  * 3. stress: twice, the last batch cleared (its modules back to what the Part runs there, an emptied core left
  *    empty) and placed again at once (uploads and retirements while it all runs);
  * then each track gets back what it ran and its lanes, and STOP. Fails as well on a stall or a loader rejection,
- * error or rollback. NO cancels it (all of that is restored as well). */
+ * error or rollback. NO cancels it (all of that is restored as well).
+ * A sync runs the install check instead (dev.c request 21 with value 2, modwerk_selftest_check; owner, 27 October 2026:
+ * modules are stress-tested in development, and while they play the DSP ledger refuses a pick past a core's allowance
+ * and the frame guard sheds a machine render before the frame interrupt overruns, so a sync need not stress the
+ * musician's pattern, which failed busy patterns on its own). Silent and about a second long, it touches no track, lane,
+ * Part or the transport, so it runs playing or not: every live module's sites hold and the loader is on; the frames keep
+ * coming for half a second, none late; each module's code that sits on a core now is summed there against its package
+ * (code not on a core yet is checked by the receiver's packet checksums when a pick loads it); and a stall, loader
+ * rejection, error or rollback counted meanwhile, or a live module's base feature down this boot, fails it too. Its
+ * record's load fields are the meters at the end, a reading only. */
 #include "selftest.h"
 volatile struct selftest modwerk_selftest;
 #ifdef MODWERK_HOST
@@ -932,7 +941,7 @@ extern volatile uint32_t modwerk_modset_result, modwerk_modset_count; /* modset.
 int dl_placed(unsigned core, unsigned id);        /* manager.c: where id's code sits on core, -1 not placed */
 int dl_sum_start(unsigned core, unsigned offset, unsigned count, uint32_t expected); /* transfer.c: SUM */
 static const uint8_t track_order[8] = {4, 5, 6, 7, 0, 1, 2, 3}; /* core 0's tracks first: it mixes as well */
-static uint8_t chk_id[2][8], batch_ids[8];
+static uint8_t chk_id[2][MODWERK_FX_IDS], batch_ids[8];
 /* The first failure's module: by its effect id (k < MODWERK_FX_IDS), or by its runtime id alone (a module without
  * an effect: k is MODWERK_FX_IDS). */
 static void blame(unsigned k, uint32_t module)
@@ -984,6 +993,7 @@ enum { PLACE, WAIT, HOLD, CODE, CLEAR, EMPTY, RESET };
 static uint8_t st_live[16], st_base[16], st_want[16], st_queue[MODWERK_FX_IDS], st_later[MODWERK_FX_IDS];
 static unsigned st_queued, st_deferred, st_used, st_try, st_slot, st_back, st_batch, st_step, st_ticks, st_round;
 static uint32_t st_counted, st_frames, st_failures, st_reads;
+static int st_install; /* the running test is the install check (a sync's), else the stress test (the menu's) */
 volatile uint32_t modwerk_selftest_key;
 void modwerk_post_key(unsigned code, int pressed); /* boot.c: through the panel's byte ringer */
 static uint8_t st_lanes[8][72];
@@ -1083,12 +1093,15 @@ int modwerk_selftest_start(void)
     for (unsigned tr = 0; tr < 8u; ++tr) for (unsigned b = 0; b < 72u; ++b) st_lanes[tr][b] = LANE(tr)[b];
     st_counted = counted(), st_ticks = st_step = st_back = 0, st_played = 0;
     modwerk_status_fast = 1;
+    st_install = 0;
     t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING, source_frozen = 1; /* the tick presses PLAY */
     return 1;
 }
+static void check_abort(void);
 void modwerk_selftest_abort(void)
 {
     if (modwerk_selftest.state != SELFTEST_RUNNING) return;
+    if (st_install) { check_abort(); return; }
     modwerk_selftest.failed |= SELFTEST_ABORTED;
     modwerk_selftest.phase = SELFTEST_RESTORE, st_ticks = 0;
 }
@@ -1224,7 +1237,7 @@ static void together(volatile struct selftest *t)
     }
     t->phase = SELFTEST_STRESS, st_step = st_round = 0, st_ticks = 0;
 }
-static void selftest_tick(void)
+static void stress_tick(void)
 {
     volatile struct selftest *t = &modwerk_selftest;
     if (t->state != SELFTEST_RUNNING) return;
@@ -1265,6 +1278,83 @@ static void selftest_tick(void)
     if (!taken(st_live) && st_ticks <= 300u) return;
     if (st_played && PLAYING) { if (st_step != 9) press(0x27u), st_step = 9, st_ticks = 0; if (st_ticks < 60u) return; }
     finish();
+}
+/* The install check (above): the patches and the loader at its start, half a second of frames, then the sums. */
+#define FRAMES_TICKS 30u /* half a second of UI ticks for the frames to show they keep coming */
+#define CODE_TICKS 600u  /* ten seconds for the sums at most: a channel never free is not a verdict */
+static void check_finish(void)
+{
+    volatile struct selftest *t = &modwerk_selftest;
+    for (unsigned c = 0; c < 2u; ++c) if (chk_busy[c]) dl_job_release(c), chk_busy[c] = 0;
+    if (counted() != st_counted) t->failed |= SELFTEST_COUNTED;
+    t->gap = dl_frame_gap;
+    if (dl_frame_gap > SELFTEST_FRAME_LIMIT) t->failed |= SELFTEST_LATE;
+    if (modwerk_controller_keybus_lost()) t->failed |= SELFTEST_FEATURE;
+    t->cpu = modwerk_status[0], t->peak[0] = modwerk_status[4], t->peak[1] = modwerk_status[2];
+    t->phase = 0, t->state = t->failed ? SELFTEST_FAILED : SELFTEST_PASSED;
+}
+static void check_abort(void) { modwerk_selftest.failed |= SELFTEST_ABORTED; check_finish(); }
+int modwerk_selftest_check(void)
+{
+    volatile struct selftest *t = &modwerk_selftest;
+    if (t->state == SELFTEST_RUNNING || !dl_publication_idle() || rebinding || picks_in != picks_out) return 0;
+    t->failed = t->ran = t->peak[0] = t->peak[1] = t->cpu = t->done = t->gap = t->culprit = 0;
+    for (unsigned i = 0; i < 16u; ++i) t->culprit_name[i] = 0;
+    for (unsigned i = 0; i < 8u; ++i) t->track[i] = 0;
+    unsigned dsp = 0;
+    chk_n[0] = chk_n[1] = chk_i[0] = chk_i[1] = chk_at[0] = chk_at[1] = chk_busy[0] = chk_busy[1] = 0;
+    for (unsigned k = 0; k < MODWERK_FX_IDS; ++k) {
+        if (!owner[k] || !dl_catalog[k].words) continue;
+        ++dsp;
+        for (unsigned c = 0; c < 2u; ++c) if (dl_placed(c, k) >= 0 && dl_codes[c][k].count) chk_id[c][chk_n[c]++] = (uint8_t)k;
+    }
+    t->modules = modwerk_runtime_active(), t->dsp = dsp, t->intact = modwerk_runtime_intact(), t->total = 1u + chk_n[0] + chk_n[1];
+    if (t->intact != t->modules) t->failed |= SELFTEST_BROKEN, blame(MODWERK_FX_IDS, modwerk_runtime_broken());
+    if (!dl_residency_enabled) t->failed |= SELFTEST_STOPPED; /* a stall shut the loader off this boot */
+    t->done = 1u, st_counted = counted(), st_frames = dl_frames, st_ticks = 0, dl_frame_gap = 0, st_install = 1;
+    t->phase = SELFTEST_CONFIGURATION, t->state = SELFTEST_RUNNING;
+    return 1;
+}
+/* The code on each core, both cores at once, a 256-word chunk a SUM job; 1 while any is left. */
+static int check_sums(volatile struct selftest *t)
+{
+    unsigned left = 0;
+    for (unsigned c = 0; c < 2u; ++c) {
+        if (chk_busy[c]) {
+            int s = dl_job_status(c);
+            if (!s) { left = 1; continue; }
+            dl_job_release(c), chk_busy[c] = 0;
+            if (s < 0) t->failed |= SELFTEST_CORRUPT, blame(chk_id[c][chk_i[c]], 0);
+            if ((chk_at[c] += 256u) >= dl_codes[c][chk_id[c][chk_i[c]]].count) ++chk_i[c], chk_at[c] = 0, t->ran = t->ran + 1, t->done = t->done + 1;
+        }
+        if (chk_i[c] >= chk_n[c]) continue;
+        left = 1;
+        unsigned id = chk_id[c][chk_i[c]], words = dl_codes[c][id].count;
+        int at = dl_placed(c, id);
+        if (at < 0) { ++chk_i[c], chk_at[c] = 0, t->done = t->done + 1; continue; } /* the manager moved it off meanwhile */
+        unsigned n = words - chk_at[c] < 256u ? words - chk_at[c] : 256u;
+        if (dl_publication_idle() && dl_job_status(c) == -2 &&
+            dl_sum_start(c, (unsigned)at + chk_at[c], n, code_sum(c, id, chk_at[c], n, (unsigned)at))) chk_busy[c] = 1;
+    }
+    return (int)left;
+}
+static void check_tick(void)
+{
+    volatile struct selftest *t = &modwerk_selftest;
+    ++st_ticks;
+    if (t->phase == SELFTEST_CONFIGURATION) {
+        if (st_ticks < FRAMES_TICKS) return;
+        if (dl_frames == st_frames) { t->failed |= SELFTEST_STOPPED; check_finish(); return; } /* no SUM on a stopped DSP */
+        t->phase = SELFTEST_CODE, st_ticks = 0;
+        return;
+    }
+    if (check_sums(t) && st_ticks <= CODE_TICKS) return;
+    check_finish();
+}
+static void selftest_tick(void)
+{
+    if (modwerk_selftest.state != SELFTEST_RUNNING) return;
+    if (st_install) check_tick(); else stress_tick();
 }
 #endif
 #ifndef MODWERK_HOST

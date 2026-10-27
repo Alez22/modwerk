@@ -525,10 +525,17 @@ describe('the self-test from Status', () => {
     expect(seen).toContain('testing'); expect(link.getState().status).toBe('ready')
     stop()
   })
+  it('gives a sync the install check', async () => {
+    const { link } = await linked()
+    const started = vi.spyOn(UsbVendorTransport.prototype, 'selftest').mockResolvedValueOnce(record(1)).mockResolvedValueOnce(record(2))
+    expect(await link.selftest()).toBeNull()
+    expect(started.mock.calls[0][0]).toBe('check')
+  })
   it('says why when the base won’t start it', async () => {
     const { link } = await linked()
-    vi.spyOn(UsbVendorTransport.prototype, 'selftest').mockResolvedValue(record(0))
+    const started = vi.spyOn(UsbVendorTransport.prototype, 'selftest').mockResolvedValue(record(0))
     expect(await link.test()).toBe('the Octatrack couldn’t start it; stop playback and try again')
+    expect(started.mock.calls[0][0]).toBe(true) /* Status runs the stress test, a sync the install check */
     expect(link.getState().status).toBe('ready')
   })
 })

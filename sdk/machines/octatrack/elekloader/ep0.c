@@ -402,7 +402,7 @@ uint32_t modwerk_ep0_dispatch(void)
     }
     /* SELFTEST (0xC1, bRequest 21, wValue 1 start or 0 read, wLength 96): dsp.c's self-test (PROJ > MODWERK > SELF
      * TEST), which the site runs on a trial before it is kept; the record either way (selftest.h). */
-    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 1u && !SETUP[3] &&
+    if (r.action == MV_STALL && SETUP[0] == MV_RESULT_TYPE && SETUP[1] == 21 && SETUP[2] <= 2u && !SETUP[3] &&
         SETUP[4] == MODWERK_VENDOR_INTERFACE && !SETUP[5] && (SETUP[6] | SETUP[7] << 8) == sizeof modwerk_selftest) {
 #ifdef MODWERK_SAVED_SET_EXPORT
         if (SETUP[2] && modwerk_saved_set_busy()) return MODWERK_EP0_REFUSE;
@@ -410,7 +410,7 @@ uint32_t modwerk_ep0_dispatch(void)
 #ifdef MODWERK_RUNTIME_VOLATILE_JOURNAL
         if(SETUP[2] && (modwerk_runtime_volatile_busy() || modwerk_volatile_busy(VOLATILE_SERVICE))) return MODWERK_EP0_REFUSE;
 #endif
-        if (SETUP[2]) (void)modwerk_selftest_start();
+        if (SETUP[2]) (void)(SETUP[2] == 2u ? modwerk_selftest_check() : modwerk_selftest_start()); /* 2: the install check */
         modwerk_selftest_refresh();
         for (unsigned i = 0; i < sizeof modwerk_selftest; ++i) out[i] = ((const volatile uint8_t *)&modwerk_selftest)[i];
         modwerk_ep0_reply = out;

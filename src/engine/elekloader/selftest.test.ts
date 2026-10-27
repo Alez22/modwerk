@@ -7,8 +7,8 @@ const record = (state: number, failed = 0, done = 0, total = 4, saved = 7, saved
     frameGap: 48000, saved, savedCount, live: 2, culprit: 0, culpritName: '', refusal: 0 })
 /** A unit whose self-test answers `states` in turn, the first to the start request. */
 function unit(states: (SelftestRecord | undefined)[]) {
-  const calls: boolean[] = []
-  return { calls, selftest: async (start: boolean) => { calls.push(start); return states[Math.min(calls.length - 1, states.length - 1)] } }
+  const calls: (boolean | 'check')[] = []
+  return { calls, selftest: async (start: boolean | 'check') => { calls.push(start); return states[Math.min(calls.length - 1, states.length - 1)] } }
 }
 
 describe('the base self-test as the update stress test', () => {
@@ -31,6 +31,18 @@ describe('the base self-test as the update stress test', () => {
   it('asks for a power cycle when the DSP stopped, naming no module', async () => {
     const stopped = { ...record(3, 4 | 128), culpritName: 'Euclid' }
     expect(await runSelftest(unit([record(1), stopped]), { pollMs: 0 })).toBe('the Octatrack’s DSP stopped; switch the Octatrack off and on, then sync again')
+  })
+  it('asks a sync’s base for the install check, and a base from before it for the stress test', async () => {
+    const check = unit([record(1), record(2)])
+    expect(await runSelftest(check, { pollMs: 0, check: true })).toBeNull()
+    expect(check.calls).toEqual(['check', false])
+    const older = unit([undefined, record(1), record(2)]) // stalls value 2, starts on 1
+    expect(await runSelftest(older, { pollMs: 0, check: true })).toBeNull()
+    expect(older.calls).toEqual(['check', true, false])
+    const busy = unit([record(0), record(1), record(2)]) // the loader still publishing: retried as the check
+    expect(await runSelftest(busy, { pollMs: 0, startMs: 1000, check: true })).toBeNull()
+    expect(busy.calls).toEqual(['check', 'check', false])
+    expect(await runSelftest(unit([record(0)]), { pollMs: 0, startMs: 0, check: true })).toMatch(/finished loading/)
   })
   it('says when it cannot start (playing, or the loader busy)', async () => {
     expect(await runSelftest(unit([record(0)]), { pollMs: 0, startMs: 0 })).toMatch(/stop playback/)

@@ -331,11 +331,12 @@ export class UsbVendorTransport implements UploadTransport {
     }
     return parseDeviceLog(data)
   }
-  /** The unit's self-test: start it (`start`), or read where it stands. Answered by the USB interrupt; undefined
-   * when the base stalls the request (one built before the self-test). */
-  async selftest(start: boolean, signal?: AbortSignal): Promise<SelftestRecord | undefined> {
+  /** The unit's self-test: start the stress test (`true`) or the install check (`'check'`), or read where it stands.
+   * Answered by the USB interrupt; undefined when the base stalls the request (one built before the self-test, or,
+   * for `'check'`, before the install check). */
+  async selftest(start: boolean | 'check', signal?: AbortSignal): Promise<SelftestRecord | undefined> {
     signal?.throwIfAborted()
-    const reply = await this.device.controlTransferIn(this.setup(VENDOR_SELFTEST, start ? 1 : 0), SELFTEST_BYTES)
+    const reply = await this.device.controlTransferIn(this.setup(VENDOR_SELFTEST, start === 'check' ? 2 : start ? 1 : 0), SELFTEST_BYTES)
     signal?.throwIfAborted()
     if (reply.status === 'stall') return undefined
     if (reply.status !== 'ok' || !reply.data) throw new VendorTransportError('The device did not answer the self-test request.')

@@ -1,5 +1,9 @@
-// The Octatrack base's self-test (PROJ > MODWERK > SELF TEST; sdk/machines/octatrack/elekloader/dsp.c), run by the site
-// on a trial before it is kept, with the pattern playing and the effects' knobs moving: every module intact and
+// The Octatrack base's self-tests (sdk/machines/octatrack/elekloader/dsp.c). A sync runs the install check on a trial
+// before it is kept (`check`): silent and about a second long, it touches no track or the transport and measures no
+// load (every module's patches hold, the DSPs' frames keep coming, each module's code on a core sums as its package),
+// since modules are stress-tested in development and the runtime guards load (owner, 27 October 2026). A base from
+// before it stalls that start, and the stress test runs instead, as it did. The stress test is PROJ > MODWERK > SELF
+// TEST, and Status's own test: with the pattern playing and the effects' knobs moving: every module intact and
 // running, never all at once but as many at a time as the ledger allows (no such combination may take a core or
 // the CPU past 90 %), and a stress round. A module the Part's own effects crowd off a core runs on the other core, or
 // on a core with those effects briefly taken off; it fails (bit 7) only when neither core holds it even then. About 3 s
@@ -44,7 +48,7 @@ export async function waitUntilSaved(transport: SelftestTransport, options: { si
   return false
 }
 
-export interface SelftestTransport { selftest(start: boolean, signal?: AbortSignal): Promise<SelftestRecord | undefined> }
+export interface SelftestTransport { selftest(start: boolean | 'check', signal?: AbortSignal): Promise<SelftestRecord | undefined> }
 
 const wait = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
   const timer = setTimeout(resolve, ms)
@@ -56,16 +60,19 @@ const wait = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, r
  * shortcut: a base without the self-test (it stalls the request) passes untested, as updates were before; refuse
  * those once every published base has it. */
 export async function runSelftest(transport: SelftestTransport, options: { signal?: AbortSignal; pollMs?: number; timeoutMs?: number;
-  startMs?: number; progress?: (done: number, total: number) => void; record?: (record: SelftestRecord) => void } = {}): Promise<string | null> {
+  startMs?: number; progress?: (done: number, total: number) => void; record?: (record: SelftestRecord) => void; check?: boolean } = {}): Promise<string | null> {
   const { signal, pollMs = 500, timeoutMs = 180_000, startMs = 3000, progress } = options
-  let record = await transport.selftest(true, signal)
+  let begin: boolean | 'check' = options.check ? 'check' : true
+  let record = await transport.selftest(begin, signal)
+  if (!record && begin === 'check') record = await transport.selftest(begin = true, signal) /* a base before the install check */
   for (const start = Date.now(); record && record.state !== 1 && Date.now() - start < startMs;) {
     await wait(pollMs, signal)
-    record = await transport.selftest(true, signal)
+    record = await transport.selftest(begin, signal)
   }
   if (!record) return null
   options.record?.(record)
-  if (record.state !== 1) return 'the Octatrack couldn’t start it; stop playback and try again'
+  if (record.state !== 1) return begin === 'check' ? 'the Octatrack couldn’t start it; wait until it has finished loading and try again'
+    : 'the Octatrack couldn’t start it; stop playback and try again'
   for (const start = Date.now(); record.state === 1; ) {
     progress?.(record.done, record.total)
     if (Date.now() - start > timeoutMs) return 'it took too long'
