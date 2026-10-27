@@ -1,0 +1,14 @@
+[
+  {
+    "version": "0.1.66-experimental",
+    "date": "2026-10-27",
+    "changes": [
+      "New: CREATE BEAT GRID in the AED SLICE menu. It slices a Flex or Static sample, or a finished recorder buffer, into equal beats from the trim start, so a recording no longer has to be planned or trimmed to an exact number of bars.",
+      "Choose SAMPLE BPM (the sample's ATTR tempo) or PROJECT BPM with encoder A, and 1, 2, 4, 16, 32 or 64 beats per slice with encoder B. A grid holds up to 64 slices; a last part shorter than 64 frames joins the slice before it.",
+      "Works while the pattern plays. Only recording into the buffer you are editing blocks that buffer. YES opens the Octatrack's own CREATE or REPLACE SLICES confirmation; clear slices with the stock DELETE commands. Nothing is saved for you.",
+      "Needs the Modwerk base loaded over USB, which is in the beta. Card firmware cannot include it.",
+      "Known issue: Recorder Loop Fix 0.1.0 can make slice 1 of a recorder buffer miss, also with the stock CREATE SLICE GRID and without Beat Slicer (sambanks/octabam#908), so the configurator does not offer the two together.",
+      "Not yet tested: the MKI, and slices kept through a project save and a power cycle. Grid placement is exact, but no clicks are smoothed at slice boundaries."
+    ]
+  }
+]

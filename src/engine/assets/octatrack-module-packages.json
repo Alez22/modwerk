@@ -466,6 +466,28 @@
       "requires": 0,
       "claims": 1,
       "entries": 1
+    },
+    {
+      "id": "beat-slicer",
+      "sources": [
+        "sdk/octabam/modules/beat-slicer/device_module.c",
+        "sdk/octabam/modules/beat-slicer/device_font.c",
+        "sdk/octabam/modules/beat-slicer/grid_preview.c"
+      ],
+      "subscribe": [
+        "ot_sample_editor_actions:bs_sample_action:50"
+      ],
+      "version": "0.1.66-experimental",
+      "path": "octatrack-modules/beat-slicer/0.1.66-experimental.mwrm",
+      "abi": 8,
+      "features": 128,
+      "sites": 0,
+      "copies": 0,
+      "fills": 0,
+      "name": "beat-slicer",
+      "module": "c8d078f2",
+      "bytes": 5780,
+      "sha256": "6650ef77a837a61a570a300c3bd0b2d4dfd4c9bed6e52bb355034d39bf5ff90d"
     }
   ]
 }

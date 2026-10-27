@@ -267,7 +267,10 @@ def main():
     catalog_documents = {module['id']: json_file(sdk / 'modules' / module['id'] / 'octamod.module.json') for module in catalog['modules']}
     for module in catalog['modules']:
         if catalog_documents[module['id']]['version'] != module['version']: parser.error('Stale catalog module version: ' + module['id'])
-    buildable = [module for module in catalog['modules'] if catalog_documents[module['id']].get('build', {}).get('status') != 'pending']
+    # A C runtime module (its USB package row has "sources") has no card form: src/catalog/usb-only.ts.
+    usb_only = {row['id'] for row in json_file(APP / 'src/engine/assets/octatrack-module-packages.json')['packages'] if row.get('sources')}
+    buildable = [module for module in catalog['modules'] if catalog_documents[module['id']].get('build', {}).get('status') != 'pending'
+                 and module['id'] not in usb_only]
     try:
         approved_requested = requested_release_scope([module['id'] for module in buildable])
     except ValueError as error:
