@@ -54,7 +54,7 @@ function visitor() {
   } catch {return null}
 }
 /** After consent, the only outbound fields are a closed event name, two random identifiers and, for builds and downloads,
- * which of the three building machines it was. Page views may name a fixed page key. Never pass build/configuration data. */
+ * which supported building machine it was. Page views may name a fixed page key. Never pass build/configuration data. */
 export function trackUsage(event: UsageEvent, device?: UsageDevice) { sendUsage(event, device ? {device} : {}) }
 function sendUsage(event: UsageEvent, dimensions: {device?: UsageDevice; page?: string}) {
   if(!usageAllowed()){if(anonymousCountsAllowed())countAnonymously({event,...dimensions});return}

@@ -33,6 +33,12 @@ The legacy `page-not-found` bucket mixed missing pages with valid routes, includ
 
 The existing opt-out, DNT/GPC, origin checks, omitted credentials/referrer and abuse limits apply. Opted-in event retries update global and page counts atomically and only once, even if a retry changes its page. The bilingual notice and usage-consent version are updated; existing opt-ins require a new choice for the expanded payload. Apply the migration and deploy the Worker before the frontend; older identifier-free clients can still send unnamed views, and the dashboard supports older responses.
 
+## Machine attribution
+
+Migration `0083_usage_machine_coverage.sql` preserves existing machine totals and expands the closed machine enum to Digitakt II and Analog Rytm MKII. Apply it before deploying the Worker, then publish the frontend. Local build outcomes count even when a research machine's download gate is closed; counting must never change release approval or download availability.
+
+Admin shows an Unattributed row equal to the selected period's overall build/failure/download totals minus their named machine totals. This includes old clients and pre-breakdown events; never backfill them into a guessed machine. `machineCoverageExpanded` records the migration boundary, whose first day is partial. Earlier zeros on newly covered machines do not establish inactivity. When adding a build-capable machine, update the usage enum, database constraint, builder/download callers and coverage tests together.
+
 ## Community invitation responses
 
 The administrator dashboard shows separate totals for the signed-in member and signed-out visitor invitations: shown, Join Discord, Create account (visitors only) and dismissed. The inline signup welcome has a separate Join Discord total; its optional Ko-fi link contributes to the existing support-link total. New signup invitation markers suppress the member popup and do not count as impressions. Dismissal includes the close button, the explicit dismissal action and Escape. Migration `0054_discord_invitation.sql` adds the daily and hourly counters and their collection boundary. These are action counts; a link click does not confirm account creation or Discord membership. Local modal and welcome previews do not count. They use the same existing reporting preferences, browser privacy signals, credential-free requests and retention as other usage counts; no account ID or Discord identity is sent with the action.
