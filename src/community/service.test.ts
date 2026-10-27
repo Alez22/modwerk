@@ -722,6 +722,15 @@ it('retains the first approved addition date when a community module is updated'
  expect((await (await call('/catalog')).json())[0]).toMatchObject({ title: 'Version two', reviewed_at: '2026-10-02 12:00:00', added_at: '2026-10-01T12:00:00Z', updated_at: '2026-10-02T12:00:00Z' })
 })
 
+it('protects the first-reply queue with the administrator boundary and validates its filters',async()=>{
+ const {call,admin}=await fixture()
+ expect((await call('/admin/unanswered-threads')).status).toBe(403)
+ expect((await call('/admin/unanswered-threads','GET',undefined,'',undefined,admin)).status).toBe(200)
+ const empty=await(await call('/admin/unanswered-threads','GET',undefined,'',undefined,admin)).json()
+ expect(empty).toMatchObject({total:0,page:1,pageSize:10,category:'all',order:'oldest',threads:[]})
+ for(const query of ['category=unknown','order=title','page=0'])expect((await call('/admin/unanswered-threads?'+query,'GET',undefined,'',undefined,admin)).status).toBe(400)
+})
+
 describe('usage breakdowns: failed builds, machines and weekly module trends',()=>{
  it('counts consented builds, failures and downloads per machine once per event and reports them to administrators',async()=>{
   const {call,db,admin}=await fixture(),failed={...usageEvent('build_failed'),device:'digitakt'}
