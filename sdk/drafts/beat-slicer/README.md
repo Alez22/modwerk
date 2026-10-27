@@ -34,7 +34,10 @@ Fix. On 27 October, a new event-35 build passed a singleton self-test and the
 contributor reported flawless slicing, re-slicing and playback with Flex file
 slots, Static file slots and a completed recorder buffer, across more than 20
 minutes overall. The exact build, settings and limits are in [TESTING.md](TESTING.md).
-The private helper later lost USB; final Undo is unverified. This does not publish the module:
+The author later powered off and unplugged USB, then reported Beat Grid absent
+and the other modules restored on the next power-on. A subsequent fresh trial
+of the identical private build passed self-test and USB Undo, with the exact
+empty RAM baseline independently verified. The interrupted run remains separate. This does not publish the module:
 the shared base/API proposal [#914](https://github.com/repeat98/modwerk/pull/914)
 and first release still need Modwerk owner review. The draft remains unlisted
 until that integration is accepted.
@@ -258,7 +261,7 @@ Neither revision is a released module or qualified for Keep/save/persistence.
 
 ## Approved 0.1.63 layout
 
-The owner approved this design on 25 October 2026. The nearly full-height
+The module author approved this design on 25 October 2026. The nearly full-height
 CREATE BEAT GRID popup uses a dashed two-row, three-column control form.
 Function labels and values are centered: BPM selects SAMPLE/PROJ and BEATS
 selects spacing; unused fields are blank. The right summary is centered
