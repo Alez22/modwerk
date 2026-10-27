@@ -127,7 +127,7 @@ def main():
     # A C runtime module: its row's "sources" and "subscribe" go to build.py as they are. It has no card form
     # (src/catalog/usb-only.ts). build.py takes its id and unit name from the output's stem, so build at <id>.mwrm.
     # Here, not in the builder, whose source the base pins.
-    sourced, tools = builder.build, builder.tools
+    sourced, tools = getattr(builder, 'build', None), getattr(builder, 'tools', None)
     def c_build(entry, out, *args, **kwargs):
         if not entry.get('sources'):
             return sourced(entry, out, *args, **kwargs)
@@ -137,8 +137,9 @@ def main():
                        check=True, capture_output=True, text=True, cwd=APP)
         out.write_bytes(named.read_bytes())
         return out.read_bytes()
-    builder.build = c_build
-    builder.tools = lambda entry, upstream: bool(shutil.which('m68k-elf-gcc')) if entry.get('sources') else tools(entry, upstream)
+    if sourced and tools:
+        builder.build = c_build
+        builder.tools = lambda entry, upstream: bool(shutil.which('m68k-elf-gcc')) if entry.get('sources') else tools(entry, upstream)
     # The qualified builder's JSON:KEY syntax predates Windows drive letters.
     # Use its documented relative-path form, without altering any base input.
     builder.DSP = builder.DSP.relative_to(APP)
