@@ -1,6 +1,5 @@
 | SPDX-License-Identifier: MIT
-| SPDX-FileCopyrightText: 2026 Zac-Kyoti
-    .cpu 5407
+| SPDX-FileCopyrightText: 2026 Zac Kyoti
     .text
 | =====================================================================
 |  SIDE-CHAIN COMPRESSOR  --  step 1 of 4: menu only (the DSP still
@@ -32,6 +31,63 @@
 |      0(%sp) = return addr   4(%sp) = buf   8(%sp) = value
 |  Convention: %d0/%d1/%a0/%a1 are scratch; %d2+ must be preserved
 |  (FUN_4003c7a0 saves %d2), so this routine touches only %d0/%d1/%a1.
+| key_step: KEY's step handler (descriptor P+0x12a + 4*8). Stock's generic handler
+|  (0x4003240c) multiplies a turn by 7 while the encoder is held down; this one asks the
+|  unscaled tally (0x4003249c, as stock's SRC SETUP editor does) for the steps and adds them
+|  to the value, so a pressed turn moves KEY one position per detent, like a plain one.
+|  handler(enc, delta, value) -> new value (the caller clamps it). d0/d1/a0/a1 only.
+    .equ STEP_TALLY, 0x4003249c
+
+    .balign 2
+    .global key_step
+key_step:
+    move.l  8(%sp),-(%sp)               | delta
+    move.l  8(%sp),-(%sp)               | enc
+    jsr     STEP_TALLY
+    addq.l  #8,%sp
+    add.l   12(%sp),%d0                 | + the current value
+    rts
+
+    .equ FMT_ONOFF, 0x4003c14c          | stock "OFF" / "ON"
+    .equ SWITCH_FN, 0x40046f10          | stock 2-position switch, (.., value at 16(%sp), ..)
+
+    .balign 2
+    .global mon_step
+mon_step:                               | as key_step, then kept on 2..3
+    move.l  8(%sp),-(%sp)
+    move.l  8(%sp),-(%sp)
+    jsr     STEP_TALLY
+    addq.l  #8,%sp
+    add.l   12(%sp),%d0
+    moveq   #2,%d1
+    cmp.l   %d1,%d0
+    bge.s   ms_lo
+    move.l  %d1,%d0
+ms_lo:
+    moveq   #3,%d1
+    cmp.l   %d1,%d0
+    ble.s   ms_hi
+    move.l  %d1,%d0
+ms_hi:
+    rts
+
+    .balign 2
+    .global mon_fmt
+mon_fmt:
+    moveq   #1,%d0
+    and.l   8(%sp),%d0
+    move.l  %d0,8(%sp)                  | bit 0: 2 -> OFF, 3 -> ON
+    jmp     FMT_ONOFF
+
+    .balign 2
+    .global mon_widget
+mon_widget:
+    moveq   #1,%d0
+    and.l   16(%sp),%d0
+    move.l  %d0,16(%sp)                 | bit 0: 2 -> left, 3 -> right
+    jmp     SWITCH_FN
+
+    .balign 2
     .global key_fmt
 key_fmt:
     move.l  4(%sp),%a1             | a1 = buf
@@ -61,39 +117,111 @@ kf_fmt:
     .asciz  "T%d"
 
 | =====================================================================
-|  KEY FLT formatter  --  step 3 scaffolding (DSP filter not built yet).
-|  Bipolar key-filter select on COMPRESSOR page 2:
-|      < 64  ->  "LP"   (low-pass -- isolate a kick from a full loop)
-|      = 64  ->  "OFF"
-|      > 64  ->  "HP"   (classic detector high-pass)
-|  Type only for now; the cutoff number is added once the DSP filter's
-|  value->Hz mapping is fixed.  A-array callback: void fmt(buf, value).
+|  Page 2 since the major version (2026-10-19): RMS · MON · KEY · KGN · KBAS · KWID.
+|
+|  MON (slot 7): 2 = OFF (left), 3 = ON (right), default 2. 0 and 1 are what a compressor
+|  saved before holds (stock's hidden 1, or the inverted MON of 2026-10-19..25), so sc_norm
+|  turns them into OFF. The count is 4 (octabam writes min 0); mon_step keeps a turn on 2..3,
+|  and mon_fmt / mon_widget show bit 0 (the switch reads the raw value: 2 = left).
+|
+|  hp_fmt: KBAS, the HP's frequency on the DSP's grid f = 20 Hz * 2^(g/16)
+|  (tools/sc_keyfilt.py): 0 = OFF, n = g round((n-1) * 159/126). Shown as "20".."990",
+|  "1.0k".."9.9k", "10k".."19k" (4 characters at most). F10 = f * 10 =
+|  200 * 2^(g/16) = (200 * HZT[g & 15]) >> (15 - g/16), HZT[i] = 2^(i/16) * 32768.
+|  lp_fmt: KWID, the LP's distance above KBAS in octaves, "0.5".."9.9", 127 = OFF:
+|  tenths = round(5 + m * 151/126 * 10/16) = (3068 m + 22528) >> 12 (equal for every m).
+|  A-array callbacks: void fmt(char *buf, int value). d0/d1/a0/a1 only.
 | =====================================================================
     .balign 2
-    .global kfilt_fmt
-kfilt_fmt:
-    move.l  4(%sp),%a1             | a1 = buf
-    move.l  8(%sp),%d0             | d0 = value 0..127
-    cmpi.l  #64,%d0
-    blt.b   kfl_lp
-    beq.b   kfl_off
-    move.l  #kfl_hp_s,%d1
-    bra.b   kfl_go
-kfl_lp:
-    move.l  #kfl_lp_s,%d1
-    bra.b   kfl_go
-kfl_off:
-    move.l  #S_OFF,%d1
-kfl_go:
-    move.l  %d1,8(%sp)            | arg2 := "LP" / "HP" / "OFF"
-    move.l  %a1,4(%sp)           | arg1 := buf
-    jmp     SPRINTF
+    .global hp_fmt
+hp_fmt:
+    move.l  8(%sp),%d0
+    beq.w   hz_off
+    subq.l  #1,%d0
+    mulu.w  #323,%d0
+    addi.l  #128,%d0
+    lsr.l   #8,%d0                      | g = round((n - 1) * 159 / 126)
+    bra.s   hz_go
 
     .balign 2
-kfl_lp_s:
-    .asciz  "LP"
-kfl_hp_s:
-    .asciz  "HP"
+    .global lp_fmt
+lp_fmt:
+    move.l  8(%sp),%d1
+    cmpi.l  #127,%d1
+    beq.w   hz_off
+    mulu.w  #3068,%d1
+    addi.l  #22528,%d1
+    moveq   #12,%d0
+    lsr.l   %d0,%d1                     | tenths of an octave
+    movea.l 4(%sp),%a1                  | buf
+    lea     wd_d,%a0
+    bra.s   hz_tenths
+hz_go:
+    move.l  %d0,%d1
+    andi.l  #15,%d1
+    lea     hzt,%a0
+    move.w  (0,%a0,%d1.l*2),%d1         | HZT[g & 15]
+    mulu.w  #200,%d1                    | 200 * HZT (< 2^24)
+    lsr.l   #4,%d0                      | octave 0..9
+    neg.l   %d0
+    addi.l  #15,%d0
+    lsr.l   %d0,%d1                     | d1 = F10 = 10 * f
+    movea.l 4(%sp),%a1                  | buf
+    cmpi.l  #10000,%d1
+    bcc.s   hz_k
+    addq.l  #5,%d1
+    divu.w  #10,%d1
+    andi.l  #0xffff,%d1                 | f in Hz
+    move.l  %d1,-(%sp)
+    pea     hz_d
+    bra.s   hz_print2
+hz_k:
+    cmpi.l  #100000,%d1
+    bcc.s   hz_kk
+    addi.l  #500,%d1
+    divu.w  #1000,%d1
+    andi.l  #0xffff,%d1                 | tenths of a kHz
+    lea     hz_dk,%a0
+hz_tenths:                              | d1 = tenths, a0 = "%d.%d..." format, a1 = buf
+    divu.w  #10,%d1                     | low word units, high word tenths
+    move.l  %d1,%d0
+    swap    %d0
+    andi.l  #0xffff,%d0
+    move.l  %d0,-(%sp)
+    andi.l  #0xffff,%d1
+    move.l  %d1,-(%sp)
+    move.l  %a0,-(%sp)
+    move.l  %a1,-(%sp)
+    jsr     SPRINTF
+    lea     16(%sp),%sp
+    rts
+hz_kk:
+    addi.l  #5000,%d1
+    move.l  #10000,%d0
+    divu.l  %d0,%d1                     | kHz (F10 / 10000, F10 < 2^18)
+    move.l  %d1,-(%sp)
+    pea     hz_k1
+hz_print2:
+    move.l  %a1,-(%sp)
+    jsr     SPRINTF
+    lea     12(%sp),%sp
+    rts
+hz_off:
+    move.l  #S_OFF,%d1
+    move.l  %d1,8(%sp)
+    jmp     SPRINTF                     | sprintf(buf, "OFF"), as key_fmt does
+
+    .balign 2
+hzt:
+    .word   0x8000, 0x85ab, 0x8b96, 0x91c4, 0x9838, 0x9ef5, 0xa5ff, 0xad58, 0xb505, 0xbd09, 0xc567, 0xce25, 0xd745, 0xe0cd, 0xeac1, 0xf525
+hz_d:
+    .asciz  "%d"
+hz_dk:
+    .asciz  "%d.%dk"
+wd_d:
+    .asciz  "%d.%d"
+hz_k1:
+    .asciz  "%dk"
 
 | =====================================================================
 |  KEY list-widget trampoline  --  forces LFO TRIG's own B-callback
@@ -243,16 +371,25 @@ sn_lane:
     movea.l (%sp)+,%a1
     rts
 
-| a1 -> a page-2 block (slot 6).  KEY > 8 -> KEY 0, KFLT 64, KGN 64, MON 0.
+| a1 -> a page-2 block (slot 6).  KEY > 8 -> the major version's defaults: MON OFF (2),
+| KEY OFF, KGN 64, KBAS OFF (0), KWID OFF (127).  KEY 0..8 is the user's own setting; only a
+| MON other than 2/3 (saved before 2026-10-25) is set OFF.
 sn_fix:
     moveq   #0,%d1
     move.b  (2,%a1),%d1
     cmpi.l  #8,%d1
-    bls.s   sn_done                     | 0..8: the user's own setting
-    moveq   #64,%d1
+    bhi.s   sn_reset
+    move.b  (1,%a1),%d1
+    subq.l  #2,%d1
+    cmpi.l  #1,%d1
+    bls.s   sn_done                     | 2 or 3: this version's MON
+    move.b  #2,(1,%a1)
+    rts
+sn_reset:
+    move.b  #2,(1,%a1)
     clr.b   (2,%a1)
-    move.b  %d1,(3,%a1)
-    move.b  %d1,(4,%a1)
-    clr.b   (5,%a1)
+    move.b  #64,(3,%a1)
+    clr.b   (4,%a1)
+    move.b  #127,(5,%a1)
 sn_done:
     rts

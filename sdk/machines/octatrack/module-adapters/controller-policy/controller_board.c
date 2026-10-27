@@ -292,7 +292,7 @@ static uint32_t page_stage(const struct mw_controller_binding *b, uint8_t saved[
     uintptr_t exec = (uintptr_t)EXEC_ALIAS(b->canonical_extent) + b->image_offset;
     const uint8_t *r = (const uint8_t *)exec; uint32_t n = b->image_bytes, at = 44u;
     if (n < at || r[0] != 'M' || r[1] != 'W' || r[2] != 'P' || r[3] != 'P' || r[4] != 1u ||
-        r[5] > 64u || r[6] > 16u || r[7] > 8u) return 0;
+        r[5] > 64u || r[6] > 16u || r[7] > 16u) return 0;
     uint32_t donor = be32(r + 8); uint8_t digest[MU_DIGEST_BYTES];
     if (donor < PAGE_LOW || donor > PAGE_HIGH - PAGE_BYTES || (donor & 1u)) return 0;
     const volatile uint8_t *d = DONOR(donor);
