@@ -53,6 +53,12 @@ Community health shows open/resolved issues, reports waiting at least seven days
 
 Issue links open the existing private inbox, with per-module links selecting open reports for that module. Optional `moduleId` and `status=all|open|closed` filters are bound and applied on the server before the existing 200-report limit. The UI explains when that limit is reached. Refresh updates usage and community reads together; an independent source failure does not replace unavailable counts with zero. Returning from moderation reloads current statistics.
 
+### Following up unanswered discussions
+
+The existing first-reply list starts with the oldest open, unlocked member discussions waiting more than 48 hours. Category and oldest/newest filters, ten-row pagination and a refresh control cover the whole backlog. Automatic module threads, hidden threads, and threads answered visibly by someone other than their author are excluded; the author's own replies and hidden replies do not answer them.
+
+`GET /api/admin/unanswered-threads?page=1&category=all&order=oldest` uses the same server-verified administrator boundary. Category filters use the forum's effective category, `COALESCE(section,category)`, because newer sections retain `general` underneath. Categories and sort values are closed enums, pages are bounded and clamped when the backlog shrinks, and ties sort by thread ID. The response contains public thread IDs/titles and waiting dates, never author identities or post bodies. Queue requests do not reload activity charts or change their headline totals. Use the refresh control after replying.
+
 ## Privacy and authorization
 
 The `#privacy` page lets visitors turn counts off on their device. Do Not Track and Global Privacy Control suppress reporting before an identifier is created. Storage failures also suppress reporting; network failures never block configuration or firmware work. The request omits cookies, guest/admin session headers and referrers.

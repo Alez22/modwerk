@@ -207,7 +207,7 @@ export default function App() {
   const hubView: HubView = route === 'configuration' ? 'set' : (['backups', 'samples', 'setup'] as const).find(view => route === 'octatrack/' + view) ?? 'status'
   useEffect(() => {
     // Wait for access/catalog resolution; redirecting unit routes do not render a page.
-    if (!sessionLoading && !(route.startsWith('octatrack') && !betaUi)) trackPageView(route, missingRoute && !pausedModule)
+    if (!sessionLoading && !((route === 'octatrack' || route.startsWith('octatrack/')) && !betaUi)) trackPageView(route, missingRoute && !pausedModule)
   }, [route, sessionLoading, betaUi, missingRoute, pausedModule])
   const octatrackRoute = hubRoute || route === 'library' || route === 'configuration' || route === 'module-sets' || route.startsWith('module') || LIBRARY_CATEGORIES.includes(route as typeof LIBRARY_CATEGORIES[number])
   // The selected machine follows library routes and is remembered for the rest of the app.
