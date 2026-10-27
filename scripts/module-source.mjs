@@ -38,14 +38,14 @@ export async function moduleSourceFingerprint(root) {
 /** Verified firmware package scope. Pending catalog imports remain bound by the full source inventory. */
 export async function compiledModuleVersions(root, catalog) {
   const versions = {}, seen = new Set()
-  // A C runtime module (its USB package row has "sources") has no card form, as in scripts/build-module-packages.py.
-  const usbOnly = new Set(JSON.parse(await readFile(resolve(root, 'src/engine/assets/octatrack-module-packages.json'), 'utf8')).packages.filter(row => row.sources).map(row => row.id))
   for (const module of catalog.modules) {
     if (!/^[a-z][a-z0-9-]*$/.test(module.id) || seen.has(module.id)) throw new Error('Invalid catalog module id: ' + module.id)
     seen.add(module.id)
     const document = parseModuleDocument(JSON.parse(await readFile(resolve(root, 'sdk/octabam/modules', module.id, 'octamod.module.json'), 'utf8')))
     if (document.id !== module.id || document.version !== module.version) throw new Error('Stale catalog module version: ' + module.id)
-    if (document.build?.status !== 'pending' && !usbOnly.has(module.id)) versions[module.id] = module.version
+    if (document.build?.status !== 'pending') versions[module.id] = module.version
   }
+  // A C runtime module (its USB package row has "sources") has no card form, as in scripts/build-module-packages.py.
+  for (const row of JSON.parse(await readFile(resolve(root, 'src/engine/assets/octatrack-module-packages.json'), 'utf8')).packages) if (row.sources) delete versions[row.id]
   return versions
 }
