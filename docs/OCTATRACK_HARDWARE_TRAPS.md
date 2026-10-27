@@ -542,7 +542,7 @@ catalogue module patches or keeps (`catalogue_overlaps`).
 at that exact instruction. MCF54455 rejects scale-eight and word-sized indexes with address
 errors ([reference manual, 3.3.4.2](https://www.nxp.com/docs/en/reference-manual/MCF54455RM.pdf)).
 The emulator accepted it. Keep the machine SDK's target flags and audit final code; emulator
-execution is not an ISA-compatibility check. Probe qualification history remains
+execution is not an ISA-compatibility check. Probe history is
 in [Beat Slicer's testing record](../sdk/octabam/modules/beat-slicer/TESTING.md).
 
 **GCC 16.2 at -O2 can store one byte late.** Its late-combine pass turned
