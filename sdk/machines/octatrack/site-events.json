@@ -189,6 +189,13 @@
    "index": 35,
    "event": "ev_trig_muted",
    "kind": "raise"
+  },
+  {
+   "index": 36,
+   "event": "ot_sample_editor_actions",
+   "kind": "table",
+   "room": 4,
+   "record": 64
   }
  ]
 }
