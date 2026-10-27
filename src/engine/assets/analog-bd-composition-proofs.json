@@ -4,11 +4,11 @@
   "sourceSha256": "164f31224bf61181e3f50e7dec40df9afcae5b16dbf6e4c0d0cc5e986af0a84e",
   "staticStock": true,
   "builderSources": {
-    "tools/build/build_bus.py": "c70c79b6829e264e881f4a8d0284cb77d070ebe4fcdbbccf633fd33f110a1ac9",
+    "tools/build/build_bus.py": "e9b63f90f186284d523913f131573118c1eb0bddb253d13f685245b7f98be29c",
     "tools/build/ab_image.py": "c4573d4e0715961f7081dc1d5a0639d42ac63313ccc9e50a0737ac0685e2fc14",
     "tools/remix/loader.S": "32e09fd813ddc65511390faaebc3b86d963b2700f304b35cdb1ec48f90449287"
   },
-  "moduleSourceTreeSha256": "d0e41ca6a509d05a3c513844cb48655258ddfe6bb0a4f27cc5d04589d40d48e3",
+  "moduleSourceTreeSha256": "9d62fc34bb690de7e4f0cc697da4bc46ecb30d41dc7a84d27942aee49f0f76e2",
   "packing": null,
   "proofs": [
     {
@@ -5233,15 +5233,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "604f1a673d3887323b7ba753e1923e2ea09eacc200f196d969b8953d2928f718",
-      "osSha256": "b2a06252acdaed5bad035161d7be804b3edfd48b4c14fa6328ca4b39724c357e",
-      "maskedOsSha256": "9274d1557fab16a1587b97a2247ff0f7763e6480b2b1d0b7fe8230407f7a4d94",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "4336f6171b86b4c996b60c616f60f7e84e441fe60c95d177c66a315c16e23d73",
+      "osSha256": "ea21dcf8f3e5b6eb1d7fd99eff5c539a958766ce6c78862bff37e11b2f675cff",
+      "maskedOsSha256": "a7cd16656b6adec19c4b17c4e1994e33f8a65549f612f9ebb927efc7a976e874",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -5267,11 +5267,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "ca0f1f0a72434685d2cc244596881de225848e35a9fe1986713352a7f5731871",
-      "osSha256": "1fef6a0536951944b2b3e9bcb88736405aa5f6f58e33e076b98c2164510294f2",
-      "maskedOsSha256": "0ab5625393a44d24106aa0bc7db2812dd6f4163be4db5c8775ba497dd6757ee8",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "9ec417cd3b0adcf8421adaf2917856edcdc6a99660e5a788b196b8ef44a3e82d",
+      "osSha256": "1f3d0150e48492df680c481f4e4724db9643374bb505b92ca08093b70c7e168d",
+      "maskedOsSha256": "51f9ef611f5d3bffdf5420c0273e7ab3379ca440f68fc8e2f8ecade14e16b5dc",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -5305,16 +5305,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "PLATE REV",
           "MINIVERB"
         ],
         "hidden": []
       },
-      "bytes": 1265994,
-      "sha256": "58724c26df9fe7215fd5f4ade3141a43400066fd51159f175040ac35cf25e208",
-      "osSha256": "dae4789bf9f6a7f7acd8dcd8bd514a13ad961098378b032d7f311aae71fc16fe",
-      "maskedOsSha256": "b662ab88ff6e7dbb25e9c3074391d8905a1b34f6b106ac1ec700c31aa70adafa",
-      "appendSha256": "f243edc7029454cd21eb8eee9ba61610024f9b3a5b9e0714760727d33d12a664"
+      "bytes": 1266025,
+      "sha256": "9d1409c39336eead58c516018214e6ab0bc449e3c23537e452c347f964e7282a",
+      "osSha256": "1732cbec0fa293d3f3ac31201d77ac07b9b3304e0caac9562b8acc1969935fbc",
+      "maskedOsSha256": "78063dce3c7c8bb98a56b4859c7f93fd3169a36239018b7f03513771b0d97445",
+      "appendSha256": "13d1e6db530dcd094c4efc67ef9affd87946b49a6972eada5cd36133ac958e3e"
     },
     {
       "moduleIds": [
@@ -5342,11 +5341,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1265812,
-      "sha256": "2a2c4df4456d336a053d5f22c9a123e15256167e8c1217960c390ec1ccc094c8",
-      "osSha256": "503570f79f26fc780d0d5448b40c25fd4560923ec3aa84ea81b7331ee348d46c",
-      "maskedOsSha256": "20377544b0a88b5eed28c4e89407e4a9922dc4153da432fde10792d0f3c8028c",
-      "appendSha256": "73bc98a032513cd5c77edb12140a502f04eb1ca4e9f9d121a2aae212e8b11eb5"
+      "bytes": 1266025,
+      "sha256": "41e7072010193e70dbb1381253cad184cc97db586cc6cb39fac7d27e61ccd91f",
+      "osSha256": "774108bba6786923929af3c733e084d6d7b3dc1595426f8cf6a64019e881ce11",
+      "maskedOsSha256": "a9b9433e935a746214e08fd0caf70cf1f2d7f25a9b1e987ad6e96d8cca91a265",
+      "appendSha256": "13d1e6db530dcd094c4efc67ef9affd87946b49a6972eada5cd36133ac958e3e"
     },
     {
       "moduleIds": [
@@ -5380,16 +5379,16 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV",
+          "PLATE REV",
           "TAPE ECHO"
         ],
         "hidden": []
       },
-      "bytes": 1368603,
-      "sha256": "5949ebfeef33006bb06eb71d208f58df073b534f28e397d4ee6385db7fa336c7",
-      "osSha256": "e5ecb1c87f64eadd1eaffdae363d3b3ab06e438ac93bf21adb7918081a19a6fc",
-      "maskedOsSha256": "3639869bbcae80fcca86401df5b562675532ce1f428299d0b62db4215d928f79",
-      "appendSha256": "ee0cf3a6f0bd29a48cf592049de09c2073aa21ac308bd9f491aeff7a46c6a93b"
+      "bytes": 1368917,
+      "sha256": "3613e8a8759d63093ef600eb2bb71be622e70c97f8a79b035e011f4de2b063fb",
+      "osSha256": "c4fd4c49c58b267e5d4afd4499aaa09abc762730dd1c93a8f8ba5fd45135a722",
+      "maskedOsSha256": "5f8ce63bd37e16c2e755baad7850688347751c67aa7c5195f97ec50410ddcaad",
+      "appendSha256": "446f0b34ab123406345d2ed87224456330dca376f05150fe1914f9b07b3d95df"
     },
     {
       "moduleIds": [
@@ -5417,11 +5416,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1368603,
-      "sha256": "3c4644a6e327d9649b767b3f2d7f69e0f47836ca05c59d4783534728cd22298a",
-      "osSha256": "d180dee1c64808db637fca1268b73b4d739ce2415fee42f7f96e5e6b2ba27bd0",
-      "maskedOsSha256": "e92b3f955595ac4820297d4290e68b633135aa93da5c263cbc8c9b63b89cb24a",
-      "appendSha256": "ee0cf3a6f0bd29a48cf592049de09c2073aa21ac308bd9f491aeff7a46c6a93b"
+      "bytes": 1368917,
+      "sha256": "e23445bdb7ac27691fa1b279997e1fb852192d5cbf5cd85465a69a7128a741d2",
+      "osSha256": "aa8b96da4527c900c93557f51c3d668ab55d9df2c553e559d1c6ef2e51a42803",
+      "maskedOsSha256": "3df9b1f1ab9706b74f9e2a24ca52020942296eb0d47d8b2c2f7835745e4afcef",
+      "appendSha256": "446f0b34ab123406345d2ed87224456330dca376f05150fe1914f9b07b3d95df"
     },
     {
       "moduleIds": [
@@ -5456,17 +5455,16 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "PLATE REV",
           "MINIVERB",
           "TAPE ECHO"
         ],
         "hidden": []
       },
-      "bytes": 1368277,
-      "sha256": "15b77830f93f65057c223076bde0e463bb15f2757fbbbb1eb7f7721ccdb70bbc",
-      "osSha256": "4420c400fa31de061bf392a729520c4937fb67beed27b3a3a124b918cf7218c7",
-      "maskedOsSha256": "5bf2fc75acab859e68dd6a56df421346d85bad0a3467911a59923295f95b3309",
-      "appendSha256": "ee9338bd555bc89b42a50a2832bee7f73c1c18bf21b04b9fe1c918900e86ec4b"
+      "bytes": 1368303,
+      "sha256": "10fd0a5558f1b2c5889524795f7ec33adad8450985a71ac8f1d8420ba97aa6d9",
+      "osSha256": "67aca5455b1e8f47630636101bf70282646459445452d389878e774a484a3b0f",
+      "maskedOsSha256": "6d241835f606b7655221cfedea1a3f680368862dc1a839d2476943996f5a98af",
+      "appendSha256": "008bb111167da083705db5f17b4678020067f94a1d998b103d46069c54c94c01"
     },
     {
       "moduleIds": [
@@ -5496,11 +5494,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1368094,
-      "sha256": "ed90076331ac601a66f1d57164b5b48717532b46635ecb3c247148e0147c25cf",
-      "osSha256": "8ce24192c5f7c1bb764ecdad85486268385c6929049bf4b9a19267a6d15e063f",
-      "maskedOsSha256": "08849620a15ca2c1984f1630aabe1a54f9c177a4195ad3998c3e123cae000146",
-      "appendSha256": "e7bd9862ac1ea65dd132632868cb74aefab827e11d0a9fe8e9dada824dec27c1"
+      "bytes": 1368303,
+      "sha256": "c963b99dda0facf7ebbfa3b8cbfcbb923f213fb887e510577088382dcdd75b5a",
+      "osSha256": "9182f85a71119a774e152d4875cdf5aeaff1c9c85624bd73f8e86b6a7b2a7351",
+      "maskedOsSha256": "a3713646223e171386847750b3f863cc7684d2920eaf15b233a29479d1b07de2",
+      "appendSha256": "008bb111167da083705db5f17b4678020067f94a1d998b103d46069c54c94c01"
     },
     {
       "moduleIds": [
@@ -5535,16 +5533,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "PLATE REV",
           "EUCLID"
         ],
         "hidden": []
       },
-      "bytes": 1268331,
-      "sha256": "82f6d0c7de3101b39d83c6bcc7baac4f149aa3153e780f7cc4007549d7d028be",
-      "osSha256": "d8cd3ebb2cff2051bfac89a5a40446dbad5f863a20123d569ead6d48e953df54",
-      "maskedOsSha256": "97dfdab99c249c98540b9f49b97e6fe53f6aa3cf9376c9ca9d1cf72c9d80d935",
-      "appendSha256": "89e01c7c8d1e632c6660666f43dcdb7b15c008a9dc1ff1226e4de9714d9f72d4"
+      "bytes": 1268465,
+      "sha256": "973b4feb53601e38f34b33c060fd64807732fac9d5413530013f39c9a17c32c8",
+      "osSha256": "e507f02f40bd9ac203f36363c2ee189b9b828cd136bbe8c13c4872a23c8e5b16",
+      "maskedOsSha256": "ff8fe671cecaa693f7aedacd1f42dd3e5525870819562633f134c1325ba69000",
+      "appendSha256": "ed2c0d2b87a56cddc9ad536fda14a6a4a76a0f0bcf002c68b616dc542ae1edfd"
     },
     {
       "moduleIds": [
@@ -5573,11 +5570,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1268267,
-      "sha256": "3faf57349ea7bc9a53630d39e221e2d33ada1343b1aea971d6d8ccecb14ef90a",
-      "osSha256": "babcd3ca5363d24d82f049f738850ac923d6e96a85f392740645dea247f69bd1",
-      "maskedOsSha256": "c5d4c114daf89cc1c8dfbee23e1d763d382f2c021a683ac74567daea2acb3f3e",
-      "appendSha256": "72ebf2619288d59c61f181ef45cf74a8ba46eacf9a43873a59c3d3af4db3278a"
+      "bytes": 1268465,
+      "sha256": "a00334f72b164e2959d7e691ad36c3b41c912c19946447c80b638ac4a5342b5d",
+      "osSha256": "80b1edec8001d57c525ba5d5cd20f841886cc7267cc9ff583290963b0b862214",
+      "maskedOsSha256": "f56ecba04f2b461ebf0e85630fac885d5e87696ca34e0b271a94f9d31ab31d5e",
+      "appendSha256": "ed2c0d2b87a56cddc9ad536fda14a6a4a76a0f0bcf002c68b616dc542ae1edfd"
     },
     {
       "moduleIds": [
@@ -5618,11 +5615,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1267681,
-      "sha256": "59522114f5edfddb6f6e32c0a306325b07298237b601d92f4877747147c50126",
-      "osSha256": "e274a9d175606621edcd45d4c958db3c5aa319ddfc94b7eb5c7a155421780097",
-      "maskedOsSha256": "ff93cd16794cce7cb74cba39734add4d8e7277410386aecfd6691f987bfd7196",
-      "appendSha256": "04d1975129ea0d792e6389441c015cf3111c37478f087adeff9645f5e00cebe0"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 759 words are free across 3 separate runs but the largest single opening has only 672; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -5653,11 +5646,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1267681,
-      "sha256": "34c82eb800a3bc896e0457fa86b2f60284e47da5ca6deeda4b86b7f8d293480e",
-      "osSha256": "3a2f226b14ca5c5c45e31daea42be27048f0e37dc81f95b8623a874badc7acd5",
-      "maskedOsSha256": "40d35d256ef1dc65dfd56e5369181633169e8edea55c17240016b7619d0875b0",
-      "appendSha256": "04d1975129ea0d792e6389441c015cf3111c37478f087adeff9645f5e00cebe0"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 759 words are free across 3 separate runs but the largest single opening has only 672; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -5693,17 +5682,16 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "PLATE REV",
           "TAPE ECHO",
           "EUCLID"
         ],
         "hidden": []
       },
-      "bytes": 1370577,
-      "sha256": "ac3fd7c7e505709a8c13b880fa04a90394d0dce2df3a6cbc4455cc890a2b3c6c",
-      "osSha256": "e337466cd63b04f3c3a8f81fd5b048cdd14527a162fbe12fd0f71fd5f344068b",
-      "maskedOsSha256": "74ab5aa9a57e47f169b8b1e1e96ea76d34a7e87f7b92e7af829b161d4718ae5d",
-      "appendSha256": "07696c7d1b0d12918630a8fe3227ac7efc9a6717fc679ec720761ceb50bd04f7"
+      "bytes": 1370708,
+      "sha256": "6357b8416990916a1d8c888f9048bd5cf31ac1ea2738be35a53634b431b9505f",
+      "osSha256": "758e26a170543c9f6135f58db0a655b08282df74847736c43704cba3fcd4fb25",
+      "maskedOsSha256": "88ec726d9f41c23b643222d7fd29b20588d4c0e589376f80f74f9655b91515ff",
+      "appendSha256": "f1a2a7ef9489cb72fe390afa0bebedd993275cc666956ca6d30b9422e4574d3c"
     },
     {
       "moduleIds": [
@@ -5734,11 +5722,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1370509,
-      "sha256": "72ec91c3d247f076baf2c17d28143c244b447bf6188525980d9586a71c0585c9",
-      "osSha256": "8bcbf4b1fdff35f4a0498656f5591473f879d15d4acadab0a8f48ed3b2802ec2",
-      "maskedOsSha256": "6715ac763986e97368aab22f11f25be6957f37eefcbd857f3628841a6e43fa3f",
-      "appendSha256": "61cd3d692b317652b067dc617f9673a116121f5dcaf4a120097080d97df0a604"
+      "bytes": 1370708,
+      "sha256": "3d109353ccfd7f3fe80ad55aa75da8a16a7daaa7c07007ff84f37ed070276519",
+      "osSha256": "c63424afce2af2d29490a9bfb585b3829e1d5e391761b62a27c525c2a9065d24",
+      "maskedOsSha256": "3ad7b4a6964f7e5437483d6993e0dd7e52f6411f54653efe2dee988075dd4484",
+      "appendSha256": "f1a2a7ef9489cb72fe390afa0bebedd993275cc666956ca6d30b9422e4574d3c"
     },
     {
       "moduleIds": [
@@ -5781,11 +5769,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1369928,
-      "sha256": "c589a33a517f97364291be30d7ffcaa358d760c3d72f24241723b7933db0d75a",
-      "osSha256": "92c748271241c7ec40121a303733bcaee0a44ec69024b0f0ef915f51c95c4083",
-      "maskedOsSha256": "224b8f50a5a7f3983eec661da28f9df5b0e5f377bd700a3b18d8f21bc062cf3b",
-      "appendSha256": "dac5d0a1a6a73e8a0865f9e95d29347c9f896fa0df401713d479a3ca7ac21a76"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 754 words are free across 3 separate runs but the largest single opening has only 672; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -5818,11 +5802,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1369928,
-      "sha256": "0fcceb32cc36cac60f032b05d8d3a1384bd1fbb96955fbf3d526e0b10a23b529",
-      "osSha256": "a4cfb5688bd02703219a1176360075b62d9204d6aabf169c8b4e6995c0284bd9",
-      "maskedOsSha256": "77376985192fdd03c9299ac9953a557367aa4482f27febe2dd46082d13093ae8",
-      "appendSha256": "dac5d0a1a6a73e8a0865f9e95d29347c9f896fa0df401713d479a3ca7ac21a76"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 754 words are free across 3 separate runs but the largest single opening has only 672; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -5856,15 +5836,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "b7ef4a35eb85b6759fb88740caaedc5f886952a249a1cebf21378e1151c54131",
-      "osSha256": "0a4d3818490e5338ab85a2bfa210407697d7ad6d51d1560cd978923e63eb38f1",
-      "maskedOsSha256": "42e499dfb30be3787261c2a0c96e6cf9c2d30c65475b7d7fd97bdbe5309b2fb0",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "774caed83c69a4b515a4089f009653e2abaa06a83bf1e827326c2df82c61f43f",
+      "osSha256": "0ddb150b6932922f0afa4b4aa4811c52e30180be06ee8bd0666dadb6b712123c",
+      "maskedOsSha256": "516661a70436835c7173aa4dd796daa18710591311a4ac06b609fc75d13475e6",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -5891,11 +5871,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "f233b09df97066063da47310aa4fbc9ed56f58bf3ffdfc27e294c9f6ecfa5e52",
-      "osSha256": "ea41ac615cd5b8ac9a5a6fd484dff9befe8da54c1f5c5ae27835613f39f7b0e7",
-      "maskedOsSha256": "e479667ff82988329ec2f8c380f7a347dc9c8b187b9511398d1db5e2e85d49de",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "87b47ae5f8e9e14ebda190e17a13d6bc75b2d40d556932e47b6b755b007b8e52",
+      "osSha256": "eb424ab36e1653e4c7bd3ddc4498aa94a811677ad3d405132ca5d18e8816688a",
+      "maskedOsSha256": "7c9fd77d9d6b8e79f60a49a203ae6bf26158252d00e3a1dfe3f2b877212b46f7",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -5930,16 +5910,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "PLATE REV",
           "TAPEHEAD"
         ],
         "hidden": []
       },
-      "bytes": 1265925,
-      "sha256": "cb6809cfc506bff68d952eefbfc2a8c66660ec15ed38984a83ed2c47b6b6062b",
-      "osSha256": "f2c0567b3fbb5ee46f3ced38bf270700c4c4bba60a07ee92b785d9fe5af9827c",
-      "maskedOsSha256": "ae21f7542c814cc69313801efd3b6b5285370ad8aa526ec4b502a5a2d913edb7",
-      "appendSha256": "d2d11c3c3f406853806f44d9cf7dfed744a2a05318d14c8e8190ae16e5bb49bb"
+      "bytes": 1266009,
+      "sha256": "373e8292c736f038ebcece3387a2d3b44a35ad3029be0cfa74fa193902760dc5",
+      "osSha256": "17bc1dd5a6e940c8cc1a14c9bf8be0edf8f341af593a28f660c8952ecb410ca2",
+      "maskedOsSha256": "faf11ed56c08d28d6e93d3132c83f7800eb99f657667e12c0020daf1291b380e",
+      "appendSha256": "d42276a5d22626cd1558b2b30e0001b88c991187e7595ec34949bcb85e3cfefa"
     },
     {
       "moduleIds": [
@@ -5968,11 +5947,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1265791,
-      "sha256": "bf204dcc9cd8354e6340b605ce5a96e208eaadf94c3462c8a527cdecec55cfc6",
-      "osSha256": "80c85bc86cb90fe202f3c4c1e1e7445814829f15b3e798a1fe698c95dcbccc0b",
-      "maskedOsSha256": "aaeb2c86729445adf1d84ffa02675aa71034b367527b46f5a1160a18ec1f67db",
-      "appendSha256": "d18b37b3ef73b2b22135b7142e978e7464f68705424c698a46b933cf2a08a5c3"
+      "bytes": 1266009,
+      "sha256": "dd57f14900a60bfb70e752fb645806a6098313e6f6e766ca1a2634625ea3354a",
+      "osSha256": "ff8ea4dc8f0adfbb920b842ca4f3f01d7aaa3cd3ccde01f380e9a7ab7bdc852c",
+      "maskedOsSha256": "be69479cf4b049011d7acccb40258bc4bb239fccaf372b67737df8864a6e2754",
+      "appendSha256": "d42276a5d22626cd1558b2b30e0001b88c991187e7595ec34949bcb85e3cfefa"
     },
     {
       "moduleIds": [
@@ -6013,11 +5992,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1265284,
-      "sha256": "0c415bc7d2f1e808994e1688e2efd7487cf0a1f9bb53ee94daa6f04abf562841",
-      "osSha256": "18042ed71eebe80e3a6a0846013557525906f899c1769ebfe16e9db932e44bc1",
-      "maskedOsSha256": "74cb1459f4c80d1f72b531d653b76ad56d1c8ac450244b5cde39d81aae6dedc0",
-      "appendSha256": "46fc7387d9cf1647b2df72d4a776bea80093565098d13e34bb747665648030a3"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 732 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6048,11 +6023,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1265284,
-      "sha256": "f7ae0e6053f8797b3613a92215cca8453a7053037b2729dcba31e9ff9a21eeed",
-      "osSha256": "9ce38ea736b593dac0850b8691b542771d0d89655edbc9966e63b74bf967ce60",
-      "maskedOsSha256": "d8093fdfff9c0474fe97d6e6f1a7678dad4b87f540caefa233925181e9de75a2",
-      "appendSha256": "46fc7387d9cf1647b2df72d4a776bea80093565098d13e34bb747665648030a3"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 732 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6088,17 +6059,16 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "PLATE REV",
           "TAPE ECHO",
           "TAPEHEAD"
         ],
         "hidden": []
       },
-      "bytes": 1368203,
-      "sha256": "0a9a23fc3c8698a2b25d4868e694d124bf322566714581c4e4e3c4aba9a1cb6c",
-      "osSha256": "50574b043e7bd744a8f7579c1e4fc8c335377b498e9d30cb94933507d8fa382e",
-      "maskedOsSha256": "825669428b784969e015abf6563c0a3e1304dd21c0459244751fb244e2c8039b",
-      "appendSha256": "5fea49d31480bd5a0ab3e3a4cbe8084a22c1762e6e8b31ca1de2351b29f64800"
+      "bytes": 1368288,
+      "sha256": "22503f706e490c4e6cddf4aad17102480ba19afea17a67064018543f6c120f69",
+      "osSha256": "c79ec721516c98ab31d55fc131fdd8a96090ad150c435d13607e5d64a10ea37d",
+      "maskedOsSha256": "7971e21ad4b84c39f3b63faade12e002660c5dbec69b31f432e97bec02d3aad6",
+      "appendSha256": "ae572bac5c9714a58598220396eba2f1a15f6dc69944e050412b3cc2416d6127"
     },
     {
       "moduleIds": [
@@ -6129,11 +6099,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1368069,
-      "sha256": "b0b3e952556105a553ddd0a54bd6d97815386b645264621a036faa5e24d83222",
-      "osSha256": "254ca752500fdb36b6910fb0608275aba924d2cd8f09fadff786c430feb46a7c",
-      "maskedOsSha256": "d5141e15b38f0828080cc25e66cca1b313d349ecd054d0b45225bdbea6a99bb8",
-      "appendSha256": "db14f2a4853309ac6b5b943fe6c8e3617b7f474ece350fb2eec4aa8ccb687c4f"
+      "bytes": 1368288,
+      "sha256": "4cc0c30c327f07fcd9712b140467a721c738b3c8fba48f993ef79d06717140ab",
+      "osSha256": "9650d1c1190ef671137514f94de7ae40d049c41d9808a3fb46573dbe9066f6ab",
+      "maskedOsSha256": "bd86c2fc19f8befa029651a6d2b518491b43f5a49807aef90a30788a9d9e903e",
+      "appendSha256": "ae572bac5c9714a58598220396eba2f1a15f6dc69944e050412b3cc2416d6127"
     },
     {
       "moduleIds": [
@@ -6176,11 +6146,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1367566,
-      "sha256": "3ab149e694a4b875268342a7cf9c23e2fb9dd4ea57b5bd60818ff77b2f30ed46",
-      "osSha256": "85f1aa5a910230e077c70bf6b688ab2fdc63aa4f78fd7294caf234af8def249a",
-      "maskedOsSha256": "9d27a92b456dc92f3f22fbf0ba3d9d1c120d3a3b701af920cfea1f7158101b68",
-      "appendSha256": "bd00f379969e95c0e0fda4b714ffe225f9cfa27e120db021f395ff7122f56402"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 727 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6213,11 +6179,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1367566,
-      "sha256": "6b71c6c8d3b809757ebf92366afd414b691022df098e8f9985b03eb6d9218565",
-      "osSha256": "cf5267464b6a3f52eac5ea868578974c479e6a6f7a6f2eab79ad5d3b00deb867",
-      "maskedOsSha256": "86f5ea8b86deeb0da8685d05d51f7ef80e6f981f2b382cea1104758f32e53af4",
-      "appendSha256": "bd00f379969e95c0e0fda4b714ffe225f9cfa27e120db021f395ff7122f56402"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 727 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6259,11 +6221,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1267723,
-      "sha256": "9e50ee9f1cf8009a2058cc138144fabee7eaff0957423118900d777014d3ab35",
-      "osSha256": "d1ef67eb8614c6da5c594712aec454c9336f8d70aae9fe7b0ff38afbcca4ced8",
-      "maskedOsSha256": "aa0de12789e5df65c93264d0f260f96f310b27e2206084fed0049c31db363f64",
-      "appendSha256": "069372ab615e5e22d0c72277c0de20d08e61c295d6a47967434ba0af37bdecb9"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 875 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6295,11 +6253,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1267723,
-      "sha256": "8707e6612c0f67ab68856ef40fbf68a4e5045dfd0d2a292e81e9f4a0ef41cd61",
-      "osSha256": "6befee46ec7512819814a71833b0bbce17051f2413fd32d0f67072b7ef0e092f",
-      "maskedOsSha256": "d2740839cb7abfbe30da8cd903877b1a4fe764d5a48658ebbf896d6f3039d461",
-      "appendSha256": "069372ab615e5e22d0c72277c0de20d08e61c295d6a47967434ba0af37bdecb9"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 875 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6421,11 +6375,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1369966,
-      "sha256": "8bac6756a00e3c01207b7c81f7bc6517189fd6f177c0c3b9857aa90a0355dc5a",
-      "osSha256": "e6e96dd121a43fcc916e1131287994c175cc51ddc9183c4bb04b3f580e98c38e",
-      "maskedOsSha256": "8fe6d2bfe43eab058be21e055d01668d8ec23ced755384c9b1ebac10de60f5fd",
-      "appendSha256": "a25f431132daf487b9e3dc53a74c4f126269833158dae51c0100265e570c07c5"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 870 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6459,11 +6409,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1369966,
-      "sha256": "7e0d9e1dbc36909a88da0b69016860c19826faa78bb63fb613cccb4c452e6f38",
-      "osSha256": "51bf395b2e730599ad4b8ddd6d65535ed3797beb75201eb11261b4a280ebb8d2",
-      "maskedOsSha256": "3818468c5831f9d4906073e726b54858e235163be96f442785ab6b5459715f4e",
-      "appendSha256": "a25f431132daf487b9e3dc53a74c4f126269833158dae51c0100265e570c07c5"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 870 words are free across 3 separate runs but the largest single opening has only 645; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6583,11 +6529,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1266694,
-      "sha256": "7e6496414bb1a92f074c95a4c78986efb563a7cb28220251538d318742fcdd64",
-      "osSha256": "21f286d1cfaae228ec63918062b88c18ba72600b96b2aa66f541b35f72ce7bb2",
-      "maskedOsSha256": "693eb01bd34abaabfcbcbf3ecdc3c2852b059531e34091ec1624b5845f2b4c19",
-      "appendSha256": "12e77034bb0c8adfcd938608ba43a69db58cd1c20dc528d5f5f87a943afa73e0"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 897 words are free across 3 separate runs but the largest single opening has only 594; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6615,11 +6557,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1266694,
-      "sha256": "dec528c1e6bf89a2a3d8cefc5e5ff7364b3ccbfc8c47a017fb4e86c41ac5a94a",
-      "osSha256": "19a15e2ac7a775837fa4e3310bc8f8592ff9f5a8a1eaa03f53064c0de8f4a66c",
-      "maskedOsSha256": "ebd77e7c935eba97c2beffefb424aa94e6c7b42a18b9d6da039605170530c87d",
-      "appendSha256": "12e77034bb0c8adfcd938608ba43a69db58cd1c20dc528d5f5f87a943afa73e0"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 897 words are free across 3 separate runs but the largest single opening has only 594; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6729,11 +6667,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1368979,
-      "sha256": "c35cc673919db6acec394da5c7f1d177406be399ccd61d37c21db11f2ff8c354",
-      "osSha256": "d189f7fc394290bda9b5c2727bb467550abdf5fe38fb01920f069db64ac9ecd9",
-      "maskedOsSha256": "2e1ddacb49697dd31459bf173b6606ea5a54e0ca1689f1743d590d5bea040c0b",
-      "appendSha256": "330c5070c71d8f45eb638d3094e6bfc834d55413856d67c1c96faf28ca3718a7"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 892 words are free across 3 separate runs but the largest single opening has only 594; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -6763,11 +6697,7 @@
         ],
         "hidden": []
       },
-      "bytes": 1368979,
-      "sha256": "3fc8676ed66ec4327c781c988183bc1e056c83bd5a9a352513cd01059e802458",
-      "osSha256": "03ddbc18e3633dd1d0951ef7130291445f308b8735e4167319190b36d856f0f2",
-      "maskedOsSha256": "8032b5739892d066ff34337388e6d5473a06c7fab5c8c658db5d509dba07cb7a",
-      "appendSha256": "330c5070c71d8f45eb638d3094e6bfc834d55413856d67c1c96faf28ca3718a7"
+      "error": "payload A: SIDECHAIN_COMPRESSOR does not fit any harvested run -- 892 words are free across 3 separate runs but the largest single opening has only 594; harvest an effect BETWEEN two runs to join them into one"
     },
     {
       "moduleIds": [
@@ -7811,15 +7741,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1268987,
-      "sha256": "d7e9d639b7ea775ee6335049f874d4c992ea1b8ea2f867971227d19734d28d60",
-      "osSha256": "0035bdd4d842d47f33f18c8556d22d8c81825ca1afd01d1e0cf7d15e967b90cf",
-      "maskedOsSha256": "c011fcdd0d0d544079666d636fa7b437a63b3a20da97fc3be7b31d5c6518e625",
-      "appendSha256": "37083e9bfcacd93b457f3535295b60c75f115db92f529065b2eb268428a60e2b"
+      "bytes": 1269306,
+      "sha256": "079e596d022d43367c2180000dbe44f44054124a3e0f0a39df0d1868a136d3c9",
+      "osSha256": "7203c7f188e0cc40d0e7ac72086a7b215a14a5a5bccc743d0c01c3f26f400750",
+      "maskedOsSha256": "308c420b9f088e97d9bd5021307b58663f5ab14df458a0487109f983303fd4d6",
+      "appendSha256": "8c3fdfe4d8c45b2b30d6eda64c39933a2ac4e9d59887805cd91a9a03028ec973"
     },
     {
       "moduleIds": [
@@ -7846,11 +7776,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1268987,
-      "sha256": "1d4f1e82a0c40a7350e85b25e6fed2bd05b5af9a642167cf8a39bc927b38a5cf",
-      "osSha256": "0f7effe9b76d572d6997aeb2e87826b47a3c53f29ad940998d154f803e16643b",
-      "maskedOsSha256": "df88e43fd4707ff31598ebb38a2d77b1a8d2c316ed4f93458b7fef3afb2f82f2",
-      "appendSha256": "37083e9bfcacd93b457f3535295b60c75f115db92f529065b2eb268428a60e2b"
+      "bytes": 1269306,
+      "sha256": "7f567e13a2dbad7a92fbe0290d47e35450ba5df3e4e87dd246fd9ac9b8668c34",
+      "osSha256": "ce1b35dae8a527a0bd6c772bbd1a82299ec4bb2f59031b525660f899a721fdb2",
+      "maskedOsSha256": "33fb1fed1d2166095fa0656c44331ab216ab6048e7c4e26a9a46317e7860de65",
+      "appendSha256": "8c3fdfe4d8c45b2b30d6eda64c39933a2ac4e9d59887805cd91a9a03028ec973"
     },
     {
       "moduleIds": [
@@ -7884,15 +7814,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1268511,
-      "sha256": "4eebe276502937f6a4cf9019c92a15722d7a7cc1d14bae10c2b1370c3d04ebcc",
-      "osSha256": "cae0445558fb123daf0f0fb1fefcc4cbb0ce1691643e1def521651c4e1d5415b",
-      "maskedOsSha256": "edccb1a116371d0427dd58b1803aa6f213e6ebf714c84795e8589e2872df701e",
-      "appendSha256": "738ad79b7c5c0e906cf82b6e06471546b4369b11060cec70524fd4c66b766ff4"
+      "bytes": 1268830,
+      "sha256": "202fb2857d12054a01fe8c868c51bad4471762c8412c9d00673c01244e05a6fc",
+      "osSha256": "4009d0fca8e35ae72b3abe1f8c76ff3e2cd4f66e534611300cdcb20e19040509",
+      "maskedOsSha256": "b9f7a1931552bfa73b6344324f45a109e9fc660107e36fa5415328faf8c82d50",
+      "appendSha256": "50f3b8055c5f8c8212d1cb81cd5503fb95bfba4c42af78a3ae907ee3ca130840"
     },
     {
       "moduleIds": [
@@ -7919,11 +7849,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1268511,
-      "sha256": "a9353701efa1814f04375602266eca7a2733a5e0924440f3497836f81ea7f5b6",
-      "osSha256": "851b42d2e44ffde8526f04c5c7dc69dcfba7fe6af8b1dbfe18bdddc78bebdaca",
-      "maskedOsSha256": "7809488522d977a1ee31017235f9e990f8aa33d32c4949d7a542a401d8b4c49b",
-      "appendSha256": "738ad79b7c5c0e906cf82b6e06471546b4369b11060cec70524fd4c66b766ff4"
+      "bytes": 1268830,
+      "sha256": "c41cd58a013ddbce9b7de4c19d9ccab26007606d141b4e494c12e03323ed7c4a",
+      "osSha256": "4169fb4a2a237296e3f0f26dbf7424fb0ec4138e97bd22ed6f9b77b455fee18c",
+      "maskedOsSha256": "c98dfc693fc67741564ba73e5182f34184a32440b6c638095c9502b70f2f2c8e",
+      "appendSha256": "50f3b8055c5f8c8212d1cb81cd5503fb95bfba4c42af78a3ae907ee3ca130840"
     },
     {
       "moduleIds": [
@@ -7957,15 +7887,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "0b25a00991e24651cebed4bc3ce5d9952b76e9c12c1c99539fdf190d9677b1ae",
-      "osSha256": "6d2f2f1c75cb9d2f584710f096f90c838504457a0243b2bbe9082c9f2b704980",
-      "maskedOsSha256": "259f84dd466ee5de2039a624465279b8b90cc909dcb860948a5b2a60fe460767",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "10dfe24b6b4803d7500f252e8f5102087668ffbfb7756f32355281038ec9b118",
+      "osSha256": "e92c139d6642aaf1b16cc08d3ef8c31dc1271a2dbda9e0a10a8b6b34dcc001c2",
+      "maskedOsSha256": "b8cf65abc629de649468271b7e00a98f1a4c078f8964317c6a19b233eb543435",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -7992,11 +7922,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "36a6a18f1e893d03c64453bb4e1d66e100d1adfc16978759cf6d616a0bdf0594",
-      "osSha256": "07e8940d6d1f43c32dfe665e8baf7293ab770b0394f3da9af2c193c1e7db1d7a",
-      "maskedOsSha256": "3f38ae5e78e1933f8f6d2a1f9403f9b48a188f016d15ef06ce801487badd9e8e",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "a64b868977dc760f467ecf6d30670b035b6739885449edcf8e3fa3133bc03e22",
+      "osSha256": "8feaead7ef6213766848a558431beaf452308662886e36de12d21a19e7ab2279",
+      "maskedOsSha256": "ee1f69e9140ac42b8d219ae4479203e70a2d36c57f81f9bf152c29a5189a8d48",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -8030,15 +7960,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "34b68c172fbce23fb398b60d49e1b921d43d4adc5d3f4b8a7a3e949c46d145d5",
-      "osSha256": "4ebc8cf6b6a46d9876294d2e1af6224144ff8841096263c7826bda6234a42132",
-      "maskedOsSha256": "0893b6567ab9bec47efcfefdf29e6bbca7573ea592957638204a13ebdc8d1589",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "dbc6ed38a300023b095bbc7cb903210501c6a8d466361ae9c165e97f1eee1bf4",
+      "osSha256": "02355ec062fa40190b4b1c45cf38e8164ef66c3ab65926f0affd4f05d7dfef16",
+      "maskedOsSha256": "a88900c46f963d4906f806b060133ee236f32e5930076c729017e852129100ee",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -8065,11 +7995,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1266319,
-      "sha256": "4689e7c62670b95ea425da8dc06b6b2cb9fa15e751962984e439df413dd1ca5d",
-      "osSha256": "e55ba76728d90614258a7510f80518b985abd6c289c0418d8e676c3ca710705e",
-      "maskedOsSha256": "baf0f7f4753fdd54d6ada6422a2812026f266826756a41ae8a95f028664e919e",
-      "appendSha256": "8469eb13803834295f4aa900fdb4f6bfcfacdf7a351868cc1c2cd6b08c217060"
+      "bytes": 1266638,
+      "sha256": "8b9765177650813a06588f53b84d9f5b9a1d0799b578a081591ebe437e81ca51",
+      "osSha256": "80810ac466c6a8fe38749e3f983dd1b4627ca216f1d04770cf5337c3eaede70a",
+      "maskedOsSha256": "c89ba65c6a2075d42f305fe99208c37ec558877a2d113a65e4cd25c38763b44c",
+      "appendSha256": "72e38c62c54b858132142b9b84f26f8cc8e172bd827596139360e01c619c7d9b"
     },
     {
       "moduleIds": [
@@ -8107,15 +8037,15 @@
           "SIDECHAIN_COMPRESSOR",
           "LO-FI",
           "DELAY",
-          "DARK REV"
+          "PLATE REV"
         ],
         "hidden": []
       },
-      "bytes": 1271191,
-      "sha256": "1fa1cbb6524df99914260a198f7f20cbe687101ba40ed8489c8c0d433b7eb691",
-      "osSha256": "a444b0578cf5b0c9939450b6c1e4e0b6ab366c8c4ef2fe8cdcd2c884c1058ccc",
-      "maskedOsSha256": "af43267c2d9331cc0571732a27b67e18c7ad50a8c31c8d584bf3c49e264c8379",
-      "appendSha256": "b9aea673a3d56c62e2fc639966df00c85f219b5629d94a09ba759dead32474ba"
+      "bytes": 1271510,
+      "sha256": "adc2efe0b39bf14da906d84de802254d6c43a83c707295dc324e9084676d8d03",
+      "osSha256": "edbaa627ac4474402ed084d77568a817d57907c6878929afdad66d3a34fee82a",
+      "maskedOsSha256": "ef951cd8ffa835341a3644f3e4d7bd2854c384dc6ccd2a80e6aa60c97809569e",
+      "appendSha256": "6a3230652c91e6e65dc0be51ab0900a9c03b4f45f7ee34aa3ca9b688cdca48c8"
     },
     {
       "moduleIds": [
@@ -8146,11 +8076,11 @@
         ],
         "hidden": []
       },
-      "bytes": 1271191,
-      "sha256": "15a7db74db93190143e885c5a623697daea60061a847b65ad91ac4756bdbf08f",
-      "osSha256": "69fd121fdf5b102690bbc8f25f8178a26e01b633cc1b1f52dd2e33b30fdb55b3",
-      "maskedOsSha256": "b120c283115b0ee54b9f354848d8e4134e020eddf8fd280d0ef1e0a0913f2248",
-      "appendSha256": "b9aea673a3d56c62e2fc639966df00c85f219b5629d94a09ba759dead32474ba"
+      "bytes": 1271510,
+      "sha256": "d5993c8a9457a88743a4c62f5c402585202a3fb65b778b45bcef377bce22c971",
+      "osSha256": "f40b9c6e923e821ec08afc40bb446af50c7a881d30ed201f50fd2f061eda6be2",
+      "maskedOsSha256": "e4cf6f7eef3454a715fc16d0cd2bf3f78afa287aefe56d7175ee56812a0ab4c3",
+      "appendSha256": "6a3230652c91e6e65dc0be51ab0900a9c03b4f45f7ee34aa3ca9b688cdca48c8"
     }
   ]
 }
