@@ -21,7 +21,8 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url)), OUT = join(ROOT, 'v
 const UPSTREAM = 'https://github.com/matujuice/zoom-ms-midistomp', BUILD = 'ms70cdr-2.10'
 const MIN = 16, DISTINCT = 5 // check_stock_free.py: shorter runs, and sparser windows, match stock by chance
 type Part = ['hex', string] | ['copy', string, number, number]
-type Patch = { name: string; description?: string; builds?: string[]; replace?: { find: string; with: string; count?: number }[]; write?: Record<string, any>[]; section?: Record<string, any>[]; bin133?: Record<string, any>[] }
+type Entry = { model: string; addr?: number; offset?: number; expect?: string; expect_sha256?: string; data: string; source?: string }
+type Patch = { name: string; description?: string; builds?: string[]; replace?: { find: string; with: string; count?: number }[]; write?: Entry[]; section?: Entry[]; bin133?: Entry[] }
 
 const sha = (data: Uint8Array) => createHash('sha256').update(data).digest('hex')
 const fromHex = (text: string) => Buffer.from(String(text).replace(/\s/g, ''), 'hex')
@@ -81,8 +82,8 @@ for (const file of readdirSync(join(upstream, 'patches')).filter(name => name.en
     write.push(...hits.map(addr => ({ model: BUILD, addr, expect_sha256: sha(needle), expect_length: needle.length, data: Buffer.from(next, 'latin1').toString('hex') })))
   }
   for (const { model, addr, expect, data } of patch.write ?? [])
-    if (model === BUILD) write.push({ model, addr, expect_sha256: sha(fromHex(expect)), expect_length: fromHex(expect).length, data: stockFree(fromHex(data)) })
-  const own = (entries: Record<string, any>[] = []) => entries.filter(entry => entry.model === BUILD).map(entry => ({ ...entry, data: stockFree(fromHex(entry.data)) }))
+    if (model === BUILD) write.push({ model, addr, expect_sha256: sha(fromHex(expect!)), expect_length: fromHex(expect!).length, data: stockFree(fromHex(data)) })
+  const own = (entries: Entry[] = []) => entries.filter(entry => entry.model === BUILD).map(entry => ({ ...entry, data: stockFree(fromHex(entry.data)) }))
   const entry = { name: patch.name, description: patch.description, builds: patch.builds, write, section: own(patch.section), bin133: own(patch.bin133) }
   if (!write.length && !entry.section.length && !entry.bin133.length) { skipped.push(patch.name + ': nothing for ' + BUILD); continue }
   patches.push(Object.fromEntries(Object.entries(entry).filter(([, value]) => Array.isArray(value) ? value.length : value !== undefined)))
