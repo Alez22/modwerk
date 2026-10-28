@@ -6,58 +6,56 @@
   "cores": [],
   "mods": [
     {
-      "file": "digistring-0.8.0-os1.53.elemod",
-      "sha256": "76579a2fd0a3851f091138c7fb719e782003487b4aa9e30ad4727882e7659f7e",
+      "file": "digistring-0.9.0-os1.53.elemod",
+      "sha256": "9e3ca5570ec7e3521e2e2c3df576db08287f3329624dee9373808fa7fe63bc8f",
       "id": "digistring",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "device": "digitakt-mk1",
       "os": "1.53",
       "license": "MIT",
       "source": {
         "repo": "repeat98/modwerk",
-        "commit": "6956a6c0c3b8c8944e21adb9d89561a41fcb317a",
-        "path": "sdk/imports/packages/digistring/digistring-0.8.0-os1.53.elemod"
+        "commit": "dda3feee47c4aa1215c7f6c4073b413327cd4d11",
+        "path": "sdk/imports/packages/digistring/digistring-0.9.0-os1.53.elemod"
       },
       "title": "STRING",
       "requires": [
-        "core"
+        "core",
+        "machine-pages"
       ],
-      "conflicts": [
-        "note-accumulator"
-      ],
+      "conflicts": [],
       "summary": "A Karplus-Strong plucked string SRC machine: bowed, hit, noise or plucked strings that go through the Digitakt's own AMP, filter, mixer and effects.",
       "description": "A Karplus-Strong plucked string SRC machine: bowed, hit, noise or plucked strings that go through the Digitakt's own AMP, filter, mixer and effects.",
       "category": "Synthesis",
       "author": "Alez22",
       "needs_core": "2.1",
-      "on_unit": "Emulator-checked on OS 1.53 (machine list and SRC page); on hardware the author tested the OS 1.54 build of the same 0.8.0 source for 30 minutes."
+      "on_unit": "The author tested 0.9.0 on a Digitakt 1, OS 1.53 (5 minutes) and 1.54 (15 minutes), with Core 2.1, Machine Pages, RAM Machines and Note Accumulator (2026-10-28): machine list, SRC page, defaults, LFO, save/reboot/reload, Note Accumulator and RAM Machines work; three STRING tracks play cleanly, from four the UI lags."
     },
     {
-      "file": "digistring-0.8.0-os1.54.elemod",
-      "sha256": "cf64535c89b0d93eeb6d3973c86ce321f5a6a8218fa240bc1f775c549a17fcdf",
+      "file": "digistring-0.9.0-os1.54.elemod",
+      "sha256": "247aba7f6d56f1081a94677b2c665322e5e3754a1b420bf12760f4762f4ccf0b",
       "id": "digistring",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "device": "digitakt-mk1",
       "os": "1.54",
       "license": "MIT",
       "source": {
         "repo": "repeat98/modwerk",
-        "commit": "6956a6c0c3b8c8944e21adb9d89561a41fcb317a",
-        "path": "sdk/imports/packages/digistring/digistring-0.8.0-os1.54.elemod"
+        "commit": "dda3feee47c4aa1215c7f6c4073b413327cd4d11",
+        "path": "sdk/imports/packages/digistring/digistring-0.9.0-os1.54.elemod"
       },
       "title": "STRING",
       "requires": [
-        "core"
+        "core",
+        "machine-pages"
       ],
-      "conflicts": [
-        "note-accumulator"
-      ],
+      "conflicts": [],
       "summary": "A Karplus-Strong plucked string SRC machine: bowed, hit, noise or plucked strings that go through the Digitakt's own AMP, filter, mixer and effects.",
       "description": "A Karplus-Strong plucked string SRC machine: bowed, hit, noise or plucked strings that go through the Digitakt's own AMP, filter, mixer and effects.",
       "category": "Synthesis",
       "author": "Alez22",
       "needs_core": "2.1",
-      "on_unit": "The author tested 0.8.0 on a Digitakt 1, OS 1.54, with Core 2.1 and STRING alone, for 30 minutes (2026-10-27): machine list, SRC page, exciters, locks, LFO, save/reload and stock machines work; four STRING tracks play cleanly, with more than four the UI lags."
+      "on_unit": "The author tested 0.9.0 on a Digitakt 1, OS 1.53 (5 minutes) and 1.54 (15 minutes), with Core 2.1, Machine Pages, RAM Machines and Note Accumulator (2026-10-28): machine list, SRC page, defaults, LFO, save/reboot/reload, Note Accumulator and RAM Machines work; three STRING tracks play cleanly, from four the UI lags."
     }
   ]
 }
