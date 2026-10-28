@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "id": "digistring",
   "name": "STRING",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "machine": "digitakt",
   "category": "machines",
   "exclusive": false,
@@ -10,7 +10,8 @@
     "github": "Alez22",
     "credits": [
       "Alez22 — STRING design and code, with Claude Code assistance.",
-      "irpina — elekloader Core 2.1, its machine table and SDK."
+      "irpina — elekloader Core 2.1, Machine Pages, its machine table and SDK.",
+      "soejrd — Sophie for Digitakt, whose RAM addresses and pitch lookup STRING follows."
     ]
   },
   "maintainers": [
@@ -18,14 +19,14 @@
   ],
   "source": {
     "repository": "https://github.com/Alez22/digistring",
-    "revision": "b23f061a6980ba9f2db4b612ac778264b6b6aeaa",
+    "revision": "69ab74811956a69a1d6349f30b23f747343f8257",
     "path": "."
   },
   "presentation": {
     "label": "STRING",
     "family": "Synthesis",
     "summary": "A Karplus-Strong plucked string SRC machine: bowed, hit, noise or plucked strings that go through the Digitakt's own AMP, filter, mixer and effects.",
-    "overview": "STRING adds a Karplus-Strong physical-model string to the SRC machine list of the original Digitakt. Choose an exciter (BOW, HIT, NOISE or PLUCK), then shape the string with stiffness, pluck position, softness, damping and a decay time. It borrows SLICE's eight parameter slots, so its values are saved with the project, can be locked per step and are reachable by MIDI CC and NRPN like any stock parameter. Its audio enters the normal AMP envelope, filter, mixer and sends.",
+    "overview": "STRING adds a Karplus-Strong physical-model string to the SRC machine list of the original Digitakt. Choose an exciter (BOW, HIT, NOISE or PLUCK), then shape the string with stiffness, pluck position, softness, damping and a decay time. Machine Pages draws its SRC page with STRING's own names, ranges and defaults. It stores its values in SLICE's eight parameter slots, so they are saved with the project, can be locked per step and are reachable by MIDI CC and NRPN like any stock parameter. Its audio enters the normal AMP envelope, filter, mixer and sends.",
     "highlights": [
       "Four exciters: BOW keeps exciting the string while the note is held; HIT, NOISE and PLUCK are one-shot.",
       "DECAY is a time (T60, 0.07 s to about 17 s, endless at the top): the same setting rings as long on a low note as on a high one.",
@@ -45,7 +46,7 @@
     "steps": [
       "Use a build containing STRING for the original Digitakt on OS 1.53 or 1.54.",
       "Select an audio track, press FUNC + SRC, choose STRING in the machine list and confirm with YES.",
-      "The SRC page then shows TUNE, EXC, STIFF, SAMP, POS, SOFT, TONE and DECAY."
+      "The SRC page then shows TUNE, EXC, STIFF, POS, SOFT, TONE and DECAY; knob D is blank."
     ],
     "screenshots": [
       "media/chooser.png"
@@ -61,7 +62,7 @@
     {
       "name": "B — EXC",
       "default": null,
-      "doc": "Exciter, drawn as an icon: BOW, HIT (mallet), NOISE or PLUCK. BOW keeps exciting the string while the note is held; the others are one-shot.",
+      "doc": "Exciter, drawn as an icon: BOW, HIT (mallet), NOISE or PLUCK; default PLUCK. BOW keeps exciting the string while the note is held; the others are one-shot.",
       "labels": [
         "BOW",
         "HIT",
@@ -76,21 +77,21 @@
       "labels": null
     },
     {
-      "name": "D — SAMP",
+      "name": "D — (blank)",
       "default": null,
-      "doc": "The stock sample selector. STRING does not use the sample.",
+      "doc": "Blank: STRING plays no sample, so the sample selector is hidden.",
       "labels": null
     },
     {
       "name": "E — POS",
       "default": 0,
-      "doc": "Pluck position, OFF or 1–64, from the bridge to the middle of the string.",
+      "doc": "Pluck position, OFF or 1–64, from the bridge to the middle of the string; default OFF.",
       "labels": null
     },
     {
       "name": "F — SOFT",
       "default": 0,
-      "doc": "0–63: a darker, softer attack.",
+      "doc": "0–127: a darker, softer attack.",
       "labels": null
     },
     {
@@ -117,41 +118,42 @@
       "1.53",
       "1.54"
     ],
-    "requires": [],
-    "conflicts": [
-      "note-accumulator"
+    "requires": [
+      "machine-pages"
     ],
+    "conflicts": [],
     "limitations": [
-      "STRING keeps SLICE's parameter ranges and defaults: they come from a stock table shared with the real SLICE machine.",
       "Below F#1 (47 Hz) the string runs at a lower internal rate, down to about 1.5 Hz, without octave jumps.",
       "High STIFF values make very high notes slightly sharp (about +8 cents at 1760 Hz).",
       "On high notes with a long DECAY the damping filter opens completely, so TONE 3 and 4 can sound the same there.",
-      "Cannot be installed with Note Accumulator: both patch the stock routines that name parameters and draw the value popup (0x4000fe94-0x4000febe and 0x400657f8 on OS 1.53 and 1.54).",
-      "Up to four STRING tracks play cleanly at once; with more than four the UI lags (OS 1.54, measured on hardware with STRING alone)."
+      "SOFT now spans 0–127; a sound saved with 0.8.0 keeps its stored value, so its attack is about half as soft as before.",
+      "Machine Pages conflicts with DigiChain, so STRING cannot be combined with Digi Mono or Digi Poly."
     ]
   },
   "platform": {
     "kind": "elemod",
     "core": "2.1",
     "build": "build.json",
-    "events": [],
+    "events": [
+      "ev_render_voices"
+    ],
     "claims": [
       "machine:8"
     ]
   },
   "resources": {
-    "memoryBytes": 25054,
+    "memoryBytes": 24293,
     "fastBytes": 0,
     "load": {
-      "display": "Four STRING tracks play cleanly on hardware; with more, the UI lags",
+      "display": "Three STRING tracks play cleanly on hardware; from four, the UI lags",
       "method": "hardware",
-      "conditions": "Author's Digitakt I, OS 1.54, Core 2.1 and STRING only (build M002), 2026-10-27, judged by ear and by the UI's response: four STRING tracks playing together give no crackles; with more than four the UI lags. No DSP or CPU readout was taken (digihealth is not in this build)."
+      "conditions": "Author's Digitakt I, OS 1.54, Core 2.1, Machine Pages 1.2 and STRING (builds M003 and M004), 2026-10-28, judged by ear and by the UI's response. With digihealth (M005) the DSP load reads 81, 87, 91, 95, 96 and 98% for one to six tracks, within 3 points of STRING 0.8.0 on the same pattern (M006), which also lags from four tracks. The count depends on the sounds: long DECAY, BOW and low notes cost more."
     }
   },
   "evidence": {
     "tier": "author-hardware",
-    "moduleVersion": "0.8.0",
-    "sourceSha256": "e4007c2c7253cbb7390ca386ad62e3c46b2bed61380135fdfeec5e2d03e0f8cc",
+    "moduleVersion": "0.9.0",
+    "sourceSha256": "9a96a39d964ef0d5168b21f0d21a2499d28613f2c6f0ab8561cd0e2464d40ec7",
     "reports": [
       "evidence/hardware-testing.json",
       "evidence/source-identity.json",
@@ -159,23 +161,23 @@
     ],
     "hardware": {
       "model": "Digitakt 1",
-      "release": "1.54",
-      "testedOn": "2026-10-27",
+      "release": "1.53 and 1.54",
+      "testedOn": "2026-10-28",
       "tester": "Alez22",
-      "durationMinutes": 30,
-      "summary": "Alez22 flashed the Modwerk-compiled STRING 0.8.0 with Core 2.1 alone (OS 1.54, build M002) and played it for 30 minutes: STRING appears in the SRC machine list with its SRC page names and EXC icons, the four exciters, DECAY and TONE work, parameter locks and LFO modulation work with STRG destinations, a project with STRING tracks survives save, power cycle and reload, and stock machines on other tracks play normally. Four STRING tracks play without crackles; with more than four the UI lags.",
+      "durationMinutes": 20,
+      "summary": "Alez22 flashed the Modwerk-compiled STRING 0.9.0 with Core 2.1, Machine Pages 1.2, RAM Machines 1.3.1 and Note Accumulator 1.1.1 (build M003) on OS 1.53 (5 minutes) and OS 1.54 (15 minutes): STRING appears in the machine list with its icon, its SRC page shows its names, EXC icons and a blank knob D, its own defaults apply when a track switches to STRING, LFO destinations are grouped as STRG, a project survives save, power cycle and reload, Note Accumulator transposes STRING, and RAM Machines records and plays back STRING. Three STRING tracks play cleanly; from four the UI lags, as with 0.8.0 on the same pattern.",
       "limitations": [
-        "OS 1.53 build (M001) not run on hardware; it differs only in the release's addresses and gives byte-identical emulator screens.",
-        "Not tested beside other modules in this session.",
-        "Track count judged by ear; no DSP or CPU readout.",
-        "Tested SysEx: 1.54 6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103. Firmware was not read back from the device."
+        "Track count measured on OS 1.54 only.",
+        "DSP readout taken with digihealth in separate builds (M005, M006); digihealth is not part of this module.",
+        "Tested SysEx: 1.53 73d4f1f3924c90c7114e60d1d89be86647a9cb08fe80514bf072c4670cf2148f, 1.54 ef1a7631d27e832888edc34d21c61fcbc5b5ecd69a7710928f93c82c509256ed. Firmware was not read back from the device.",
+        "A project saved with 0.8.0 was loaded unchanged on the author's elekloader builds of the same source (Core 4.1, Machine Pages 1.5), not on M003."
       ]
     },
     "verifiedBy": null
   },
   "tests": {
     "report": "TESTING.md",
-    "summary": "Hardware (author, 30 min, OS 1.54, STRING alone): machine list, SRC page, exciters, locks, LFO, save/reload and stock machines work; four tracks clean, the UI lags beyond four. Source-only packages compiled twice with identical output; emulator captures on OS 1.53 and 1.54.",
+    "summary": "Hardware (author, OS 1.53 and 1.54, 20 min, with Machine Pages, RAM Machines and Note Accumulator): machine list, SRC page, defaults, LFO, save/reboot/reload, Note Accumulator and RAM Machines work; three tracks clean, the UI lags from four, at the same DSP load as 0.8.0. Source-only packages compiled in the pinned toolchain; emulator captures on OS 1.53 and 1.54 are identical.",
     "documentation": {
       "tutorial": {
         "title": "Quick tutorial: a plucked and a bowed string",
@@ -197,7 +199,7 @@
   "license": {
     "spdx": "MIT",
     "file": "LICENSE",
-    "declaration": "The author's own source, imported unchanged from github.com/Alez22/digistring at v0.8.0 (commit b23f061a6980) under its MIT licence. Stock firmware bytes in the upstream build manifest became address, length and SHA-256 guards in build.json, and its keep2 sites became the equivalent explicit jsr and lea sites."
+    "declaration": "The author's own source, imported unchanged from github.com/Alez22/digistring at commit 69ab74811956 (STRING 0.9.0) under its MIT licence. STRING patches no firmware bytes: Machine Pages draws its SRC page and calls its render, so build.json has no sites."
   },
   "media": [
     {
@@ -220,9 +222,9 @@
       "capture": {
         "type": "emulator",
         "release": "1.54",
-        "moduleVersion": "0.8.0",
-        "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
-        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1 and STRING only."
+        "moduleVersion": "0.9.0",
+        "imageSha256": "a4f139e213da4f0186d135e0b40b0ffe086b46811561a95cd584e64f1e9139a2",
+        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1, Machine Pages 1.2 and STRING only."
       }
     },
     {
@@ -236,9 +238,9 @@
       "capture": {
         "type": "emulator",
         "release": "1.54",
-        "moduleVersion": "0.8.0",
-        "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
-        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1 and STRING only."
+        "moduleVersion": "0.9.0",
+        "imageSha256": "a4f139e213da4f0186d135e0b40b0ffe086b46811561a95cd584e64f1e9139a2",
+        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1, Machine Pages 1.2 and STRING only."
       }
     },
     {
@@ -252,9 +254,9 @@
       "capture": {
         "type": "emulator",
         "release": "1.54",
-        "moduleVersion": "0.8.0",
-        "imageSha256": "6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103",
-        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1 and STRING only."
+        "moduleVersion": "0.9.0",
+        "imageSha256": "a4f139e213da4f0186d135e0b40b0ffe086b46811561a95cd584e64f1e9139a2",
+        "setup": "Pinned digiemu c1b5735, firmware-native drawing, disposable first-boot project. Core 2.1, Machine Pages 1.2 and STRING only."
       }
     }
   ]

@@ -1,62 +1,75 @@
 # STRING testing
 
-Module version 0.8.0, Digitakt I OS 1.53 (stock file SHA-256 `9bdd44bb…cc92`) and 1.54 (`f78ba80f…3cf6`), Core 2.1. Source: [Alez22/digistring](https://github.com/Alez22/digistring) commit `b23f061a6980ba9f2db4b612ac778264b6b6aeaa` (tag v0.8.0). Firmware, linked images and emulator state stay on the developer's computer; none of it is committed.
+Module version 0.9.0, Digitakt I OS 1.53 (stock file SHA-256 `9bdd44bb…cc92`) and 1.54 (`f78ba80f…3cf6`), Core 2.1 with Machine Pages 1.2. Source: [Alez22/digistring](https://github.com/Alez22/digistring) commit `69ab74811956a69a1d6349f30b23f747343f8257`. Firmware, linked images and emulator state stay on the developer's computer; none of it is committed.
 
 ## Evidence tier
 
-`author-hardware`: the author ran the Modwerk build M002 (OS 1.54) on a Digitakt I for 30 minutes ([hardware-testing.json](evidence/hardware-testing.json)). The OS 1.53 build is emulator-checked only.
+`author-hardware`: the author ran the Modwerk build M003 on a Digitakt I, on OS 1.53 for 5 minutes and on OS 1.54 for 15 minutes, and measured the track count and DSP load in three more OS 1.54 builds ([hardware-testing.json](evidence/hardware-testing.json)).
 
 ## 1. Source build
 
-- `bash scripts/build-elemod-isolated.sh` in the pinned toolchain image (GCC 16.2.0, image `sha256:230c6c02…04fc`), run twice: the two outputs are identical.
-- `node scripts/package-elemod-recipe.mjs … --check` reproduces both committed packages:
-  - OS 1.53: `digistring-0.8.0-os1.53.elemod`, SHA-256 `76579a2fd0a3851f091138c7fb719e782003487b4aa9e30ad4727882e7659f7e`
-  - OS 1.54: `digistring-0.8.0-os1.54.elemod`, SHA-256 `cf64535c89b0d93eeb6d3973c86ce321f5a6a8218fa240bc1f775c549a17fcdf`
-- Source identity: [evidence/source-identity.json](evidence/source-identity.json), `e4007c2c…f8cc`.
-- Not byte-identical to the author's elekloader build of the same source: that one is compiled with Debian's `m68k-linux-gnu` GCC, and its `.run` is 7,962 bytes against Modwerk's 7,886. The hardware results below name the build they ran.
+- `bash scripts/build-elemod-isolated.sh` in the pinned toolchain image (GCC 16.2.0, image `sha256:230c6c02…04fc`).
+- `node scripts/package-elemod-recipe.mjs` exports both committed packages:
+  - OS 1.53: `digistring-0.9.0-os1.53.elemod`, SHA-256 `9e3ca5570ec7e3521e2e2c3df576db08287f3329624dee9373808fa7fe63bc8f`
+  - OS 1.54: `digistring-0.9.0-os1.54.elemod`, SHA-256 `247aba7f6d56f1081a94677b2c665322e5e3754a1b420bf12760f4762f4ccf0b`
+- Source identity: [evidence/source-identity.json](evidence/source-identity.json), `9a96a39d…40ec7`.
+- `scripts/gen_tables.py` and `scripts/gen_icons.py` regenerate `src/ks_tables.inc` and `src/ks_icons.inc` byte for byte.
+- No sites: STRING contributes its machine to `core_machines`, Machine Pages draws its SRC page from its `cm_ui` descriptor and calls its render through `ev_render_voices` (order 20). The 1.54 package differs only by the `-DDIGISTRING_OS154` cflag.
 
 ## 2. Link
 
-Core 2.1 (the catalogue's `core-2.1.elemod` and `core-2.1-os1.54.elemod`) and STRING alone, linked with elekloader's Python patcher (commit 1b40132) against each stock file. Modwerk's `linkMods` gives the identical main image for both releases.
+Linked with elekloader's Python patcher (commit a401967) against each stock file, from the catalogue's Core 2.1, Machine Pages 1.2, RAM Machines 1.3.1, Note Accumulator 1.1.1 and digihealth 1.0 packages and the STRING packages above. `elekloader.lint` accepts STRING with Core 2.1, Machine Pages, RAM Machines and Note Accumulator on both releases.
 
-| OS | Main image SHA-256 | .syx SHA-256 | Version |
-| --- | --- | --- | --- |
-| 1.53 | `b71d5f11…ab75` | `fb58c1386309ffc942df1037dde2c371b2442b8de7158881aafbdd702a48377b` | M001 |
-| 1.54 | `47d6bd7b…e907` | `6f404382835d1ad0aee5ba8c32d433f554f6da5799d59cbc5763130f0b06b103` | M002 |
+| Build | OS | Modules | Main image SHA-256 | .syx SHA-256 |
+| --- | --- | --- | --- | --- |
+| M003 | 1.53 | Core, Machine Pages, STRING, RAM Machines, Note Accumulator | `c5d00673…5201` | `73d4f1f3924c90c7114e60d1d89be86647a9cb08fe80514bf072c4670cf2148f` |
+| M003 | 1.54 | Core, Machine Pages, STRING, RAM Machines, Note Accumulator | `2c340db8…f0c4` | `ef1a7631d27e832888edc34d21c61fcbc5b5ecd69a7710928f93c82c509256ed` |
+| M004 | 1.54 | Core, Machine Pages, STRING | `76e40bf4…c8ec` | `a4f139e213da4f0186d135e0b40b0ffe086b46811561a95cd584e64f1e9139a2` |
+| M005 | 1.54 | Core, digihealth, Machine Pages, STRING 0.9.0 | `b32d7825…f2ca` | `48b73042188657cb1474fee10801820739248a6539cbac94f8e4b9f47742cd21` |
+| M006 | 1.54 | Core, digihealth, STRING 0.8.0 (comparison) | `17775fa9…ab17` | `a37f15d537a99bdfcd9f4a686b33bd9af764936aa87d1527eef1f9c9eada6496` |
 
-Memory: `.run` 7,886 bytes and `.bss` 17,168 bytes (a 2 KB delay line per track) in the shared mod RAM, 104,636 bytes left beside Core 2.1; no fast SRAM.
+Memory: `.run` 7,141 bytes and `.bss` 17,152 bytes (a 2 KB delay line per track) in the shared mod RAM; no fast SRAM.
 
 ## 3. Screens (pinned digiemu c1b5735)
 
-[capture.json](media/capture.json): the machine list, the SRC page and EXC turned to BOW with 48 single encoder steps, from the M002 build. The M001 build (OS 1.53) gives byte-identical PNGs with the same plan.
+[capture.json](media/capture.json): the machine list, the SRC page and EXC turned to BOW with 48 single encoder steps, from the M004 build. A build with the same modules for OS 1.53 gives byte-identical PNGs with the same plan.
 
 ## 4. Hardware
 
-Alez22, Digitakt I, OS 1.54, build M002 (Core 2.1 and STRING only), 2026-10-27, 30 minutes, flashed with `amidi` in upgrade mode:
+Alez22, Digitakt I, 2026-10-28, flashed with `amidi` in upgrade mode. M003 (Core 2.1, Machine Pages, STRING, RAM Machines, Note Accumulator), OS 1.53 for 5 minutes and OS 1.54 for 15 minutes:
 
-| Check | Result |
-| --- | --- |
-| STRING in the FUNC + SRC list, below SLICE; SRC page names and EXC icons | Works |
-| BOW, HIT, NOISE and PLUCK; DECAY and TONE | Work |
-| Parameter locks and LFO on STRING parameters (STRG destinations) | Work |
-| Project save, power cycle and reload | The STRING track comes back unchanged |
-| Stock machines on other tracks | Play normally |
-| Several STRING tracks at once | Four play without crackles; with more than four the UI lags |
+| Check | 1.53 | 1.54 |
+| --- | --- | --- |
+| STRING in the FUNC + SRC list with its icon; SRC page names, EXC icons, knob D blank, POS and TONE scaling | Works | Works |
+| STRING's own defaults when a track switches to STRING | Applied | Applied |
+| LFO destinations named and grouped as STRG | Work | Work |
+| Project save, power cycle and reload | Comes back unchanged | Comes back unchanged |
+| Note Accumulator (ACC +1, RNG 3) on a STRING track | Transposes step by step | Transposes step by step |
+| RAM-R1 recording STRING from MAIN, RAM-P1 playing it back | Works | Works |
+| Several STRING tracks at once | Not stated | Three clean; from four the UI lags |
 
-Judged by ear and by the UI's response; no DSP or CPU readout (digihealth is not in this build).
+A project saved with STRING 0.8.0 was loaded on the author's elekloader builds K014 (OS 1.53) and K015 (OS 1.54) of the same source commit, with elekloader Core 4.1 and Machine Pages 1.5: it keeps its exciter and values. Not repeated on M003.
 
-Earlier, with the author's elekloader build of the same v0.8.0 source (not the Modwerk packages): S081 on OS 1.53, Core 2.1 + digihealth 1.0 (FAST AUDIO on) + STRING, worked with five STRING tracks at about 95% DSP load.
+Judged by ear and by the UI's response. On OS 1.54, M004 (without RAM Machines and Note Accumulator) also lags from four tracks.
+
+DSP load read on digihealth, OS 1.54, same pattern on both builds:
+
+| STRING tracks | 1 | 2 | 3 | 4 | 5 | 6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| M005: STRING 0.9.0 with Machine Pages | 81% | 87% | 91% | 95% | 96% | 98% |
+| M006: STRING 0.8.0, own sites | 82% | 89% | 91% | 92% | 96% | 100% |
+
+Both builds lag from four tracks on this pattern. Moving onto Machine Pages costs no measurable DSP load. The 0.8.0 session (build M002, 2026-10-27) played four tracks cleanly on a lighter pattern: the track count depends on the sounds, as long DECAY, BOW and low notes cost more.
 
 ## Stock flows compared
 
 | Flow | Result |
 | --- | --- |
-| Machine list | Stock machines unchanged; STRING added below SLICE (emulator) |
-| Stock machines on other tracks | Normal (hardware, OS 1.54) |
-| Project save, reload, power cycle | Normal (hardware, OS 1.54) |
+| Machine list | Stock machines unchanged; STRING added below SLICE (emulator and hardware) |
+| Project save, reload, power cycle | Normal (hardware, OS 1.53 and 1.54) |
 
 ## Still to test
 
-- The OS 1.53 build (M001) on hardware.
+- Track count on OS 1.53.
 - CPU load in the emulator with eight STRING tracks.
-- Beside every other catalogue module on hardware. It is declared incompatible with Note Accumulator, which patches the same stock routines.
+- Beside every other catalogue module on hardware. Machine Pages conflicts with DigiChain, so Digi Mono and Digi Poly cannot be installed with STRING.
